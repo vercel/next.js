@@ -34,6 +34,8 @@ use turbo_bincode::{
 };
 use turbo_tasks::{CellId, SharedReference, ShrinkToFit, ValueTypePersistence, registry};
 
+use crate::backend::storage_schema::{DropPartial, DropPartialOutcome};
+
 type InnerMap = AutoMap<CellId, SharedReference, BuildHasherDefault<FxHasher>, 1>;
 
 /// Map of cell id → shared reference, with bincode that filters out entries
@@ -45,7 +47,9 @@ impl CellData {
     pub fn new() -> Self {
         Self::default()
     }
+}
 
+impl DropPartial for CellData {
     /// Drop cells that can be cheaply reconstructed on next access, retain
     /// those that cannot. Called by the macro-generated `TaskStorage::drop_partial`
     /// on the data-eviction path.
@@ -57,10 +61,7 @@ impl CellData {
     /// Retained:
     /// - `SkipPersist { expensive: true, .. }` — expensive to re-derive.
     /// - `SessionStateful` — would lose accumulated state if dropped.
-    ///
-    /// Returns `true` if entries remain, so the caller can drop the whole
-    /// `LazyField::CellData` variant when empty.
-    pub fn drop_partial(&mut self) -> bool {
+    fn drop_partial(&mut self) -> DropPartialOutcome {
         self.0.retain(
             |cell_id, _| match registry::get_value_type(cell_id.type_id).persistence {
                 ValueTypePersistence::Persistable(_, _)
@@ -83,10 +84,10 @@ impl CellData {
             },
         );
         if self.0.is_empty() {
-            return false;
+            return DropPartialOutcome::Empty;
         }
         self.shrink_to_fit();
-        true
+        DropPartialOutcome::HasResidue
     }
 }
 
@@ -236,9 +237,7 @@ mod tests {
         data.insert(cell_of::<SessionStatefulV>(0), dummy_ref());
         data.insert(cell_of::<HashOnlyV>(0), dummy_ref());
 
-        let still_has_entries = data.drop_partial();
-
-        assert!(still_has_entries, "two non-recoverable entries remain");
+        assert_eq!(data.drop_partial(), DropPartialOutcome::HasResidue);
         assert_eq!(data.len(), 2);
         assert!(data.contains_key(&cell_of::<SkipExpensiveV>(0)));
         assert!(data.contains_key(&cell_of::<SessionStatefulV>(0)));
@@ -254,9 +253,7 @@ mod tests {
         data.insert(cell_of::<SkipCheapV>(0), dummy_ref());
         data.insert(cell_of::<HashOnlyV>(0), dummy_ref());
 
-        let still_has_entries = data.drop_partial();
-
-        assert!(!still_has_entries);
+        assert_eq!(data.drop_partial(), DropPartialOutcome::Empty);
         assert!(data.is_empty());
     }
 
@@ -266,15 +263,13 @@ mod tests {
         data.insert(cell_of::<SkipExpensiveV>(0), dummy_ref());
         data.insert(cell_of::<SessionStatefulV>(0), dummy_ref());
 
-        let still_has_entries = data.drop_partial();
-
-        assert!(still_has_entries);
+        assert_eq!(data.drop_partial(), DropPartialOutcome::HasResidue);
         assert_eq!(data.len(), 2);
     }
 
     #[test]
-    fn drop_partial_on_empty_returns_false() {
+    fn drop_partial_on_empty_returns_empty() {
         let mut data = CellData::new();
-        assert!(!data.drop_partial());
+        assert_eq!(data.drop_partial(), DropPartialOutcome::Empty);
     }
 }

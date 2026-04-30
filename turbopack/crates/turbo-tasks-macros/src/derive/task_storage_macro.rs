@@ -2862,38 +2862,78 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
         .map(gen_drop_lazy_match_arm)
         .collect();
 
-    let mut empty_checks_inline = Vec::new();
-    empty_checks_inline.push(quote! {
-        self.flags.0 == 0
-    });
-    empty_checks_inline.push(quote! {
-        self.lazy.iter().all(|f| f.is_empty())
-    });
-    for field in grouped_fields.all_inline() {
+    // Build per-category emptiness predicates. Each predicate inspects only
+    // the inline fields, lazy variants, and flag bits that belong to its
+    // category — which lets `drop_partial` skip re-checking the categories it
+    // just dropped (those are known to be clean when `__has_residue=false`).
+    fn category_inline_check(field: &FieldInfo) -> TokenStream {
         let field_name = &field.field_name;
-        empty_checks_inline.push(match field.storage_type {
-            StorageType::AutoMap | StorageType::AutoSet | StorageType::CounterMap => {
-                quote! {
-                    self.#field_name.is_empty()
-                }
-            }
-            StorageType::Direct => {
-                quote! {
-                    self.#field_name == Default::default()
-                }
-            }
-            StorageType::Flag => {
-                unreachable!();
-            }
-        });
+        match field.storage_type {
+            StorageType::AutoMap | StorageType::AutoSet | StorageType::CounterMap => quote! {
+                self.#field_name.is_empty()
+            },
+            StorageType::Direct => quote! {
+                self.#field_name == Default::default()
+            },
+            StorageType::Flag => unreachable!(),
+        }
     }
+
+    let inline_data_checks: Vec<_> = grouped_fields
+        .all_inline()
+        .filter(|f| f.category == Category::Data)
+        .map(category_inline_check)
+        .collect();
+    let inline_meta_checks: Vec<_> = grouped_fields
+        .all_inline()
+        .filter(|f| f.category == Category::Meta)
+        .map(category_inline_check)
+        .collect();
+    let inline_transient_checks: Vec<_> = grouped_fields
+        .all_inline()
+        .filter(|f| f.category == Category::Transient)
+        .map(category_inline_check)
+        .collect();
 
     quote! {
         #[automatically_derived]
         impl TaskStorage {
 
+            /// Whether this storage holds no data-category state — no
+            /// data-category lazy variants, no data-category inline fields
+            /// distinguishable from `Default`, and no persisted data flag
+            /// bits. Used by `drop_partial` to short-circuit `is_empty()`
+            /// after a meta-only or transient-only drop.
+            #[inline]
+            fn is_empty_data(&self) -> bool {
+                self.flags.persisted_data_bits() == 0
+                    && self.lazy.iter().all(|f| !f.is_data() || f.is_empty())
+                    #(&& #inline_data_checks)*
+            }
+
+            /// Whether this storage holds no meta-category state. See
+            /// [`Self::is_empty_data`].
+            #[inline]
+            fn is_empty_meta(&self) -> bool {
+                self.flags.persisted_meta_bits() == 0
+                    && self.lazy.iter().all(|f| !f.is_meta() || f.is_empty())
+                    #(&& #inline_meta_checks)*
+            }
+
+            /// Whether this storage holds no transient state. Transient state
+            /// is never touched by `drop_partial`, so the eviction caller has
+            /// to consult this independently of which categories were
+            /// dropped.
+            #[inline]
+            fn is_empty_transient(&self) -> bool {
+                // Transient flag bits are everything outside `PERSISTED_MASK`.
+                (self.flags.bits() & !TaskFlags::PERSISTED_MASK) == 0
+                    && self.lazy.iter().all(|f| f.is_persistent() || f.is_empty())
+                    #(&& #inline_transient_checks)*
+            }
+
             pub fn is_empty(&self) -> bool {
-                #( #empty_checks_inline )&&*
+                self.is_empty_meta() && self.is_empty_data() && self.is_empty_transient()
             }
 
             /// Drop persistent fields so the task can be evicted.
@@ -2901,15 +2941,33 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
             /// For each `filter_transient` field, transient entries are retained as
             /// residue (they cannot be reconstructed from disk); for all other
             /// persistent fields the field is reset to its default. Transient fields
-            /// (non-persistent) are never touched. After this returns, the caller can
-            /// check `is_empty()` to decide whether the whole task entry can be
-            /// removed or whether transient residue forced a partial eviction.
+            /// (non-persistent) are never touched.
             ///
             /// `data_restored` / `meta_restored` flags are cleared for the dropped
             /// categories so the next access triggers a restore. `prefetched` is
             /// cleared unconditionally.
-            pub fn drop_partial(&mut self, data: bool, meta: bool) {
+            ///
+            /// Authoritative on whether the task entry can be erased:
+            /// - `Empty` ⇒ the task entry is fully empty (no residue from the
+            ///   dropped categories, the OTHER category is empty too, and no
+            ///   transient state remains). Caller can erase the bucket.
+            /// - `HasResidue` ⇒ the task entry must stay in the map for some
+            ///   reason: residue from this drop, the other category is still
+            ///   populated, or transient state is set.
+            ///
+            /// The caller does NOT need to call `is_empty()` after this — the
+            /// outcome already accounts for everything `is_empty()` would check.
+            #[must_use]
+            pub fn drop_partial(
+                &mut self,
+                data: bool,
+                meta: bool,
+            ) -> DropPartialOutcome {
                 debug_assert!(data || meta, "at least one of data and meta must be true");
+                // OR'd to true by `gen_drop_inline_field` and
+                // `gen_drop_lazy_match_arm` whenever a `filter_transient` field
+                // reports `HasResidue`.
+                let mut __has_residue = false;
                 if data {
                     #(#drop_data_inline)*
                     // Clear persisted data flag bits so they don't keep an
@@ -2948,6 +3006,22 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
                     }
                 });
                 self.lazy.shrink_to_fit();
+                if __has_residue {
+                    // Some `filter_transient` field kept transient entries;
+                    // the entry must stay regardless of what other state is
+                    // present. Skip the per-category emptiness checks.
+                    return DropPartialOutcome::HasResidue;
+                }
+                // No residue from this drop, so the requested categories are
+                // fully clean. Consult only the categories we did NOT drop
+                // (plus transient state, which `drop_partial` never touches).
+                let meta_clean = meta || self.is_empty_meta();
+                let data_clean = data || self.is_empty_data();
+                if meta_clean && data_clean && self.is_empty_transient() {
+                    DropPartialOutcome::Empty
+                } else {
+                    DropPartialOutcome::HasResidue
+                }
             }
 
         }
@@ -2969,34 +3043,47 @@ fn gen_drop_inline_field(field: &FieldInfo) -> TokenStream {
     }
     let target = quote! { self.#field_name };
     if let StorageType::Direct = field.storage_type {
-        // the drop partial implementation resets to None so we don't need an assignment
+        // For `Option<T>` fields, `DropPartial::drop_partial` clears the
+        // `Option` to `None` for persistent values and leaves transient
+        // values in place. OR the residue bit into the surrounding
+        // `__has_residue` accumulator so the outer `drop_partial` can
+        // short-circuit the post-drop `is_empty()` query when residue is
+        // present.
         quote! {
-            (#target).drop_partial();
+            __has_residue |= (#target).drop_partial() == DropPartialOutcome::HasResidue;
         }
     } else {
+        // When empty, we reset to `Default::default()` to release any over-allocated
+        // capacity from the prior shape. When residue remains, we leave it in place
+        // so transient entries (e.g. transient `upper` references to root tasks)
+        // survive eviction. Restoration merges the persistent portion back in.
         quote! {
-            if !(#target).drop_partial() {
-                #target = Default::default();
+            match (#target).drop_partial() {
+                DropPartialOutcome::Empty => {
+                    #target = Default::default();
+                }
+                DropPartialOutcome::HasResidue => {
+                    __has_residue = true;
+                }
             }
-
         }
     }
 }
 
 /// Generate the match arm for a persistent lazy variant in `drop_partial`'s
-/// `retain_mut` closure. The closure returns `true` to keep the variant and
-/// `false` to remove it.
-///
-/// For non-`filter_transient` fields: always remove (`false`).
-/// For `filter_transient` fields: check for transient entries; if none, remove;
-/// if any, retain them in place and keep the variant.
+/// `retain_mut` closure. The closure returns `true` to keep the variant
+/// (transient residue remains) and `false` to remove it. As a side effect we
+/// OR residue into the outer `__has_residue` accumulator so the surrounding
+/// `drop_partial` can short-circuit the post-drop `is_empty()` query.
 fn gen_drop_lazy_match_arm(field: &FieldInfo) -> TokenStream {
     let variant_name = &field.variant_name;
     assert!(field.filter_transient || field.custom_drop_partial);
 
     quote! {
         LazyField::#variant_name(v) => {
-            v.drop_partial()
+            let keep = v.drop_partial() == DropPartialOutcome::HasResidue;
+            __has_residue |= keep;
+            keep
         }
     }
 }

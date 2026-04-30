@@ -15,7 +15,9 @@ use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{FxDashMap, TaskId, backend::CachedTaskType, event::Event, parallel};
 
 use crate::{
-    backend::storage_schema::{KeyEvictability, TaskStorage, UnevictableReason, ValueEvictability},
+    backend::storage_schema::{
+        DropPartialOutcome, KeyEvictability, TaskStorage, UnevictableReason, ValueEvictability,
+    },
     backing_storage::SnapshotItem,
     database::key_value_database::KeySpace,
     utils::{
@@ -502,19 +504,23 @@ impl Storage {
                 }
                 match value_evictability {
                     ValueEvictability::Evictable { meta, data } => {
-                        task.get_mut().drop_partial(data, meta);
-                        if task.get().is_empty() {
-                            unsafe {
-                                shard.erase(bucket);
+                        match task.get_mut().drop_partial(data, meta) {
+                            DropPartialOutcome::Empty => {
+                                unsafe {
+                                    shard.erase(bucket);
+                                }
+                                evicted.full += 1;
                             }
-                            evicted.full += 1;
-                        } else if data && meta {
-                            evicted.data_and_meta += 1;
-                        } else if data {
-                            evicted.data_only += 1;
-                        } else {
-                            debug_assert!(meta);
-                            evicted.meta_only += 1;
+                            DropPartialOutcome::HasResidue => {
+                                if data && meta {
+                                    evicted.data_and_meta += 1;
+                                } else if data {
+                                    evicted.data_only += 1;
+                                } else {
+                                    debug_assert!(meta);
+                                    evicted.meta_only += 1;
+                                }
+                            }
                         }
                     }
                     ValueEvictability::Unevictable(reason) => {

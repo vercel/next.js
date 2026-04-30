@@ -879,53 +879,70 @@ impl IsTransient for (CellRef, Option<u64>) {
     }
 }
 
-/// Helper trait for drop_partial implementation
-trait DropPartial {
-    /// Returns true if the value is now empty
-    fn drop_partial(&mut self) -> bool;
+/// Outcome of a `drop_partial` call: did residue (transient entries that
+/// can't be reconstructed from disk) survive the drop?
+#[must_use]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub(crate) enum DropPartialOutcome {
+    /// Field is fully empty after the drop
+    Empty,
+    /// Transient entries remain — they cannot be reconstructed from disk
+    /// and must be preserved through the eviction
+    HasResidue,
+}
+
+/// Helper trait for drop_partial implementation. `CellData` and the
+/// macro-generated `LazyField` arms also implement this trait so all
+/// `filter_transient` / `custom_drop_partial` fields share one signature.
+pub(crate) trait DropPartial {
+    /// Drop persistent entries; preserve transient residue. Returns
+    /// [`DropPartialOutcome`] so callers must explicitly distinguish the
+    /// empty and residue cases.
+    fn drop_partial(&mut self) -> DropPartialOutcome;
 }
 
 impl<T: IsTransient> DropPartial for Option<T> {
-    fn drop_partial(&mut self) -> bool {
+    fn drop_partial(&mut self) -> DropPartialOutcome {
         self.take_if(|v| !v.is_transient());
-        self.is_none()
+        if self.is_none() {
+            DropPartialOutcome::Empty
+        } else {
+            DropPartialOutcome::HasResidue
+        }
     }
 }
 
 impl<T: IsTransient + Hash + Eq> DropPartial for AutoSet<T> {
-    fn drop_partial(&mut self) -> bool {
+    fn drop_partial(&mut self) -> DropPartialOutcome {
         self.retain(|t| t.is_transient());
-        let end_len = self.len();
-        if end_len == 0 {
-            true
+        if self.is_empty() {
+            DropPartialOutcome::Empty
         } else {
             self.shrink_to_fit();
-            false
+            DropPartialOutcome::HasResidue
         }
     }
 }
 
 impl<K: IsTransient + Hash + Eq, V: Eq> DropPartial for CounterMap<K, V> {
-    fn drop_partial(&mut self) -> bool {
+    fn drop_partial(&mut self) -> DropPartialOutcome {
         self.retain(|k, _v| k.is_transient());
-        let end_len = self.len();
-        if end_len == 0 {
-            true
+        if self.is_empty() {
+            DropPartialOutcome::Empty
         } else {
             self.shrink_to_fit();
-            false
+            DropPartialOutcome::HasResidue
         }
     }
 }
 impl<K: IsTransient + Hash + Eq, V: IsTransient> DropPartial for AutoMap<K, V> {
-    fn drop_partial(&mut self) -> bool {
+    fn drop_partial(&mut self) -> DropPartialOutcome {
         self.retain(|k, v| k.is_transient() || v.is_transient());
-        let end_len = self.len();
-        if end_len == 0 {
-            true
+        if self.is_empty() {
+            DropPartialOutcome::Empty
         } else {
             self.shrink_to_fit();
-            false
+            DropPartialOutcome::HasResidue
         }
     }
 }
