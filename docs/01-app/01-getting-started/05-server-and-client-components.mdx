@@ -175,6 +175,8 @@ export default function Counter() {
 
 Once a file is marked with `"use client"`, **all its imports and child components are considered part of the client bundle**. This means you don't need to add the directive to every component that is intended for the client.
 
+Note: Server Components passed as **props** to a Client Component, (like in [this example](https://nextjs.org/docs/app/getting-started/server-and-client-components#interleaving-server-and-client-components)) remain Server Components. The Client Component receives only the RSC Payload of those Server Components, not their code, preserving their server-side execution.
+
 ### Reducing JS bundle size
 
 To reduce the size of your client JavaScript bundles, add `'use client'` to specific interactive components instead of marking large parts of your UI as Client Components.
