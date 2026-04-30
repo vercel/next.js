@@ -248,6 +248,7 @@ describe('Config Experimental Warning', () => {
         skipStart: true,
         nextConfig: {
           experimental: {
+            // @ts-expect-error - This is an intentional test
             appDir: true,
           },
         },
