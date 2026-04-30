@@ -21,6 +21,7 @@ import {
   ProjectDeps,
   ProjectFiles,
 } from './types'
+import { serializeTestPkgPathsEnv } from './test-pkg-paths'
 
 const cli = require.resolve('create-next-app/dist/index.js')
 
@@ -51,6 +52,13 @@ export const createNextApp = (
   delete cloneEnv.BUILD_NUMBER
 
   cloneEnv.NEXT_PRIVATE_TEST_VERSION = testVersion || 'canary'
+  // Forward all packed workspace tarballs so CNA can install siblings
+  // (`next-rspack`, `eslint-config-next`, ...) from their own tarballs
+  // when running tests directly (without `run-tests.js`).
+  const pkgPathsEnv = serializeTestPkgPathsEnv()
+  if (pkgPathsEnv) {
+    cloneEnv.NEXT_TEST_PKG_PATHS = pkgPathsEnv
+  }
 
   return spawn('node', [cli].concat(args), {
     ...options,

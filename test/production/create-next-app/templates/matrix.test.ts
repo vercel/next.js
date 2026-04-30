@@ -3,9 +3,10 @@ import { shouldUseTurbopack } from 'next-test-utils'
 
 const isTurbopack = shouldUseTurbopack()
 
-// Each test runs a full create-next-app, install, build, and start cycle.
-// Webpack builds are slower than Turbopack and can exceed the default
-// 60-second per-test timeout, so give each matrix test a generous timeout.
+// Each test runs a full create-next-app and (for `pages` templates) an
+// install, build, and start cycle. Webpack builds are slower than Turbopack
+// and can exceed the default 60-second per-test timeout, so give each matrix
+// test a generous timeout.
 const PER_TEST_TIMEOUT_MS = 5 * 60 * 1000
 
 describe.each(['app', 'pages'] as const)(
@@ -82,11 +83,22 @@ describe.each(['app', 'pages'] as const)(
           )
           expect(exitCode).toBe(0)
 
-          await tryNextDev({
-            cwd,
-            projectName,
-            isApp,
-          })
+          // We only run the build/start cycle for `pages` templates here.
+          // App Router build verification across the CNA flag matrix is
+          // covered by `app.test.ts` (and an internal Next.js bug currently
+          // makes `next build` of a freshly-generated App Router CNA project
+          // fail when `__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true` while
+          // prerendering `_global-error`). Restricting `tryNextDev` to
+          // `pages` keeps this matrix focused on validating that CNA
+          // produces working projects across many flag combinations without
+          // duplicating coverage from `app.test.ts`.
+          if (!isApp) {
+            await tryNextDev({
+              cwd,
+              projectName,
+              isApp,
+            })
+          }
         })
       },
       PER_TEST_TIMEOUT_MS
