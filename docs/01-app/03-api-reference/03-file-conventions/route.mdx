@@ -647,7 +647,7 @@ export const dynamicParams = true
 export const revalidate = false
 export const fetchCache = 'auto'
 export const runtime = 'nodejs'
-export const preferredRegion = 'auto'
+export const preferredRegion = 'auto' // deprecated
 ```
 
 ```js filename="app/items/route.js" switcher
@@ -656,7 +656,7 @@ export const dynamicParams = true
 export const revalidate = false
 export const fetchCache = 'auto'
 export const runtime = 'nodejs'
-export const preferredRegion = 'auto'
+export const preferredRegion = 'auto' // deprecated
 ```
 
 See the [API reference](/docs/app/api-reference/file-conventions/route-segment-config) for more details.
