@@ -7,7 +7,7 @@ const LIB_PATH = 'node_modules/lib/index.js'
 
 // Production-mode tests run a full `next build` followed by `next start`,
 // which on webpack regularly takes 30-60s per test case (see the original
-// `test/integration/edge-runtime-configurable-guards` which also used
+// `test/e2e/edge-runtime-configurable-guards` which also used
 // `jest.setTimeout(1000 * 60 * 2)`). The default 60s-per-test timeout is
 // too tight for webpack here; bump it so slower runs do not cascade into
 // "server is running" errors on subsequent tests.

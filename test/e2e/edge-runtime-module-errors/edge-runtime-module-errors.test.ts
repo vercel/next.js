@@ -4,7 +4,7 @@ import stripAnsi from 'strip-ansi'
 
 // Production-mode tests here run a full `next build` followed by
 // `next start` per case, which on webpack regularly takes 30-60s (see the
-// original `test/integration/edge-runtime-module-errors` which also used
+// original `test/e2e/edge-runtime-module-errors` which also used
 // `jest.setTimeout(1000 * 60 * 2)`). The default 60s-per-test jest
 // timeout is too tight for webpack and causes intermittent cascading
 // "server is running" failures on subsequent tests when one barely

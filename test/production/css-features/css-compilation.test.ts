@@ -2,7 +2,7 @@ import type { NextConfig } from 'next'
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
-/** Mirrors `test/integration/css-fixtures/next.config.js` merged into each fixture. */
+/** Mirrors `test/production/css-customization/css-fixtures/next.config.js` merged into each fixture. */
 const cssFixturesNextConfigBase = {
   onDemandEntries: {
     maxInactiveAge: 1000 * 60 * 60,
