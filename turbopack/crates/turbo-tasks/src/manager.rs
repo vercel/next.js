@@ -1188,20 +1188,20 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
 struct TurboTasksExecutor;
 
-/// Run a future that drives backend hooks (`task_execution_canceled`,
-/// `try_start_task_execution`, `task_execution_completed`) without their own
-/// panic boundary. A panic here corrupts backend invariants (per-task locks,
-/// restoration flags, aggregation queues, etc.) and historically manifested as
-/// a silent hang. Abort the process so the panic is loud and immediate.
+/// Run a future and abort the process if a panic is reported
+///
+/// Turbtasks catches panics from user code and propagates throught the task tree, but if it happens
+/// as part of state management we have to abort
 async fn abort_on_panic<F: Future>(f: F) -> F::Output {
     use futures::FutureExt;
     match AssertUnwindSafe(f).catch_unwind().await {
         Ok(r) => r,
         Err(_) => {
             eprintln!(
-                "[turbo-tasks] task execution loop panicked outside the user-task panic boundary. \
-                 Backend state is now inconsistent; aborting to avoid a silent hang. See the \
-                 panic message above."
+                "\nturbo-tasks: an internal panic occurred outside the per-task panic \
+                 boundary. This is a bug in turbo-tasks/Turbopack — please report it at \
+                 https://github.com/vercel/next.js/discussions and include the panic message \
+                 and stack trace above.\n\nAborting."
             );
             abort();
         }
