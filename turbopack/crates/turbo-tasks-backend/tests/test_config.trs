@@ -11,9 +11,6 @@
       turbo_tasks_backend::BackendOptions {
         num_workers: Some(2),
         small_preallocation: true,
-        evict_after_snapshot: true,
-        // Avoid racing with the background snapshot loop; the test drives
-        // snapshot_and_evict_for_testing manually.
         storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
         ..Default::default()
       },
