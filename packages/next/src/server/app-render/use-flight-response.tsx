@@ -1,7 +1,7 @@
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { BinaryStreamOf } from './app-render'
 
-import { htmlEscapeJsonString } from '../htmlescape'
+import { htmlEscapeJsonString } from '../../shared/lib/htmlescape'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
