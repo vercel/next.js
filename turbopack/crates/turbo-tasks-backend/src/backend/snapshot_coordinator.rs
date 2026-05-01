@@ -10,20 +10,6 @@
 //!   [`suspend_point`](SnapshotCoordinator::suspend_point) to suspend.
 //! - The snapshotter waits for every in-flight operation to drain or suspend, takes its snapshot,
 //!   then wakes everyone.
-//!
-//! ## Why this is a module
-//!
-//! The inner protocol mixes a tagged atomic counter with a mutex-protected
-//! flag and two condvars. Implementing it correctly on weak memory hardware
-//! requires careful pairing: every notify must be issued under the same mutex
-//! the waiters use, and every predicate read must be Acquire-ordered. The
-//! module hides those details so callers cannot reach in and break them.
-//!
-//! ## Test surface
-//!
-//! The coordinator is generic over the suspended-operation type, so unit
-//! tests can use a trivial placeholder (`()` or a small struct) to exercise
-//! the protocol without dragging in the rest of the backend.
 
 use std::sync::{
     Arc,
@@ -37,9 +23,6 @@ use crate::utils::ptr_eq_arc::PtrEqArc;
 
 /// High bit: set while a snapshot is requested or in flight.
 /// Low bits: count of operations currently executing (not suspended).
-///
-/// We pack both into one atomic so a single RMW can answer both questions
-/// (count and bit) without taking the mutex on the operation hot path.
 const SNAPSHOT_REQUESTED_BIT: usize = 1 << (usize::BITS - 1);
 
 /// State protected by the mutex. Kept tiny so critical sections stay short.
@@ -365,10 +348,12 @@ mod tests {
         let started_snapshot = Arc::new(AtomicUsize::new(0));
 
         let coord2 = coord.clone();
-        let started2 = started_snapshot.clone();
-        let snap_thread = thread::spawn(move || {
-            let _phase = coord2.begin_snapshot();
-            started2.store(1, Ordering::Release);
+        let snap_thread = thread::spawn({
+            let started_snapshot = started_snapshot.clone();
+            move || {
+                let _phase = coord2.begin_snapshot();
+                started_snapshot.store(1, Ordering::Release);
+            }
         });
 
         // Give the snapshotter time to set the bit and start waiting.
@@ -388,10 +373,12 @@ mod tests {
         let started_op = Arc::new(AtomicUsize::new(0));
 
         let coord2 = coord.clone();
-        let started2 = started_op.clone();
-        let op_thread = thread::spawn(move || {
-            let _g = coord2.begin_operation();
-            started2.store(1, Ordering::Release);
+        let op_thread = thread::spawn({
+            let started_op = started_op.clone();
+            move || {
+                let _guard = coord2.begin_operation();
+                started_op.store(1, Ordering::Release);
+            }
         });
 
         thread::sleep(Duration::from_millis(50));
@@ -409,14 +396,17 @@ mod tests {
 
         let snapshotter_done = Arc::new(AtomicUsize::new(0));
         let coord_snap = coord.clone();
-        let snap_done = snapshotter_done.clone();
-        let snap_thread = thread::spawn(move || {
-            let phase = coord_snap.begin_snapshot();
-            assert_eq!(phase.suspended_operations().len(), 1);
-            snap_done.store(1, Ordering::Release);
-            // Hold the snapshot for a moment so the suspend_point thread
-            // observes `snapshot_requested == true` after waking.
-            thread::sleep(Duration::from_millis(20));
+
+        let snap_thread = thread::spawn({
+            let snapshotter_done = snapshotter_done.clone();
+            move || {
+                let phase = coord_snap.begin_snapshot();
+                assert_eq!(phase.suspended_operations().len(), 1);
+                snapshotter_done.store(1, Ordering::Release);
+                // Hold the snapshot for a moment so the suspend_point thread
+                // observes `snapshot_requested == true` after waking.
+                thread::sleep(Duration::from_millis(20));
+            }
         });
 
         thread::sleep(Duration::from_millis(20));
@@ -439,20 +429,23 @@ mod tests {
         timeout: Duration,
     ) -> Arc<std::sync::atomic::AtomicBool> {
         let done = Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let done_watch = done.clone();
-        thread::spawn(move || {
-            let deadline = std::time::Instant::now() + timeout;
-            while std::time::Instant::now() < deadline {
-                if done_watch.load(Ordering::Acquire) {
-                    return;
+
+        thread::spawn({
+            let done_watch = done.clone();
+            move || {
+                let deadline = std::time::Instant::now() + timeout;
+                while std::time::Instant::now() < deadline {
+                    if done_watch.load(Ordering::Acquire) {
+                        return;
+                    }
+                    thread::sleep(Duration::from_millis(50));
                 }
-                thread::sleep(Duration::from_millis(50));
+                eprintln!(
+                    "[watchdog] {label}: timed out after {timeout:?}, missed-wakeup race likely; \
+                     aborting"
+                );
+                std::process::abort();
             }
-            eprintln!(
-                "[watchdog] {label}: timed out after {timeout:?}, missed-wakeup race likely; \
-                 aborting"
-            );
-            std::process::abort();
         });
         done
     }
@@ -475,23 +468,27 @@ mod tests {
         let mut op_handles = Vec::new();
         for _ in 0..8 {
             let coord = coord.clone();
-            let stop = stop.clone();
-            op_handles.push(thread::spawn(move || {
-                while !stop.load(Ordering::Relaxed) {
-                    let _g = coord.begin_operation();
+            op_handles.push(thread::spawn({
+                let stop = stop.clone();
+                move || {
+                    while !stop.load(Ordering::Relaxed) {
+                        let _g = coord.begin_operation();
+                    }
                 }
             }));
         }
         let mut snap_handles = Vec::new();
         for _ in 0..2 {
-            let coord = coord.clone();
-            let snapshot_lock = snapshot_lock.clone();
-            let snap_count = snap_count.clone();
-            snap_handles.push(thread::spawn(move || {
-                for _ in 0..200 {
-                    let _ser = snapshot_lock.lock();
-                    let _phase = coord.begin_snapshot();
-                    snap_count.fetch_add(1, Ordering::Relaxed);
+            snap_handles.push(thread::spawn({
+                let coord = coord.clone();
+                let snapshot_lock = snapshot_lock.clone();
+                let snap_count = snap_count.clone();
+                move || {
+                    for _ in 0..200 {
+                        let _ser = snapshot_lock.lock();
+                        let _phase = coord.begin_snapshot();
+                        snap_count.fetch_add(1, Ordering::Relaxed);
+                    }
                 }
             }));
         }
@@ -499,15 +496,18 @@ mod tests {
         // Progress watchdog: print snapshot count every 5s so we can see
         // if the test is making progress or actually wedged.
         let stop_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let stop_progress_clone = stop_progress.clone();
-        let snap_count_clone = snap_count.clone();
-        let progress = thread::spawn(move || {
-            while !stop_progress_clone.load(Ordering::Relaxed) {
-                thread::sleep(Duration::from_secs(5));
-                eprintln!(
-                    "[stress] snapshots completed: {}",
-                    snap_count_clone.load(Ordering::Relaxed),
-                );
+
+        let progress = thread::spawn({
+            let stop_progress = stop_progress.clone();
+            let snap_count = snap_count.clone();
+            move || {
+                while !stop_progress.load(Ordering::Relaxed) {
+                    thread::sleep(Duration::from_secs(1));
+                    eprintln!(
+                        "[stress] snapshots completed: {}",
+                        snap_count.load(Ordering::Relaxed),
+                    );
+                }
             }
         });
 
@@ -536,24 +536,28 @@ mod tests {
 
         let mut handles = Vec::new();
         for _ in 0..8 {
-            let coord = coord.clone();
-            let counter = counter.clone();
-            handles.push(thread::spawn(move || {
-                for _ in 0..200 {
-                    let _g = coord.begin_operation();
-                    counter.fetch_add(1, Ordering::Relaxed);
+            handles.push(thread::spawn({
+                let coord = coord.clone();
+                let counter = counter.clone();
+                move || {
+                    for _ in 0..200 {
+                        let _g = coord.begin_operation();
+                        counter.fetch_add(1, Ordering::Relaxed);
+                    }
                 }
             }));
         }
         for _ in 0..2 {
-            let coord = coord.clone();
-            let snapshot_lock = snapshot_lock.clone();
-            handles.push(thread::spawn(move || {
-                for _ in 0..50 {
-                    let _ser = snapshot_lock.lock();
-                    let _phase = coord.begin_snapshot();
-                    // Pretend to do snapshot work.
-                    thread::sleep(Duration::from_micros(10));
+            handles.push(thread::spawn({
+                let coord = coord.clone();
+                let snapshot_lock = snapshot_lock.clone();
+                move || {
+                    for _ in 0..50 {
+                        let _ser = snapshot_lock.lock();
+                        let _phase = coord.begin_snapshot();
+                        // Pretend to do snapshot work.
+                        thread::sleep(Duration::from_micros(10));
+                    }
                 }
             }));
         }
