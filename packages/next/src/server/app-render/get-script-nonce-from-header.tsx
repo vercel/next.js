@@ -1,4 +1,4 @@
-import { ESCAPE_REGEX } from '../htmlescape'
+import { ESCAPE_REGEX } from '../../shared/lib/htmlescape'
 
 export function getScriptNonceFromHeader(
   cspHeaderValue: string
