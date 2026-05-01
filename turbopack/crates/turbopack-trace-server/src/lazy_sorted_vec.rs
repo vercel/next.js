@@ -47,7 +47,9 @@ impl<T: Ord> Deref for LazySortedVec<T> {
             // SAFETY: The only access to the `vec` is through this `Deref` implementation, or we
             // have a `&mut self` which prevents a simultaneous `Deref`. So we can guarantee that
             // there are no other accesses to the `vec` while we sort it.
-            unsafe { &mut *ptr }.sort()
+            let inner = unsafe { &mut *ptr };
+            inner.sort();
+            inner.shrink_to_fit();
         });
         // SAFETY: Returning this reference is safe because the lifetime guarantees that there is no
         // `&mut self` that could cause a simultaneous access to the `vec`, and the `Once`
