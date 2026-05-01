@@ -16,6 +16,7 @@ import { interopDefault } from '../../server/app-render/interop-default'
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
+import { isRSCRequestHeader } from '../../server/lib/is-rsc-request'
 import {
   getFallbackRouteParams,
   type FallbackRouteParams,
@@ -197,7 +198,8 @@ export async function handler(
   // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
 
   const isRSCRequest =
-    getRequestMeta(req, 'isRSCRequest') ?? Boolean(req.headers[RSC_HEADER])
+    getRequestMeta(req, 'isRSCRequest') ??
+    isRSCRequestHeader(req.headers[RSC_HEADER])
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
 
