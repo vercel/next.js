@@ -9,6 +9,7 @@ use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 
 use crate::{
+    chunked_vec::ChunkedVec,
     self_time_tree::SelfTimeTree,
     span::{Span, SpanArgs, SpanEvent, SpanIndex, SpanTimeData},
     span_ref::SpanRef,
@@ -33,7 +34,7 @@ type MemorySample = (Timestamp, u64, u8);
 const MAX_MEMORY_SAMPLES: usize = 200;
 
 pub struct Store {
-    pub(crate) spans: Vec<Span>,
+    pub(crate) spans: ChunkedVec<Span>,
     pub(crate) self_time_tree: Option<SelfTimeTree<SpanIndex>>,
     max_self_time_lookup_time: AtomicU64,
     /// Global sorted list of memory samples (timestamp, memory_bytes).
@@ -66,12 +67,10 @@ fn new_root_span() -> Span {
 
 impl Store {
     pub fn new() -> Self {
+        let mut spans = ChunkedVec::new();
+        spans.push(new_root_span());
         Self {
-            spans: {
-                let mut v = Vec::with_capacity(131_072);
-                v.push(new_root_span());
-                v
-            },
+            spans,
             self_time_tree: env::var("NO_CORRECTED_TIME")
                 .ok()
                 .is_none()
@@ -82,8 +81,8 @@ impl Store {
     }
 
     pub fn reset(&mut self) {
-        self.spans.truncate(1);
-        self.spans[0] = new_root_span();
+        self.spans = ChunkedVec::new();
+        self.spans.push(new_root_span());
         if let Some(tree) = self.self_time_tree.as_mut() {
             *tree = SelfTimeTree::new();
         }
@@ -163,7 +162,7 @@ impl Store {
     pub fn add_args(
         &mut self,
         span_index: SpanIndex,
-        args: Vec<(RcStr, RcStr)>,
+        args: SpanArgs,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
         let span = &mut self.spans[span_index.get()];
