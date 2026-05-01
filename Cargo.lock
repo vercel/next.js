@@ -10405,6 +10405,7 @@ dependencies = [
  "swc_sourcemap",
  "tokio",
  "tracing",
+ "triomphe 0.1.12",
  "turbo-bincode",
  "turbo-esregex",
  "turbo-frozenmap",

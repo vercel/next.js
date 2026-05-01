@@ -1,6 +1,7 @@
-use std::{mem::take, sync::Arc};
+use std::mem::take;
 
 use anyhow::Result;
+use triomphe::Arc;
 use turbo_rcstr::rcstr;
 use turbo_tasks::Vc;
 use turbopack_core::compile_time_info::CompileTimeInfo;
