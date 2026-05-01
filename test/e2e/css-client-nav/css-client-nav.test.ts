@@ -10,6 +10,10 @@ describe('CSS Module client-side navigation', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // Calls `next.build()` and uses an in-test proxy in front of the Next
+    // server; both rely on the local-process model and are not applicable to
+    // deploy mode.
+    skipDeployment: true,
   })
 
   let proxyServer: http.Server

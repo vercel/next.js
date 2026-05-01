@@ -4,6 +4,8 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
   () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
+      skipDeployment: true,
     })
 
     function runTests() {

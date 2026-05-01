@@ -5,6 +5,10 @@ import { retry } from 'next-test-utils'
 describe('nested index.js', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
+    // Vercel's deploy infrastructure normalizes nested `/index/index/index`
+    // paths differently from Next.js's local server, so the routing
+    // assertions here are local-only.
+    skipDeployment: true,
   })
 
   it('should ssr page /', async () => {

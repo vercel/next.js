@@ -9,11 +9,12 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 import assert from 'assert'
 
 describe('i18n Support', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
+  if (isNextDeploy) return
 
   const ctx: Record<string, any> = {
     basePath: '',

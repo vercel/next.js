@@ -4,6 +4,8 @@ describe('API body parser', () => {
   describe('without custom server', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      // Uses a custom HTTP/proxy server in front of Next.js; not applicable in deploy mode.
+      skipDeployment: true,
     })
 
     it('should parse JSON body', async () => {
@@ -28,6 +30,8 @@ describe('API body parser', () => {
       dependencies: {
         express: '4',
       },
+      // Uses a custom HTTP/proxy server in front of Next.js; not applicable in deploy mode.
+      skipDeployment: true,
     })
 
     it('should not throw if request body is already parsed in custom middleware', async () => {

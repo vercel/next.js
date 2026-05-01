@@ -8,6 +8,8 @@ describe('page features telemetry', () => {
   const { next, isTurbopack, isNextStart } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // Calls `next.build()` directly which is not supported on `NextDeployInstance`.
+    skipDeployment: true,
   })
 
   async function launchDevServer(

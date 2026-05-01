@@ -14,12 +14,13 @@ import {
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 
 describe('Custom routes', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     disableAutoSkewProtection: true,
     skipDeployment: true,
   })
+  if (isNextDeploy) return
 
   let externalServerPort: number
   let externalServer: http.Server
@@ -3471,7 +3472,7 @@ describe('Custom routes', () => {
   }
 })
 describe('Custom routes no-op rewrite', () => {
-  const { next, isTurbopack, isNextStart } = nextTestSetup({
+  const { next, isTurbopack, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     env: {
@@ -3479,6 +3480,7 @@ describe('Custom routes no-op rewrite', () => {
     },
     skipDeployment: true,
   })
+  if (isNextDeploy) return
   if (isTurbopack && isNextStart) {
     it('skipped - not supported in turbopack build mode', () => {})
     return
@@ -3527,12 +3529,13 @@ describe('Custom routes no-op rewrite', () => {
 })
 
 describe('Custom routes solo types', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     disableAutoSkewProtection: true,
     skipDeployment: true,
   })
+  if (isNextDeploy) return
 
   let externalServer: http.Server
   let externalServerPort: number
@@ -3649,11 +3652,12 @@ describe('Custom routes solo types', () => {
   })
 })
 ;(isNextStart ? describe : describe.skip)('Custom routes export', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
+  if (isNextDeploy) return
 
   it('should not show warning for custom routes when not next export', async () => {
     await next.patchFile('next.config.js', (content) =>

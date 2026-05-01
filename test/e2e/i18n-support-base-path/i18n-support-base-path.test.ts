@@ -6,11 +6,12 @@ import { findPort, fetchViaHTTP } from 'next-test-utils'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 describe('i18n Support basePath', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
+  if (isNextDeploy) return
 
   const ctx: Record<string, any> = {
     basePath: '/docs',

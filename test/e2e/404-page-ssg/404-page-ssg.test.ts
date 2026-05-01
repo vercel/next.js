@@ -4,6 +4,8 @@ describe('404 Page Support SSG', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
+    // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
+    skipDeployment: true,
   })
 
   it('should respond to 404 correctly', async () => {

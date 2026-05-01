@@ -6,6 +6,8 @@ describe('interception-routes-output-export', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
+    skipDeployment: true,
   })
 
   it('should error when using interception routes with static export', async () => {

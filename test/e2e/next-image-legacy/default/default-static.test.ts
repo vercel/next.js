@@ -3,12 +3,12 @@ import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 describe('Build Error Tests', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
-
+  if (isNextDeploy) return
   ;(isNextStart ? it : it.skip)(
     'should throw build error when import statement is used with missing file',
     async () => {
@@ -37,10 +37,11 @@ describe('Build Error Tests', () => {
 })
 
 describe('Static Image Component Tests', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
+  if (isNextDeploy) return
 
   let browser: Awaited<ReturnType<typeof next.browser>>
   let html: string

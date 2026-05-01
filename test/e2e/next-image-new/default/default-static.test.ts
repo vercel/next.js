@@ -2,12 +2,13 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 describe('Build Error Tests', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
     disableAutoSkewProtection: true,
   })
+  if (isNextDeploy) return
 
   if (isNextDev) {
     it('no-op in dev', () => {})
@@ -35,11 +36,12 @@ describe('Build Error Tests', () => {
 })
 
 describe('Static Image Component Tests', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     disableAutoSkewProtection: true,
   })
+  if (isNextDeploy) return
 
   let browser: Awaited<ReturnType<typeof next.browser>>
   let $: ReturnType<typeof cheerio.load>

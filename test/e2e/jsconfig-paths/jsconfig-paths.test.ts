@@ -3,10 +3,11 @@ import { retry } from 'next-test-utils'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 
 describe('jsconfig paths', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
+  if (isNextDeploy) return
 
   it('should alias components', async () => {
     const $ = await next.render$('/basic-alias')
@@ -95,11 +96,12 @@ describe('jsconfig paths', () => {
 })
 
 describe('jsconfig paths without baseurl', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
+  if (isNextDeploy) return
 
   let originalJsconfigContent: string
 

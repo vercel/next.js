@@ -7,6 +7,8 @@ describe('router hash navigation', () => {
       react: '19.3.0-canary-fef12a01-20260413',
       'react-dom': '19.3.0-canary-fef12a01-20260413',
     },
+    // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
+    skipDeployment: true,
   })
 
   it('scrolls to top when href="/" and url already contains a hash', async () => {

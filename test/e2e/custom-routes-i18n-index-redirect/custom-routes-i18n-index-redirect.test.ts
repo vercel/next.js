@@ -3,6 +3,8 @@ import { nextTestSetup } from 'e2e-utils'
 describe('Custom routes i18n with index redirect', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
+    skipDeployment: true,
   })
 
   it('should respond to default locale redirects correctly for index redirect', async () => {

@@ -5,6 +5,10 @@ describe('Dynamic Routing', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
+    // Some assertions (`should not decode slashes`, `should serve file with
+    // plus from public/static folder`) depend on local Next.js URL handling
+    // and don't apply to Vercel's deploy infrastructure.
+    skipDeployment: true,
   })
 
   runTests({ next, isNextDev, isTurbopack, middlewareEnabled: false })

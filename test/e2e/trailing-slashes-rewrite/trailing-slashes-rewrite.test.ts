@@ -6,6 +6,9 @@ describe('Trailing Slash Rewrite Proxying', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // Spawns a custom proxy server in front of `next.start()`; deploy mode
+    // doesn't run a local server.
+    skipDeployment: true,
   })
 
   let proxyServer: any

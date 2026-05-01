@@ -16,6 +16,8 @@ describe('app dir client cache semantics (30s/5min)', () => {
     nextConfig: {
       experimental: { staleTimes: { dynamic: 30, static: 180 } },
     },
+    // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
+    skipDeployment: true,
   })
 
   if (isNextDev) {

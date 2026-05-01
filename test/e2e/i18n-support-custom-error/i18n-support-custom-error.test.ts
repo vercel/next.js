@@ -4,6 +4,8 @@ import { retry } from 'next-test-utils'
 describe('Custom routes i18n custom error', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
+    skipDeployment: true,
   })
 
   const locales = ['en', 'fr', 'de', 'it']

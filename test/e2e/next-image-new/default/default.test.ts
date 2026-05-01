@@ -18,6 +18,10 @@ describe('Image Component Default Tests', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
+    // Image URL assertions assume local-relative `/_next/image?url=...`
+    // paths and access to `.next/static` on disk; deploy mode rewrites URLs
+    // through the Vercel hostname and has no on-disk `.next/`.
+    skipDeployment: true,
   })
 
   let dpl: string

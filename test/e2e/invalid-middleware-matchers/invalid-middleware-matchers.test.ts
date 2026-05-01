@@ -2,11 +2,12 @@ import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('Errors on invalid custom middleware matchers', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
+  if (isNextDeploy) return
 
   afterEach(async () => {
     await next.deleteFile('middleware.js').catch(() => {})

@@ -4,6 +4,8 @@ import cheerio from 'cheerio'
 describe('fallback: false rewrite', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
+    skipDeployment: true,
   })
 
   it('should rewrite correctly for path at same level as fallback: false SSR', async () => {

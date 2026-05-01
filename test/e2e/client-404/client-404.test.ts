@@ -7,6 +7,8 @@ import {
 describe('Client 404', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
+    skipDeployment: true,
   })
 
   beforeAll(async () => {

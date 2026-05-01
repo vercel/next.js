@@ -415,19 +415,21 @@ function runTests({
 describe('404 handling', () => {
   describe('custom _error', () => {
     describe('server mode', () => {
-      const { next } = nextTestSetup({
+      const { next, isNextDeploy } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipDeployment: true,
       })
+      if (isNextDeploy) return
 
       runTests({ next, isDev: isNextDev, isPages404: false })
     })
     ;(isNextStart ? describe : describe.skip)('export mode', () => {
-      const { next } = nextTestSetup({
+      const { next, isNextDeploy } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
         skipDeployment: true,
       })
+      if (isNextDeploy) return
 
       let staticServer: any
       let staticPort: number
@@ -466,11 +468,12 @@ describe('404 handling', () => {
 
   describe('pages/404', () => {
     describe('server mode', () => {
-      const { next } = nextTestSetup({
+      const { next, isNextDeploy } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
         skipDeployment: true,
       })
+      if (isNextDeploy) return
 
       beforeAll(async () => {
         await next.deleteFile('pages/_error.js')
@@ -495,11 +498,12 @@ describe('404 handling', () => {
       runTests({ next, isDev: isNextDev, isPages404: true })
     })
     ;(isNextStart ? describe : describe.skip)('pages/404 export mode', () => {
-      const { next } = nextTestSetup({
+      const { next, isNextDeploy } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
         skipDeployment: true,
       })
+      if (isNextDeploy) return
 
       let staticServer: any
       let staticPort: number

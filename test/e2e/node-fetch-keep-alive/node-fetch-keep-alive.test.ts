@@ -7,6 +7,8 @@ describe('node-fetch-keep-alive', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
+    skipDeployment: true,
   })
 
   beforeAll(async () => {

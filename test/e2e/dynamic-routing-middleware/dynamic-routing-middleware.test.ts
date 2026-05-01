@@ -3,12 +3,13 @@ import { join } from 'path'
 import { runTests } from '../dynamic-routing/shared'
 
 describe('Dynamic Routing with Middleware', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isNextDeploy } = nextTestSetup({
     files: join(__dirname, '../dynamic-routing'),
     skipStart: true,
     disableAutoSkewProtection: true,
     skipDeployment: true,
   })
+  if (isNextDeploy) return
 
   beforeAll(async () => {
     await next.patchFile(

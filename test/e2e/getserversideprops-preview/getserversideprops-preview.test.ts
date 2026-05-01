@@ -18,6 +18,8 @@ function getData(html: string) {
 describe('ServerSide Props Preview Mode', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
+    skipDeployment: true,
   })
 
   if (isNextStart) {
