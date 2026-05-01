@@ -29,7 +29,9 @@ fn create_tt_with_workers(
         BackendOptions {
             num_workers: Some(num_workers),
             small_preallocation: true,
-            storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWrite),
+            // Avoid racing with the background snapshot loop; the test drives
+            // snapshot_and_evict_for_testing manually.
+            storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
             evict_after_snapshot: true,
             ..Default::default()
         },
@@ -61,7 +63,9 @@ fn create_tt(name: &str) -> Arc<TurboTasks<TurboTasksBackend<TurboBackingStorage
         BackendOptions {
             num_workers: Some(2),
             small_preallocation: true,
-            storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWrite),
+            // Avoid racing with the background snapshot loop; the test drives
+            // snapshot_and_evict_for_testing manually.
+            storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
             evict_after_snapshot: true,
             ..Default::default()
         },
