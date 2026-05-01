@@ -47,6 +47,11 @@ on:
         required: false
         type: string
         default: ''
+      browser:
+        description: 'Browser to use for tests'
+        required: false
+        type: string
+        default: 'chromium'
 
 env:
   NAPI_CLI_VERSION: 2.18.4
