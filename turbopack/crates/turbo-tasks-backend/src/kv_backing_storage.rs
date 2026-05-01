@@ -239,7 +239,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 
         {
             let _span = tracing::trace_span!("update task data").entered();
-            let (max_new_task_id, data_items, meta_items, task_cache_items) =
+            let snapshot_meta =
                 parallel::map_collect_owned::<_, _, Result<Vec<_>>>(snapshots, |shard: I| {
                     let mut max_new_task_id = 0;
                     let mut data_items = 0;
@@ -281,10 +281,15 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                             max_new_task_id = max_new_task_id.max(*task_id);
                         }
                     }
-                    Ok((max_new_task_id, data_items, meta_items, task_cache_items))
+                    Ok(SnapshotMeta {
+                        data_items,
+                        meta_items,
+                        task_cache_items,
+                        max_next_task_id: max_new_task_id,
+                    })
                 })?
                 .into_iter()
-                .reduce(|t1, t2| (max(t1.0, t2.0), t1.1 + t2.1, t1.2 + t2.2, t1.3 + t2.3))
+                .reduce(|t1, t2| t1.merge(t2))
                 .unwrap_or_default();
 
             let span = tracing::trace_span!("flush task data").entered();
@@ -299,19 +304,14 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             )?;
 
             let mut next_task_id = get_next_free_task_id(&batch)?;
-            next_task_id = next_task_id.max(max_new_task_id + 1);
+            next_task_id = next_task_id.max(snapshot_meta.max_next_task_id + 1);
 
             save_infra(&batch, next_task_id, operations)?;
             {
                 let _span = tracing::trace_span!("commit").entered();
                 batch.commit().context("Unable to commit operations")?;
             }
-            Ok(SnapshotMeta {
-                data_items,
-                meta_items,
-                task_cache_items,
-                next_task_id,
-            })
+            Ok(snapshot_meta)
         }
     }
 
