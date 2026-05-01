@@ -12,13 +12,13 @@ related:
 
 In React, you build a UI by breaking the screen into components and letting data flow through the tree. The original [Thinking in React](https://react.dev/learn/thinking-in-react) walks through that mental model. Break it down, build it static, then add state.
 
-In Next.js, the same component tree also says where data comes from, what renders immediately, what streams later, and what can be reused across navigations. Each component picks up an extra responsibility along with its rendering. It decides what kind of work it is.
+In Next.js, the same component tree also says where data comes from, what renders immediately, what streams later, and what can be reused across navigations. You compose server and client work as plain components, with each piece running where it belongs. React's [Server Components](https://react.dev/reference/rsc/server-components), [Suspense](https://react.dev/reference/react/Suspense), and [Transitions](https://react.dev/reference/react/useTransition) coordinate the result.
 
 ## Start with the mockup
 
 The brief: a small projects dashboard. Each viewer sees their projects, opens one to see its deployments, and opens a deployment to read its build log. They can search the list, pin favorites, and trigger a redeploy from the project page.
 
-The designer hands over mockups for three routes.
+Imagine the designer hands you mockups for three routes.
 
 <Image
   alt="Three route cards labeled /projects, /projects/compass, and /projects/compass/deployments/compass-jx9q3, each split into top bar, sidebar, and content regions."
@@ -55,7 +55,7 @@ The order matters. It's hard to think about caching before knowing what data is 
 Start by drawing boxes around each region and naming them.
 
 <Image
-  alt="A /projects mockup with four numbered regions next to a legend: 1 ProjectsLayout (frame around every page), 2 HeaderBar and SearchBar (top bar across every route), 3 Sidebar (Pinned and Recent deploys), 4 ProjectCard, ProjectPin, and PinButton (one project tile in the list)."
+  alt="A /projects mockup with four numbered regions next to a legend: 1 ProjectsLayout (frame around every page), 2 HeaderBar (top bar across every route), 3 Sidebar (Pinned and Recent deploys), 4 ProjectCard (one project tile in the list)."
   srcLight="/docs/guides/thinking-in-nextjs/component-legend-light.png"
   srcDark="/docs/guides/thinking-in-nextjs/component-legend-dark.png"
   width={1088}
@@ -64,16 +64,16 @@ Start by drawing boxes around each region and naming them.
 
 The full table fills in the project and build pages:
 
-| Region                  | Component                                |
-| ----------------------- | ---------------------------------------- |
-| Frame around every page | `ProjectsLayout`                         |
-| Top bar                 | `HeaderBar` and `SearchBar`              |
-| Sidebar                 | `Sidebar` (Pinned and Recent deploys)    |
-| Project tile            | `ProjectCard`, `ProjectPin`, `PinButton` |
-| Project page header     | `ProjectHeader` and `DeployButton`       |
-| Deployments list        | `Deployments`                            |
-| Build page header       | `DeploymentHeader`                       |
-| Build logs              | `BuildLogs`                              |
+| Region                  | Component                             |
+| ----------------------- | ------------------------------------- |
+| Frame around every page | `ProjectsLayout`                      |
+| Top bar                 | `HeaderBar`                           |
+| Sidebar                 | `Sidebar` (Pinned and Recent deploys) |
+| Project tile            | `ProjectCard`                         |
+| Project page header     | `ProjectHeader`                       |
+| Deployments list        | `Deployments`                         |
+| Build page header       | `DeploymentHeader`                    |
+| Build logs              | `BuildLogs`                           |
 
 The route shape lines up with the table:
 
@@ -84,13 +84,13 @@ ProjectsLayout                      ← persistent: HeaderBar + Sidebar
 └── /…/deployments/[deployId]       → DeploymentHeader + BuildLogs
 ```
 
-A few pairs (`HeaderBar` and `SearchBar`, `ProjectPin` and `PinButton`) are split because one side reads cookies or talks to the database, and the other handles user input. Server work and client work end up in separate files because they run in separate environments.
+The split mirrors the data. Each repeating piece of data gets one component: one `ProjectCard` per `Project`, one row per `Deployment`, one row per `LogLine`. [Thinking in React](https://react.dev/learn/thinking-in-react#step-1-break-the-ui-into-a-component-hierarchy) calls this matching the component structure to the data model — UI and data tend to share the same shape.
 
-At this stage, no decisions about caching, streaming, or client-side rendering. Start with what each component is responsible for. The other choices follow from there.
+At this stage, no decisions about how the data arrives, what's reused, or where components run. Naming and grouping is enough.
 
 ## Step 2: Build a static version with JSX
 
-Build it from mock data, with no database, actions, or client state.
+Now that the regions are named, render them as JSX from inline mock data. The database, Server Functions, and client state come later. It's easier to see the UI before any of those decisions come in.
 
 ```tsx
 function ProjectsPage() {
@@ -111,7 +111,7 @@ Layouts and pages are [Server Components](/docs/app/getting-started/server-and-c
 
 This is the App Router version of "build a static version" from Thinking in React. The UI is visible before any decision about where the real data comes from.
 
-Notice that the deployed route paints in one shot, with nothing to wait for. The HTML comes back from a static prerender, since every value the components need is inline mock data.
+Notice that the deployed route paints in one shot, with nothing to wait for. The HTML comes back from a static prerender, since every value the components need is inline mock data. Think of it as the route's flat baseline. Every later step adds shape only where the route needs it.
 
 <Demo
   src="https://thinking-in-nextjs-02.labs.vercel.dev/projects"
@@ -122,7 +122,7 @@ Source: [`steps/02-static-jsx`](https://github.com/vercel-labs/thinking-in-nextj
 
 ## Step 3: Fetch data where it is used
 
-Replace the mock data with reads from the data layer (the small set of functions that talk to the database or an upstream API). In Server Components, the component that displays the data reads it directly:
+With the static version painting, each region is ready to read from the real data layer. The data layer is the small set of functions that talk to the database or an upstream API. In Server Components, the component that displays the data reads it directly:
 
 ```tsx
 async function ProjectGrid({ searchParams }) {
@@ -133,6 +133,8 @@ async function ProjectGrid({ searchParams }) {
 ```
 
 Each component owns its read, kept close to the JSX that uses it. Lifting every fetch into a single parent and passing data down through props couples otherwise independent components, and tends to run their reads one after another instead of in parallel.
+
+Search uses a plain HTML form. Submitting it navigates to `/projects?q=...`, which `ProjectGrid` reads from `searchParams`. Step 7 layers a Client Component on top for live URL updates.
 
 Walking the tree from this angle, every piece of UI shows what it depends on:
 
@@ -147,9 +149,20 @@ Walking the tree from this angle, every piece of UI shows what it depends on:
 | `PinnedList`, `ProjectPin` | The viewer's pinned ids, stored in a cookie.    |
 | `ViewerAvatar`             | The current viewer, also from a cookie.         |
 
-Each component now reads its own data, but the prerender can't tell which of those reads will block. Earlier versions of App Router built the route either way, and finding the read that kept it from being static meant reading the build output or the request waterfall.
+Each component now reads its own data, but every read is dynamic. The route works, but every request runs every read, and the build doesn't try to prerender. Step 4 takes this further.
 
-[Cache Components](/docs/app/getting-started/caching) surfaces this. Opt in:
+Notice that the deployed route waits on the slowest read before it paints. Nothing on the page shows until every section's data is ready, even the parts that don't depend on it. Hit the refresh button in the demo's browser chrome to load it again.
+
+<Demo
+  src="https://thinking-in-nextjs-03.labs.vercel.dev/projects"
+  title="Step 3: Fetch data"
+/>
+
+Source: [`steps/03-fetch-data`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/03-fetch-data).
+
+## Step 4: Stream async work
+
+Earlier versions of App Router built the route either way. Finding the read that kept it from being static meant reading the build output or watching the request waterfall by hand. The refined model surfaces it for you. [`cacheComponents`](/docs/app/getting-started/caching) is the app-wide switch in `next.config.ts`:
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -161,29 +174,17 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-With it on, the prerender expects every async read to either be cached or sit behind a Suspense boundary. Anything else surfaces in both `next dev` and `next build` as [`Uncached data was accessed outside of <Suspense>`](https://nextjs.org/docs/messages/blocking-route), pointing at the call site.
+With it on, the prerender expects every async read to either be cached or sit behind a Suspense boundary. Anything else surfaces in both `next dev` and `next build` as [`Uncached data was accessed outside of <Suspense>`](https://nextjs.org/docs/messages/blocking-route), pointing at the call site:
 
-{/* TODO: add a real screenshot of the dev overlay via <Image src="..." /> once available. */}
-
-There are two ways to answer that:
-
-- `'use cache'`. Reuse the read so it can sit in the static shell.
-- `<Suspense>`. Provide a placeholder so the read can stream at request time.
-
-The component is correct, but the rendering structure isn't finished. Each async read picks one of the next two steps.
-
-Open the deployed route. The dashboard looks the same, now backed by the data layer instead of mock data.
-
-<Demo
-  src="https://thinking-in-nextjs-03.labs.vercel.dev/projects"
-  title="Step 3: Fetch data"
+<Image
+  alt="Next.js dev overlay reading 'Next.js encountered uncached data during the initial render.' A code preview highlights an uncached fetch call inside a Page component. Below, three fix cards are listed: 'Prerender and cache' with a 'use cache' snippet, 'Provide a placeholder with Suspense', and 'Allow blocking route' with `export const instant = false`."
+  srcLight="/docs/guides/thinking-in-nextjs/dev-overlay-light.png"
+  srcDark="/docs/guides/thinking-in-nextjs/dev-overlay-dark.png"
+  width={1024}
+  height={600}
 />
 
-Source: [`steps/03-fetch-data`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/03-fetch-data).
-
-## Step 4: Stream async work
-
-Wrap the sections that load data in [`<Suspense>`](https://react.dev/reference/react/Suspense) so the [static shell](/docs/app/glossary#static-shell) (the parts that don't need to wait) can render first:
+Each error gives you two options: stream the read (this step) or cache it (Step 5). Wrap the sections that load data in [`<Suspense>`](https://react.dev/reference/react/Suspense) so the [static shell](/docs/app/glossary#static-shell) (the parts that don't need to wait) can render first:
 
 ```tsx
 <HeaderBar />
@@ -223,7 +224,7 @@ For feeds that arrive outside the request (a real build log from the platform, t
 
 From here on, cached output is shell content and uncached output streams. Suspense marks the streaming part. A `'use cache'` read doesn't need a Suspense wrapper, because the cached output is already there.
 
-Notice that the projects route paints the shell immediately, then swaps in the sidebar and grid as each Suspense boundary resolves. Open a deployment that's still building to see the same primitive nested: each log line streams in on its own.
+Notice that the projects route paints the shell immediately, then swaps in the sidebar and grid as each Suspense boundary resolves. Open a deployment that's still building to see the same primitive nested: each log line streams in on its own. Hit the refresh button to replay the reveal.
 
 <Demo
   src="https://thinking-in-nextjs-04.labs.vercel.dev/projects"
@@ -234,7 +235,7 @@ Source: [`steps/04-streaming`](https://github.com/vercel-labs/thinking-in-nextjs
 
 ## Step 5: Cache reusable work
 
-Now consider which streamed sections are stable enough to reuse. The question to ask of each piece:
+Some of the streamed sections are stable enough to share between viewers. A cached read joins the shell, so the section behind it stops needing a Suspense boundary. Ask of each piece:
 
 > Would the next viewer see the same thing?
 
@@ -301,7 +302,7 @@ ProjectsLayout                  (persistent shell)
 
 Cached output also moves when the underlying data changes. The next step covers how mutations mark cached entries stale.
 
-Notice that the cached sections (project list, project header, deployment list) are already painted on first load, with no fallback. The only thing that still streams is the live build log on an in-progress build, the one read that changes per request.
+Notice that the cached sections (project list, project header, deployment list) are already painted on first load, with no fallback. The only thing that still streams is the live build log on an in-progress build, the one read that changes per request. Hit the refresh button to load it again.
 
 <Demo
   src="https://thinking-in-nextjs-05.labs.vercel.dev/projects"
@@ -355,11 +356,11 @@ The next step keeps the form action and wraps the buttons in Client Components f
 
 ## Step 7: Add client boundaries
 
-Component state still works the same as in any React app. Many things that would be component state in a typical SPA fit other patterns: updating the URL, calling a Server Function, showing optimistic state until server-rendered data catches up.
+Inside a Client Component, the full React API is back. Many things that would be component state in a typical SPA fit other patterns in App Router: updating the URL, calling a Server Function, showing optimistic state until server-rendered data catches up. The components that do need React state become Client Components.
 
-The form action from Step 6 already lets a click reach the server. What's still missing is anything only the client can do: instant feedback before the server confirms, pending state while a request is in flight. Push the components that own those into Client Components and leave the rest of the tree on the server.
+The form action from Step 6 already lets a click reach the server. What's still missing is anything only the client can do: instant feedback before the server confirms, pending state while a request is in flight, URL updates without a full submit.
 
-A client leaf wraps the existing form action and adds whatever the client owns on top:
+A client leaf wraps the form action from Step 6 with whatever the client owns on top. `onClick` and React state would work the same once the component is `'use client'`:
 
 ```tsx
 'use client'
@@ -392,19 +393,34 @@ async function ProjectPin({ projectId }) {
 
 The cookie read happens on the server and never reaches the browser. Server Components can render Client Components directly, so the wrapper sits right above the leaf.
 
-Pending state has a related shape. A small client leaf reads the pending status of the surrounding context, with no state of its own:
+Search follows the same pattern. A Client Component reads the URL on render and pushes it on each keystroke, with pending state while the new page renders:
 
 ```tsx
 'use client'
-import { useLinkStatus } from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useTransition } from 'react'
 
-function NavSpinner() {
-  const { pending } = useLinkStatus()
-  return pending ? <Spinner /> : null
+function SearchBar() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [, startTransition] = useTransition()
+
+  return (
+    <input
+      type="search"
+      defaultValue={searchParams.get('q') ?? ''}
+      onChange={(event) => {
+        const next = event.target.value
+        startTransition(() => {
+          router.push(next ? `/projects?q=${next}` : '/projects')
+        })
+      }}
+    />
+  )
 }
 ```
 
-Place that leaf inside any `<Link>` and it activates for that link's navigation. The same idea works inside a form via `useFormStatus` for submission state.
+[`useTransition`](https://react.dev/reference/react/useTransition) keeps the input responsive and holds the rest of the page on the previous render until the new one is ready. There's no half-rendered intermediate to look at while the keystroke is in flight.
 
 Notice that the leaves react directly to input on the deployed route. Pinning flips before the server confirms, search edits the URL on each keystroke, and the deploy button stays in a pending state until the Server Function returns. Everything else around them stays a Server Component.
 
@@ -416,6 +432,8 @@ Notice that the leaves react directly to input on the deployed route. Pinning fl
 Source: [`steps/07-client-boundaries`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/07-client-boundaries).
 
 ## Step 8: Configure prefetching
+
+The cached pieces from Step 5 don't have to wait until the click. The router can fetch them ahead of time and have them ready in the client cache when the navigation happens. The route opts in with one line:
 
 ```tsx
 export const prefetch = 'force-runtime'
@@ -439,6 +457,8 @@ Notice that clicking a project card lands on the project route with the header a
 Source: [`steps/08-prefetching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/08-prefetching).
 
 ## Where to go from here
+
+The route grew in layers from a flat baseline: Suspense boundaries around dynamic reads, caching for the reusable parts, client islands where input lives. Each one was added because the route needed it.
 
 Try the same exercise on a route in your own codebase. Name the regions, then label each one as static, dynamic, cached, or a Client leaf. The decisions usually fall out once each component answers what kind of work it is.
 
