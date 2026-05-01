@@ -1,0 +1,280 @@
+name: Build Reusable Linux Docker
+
+on:
+  workflow_call:
+    inputs:
+      afterBuild:
+        required: false
+        description: 'additional steps to run'
+        type: string
+      skipInstallBuild:
+        required: false
+        description: 'whether to skip pnpm install && pnpm build'
+        type: string
+      skipNativeBuild:
+        required: false
+        description: 'whether to skip downloading the pre-built native binary'
+        type: string
+      skipNativeInstall:
+        required: false
+        description: 'whether to skip native postinstall script'
+        type: string
+        default: 'yes'
+      uploadAnalyzerArtifacts:
+        required: false
+        description: 'whether to upload analyzer artifacts'
+        type: string
+      nodeVersion:
+        required: false
+        description: 'version of Node.js to use'
+        type: string
+      stepName:
+        required: true
+        description: 'name of the step, to be used for the upload artifact unique key'
+        type: string
+      timeout_minutes:
+        description: 'Timeout in minutes'
+        required: false
+        type: number
+        default: 30
+      testTimingsArtifact:
+        description: 'Name of an uploaded artifact containing test-timings.json. When set, download it instead of fetching via turbo.'
+        required: false
+        type: string
+        default: ''
+      testReportsArtifactPrefix:
+        description: 'Artifact name prefix for uploading test `*.results.json` files. Empty string disables upload.'
+        required: false
+        type: string
+        default: ''
+
+env:
+  NAPI_CLI_VERSION: 2.18.4
+  TURBO_VERSION: 2.9.4
+  TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 300 --log-order stream'
+  NODE_LTS_VERSION: 20.9.0
+  TEST_CONCURRENCY: 8
+  RUST_BACKTRACE: 0
+
+  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  TURBO_CACHE: 'local:rw,remote:rw'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+
+  NEXT_TELEMETRY_DISABLED: 1
+  NEXT_SKIP_NATIVE_POSTINSTALL: ${{ inputs.skipNativeInstall == 'yes' && '1' || '' }}
+  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+  NEXT_JUNIT_TEST_REPORT: 'true'
+  DD_ENV: 'ci'
+  KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+  KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+  NEXT_TEST_JOB: 1
+  VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+  VERCEL_TEST_TEAM: vtest314-next-e2e-tests
+  VERCEL_ADAPTER_TEST_TOKEN: ${{ secrets.VERCEL_ADAPTER_TEST_TOKEN }}
+  VERCEL_ADAPTER_TEST_TEAM: vtest314-next-adapter-e2e-tests
+  VERCEL_TURBOPACK_TEST_TOKEN: ${{ secrets.VERCEL_TURBOPACK_TEST_TOKEN }}
+  VERCEL_TURBOPACK_TEST_TEAM: vtest314-next-turbo-e2e-tests
+  NEXT_TEST_PREFER_OFFLINE: 1
+  NEXT_CI_RUNNER: '["ubuntu-latest-16-core-oss"]'
+  NEXT_TURBOPACK_IO_CONCURRENCY: 64
+  BASELINE_BROWSER_MAPPING_IGNORE_OLD_DATA: 1
+
+jobs:
+  build:
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    runs-on: ubuntu-latest-16-core-oss
+    permissions:
+      contents: read
+      packages: read
+
+    defaults:
+      run:
+        shell: bash -eo pipefail {0}
+
+    outputs:
+      input_step_key: ${{ steps.var.outputs.input_step_key }}
+
+    steps:
+      - name: Normalize input step names into path key
+        uses: actions/github-script@v7
+        id: var
+        with:
+          script: |
+            core.setOutput('input_step_key', '${{ inputs.stepName }}'.toLowerCase().replaceAll(/[/.]/g, '-').trim('-'));
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 25
+
+      - name: Setup host Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - name: Prepare container paths
+        id: container-paths
+        run: |
+          echo "store_path=$RUNNER_TEMP/pnpm-store-docker" >> "$GITHUB_OUTPUT"
+          echo "home_path=$RUNNER_TEMP/ci-docker-home" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        if: ${{ runner.environment == 'github-hosted' }}
+        uses: actions/cache@v4
+        timeout-minutes: 5
+        id: cache-pnpm-store
+        with:
+          path: ${{ steps.container-paths.outputs.store_path }}
+          key: pnpm-store-v2-${{ hashFiles('pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
+
+      - name: Restore or build local CI image
+        run: node scripts/ci-playwright-image-cache.js
+
+      - name: Download pre-built native binary
+        if: ${{ inputs.skipNativeBuild != 'yes' }}
+        id: native-download
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: next-swc-linux
+          path: packages/next-swc/native/
+
+      - name: Verify native binary download
+        if: ${{ inputs.skipNativeBuild != 'yes' && steps.native-download.outcome != 'success' }}
+        run: |
+          echo "::error::Expected a pre-built Linux native binary artifact."
+          exit 1
+
+      - name: Download pre-built test timings
+        if: ${{ inputs.testTimingsArtifact != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.testTimingsArtifact }}
+
+      - name: Verify test timings
+        if: ${{ inputs.testTimingsArtifact != '' }}
+        run: |
+          if [ ! -f test-timings.json ]; then
+            echo "::error::test-timings.json not found"
+            exit 1
+          fi
+          echo "Test timings loaded ($(wc -c < test-timings.json) bytes)"
+
+      - name: Write docker command script
+        id: docker-script
+        env:
+          CI_AFTER_BUILD: ${{ inputs.afterBuild }}
+          DEFAULT_NODE_VERSION: ${{ env.NODE_LTS_VERSION }}
+          REQUESTED_NODE_VERSION: ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+          SHOULD_FETCH_TEST_TIMINGS: ${{ inputs.testTimingsArtifact == '' && 'yes' || 'no' }}
+          SHOULD_SKIP_INSTALL_BUILD: ${{ inputs.skipInstallBuild == 'yes' && 'yes' || 'no' }}
+        run: |
+          cat <<'EOF' > "$RUNNER_TEMP/ci-docker-command.sh"
+          #!/usr/bin/env bash
+          set -eo pipefail
+
+          git config --global user.name "vercel-ci-bot"
+          git config --global user.email "infra+ci@vercel.com"
+
+          if [ "$REQUESTED_NODE_VERSION" != "$DEFAULT_NODE_VERSION" ]; then
+            curl -sfLS "https://install-node.vercel.app/v${REQUESTED_NODE_VERSION}" | FORCE=1 bash
+          fi
+
+          corepack enable
+          corepack prepare --activate yarn@1.22.19
+          pnpm config set store-dir /pnpm-store
+
+          node scripts/normalize-version-bump.js
+
+          if [ "$SHOULD_SKIP_INSTALL_BUILD" != "yes" ]; then
+            git checkout .
+            pnpm install
+            ANALYZE=1 pnpm build
+          fi
+
+          if [ "$SHOULD_FETCH_TEST_TIMINGS" = "yes" ]; then
+            pnpm dlx turbo@"${TURBO_VERSION}" run get-test-timings -- --build "${GITHUB_SHA}"
+          fi
+
+          if [ -n "${CI_AFTER_BUILD:-}" ]; then
+            eval "$CI_AFTER_BUILD"
+          fi
+          EOF
+
+          chmod +x "$RUNNER_TEMP/ci-docker-command.sh"
+
+      - name: Run job inside local CI image
+        env:
+          CI_AFTER_BUILD: ${{ inputs.afterBuild }}
+          CI_CONTAINER_HOME_DIR: ${{ steps.container-paths.outputs.home_path }}
+          CI_DOCKER_IMAGE_NAME: nextjs-ci-playwright:latest
+          CI_PNPM_STORE_DIR: ${{ steps.container-paths.outputs.store_path }}
+          DEFAULT_NODE_VERSION: ${{ env.NODE_LTS_VERSION }}
+          REQUESTED_NODE_VERSION: ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+          SHOULD_FETCH_TEST_TIMINGS: ${{ inputs.testTimingsArtifact == '' && 'yes' || 'no' }}
+          SHOULD_SKIP_INSTALL_BUILD: ${{ inputs.skipInstallBuild == 'yes' && 'yes' || 'no' }}
+        run: bash scripts/ci-docker-run.sh /runner-temp/ci-docker-command.sh
+        timeout-minutes: ${{ inputs.timeout_minutes }}
+
+      - name: Upload test result artifacts
+        if: ${{ inputs.testReportsArtifactPrefix != '' && inputs.afterBuild && always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.testReportsArtifactPrefix }}-${{ steps.var.outputs.input_step_key }}
+          path: test/**/*.results.json
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: Clean up stray files
+        if: ${{ always() }}
+        run: rm -f /tmp/package-lock.json
+
+      - name: Upload Turborepo summary
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: turbo-run-summary-${{ steps.var.outputs.input_step_key }}
+          path: .turbo/runs
+          if-no-files-found: ignore
+
+      - name: Upload bundle analyzer artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ inputs.uploadAnalyzerArtifacts == 'yes' }}
+        with:
+          name: webpack bundle analysis stats-${{ steps.var.outputs.input_step_key }}
+          path: packages/next/dist/compiled/next-server/report.*.html
+
+      - name: Install datadog-ci
+        if: ${{ inputs.afterBuild && always() && !github.event.pull_request.head.repo.fork && env.DATADOG_API_KEY != '' }}
+        uses: ./.github/actions/setup-datadog-ci
+
+      - name: Upload test report to datadog
+        if: ${{ inputs.afterBuild && always() && !github.event.pull_request.head.repo.fork && env.DATADOG_API_KEY != '' }}
+        run: |
+          if [ -d ./test/test-junit-report ]; then
+            "$DATADOG_CI_PATH" junit upload \
+              --service nextjs \
+              --tags test.type:nextjs \
+              --tags test_session.name:"${{ inputs.stepName }}" \
+              --tags runner.name:"${{ runner.name }}" \
+              ./test/test-junit-report
+          fi
+
+          if [ -d ./test/turbopack-test-junit-report ]; then
+            "$DATADOG_CI_PATH" junit upload \
+              --service nextjs \
+              --tags test.type:turbopack \
+              --tags test_session.name:"${{ inputs.stepName }}" \
+              --tags runner.name:"${{ runner.name }}" \
+              ./test/turbopack-test-junit-report
+          fi
+
+      - name: Upload Playwright Snapshots
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ inputs.afterBuild && always() }}
+        with:
+          name: test-playwright-snapshots-${{ steps.var.outputs.input_step_key }}
+          path: |
+            test/traces
+          if-no-files-found: ignore
