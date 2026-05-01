@@ -33,6 +33,7 @@ import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
 
 import { addRequestMeta } from '../../request-meta'
+import { isRSCRequestHeader } from '../is-rsc-request'
 import {
   compileNonPath,
   matchHas,
@@ -871,7 +872,7 @@ export function getResolveRoutes(
 
           // Set the rewrite headers only if this is a RSC request.
           if (
-            req.headers[RSC_HEADER] === '1' &&
+            isRSCRequestHeader(req.headers[RSC_HEADER]) &&
             (!parsedDestination.origin || isAllowedOrigin)
           ) {
             // We set the rewritten path and query headers on the response now

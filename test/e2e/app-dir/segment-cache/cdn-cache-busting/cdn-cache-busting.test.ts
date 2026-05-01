@@ -103,6 +103,31 @@ describe('segment cache (CDN cache busting)', () => {
     }
   )
 
+  it('ignores invalid RSC header values when serving a document request', async () => {
+    const url = new URL(`http://localhost:${port}/target-page`)
+    url.searchParams.set('test', 'invalid-rsc-header')
+
+    const invalidHeaderRes = await fetch(url, {
+      headers: {
+        rsc: '0',
+      },
+    })
+
+    expect(invalidHeaderRes.status).toBe(200)
+    expect(invalidHeaderRes.headers.get('content-type')).toContain('text/html')
+    expect(await invalidHeaderRes.text()).toContain(
+      '<div id="target-page">Target page</div>'
+    )
+
+    const htmlRes = await fetch(url)
+
+    expect(htmlRes.status).toBe(200)
+    expect(htmlRes.headers.get('content-type')).toContain('text/html')
+    expect(await htmlRes.text()).toContain(
+      '<div id="target-page">Target page</div>'
+    )
+  })
+
   it(
     'perform fully prefetched navigation when a third-party proxy ' +
       'performs a redirect',
