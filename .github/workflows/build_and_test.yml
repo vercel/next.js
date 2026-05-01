@@ -136,6 +136,7 @@ jobs:
     name: build-next
     uses: ./.github/workflows/build_reusable.yml
     with:
+      needsPlaywright: 'no'
       skipNativeBuild: 'yes'
       stepName: 'build-next'
     secrets: inherit
@@ -210,6 +211,7 @@ jobs:
     needs: ['build-next']
     uses: ./.github/workflows/build_reusable.yml
     with:
+      needsPlaywright: 'no'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
       afterBuild: |
@@ -241,6 +243,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      needsPlaywright: 'no'
       afterBuild: pnpm types-and-precompiled
       stepName: 'types-and-precompiled'
     secrets: inherit
@@ -710,6 +713,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      needsPlaywright: 'no'
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-${{ matrix.node }}'
@@ -772,6 +776,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      needsPlaywright: 'no'
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-windows-${{ matrix.node }}'
@@ -1092,8 +1097,6 @@ jobs:
     with:
       browser: 'firefox webkit'
       afterBuild: |
-        pnpm playwright install
-
         # these all run without concurrency because they're heavier
         export TEST_CONCURRENCY=1
         export IS_TURBOPACK_TEST=1
