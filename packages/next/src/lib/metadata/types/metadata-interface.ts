@@ -734,12 +734,32 @@ type SitemapFile = Array<{
   videos?: Videos[] | undefined
 }>
 
+type LlmsLink = {
+  title: string
+  url: string
+  description?: string | undefined
+}
+
+type LlmsSection = {
+  heading: string
+  description?: string | undefined
+  links?: LlmsLink[] | undefined
+}
+
+type LlmsFile = {
+  title: string
+  description?: string | undefined
+  details?: string | undefined
+  sections?: LlmsSection[] | undefined
+}
+
 type ResolvingMetadata = Promise<ResolvedMetadata>
 declare namespace MetadataRoute {
   // eslint-disable-next-line @typescript-eslint/no-shadow
   export type Robots = RobotsFile
   export type Sitemap = SitemapFile
   export type Manifest = ManifestFile
+  export type Llms = string | LlmsFile
 }
 
 /**

@@ -159,9 +159,38 @@ export function resolveManifest(data: MetadataRoute.Manifest): string {
   return JSON.stringify(data)
 }
 
+export function resolveLlms(data: MetadataRoute.Llms): string {
+  if (typeof data === 'string') return data
+
+  let content = `# ${data.title}\n`
+  if (data.description) content += `\n> ${data.description}\n`
+  if (data.details) content += `\n${data.details}\n`
+  if (data.sections) {
+    for (const section of data.sections) {
+      content += `\n## ${section.heading}\n`
+      if (section.description) content += `\n${section.description}\n`
+      if (section.links) {
+        content += '\n'
+        for (const link of section.links) {
+          if (link.description) {
+            content += `- [${link.title}](${link.url}): ${link.description}\n`
+          } else {
+            content += `- [${link.title}](${link.url})\n`
+          }
+        }
+      }
+    }
+  }
+  return content
+}
+
 export function resolveRouteData(
-  data: MetadataRoute.Robots | MetadataRoute.Sitemap | MetadataRoute.Manifest,
-  fileType: 'robots' | 'sitemap' | 'manifest'
+  data:
+    | MetadataRoute.Robots
+    | MetadataRoute.Sitemap
+    | MetadataRoute.Manifest
+    | MetadataRoute.Llms,
+  fileType: 'robots' | 'sitemap' | 'manifest' | 'llms'
 ): string {
   if (fileType === 'robots') {
     return resolveRobots(data as MetadataRoute.Robots)
@@ -171,6 +200,9 @@ export function resolveRouteData(
   }
   if (fileType === 'manifest') {
     return resolveManifest(data as MetadataRoute.Manifest)
+  }
+  if (fileType === 'llms') {
+    return resolveLlms(data as MetadataRoute.Llms)
   }
   return ''
 }

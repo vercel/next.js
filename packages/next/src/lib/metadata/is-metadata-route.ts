@@ -62,6 +62,7 @@ const ROBOTS_TXT_REGEX = /^[\\/]robots\.txt$/
 const MANIFEST_JSON_REGEX = /^[\\/]manifest\.json$/
 const MANIFEST_WEBMANIFEST_REGEX = /^[\\/]manifest\.webmanifest$/
 const SITEMAP_XML_REGEX = /[\\/]sitemap\.xml$/
+const LLMS_TXT_REGEX = /^[\\/]llms\.txt$/
 
 // Cache for compiled regex patterns based on parameters
 const compiledRegexCache = new Map<string, RegExp[]>()
@@ -76,12 +77,14 @@ function fastPathCheck(normalizedPath: string): boolean | null {
   if (MANIFEST_JSON_REGEX.test(normalizedPath)) return true
   if (MANIFEST_WEBMANIFEST_REGEX.test(normalizedPath)) return true
   if (SITEMAP_XML_REGEX.test(normalizedPath)) return true
+  if (LLMS_TXT_REGEX.test(normalizedPath)) return true
 
   // Quick negative check - if it doesn't contain any metadata keywords, skip
   if (
     !normalizedPath.includes('robots') &&
     !normalizedPath.includes('manifest') &&
     !normalizedPath.includes('sitemap') &&
+    !normalizedPath.includes('llms') &&
     !normalizedPath.includes('icon') &&
     !normalizedPath.includes('apple-icon') &&
     !normalizedPath.includes('opengraph-image') &&
@@ -115,6 +118,8 @@ function getCompiledRegexes(
   // Pre-compute extension arrays to avoid repeated concatenation
   const robotsExts =
     pageExtensions.length > 0 ? [...pageExtensions, 'txt'] : ['txt']
+  const llmsExts =
+    pageExtensions.length > 0 ? [...pageExtensions, 'txt'] : ['txt']
   const manifestExts =
     pageExtensions.length > 0
       ? [...pageExtensions, 'webmanifest', 'json']
@@ -123,6 +128,9 @@ function getCompiledRegexes(
   const regexes = [
     new RegExp(
       `^[\\\\/]robots${getExtensionRegexString(robotsExts, null)}${trailingMatcher}`
+    ),
+    new RegExp(
+      `^[\\\\/]llms${getExtensionRegexString(llmsExts, null)}${trailingMatcher}`
     ),
     new RegExp(
       `^[\\\\/]manifest${getExtensionRegexString(manifestExts, null)}${trailingMatcher}`
@@ -213,6 +221,7 @@ export function isStaticMetadataRoute(route: string) {
     // These routes can either be built by static or dynamic entrypoints,
     // so we assume they're dynamic
     pathname !== '/robots.txt' &&
+    pathname !== '/llms.txt' &&
     pathname !== '/manifest.webmanifest' &&
     !pathname.endsWith('/sitemap.xml')
 

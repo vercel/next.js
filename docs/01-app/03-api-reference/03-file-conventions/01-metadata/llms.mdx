@@ -1,0 +1,151 @@
+---
+title: llms.txt
+description: API Reference for llms.txt file.
+---
+
+Add or generate a `llms.txt` file that matches the [llms.txt standard](https://llmstxt.org/) in the **root** of `app` directory to help Large Language Models (LLMs) understand your website's structure and content.
+
+## Static `llms.txt`
+
+```txt filename="app/llms.txt"
+# My Site
+
+> A brief description of my site.
+
+## Docs
+
+- [Getting Started](https://example.com/docs/getting-started): Learn how to get started
+- [API Reference](https://example.com/docs/api): Full API documentation
+```
+
+## Generate an llms.txt file
+
+Add a `llms.js` or `llms.ts` file that returns either a plain string or an [`Llms` object](#llms-object).
+
+> **Good to know**: `llms.js` is a special Route Handler that is cached by default unless it uses a [Dynamic API](/docs/app/guides/caching#dynamic-apis) or [dynamic config](/docs/app/guides/caching#segment-config-options) option.
+
+```ts filename="app/llms.ts" switcher
+import type { MetadataRoute } from 'next'
+
+export default function llms(): MetadataRoute.Llms {
+  return {
+    title: 'My Site',
+    description: 'A brief description of my site.',
+    sections: [
+      {
+        heading: 'Docs',
+        links: [
+          {
+            title: 'Getting Started',
+            url: 'https://example.com/docs/getting-started',
+            description: 'Learn how to get started',
+          },
+          {
+            title: 'API Reference',
+            url: 'https://example.com/docs/api',
+            description: 'Full API documentation',
+          },
+        ],
+      },
+    ],
+  }
+}
+```
+
+```js filename="app/llms.js" switcher
+export default function llms() {
+  return {
+    title: 'My Site',
+    description: 'A brief description of my site.',
+    sections: [
+      {
+        heading: 'Docs',
+        links: [
+          {
+            title: 'Getting Started',
+            url: 'https://example.com/docs/getting-started',
+            description: 'Learn how to get started',
+          },
+          {
+            title: 'API Reference',
+            url: 'https://example.com/docs/api',
+            description: 'Full API documentation',
+          },
+        ],
+      },
+    ],
+  }
+}
+```
+
+Output:
+
+```txt
+# My Site
+
+> A brief description of my site.
+
+## Docs
+
+- [Getting Started](https://example.com/docs/getting-started): Learn how to get started
+- [API Reference](https://example.com/docs/api): Full API documentation
+```
+
+### Returning a string
+
+You can also return a plain string if you prefer to write the Markdown content directly:
+
+```ts filename="app/llms.ts" switcher
+import type { MetadataRoute } from 'next'
+
+export default function llms(): MetadataRoute.Llms {
+  return `# My Site
+
+> A brief description of my site.
+
+## Docs
+
+- [Getting Started](https://example.com/docs/getting-started): Learn how to get started
+`
+}
+```
+
+```js filename="app/llms.js" switcher
+export default function llms() {
+  return `# My Site
+
+> A brief description of my site.
+
+## Docs
+
+- [Getting Started](https://example.com/docs/getting-started): Learn how to get started
+`
+}
+```
+
+### Llms object
+
+```tsx
+type Llms =
+  | string
+  | {
+      title: string
+      description?: string
+      details?: string
+      sections?: Array<{
+        heading: string
+        description?: string
+        links?: Array<{
+          title: string
+          url: string
+          description?: string
+        }>
+      }>
+    }
+```
+
+## Version History
+
+| Version   | Changes            |
+| --------- | ------------------ |
+| `v16.2.0` | `llms` introduced. |

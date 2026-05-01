@@ -170,6 +170,7 @@ pub struct GlobalMetadata {
     pub favicon: Option<MetadataItem>,
     pub robots: Option<MetadataItem>,
     pub manifest: Option<MetadataItem>,
+    pub llms: Option<MetadataItem>,
 }
 
 impl GlobalMetadata {
@@ -178,8 +179,9 @@ impl GlobalMetadata {
             favicon,
             robots,
             manifest,
+            llms,
         } = self;
-        favicon.is_none() && robots.is_none() && manifest.is_none()
+        favicon.is_none() && robots.is_none() && manifest.is_none() && llms.is_none()
     }
 }
 
@@ -1674,9 +1676,15 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             favicon,
             robots,
             manifest,
+            llms,
         } = &*global_metadata.await?;
 
-        for meta in favicon.iter().chain(robots.iter()).chain(manifest.iter()) {
+        for meta in favicon
+            .iter()
+            .chain(robots.iter())
+            .chain(manifest.iter())
+            .chain(llms.iter())
+        {
             let app_page =
                 app_page.clone_push_str(&get_metadata_route_name(meta.clone()).await?)?;
 
@@ -2020,6 +2028,7 @@ pub async fn get_global_metadata(
             "favicon" => &mut metadata.favicon,
             "manifest" => &mut metadata.manifest,
             "robots" => &mut metadata.robots,
+            "llms" => &mut metadata.llms,
             _ => continue,
         };
 

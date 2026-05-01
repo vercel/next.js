@@ -67,6 +67,7 @@ function getContentType(resourcePath: string) {
   if (name === 'favicon' && ext === 'ico') return 'image/x-icon'
   if (name === 'sitemap') return 'application/xml'
   if (name === 'robots') return 'text/plain'
+  if (name === 'llms') return 'text/plain'
   if (name === 'manifest') return 'application/manifest+json'
 
   if (ext === 'png' || ext === 'jpeg' || ext === 'ico' || ext === 'svg') {
@@ -384,7 +385,11 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
 
     let code = ''
     if (isDynamicRouteExtension === '1') {
-      if (fileBaseName === 'robots' || fileBaseName === 'manifest') {
+      if (
+        fileBaseName === 'robots' ||
+        fileBaseName === 'manifest' ||
+        fileBaseName === 'llms'
+      ) {
         code = await getDynamicTextRouteCode(filePath, this)
       } else if (fileBaseName === 'sitemap') {
         code = await getSitemapRouteCode(filePath, this)

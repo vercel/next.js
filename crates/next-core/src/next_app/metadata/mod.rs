@@ -32,6 +32,7 @@ pub static STATIC_GLOBAL_METADATA: Lazy<FxHashMap<&'static str, &'static [&'stat
             ("favicon", &["ico"] as &'static [&'static str]),
             ("manifest", &["webmanifest", "json"]),
             ("robots", &["txt"]),
+            ("llms", &["txt"]),
         ])
     });
 
@@ -103,6 +104,9 @@ pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
         return Ok("application/xml".to_string());
     }
     if name == "robots" {
+        return Ok("text/plain".to_string());
+    }
+    if name == "llms" {
         return Ok("text/plain".to_string());
     }
     if name == "manifest" {
@@ -395,6 +399,8 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
     let mut suffix: Option<String> = None;
     if route == "/robots" {
         route += ".txt"
+    } else if route == "/llms" {
+        route += ".txt"
     } else if route == "/manifest" {
         route += ".webmanifest"
     } else if route.ends_with("/sitemap") {
@@ -446,6 +452,7 @@ mod test {
                 "/client/(meme)/more-route/twitter-image2-769mad/route",
             ],
             ["/robots.txt", "/robots.txt/route"],
+            ["/llms.txt", "/llms.txt/route"],
             ["/manifest.webmanifest", "/manifest.webmanifest/route"],
             ["/sitemap", "/sitemap.xml/route"],
             ["/sitemap.xml", "/sitemap.xml/route"],

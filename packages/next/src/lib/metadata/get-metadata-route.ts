@@ -148,6 +148,8 @@ export function normalizeMetadataRoute(page: string) {
   let suffix = ''
   if (page === '/robots') {
     route += '.txt'
+  } else if (page === '/llms') {
+    route += '.txt'
   } else if (page === '/manifest') {
     route += '.webmanifest'
   } else {

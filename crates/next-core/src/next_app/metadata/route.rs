@@ -44,7 +44,7 @@ pub async fn get_app_metadata_route_source(
             let stem = path.file_stem();
             let stem = stem.unwrap_or_default();
 
-            if stem == "robots" || stem == "manifest" {
+            if stem == "robots" || stem == "manifest" || stem == "llms" {
                 dynamic_text_route_source(path)
             } else if stem == "sitemap" {
                 dynamic_site_map_route_source(path, is_multi_dynamic)
