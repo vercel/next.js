@@ -185,6 +185,10 @@ struct TurboTasksBackendInner<B: BackingStorage> {
     /// triggered.
     in_progress_operations: AtomicUsize,
 
+    /// Serializes calls to `snapshot_and_persist`. The internal protocol
+    /// (snapshot_mode flag, snapshot_request bit, suspended_operations) assumes
+    /// only one snapshot runs at a time; this mutex enforces that contract.
+    snapshot_in_progress: Mutex<()>,
     snapshot_request: Mutex<SnapshotRequest>,
     /// Condition Variable that is triggered when `in_progress_operations`
     /// reaches zero while snapshot is requested. All operations are either
@@ -248,6 +252,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             task_cache: FxDashMap::default(),
             storage: Storage::new(shard_amount, small_preallocation),
             in_progress_operations: AtomicUsize::new(0),
+            snapshot_in_progress: Mutex::new(()),
             snapshot_request: Mutex::new(SnapshotRequest::new()),
             operations_suspended: Condvar::new(),
             snapshot_completed: Condvar::new(),
@@ -437,6 +442,11 @@ impl<B: BackingStorage> Drop for OperationGuard<'_, B> {
             let fetch_sub = backend
                 .in_progress_operations
                 .fetch_sub(1, Ordering::AcqRel);
+            debug_assert!(
+                (fetch_sub & !SNAPSHOT_REQUESTED_BIT) > 0,
+                "OperationGuard::drop underflow: in_progress_operations was {fetch_sub:#x} before \
+                 decrement"
+            );
             if fetch_sub - 1 == SNAPSHOT_REQUESTED_BIT {
                 backend.operations_suspended.notify_all();
             }
@@ -992,6 +1002,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let snapshot_span =
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason)
                 .entered();
+        // Serialize snapshots. The internal protocol (snapshot_mode, snapshot
+        // request bit, suspended_operations) assumes only one snapshot runs at
+        // a time. Held for the entire snapshot lifecycle.
+        let _snapshot_in_progress = self.snapshot_in_progress.lock();
         let start = Instant::now();
         // SystemTime for wall-clock timestamps in trace events (milliseconds
         // since epoch). Instant is monotonic but has no defined epoch, so it
