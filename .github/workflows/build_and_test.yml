@@ -134,9 +134,10 @@ jobs:
 
   build-next:
     name: build-next
-    uses: ./.github/workflows/build_reusable.yml
+    needs: ['changes']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
-      needsPlaywright: 'no'
       skipNativeBuild: 'yes'
       stepName: 'build-next'
     secrets: inherit
@@ -209,9 +210,8 @@ jobs:
   lint:
     name: lint
     needs: ['build-next']
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
-      needsPlaywright: 'no'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
       afterBuild: |
@@ -241,9 +241,8 @@ jobs:
     name: types and precompiled
     needs: ['changes', 'build-native', 'build-next']
 
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
-      needsPlaywright: 'no'
       afterBuild: pnpm types-and-precompiled
       stepName: 'types-and-precompiled'
     secrets: inherit
@@ -713,8 +712,8 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      needsPlaywright: 'no'
       nodeVersion: ${{ matrix.node }}
+      needsPlaywright: 'no'
       afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-${{ matrix.node }}'
 
