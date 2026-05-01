@@ -24,8 +24,8 @@ The designer hands over mockups for three routes.
 
 <Image
   alt="Three route cards labeled /projects, /projects/compass, and /projects/compass/deployments/compass-jx9q3, each split into top bar, sidebar, and content regions."
-  srcLight="/docs/guides/thinking-in-nextjs/mockups-light.png"
-  srcDark="/docs/guides/thinking-in-nextjs/mockups-dark.png"
+  srcLight="/docs/guides/thinking-in-nextjs/designer-mockups-light.png"
+  srcDark="/docs/guides/thinking-in-nextjs/designer-mockups-dark.png"
   width={1600}
   height={567}
 />
@@ -201,8 +201,8 @@ With it on, the prerender expects every async read to either be cached or sit be
 
 <Image
   alt="Next.js dev overlay reading 'Next.js encountered uncached data during the initial render.' A code preview highlights the uncached `await` inside a data-access function. Three fix cards follow. 'Cache dynamic data' shows `'use cache'` at the top of a data function. 'Move within Suspense' wraps the async child in `<Suspense fallback={…}>`. 'Allow blocking route' shows `export const instant = false`."
-  srcLight="/docs/guides/thinking-in-nextjs/overlay-light.png"
-  srcDark="/docs/guides/thinking-in-nextjs/overlay-dark.png"
+  srcLight="/docs/guides/thinking-in-nextjs/instant-overlay-light.png"
+  srcDark="/docs/guides/thinking-in-nextjs/instant-overlay-dark.png"
   width={984}
   height={779}
 />
@@ -234,7 +234,7 @@ function Sidebar() {
 
 The same move repeats anywhere else in the route an async read shows up, with the boundary sitting at the smallest scope that needs it.
 
-A _fallback_ is the UI that ships with the shell. It gets replaced with the real output once the async component finishes. For this route:
+A _fallback_ is the UI that renders in the static shell while the async child is still resolving. It's replaced with the real output once the child finishes. For this route:
 
 - **0 ms**: Shell sent. The header and search form land immediately, with fallbacks rendered for the avatar, pinned section, recent deploys, and grid.
 - **500 ms**: Avatar resolves.
@@ -408,7 +408,7 @@ What stays wrapped is what still resolves per request. The project grid reads `?
 
 Inside `BuildLogs`, the live stream still has its boundary. That part is live by definition.
 
-Could you have skipped [Step 4: Stream async work](#step-4-stream-async-work) if you'd known the cache plan up front? Sure. But the question was sharper when you asked it of each component on its own.
+You could have skipped [Step 4: Stream async work](#step-4-stream-async-work) if you'd known the cache plan up front. The question was sharper when you asked it of each component on its own.
 
 Click into a project and into a deployment, then back. Watch which sections paint instantly and which still show a fallback before resolving.
 
@@ -425,15 +425,9 @@ Source: [`steps/05-caching`](https://github.com/vercel-labs/thinking-in-nextjs/t
 
 A cache stores reusable output. A mutation invalidates the entries that stopped being true.
 
-In the App Router, mutations live in [Server Functions](/docs/app/glossary#server-function) marked with `'use server'`. Each one does two things in the same call.
+In the App Router, mutations live in [Server Functions](/docs/app/glossary#server-function) marked with `'use server'`. Each one does two things in the same call. It changes the underlying state, then it invalidates every cached read that stopped being true.
 
-It changes the underlying state, then tells the cache the write happened.
-
-Triggering a deploy is the cleanest version of that. The write hits the upstream, then tag calls invalidate every cached read that stopped being true.
-
-The project's deployments list is one. The sidebar's recent-deploys list is another.
-
-Each one has its own tag, and the Server Function calls them by name:
+Triggering a deploy is the cleanest version of that. The write hits the upstream, and two cached reads go stale alongside it. The project's deployments list is one, and the sidebar's recent-deploys list is the other. Each has its own tag, and the Server Function calls them by name:
 
 ```tsx
 'use server'
@@ -447,11 +441,7 @@ async function triggerDeploy(projectId) {
 
 The tag names match the ones the cached reads applied earlier, so one Server Function call lines up with the cache entries it touched. Any route that reads through `deployments-${projectId}` or `recent-deployments` picks up the change.
 
-[`updateTag`](/docs/app/api-reference/functions/updateTag) and [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) differ in how they treat the response that contains the mutation.
-
-`updateTag` handles read-your-writes. The new value shows up in the same response that triggered it.
-
-`revalidateTag` handles stale-while-revalidate. The previous value keeps serving while the next read fetches a fresh one.
+[`updateTag`](/docs/app/api-reference/functions/updateTag) and [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) differ in how they treat the response that contains the mutation. `updateTag` handles read-your-writes, so the new value shows up in the same response that triggered it. `revalidateTag` handles stale-while-revalidate, so the previous value keeps serving while the next read fetches a fresh one.
 
 Wired up to a button, the smallest version is a `<form action>` with no `'use client'` boundary in the path:
 
@@ -504,7 +494,7 @@ Pending state has the same options. You can put `triggerDeploy` inside a `useTra
 
 So how wide does that boundary actually need to be? Often one prop, even before it resolves.
 
-`ProjectPin` was a server form in [Step 6](#step-6-mutate-data). In this step it crosses into the client, takes the per-viewer promise as a prop, and calls [`use`](https://react.dev/reference/react/use) to resolve it on the other side, suspending at the nearest Suspense boundary above until the read lands.
+`ProjectPin` was a server form in [Step 6](#step-6-mutate-data). In this step it crosses into the client, takes the per-viewer promise as a prop, and calls [`use`](https://react.dev/reference/react/use) to resolve it on the other side, suspending at the nearest Suspense boundary above until the read resolves.
 
 The same form action from [Step 6](#step-6-mutate-data) wraps the optimistic flip:
 
@@ -618,24 +608,24 @@ App Router runs `router.push` inside a [transition](https://react.dev/reference/
 
 [`useTransition`](https://react.dev/reference/react/useTransition) adds `isPending`, a value the input can read to show a hint while the new render resolves. [`useLinkStatus`](/docs/app/api-reference/functions/use-link-status) gives the same signal for `<Link>` navigations.
 
-Try the demo. Pinning flips before the server confirms, search edits the URL on each keystroke, and the deploy button stays in a pending state until the Server Function returns.
-
-Everything else around them stays a Server Component.
+Try the demo. Pin and unpin a project, type in the search bar, and submit a deploy. Watch the pin flip before the server confirms, the URL update on each keystroke, and the deploy button stay in its pending state until the Server Function returns.
 
 <Demo
   src="https://thinking-in-nextjs-07.labs.vercel.dev/projects"
   title="Step 7: Add client interactivity"
 />
 
+Three small Client leaves (`ProjectPin`, `SearchBar`, and the deploy button) handle the moments where the request-response loop runs out of room. Everything else around them stays a Server Component.
+
 Source: [`steps/07-client-boundaries`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/07-client-boundaries).
 
 ## Step 8: Optimize prefetching
 
-By now the tree knows what to render and what to reuse. The last question is timing. When can that work happen?
+By now you know what to render and what to reuse. The last question is timing. When can that work happen?
 
-Not at click time. When a [`<Link>`](/docs/app/api-reference/components/link) enters the viewport, Next.js takes that as a hint and renders its destination in the background. By the time the click lands, the tree is already there.
+Not at click time. When a [`<Link>`](/docs/app/api-reference/components/link) enters the viewport, Next.js uses that as a hint and renders its destination in the background. By the time the click lands, the tree is already there.
 
-There's a wrinkle. The destination might depend on the viewer, and there's no real request at prefetch time. What session does that render see?
+There's a wrinkle. The destination might depend on the viewer, and there's no real request at prefetch time, so the prefetch has to choose which session it renders against.
 
 The default is [**static**](/docs/app/guides/prefetching). The prefetch renders against build-time inputs, with no cookies, headers, or search string in scope. That's enough for the shared layout and any cached read that doesn't key on the viewer.
 
@@ -675,22 +665,22 @@ Every route is in the loop, with no per-route opt-in to chase. The dev validator
 
 Try the demo. Click between projects, into deployments, and back. Everything lands instantly except the live build log on an in-progress deployment, which is live by definition.
 
-The shift the demo highlights is which sections are already populated when the click resolves. The projects grid keyed on `?q=`, the avatar, and the pinned section all used to stream on first visit. Runtime prefetch now fills those request-dependent reads in parallel during the prefetch pass, so they're served from cache instead of streaming.
-
-Whatever the prefetch pass touched, static or runtime, is cached in the browser and works offline. The only parts that need an active connection are the live-streamed sections, so flaky networks stop being a meaningful problem for most of the app.
-
 <Demo
   src="https://thinking-in-nextjs.labs.vercel.dev/projects"
   title="Step 8: Optimize prefetching"
 />
 
+The shift the demo highlights is which sections are already populated when the click resolves. The projects grid keyed on `?q=`, the avatar, and the pinned section all used to stream on first visit. Runtime prefetch now fills those request-dependent reads in parallel during the prefetch pass, so they're served from cache instead of streaming.
+
+Whatever the prefetch pass touched, static or runtime, is cached in the browser and works offline. The only parts that need an active connection are the live-streamed sections, so flaky networks stop being a meaningful problem for most of the app.
+
 Source: [`steps/08-prefetching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/08-prefetching).
 
 ## Where to go from here
 
-Look back at the route. You didn't redesign it. You asked each component the same question. _What kind of work is this?_ A read here, a Suspense boundary there, a cache where the work repeats, a tag where it doesn't, a Client leaf where input lives. The route got more honest about what each piece was doing. One model carries the whole thing. The decisions it asks for are the ones that scale, and most routes never need a different shape.
+Look back at the route. You didn't redesign it. You asked each component the same question. _What kind of work is this?_ A read here, a Suspense boundary there, a cache where the work repeats, a tag where it doesn't, a Client leaf where input lives. The route got more honest about what each piece was doing. One model carries the whole thing, and the decisions it surfaces are the ones that scale.
 
-Try it on a route in your own codebase. Name the regions, then label each one as static, dynamic, cached, or a Client leaf. The decisions usually fall out once each component answers what kind of work it is.
+Try it on a route in your own codebase. Name the regions, then label each one as static, dynamic, cached, or a Client leaf. The decisions usually fall out once you've labeled what each piece is doing.
 
 The docs go deeper on each piece used here.
 
