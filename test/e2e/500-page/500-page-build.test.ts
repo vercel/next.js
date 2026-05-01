@@ -7,6 +7,7 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
 
   const gip500Err =
