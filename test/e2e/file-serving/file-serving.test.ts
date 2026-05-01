@@ -5,7 +5,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('file-serving', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -44,7 +44,8 @@ describe('file-serving', () => {
   }
 
   const expectStatus = async (path) => {
-    const containRegex = /(This page could not be found|Bad Request)/
+    const containRegex =
+      /(This page could not be found|Bad Request|bad request|BAD_REQUEST)/
     // test base mount point `public/`
     const checkRes = async (res) => {
       if (res.status === 308) {
@@ -93,11 +94,18 @@ describe('file-serving', () => {
     expect(await res.text()).toBe('hi')
   })
 
-  it('should serve file with space correctly static/', async () => {
-    const res = await next.fetch('/static/hello world.txt')
-    expect(res.status).toBe(200)
-    expect(await res.text()).toBe('hi')
-  })
+  // Vercel's deploy infrastructure only serves `public/` as static assets, not
+  // a top-level `static/` directory, so this case is local-only.
+  ;(isNextDeploy ? it.skip : it)(
+    'should serve file with space correctly static/',
+    async () => {
+      const res = await next.fetch('/static/hello world.txt')
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(res.status).toBe(200)
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(await res.text()).toBe('hi')
+    }
+  )
 
   it('should serve avif image with correct content-type', async () => {
     // vercel-icon-dark.avif is downloaded from https://vercel.com/design and transformed to avif on avif.io
