@@ -45,6 +45,7 @@ swc_sourcemap = { workspace = true }
 smallvec = { workspace = true }
 strsim = { workspace = true }
 tokio = { workspace = true }
+triomphe = { workspace = true }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-esregex = { workspace = true }

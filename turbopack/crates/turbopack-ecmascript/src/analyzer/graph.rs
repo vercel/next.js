@@ -1,7 +1,6 @@
 use std::{
     iter,
     mem::{replace, take},
-    sync::Arc,
 };
 
 use anyhow::{Ok, Result};
@@ -21,6 +20,7 @@ use swc_core::{
         visit::{fields::*, *},
     },
 };
+use triomphe::Arc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbopack_core::resolve::ExportUsage;
 
@@ -372,7 +372,7 @@ pub struct EvalContext {
     /// Should be the same [`Mark`] used by [`swc_core::ecma::transforms::base::resolver`].
     pub(crate) top_level_mark: Mark,
     pub(crate) imports: ImportMap,
-    pub(crate) force_free_values: Arc<FxHashSet<Id>>,
+    pub(crate) force_free_values: std::sync::Arc<FxHashSet<Id>>,
 }
 
 impl EvalContext {
@@ -387,7 +387,7 @@ impl EvalContext {
         module: Option<&Program>,
         unresolved_mark: Mark,
         top_level_mark: Mark,
-        force_free_values: Arc<FxHashSet<Id>>,
+        force_free_values: std::sync::Arc<FxHashSet<Id>>,
         comments: Option<&dyn Comments>,
     ) -> Self {
         Self {

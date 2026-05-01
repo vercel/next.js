@@ -1,5 +1,6 @@
-use std::{mem::take, sync::Arc};
+use std::mem::take;
 
+use triomphe::Arc;
 use turbo_rcstr::rcstr;
 
 use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty, ObjectPart};

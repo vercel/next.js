@@ -297,8 +297,7 @@ pub fn inline_source_map_comment(original_path: &str, original_content: &str) ->
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
+    use triomphe::Arc;
     use turbo_rcstr::rcstr;
     use turbopack_core::resolve::pattern::Pattern;
 

@@ -26,7 +26,7 @@ use std::{
     future::Future,
     mem::take,
     ops::Deref,
-    sync::{Arc, LazyLock},
+    sync::{Arc as StdArc, LazyLock},
 };
 
 use anyhow::Result;
@@ -60,6 +60,10 @@ use swc_core::{
 };
 use tokio::sync::OnceCell;
 use tracing::Instrument;
+// `triomphe::Arc` is preferred for `JsValue` because of its smaller header
+// (no weak refcount). `std::sync::Arc` is still imported as `StdArc` above for
+// types that interoperate with `Arc<Globals>` etc.
+use triomphe::Arc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, TaskInput,
@@ -499,7 +503,7 @@ impl AnalysisState<'_> {
     }
 }
 
-fn set_handler_and_globals<F, R>(handler: &Handler, globals: &Arc<Globals>, f: F) -> R
+fn set_handler_and_globals<F, R>(handler: &Handler, globals: &StdArc<Globals>, f: F) -> R
 where
     F: FnOnce() -> R,
 {

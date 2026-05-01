@@ -1,9 +1,10 @@
-use std::{collections::hash_map::Entry, fmt::Display, future::Future, mem::take, sync::Arc};
+use std::{collections::hash_map::Entry, fmt::Display, future::Future, mem::take};
 
 use anyhow::Result;
 use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::ecma::ast::Id;
+use triomphe::Arc;
 use turbo_rcstr::rcstr;
 
 use super::{JsValue, graph::VarGraph};
