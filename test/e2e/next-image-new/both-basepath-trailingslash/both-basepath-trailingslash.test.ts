@@ -4,6 +4,7 @@ import { getDeploymentId } from 'next-test-utils'
 describe('Image Component basePath + trailingSlash Tests', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    disableAutoSkewProtection: true,
   })
 
   let dpl: string

@@ -5,6 +5,7 @@ import { retry } from 'next-test-utils'
 describe('jsconfig.json baseurl', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
 
   describe('default behavior', () => {

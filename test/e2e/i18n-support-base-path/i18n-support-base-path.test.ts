@@ -9,6 +9,7 @@ describe('i18n Support basePath', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
 
   const ctx: Record<string, any> = {

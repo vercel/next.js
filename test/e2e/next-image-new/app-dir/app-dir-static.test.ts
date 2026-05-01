@@ -11,6 +11,7 @@ import cheerio from 'cheerio'
     const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      skipDeployment: true,
     })
 
     if (isNextDev) {
@@ -47,6 +48,7 @@ import cheerio from 'cheerio'
   () => {
     const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
+      skipDeployment: true,
     })
 
     let browser: Awaited<ReturnType<typeof next.browser>>

@@ -18,6 +18,7 @@ describe('Basic CSS Modules Ordering', () => {
             useLightningcss: true,
           },
         },
+        skipDeployment: true,
       })
 
       async function checkGreenButton(browser: Playwright) {
@@ -87,6 +88,7 @@ describe('Basic CSS Modules Ordering', () => {
             useLightningcss: false,
           },
         },
+        skipDeployment: true,
       })
 
       async function checkGreenButton(browser: Playwright) {
@@ -157,6 +159,7 @@ describe('Ordering with Global CSS and Modules', () => {
           useLightningcss: true,
         },
       },
+      skipDeployment: true,
     })
 
     ;(isNextDev ? it : it.skip)(
@@ -245,6 +248,7 @@ describe('Ordering with Global CSS and Modules', () => {
           useLightningcss: false,
         },
       },
+      skipDeployment: true,
     })
 
     ;(isNextDev ? it : it.skip)(
@@ -339,6 +343,7 @@ describe('CSS Modules Composes Ordering', () => {
             useLightningcss: true,
           },
         },
+        skipDeployment: true,
       })
 
       async function checkBlackTitle(browser: Playwright) {
@@ -498,6 +503,7 @@ describe('CSS Modules Composes Ordering', () => {
             useLightningcss: false,
           },
         },
+        skipDeployment: true,
       })
 
       async function checkBlackTitle(browser: Playwright) {

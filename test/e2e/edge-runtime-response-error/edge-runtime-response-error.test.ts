@@ -1,7 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Edge runtime response error', () => {
-  const { next } = nextTestSetup({ files: __dirname })
+  const { next } = nextTestSetup({
+    files: __dirname,
+    disableAutoSkewProtection: true,
+  })
 
   describe.each([
     { title: 'Edge API', url: '/api/route' },

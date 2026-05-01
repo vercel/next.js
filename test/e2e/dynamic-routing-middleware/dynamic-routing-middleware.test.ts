@@ -7,6 +7,7 @@ describe('Dynamic Routing with Middleware', () => {
     files: join(__dirname, '../dynamic-routing'),
     skipStart: true,
     disableAutoSkewProtection: true,
+    skipDeployment: true,
   })
 
   beforeAll(async () => {

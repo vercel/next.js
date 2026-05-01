@@ -18,6 +18,7 @@ describe('Custom routes', () => {
     files: __dirname,
     skipStart: true,
     disableAutoSkewProtection: true,
+    skipDeployment: true,
   })
 
   let externalServerPort: number
@@ -3476,6 +3477,7 @@ describe('Custom routes no-op rewrite', () => {
     env: {
       ADD_NOOP_REWRITE: 'true',
     },
+    skipDeployment: true,
   })
   if (isTurbopack && isNextStart) {
     it('skipped - not supported in turbopack build mode', () => {})
@@ -3529,6 +3531,7 @@ describe('Custom routes solo types', () => {
     files: __dirname,
     skipStart: true,
     disableAutoSkewProtection: true,
+    skipDeployment: true,
   })
 
   let externalServer: http.Server
@@ -3649,6 +3652,7 @@ describe('Custom routes solo types', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
 
   it('should not show warning for custom routes when not next export', async () => {

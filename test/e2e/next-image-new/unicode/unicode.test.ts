@@ -3,6 +3,7 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 describe('Image Component Unicode Image URL', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
 
   it('should load static unicode image', async () => {

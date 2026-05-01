@@ -27,6 +27,8 @@ describe.each([
       serverReadyPattern: /- Local:/,
       env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
       dependencies: sharedDeps,
+      skipDeployment: true,
+      disableAutoSkewProtection: true,
     })
 
     it('should serve internal file from render', async () => {
@@ -123,6 +125,8 @@ describe.each([
         NODE_ENV: sharedNodeEnv,
       },
       dependencies: sharedDeps,
+      skipDeployment: true,
+      disableAutoSkewProtection: true,
     })
 
     it('response includes etag header', async () => {
@@ -142,6 +146,8 @@ describe.each([
         NODE_ENV: sharedNodeEnv,
       },
       dependencies: sharedDeps,
+      skipDeployment: true,
+      disableAutoSkewProtection: true,
     })
 
     it('response does not include etag header', async () => {
@@ -158,6 +164,8 @@ describe.each([
         serverReadyPattern: /- Local:/,
         env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
         dependencies: sharedDeps,
+        skipDeployment: true,
+        disableAutoSkewProtection: true,
       })
 
       it('Should support HMR when rendering with /index pathname', async () => {
@@ -200,6 +208,8 @@ describe.each([
       serverReadyPattern: /- Local:/,
       env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
       dependencies: sharedDeps,
+      skipDeployment: true,
+      disableAutoSkewProtection: true,
     })
 
     ;(isNextDev ? it : it.skip)('should warn in development mode', async () => {
@@ -235,6 +245,8 @@ describe.each([
         NODE_ENV: sharedNodeEnv,
       },
       dependencies: { ...sharedDeps, 'node-fetch': '2.6.7' },
+      skipDeployment: true,
+      disableAutoSkewProtection: true,
     })
 
     it('should serve internal file from render', async () => {
@@ -250,6 +262,8 @@ describe.each([
       serverReadyPattern: /- Local:/,
       env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
       dependencies: sharedDeps,
+      skipDeployment: true,
+      disableAutoSkewProtection: true,
     })
 
     it('stderr should include error message and stack trace', async () => {
@@ -274,6 +288,8 @@ describe.each([
       serverReadyPattern: /- Local:/,
       env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
       dependencies: sharedDeps,
+      skipDeployment: true,
+      disableAutoSkewProtection: true,
     })
 
     it('NextCustomServer.renderToHTML', async () => {

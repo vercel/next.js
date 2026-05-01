@@ -19,6 +19,7 @@ describe('CLI Usage', () => {
     files: join(__dirname, 'basic'),
     skipStart: true,
     dependencies: reactDependencies,
+    skipDeployment: true,
   })
 
   /**
@@ -1183,6 +1184,7 @@ describe('CLI Usage: duplicate sass dependencies', () => {
     files: join(__dirname, 'duplicate-sass'),
     skipStart: true,
     dependencies: reactDependencies,
+    skipDeployment: true,
   })
 
   // The original integration test relied on pre-existing fake `sass` and

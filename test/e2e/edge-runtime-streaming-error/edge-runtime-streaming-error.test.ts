@@ -5,6 +5,7 @@ import { retry } from 'next-test-utils'
 describe('edge-runtime-streaming-error', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    disableAutoSkewProtection: true,
   })
 
   it('logs the error correctly', async () => {

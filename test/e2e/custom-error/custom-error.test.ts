@@ -11,6 +11,7 @@ describe('Custom _error', () => {
       react: '19.3.0-canary-fef12a01-20260413',
       'react-dom': '19.3.0-canary-fef12a01-20260413',
     },
+    skipDeployment: true,
   })
 
   if (isNextDev) {

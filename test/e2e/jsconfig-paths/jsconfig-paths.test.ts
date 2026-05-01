@@ -5,6 +5,7 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 describe('jsconfig paths', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
 
   it('should alias components', async () => {
@@ -97,6 +98,7 @@ describe('jsconfig paths without baseurl', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
 
   let originalJsconfigContent: string

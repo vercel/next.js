@@ -3,6 +3,7 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
 describe('404 Page Support SSG', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    disableAutoSkewProtection: true,
   })
 
   it('should respond to 404 correctly', async () => {

@@ -417,6 +417,7 @@ describe('404 handling', () => {
     describe('server mode', () => {
       const { next } = nextTestSetup({
         files: path.join(__dirname, 'app'),
+        skipDeployment: true,
       })
 
       runTests({ next, isDev: isNextDev, isPages404: false })
@@ -425,6 +426,7 @@ describe('404 handling', () => {
       const { next } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
+        skipDeployment: true,
       })
 
       let staticServer: any
@@ -467,6 +469,7 @@ describe('404 handling', () => {
       const { next } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
+        skipDeployment: true,
       })
 
       beforeAll(async () => {
@@ -495,6 +498,7 @@ describe('404 handling', () => {
       const { next } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
+        skipDeployment: true,
       })
 
       let staticServer: any

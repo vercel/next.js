@@ -4,6 +4,7 @@ import { BUILD_ID_FILE, BUILD_MANIFEST } from 'next/constants'
 describe('distDir', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
 
   it('should render the page', async () => {
@@ -29,6 +30,7 @@ if (isNextStart) {
     const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      skipDeployment: true,
     })
 
     it('should throw error with invalid distDir', async () => {

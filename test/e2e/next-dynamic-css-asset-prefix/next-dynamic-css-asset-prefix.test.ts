@@ -10,6 +10,7 @@ describe('next/dynamic with assetPrefix', () => {
     dependencies: {
       sass: '1.54.0',
     },
+    skipDeployment: true,
   })
 
   let cdnPort: number

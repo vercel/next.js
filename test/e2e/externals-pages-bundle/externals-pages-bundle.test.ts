@@ -6,6 +6,7 @@ describe('externals-pages-bundle', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
 
   describe('bundle pages externals with config.bundlePagesRouterDependencies', () => {

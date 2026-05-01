@@ -18,6 +18,7 @@ describe('Image Optimizer', () => {
     const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       skipStart: true,
+      skipDeployment: true,
     })
 
     const configChecks: Array<{
@@ -270,6 +271,7 @@ describe('Image Optimizer', () => {
           qualities: [70, 75],
         },
       },
+      skipDeployment: true,
     })
 
     it('should return successful response for original loader', async () => {
@@ -284,6 +286,7 @@ describe('Image Optimizer', () => {
       const size = 96
       const { next } = nextTestSetup({
         files: join(__dirname, 'app'),
+        skipDeployment: true,
       })
 
       beforeAll(async () => {
@@ -374,6 +377,7 @@ describe('Image Optimizer', () => {
             path: 'https://example.com/act123/',
           },
         },
+        skipDeployment: true,
       })
 
       it('should 404 when loader is not default', async () => {
@@ -396,6 +400,7 @@ describe('Image Optimizer', () => {
         nextConfig: {
           images: { unoptimized: true },
         },
+        skipDeployment: true,
       })
 
       it('should 404 when unoptimized', async () => {
@@ -418,6 +423,7 @@ describe('Image Optimizer', () => {
         nextConfig: {
           experimental: { imgOptMaxInputPixels: 100 },
         },
+        skipDeployment: true,
       })
 
       it('should fallback to source image when input exceeds imgOptMaxInputPixels', async () => {
@@ -449,6 +455,7 @@ describe('Image Optimizer', () => {
             ]
           },
         },
+        skipDeployment: true,
       })
 
       it('should return response when image is served from an external rewrite', async () => {
@@ -501,6 +508,7 @@ describe('Image Optimizer', () => {
             imageSizes: [],
           },
         },
+        skipDeployment: true,
       })
 
       it('should support width 8 per BLUR_IMG_SIZE with next dev', async () => {

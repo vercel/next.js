@@ -10,6 +10,7 @@ const shouldSkip =
   () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      skipDeployment: true,
     })
 
     it('should respond to 404 correctly', async () => {

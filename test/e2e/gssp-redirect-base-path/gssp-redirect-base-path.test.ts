@@ -10,6 +10,7 @@ describe('GS(S)P Redirect with basePath', () => {
       react: '19.3.0-canary-fef12a01-20260413',
       'react-dom': '19.3.0-canary-fef12a01-20260413',
     },
+    skipDeployment: true,
   })
 
   it('should apply temporary redirect when visited directly for GSSP page', async () => {

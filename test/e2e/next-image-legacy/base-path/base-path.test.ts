@@ -10,6 +10,7 @@ import {
 describe('Legacy Image Component basePath Tests', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    disableAutoSkewProtection: true,
   })
 
   let dpl: string

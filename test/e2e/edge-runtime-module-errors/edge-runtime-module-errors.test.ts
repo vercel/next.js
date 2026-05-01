@@ -126,6 +126,7 @@ describe('Edge runtime module errors', () => {
       // pushes the initial server startup past the default 10s window on
       // loaded CI hardware.
       startServerTimeout: 30_000,
+      skipDeployment: true,
     })
 
     // webpack's dev server lazily compiles Edge API routes on demand and
@@ -579,6 +580,7 @@ describe('Edge runtime module errors', () => {
       dependencies: {
         nanoid: 'latest',
       },
+      skipDeployment: true,
     })
 
     let originalApi: string

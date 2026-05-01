@@ -3,6 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 describe('Custom routes invalid multi-match', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    disableAutoSkewProtection: true,
   })
 
   it('should show error for invalid multi-match', async () => {

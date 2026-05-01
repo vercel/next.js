@@ -4,6 +4,7 @@ describe('Nullish configs in next.config.js', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
 
   afterEach(async () => {

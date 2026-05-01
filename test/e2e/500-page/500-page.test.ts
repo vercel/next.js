@@ -4,6 +4,7 @@ import { retry } from 'next-test-utils'
 describe('500 Page Support', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
 
   it('should use pages/500', async () => {

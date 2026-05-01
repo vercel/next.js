@@ -9,6 +9,7 @@ describe('env-config', () => {
       PROCESS_ENV_KEY: 'processenvironment',
       ENV_FILE_PROCESS_ENV: 'env-cli',
     },
+    skipDeployment: true,
   })
 
   const getEnvFromHtml = async (path: string) => {

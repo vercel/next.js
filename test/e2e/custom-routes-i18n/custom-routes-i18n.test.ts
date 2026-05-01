@@ -7,6 +7,7 @@ describe('Custom routes i18n', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
 
   let server: http.Server

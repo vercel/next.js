@@ -15,7 +15,10 @@ import { join } from 'path'
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('Image Component Default Tests', () => {
-  const { next } = nextTestSetup({ files: __dirname })
+  const { next } = nextTestSetup({
+    files: __dirname,
+    disableAutoSkewProtection: true,
+  })
 
   let dpl: string
   let assetDpl: string

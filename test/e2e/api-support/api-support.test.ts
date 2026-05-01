@@ -15,6 +15,8 @@ describe('API routes', () => {
       cors: 'latest',
       'node-fetch': '2.6.7',
     },
+    skipDeployment: true,
+    disableAutoSkewProtection: true,
   })
 
   it('should not strip .json from API route', async () => {
@@ -600,6 +602,8 @@ describe('API routes output export error', () => {
       'node-fetch': '2.6.7',
     },
     skipStart: true,
+    skipDeployment: true,
+    disableAutoSkewProtection: true,
   })
 
   it('should show error with output export', async () => {

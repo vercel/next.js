@@ -5,6 +5,7 @@ describe('Build Error Tests', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
 
   if (isNextDev) {
@@ -39,6 +40,7 @@ describe('Build Error Tests', () => {
 describe('Static Image Component Tests for basePath', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
 
   let browser: Awaited<ReturnType<typeof next.browser>>

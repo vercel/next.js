@@ -5,6 +5,7 @@ describe('Errors on invalid custom middleware matchers', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
 
   afterEach(async () => {

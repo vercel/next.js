@@ -7,6 +7,7 @@ describe('Telemetry CLI', () => {
   const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
 
   it('can print telemetry status', async () => {

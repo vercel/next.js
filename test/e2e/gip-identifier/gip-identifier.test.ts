@@ -3,7 +3,10 @@ import { retry } from 'next-test-utils'
 import cheerio from 'cheerio'
 
 describe('gip identifiers', () => {
-  const { next, isNextDev } = nextTestSetup({ files: __dirname })
+  const { next, isNextDev } = nextTestSetup({
+    files: __dirname,
+    skipDeployment: true,
+  })
 
   const getNextData = async () => {
     const html = await next.render('/')

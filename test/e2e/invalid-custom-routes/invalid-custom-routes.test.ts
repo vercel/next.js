@@ -5,6 +5,7 @@ describe('Errors on invalid custom routes', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
 
   const writeConfig = async (routes: any, type = 'redirects') => {

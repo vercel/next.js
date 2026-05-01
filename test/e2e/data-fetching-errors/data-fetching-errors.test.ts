@@ -9,6 +9,7 @@ describe('GS(S)P Page Errors', () => {
   ;(isNextDev ? describe : describe.skip)('development mode', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      skipDeployment: true,
     })
 
     it('should show error for getStaticProps as component member', async () => {
@@ -105,6 +106,7 @@ describe('GS(S)P Page Errors', () => {
     const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      skipDeployment: true,
     })
 
     it('should show build error for getStaticProps as component member', async () => {

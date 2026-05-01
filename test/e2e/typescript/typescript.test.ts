@@ -6,6 +6,7 @@ describe('TypeScript Features', () => {
     dependencies: {
       sass: 'latest',
     },
+    skipDeployment: true,
   })
 
   it('should render the page', async () => {
@@ -105,6 +106,7 @@ export default function EvilPage(): JSX.Element {
       dependencies: {
         sass: 'latest',
       },
+      skipDeployment: true,
     })
 
     it('should build the app', async () => {
