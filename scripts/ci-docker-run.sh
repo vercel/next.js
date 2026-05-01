@@ -67,4 +67,4 @@ done
 
 docker run "${docker_args[@]}" \
   "${IMAGE_NAME}" \
-  bash -eo pipefail "$@"
+  env -u HOSTNAME bash -eo pipefail "$@"
