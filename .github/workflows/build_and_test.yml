@@ -327,6 +327,7 @@ jobs:
           - '--scenario=heavy-npm-deps-build-turbo-cache-enabled --page=homepage'
     uses: ./.github/workflows/build_reusable.yml
     with:
+      needsPlaywright: 'no'
       afterBuild: |
         ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs \
           --datadog=ubuntu-latest-16-core \
@@ -341,6 +342,7 @@ jobs:
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
     uses: ./.github/workflows/build_reusable.yml
     with:
+      needsPlaywright: 'no'
       skipNativeBuild: 'yes'
       stepName: 'test-devlow'
       afterBuild: |
@@ -368,7 +370,7 @@ jobs:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
         react: ['', '18.3.1']
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       afterBuild: |
         export IS_TURBOPACK_TEST=1
@@ -422,7 +424,7 @@ jobs:
         # We can't easily switch like we do for e2e tests.
         # Skipping this dimension until we can figure out a way to test multiple React versions.
         react: ['']
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       nodeVersion: 20.9.0
       afterBuild: |
@@ -461,7 +463,7 @@ jobs:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
         react: ['', '18.3.1']
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       nodeVersion: 20.9.0
       afterBuild: |
@@ -497,7 +499,7 @@ jobs:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
         # Empty value uses default
         react: ['', '18.3.1']
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
@@ -543,7 +545,7 @@ jobs:
         # We can't easily switch like we do for e2e tests.
         # Skipping this dimension until we can figure out a way to test multiple React versions.
         react: ['']
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       nodeVersion: 20.9.0
       afterBuild: |
@@ -588,7 +590,7 @@ jobs:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
         react: ['', '18.3.1']
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       nodeVersion: 20.9.0
       afterBuild: |
@@ -631,7 +633,7 @@ jobs:
         # We can't easily switch like we do for e2e tests.
         # Skipping this dimension until we can figure out a way to test multiple React versions.
         react: ['']
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       nodeVersion: 20.9.0
       afterBuild: |
@@ -730,7 +732,7 @@ jobs:
       matrix:
         node: [22, 24]
 
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       nodeVersion: ${{ matrix.node }}
       afterBuild: |
@@ -752,7 +754,7 @@ jobs:
       matrix:
         node: [22, 24]
 
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       nodeVersion: ${{ matrix.node }}
       afterBuild: |
@@ -796,7 +798,7 @@ jobs:
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
@@ -821,7 +823,7 @@ jobs:
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
@@ -846,7 +848,7 @@ jobs:
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       # Keep Next.js related env variables in sync with additionalEnv in next-deploy.ts
       afterBuild: |
@@ -878,7 +880,7 @@ jobs:
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
@@ -915,7 +917,7 @@ jobs:
         group: [1/10, 2/10, 3/10, 4/10, 5/10, 6/10, 7/10, 8/10, 9/10, 10/10]
         # Empty value uses default
         react: ['', '18.3.1']
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       afterBuild: |
         export IS_WEBPACK_TEST=1
@@ -1022,7 +1024,7 @@ jobs:
         group: [1/10, 2/10, 3/10, 4/10, 5/10, 6/10, 7/10, 8/10, 9/10, 10/10]
         # Empty value uses default
         react: ['', '18.3.1']
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       afterBuild: |
         export IS_WEBPACK_TEST=1
@@ -1070,7 +1072,7 @@ jobs:
         # We can't easily switch like we do for e2e tests.
         # Skipping this dimension until we can figure out a way to test multiple React versions.
         react: ['']
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       nodeVersion: 20.9.0
       afterBuild: |
@@ -1092,7 +1094,7 @@ jobs:
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       browser: 'firefox webkit'
       afterBuild: |
@@ -1126,7 +1128,7 @@ jobs:
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       nodeVersion: 20.9.0
       afterBuild: |
@@ -1158,7 +1160,7 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
@@ -1193,7 +1195,7 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       afterBuild: |
         export __NEXT_CACHE_COMPONENTS=true
@@ -1228,7 +1230,7 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       afterBuild: |
         export __NEXT_USE_NODE_STREAMS=true
@@ -1264,7 +1266,7 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       afterBuild: |
         export __NEXT_USE_NODE_STREAMS=true
@@ -1293,7 +1295,7 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       afterBuild: |
         export __NEXT_USE_NODE_STREAMS=true
@@ -1320,7 +1322,7 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
-    uses: ./.github/workflows/build_reusable.yml
+    uses: ./.github/workflows/build_reusable_linux_container.yml
     with:
       afterBuild: |
         export __NEXT_USE_NODE_STREAMS=true
