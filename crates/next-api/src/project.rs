@@ -2283,11 +2283,11 @@ impl Project {
     #[turbo_tasks::function]
     async fn hmr_content(
         self: Vc<Self>,
-        chunk_name: RcStr,
+        chunk_name: &RcStr,
         target: HmrTarget,
     ) -> Result<Vc<OptionVersionedContent>> {
         if let Some(map) = self.await?.versioned_content_map {
-            let content = map.get(self.hmr_root_path(target).await?.join(&chunk_name)?);
+            let content = map.get(self.hmr_root_path(target).await?.join(chunk_name)?);
             Ok(content)
         } else {
             bail!("must be in dev mode to hmr")

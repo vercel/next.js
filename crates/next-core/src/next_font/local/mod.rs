@@ -282,7 +282,7 @@ async fn get_font_css_properties(
 }
 
 #[turbo_tasks::function]
-fn font_options_from_query_map(query: RcStr) -> Result<Vc<NextFontLocalOptions>> {
+fn font_options_from_query_map(query: &RcStr) -> Result<Vc<NextFontLocalOptions>> {
     let query_map = qstring::QString::from(query.as_str());
 
     if query_map.len() != 1 {

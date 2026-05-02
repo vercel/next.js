@@ -2234,9 +2234,9 @@ pub struct OptionStackFrame(Option<StackFrame>);
 #[turbo_tasks::function]
 pub async fn get_source_map_rope(
     container: Vc<ProjectContainer>,
-    source_url: RcStr,
+    source_url: &RcStr,
 ) -> Result<Vc<FileContent>> {
-    let (file_path_sys, module) = match Url::parse(&source_url) {
+    let (file_path_sys, module) = match Url::parse(source_url) {
         Ok(url) => match url.scheme() {
             "file" => {
                 let path = match url.to_file_path() {
@@ -2308,7 +2308,7 @@ pub fn get_source_map_rope_operation(
 pub async fn project_trace_source_operation(
     container: ResolvedVc<ProjectContainer>,
     frame: StackFrame,
-    current_directory_file_url: RcStr,
+    current_directory_file_url: &RcStr,
 ) -> Result<Vc<OptionStackFrame>> {
     let Some(map) =
         &*SourceMap::new_from_rope_cached(get_source_map_rope(*container, frame.file)).await?
@@ -2352,7 +2352,7 @@ pub async fn project_trace_source_operation(
             // Client code uses file://
             (
                 RcStr::from(
-                    get_relative_path_to(&current_directory_file_url, &original_file)
+                    get_relative_path_to(current_directory_file_url, &original_file)
                         // TODO(sokra) remove this to include a ./ here to make it a relative path
                         .trim_start_matches("./"),
                 ),
@@ -2364,7 +2364,7 @@ pub async fn project_trace_source_operation(
             (
                 RcStr::from(
                     get_relative_path_to(
-                        &current_directory_file_url,
+                        current_directory_file_url,
                         &format!("{project_root_uri}{source_file}"),
                     )
                     // TODO(sokra) remove this to include a ./ here to make it a relative path
@@ -2434,10 +2434,10 @@ pub async fn project_get_source_for_asset(
             #[turbo_tasks::function(operation)]
             async fn source_content_operation(
                 container: ResolvedVc<ProjectContainer>,
-                file_path: RcStr,
+                file_path: &RcStr,
             ) -> Result<Vc<FileContent>> {
                 let project_path = container.project().project_path().await?;
-                Ok(project_path.fs().root().await?.join(&file_path)?.read())
+                Ok(project_path.fs().root().await?.join(file_path)?.read())
             }
 
             let source_content = &*source_content_operation(container, file_path.clone())

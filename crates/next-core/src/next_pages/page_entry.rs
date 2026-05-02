@@ -31,7 +31,7 @@ pub struct PageSsrEntryModule {
 
 #[turbo_tasks::function]
 pub async fn create_page_ssr_entry_module(
-    pathname: RcStr,
+    pathname: &RcStr,
     reference_type: ReferenceType,
     project_root: FileSystemPath,
     ssr_module_context: Vc<Box<dyn AssetContext>>,
@@ -76,7 +76,7 @@ pub async fn create_page_ssr_entry_module(
     let inner_error_500 = rcstr!("INNER_500");
 
     let mut replacements = vec![
-        ("VAR_DEFINITION_PATHNAME", &*definition_pathname),
+        ("VAR_DEFINITION_PATHNAME", &**definition_pathname),
         ("VAR_USERLAND", &*inner),
     ];
 

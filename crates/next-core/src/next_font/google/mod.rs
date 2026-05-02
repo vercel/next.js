@@ -498,7 +498,7 @@ async fn load_font_data(project_root: FileSystemPath) -> Result<Vc<FontData>> {
 async fn update_google_stylesheet(
     stylesheet: Vc<RcStr>,
     options: Vc<NextFontGoogleOptions>,
-    scoped_font_family: RcStr,
+    scoped_font_family: &RcStr,
     has_size_adjust: Vc<bool>,
 ) -> Result<Vc<RcStr>> {
     let options = &*options.await?;
@@ -660,7 +660,7 @@ async fn get_font_css_properties(
 
 #[turbo_tasks::function]
 async fn font_options_from_query_map(
-    query: RcStr,
+    query: &RcStr,
     font_data: Vc<FontData>,
 ) -> Result<Vc<NextFontGoogleOptions>> {
     let query_map = qstring::QString::from(query.as_str());

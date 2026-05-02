@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use either::Either;
 use indoc::formatdoc;
 use itertools::Itertools;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{EitherTaskInput, ResolvedVc, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
@@ -198,8 +198,8 @@ impl NextRootParamsMapper {
     }
 
     #[turbo_tasks::function]
-    async fn invalid_import_map_result(message: RcStr) -> Result<Vc<ImportMapResult>> {
-        let path: FileSystemPath = next_js_file_path("root-params.js".into()).owned().await?;
+    async fn invalid_import_map_result(message: &RcStr) -> Result<Vc<ImportMapResult>> {
+        let path: FileSystemPath = next_js_file_path(rcstr!("root-params.js")).owned().await?;
 
         // error the compilation.
         InvalidImportModuleIssue {
@@ -212,7 +212,7 @@ impl NextRootParamsMapper {
 
         // map to a dummy module that rethrows the error at runtime.
         let virtual_source = VirtualSource::new(
-            path.clone(),
+            path,
             AssetContent::file(
                 FileContent::Content(
                     format!("throw new Error({})", serde_json::to_string(&message)?).into(),

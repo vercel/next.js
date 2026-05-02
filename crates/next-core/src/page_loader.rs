@@ -26,10 +26,10 @@ use crate::{embed_js::next_js_file_path, util::get_asset_path_from_pathname};
 pub async fn create_page_loader_entry_module(
     client_context: Vc<Box<dyn AssetContext>>,
     entry_asset: Vc<Box<dyn Source>>,
-    pathname: RcStr,
+    pathname: &RcStr,
 ) -> Result<Vc<Box<dyn Module>>> {
     let mut result = RopeBuilder::default();
-    writeln!(result, "const PAGE_PATH = {};\n", StringifyJs(&pathname))?;
+    writeln!(result, "const PAGE_PATH = {};\n", StringifyJs(pathname))?;
 
     let page_loader_path = next_js_file_path(rcstr!("entry/page-loader.ts"))
         .owned()
