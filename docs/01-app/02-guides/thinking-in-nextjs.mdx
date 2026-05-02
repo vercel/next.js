@@ -492,29 +492,27 @@ Source: [`steps/06-client-boundaries`](https://github.com/vercel-labs/thinking-i
 
 The route works end-to-end now, but moving between routes still feels server-y. Click into a project, click back, click into another, and every read runs from scratch on each navigation. The shell paints fast, the fallbacks reappear, and the new section streams in.
 
-Caching is the move that gets the rest of the way to the instant feel of a Single Page App (SPA), without giving up the server-component model. Data lives next to the read, there's no client cache to hand-maintain across viewers, and there's no API contract to keep in sync.
+Caching is the move that gets the rest of the way to the instant feel of a [Single Page App (SPA)](/docs/app/guides/single-page-applications), without giving up the server-component model. Data lives next to the read, there's no client cache to hand-maintain across viewers, and there's no API contract to keep in sync.
 
-Walk the reads on the route. Most of them produce the same output for every visitor. The project list, project header, and deployments list look the same for one viewer as the next.
+Walk the reads on the route. Most of them are reusable. The same render can serve the next request instead of running again, even when "the next request" only means the same viewer's next click.
 
 The natural question:
 
-> Would the next viewer see the same thing?
+> Could this read be reused?
 
-If yes, the result can be reused instead of recomputed on every request, and the section can join the static shell instead of streaming behind a fallback.
-
-| UI piece                          | Same for every viewer? |
-| --------------------------------- | ---------------------- |
-| `ProjectGrid`, `ProjectHeader`    | Yes                    |
-| `Deployments`, `DeploymentHeader` | Yes                    |
-| `RecentDeploysSection`            | Yes                    |
-| `BuildLogs`, completed build      | Yes                    |
-| `BuildLogs`, in-progress build    | No, live               |
-| `ViewerAvatar`                    | No, per viewer         |
-| `PinnedSection`                   | No, per viewer         |
+| UI piece                          | Reusable?       |
+| --------------------------------- | --------------- |
+| `ProjectGrid`, `ProjectHeader`    | Yes             |
+| `Deployments`, `DeploymentHeader` | Yes             |
+| `RecentDeploysSection`            | Yes             |
+| `BuildLogs`, completed build      | Yes             |
+| `BuildLogs`, in-progress build    | No, live        |
+| `ViewerAvatar`                    | Yes, per viewer |
+| `PinnedSection`                   | Yes, per viewer |
 
 {/* TODO: The `caches the data access` link below points at the not-yet-shipped Error Overhaul guide; update once it lands. */}
 
-[`'use cache'`](/docs/app/glossary#use-cache-directive) is the directive that [caches the data access](/docs/app/guides/error-overhaul#cache-dynamic-data). Add it at the top of a data function or a Server Component, and the result is reused across requests. On a project read, the directive sits next to a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) for how long entries stay around and a [`cacheTag`](/docs/app/api-reference/functions/cacheTag) for invalidation later:
+If the answer is yes, [`'use cache'`](/docs/app/glossary#use-cache-directive) is the one primitive. The same directive covers reads reused across every visitor, reads reused per viewer, and reads reused only for the current session. The variant tweaks where the entry lives, not whether to cache. Add it at the top of a data function or a Server Component, and the result joins the static shell instead of streaming behind a fallback. On a project read, the directive sits next to a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) for how long entries stay around and a [`cacheTag`](/docs/app/api-reference/functions/cacheTag) for invalidation later:
 
 ```tsx filename="data/queries/projects.ts" highlight={2,4}
 async function getProject(id) {
@@ -673,7 +671,7 @@ Source: [`steps/07-caching`](https://github.com/vercel-labs/thinking-in-nextjs/t
 
 The cache is set up, but each navigation still waits. The cached entries on this route key on `params`, cookies, or `searchParams`, values that only arrive with a real request, so nothing fills them until the request lands. Instant validation keeps the shell ready at navigation; the data behind it is what's still missing.
 
-Prefetch is the timing answer. When a [`<Link>`](/docs/app/api-reference/components/link) enters the viewport, Next.js renders its destination in the background, so the tree is already there by the time of the click.
+Prefetching fills those entries before the click. When a [`<Link>`](/docs/app/api-reference/components/link) enters the viewport, Next.js renders its destination in the background, so the tree is already cached by the time of the click.
 
 The prefetch renders against one of two shapes, and each route declares which. The default is [static](/docs/app/guides/prefetching), with no cookies, headers, or search string in scope. That covers the shared layout and any cached read keyed on build-time inputs. [Runtime](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) is opt-in, and it renders with the same cookies, headers, and search string the navigation would send, so per-viewer reads run against the real session before the click.
 
@@ -697,7 +695,7 @@ export default function ProjectsPage({ searchParams }) {
 
 Each page declares its own choice. We can add the export to every page whose reads depend on per-request inputs. On this app that's `/projects` (cookies for the avatar and pinned section, `?q=` for the grid), `/projects/[id]` (cookies and `params`), and `/projects/[id]/deployments/[deployId]` (cookies and `params`). The other pages on the route stay on static prefetch.
 
-Open the browser's network panel as `<Link>`s scroll into view, and the prefetch requests show up as their own rows:
+Open the browser's network panel as `<Link>` elements scroll into view, and the prefetch requests show up as their own rows:
 
 ```txt
 Name                                          Status  Type   Size      Time
