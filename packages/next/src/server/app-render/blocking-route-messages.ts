@@ -42,24 +42,22 @@ export function createDynamicOrRuntimeBodyError(route: string): Error {
 
 export function createRuntimeMetadataError(route: string): Error {
   return new Error(
-    `Route "${route}": Next.js encountered runtime data in \`generateMetadata()\`.\n\n` +
-      `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` in \`generateMetadata()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
+    `Route "${route}": Next.js encountered runtime data in \`generateMetadata()\` on an otherwise static page.\n\n` +
+      `This route's metadata is generated on every request, but the rest of its content could be prerendered. \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed in \`generateMetadata()\` cause it to run dynamically.\n\n` +
       `Ways to fix this:\n` +
       `  - Use a static metadata export instead of \`generateMetadata()\`\n` +
-      `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time\n` +
-      `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
+      `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time\n\n` +
       `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
   )
 }
 
 export function createDynamicMetadataError(route: string): Error {
   return new Error(
-    `Route "${route}": Next.js encountered uncached data in \`generateMetadata()\`.\n\n` +
-      `\`fetch(...)\` or \`connection()\` in \`generateMetadata()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
+    `Route "${route}": Next.js encountered uncached data in \`generateMetadata()\` on an otherwise static page.\n\n` +
+      `This route's metadata is generated on every request, but the rest of its content could be prerendered. \`fetch(...)\` or \`connection()\` accessed in \`generateMetadata()\` cause it to run dynamically.\n\n` +
       `Ways to fix this:\n` +
       `  - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`\n` +
-      `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time\n` +
-      `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
+      `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time\n\n` +
       `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
   )
 }
@@ -113,13 +111,12 @@ export function createDynamicOrRuntimeViewportError(route: string): Error {
  */
 export function createDynamicOrRuntimeMetadataError(route: string): Error {
   return new Error(
-    `Route "${route}": Next.js encountered uncached or runtime data in \`generateMetadata()\`.\n\n` +
-      `This prevents the page from being prerendered, leading to a slower user experience.\n\n` +
+    `Route "${route}": Next.js encountered uncached or runtime data in \`generateMetadata()\` on an otherwise static page.\n\n` +
+      `This route's metadata is generated on every request, but the rest of its content could be prerendered.\n\n` +
       `Ways to fix this:\n` +
       `  - Use a static metadata export instead of \`generateMetadata()\`\n` +
       `  - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`\n` +
-      `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time\n` +
-      `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
+      `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time\n\n` +
       `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
   )
 }

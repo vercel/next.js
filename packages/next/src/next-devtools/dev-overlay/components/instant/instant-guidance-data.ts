@@ -121,15 +121,6 @@ const metadataRuntimeCards: FixCard[] = [
       { text: '}' },
     ],
   },
-  {
-    title: 'Allow blocking route',
-    color: 'red',
-    snippets: [
-      { text: 'export const instant = false', highlight: true },
-      { text: '' },
-      { text: 'export default async function Page() {' },
-    ],
-  },
 ]
 
 const metadataDynamicCards: FixCard[] = [
@@ -151,15 +142,6 @@ const metadataDynamicCards: FixCard[] = [
       { text: '  await connection()', highlight: true },
       { text: '  return …' },
       { text: '}' },
-    ],
-  },
-  {
-    title: 'Allow blocking route',
-    color: 'red',
-    snippets: [
-      { text: 'export const instant = false', highlight: true },
-      { text: '' },
-      { text: 'export default async function Page() {' },
     ],
   },
 ]
@@ -477,7 +459,7 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'blocking-route':
     'This prevents the route from being prerendered, blocking navigation and leading to a slower user experience.',
   metadata:
-    'This prevents the page from being prerendered, leading to a slower user experience.',
+    "This route's metadata is generated on every request, but the rest of its content could be prerendered.",
   viewport:
     'This prevents the page from being prerendered, leading to a slower user experience.',
   'sync-io': '',
