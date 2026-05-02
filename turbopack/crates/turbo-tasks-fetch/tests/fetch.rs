@@ -3,7 +3,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![cfg(test)]
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use anyhow::Result;
 use tokio::sync::Mutex as TokioMutex;
@@ -302,7 +302,7 @@ async fn errors_on_404() {
 #[turbo_tasks::function(operation)]
 async fn fetch_body(url: RcStr) -> Result<Vc<RcStr>> {
     let client_vc = FetchClientConfig {
-        min_cache_control_secs: 0,
+        min_cache_control: Duration::ZERO,
     }
     .cell();
     let response = &*client_vc
