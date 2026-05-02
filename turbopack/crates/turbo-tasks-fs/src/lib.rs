@@ -3057,7 +3057,7 @@ mod tests {
     }
 
     #[turbo_tasks::function(operation)]
-    async fn assert_try_from_sys_path_operation(sys_root: RcStr) -> anyhow::Result<()> {
+    async fn assert_try_from_sys_path_operation(sys_root: &RcStr) -> anyhow::Result<()> {
         let sys_root = Path::new(sys_root.as_str());
         let fs_vc = DiskFileSystem::new(
             rcstr!("temp"),

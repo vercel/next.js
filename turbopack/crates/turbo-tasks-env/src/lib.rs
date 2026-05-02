@@ -82,7 +82,7 @@ pub fn sorted_env_vars() -> FxIndexMap<RcStr, RcStr> {
 #[turbo_tasks::function]
 pub async fn case_insensitive_read(
     map: Vc<TransientEnvMap>,
-    name: RcStr,
+    name: &RcStr,
 ) -> Result<Vc<Option<RcStr>>> {
     Ok(Vc::cell(
         to_uppercase_map(map)

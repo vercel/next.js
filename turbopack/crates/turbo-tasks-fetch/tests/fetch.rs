@@ -196,7 +196,7 @@ async fn errors_on_failed_connection() {
         );
 
         #[turbo_tasks::function(operation)]
-        async fn fetch_operation(url: RcStr) -> Result<Vc<FetchOutput>> {
+        async fn fetch_operation(url: &RcStr) -> Result<Vc<FetchOutput>> {
             let client_vc = FetchClientConfig::default().cell();
             let response_vc = client_vc.fetch(url.clone(), None);
             let err_vc = &*response_vc.await?.unwrap_err();
@@ -260,7 +260,7 @@ async fn errors_on_404() {
             );
 
             #[turbo_tasks::function(operation)]
-            async fn fetch_operation(url: RcStr) -> Result<Vc<FetchOutput>> {
+            async fn fetch_operation(url: &RcStr) -> Result<Vc<FetchOutput>> {
                 let client_vc = FetchClientConfig::default().cell();
                 let response_vc = client_vc.fetch(url.clone(), None);
 
@@ -316,7 +316,7 @@ async fn client_cache() {
 
     // a simple fetch that should always succeed
     #[turbo_tasks::function(operation)]
-    async fn simple_fetch_operation(server_url: RcStr, path: RcStr) -> anyhow::Result<()> {
+    async fn simple_fetch_operation(server_url: &RcStr, path: RcStr) -> anyhow::Result<()> {
         let url = RcStr::from(format!("{}{}", server_url, path));
         let response = match &*FetchClientConfig::default()
             .cell()

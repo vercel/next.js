@@ -83,10 +83,10 @@ impl FetchClientConfig {
     #[turbo_tasks::function(network)]
     pub async fn fetch(
         self: Vc<FetchClientConfig>,
-        url: RcStr,
+        url: &RcStr,
         user_agent: Option<RcStr>,
     ) -> Result<Vc<FetchResult>> {
-        let url_ref = &*url;
+        let url_ref: &str = url;
         let this = self.await?;
         let response_result: reqwest::Result<HttpResponse> = async move {
             let reqwest_client = this.try_get_cached_reqwest_client()?;
@@ -123,7 +123,7 @@ impl FetchClientConfig {
                 // the client failed to construct or the HTTP request failed
                 mark_session_dependent();
                 Ok(Vc::cell(Err(
-                    FetchError::from_reqwest_error(&err, &url).resolved_cell()
+                    FetchError::from_reqwest_error(&err, url).resolved_cell()
                 )))
             }
         }

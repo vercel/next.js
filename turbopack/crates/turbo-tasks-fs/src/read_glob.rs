@@ -26,11 +26,11 @@ pub async fn read_glob(directory: FileSystemPath, glob: Vc<Glob>) -> Result<Vc<R
 
 #[turbo_tasks::function(fs)]
 async fn read_glob_inner(
-    prefix: RcStr,
+    prefix: &RcStr,
     directory: FileSystemPath,
     glob: Vc<Glob>,
 ) -> Result<Vc<ReadGlobResult>> {
-    read_glob_internal(&prefix, directory, glob).await
+    read_glob_internal(prefix, directory, glob).await
 }
 
 // The `prefix` represents the relative directory path where symlinks are not resolve.
@@ -144,12 +144,12 @@ pub async fn track_glob(
 
 #[turbo_tasks::function(fs)]
 async fn track_glob_inner(
-    prefix: RcStr,
+    prefix: &RcStr,
     directory: FileSystemPath,
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {
-    track_glob_internal(&prefix, directory, glob, include_dot_files).await
+    track_glob_internal(prefix, directory, glob, include_dot_files).await
 }
 
 async fn track_glob_internal(
