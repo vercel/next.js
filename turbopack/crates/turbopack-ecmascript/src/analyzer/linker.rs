@@ -172,10 +172,10 @@ where
             // Visit a function call
             // This need special handling, since we want to replace the function call and process
             // the function return value after that.
-            Step::Visit(JsValue::Call(_, list))
-                if matches!(list.callee(), JsValue::Function(..)) =>
+            Step::Visit(JsValue::Call(_, call))
+                if matches!(call.callee(), JsValue::Function(..)) =>
             {
-                let (callee, args) = list.into_parts();
+                let (callee, args) = call.into_parts();
                 let JsValue::Function(function_nodes, func_ident, return_value) = callee else {
                     unreachable!()
                 };

@@ -14,8 +14,8 @@ use crate::analyzer::JsValueUrlKind;
 pub fn early_replace_builtin(value: &mut JsValue) -> bool {
     match value {
         // matching calls like `callee(arg1, arg2, ...)`
-        JsValue::Call(_, list) => {
-            let (args, callee) = list.as_parts_mut();
+        JsValue::Call(_, call) => {
+            let (args, callee) = call.as_parts_mut();
             let args_have_side_effects = || args.iter().any(|arg| arg.has_side_effects());
             match callee {
                 // We don't know what the callee is, so we can early return
@@ -47,8 +47,8 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
             }
         }
         // matching calls with this context like `obj.prop(arg1, arg2, ...)`
-        JsValue::MemberCall(_, list) => {
-            let (args, prop, obj) = list.as_parts_mut();
+        JsValue::MemberCall(_, call) => {
+            let (args, prop, obj) = call.as_parts_mut();
             let args_have_side_effects = || args.iter().any(|arg| arg.has_side_effects());
             match obj {
                 // We don't know what the callee is, so we can early return
@@ -345,18 +345,12 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             }
             _ => false,
         },
-        // matching calls with this context like `obj.prop(arg1, arg2, ...)`
-        // list layout: [args..., prop, obj] — popping obj then prop off the tail lets us
-        // reuse the underlying Vec as the owned args Vec with no reallocation on the common
-        // fallthrough path below.
-        JsValue::MemberCall(_, list) => {
+
+        JsValue::MemberCall(_, call) => {
             // `into_parts` pops obj + prop off the tail of the underlying `Vec`, and the
             // remaining `Vec` (owned, not reallocated) becomes `args`.
-            let (mut obj, mut prop, mut args) = take(list).into_parts();
-            let obj = &mut obj;
-            let prop = &mut prop;
-            let args = &mut args;
-            match obj {
+            let (mut obj, prop, args) = take(call).into_parts();
+            match &mut obj {
                 // matching calls on an array like `[1,2,3].concat([4,5,6])`
                 JsValue::Array { items, mutable, .. } => {
                     // matching cases where the property is a const string
@@ -384,17 +378,17 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                                 mutable: inner_mutable,
                                                 ..
                                             } => {
-                                                items.extend(take(inner));
-                                                *mutable |= *inner_mutable;
+                                                items.extend(inner);
+                                                *mutable |= inner_mutable;
                                             }
-                                            JsValue::Constant(_)
+                                            other @ (JsValue::Constant(_)
                                             | JsValue::Url(_, JsValueUrlKind::Absolute)
                                             | JsValue::Concat(..)
                                             | JsValue::Add(..)
                                             | JsValue::WellKnownObject(_)
                                             | JsValue::WellKnownFunction(_)
-                                            | JsValue::Function(..) => {
-                                                items.push(take(arg));
+                                            | JsValue::Function(..)) => {
+                                                items.push(other);
                                             }
                                             _ => {
                                                 unreachable!();
@@ -402,7 +396,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                         }
                                     }
                                     obj.update_total_nodes();
-                                    *value = take(obj);
+                                    *value = obj;
                                     return true;
                                 }
                             // The Array.prototype.map method
@@ -457,8 +451,8 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             {
                 // The String.prototype.concat method
                 if str == "concat" {
-                    let mut values = vec![take(obj)];
-                    values.extend(take(args));
+                    let mut values = vec![obj];
+                    values.extend(args);
 
                     *value = JsValue::concat(values);
                     return true;
@@ -474,18 +468,18 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             // no realloc. This is the original motivation for the `[args..., prop, obj]`
             // tail layout.
             *value = JsValue::call(
-                JsValue::member(Box::new(take(obj)), Box::new(take(prop))),
-                take(args),
+                JsValue::member(Box::new(obj), Box::new(prop)),
+                args,
             );
             true
         }
         // match calls when the callee are multiple alternative functions like `(func1 |
         // func2)(arg1, arg2, ...)`
-        JsValue::Call(_, list)
-            if matches!(list.callee(), JsValue::Alternatives { .. }) =>
+        JsValue::Call(_, call)
+            if matches!(call.callee(), JsValue::Alternatives { .. }) =>
         {
             // Take ownership so we can move the alternatives `values` out of the callee.
-            let (callee, args) = take(list).into_parts();
+            let (callee, args) = take(call).into_parts();
             let JsValue::Alternatives { values, .. } = callee else {
                 unreachable!()
             };

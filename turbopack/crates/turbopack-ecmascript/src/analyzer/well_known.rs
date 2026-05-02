@@ -17,8 +17,8 @@ pub async fn replace_well_known(
     allow_project_root_tracing: bool,
 ) -> Result<(JsValue, bool)> {
     Ok(match value {
-        JsValue::Call(_, list) if matches!(list.callee(), JsValue::WellKnownFunction(_)) => {
-            let (callee, args) = list.into_parts();
+        JsValue::Call(_, call) if matches!(call.callee(), JsValue::WellKnownFunction(_)) => {
+            let (callee, args) = call.into_parts();
             let JsValue::WellKnownFunction(kind) = callee else {
                 unreachable!()
             };
@@ -34,15 +34,15 @@ pub async fn replace_well_known(
                 true,
             )
         }
-        JsValue::Call(total, list) => {
+        JsValue::Call(total, call) => {
             // var fs = require('fs'), fs = __importStar(fs);
             // TODO(WEB-552) this is not correct and has many false positives!
-            if list.args().len() == 1
-                && let JsValue::WellKnownObject(_) = &list.args()[0]
+            if call.args().len() == 1
+                && let JsValue::WellKnownObject(_) = &call.args()[0]
             {
-                return Ok((list.args()[0].clone(), true));
+                return Ok((call.args()[0].clone(), true));
             }
-            (JsValue::Call(total, list), false)
+            (JsValue::Call(total, call), false)
         }
         JsValue::Member(_, box JsValue::WellKnownObject(kind), box prop) => {
             well_known_object_member(kind, prop, compile_time_info).await?
