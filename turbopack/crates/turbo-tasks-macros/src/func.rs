@@ -225,9 +225,11 @@ impl TurboFn<'_> {
         let other_inputs = self.exposed_inputs.iter().map(|input| {
             let ident = &input.ident;
             let ty = if self.operation {
-                // operations shouldn't have their arguments rewritten, they require all
-                // arguments are explicitly `NonLocalValue`s
-                input.ty.to_token_stream()
+                // Operations don't rewrite `ResolvedVc<T>` -> `Vc<T>` (they require explicit
+                // `NonLocalValue` arguments) but they still strip the leading `&` from a
+                // user-by-ref parameter — the caller always passes the owned form for the
+                // cache key.
+                strip_leading_ref(&input.ty).to_token_stream()
             } else {
                 // Body may declare `&T` for the optimization, but the caller always sees `T`.
                 expand_exposed_input_type(&input.ty).to_token_stream()
@@ -887,18 +889,28 @@ fn return_type_to_type(return_type: &ReturnType) -> Type {
 ///   signatures illegible in the resulting rustdocs.
 ///
 /// Returns `Cow::Owned` when a transformation was applied, and `Cow::Borrowed` when no change was
-/// Like [`expand_task_input_type`], but strips a leading immutable reference (`&T` -> `T`)
-/// before applying the expansion. Used when emitting the exposed (caller-facing) type for an
-/// argument the user declared by-ref: the cache key is built from owned values, so the caller
-/// always passes owned, regardless of how the body chose to consume it.
-fn expand_exposed_input_type(orig_input: &Type) -> Cow<'_, Type> {
+/// Strip a leading immutable reference (`&T` -> `T`) from a type, leaving everything else
+/// untouched. Used to derive the exposed (caller-facing) type for an argument the user
+/// declared by-ref: the cache key is built from owned values, so the caller always passes
+/// owned, regardless of how the body chose to consume it.
+fn strip_leading_ref(orig_input: &Type) -> Cow<'_, Type> {
     if let Type::Reference(type_ref) = orig_input
         && type_ref.mutability.is_none()
         && type_ref.lifetime.is_none()
     {
-        expand_task_input_type(&type_ref.elem)
+        Cow::Borrowed(&type_ref.elem)
     } else {
-        expand_task_input_type(orig_input)
+        Cow::Borrowed(orig_input)
+    }
+}
+
+/// Like [`expand_task_input_type`], but strips a leading immutable reference (`&T` -> `T`)
+/// before applying the expansion. Used when emitting the exposed (caller-facing) type for an
+/// argument the user declared by-ref.
+fn expand_exposed_input_type(orig_input: &Type) -> Cow<'_, Type> {
+    match strip_leading_ref(orig_input) {
+        Cow::Borrowed(t) => expand_task_input_type(t),
+        Cow::Owned(t) => Cow::Owned(expand_task_input_type(&t).into_owned()),
     }
 }
 

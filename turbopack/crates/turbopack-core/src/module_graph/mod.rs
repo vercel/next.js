@@ -716,7 +716,7 @@ impl ModuleGraph {
 
     #[turbo_tasks::function(operation)]
     async fn from_graphs_inner(
-        graphs: Vec<OperationVc<SingleModuleGraph>>,
+        graphs: &Vec<OperationVc<SingleModuleGraph>>,
         binding_usage: Option<OperationVc<BindingUsageInfo>>,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(ModuleGraph {

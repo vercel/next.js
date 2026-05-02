@@ -24,8 +24,8 @@ impl ChunkType for EcmascriptChunkType {
     async fn chunk(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
-        batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
+        chunk_items: &Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
+        batch_groups: &Vec<ResolvedVc<ChunkItemBatchGroup>>,
     ) -> Result<Vc<Box<dyn Chunk>>> {
         let content = EcmascriptChunkContent {
             chunk_items: chunk_items
@@ -34,9 +34,9 @@ impl ChunkType for EcmascriptChunkType {
                 .try_join()
                 .await?,
             batch_groups: batch_groups
-                .into_iter()
+                .iter()
                 .map(|batch_group| {
-                    EcmascriptChunkItemBatchGroup::from_chunk_item_batch_group(*batch_group)
+                    EcmascriptChunkItemBatchGroup::from_chunk_item_batch_group(**batch_group)
                         .to_resolved()
                 })
                 .try_join()
