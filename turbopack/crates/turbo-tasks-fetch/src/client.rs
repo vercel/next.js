@@ -226,7 +226,7 @@ impl FetchClientConfig {
                 // Read session_dependent_completion so that this task is re-dirtied on session
                 // restore. This ensures transient errors (network down, DNS failure) are retried
                 // on the next session without a timer or busy-loop.
-                Completion::session_dependent().as_side_effect().await?;
+                Completion::session_dependent().await?;
                 Ok(FetchInnerResult {
                     result: ResolvedVc::cell(Err(
                         FetchError::from_reqwest_error(&err, &url).resolved_cell()
