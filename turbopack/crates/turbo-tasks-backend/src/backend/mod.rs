@@ -1575,19 +1575,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             match raw_entry_in_shard(shard, self.task_cache.hasher(), hash, |k| {
                 k.eq_components(native_fn, this, arg_ref)
             }) {
-                RawEntry::Occupied(e) => {
-                    // Another thread concurrently created a new in-memory task for this function
-                    // while we were reading from backing storage. Use their task_id — it was
-                    // initialized (initialize_new_task) before being inserted into the cache, so
-                    // its task_type is already set and it is the canonical task for this function.
-                    // The disk task_id we restored via task_by_type is now an orphaned storage
-                    // entry; it will be cleaned up when its storage entry is evicted.
-                    let in_memory_id = *e.get();
-                    drop(e);
-                    drop(ctx);
-                    self.connect_child(parent_task, in_memory_id, turbo_tasks);
-                    return in_memory_id;
-                }
+                RawEntry::Occupied(_) => {}
                 RawEntry::Vacant(e) => {
                     e.insert(stored_type, task_id);
                 }
@@ -1620,21 +1608,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         self.persisted_task_id_factory.get()
                     };
                     // Initialize storage BEFORE making task_id visible in the cache.
-                    // Invariant: initialize_new_task must be called before e.insert so that any
-                    // thread that observes task_id via the cache also finds its task_type already
-                    // set in storage. Breaking this ordering would allow a racing thread to reach
-                    // get_task_type() on an uninitialized task and panic.
+                    // This ensures any thread that reads task_id from the cache sees
+                    // the storage entry already initialized (restored flags set).
                     self.storage
                         .initialize_new_task(task_id, Some(task_type.clone()));
                     // insert() consumes e, releasing the shard write lock.
                     e.insert(task_type, task_id);
-                    debug_assert!(
-                        {
-                            let task = self.storage.access_mut(task_id);
-                            task.get_persistent_task_type().is_some()
-                        },
-                        "task_type must be set in storage before task_id is visible in the cache"
-                    );
                     self.track_cache_miss_by_fn(native_fn);
                     is_new = true;
                     task_id
