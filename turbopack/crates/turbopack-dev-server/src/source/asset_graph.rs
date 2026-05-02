@@ -255,7 +255,7 @@ impl GetContentSourceContent for AssetGraphGetContentSourceContent {
     #[turbo_tasks::function]
     async fn get(
         self: ResolvedVc<Self>,
-        _path: RcStr,
+        _path: &RcStr,
         _data: ContentSourceData,
     ) -> Result<Vc<ContentSourceContent>> {
         let this = self.await?;

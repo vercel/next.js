@@ -287,7 +287,7 @@ pub async fn make_chunks(
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     chunk_items_or_batches: ResolvedVc<ChunkItemOrBatchWithAsyncModuleInfos>,
     batch_groups: ResolvedVc<ChunkItemBatchGroups>,
-    key_prefix: RcStr,
+    key_prefix: &RcStr,
 ) -> Result<Vc<Chunks>> {
     let chunking_configs = &*chunking_context.chunking_configs().await?;
     let chunk_items_or_batches = chunk_items_or_batches.await?;

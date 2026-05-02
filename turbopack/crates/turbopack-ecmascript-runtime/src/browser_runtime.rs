@@ -23,7 +23,7 @@ pub async fn get_browser_runtime_code(
     asset_suffix: Vc<AssetSuffix>,
     worker_forwarded_globals: Vc<Vec<RcStr>>,
     runtime_type: RuntimeType,
-    output_root_to_root_path: RcStr,
+    output_root_to_root_path: &RcStr,
     generate_source_map: bool,
     chunk_loading_global: Vc<RcStr>,
     cross_origin: Vc<CrossOrigin>,

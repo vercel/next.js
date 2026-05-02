@@ -68,7 +68,7 @@ impl AssetContext for NoopAssetContext {
     #[turbo_tasks::function]
     async fn with_transition(
         self: Vc<Self>,
-        _transition: RcStr,
+        _transition: &RcStr,
     ) -> Result<Vc<Box<dyn AssetContext>>> {
         Ok(Vc::upcast(self))
     }

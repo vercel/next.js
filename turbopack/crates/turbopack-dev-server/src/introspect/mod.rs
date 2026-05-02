@@ -103,7 +103,7 @@ impl GetContentSourceContent for IntrospectionSource {
     #[turbo_tasks::function]
     async fn get(
         self: ResolvedVc<Self>,
-        path: RcStr,
+        path: &RcStr,
         _data: ContentSourceData,
     ) -> Result<Vc<ContentSourceContent>> {
         // get last segment

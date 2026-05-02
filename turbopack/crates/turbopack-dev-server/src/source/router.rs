@@ -155,7 +155,7 @@ impl GetContentSourceContent for PrefixedRouterGetContentSourceContent {
     }
 
     #[turbo_tasks::function]
-    async fn get(&self, path: RcStr, data: ContentSourceData) -> Result<Vc<ContentSourceContent>> {
+    async fn get(&self, path: &RcStr, data: ContentSourceData) -> Result<Vc<ContentSourceContent>> {
         let prefix = self.mapper.await?.prefix.await?;
         if let Some(path) = path.strip_prefix(&**prefix) {
             if path.is_empty() {

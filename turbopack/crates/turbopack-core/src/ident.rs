@@ -180,8 +180,8 @@ impl AssetIdent {
     pub async fn output_name(
         &self,
         context_path: &FileSystemPath,
-        prefix: Option<RcStr>,
-        expected_extension: RcStr,
+        prefix: &Option<RcStr>,
+        expected_extension: &RcStr,
     ) -> Result<Vc<RcStr>> {
         debug_assert!(
             expected_extension.starts_with("."),

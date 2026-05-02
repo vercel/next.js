@@ -248,7 +248,7 @@ pub async fn get_side_effect_free_declaration(
                 .cell());
             }
             SideEffectsValue::Glob(glob) => {
-                if let Some(rel_path) = package_json.parent().get_relative_path_to(&path) {
+                if let Some(rel_path) = package_json.parent().get_relative_path_to(path) {
                     let rel_path = rel_path.strip_prefix("./").unwrap_or(&rel_path);
                     return Ok(if glob.await?.matches(rel_path) {
                         SideEffectsDeclaration::SideEffectful

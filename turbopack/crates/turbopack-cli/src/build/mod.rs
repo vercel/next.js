@@ -188,7 +188,7 @@ async fn extract_effects_operation(op: OperationVc<()>) -> Result<Vc<Effects>> {
 
 #[turbo_tasks::function(operation)]
 async fn build_internal(
-    project_dir: RcStr,
+    project_dir: &RcStr,
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
     browserslist_query: RcStr,

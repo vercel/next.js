@@ -960,14 +960,14 @@ impl ResolveResult {
     #[turbo_tasks::function]
     fn with_replaced_request_key(
         &self,
-        old_request_key: RcStr,
+        old_request_key: &RcStr,
         request_key: RequestKey,
     ) -> Result<Vc<Self>> {
         let new_primary = self
             .primary
             .iter()
             .filter_map(|(k, v)| {
-                let remaining = k.request.as_ref()?.strip_prefix(&*old_request_key)?;
+                let remaining = k.request.as_ref()?.strip_prefix(&**old_request_key)?;
                 Some((
                     RequestKey {
                         request: request_key
@@ -991,12 +991,12 @@ impl ResolveResult {
     /// from all [RequestKey]s. It's not expected that the [ResolveResult] contains [RequestKey]s
     /// without the prefix, but if there are still some, they are discarded.
     #[turbo_tasks::function]
-    fn with_stripped_request_key_prefix(&self, prefix: RcStr) -> Result<Vc<Self>> {
+    fn with_stripped_request_key_prefix(&self, prefix: &RcStr) -> Result<Vc<Self>> {
         let new_primary = self
             .primary
             .iter()
             .filter_map(|(k, v)| {
-                let remaining = k.request.as_ref()?.strip_prefix(&*prefix)?;
+                let remaining = k.request.as_ref()?.strip_prefix(&**prefix)?;
                 Some((
                     RequestKey {
                         request: Some(remaining.into()),

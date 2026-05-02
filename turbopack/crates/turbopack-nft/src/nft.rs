@@ -60,7 +60,7 @@ pub async fn node_file_trace(
 
 #[turbo_tasks::function(operation)]
 async fn node_file_trace_operation(
-    project_root: RcStr,
+    project_root: &RcStr,
     input: RcStr,
     graph: bool,
     max_depth: Option<usize>,

@@ -342,11 +342,11 @@ impl CompileTimeDefines {
     }
 
     #[turbo_tasks::function]
-    pub async fn read_process_env(&self, key: RcStr) -> Result<Vc<Option<RcStr>>> {
+    pub async fn read_process_env(&self, key: &RcStr) -> Result<Vc<Option<RcStr>>> {
         let key = DefinableNameSegmentRefs(smallvec![
             DefinableNameSegmentRef::Name("process"),
             DefinableNameSegmentRef::Name("env"),
-            DefinableNameSegmentRef::Name(&key),
+            DefinableNameSegmentRef::Name(key),
         ]);
         Ok(Vc::cell(match self.0.get(&key) {
             Some(CompileTimeDefineValue::String(s)) => Some(s.clone()),
