@@ -34,7 +34,7 @@ pub async fn get_app_page_entry(
     edge_context: ResolvedVc<ModuleAssetContext>,
     loader_tree: Vc<AppPageLoaderTree>,
     page: AppPage,
-    project_root: FileSystemPath,
+    project_root: &FileSystemPath,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntry>> {
     let config = parse_segment_config_from_loader_tree(loader_tree);

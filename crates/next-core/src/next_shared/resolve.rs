@@ -119,7 +119,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve(
         &self,
-        fs_path: FileSystemPath,
+        fs_path: &FileSystemPath,
         _lookup_path: FileSystemPath,
         _reference_type: ReferenceType,
         _request: Vc<Request>,
@@ -178,7 +178,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve(
         &self,
-        fs_path: FileSystemPath,
+        fs_path: &FileSystemPath,
         _lookup_path: FileSystemPath,
         _reference_type: ReferenceType,
         _request: Vc<Request>,
@@ -309,7 +309,7 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve(
         &self,
-        fs_path: FileSystemPath,
+        fs_path: &FileSystemPath,
         _lookup_path: FileSystemPath,
         _reference_type: ReferenceType,
         _request: Vc<Request>,

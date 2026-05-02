@@ -124,7 +124,7 @@ impl ServerContextType {
 
 #[turbo_tasks::function]
 pub async fn get_server_resolve_options_context(
-    project_path: FileSystemPath,
+    project_path: &FileSystemPath,
     ty: ServerContextType,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,

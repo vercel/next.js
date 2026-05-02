@@ -75,7 +75,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
     #[turbo_tasks::function]
     async fn before_resolve(
         self: Vc<Self>,
-        lookup_path: FileSystemPath,
+        lookup_path: &FileSystemPath,
         _reference_type: ReferenceType,
         request_vc: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {

@@ -31,7 +31,7 @@ pub struct OptionAssetPath(Option<AssetPath>);
 #[turbo_tasks::function]
 async fn asset_path(
     asset: Vc<Box<dyn OutputAsset>>,
-    node_root: FileSystemPath,
+    node_root: &FileSystemPath,
     should_content_hash: Option<HashAlgorithm>,
 ) -> Result<Vc<OptionAssetPath>> {
     Ok(Vc::cell(
@@ -61,7 +61,7 @@ async fn asset_path(
 #[turbo_tasks::function]
 pub async fn all_asset_paths(
     assets: Vc<OutputAssets>,
-    node_root: FileSystemPath,
+    node_root: &FileSystemPath,
     should_content_hash: Option<HashAlgorithm>,
 ) -> Result<Vc<AssetPaths>> {
     let span = tracing::info_span!(
@@ -90,12 +90,12 @@ pub async fn all_asset_paths(
 #[turbo_tasks::function]
 pub async fn all_paths_in_root(
     assets: Vc<OutputAssets>,
-    root: FileSystemPath,
+    root: &FileSystemPath,
 ) -> Result<Vc<Vec<RcStr>>> {
     let all_assets = &*all_assets_from_entries(assets).await?;
 
     Ok(Vc::cell(
-        get_paths_from_root(&root, all_assets, |_| true).await?,
+        get_paths_from_root(root, all_assets, |_| true).await?,
     ))
 }
 

@@ -2587,7 +2587,7 @@ pub struct BaseAndFullModuleGraph {
 #[turbo_tasks::function]
 async fn any_output_changed(
     roots: Vc<OutputAssets>,
-    path: FileSystemPath,
+    path: &FileSystemPath,
     server: bool,
 ) -> Result<Vc<Completion>> {
     let all_assets = expand_output_assets(

@@ -16,7 +16,7 @@ use crate::dynamic_imports::DynamicImportedChunks;
 pub async fn create_react_loadable_manifest(
     dynamic_import_entries: Vc<DynamicImportedChunks>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    client_relative_path: FileSystemPath,
+    client_relative_path: &FileSystemPath,
     output_path: FileSystemPath,
     runtime: NextRuntime,
 ) -> Result<Vc<OutputAssets>> {

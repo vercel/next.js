@@ -82,7 +82,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve(
         &self,
-        fs_path: FileSystemPath,
+        fs_path: &FileSystemPath,
         lookup_path: FileSystemPath,
         reference_type: ReferenceType,
         request: ResolvedVc<Request>,

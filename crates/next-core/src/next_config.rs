@@ -1570,7 +1570,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn config_file_path(
         &self,
-        project_path: FileSystemPath,
+        project_path: &FileSystemPath,
     ) -> Result<Vc<FileSystemPath>> {
         Ok(project_path.join(&self.config_file_name)?.cell())
     }
@@ -1606,7 +1606,7 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn cache_handler(&self, project_path: FileSystemPath) -> Result<Vc<OptionFileSystemPath>> {
+    pub fn cache_handler(&self, project_path: &FileSystemPath) -> Result<Vc<OptionFileSystemPath>> {
         if let Some(handler) = &self.cache_handler {
             Ok(Vc::cell(Some(project_path.join(handler)?)))
         } else {
@@ -1671,7 +1671,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn webpack_rules(
         self: Vc<Self>,
-        project_path: FileSystemPath,
+        project_path: &FileSystemPath,
     ) -> Result<Vc<WebpackRules>> {
         let this = self.await?;
         let Some(turbo_rules) = this.turbopack.as_ref().map(|t| &t.rules) else {
@@ -1857,7 +1857,7 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn cache_handlers(&self, project_path: FileSystemPath) -> Result<Vc<FileSystemPathVec>> {
+    pub fn cache_handlers(&self, project_path: &FileSystemPath) -> Result<Vc<FileSystemPathVec>> {
         if let Some(handlers) = &self.cache_handlers {
             Ok(Vc::cell(
                 handlers

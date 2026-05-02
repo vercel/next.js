@@ -164,7 +164,7 @@ pub async fn get_decorators_transform_options(
 
 #[turbo_tasks::function]
 pub async fn get_jsx_transform_options(
-    project_path: FileSystemPath,
+    project_path: &FileSystemPath,
     mode: Vc<NextMode>,
     resolve_options_context: Option<Vc<ResolveOptionsContext>>,
     is_rsc_context: bool,

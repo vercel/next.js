@@ -41,7 +41,7 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
     #[turbo_tasks::function]
     async fn result(
         &self,
-        lookup_path: FileSystemPath,
+        lookup_path: &FileSystemPath,
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
         let request = &*request.await?;

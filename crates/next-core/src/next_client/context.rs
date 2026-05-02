@@ -588,7 +588,7 @@ pub async fn get_client_chunking_context(
 
 #[turbo_tasks::function]
 pub async fn get_client_runtime_entries(
-    project_root: FileSystemPath,
+    project_root: &FileSystemPath,
     ty: ClientContextType,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,

@@ -303,7 +303,7 @@ pub struct OptionAppDir(Option<FileSystemPath>);
 
 /// Finds and returns the [DirectoryTree] of the app directory if existing.
 #[turbo_tasks::function]
-pub async fn find_app_dir(project_path: FileSystemPath) -> Result<Vc<OptionAppDir>> {
+pub async fn find_app_dir(project_path: &FileSystemPath) -> Result<Vc<OptionAppDir>> {
     let app = project_path.join("app")?;
     let src_app = project_path.join("src/app")?;
     let app_dir = if *app.get_type().await? == FileSystemEntryType::Directory {
@@ -1995,7 +1995,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
 /// Returns the global metadata for an app directory.
 #[turbo_tasks::function]
 pub async fn get_global_metadata(
-    app_dir: FileSystemPath,
+    app_dir: &FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<GlobalMetadata>> {
     let DirectoryContent::Entries(entries) = &*app_dir.read_dir().await? else {

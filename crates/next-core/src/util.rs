@@ -215,7 +215,7 @@ pub enum PathType {
 /// Converts a filename within the server root into a next pathname.
 #[turbo_tasks::function]
 pub async fn pathname_for_path(
-    server_root: FileSystemPath,
+    server_root: &FileSystemPath,
     server_path: FileSystemPath,
     path_ty: PathType,
 ) -> Result<Vc<RcStr>> {

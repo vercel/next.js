@@ -906,7 +906,7 @@ impl PageEndpoint {
         self: Vc<Self>,
         ty: SsrChunkType,
         emit_manifests: EmitManifests,
-        node_path: FileSystemPath,
+        node_path: &FileSystemPath,
         node_chunking_context: Vc<NodeJsChunkingContext>,
         edge_chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<SsrChunk>> {

@@ -47,7 +47,7 @@ pub async fn emit_all_assets(
 #[turbo_tasks::function]
 pub async fn emit_assets(
     assets: Vc<ExpandedOutputAssets>,
-    node_root: FileSystemPath,
+    node_root: &FileSystemPath,
     client_relative_path: FileSystemPath,
     client_output_path: FileSystemPath,
 ) -> Result<()> {
@@ -61,7 +61,7 @@ pub async fn emit_assets(
         .copied()
         .map(async |asset| {
             let path = asset.path().owned().await?;
-            let location = if path.is_inside_ref(&node_root) {
+            let location = if path.is_inside_ref(node_root) {
                 Location::Node
             } else if path.is_inside_ref(&client_relative_path) {
                 Location::Client
