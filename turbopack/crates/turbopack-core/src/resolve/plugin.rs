@@ -31,12 +31,12 @@ impl AfterResolvePluginCondition {
 #[turbo_tasks::value_impl]
 impl AfterResolvePluginCondition {
     #[turbo_tasks::function]
-    pub async fn matches(&self, fs_path: FileSystemPath) -> Result<Vc<bool>> {
+    pub async fn matches(&self, fs_path: &FileSystemPath) -> Result<Vc<bool>> {
         match self {
             AfterResolvePluginCondition::Glob { root, glob } => {
                 let path = fs_path;
 
-                if let Some(path) = root.get_path_to(&path)
+                if let Some(path) = root.get_path_to(path)
                     && glob.await?.matches(path)
                 {
                     return Ok(Vc::cell(true));

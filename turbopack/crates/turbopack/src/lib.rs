@@ -985,7 +985,7 @@ impl AssetContext for ModuleAssetContext {
     #[turbo_tasks::function]
     async fn resolve_options(
         self: Vc<Self>,
-        origin_path: FileSystemPath,
+        origin_path: &FileSystemPath,
     ) -> Result<Vc<ResolveOptions>> {
         let this = self.await?;
         let module_asset_context = if let Some(transition) = this.transition {
@@ -1210,12 +1210,12 @@ pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
 #[turbo_tasks::function]
 pub async fn emit_assets_into_dir(
     assets: Vc<ExpandedOutputAssets>,
-    output_dir: FileSystemPath,
+    output_dir: &FileSystemPath,
 ) -> Result<()> {
     let assets = assets.await?;
     let paths = assets.iter().map(|&asset| asset.path()).try_join().await?;
     for (&asset, path) in assets.iter().zip(paths.iter()) {
-        if path.is_inside_ref(&output_dir) {
+        if path.is_inside_ref(output_dir) {
             emit_asset(*asset).as_side_effect().await?;
         }
     }

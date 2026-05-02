@@ -225,7 +225,7 @@ pub enum SideEffectsDeclaration {
 
 #[turbo_tasks::function]
 pub async fn get_side_effect_free_declaration(
-    path: FileSystemPath,
+    path: &FileSystemPath,
     side_effect_free_packages: Option<Vc<Glob>>,
 ) -> Result<Vc<SideEffectsDeclaration>> {
     if let Some(side_effect_free_packages) = side_effect_free_packages

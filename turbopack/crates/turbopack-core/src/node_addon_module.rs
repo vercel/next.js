@@ -115,7 +115,7 @@ impl Module for NodeAddonModule {
 }
 
 #[turbo_tasks::function]
-async fn dir_references(package_dir: FileSystemPath) -> Result<Vc<ModuleReferences>> {
+async fn dir_references(package_dir: &FileSystemPath) -> Result<Vc<ModuleReferences>> {
     let matches = read_matches(
         package_dir.clone(),
         rcstr!(""),

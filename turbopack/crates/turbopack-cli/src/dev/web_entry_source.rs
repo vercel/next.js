@@ -62,7 +62,7 @@ pub async fn get_client_chunking_context(
 
 #[turbo_tasks::function]
 pub async fn get_client_runtime_entries(
-    project_path: FileSystemPath,
+    project_path: &FileSystemPath,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<RuntimeEntries>> {
     let resolve_options_context =
@@ -102,7 +102,7 @@ pub async fn get_client_runtime_entries(
 
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
-    root_path: FileSystemPath,
+    root_path: &FileSystemPath,
     execution_context: Vc<ExecutionContext>,
     entry_requests: Vec<Vc<Request>>,
     server_root: FileSystemPath,

@@ -1239,7 +1239,7 @@ pub enum FindContextFileResult {
 
 #[turbo_tasks::function]
 pub async fn find_context_file(
-    lookup_path: FileSystemPath,
+    lookup_path: &FileSystemPath,
     names: Vc<Vec<RcStr>>,
     collect_affecting_sources: bool,
 ) -> Result<Vc<FindContextFileResult>> {
@@ -1290,7 +1290,7 @@ pub async fn find_context_file(
 // This function never collects affecting sources
 #[turbo_tasks::function]
 pub async fn find_context_file_or_package_key(
-    lookup_path: FileSystemPath,
+    lookup_path: &FileSystemPath,
     names: Vc<Vec<RcStr>>,
     package_key: RcStr,
 ) -> Result<Vc<FindContextFileResult>> {
@@ -1331,7 +1331,7 @@ struct FindPackageResult {
 
 #[turbo_tasks::function]
 async fn find_package(
-    lookup_path: FileSystemPath,
+    lookup_path: &FileSystemPath,
     package_name: Pattern,
     options: Vc<ResolveModulesOptions>,
     collect_affecting_sources: bool,
@@ -1488,7 +1488,7 @@ fn merge_results_with_affecting_sources(
 // Resolves the pattern
 #[turbo_tasks::function]
 pub async fn resolve_raw(
-    lookup_dir: FileSystemPath,
+    lookup_dir: &FileSystemPath,
     path: Vc<Pattern>,
     collect_affecting_sources: bool,
     force_in_lookup_dir: bool,
@@ -1829,7 +1829,7 @@ async fn handle_after_resolve_plugins(
 
 #[turbo_tasks::function]
 async fn resolve_internal(
-    lookup_path: FileSystemPath,
+    lookup_path: &FileSystemPath,
     request: ResolvedVc<Request>,
     options: ResolvedVc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
@@ -2176,7 +2176,7 @@ async fn resolve_internal_inline(
 
 #[turbo_tasks::function]
 async fn resolve_into_folder(
-    package_path: FileSystemPath,
+    package_path: &FileSystemPath,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
     let options_value = options.await?;
@@ -2849,7 +2849,7 @@ async fn resolve_module_request(
 #[turbo_tasks::function]
 async fn resolve_into_package(
     path: Pattern,
-    package_path: FileSystemPath,
+    package_path: &FileSystemPath,
     query: RcStr,
     fragment: RcStr,
     options: ResolvedVc<ResolveOptions>,

@@ -238,7 +238,7 @@ async fn config_changed(
 #[turbo_tasks::function]
 async fn extra_configs_changed(
     asset_context: Vc<Box<dyn AssetContext>>,
-    postcss_config_path: FileSystemPath,
+    postcss_config_path: &FileSystemPath,
 ) -> Result<Vc<Completion>> {
     let parent_path = postcss_config_path.parent();
 

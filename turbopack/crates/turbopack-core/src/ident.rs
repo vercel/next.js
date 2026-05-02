@@ -179,7 +179,7 @@ impl AssetIdent {
     #[turbo_tasks::function]
     pub async fn output_name(
         &self,
-        context_path: FileSystemPath,
+        context_path: &FileSystemPath,
         prefix: Option<RcStr>,
         expected_extension: RcStr,
     ) -> Result<Vc<RcStr>> {

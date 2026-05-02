@@ -110,7 +110,7 @@ impl AssetContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn write(&self, path: FileSystemPath) -> Result<()> {
+    pub async fn write(&self, path: &FileSystemPath) -> Result<()> {
         match self {
             AssetContent::File(file) => {
                 path.write(**file).as_side_effect().await?;

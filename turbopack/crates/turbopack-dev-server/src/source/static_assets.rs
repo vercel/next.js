@@ -44,7 +44,7 @@ impl StaticAssetsContentSource {
 
 // TODO(WEB-1251) It would be better to lazily enumerate the directory
 #[turbo_tasks::function]
-async fn get_routes_from_directory(dir: FileSystemPath) -> Result<Vc<RouteTree>> {
+async fn get_routes_from_directory(dir: &FileSystemPath) -> Result<Vc<RouteTree>> {
     let dir = dir.read_dir().await?;
     let DirectoryContent::Entries(entries) = &*dir else {
         return Ok(RouteTree::empty());
