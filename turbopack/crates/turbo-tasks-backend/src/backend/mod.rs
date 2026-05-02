@@ -917,21 +917,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let wall_start = SystemTime::now();
         debug_assert!(self.should_persist());
 
-        // Enter the snapshot phase: blocks until all in-flight operations
-        // drain or suspend, then collects the suspended-operations list.
-        // Holding the phase keeps new operations queued; we drop it after
-        // `start_snapshot()` so the snapshot mode is entered atomically with
-        // operations still suspended (preventing missed modifications).
-        let (snapshot_guard, has_modifications, suspended_operations) = {
+        let mut snapshot_phase = {
             let _span = tracing::info_span!("blocking").entered();
-            let mut phase = self.snapshot_coord.begin_snapshot();
-            let suspended_operations = phase.take_suspended_operations();
-            let (g, hm) = self.storage.start_snapshot();
+            self.snapshot_coord.begin_snapshot()
             // `phase` drops here, releasing the snapshot bit and waking any
             // operations parked on `snapshot_completed`.
-            (g, hm, suspended_operations)
         };
+        // Enter snapshot mode, which atomically reads and resets the modified count.
+        // Checking after start_snapshot ensures no concurrent increments can race.
+        let (snapshot_guard, has_modifications) = self.storage.start_snapshot();
+
+        let suspended_operations = snapshot_phase.take_suspended_operations();
+
         let snapshot_time = Instant::now();
+        drop(snapshot_phase);
 
         if !has_modifications {
             // No tasks modified since the last snapshot — drop the guard (which
