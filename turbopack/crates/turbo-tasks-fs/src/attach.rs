@@ -25,7 +25,7 @@ impl AttachedFileSystem {
     /// an invisible subdirectory of the `child_path`
     #[turbo_tasks::function]
     pub async fn new(
-        child_path: FileSystemPath,
+        child_path: &FileSystemPath,
         child_fs: ResolvedVc<Box<dyn FileSystem>>,
     ) -> Result<Vc<Self>> {
         Ok(AttachedFileSystem {
@@ -48,7 +48,7 @@ impl AttachedFileSystem {
     #[turbo_tasks::function]
     pub async fn get_inner_fs_path(
         self: ResolvedVc<Self>,
-        path: FileSystemPath,
+        path: &FileSystemPath,
     ) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let self_fs: ResolvedVc<Box<dyn FileSystem>> = ResolvedVc::upcast(self);
@@ -61,7 +61,7 @@ impl AttachedFileSystem {
         }
 
         let child_path = self.child_path().await?;
-        Ok(if let Some(inner_path) = child_path.get_path_to(&path) {
+        Ok(if let Some(inner_path) = child_path.get_path_to(path) {
             this.child_fs.root().await?.join(inner_path)?.cell()
         } else {
             this.root_fs.root().await?.join(&path.path)?.cell()

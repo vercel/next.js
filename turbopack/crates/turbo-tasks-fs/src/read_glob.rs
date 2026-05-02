@@ -461,13 +461,13 @@ pub mod tests {
     }
 
     #[turbo_tasks::function(operation)]
-    pub async fn delete(path: FileSystemPath) -> anyhow::Result<()> {
+    pub async fn delete(path: &FileSystemPath) -> anyhow::Result<()> {
         path.write(FileContent::NotFound.cell()).await?;
         Ok(())
     }
 
     #[turbo_tasks::function(operation)]
-    pub async fn write(path: FileSystemPath, contents: RcStr) -> anyhow::Result<()> {
+    pub async fn write(path: &FileSystemPath, contents: RcStr) -> anyhow::Result<()> {
         path.write(
             FileContent::Content(crate::File::from_bytes(contents.to_string().into_bytes())).cell(),
         )
@@ -476,7 +476,7 @@ pub mod tests {
     }
 
     #[turbo_tasks::function(operation)]
-    pub fn track_star_star_glob(path: FileSystemPath) -> Vc<Completion> {
+    pub fn track_star_star_glob(path: &FileSystemPath) -> Vc<Completion> {
         path.track_glob(Glob::new(rcstr!("**"), GlobOptions::default()), false)
     }
 
