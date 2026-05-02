@@ -52,7 +52,15 @@ impl VcStorage {
     ) -> RawVc {
         let this = self.this.upgrade().unwrap();
         let handle = tokio::runtime::Handle::current();
-        let future = func.execute(this_arg, &*arg);
+        // The executor now takes ownership of the cached task type so the future can
+        // capture it and borrow `arg` for the entire execution. The testing harness doesn't
+        // wire CachedTaskType through its own task store, so we build a one-shot Arc here.
+        let task = std::sync::Arc::new(turbo_tasks::backend::CachedTaskType {
+            native_fn: func,
+            this: this_arg,
+            arg,
+        });
+        let future = func.execute(task);
         let i = {
             let mut tasks = self.tasks.lock().unwrap();
             let i = tasks.len();

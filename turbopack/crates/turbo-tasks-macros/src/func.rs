@@ -214,22 +214,27 @@ impl TurboFn<'_> {
     /// The signature of the exposed function. This is the original signature
     /// converted to a standard turbo_tasks function signature.
     pub fn signature(&self) -> TokenStream {
-        let exposed_inputs = self
-            .this
-            .as_ref()
-            .into_iter()
-            .chain(self.exposed_inputs.iter())
-            .map(|input| {
-                let ident = &input.ident;
-                let ty = if self.operation {
-                    // operations shouldn't have their arguments rewritten, they require all
-                    // arguments are explicitly `NonLocalValue`s
-                    input.ty.to_token_stream()
-                } else {
-                    expand_task_input_type(&input.ty).to_token_stream()
-                };
-                quote! { #ident: #ty }
-            });
+        let receiver_input = self.this.as_ref().map(|input| {
+            // The receiver is always rewritten to `self: Vc<Self>` regardless of whether the
+            // user wrote `&self` or `self: Vc<Self>`. Don't run it through the
+            // exposed-input-type stripper — it shouldn't have a leading `&` to begin with.
+            let ident = &input.ident;
+            let ty = input.ty.to_token_stream();
+            quote! { #ident: #ty }
+        });
+        let other_inputs = self.exposed_inputs.iter().map(|input| {
+            let ident = &input.ident;
+            let ty = if self.operation {
+                // operations shouldn't have their arguments rewritten, they require all
+                // arguments are explicitly `NonLocalValue`s
+                input.ty.to_token_stream()
+            } else {
+                // Body may declare `&T` for the optimization, but the caller always sees `T`.
+                expand_exposed_input_type(&input.ty).to_token_stream()
+            };
+            quote! { #ident: #ty }
+        });
+        let exposed_inputs = receiver_input.into_iter().chain(other_inputs);
 
         let ident = &self.ident;
         let orig_output = &self.output;
@@ -266,7 +271,7 @@ impl TurboFn<'_> {
         orig_block: &'a Block,
     ) -> (Signature, Cow<'a, Block>) {
         let mut shadow_self = None;
-        let (inputs, transform_stmts): (Punctuated<_, _>, Vec<Option<_>>) = self
+        let (inputs, transform_stmts): (Punctuated<_, _>, Vec<Vec<_>>) = self
             .orig_signature
             .inputs
             .iter()
@@ -281,44 +286,50 @@ impl TurboFn<'_> {
             })
             .enumerate()
             .map(|(idx, arg)| {
-                if self.operation {
-                    // operations shouldn't have their arguments rewritten, they require all
-                    // arguments are explicitly `NonLocalValue`s
-                    return (arg.clone(), None);
-                }
-
-                let (FnArg::Receiver(Receiver { ty, .. }) | FnArg::Typed(PatType { ty, .. })) = arg;
-                let Cow::Owned(expanded_ty) = expand_task_input_type(ty) else {
-                    // common-case: skip if no type conversion is needed
-                    return (arg.clone(), None);
-                };
-                // Helper to produce the transform statement
-                let transform_from_task_input = |arg_id: Cow<'_, Ident>, pat: Pat| {
-                    Stmt::Local(Local {
-                        attrs: Vec::new(),
-                        let_token: Default::default(),
-                        pat,
-                        init: Some(LocalInit {
-                            eq_token: Default::default(),
-                            // we know the argument implements `FromTaskInput` because
-                            // `expand_task_input_type` returned `Cow::Owned`
-                            expr: parse_quote_spanned! {
-                                arg.span() =>
-                                <#ty as turbo_tasks::task::FromTaskInput>::from_task_input(
-                                    #arg_id
-                                )
-                            },
-                            diverge: None,
-                        }),
-                        semi_token: Default::default(),
-                    })
-                };
                 match arg {
+                    FnArg::Receiver(_) if self.operation => {
+                        // Operations don't rewrite the receiver. They require all arguments to be
+                        // explicit `NonLocalValue`s and don't go through the `FromTaskInput`
+                        // pipeline. Receivers also don't get the by-ref wrap below — only typed
+                        // user arguments do.
+                        (arg.clone(), Vec::new())
+                    }
                     FnArg::Receiver(
                         receiver @ Receiver {
-                            attrs, self_token, ..
+                            attrs,
+                            self_token,
+                            ty,
+                            ..
                         },
                     ) => {
+                        // Receiver: keep existing semantics. We don't take `self` by-ref here —
+                        // the inline signature preserves whatever the user wrote (`&self` or
+                        // `self: Vc<Self>`), and the receiver style is what selects the final
+                        // blanket impl.
+                        let Cow::Owned(expanded_ty) = expand_task_input_type(ty) else {
+                            // common-case: skip if no type conversion is needed
+                            return (arg.clone(), Vec::new());
+                        };
+                        // Helper to produce a `let pat = <ty as
+                        // FromTaskInput>::from_task_input(arg);` statement.
+                        let transform_from_task_input = |arg_id: Cow<'_, Ident>, pat: Pat| {
+                            Stmt::Local(Local {
+                                attrs: Vec::new(),
+                                let_token: Default::default(),
+                                pat,
+                                init: Some(LocalInit {
+                                    eq_token: Default::default(),
+                                    expr: parse_quote_spanned! {
+                                        arg.span() =>
+                                        <#ty as turbo_tasks::task::FromTaskInput>::from_task_input(
+                                            #arg_id
+                                        )
+                                    },
+                                    diverge: None,
+                                }),
+                                semi_token: Default::default(),
+                            })
+                        };
                         let arg = FnArg::Receiver(Receiver {
                             attrs: Vec::new(),
                             mutability: None,
@@ -327,9 +338,8 @@ impl TurboFn<'_> {
                         });
 
                         // We can't shadow `self` variables, so if this argument is a `self`
-                        // argument, generate a new identifier, and rewrite
-                        // the body of the function later to use
-                        // that new identifier.
+                        // argument, generate a new identifier, and rewrite the body of the
+                        // function later to use that new identifier.
                         let shadow_self_id = Ident::new(
                             "turbo_tasks_self",
                             Span::mixed_site().located_at(self_token.span()),
@@ -346,9 +356,51 @@ impl TurboFn<'_> {
                         let transform_stmt =
                             transform_from_task_input(self_ident, shadow_self_pattern);
 
-                        (arg, Some(transform_stmt))
+                        (arg, vec![transform_stmt])
                     }
                     FnArg::Typed(pat_type) => {
+                        // Detect whether the user wrote `&T` or owned `T`.
+                        //
+                        // For elided lifetimes (`&T`) and `&'_ T` we treat the parameter as
+                        // user-by-ref. `&'static T`, named lifetimes, and `&mut T` are not
+                        // supported as task inputs and will fall through to the unsupported path
+                        // (the trait selection will fail with a clear error).
+                        let user_by_ref = matches!(
+                            &*pat_type.ty,
+                            Type::Reference(type_ref)
+                                if type_ref.mutability.is_none()
+                                    && type_ref.lifetime.is_none()
+                        );
+                        let core_ty: &Type = if let Type::Reference(type_ref) = &*pat_type.ty
+                            && user_by_ref
+                        {
+                            &type_ref.elem
+                        } else {
+                            &pat_type.ty
+                        };
+
+                        // Run `expand_task_input_type` (e.g. `ResolvedVc<T>` -> `Vc<T>`) on the
+                        // core type. For user-by-ref params we don't currently apply the
+                        // expansion: passing references to `Vc`-shaped types is not a supported
+                        // pattern and the caller still produces the owned form for the cache key.
+                        // Operations also skip the expansion — they require explicit
+                        // `NonLocalValue` arguments and don't use the `FromTaskInput` pipeline.
+                        let expanded_core_ty: Cow<'_, Type> = if user_by_ref || self.operation {
+                            Cow::Borrowed(core_ty)
+                        } else {
+                            expand_task_input_type(core_ty)
+                        };
+                        let needs_from_task_input_transform =
+                            matches!(expanded_core_ty, Cow::Owned(_));
+                        let inline_owned_ty: Type = expanded_core_ty.into_owned();
+
+                        // The inline parameter is always `&T'`. The blanket `*ByRefMode` impls
+                        // downcast `&*task.arg` once and pass references straight in, so this
+                        // saves the per-execution clone in `task_fn_impl!`'s `get_args` for
+                        // params the user actually declared by-ref.
+                        let inline_param_ty: Type =
+                            parse_quote_spanned!(pat_type.ty.span() => & #inline_owned_ty);
+
                         let arg_id = if let Pat::Ident(pat_id) = &*pat_type.pat {
                             // common case: argument is just an identifier
                             Cow::Borrowed(&pat_id.ident)
@@ -368,16 +420,54 @@ impl TurboFn<'_> {
                                 ident: arg_id.clone().into_owned(),
                                 subpat: None,
                             })),
-                            ty: Box::new(expanded_ty),
+                            ty: Box::new(inline_param_ty),
                             ..pat_type.clone()
                         });
 
-                        // convert an argument of type `FromTaskInput<T>::TaskInput` into `T`.
-                        // essentially, replace any instances of `Vc` with `ResolvedVc`.
-                        let pat = (*pat_type.pat).clone();
-                        let transform_stmt = transform_from_task_input(arg_id, pat);
+                        let mut shadow_stmts: Vec<Stmt> = Vec::new();
+                        if !user_by_ref {
+                            // The user wrote an owned `T`. The inline param is now `&T'` so
+                            // their body is missing an owned binding. Clone once to restore it.
+                            // For Copy-type inputs (e.g. `Vc<T>`) this is a free copy; for
+                            // non-Copy task inputs (e.g. `RcStr`, `FileSystemPath`) it's the
+                            // same clone the existing `get_args` was performing.
+                            let id: &Ident = &arg_id;
+                            // Preserve `mut` if the user declared the parameter as `mut x: T`.
+                            // Without this, function bodies that mutate the argument (e.g.
+                            // `counts.pop()`) would no longer compile after the shadow rebind.
+                            let user_mut =
+                                matches!(&*pat_type.pat, Pat::Ident(p) if p.mutability.is_some());
+                            let mut_kw = if user_mut { quote!(mut) } else { quote!() };
+                            shadow_stmts.push(parse_quote_spanned!(arg.span() =>
+                                let #mut_kw #id: #inline_owned_ty =
+                                    <#inline_owned_ty as ::std::clone::Clone>::clone(#id);
+                            ));
 
-                        (arg, Some(transform_stmt))
+                            if needs_from_task_input_transform {
+                                // Convert the expanded form (e.g. `Vc<T>`) back to the user's
+                                // declared form (`ResolvedVc<T>`).
+                                let original_user_ty = &*pat_type.ty;
+                                let pat = (*pat_type.pat).clone();
+                                shadow_stmts.push(Stmt::Local(Local {
+                                    attrs: Vec::new(),
+                                    let_token: Default::default(),
+                                    pat,
+                                    init: Some(LocalInit {
+                                        eq_token: Default::default(),
+                                        expr: parse_quote_spanned! {
+                                            arg.span() =>
+                                            <#original_user_ty as turbo_tasks::task::FromTaskInput>
+                                                ::from_task_input(#id)
+                                        },
+                                        diverge: None,
+                                    }),
+                                    semi_token: Default::default(),
+                                }));
+                            }
+                        }
+                        // user_by_ref: the body sees `&T` directly, no shadow required.
+
+                        (arg, shadow_stmts)
                     }
                 }
             })
@@ -439,7 +529,7 @@ impl TurboFn<'_> {
     pub fn exposed_input_types(&self) -> impl Iterator<Item = Cow<'_, Type>> {
         self.exposed_inputs
             .iter()
-            .map(|Input { ty, .. }| expand_task_input_type(ty))
+            .map(|Input { ty, .. }| expand_exposed_input_type(ty))
     }
 
     pub fn filter_trait_call_args(&self) -> Option<FilterTraitCallArgsTokens> {
@@ -642,7 +732,7 @@ impl TurboFn<'_> {
     }
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ReceiverStyle {
     // A reference like &self or self: &Self
     Reference,
@@ -797,6 +887,21 @@ fn return_type_to_type(return_type: &ReturnType) -> Type {
 ///   signatures illegible in the resulting rustdocs.
 ///
 /// Returns `Cow::Owned` when a transformation was applied, and `Cow::Borrowed` when no change was
+/// Like [`expand_task_input_type`], but strips a leading immutable reference (`&T` -> `T`)
+/// before applying the expansion. Used when emitting the exposed (caller-facing) type for an
+/// argument the user declared by-ref: the cache key is built from owned values, so the caller
+/// always passes owned, regardless of how the body chose to consume it.
+fn expand_exposed_input_type(orig_input: &Type) -> Cow<'_, Type> {
+    if let Type::Reference(type_ref) = orig_input
+        && type_ref.mutability.is_none()
+        && type_ref.lifetime.is_none()
+    {
+        expand_task_input_type(&type_ref.elem)
+    } else {
+        expand_task_input_type(orig_input)
+    }
+}
+
 /// made to the input type.
 fn expand_task_input_type(orig_input: &Type) -> Cow<'_, Type> {
     match orig_input {

@@ -1848,14 +1848,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let (span, future) = match task_type {
             TaskType::Cached(task_type) => {
-                let CachedTaskType {
-                    native_fn,
-                    this,
-                    arg,
-                } = &*task_type;
+                let native_fn = task_type.native_fn;
                 (
                     native_fn.span(task_id.persistence(), execution_reason, priority),
-                    native_fn.execute(*this, &**arg),
+                    native_fn.execute(task_type),
                 )
             }
             TaskType::Transient(task_type) => {

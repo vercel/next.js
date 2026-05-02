@@ -241,6 +241,9 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 #[allow(non_camel_case_types)]
                 trait #inline_extension_trait_ident: std::marker::Send {
                     #(#inline_attrs)*
+                    // Same rewritten signature as the impl below; clippy's `ptr_arg` lint
+                    // would otherwise fire on every `&Vec<_>` / `&String` parameter.
+                    #[allow(clippy::ptr_arg)]
                     #inline_signature;
                 }
 
@@ -250,6 +253,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 impl #inline_extension_trait_ident for Box<dyn #trait_ident> {
                     // put the function body here so that `Self` points to `Box<dyn ...>`
                     #(#inline_attrs)*
+                    #[allow(clippy::ptr_arg, clippy::clone_on_copy)]
                     #inline_signature #inline_block
                 }
 

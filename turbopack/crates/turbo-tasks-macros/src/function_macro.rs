@@ -80,6 +80,12 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
 
         #(#inline_attrs)*
         #[doc(hidden)]
+        // The macro rewrites every owned task input into a `&T` parameter, then re-clones
+        // when the user wrote it by value. That triggers clippy lints (`&Vec` / `&String`
+        // / `&PathBuf`, `.clone()` on `Copy` like `Vc<T>`) that don't apply to a
+        // generated, internal function. Suppress them rather than try to outsmart the
+        // signature-rewriting on a per-arg basis.
+        #[allow(clippy::ptr_arg, clippy::clone_on_copy)]
         #inline_signature #inline_block
 
         turbo_tasks::macro_helpers::turbo_register!(

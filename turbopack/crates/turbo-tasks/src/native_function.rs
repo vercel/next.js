@@ -1,4 +1,4 @@
-use std::{any::Any, fmt::Debug, pin::Pin};
+use std::{any::Any, fmt::Debug, pin::Pin, sync::Arc};
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
@@ -8,7 +8,8 @@ use turbo_bincode::{AnyDecodeFn, AnyEncodeFn, new_hash_encoder};
 use turbo_tasks_hash::DeterministicHasher;
 
 use crate::{
-    RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
+    TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
+    backend::CachedTaskType,
     dyn_task_inputs::{
         DynTaskInputs, OwnedStackDynTaskInputs, StackDynTaskInputs, StackDynTaskInputsSlot,
         any_as_encode,
@@ -261,12 +262,8 @@ impl NativeFunction {
     /// Executed the function
     ///
     /// NOTE: this may return a local vc
-    pub fn execute(
-        &'static self,
-        this: Option<RawVc>,
-        arg: &dyn DynTaskInputs,
-    ) -> NativeTaskFuture {
-        match (self.implementation).functor(this, arg) {
+    pub fn execute(&'static self, task: Arc<CachedTaskType>) -> NativeTaskFuture {
+        match (self.implementation).functor(task) {
             Ok(functor) => functor,
             Err(err) => Box::pin(async { Err(err) }),
         }

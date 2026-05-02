@@ -145,6 +145,10 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         // body is originally declared within an `impl` block already.
                         #(#inline_attrs)*
                         #[doc(hidden)]
+                        // See `function_macro.rs`: signature rewriting introduces `&Vec`,
+                        // `&String`, `.clone()` on `Copy` types, etc. Suppress those lints on
+                        // the generated inline function.
+                        #[allow(clippy::ptr_arg, clippy::clone_on_copy)]
                         #[deprecated(note = "This function is only exposed for use in macros. Do not call it directly.")]
                         pub(self) #inline_signature #inline_block
                     }
@@ -260,6 +264,9 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     trait #inline_extension_trait_ident: std::marker::Send {
                         #(#inline_attrs)*
                         #[doc(hidden)]
+                        // The trait declaration carries the same rewritten signature as the
+                        // impl, so `&Vec` / `&String` / etc. show up here too.
+                        #[allow(clippy::ptr_arg)]
                         #inline_signature;
                     }
 
@@ -267,6 +274,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     impl #impl_generics #inline_extension_trait_ident for #ty #where_clause  {
                         #(#inline_attrs)*
                         #[doc(hidden)]
+                        #[allow(clippy::ptr_arg, clippy::clone_on_copy)]
                         #[deprecated(note = "This function is only exposed for use in macros. Do not call it directly.")]
                         #inline_signature #inline_block
                     }
