@@ -1,8 +1,8 @@
-use std::{ops::Deref, sync::LazyLock};
+use std::sync::LazyLock;
 
 use anyhow::Result;
+use phf::phf_map;
 use regex::Regex;
-use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks_fs::FileSystemPath;
 
@@ -11,28 +11,19 @@ use crate::next_app::{AppPage, AppPath, PageSegment, PageType};
 pub mod image;
 pub mod route;
 
-pub static STATIC_LOCAL_METADATA: LazyLock<FxHashMap<&'static str, &'static [&'static str]>> =
-    LazyLock::new(|| {
-        FxHashMap::from_iter([
-            (
-                "icon",
-                &["ico", "jpg", "jpeg", "png", "svg"] as &'static [&'static str],
-            ),
-            ("apple-icon", &["jpg", "jpeg", "png"]),
-            ("opengraph-image", &["jpg", "jpeg", "png", "gif"]),
-            ("twitter-image", &["jpg", "jpeg", "png", "gif"]),
-            ("sitemap", &["xml"]),
-        ])
-    });
+pub static STATIC_LOCAL_METADATA: phf::Map<&'static str, &'static [&'static str]> = phf_map! {
+    "icon" => &["ico", "jpg", "jpeg", "png", "svg"],
+    "apple-icon" => &["jpg", "jpeg", "png"],
+    "opengraph-image" => &["jpg", "jpeg", "png", "gif"],
+    "twitter-image" => &["jpg", "jpeg", "png", "gif"],
+    "sitemap" => &["xml"],
+};
 
-pub static STATIC_GLOBAL_METADATA: LazyLock<FxHashMap<&'static str, &'static [&'static str]>> =
-    LazyLock::new(|| {
-        FxHashMap::from_iter([
-            ("favicon", &["ico"] as &'static [&'static str]),
-            ("manifest", &["webmanifest", "json"]),
-            ("robots", &["txt"]),
-        ])
-    });
+pub static STATIC_GLOBAL_METADATA: phf::Map<&'static str, &'static [&'static str]> = phf_map! {
+    "favicon" => &["ico"],
+    "manifest" => &["webmanifest", "json"],
+    "robots" => &["txt"],
+};
 
 pub struct MetadataFileMatch<'a> {
     pub metadata_type: &'a str,
@@ -56,7 +47,7 @@ fn match_numbered_metadata(stem: &str) -> Option<(&str, &str)> {
 fn match_metadata_file<'a>(
     filename: &'a str,
     page_extensions: &[RcStr],
-    metadata: &FxHashMap<&str, &[&str]>,
+    metadata: &phf::Map<&'static str, &'static [&'static str]>,
 ) -> Option<MetadataFileMatch<'a>> {
     let (stem, ext) = filename.split_once('.')?;
 
@@ -123,7 +114,7 @@ pub fn match_local_metadata_file<'a>(
     basename: &'a str,
     page_extensions: &[RcStr],
 ) -> Option<MetadataFileMatch<'a>> {
-    match_metadata_file(basename, page_extensions, STATIC_LOCAL_METADATA.deref())
+    match_metadata_file(basename, page_extensions, &STATIC_LOCAL_METADATA)
 }
 
 pub struct GlobalMetadataFileMatch<'a> {
@@ -135,7 +126,7 @@ pub fn match_global_metadata_file<'a>(
     basename: &'a str,
     page_extensions: &[RcStr],
 ) -> Option<GlobalMetadataFileMatch<'a>> {
-    match_metadata_file(basename, page_extensions, STATIC_GLOBAL_METADATA.deref()).map(|m| {
+    match_metadata_file(basename, page_extensions, &STATIC_GLOBAL_METADATA).map(|m| {
         GlobalMetadataFileMatch {
             metadata_type: m.metadata_type,
             dynamic: m.dynamic,
