@@ -1608,12 +1608,22 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         self.persisted_task_id_factory.get()
                     };
                     // Initialize storage BEFORE making task_id visible in the cache.
-                    // This ensures any thread that reads task_id from the cache sees
-                    // the storage entry already initialized (restored flags set).
+                    // Invariant: initialize_new_task must be called before e.insert so that any
+                    // thread that observes task_id via the cache also finds its task_type already
+                    // set in storage. Breaking this ordering would allow a racing thread to reach
+                    // get_task_type() on an uninitialized task and panic with
+                    // "Every task must have a task type".
                     self.storage
                         .initialize_new_task(task_id, Some(task_type.clone()));
                     // insert() consumes e, releasing the shard write lock.
                     e.insert(task_type, task_id);
+                    debug_assert!(
+                        {
+                            let task = self.storage.access_mut(task_id);
+                            task.get_persistent_task_type().is_some()
+                        },
+                        "task_type must be set in storage before task_id is visible in the cache"
+                    );
                     self.track_cache_miss_by_fn(native_fn);
                     is_new = true;
                     task_id
