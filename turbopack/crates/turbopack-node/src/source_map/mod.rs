@@ -2,11 +2,11 @@ use std::{
     borrow::Cow,
     fmt::Write,
     path::{MAIN_SEPARATOR, Path},
+    sync::LazyLock,
 };
 
 use anyhow::Result;
 use const_format::concatcp;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Deserialize;
 use turbo_tasks::{ReadRef, Vc};
@@ -34,8 +34,8 @@ pub async fn apply_source_mapping(
     project_dir: FileSystemPath,
     formatting_mode: FormattingMode,
 ) -> Result<Cow<'_, str>> {
-    static STACK_TRACE_LINE: Lazy<Regex> =
-        Lazy::new(|| Regex::new("\n    at (?:(.+) \\()?(.+):(\\d+):(\\d+)\\)?").unwrap());
+    static STACK_TRACE_LINE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new("\n    at (?:(.+) \\()?(.+):(\\d+):(\\d+)\\)?").unwrap());
 
     let mut it = STACK_TRACE_LINE.captures_iter(text).peekable();
     if it.peek().is_none() {

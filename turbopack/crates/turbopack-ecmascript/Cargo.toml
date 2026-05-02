@@ -33,7 +33,6 @@ indoc = { workspace = true }
 itertools = { workspace = true }
 num-bigint = "0.4"
 num-traits = "0.2.15"
-once_cell = { workspace = true }
 parking_lot = { workspace = true }
 phf = { version = "0.11", features = ["macros"] }
 petgraph = { workspace = true }

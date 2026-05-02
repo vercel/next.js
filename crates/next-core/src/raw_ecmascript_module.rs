@@ -1,7 +1,6 @@
-use std::io::Write;
+use std::{io::Write, sync::LazyLock};
 
 use anyhow::{Result, bail};
-use once_cell::sync::Lazy;
 use regex::Regex;
 use smallvec::smallvec;
 use tracing::Instrument;
@@ -145,8 +144,8 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
                 FileContent::NotFound => bail!("RawEcmascriptModule content not found"),
             };
 
-            static ENV_REGEX: Lazy<Regex> =
-                Lazy::new(|| Regex::new(r"process\.env\.([a-zA-Z0-9_]+)").unwrap());
+            static ENV_REGEX: LazyLock<Regex> =
+                LazyLock::new(|| Regex::new(r"process\.env\.([a-zA-Z0-9_]+)").unwrap());
 
             let content_str = content.to_str()?;
 
@@ -226,8 +225,8 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
             let source_map = if code.has_source_map() {
                 let source_map = code.generate_source_map_ref(None);
 
-                static SECTIONS_REGEX: Lazy<Regex> =
-                    Lazy::new(|| Regex::new(r#"sections"[\s\n]*:"#).unwrap());
+                static SECTIONS_REGEX: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r#"sections"[\s\n]*:"#).unwrap());
                 Some(if !SECTIONS_REGEX.is_match(&source_map.to_str()?) {
                     // This is definitely not an index source map
                     source_map

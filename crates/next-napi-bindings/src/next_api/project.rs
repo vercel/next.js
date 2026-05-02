@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     io::Write,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, LazyLock},
     thread,
     time::Duration,
 };
@@ -39,7 +39,6 @@ use next_core::{
         TRACING_NEXT_TURBOPACK_TARGETS,
     },
 };
-use once_cell::sync::Lazy;
 use rand::RngExt;
 use serde::Serialize;
 use tokio::{io::AsyncWriteExt, runtime::Handle, time::Instant};
@@ -96,9 +95,9 @@ use crate::{
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
 const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(200);
-static SOURCE_MAP_PREFIX: Lazy<String> = Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
-static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
-    Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
+static SOURCE_MAP_PREFIX: LazyLock<String> = LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
+static SOURCE_MAP_PREFIX_PROJECT: LazyLock<String> =
+    LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
 
 /// Get the `Vc<IssueFilter>` for a `ProjectContainer`.
 fn issue_filter_from_container(container: ResolvedVc<ProjectContainer>) -> Vc<IssueFilter> {

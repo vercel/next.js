@@ -1,4 +1,8 @@
-use std::{future::Future, ops::Deref, sync::Arc};
+use std::{
+    future::Future,
+    ops::Deref,
+    sync::{Arc, LazyLock},
+};
 
 use anyhow::{Context, Result, anyhow};
 use futures_util::TryFutureExt;
@@ -9,7 +13,6 @@ use napi::{
 };
 use napi_derive::napi;
 use next_code_frame::{CodeFrameLocation, CodeFrameOptions, Location, render_code_frame};
-use once_cell::sync::Lazy;
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Serialize;
@@ -143,7 +146,7 @@ pub async fn get_diagnostics<T: Send>(
 fn is_internal(file_path: &str) -> bool {
     // Uses [/\\] so both Unix and Windows separators are matched without
     // needing to normalize the path
-    static RE: Lazy<Regex> = Lazy::new(|| {
+    static RE: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(
             r"(?x)
             # React vendored in Next.js dist/compiled (reactVendoredRe)

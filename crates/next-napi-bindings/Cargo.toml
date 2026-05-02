@@ -61,7 +61,6 @@ tracing-subscriber = { workspace = true }
 tracing-chrome = "0.7.2"
 url = { workspace = true }
 urlencoding = { workspace = true }
-once_cell = { workspace = true }
 regex = { workspace = true }
 
 swc_core = { workspace = true, features = [

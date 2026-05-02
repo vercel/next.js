@@ -20,7 +20,6 @@ turbopack-node = { workspace = true, default-features = false, features = ["proc
 anyhow = { workspace = true }
 bincode = { workspace = true }
 dunce = { workspace = true }
-once_cell = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

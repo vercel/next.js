@@ -344,8 +344,8 @@ impl SingleModuleGraph {
 
         #[cfg(debug_assertions)]
         {
-            use once_cell::sync::Lazy;
-            static CHECK_FOR_DUPLICATE_MODULES: Lazy<bool> = Lazy::new(|| {
+            use std::sync::LazyLock;
+            static CHECK_FOR_DUPLICATE_MODULES: LazyLock<bool> = LazyLock::new(|| {
                 match std::env::var_os("TURBOPACK_TEMP_DISABLE_DUPLICATE_MODULES_CHECK") {
                     Some(v) => v != "1" && v != "true",
                     None => true,

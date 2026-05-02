@@ -5,7 +5,7 @@ use std::{
     fs::OpenOptions,
     io::{self, BufRead, Write},
     path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{Arc, LazyLock, Mutex},
     time::Instant,
 };
 
@@ -13,7 +13,6 @@ use anyhow::Result;
 use either::Either;
 use napi::{Env, JsFunction, bindgen_prelude::Promise, threadsafe_function::ThreadsafeFunction};
 use napi_derive::napi;
-use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use serde::Serialize;
 use terminal_hyperlink::Hyperlink;
@@ -304,7 +303,7 @@ impl CompilationEvent for StartupCacheInvalidationEvent {
 
 static LOG_THROTTLE: Mutex<Option<Instant>> = Mutex::new(None);
 static LOG_DIVIDER: &str = "---------------------------";
-static PANIC_LOG: Lazy<PathBuf> = Lazy::new(|| {
+static PANIC_LOG: LazyLock<PathBuf> = LazyLock::new(|| {
     let mut path = env::temp_dir();
     path.push(format!("next-panic-{:x}.log", rand::random::<u128>()));
     path

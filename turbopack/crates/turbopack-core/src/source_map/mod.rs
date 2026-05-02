@@ -1,4 +1,9 @@
-use std::{borrow::Cow, io::Write, ops::Deref, sync::Arc};
+use std::{
+    borrow::Cow,
+    io::Write,
+    ops::Deref,
+    sync::{Arc, LazyLock},
+};
 
 use anyhow::Result;
 use bincode::{
@@ -9,7 +14,6 @@ use bincode::{
 };
 use bytes_str::BytesStr;
 use either::Either;
-use once_cell::sync::Lazy;
 use ref_cast::RefCast;
 use regex::Regex;
 use swc_sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
@@ -266,8 +270,8 @@ impl SourceMap {
     }
 }
 
-static EMPTY_SOURCE_MAP_ROPE: Lazy<Rope> =
-    Lazy::new(|| Rope::from(r#"{"version":3,"sources":[],"names":[],"mappings":"A"}"#));
+static EMPTY_SOURCE_MAP_ROPE: LazyLock<Rope> =
+    LazyLock::new(|| Rope::from(r#"{"version":3,"sources":[],"names":[],"mappings":"A"}"#));
 
 impl SourceMap {
     /// A source map that contains no actual source location information (no
@@ -393,8 +397,8 @@ impl SourceMap {
                     (source.into(), source_content)
                 } else {
                     let origin_str = origin.to_string_ref().await?;
-                    static INVALID_REGEX: Lazy<Regex> =
-                        Lazy::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
+                    static INVALID_REGEX: LazyLock<Regex> =
+                        LazyLock::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
                     let source = INVALID_REGEX
                         .replace_all(&source_request, |s: &regex::Captures<'_>| {
                             s[0].replace('.', "_")

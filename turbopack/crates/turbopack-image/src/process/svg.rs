@@ -1,13 +1,14 @@
 // Ported from https://github.com/image-size/image-size/blob/94e9c1ee913b71222d7583dc904ac0116ae00834/lib/types/svg.ts
 // see SVG_LICENSE for license info
 
+use std::sync::LazyLock;
+
 use anyhow::{Result, anyhow, bail};
-use once_cell::sync::Lazy;
 use regex::Regex;
 use rustc_hash::FxHashMap;
 
 const INCH_CM: f64 = 2.54;
-static UNITS: Lazy<FxHashMap<&str, f64>> = Lazy::new(|| {
+static UNITS: LazyLock<FxHashMap<&str, f64>> = LazyLock::new(|| {
     FxHashMap::from_iter([
         ("in", 96.0),
         ("cm", 96.0 / INCH_CM),
@@ -22,17 +23,19 @@ static UNITS: Lazy<FxHashMap<&str, f64>> = Lazy::new(|| {
     ])
 });
 
-static UNIT_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^([0-9.]+(?:e-?\d+)?)((?:in|cm|em|ex|m|mm|pc|pt|px)?)$").unwrap());
+static UNIT_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^([0-9.]+(?:e-?\d+)?)((?:in|cm|em|ex|m|mm|pc|pt|px)?)$").unwrap()
+});
 
-static ROOT_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"<svg\s([^>"']|"[^"]*"|'[^']*')*>"#).unwrap());
-static WIDTH_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\swidth=['"]([^%]+?)['"]"#).unwrap());
-static HEIGHT_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"\sheight=['"]([^%]+?)['"]"#).unwrap());
-static VIEW_BOX_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"\sviewBox=['"](.+?)['"]"#).unwrap());
-static VIEW_BOX_CONTENT_REGEX: Lazy<Regex> = Lazy::new(|| {
+static ROOT_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"<svg\s([^>"']|"[^"]*"|'[^']*')*>"#).unwrap());
+static WIDTH_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"\swidth=['"]([^%]+?)['"]"#).unwrap());
+static HEIGHT_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"\sheight=['"]([^%]+?)['"]"#).unwrap());
+static VIEW_BOX_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"\sviewBox=['"](.+?)['"]"#).unwrap());
+static VIEW_BOX_CONTENT_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^\s*((?:\w|\.|-)+)\s+((?:\w|\.|-)+)\s+((?:\w|\.|-)+)\s+((?:\w|\.|-)+)\s*$")
         .unwrap()
 });

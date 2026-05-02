@@ -1,7 +1,6 @@
-use std::{env, path::PathBuf};
+use std::{env, path::PathBuf, sync::LazyLock};
 
 use anyhow::{Result, bail};
-use once_cell::sync::Lazy;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use similar::TextDiff;
@@ -19,9 +18,9 @@ use turbopack_core::{
 
 // Updates the existing snapshot outputs with the actual outputs of this run.
 // e.g. `UPDATE=1 cargo test -p turbopack-tests -- test_my_pattern`
-pub static UPDATE: Lazy<bool> = Lazy::new(|| env::var("UPDATE").unwrap_or_default() == "1");
+pub static UPDATE: LazyLock<bool> = LazyLock::new(|| env::var("UPDATE").unwrap_or_default() == "1");
 
-static ANSI_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\x1b\[\d+m").unwrap());
+static ANSI_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\x1b\[\d+m").unwrap());
 
 pub async fn snapshot_issues<I: IntoIterator<Item = ReadRef<PlainIssue>>>(
     captured_issues: I,

@@ -107,8 +107,9 @@ async fn compute_side_effect_free_module_info_single(
     )?;
     #[cfg(debug_assertions)]
     {
-        use once_cell::sync::Lazy;
-        static PRINT_SIDE_EFFECT_INFO: Lazy<bool> = Lazy::new(|| {
+        use std::sync::LazyLock;
+
+        static PRINT_SIDE_EFFECT_INFO: LazyLock<bool> = LazyLock::new(|| {
             std::env::var_os("TURBOPACK_PRINT_SIDE_EFFECT_INFO")
                 .is_some_and(|v| v == "1" || v == "true")
         });

@@ -1,18 +1,18 @@
 use std::{
     borrow::Cow,
     fmt::{Display, Write},
+    sync::LazyLock,
 };
 
-use once_cell::sync::Lazy;
 use regex::{Captures, Regex, Replacer};
 use swc_core::atoms::Atom;
 use turbo_rcstr::RcStr;
 
-pub static MAGIC_IDENTIFIER_DEFAULT_EXPORT: Lazy<RcStr> =
-    Lazy::new(|| RcStr::from(mangle("default export")));
+pub static MAGIC_IDENTIFIER_DEFAULT_EXPORT: LazyLock<RcStr> =
+    LazyLock::new(|| RcStr::from(mangle("default export")));
 
-pub static MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM: Lazy<Atom> =
-    Lazy::new(|| Atom::from(mangle("default export")));
+pub static MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM: LazyLock<Atom> =
+    LazyLock::new(|| Atom::from(mangle("default export")));
 
 pub fn mangle(content: &str) -> String {
     let mut r = "__TURBOPACK__".to_string();
@@ -151,8 +151,8 @@ pub fn unmangle(identifier: &str) -> Option<String> {
 
 /// Decode all magic identifiers in a string.
 pub fn unmangle_identifiers<T: Display>(text: &str, magic: impl Fn(String) -> T) -> Cow<'_, str> {
-    static IDENTIFIER_REGEX: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r"__TURBOPACK__[a-zA-Z0-9_$]+__").unwrap());
+    static IDENTIFIER_REGEX: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"__TURBOPACK__[a-zA-Z0-9_$]+__").unwrap());
 
     struct Rep<T: Fn(String) -> O, O: Display>(T);
 
