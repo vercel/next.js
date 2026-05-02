@@ -181,13 +181,22 @@ jobs:
 
           git config --global user.name "vercel-ci-bot"
           git config --global user.email "infra+ci@vercel.com"
+          export NEXT_PRIVATE_TEST_NOT_IN_DOCKER=1
 
           if [ "$REQUESTED_NODE_VERSION" != "$DEFAULT_NODE_VERSION" ]; then
-            curl -sfLS "https://install-node.vercel.app/v${REQUESTED_NODE_VERSION}" | FORCE=1 bash
+            NODE_PREFIX="$HOME/.local/node-v${REQUESTED_NODE_VERSION}"
+            export PATH="$NODE_PREFIX/bin:$PATH"
+            curl -sfLS "https://install-node.vercel.app" | bash -s -- \
+              --yes \
+              --version="${REQUESTED_NODE_VERSION}" \
+              --prefix="$NODE_PREFIX"
           fi
 
           corepack enable
           corepack prepare --activate yarn@1.22.19
+          export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+          mkdir -p "$NPM_CONFIG_PREFIX/bin"
+          export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
           pnpm config set store-dir /pnpm-store
 
           node scripts/normalize-version-bump.js
