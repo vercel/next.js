@@ -1,7 +1,7 @@
 ---
 title: Thinking in Next.js
 nav_title: Thinking in Next.js
-description: A way of thinking about App Router apps as one component tree that decides where its data comes from, what gets reused, and what stays in the browser.
+description: A way of thinking about App Router apps as one component tree where each piece declares where its data comes from, what gets reused, and what stays in the browser.
 related:
   title: Related
   description: Continue learning about the App Router model.
@@ -10,24 +10,26 @@ related:
     - app/guides/streaming
 ---
 
-In React, you build a UI by breaking the screen into components and letting data flow through the tree. The original [Thinking in React](https://react.dev/learn/thinking-in-react) walks through that model in three moves. First name the parts, then render them static from mock data, then layer state on top.
+{/* The demo URLs and source links in Steps 5-7 target the post-restructure lab naming (mutations / client-boundaries / caching). They will 404 until the labs are renamed to match. */}
 
-In Next.js, the same component tree carries a few more decisions. Where does the data come from? What can render right away? What waits, and what gets reused for the next visitor? The pieces are still components (some run on the server, some run in the browser), and they compose like any other React tree. Each one runs where it belongs.
+In React, you break a UI into components and let data flow through the tree. [Thinking in React](https://react.dev/learn/thinking-in-react) walks through the model in five steps. Name the parts, render them from mock data, and layer state on top.
 
-This guide builds one small app one decision at a time, the same way you would in your own codebase.
+In Next.js, the same tree carries a few more decisions. Where does the data come from? What can render ahead of the request, what waits for it, and what gets reused for the next visitor? The pieces are still components, some running on the server and some in the browser, and they compose like any other React tree. Each one runs where it belongs.
+
+This guide builds one small app one decision at a time, the way you would in your own codebase.
 
 ## Start with the mockup
 
-The brief: a small projects dashboard. Each viewer sees their projects, opens one to see its deployments, and opens a deployment to read its build log. They can search the list, pin favorites, and trigger a redeploy from the project page.
+Picture a small projects dashboard. Each viewer sees their projects, opens one to see its deployments, and opens a deployment to read its build log. They can search the list, pin favorites, and trigger a redeploy from the project page.
 
 The designer hands over mockups for three routes.
 
 <Image
   alt="Three route cards labeled /projects, /projects/compass, and /projects/compass/deployments/compass-jx9q3, each split into top bar, sidebar, and content regions."
-  srcLight="/docs/guides/thinking-in-nextjs/designer-mockups-light.png"
-  srcDark="/docs/guides/thinking-in-nextjs/designer-mockups-dark.png"
+  srcLight="/docs/guides/thinking-in-nextjs/designer-mockups-light-cropped.png"
+  srcDark="/docs/guides/thinking-in-nextjs/designer-mockups-dark-cropped.png"
   width={1600}
-  height={567}
+  height={452}
 />
 
 The data layer returns three shapes:
@@ -44,16 +46,18 @@ The build happens one decision at a time:
 2. Build a static version with JSX.
 3. Fetch data where it is used.
 4. Stream async work.
-5. Cache reusable work.
-6. Mutate data.
-7. Add client interactivity.
+5. Mutate data.
+6. Add client interactivity.
+7. Cache reusable work.
 8. Optimize prefetching.
 
-The order is not arbitrary. It is hard to think about caching before knowing what data is being fetched, and hard to think about [prefetching](/docs/app/glossary#prefetching) before knowing what's cached. Each step earns the next one.
+The order isn't arbitrary. You can't plan caching before you know what data each region reads, and you can't plan [prefetching](/docs/app/glossary#prefetching) before you know what's cached. Each step earns the next.
+
+These steps split into two passes. The first pass builds the route, going from static JSX through server-side reads with Suspense around the async ones, then mutations, then a client boundary for what the request-response loop can't cover. The second pass optimizes how it loads, with caching for the work that repeats and runtime prefetch for what can move before the click.
 
 ## Step 1: Break the UI into a component hierarchy
 
-The first pass draws a box around each region of the mockup and gives it a name. Each repeating piece of data turns into one component, with one `ProjectCard` per `Project`, one row per `Deployment`, and one row per `LogLine`. [Thinking in React](https://react.dev/learn/thinking-in-react#step-1-break-the-ui-into-a-component-hierarchy) calls this matching the component structure to the data model. UI and data tend to share the same shape.
+Draw a box around each region of the mockup and give it a name. Each repeating piece of data becomes one component, with one `ProjectCard` per `Project`, one row per `Deployment`, and one row per `LogLine`. [Thinking in React](https://react.dev/learn/thinking-in-react#step-1-break-the-ui-into-a-component-hierarchy) calls this matching the component structure to the data model. UI and data tend to share the same shape.
 
 | Region                  | Component                                                        |
 | ----------------------- | ---------------------------------------------------------------- |
@@ -75,11 +79,11 @@ ProjectsLayout                      ← persistent: HeaderBar + Sidebar
 └── /…/deployments/[deployId]       → DeploymentHeader + BuildLogs
 ```
 
-Nothing decided yet about how the data arrives, what's reused, or where each component runs. Naming and grouping is enough.
+You haven't decided yet how the data arrives, what's reused, or where each component runs. Naming and grouping is enough for now.
 
 ## Step 2: Build a static version with JSX
 
-With the regions named, the question of where their values come from can wait. A first pass renders them as JSX from inline mock data, with values that already sit in the component file:
+With the regions named, where their values come from can wait. Render them as JSX from inline mock data, with values that already sit in the component file:
 
 ```tsx
 const projects = [
@@ -106,9 +110,9 @@ function ProjectCard({ project }) {
 }
 ```
 
-[Layouts](/docs/app/glossary#layout) and [pages](/docs/app/glossary#page) are [Server Components](/docs/app/glossary#server-component) by default. They run on the server and never run again in the browser.
+[Layouts](/docs/app/glossary#layout) and [pages](/docs/app/glossary#page) are [Server Components](/docs/app/glossary#server-component) by default. They run on the server and never run again in the browser. Their JavaScript doesn't ship to the client, a different shape from [Client Components](/docs/app/glossary#client-component), which render on the server first and then hydrate in the browser to attach event handlers.
 
-Since this version only renders JSX from local data, no [Client Component](/docs/app/glossary#client-component) is needed yet.
+Since this version only renders JSX from local data, no Client Component is needed yet.
 
 Running `next build` [prerenders](/docs/app/glossary#prerendering) the route as static HTML:
 
@@ -124,9 +128,7 @@ The `○` next to `/projects` is what to look for. Every value the route renders
 
 This is the [App Router](/docs/app/glossary#app-router) version of "build a static version" from Thinking in React. The UI is visible before any decision about where the real data comes from.
 
-Each demo throughout this guide embeds the deployed lab. The refresh button in the browser chrome replays the load.
-
-Notice that the deployed route paints in one shot, with nothing to wait for.
+Try the demo. Each demo throughout this guide embeds the deployed lab, and the refresh button in the browser chrome replays the load. Notice the route paints in one shot, with nothing to wait for.
 
 <Demo
   src="https://thinking-in-nextjs-02.labs.vercel.dev/projects"
@@ -139,13 +141,13 @@ Source: [`steps/02-static-jsx`](https://github.com/vercel-labs/thinking-in-nextj
 
 ## Step 3: Fetch data where it is used
 
-The static version got us through [Step 2: Build a static version with JSX](#step-2-build-a-static-version-with-jsx), but real apps don't ship with their data baked into the component file. The mock array has to go. The data lives in a database (or behind an API), and the page needs a function to ask for it.
+The static version got us through [Step 2: Build a static version with JSX](#step-2-build-a-static-version-with-jsx), but real apps don't ship with their data baked into the component file. The mock array has to go. The data lives in a database (or behind an API), and each region needs a function to read what it shows.
 
-Each read becomes a small async function (`getProjects()`, `getProject(id)`, `getDeployments(projectId)`), and the collection of those functions is the route's data layer.
+Each region gets its own async read, and the collection of those reads is the route's data layer. On this app that's `getProjects()`, `getProject(id)`, and `getDeployments(projectId)`, with the same shape for the recent deployments, the build log, the current viewer, and the viewer's pinned ids.
 
 Where in the tree should those reads happen?
 
-The page could do all the fetching at the top and pass values down. That works, but it couples otherwise-independent sections (the deployments list ends up waiting on the same parent as the sidebar), and the reads tend to run in sequence rather than in parallel.
+The page could do all the fetching at the top and pass values down. That works, but it couples independent sections (the deployments list waits on the same parent as the sidebar), and each `await` at the top blocks the next, so the reads run in sequence rather than in parallel.
 
 The other option is for each component to read what it needs, right next to the JSX that uses it:
 
@@ -177,13 +179,13 @@ Refresh the demo and notice the route now waits on the slowest read before it pa
   title="Step 3: Fetch data"
 />
 
-By now every region has a read attached to it. The route works, but every request runs every read, and the build no longer tries to prerender.
+By now every region has a read attached to it. The route works, but every request runs every read, and `next build` can no longer prerender the route.
 
 Source: [`steps/03-fetch-data`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/03-fetch-data).
 
 ## Step 4: Stream async work
 
-Why should the rest of the page wait for the slowest read? It shouldn't. [`<Suspense>`](https://react.dev/reference/react/Suspense) is how you say so: render this part when it's ready, render the rest now.
+Why should the rest of the page wait for the slowest read? It shouldn't. [`<Suspense>`](https://react.dev/reference/react/Suspense) is how you say so. Render this part when it's ready, render the rest now.
 
 [`cacheComponents`](/docs/app/getting-started/caching) is the app-wide switch that makes the framework hold you to that:
 
@@ -197,7 +199,11 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-With it on, the prerender expects every async read to either be cached or sit behind a [Suspense boundary](/docs/app/glossary#suspense-boundary). Anything else surfaces in `next dev` and `next build` as [`Uncached data was accessed outside of <Suspense>`](https://nextjs.org/docs/messages/blocking-route), pointing at the call site:
+Cache Components is the refined version of the App Router, and the constraint is the feature. Making the cache-or-stream decision explicit at every async read catches the common mistakes (uncached fetches blocking the prerender, per-request work hidden inside what looks like static content, accidental coupling between routes that share a slow read), so routes built under it ship in better shape by default.
+
+With it on, the prerender expects every async read to either be cached or sit behind a [Suspense boundary](/docs/app/glossary#suspense-boundary). That split is what enables [Partial Prerendering](/docs/app/glossary#partial-prerendering-ppr) (PPR). The route's static parts ship as HTML on the first paint, and the dynamic parts stream in behind their boundaries when they resolve. The reader sees the layout immediately, instead of a blank page while the slow read finishes.
+
+Anything else, an async read with no cache and no boundary, surfaces in `next dev` and `next build` as [`Uncached data was accessed outside of <Suspense>`](https://nextjs.org/docs/messages/blocking-route), pointing at the call site:
 
 <Image
   alt="Next.js dev overlay reading 'Next.js encountered uncached data during the initial render.' A code preview highlights the uncached `await` inside a data-access function. Three fix cards follow. 'Cache dynamic data' shows `'use cache'` at the top of a data function. 'Move within Suspense' wraps the async child in `<Suspense fallback={…}>`. 'Allow blocking route' shows `export const instant = false`."
@@ -209,9 +215,9 @@ With it on, the prerender expects every async read to either be cached or sit be
 
 The overlay lists three ways out. One lets the route block as before, an escape hatch for cases where you knowingly want that. The other two are the design conversation the rest of this guide is about.
 
-Stream the read, or cache it. [Streaming](/docs/app/glossary#streaming) first, because it's the smaller commitment.
+Stream the read, or cache it. [Streaming](/docs/app/glossary#streaming) first, because it's the smaller commitment. Caching shows up later in the guide.
 
-A Suspense boundary only says "this part can paint later," not "this output is reusable." Reusability is the next question, and it's easier to answer once every async read has its own boundary.
+A Suspense boundary only says "this part can paint later," not "this output is reusable." Boundary-by-boundary streaming is the move for now.
 
 Wrap each async section in its own boundary so the [static shell](/docs/app/glossary#static-shell) (the parts that don't need to wait) is sent immediately:
 
@@ -232,7 +238,7 @@ function Sidebar() {
 
 `Sidebar` itself is synchronous now. The two async sections it contains each sit behind their own boundary, and each fallback is shaped like the section it stands in for.
 
-The same move repeats anywhere else in the route an async read shows up, with the boundary sitting at the smallest scope that needs it.
+The same move repeats anywhere else in the route an async read shows up, with the boundary placed at the smallest scope that wraps the read. On this route, that's `ProjectGrid` on the projects index, `ViewerAvatar` in the header, `ProjectHeader` and `Deployments` on the project page, and `DeploymentHeader` and `BuildLogs` on the deployment page.
 
 A _fallback_ is the UI that renders in the static shell while the async child is still resolving. It's replaced with the real output once the child finishes. For this route:
 
@@ -241,21 +247,19 @@ A _fallback_ is the UI that renders in the static shell while the async child is
 - **1000 ms**: Pinned and grid resolve.
 - **1500 ms**: Recent deploys resolves last.
 
-The fallback's shape matters. A skeleton matching the streamed result's width, height, and row count keeps the shell stable.
-
-A wrong-sized fallback pushes the page around when the content arrives.
+The fallback's shape matters. A skeleton that matches the streamed result's width, height, and row count keeps the shell stable; a mismatched one pushes the page around when content arrives.
 
 A boundary does not have to wrap an entire region. It can wrap a single nested child while the rest of the surrounding layout already has its props. The outer tree paints from data the parent resolved, and only the inner subtree shows a fallback while something inside awaits.
 
-Output that arrives bit by bit, like log lines on an in-progress build, LLM tokens, or paginated work, reaches for the same primitive. Suspense boundaries nest, with each piece wrapping the next in its own boundary so each one streams independently:
+Output that arrives in pieces (log lines on an in-progress build, LLM tokens, or paginated work) follows the same pattern. Suspense boundaries nest, with each piece wrapping the next in its own boundary so each one streams independently:
 
 ```tsx
 function LiveLines({ lines, index }) {
-  if (index >= lines.length) return null
+  if (index >= lines.length) return <CursorRow />
   return (
     <>
       <LogRow line={lines[index]} />
-      <Suspense fallback={<Cursor />}>
+      <Suspense fallback={<CursorRow />}>
         <DelayedNextLine lines={lines} nextIndex={index + 1} />
       </Suspense>
     </>
@@ -265,183 +269,39 @@ function LiveLines({ lines, index }) {
 
 For feeds that arrive outside the request (a real build log streamed from the platform, telemetry, chat), the typical pattern is a Client Component that polls or subscribes.
 
-Click into the projects route. The shell paints immediately, and the sidebar and grid swap in as each Suspense boundary resolves. Click into a project, then into a still-building deployment, to see the same primitive nested with each log line streaming in on its own.
+Try the demo. Click into projects, then into a still-building deployment. Watch the shell paint immediately and each section swap in as its boundary resolves.
 
 <Demo
   src="https://thinking-in-nextjs-04.labs.vercel.dev/projects"
   title="Step 4: Stream async work"
 />
 
-Each section's fallback hides one slow read at a time, and the shell renders around it with the parts that don't have to wait. The route still runs every read on every request; what changed is that no read blocks any other.
+Each section's fallback hides one slow read at a time, and the shell renders around it with the parts that don't have to wait. The reader sees the layout and the search bar on the first paint, with skeleton fallbacks where the slow reads are still resolving. The route still runs every read on every request; what changed is that no read blocks any other.
+
+Reads work end-to-end. The next question is what happens when the reader writes.
 
 Source: [`steps/04-streaming`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/04-streaming).
 
-## Step 5: Cache reusable work
+## Step 5: Mutate data
 
-Streaming hides slow reads behind fallbacks, and that gets the page paint moving. What kept coming back, though, was that most of those reads aren't actually different per visitor. The project list, project header, and deployments list don't change between viewers from one second to the next.
+Reads cover the route. The other half is writes, and on this app that means the deploy button, the pin button, and any other place the page changes the underlying state.
 
-The natural question:
+In the App Router, mutations live in [Server Functions](/docs/app/glossary#server-function) marked with `'use server'`. The function runs on the server, hits the underlying state, and the route re-renders so the new output replaces the old.
 
-> Would the next viewer see the same thing?
+In practice, Server Functions are how you talk to the server without writing an API endpoint by hand. The endpoint exists under the hood, but the developer experience is Remote Procedure Call (RPC), with arguments and return values crossing a serialization boundary. Plain data passes through; functions and class instances don't.
 
-If yes, the work doesn't need to run on every request. The result can be reused, and the section can join the static shell instead of streaming behind a fallback.
-
-Walk down the tree once and answer the question for each piece:
-
-| UI piece                          | Same for every viewer? | Becomes                         |
-| --------------------------------- | ---------------------- | ------------------------------- |
-| `ProjectGrid`, `ProjectHeader`    | Yes                    | `'use cache'`                   |
-| `Deployments`, `DeploymentHeader` | Yes                    | `'use cache'`                   |
-| `RecentDeploysSection`            | Yes                    | `'use cache'`                   |
-| `BuildLogs`, completed build      | Yes                    | `'use cache'`                   |
-| `BuildLogs`, in-progress build    | No, live               | uncached, streamed              |
-| `ViewerAvatar`                    | No, per viewer         | per-viewer cache                |
-| `PinnedSection`                   | No, per viewer         | `'use cache'` keyed by `userId` |
-
-A directive at the top of the function flips a read into the shared cache:
-
-```tsx
-async function getProject(id) {
-  'use cache'
-  cacheLife('hours')
-  cacheTag('projects', `project-${id}`)
-
-  return db.project.find({ where: byId(id) })
-}
-```
-
-[`'use cache'`](/docs/app/api-reference/directives/use-cache) marks the function as cacheable. The arguments (and any closed-over values) form the cache key, so `getProject('compass')` and `getProject('feather')` are stored as separate entries.
-
-[`cacheLife`](/docs/app/api-reference/functions/cacheLife) sets how long an entry stays valid.
-
-[`cacheTag`](/docs/app/api-reference/functions/cacheTag) labels the entry so other code can refer to it by name, usually from a Server Function that calls [`updateTag`](/docs/app/api-reference/functions/updateTag) after a write. `cacheTag` accepts more than one tag, so the per-id tag (`project-${id}`) gives a single project its own handle while the broader `projects` tag still covers the list. A mutation can invalidate one project without touching the rest.
-
-A list read works the same way, keyed by whatever inputs the call takes:
-
-```tsx
-async function getProjects({ query }) {
-  'use cache'
-  cacheLife('hours')
-  cacheTag('projects')
-
-  return db.project.findMany({ where: matches(query) })
-}
-```
-
-There's a subtlety on this route. The directive on `getProjects` says the read is cached, but the page also awaits `searchParams` to pick the query, and `searchParams` only resolves at request time. So the static prerender can't bake the cards in.
-
-The cache still applies once the request lands. The entry for that exact `?q=` is reused across viewers, and the cards swap in as soon as the param resolves.
-
-The param isn't read inside `getProjects`; it arrives as `query`. The cache key follows the arguments.
-
-A plain `'use cache'` function can't read [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) inside itself for the same reason. Resolve those at the edge of the tree and pass what you need down.
-
-That leaves the per-viewer reads, like the avatar and the pinned ids. Both produce different output for each viewer, but the shape of the work is different.
-
-Take pinned ids first. They're a database read keyed on the user's id, so the cache key for the read is the id itself. The same `'use cache'` primitive works, with `userId` taken as an argument so the per-viewer entry falls out of the cache key:
-
-```tsx
-async function getPinnedIds(userId) {
-  'use cache'
-  cacheLife({ stale: 60 })
-  cacheTag(`pinned-${userId}`)
-
-  return db.pin.list({ userId })
-}
-```
-
-The store is shared. The argument is what makes the entry per-viewer. `getPinnedIds('aurora')` and `getPinnedIds('sam')` are stored as separate entries, the same way `getProject('compass')` and `getProject('feather')` are.
-
-But the lookup needs a `userId` to start with. That comes from the session cookie, and a plain `'use cache'` can't read [`cookies()`](/docs/app/api-reference/functions/cookies) inside itself. For the viewer-identity read, the entry's scope is the viewer's session, so it uses a different variant. [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) keeps the same directive shape, but the entry is scoped to the viewer and stored in the browser cache instead of being shared on the server. Inside it, `cookies()` and `headers()` are allowed. That's the whole point.
-
-This shape takes a beat to internalize. That's normal.
-
-```tsx
-async function getCurrentUser() {
-  'use cache: private'
-  cacheLife({ stale: 60 })
-
-  const session = (await cookies()).get('session')?.value
-  return session ? JSON.parse(session) : DEFAULT_USER
-}
-```
-
-The two reads compose. Read the viewer once, hand the id down:
-
-```tsx
-const user = await getCurrentUser()
-const pinnedIds = await getPinnedIds(user.id)
-```
-
-Both reads are per-viewer, but the mechanism is different. A plain `'use cache'` keyed on `userId` for the lookup that depends on it, and `'use cache: private'` for the cookie read where the entry's scope is the viewer's session.
-
-There's a third variant ([`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote)) for durable shared cache across server instances when the default in-memory store isn't enough. The hosting layer usually wires the handler.
-
-The [Cache Components](/docs/app/getting-started/caching) introduction compares all three. This guide uses plain `'use cache'` for project data and pinned ids, with `'use cache: private'` reserved for the viewer's identity behind the avatar.
-
-The tree now carries a decision per node:
-
-```txt
-persistent shell
-ProjectsLayout
-├── HeaderBar
-│   └── ViewerAvatar            use cache: private
-└── Sidebar
-    ├── PinnedSection           use cache (keyed by userId)
-    └── RecentDeploysSection    use cache
-
-/projects
-└── ProjectGrid                 use cache
-
-/projects/[id]
-├── ProjectHeader               use cache
-└── Deployments                 use cache
-
-/projects/[id]/deployments/[deployId]
-├── DeploymentHeader            use cache
-└── BuildLogs                   use cache when complete, live while building
-```
-
-Most of the Suspense boundaries from [Step 4: Stream async work](#step-4-stream-async-work) can be removed. Once a cached read joins the static shell, the Suspense wrapper around it has nothing to wait for. The boundaries around `RecentDeploys`, `ProjectHeader`, `Deployments`, and `BuildLogs` are no longer needed.
-
-What stays wrapped is what still resolves per request. The project grid reads `?q=` from the URL. The avatar and the pinned ids still suspend on first visit, because both lean on the session cookie and the static prerender doesn't have one to read.
-
-Inside `BuildLogs`, the live stream still has its boundary. That part is live by definition.
-
-You could have skipped [Step 4: Stream async work](#step-4-stream-async-work) if you'd known the cache plan up front. The question was sharper when you asked it of each component on its own.
-
-Click into a project and into a deployment, then back. Watch which sections paint instantly and which still show a fallback before resolving.
-
-<Demo
-  src="https://thinking-in-nextjs-05.labs.vercel.dev/projects"
-  title="Step 5: Cache reusable work"
-/>
-
-The shared cached sections paint with no fallback because they're already in the prerendered shell. The avatar and pinned section still show their fallback on the first visit, then stay cached in the browser for the rest of the session. Reload the tab and the per-viewer reads run again from scratch.
-
-Source: [`steps/05-caching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/05-caching).
-
-## Step 6: Mutate data
-
-A cache stores reusable output. A mutation invalidates the entries that stopped being true.
-
-In the App Router, mutations live in [Server Functions](/docs/app/glossary#server-function) marked with `'use server'`. Each one does two things in the same call. It changes the underlying state, then it invalidates every cached read that stopped being true.
-
-Triggering a deploy is the cleanest version of that. The write hits the upstream, and two cached reads go stale alongside it. The project's deployments list is one, and the sidebar's recent-deploys list is the other. Each has its own tag, and the Server Function calls them by name:
+So how does the new state get to the page? Without a cache layer yet, the answer is [`refresh`](/docs/app/api-reference/functions/refresh) from `next/cache`. Called inside a Server Function, it re-runs the dynamic reads on the current route, so the new deployment lands in the list and the recent-deploys section updates alongside it.
 
 ```tsx
 'use server'
 
+import { refresh } from 'next/cache'
+
 async function triggerDeploy(projectId) {
   await db.deployment.create({ projectId })
-  updateTag(`deployments-${projectId}`)
-  updateTag('recent-deployments')
+  refresh()
 }
 ```
-
-The tag names match the ones the cached reads applied earlier, so one Server Function call lines up with the cache entries it touched. Any route that reads through `deployments-${projectId}` or `recent-deployments` picks up the change.
-
-[`updateTag`](/docs/app/api-reference/functions/updateTag) and [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) differ in how they treat the response that contains the mutation. `updateTag` handles read-your-writes, so the new value shows up in the same response that triggered it. `revalidateTag` handles stale-while-revalidate, so the previous value keeps serving while the next read fetches a fresh one.
 
 Wired up to a button, the smallest version is a `<form action>` with no `'use client'` boundary in the path:
 
@@ -453,50 +313,54 @@ Wired up to a button, the smallest version is a `<form action>` with no `'use cl
 
 This is the same request-response loop PHP and Rails apps ran on. The browser posts a form, the server runs a function, and the server re-renders the page. The difference is that React produces the response.
 
-Pinning has the same shape. `getPinnedIds` was tagged in the previous step with ``cacheTag(`pinned-${userId}`)``, so the pin actions invalidate that viewer's tag:
+Pinning has the same shape. `addPin` and `removePin` each read the current user from the session, write to (or delete from) the pins table, and call `refresh()` so the read picks up the new state:
 
 ```tsx
 'use server'
 
+import { refresh } from 'next/cache'
+
 async function addPin(projectId) {
   const { id: userId } = await getCurrentUser()
   await db.pin.add({ userId, projectId })
-  updateTag(`pinned-${userId}`)
+  refresh()
 }
 ```
 
-The mutation pattern is now uniform across the app. The write touches the underlying state, then `updateTag` calls out the cache entries that stopped being true.
-
-The same call works against either cache. A `'use cache: private'` entry responds to `updateTag` the same way the shared cache does. The only difference is where the entry lives.
+The mutation pattern is uniform across the app. The write touches the underlying state, then `refresh()` re-renders the route so the dynamic reads pick up the new value.
 
 Submit the deploy form, then pin and unpin a project. Watch the new deployment show up in the list and the pin state flip.
 
 <Demo
-  src="https://thinking-in-nextjs-06.labs.vercel.dev/projects"
-  title="Step 6: Mutate data"
+  src="https://thinking-in-nextjs-05-mutations.labs.vercel.dev/projects"
+  title="Step 5: Mutate data"
 />
 
-Submitting the deploy form runs the Server Function and re-renders the route with the new deployments list. Pinning runs through the same path. ``updateTag(`pinned-${userId}`)`` invalidates that viewer's entry, and the next render shows the new state.
+The deploy form runs the Server Function and `refresh()` re-renders the route. Pinning runs through the same path. Every click pays the full server round trip, the streaming fallbacks from [Step 4: Stream async work](#step-4-stream-async-work) reappear on each mutation, and the new state lands once the read finishes.
 
-Source: [`steps/06-mutations`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/06-mutations).
+Functional, but visibly slow. The button has no pending state, the pin doesn't flip until the server confirms, and search still requires a submit. None of these can wait for a round trip.
 
-## Step 7: Add client interactivity
+Source: [`steps/05-mutations`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/05-mutations).
+
+## Step 6: Add client interactivity
+
+The mutations from [Step 5: Mutate data](#step-5-mutate-data) all worked, and they were all visibly slow. Every click paid for itself with a full server round trip, the streaming fallbacks reappeared on each re-render, and the buttons sat without feedback while the Server Function ran.
 
 For most of the route so far, the work has lived on the server. Reads happen in Server Components, writes happen in Server Functions, and a plain HTML form has been enough to wire a button to a mutation. What kept surprising me as I built the route this way was how much of an app that already covers, and how late the moment shows up where the request-response loop runs out of room.
 
-That moment is real, though. The pin button should flip the second it's clicked, before the server has acknowledged the write. The search input should update the URL on every keystroke instead of waiting for a submit. The deploy button should look pending while the Server Function is still working. None of those want to wait for a round trip, and that's where a Client Component earns its place.
+The pin button should flip the second it's clicked, before the server has acknowledged the write. The search input should update the URL on every keystroke instead of waiting for a submit. The deploy button should look pending while the Server Function is still working. None of these can wait for a round trip, and that's where a Client Component earns its place.
 
-Inside a [`'use client'`](/docs/app/glossary#use-client-directive) boundary the full React API is back, including `onClick`, `useState`, hooks, and refs. Server Functions stay callable from any of it, so the form pattern from [Step 6: Mutate data](#step-6-mutate-data) becomes one option among many, and the boundary itself is open-ended enough to host anything React can host, from a chart library to drag-and-drop to your own keyboard handler.
+Inside a [`'use client'`](/docs/app/glossary#use-client-directive) boundary the full React API is back, including `onClick`, `useState`, hooks, and refs. Server Functions stay callable from any of it, so the form pattern from [Step 5](#step-5-mutate-data) becomes one option among many, and the boundary itself is open-ended enough to host anything React can host, from a chart library to drag-and-drop to your own keyboard handler.
 
-In practice, a lot of routes never reach that far. The URL, a form, a Server Function, and a transition cover most of what an app needs, and the rest stays on the server where it belongs. The boundary is there for the moments that ask for more.
+In practice, a lot of routes never reach that far. The URL, a form, a Server Function, and a transition cover most of what an app needs, and the rest stays on the server where it belongs. The boundary is there for the moments where input lives in the client.
 
 Pending state has the same options. You can put `triggerDeploy` inside a `useTransition` and read `pending` from the hook for the spinner. React's [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) would surface the same state from inside a `<form>`.
 
 So how wide does that boundary actually need to be? Often one prop, even before it resolves.
 
-`ProjectPin` was a server form in [Step 6](#step-6-mutate-data). In this step it crosses into the client, takes the per-viewer promise as a prop, and calls [`use`](https://react.dev/reference/react/use) to resolve it on the other side, suspending at the nearest Suspense boundary above until the read resolves.
+`ProjectPin` was a server form in [Step 5](#step-5-mutate-data). In this step it crosses into the client, takes the per-viewer promise as a prop, and calls [`use`](https://react.dev/reference/react/use) to resolve it on the other side, suspending at the nearest Suspense boundary above until the read resolves.
 
-The same form action from [Step 6](#step-6-mutate-data) wraps the optimistic flip:
+The same form action from [Step 5](#step-5-mutate-data) wraps the optimistic flip:
 
 ```tsx
 'use client'
@@ -530,15 +394,16 @@ function ProjectPin({ projectId, pinnedIdsPromise }) {
 
 The flip uses `wasPinned` so the Server Function always matches the state **before** the optimistic update. That way, two fast clicks don't accidentally cancel each other out.
 
-Nothing else is needed: the `updateTag('pinned')` call inside `addPin` / `removePin` invalidates the cached read, the framework re-renders the route with fresh data, and the optimistic state hands off to the real one.
+Nothing else is needed. The `refresh()` call inside `addPin` and `removePin` re-runs the dynamic reads, the framework re-renders the route with the fresh pinned ids, and the optimistic state is replaced by the real one.
 
-The read still runs on the server. `ProjectGrid` calls `getPinnedIds` once, hands the same promise reference to every card, and each `ProjectPin` waits on it through `use()`:
+The read still runs on the server. `ProjectGrid` resolves the current user, calls `getPinnedIds` once, hands the same promise reference to every card, and each `ProjectPin` waits on it through `use()`:
 
 ```tsx
 async function ProjectGrid({ searchParams }) {
   const { q } = await searchParams
   const projects = await getProjects({ query: q })
-  const pinnedIdsPromise = getPinnedIds()
+  const user = await getCurrentUser()
+  const pinnedIdsPromise = getPinnedIds(user.id)
 
   return projects.map((project) => (
     <ProjectCard
@@ -550,7 +415,7 @@ async function ProjectGrid({ searchParams }) {
 }
 ```
 
-In `ProjectCard`, the icon, title, framework line, description, and status all come from the `project` object the grid already loaded. Only the pin needs `getPinnedIds`, so only that control sits behind `<Suspense>`: the rest of the card is not blocked by the per-viewer read, and the fallback is a pin-shaped skeleton, not a skeleton for the whole card.
+In `ProjectCard`, the icon, title, framework line, description, and status all come from the `project` object the grid already loaded. Only the pin needs `getPinnedIds`, so only that control sits behind `<Suspense>`. The rest of the card is not blocked by the per-viewer read, and the fallback is a pin-shaped skeleton, not a skeleton for the whole card.
 
 ```tsx
 <header className="flex …">
@@ -563,7 +428,9 @@ In `ProjectCard`, the icon, title, framework line, description, and status all c
 
 It might look like marking `ProjectPin` with `'use client'` would pull `ProjectGrid` into the client too. It doesn't.
 
-`'use client'` is a _boundary_, not a whole-tree switch. The `getPinnedIds` call runs on the server where the grid lives; only the promise crosses into the client, and `use()` reads it from there.
+`'use client'` marks a [boundary](/docs/app/glossary#boundary), not a switch for everything above it. The `getPinnedIds` call runs on the server where the grid lives; only the promise crosses into the client, and `use()` reads it from there.
+
+Even when the boundary needs to be wider than a leaf (a modal wrapping a form, an interactive chrome around a server-rendered list), the server work can stay on the server. A Client Component takes Server Components as `children`, a [composition pattern](/docs/app/getting-started/server-and-client-components#interleaving-server-and-client-components) sometimes called the donut, so server-only reads, secrets, and database access stay nested inside while the interactive shell sits at the boundary.
 
 Search shows up again here. The plain HTML form from [Step 3: Fetch data where it is used](#step-3-fetch-data-where-it-is-used) worked because a single submit was all the page needed.
 
@@ -611,13 +478,219 @@ App Router runs `router.push` inside a [transition](https://react.dev/reference/
 Try the demo. Pin and unpin a project, type in the search bar, and submit a deploy. Watch the pin flip before the server confirms, the URL update on each keystroke, and the deploy button stay in its pending state until the Server Function returns.
 
 <Demo
-  src="https://thinking-in-nextjs-07.labs.vercel.dev/projects"
-  title="Step 7: Add client interactivity"
+  src="https://thinking-in-nextjs-06-client-boundaries.labs.vercel.dev/projects"
+  title="Step 6: Add client interactivity"
 />
 
-Three small Client leaves (`ProjectPin`, `SearchBar`, and the deploy button) handle the moments where the request-response loop runs out of room. Everything else around them stays a Server Component.
+Three small Client leaves (`ProjectPin`, `SearchBar`, and the deploy button) handle the moments where the request-response loop runs out of room. Everything else around them stays a Server Component. In practice, client boundaries open at the leaves where they earn a hook, and Server Components stay the default.
 
-Source: [`steps/07-client-boundaries`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/07-client-boundaries).
+The route is already a complete app. Streaming SSR for reads, Server Functions for writes, and a few interactive leaves for input cover most of what apps need. The JavaScript you ship stays small because only those leaves cross into the client.
+
+Source: [`steps/06-client-boundaries`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/06-client-boundaries).
+
+## Step 7: Cache reusable work
+
+The route works end-to-end now, but moving between routes still feels server-y. Click into a project, click back, click into another, and every read runs from scratch on each navigation. The shell paints fast, the fallbacks reappear, and the new section streams in.
+
+Caching is the move that gets the rest of the way to the instant feel of a Single Page App (SPA), without giving up the server-component model. Data lives next to the read, there's no client cache to hand-maintain across viewers, and no API contract to keep in sync. The reads stay where the JSX uses them, the server keeps doing the work, but most of those reads don't have to run again for the next viewer.
+
+What kept coming back was that most of these reads aren't actually different per visitor. The project list, project header, and deployments list don't change between viewers from one second to the next.
+
+The natural question:
+
+> Would the next viewer see the same thing?
+
+If yes, the work doesn't need to run on every request. The result can be reused, and the section can join the static shell instead of streaming behind a fallback.
+
+Walk down the tree once and answer the question for each piece:
+
+| UI piece                          | Same for every viewer? | Becomes                         |
+| --------------------------------- | ---------------------- | ------------------------------- |
+| `ProjectGrid`, `ProjectHeader`    | Yes                    | `'use cache'`                   |
+| `Deployments`, `DeploymentHeader` | Yes                    | `'use cache'`                   |
+| `RecentDeploysSection`            | Yes                    | `'use cache'`                   |
+| `BuildLogs`, completed build      | Yes                    | `'use cache'`                   |
+| `BuildLogs`, in-progress build    | No, live               | uncached, streamed              |
+| `ViewerAvatar`                    | No, per viewer         | per-viewer cache                |
+| `PinnedSection`                   | No, per viewer         | `'use cache'` keyed by `userId` |
+
+A directive at the top of the function flips a read into the shared cache:
+
+```tsx
+async function getProject(id) {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('projects', `project-${id}`)
+
+  return db.project.find({ where: byId(id) })
+}
+```
+
+[`'use cache'`](/docs/app/api-reference/directives/use-cache) at the top of `getProject` marks the function as cacheable, and its arguments (together with any closed-over values) form the cache key. `getProject('compass')` and `getProject('feather')` end up as separate entries, each one kept for as long as [`cacheLife`](/docs/app/api-reference/functions/cacheLife) declares (`'hours'` on this read).
+
+[`cacheTag`](/docs/app/api-reference/functions/cacheTag) labels each entry by name so a mutation can invalidate it later. The per-id tag `project-${id}` gives a single project its own handle, and the broader `projects` tag still covers the list, so a rename on `compass` invalidates one entry without touching `feather`.
+
+A list read works the same way, keyed by whatever inputs the call takes:
+
+```tsx
+async function getProjects({ query }) {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('projects')
+
+  return db.project.findMany({ where: matches(query) })
+}
+```
+
+The other cached reads on the route follow the same shape, with a `cacheTag` named after what each one covers (`getDeployments`, `getDeployment`, `getRecentDeployments`, and `getCompletedBuildLog`).
+
+There's a subtlety on this route. `getProjects` is cached, but the page also awaits `searchParams` to pick the query, and `searchParams` only resolves at request time. So the static prerender can't bake the cards in.
+
+The cache still applies once the request lands. The entry for that exact `?q=` is reused across viewers, and the cards swap in as soon as the param resolves.
+
+The param isn't read inside `getProjects`; it arrives as `query`. The cache key follows the arguments.
+
+A plain `'use cache'` function can't read [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) inside itself for the same reason. Resolve those at the edge of the tree and pass what you need down.
+
+That leaves the per-viewer reads, the avatar and the pinned ids. Both produce different output for each viewer, but they need different caching primitives.
+
+Take pinned ids first. They're a database read keyed on the user's id, so the cache key for the read is the id itself. The same `'use cache'` primitive works, with `userId` taken as an argument so the per-viewer entry falls out of the cache key:
+
+```tsx
+async function getPinnedIds(userId) {
+  'use cache'
+  cacheLife({ stale: 60 })
+  cacheTag(`pinned-${userId}`)
+
+  return db.pin.list({ userId })
+}
+```
+
+The store is shared. The argument is what makes the entry per-viewer. `getPinnedIds('aurora')` and `getPinnedIds('sam')` are stored as separate entries, the same way `getProject('compass')` and `getProject('feather')` are.
+
+But the lookup needs a `userId` to start with. That comes from the session cookie, and a plain `'use cache'` can't read [`cookies()`](/docs/app/api-reference/functions/cookies) inside itself.
+
+For the viewer-identity read, the entry's scope is the viewer's session, so it uses a different variant. [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) keeps the same directive shape, but the entry is scoped to the viewer and stored in the browser cache instead of being shared on the server.
+
+Inside it, `cookies()` and `headers()` are allowed. That's the whole point.
+
+This shape takes a beat to internalize. That's normal.
+
+```tsx
+async function getCurrentUser() {
+  'use cache: private'
+  cacheLife({ stale: 60 })
+
+  const session = (await cookies()).get('session')?.value
+  return session ? JSON.parse(session) : DEFAULT_USER
+}
+```
+
+The two reads compose. Read the viewer once, hand the id down:
+
+```tsx
+const user = await getCurrentUser()
+const pinnedIds = await getPinnedIds(user.id)
+```
+
+Both reads are per-viewer, but the mechanism is different. The lookup uses a plain `'use cache'` keyed on `userId`, because the id is the only input the read needs. The cookie read uses `'use cache: private'`, because the entry's scope is the viewer's session.
+
+There's a third variant ([`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote)) for durable shared cache across server instances when the default in-memory store isn't enough. The hosting layer usually wires the handler.
+
+The [Cache Components](/docs/app/getting-started/caching) introduction compares all three. This guide uses plain `'use cache'` for project data and pinned ids, with `'use cache: private'` reserved for the viewer's identity behind the avatar.
+
+The tree now carries a decision per node:
+
+```txt
+persistent shell
+ProjectsLayout
+├── HeaderBar
+│   └── ViewerAvatar            use cache: private
+└── Sidebar
+    ├── PinnedSection           use cache (keyed by userId)
+    └── RecentDeploysSection    use cache
+
+/projects
+└── ProjectGrid                 use cache
+
+/projects/[id]
+├── ProjectHeader               use cache
+└── Deployments                 use cache
+
+/projects/[id]/deployments/[deployId]
+├── DeploymentHeader            use cache
+└── BuildLogs                   use cache when complete, live while building
+```
+
+The Suspense rule sharpens with caching in place. A boundary is needed wherever the render touches runtime data. Anything else (a `'use cache'` read with no per-request inputs) joins the static shell, and the wrapper around it has nothing to defer. `RecentDeploys` is the cleanest example.
+
+What stays wrapped is what still resolves per request. The avatar and pinned section depend on cookies via `'use cache: private'`, `ProjectGrid` reads `?q=` from `searchParams`, and the per-viewer `ProjectPin` keeps its boundary inside each project card and project header. Inside `BuildLogs`, the live stream stays wrapped because it's live by definition.
+
+Adding the cache layer changes the picture for the mutations from [Step 5: Mutate data](#step-5-mutate-data). `refresh()` re-runs the dynamic reads on the route, but it doesn't move cached entries. After a deploy, the cached deployments list still serves the old value. After a pin, the cached `getPinnedIds` still returns the old set.
+
+[`updateTag`](/docs/app/api-reference/functions/updateTag) is the surgical answer for cached entries. From inside a Server Function, it invalidates a cached read by name, so the same write that touched the underlying state can call out the entries that stopped being true. The route re-renders with the fresh values, which is what `refresh()` was doing before. Calling both is the wrong shape, so the Server Function calls `updateTag` in place of `refresh()`.
+
+The deploy mutation from [Step 5](#step-5-mutate-data) was a write plus `refresh()`:
+
+```tsx
+'use server'
+
+import { refresh } from 'next/cache'
+
+async function triggerDeploy(projectId) {
+  await db.deployment.create({ projectId })
+  refresh()
+}
+```
+
+With the cached deployments list and the cached recent-deploys list in the picture, the same Server Function calls `updateTag` for each one:
+
+```tsx
+'use server'
+
+import { updateTag } from 'next/cache'
+
+async function triggerDeploy(projectId) {
+  await db.deployment.create({ projectId })
+  updateTag(`deployments-${projectId}`)
+  updateTag('recent-deployments')
+}
+```
+
+The tag names match the cached reads. `deployments-${projectId}` is the per-project tag from `getDeployments`, and `recent-deployments` is the tag the sidebar's recent-deploys list applied. One Server Function call lines up with the cache entries it touched, and the route re-renders against the fresh values.
+
+`updateTag` and [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) differ in how they treat the response that contains the mutation. `updateTag` handles read-your-writes, so the new value shows up in the same response that triggered it. `revalidateTag` handles stale-while-revalidate, so the previous value keeps serving while the next read fetches a fresh one.
+
+Pinning takes the same shape. `getPinnedIds` was tagged earlier with ``cacheTag(`pinned-${userId}`)``, so `addPin` and `removePin` each invalidate that viewer's tag:
+
+```tsx
+'use server'
+
+import { updateTag } from 'next/cache'
+
+async function addPin(projectId) {
+  const { id: userId } = await getCurrentUser()
+  await db.pin.add({ userId, projectId })
+  updateTag(`pinned-${userId}`)
+}
+```
+
+The mutation pattern is now uniform across the app. Each Server Function runs the write and calls `updateTag` for any cached read it touched.
+
+The same `updateTag` call works against either cache. `updateTag` invalidates a `'use cache: private'` entry the same way it invalidates a shared entry. The only difference is where the entry is stored.
+
+You could have skipped [Step 4: Stream async work](#step-4-stream-async-work) if you'd known the cache plan up front. The question was sharper when you asked it of each component on its own.
+
+Click into a project and into a deployment, then back. Watch which sections paint instantly and which still show a fallback before resolving.
+
+<Demo
+  src="https://thinking-in-nextjs-07-caching.labs.vercel.dev/projects"
+  title="Step 7: Cache reusable work"
+/>
+
+The shared cached sections paint with no fallback because they're already in the prerendered shell. The avatar and pinned section still show their fallback on the first visit, then stay cached in the browser for the rest of the session. Reload the tab and the per-viewer reads run again from scratch.
+
+Source: [`steps/07-caching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/07-caching).
 
 ## Step 8: Optimize prefetching
 
@@ -625,15 +698,21 @@ By now you know what to render and what to reuse. The last question is timing. W
 
 Not at click time. When a [`<Link>`](/docs/app/api-reference/components/link) enters the viewport, Next.js uses that as a hint and renders its destination in the background. By the time the click lands, the tree is already there.
 
-There's a wrinkle. The destination might depend on the viewer, and there's no real request at prefetch time, so the prefetch has to choose which session it renders against.
+There's a wrinkle. The destination might depend on the viewer, and there's no real request at prefetch time. The prefetch renders against one of two shapes, and the route declares which.
 
 The default is [**static**](/docs/app/guides/prefetching). The prefetch renders against build-time inputs, with no cookies, headers, or search string in scope. That's enough for the shared layout and any cached read that doesn't key on the viewer.
 
-[**Runtime**](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) prefetch is opt-in. It renders with the same cookies, headers, and search string the navigation would send, so per-viewer reads see the real session before the click.
+[**Runtime**](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) prefetch is opt-in. It renders with the same cookies, headers, and search string the navigation would send, so per-viewer reads run against the real session before the click.
 
-That's what unlocks every cached read whose key depends on the request. Static prefetch already fills the request-independent slice (the shared layout, project data, anything keyed on build-time inputs). Runtime prefetch fills the rest.
+That's what unlocks every cached read whose key depends on the request. Static prefetch already fills the request-independent slice (the shared layout and any cached read keyed on build-time inputs). Runtime prefetch fills the rest.
 
-The per-viewer reads from [Step 5: Cache reusable work](#step-5-cache-reusable-work) are one case. `getCurrentUser` reads cookies, and `getPinnedIds(userId)` keys on the id it returns. The projects grid is another, keyed on `?q=`, a value a static prefetch can't see.
+Most of [Step 7: Cache reusable work](#step-7-cache-reusable-work)'s cached reads sit on this side:
+
+- `getProject` and `getDeployments` key on `params`.
+- `getCurrentUser` reads cookies, and `getPinnedIds(userId)` keys on the id it returns.
+- The projects grid keys on `?q=` from `searchParams`.
+
+None of those keys exist at prefetch time without a real request behind them.
 
 Runtime prefetch handles them all in the same pass, so the full cache graph for the route is populated before the click resolves.
 
@@ -643,7 +722,9 @@ Opting into runtime prefetch is one segment-config line:
 export const prefetch = 'force-runtime'
 ```
 
-The companion job is [**instant validation**](/docs/app/guides/instant-navigation), a check that every path into the route still exposes an instant shell. The shared layout stays in the static part of the prerender, anything dynamic sits behind a Suspense boundary, and the navigation never tears the frame apart mid-transition.
+On this route, every page with per-request reads carries the directive (the projects index, each project page, and each deployment page).
+
+The companion job is [**instant validation**](/docs/app/guides/instant-navigation), a check that every path into the route still exposes an instant shell. The shared layout stays in the static part of the prerender, and anything dynamic sits behind a Suspense boundary so the navigation can paint the shell before the runtime work resolves.
 
 Validation is a development-time check you turn on once. A single line in `next.config.ts` puts every route in the loop:
 
@@ -670,7 +751,7 @@ Try the demo. Click between projects, into deployments, and back. Everything lan
   title="Step 8: Optimize prefetching"
 />
 
-The shift the demo highlights is which sections are already populated when the click resolves. The projects grid keyed on `?q=`, the avatar, and the pinned section all used to stream on first visit. Runtime prefetch now fills those request-dependent reads in parallel during the prefetch pass, so they're served from cache instead of streaming.
+The shift the demo highlights is which sections are already populated when the click resolves. Every Suspense boundary on this route is there because the read inside it resolves at request time, whether that's cookies (avatar, pinned section, the per-viewer `ProjectPin`), `?q=` (projects grid, search bar), or `params` (`DeploymentHeader` and `BuildLogs`). Static prefetch couldn't fill any of them. Runtime prefetch fills them all in the same pass, so the boundaries stay in the source but stop painting a fallback at navigation time.
 
 Whatever the prefetch pass touched, static or runtime, is cached in the browser and works offline. The only parts that need an active connection are the live-streamed sections, so flaky networks stop being a meaningful problem for most of the app.
 
@@ -678,7 +759,11 @@ Source: [`steps/08-prefetching`](https://github.com/vercel-labs/thinking-in-next
 
 ## Where to go from here
 
-Look back at the route. You didn't redesign it. You asked each component the same question. _What kind of work is this?_ A read here, a Suspense boundary there, a cache where the work repeats, a tag where it doesn't, a Client leaf where input lives. The route got more honest about what each piece was doing. One model carries the whole thing, and the decisions it surfaces are the ones that scale.
+Look back at the route. You didn't redesign it. You asked each component the same question. _What kind of work is this?_ A read here, a Suspense boundary there, a cache where the work repeats, a tag where it doesn't, a Client leaf where input lives. The route got more honest about what each piece was doing. One model carries the whole thing, and the decisions you made along the way are the ones that scale.
+
+The arc was short. Each step added a single primitive to the tree (a `<Suspense>` boundary, a Server Function, a Client leaf, a `'use cache'` directive, a runtime prefetch), and each one answered a question the previous step had made concrete.
+
+The server-component model carries the reads and the scaling. Caching and prefetching are how you got the SPA feel on top, without leaving that model behind.
 
 Try it on a route in your own codebase. Name the regions, then label each one as static, dynamic, cached, or a Client leaf. The decisions usually fall out once you've labeled what each piece is doing.
 
@@ -689,7 +774,7 @@ The docs go deeper on each piece used here.
 - [Server and Client Components](/docs/app/getting-started/server-and-client-components) goes further on the prop boundary, including the donut pattern (Client Components receiving Server Components as `children`) for cases this guide didn't run into.
 - [Prefetching](/docs/app/guides/prefetching) and [instant navigation](/docs/app/guides/instant-navigation) cover runtime prefetch and shell validation in more depth.
 
-For the parts this route didn't ask about, the docs cover those too.
+The guide didn't reach all of the App Router. The docs cover the rest.
 
 - [Authentication](/docs/app/guides/authentication) for knowing who's reading.
 - [Proxy](/docs/app/getting-started/proxy) for intercepting requests before they reach a page.
@@ -708,7 +793,7 @@ Jump to a step on GitHub:
 - [`steps/02-static-jsx`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/02-static-jsx). Static JSX with mock data.
 - [`steps/03-fetch-data`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/03-fetch-data). Server Components reading from a data layer.
 - [`steps/04-streaming`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/04-streaming). Suspense around async sections.
-- [`steps/05-caching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/05-caching). `'use cache'` and tags on shared reads, including pinned ids keyed by `userId`; `'use cache: private'` reserved for the viewer's identity behind the avatar.
-- [`steps/06-mutations`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/06-mutations). Server Functions; `updateTag` for every cached read.
-- [`steps/07-client-boundaries`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/07-client-boundaries). Client leaves; optimistic `ProjectPin` reading the per-viewer promise with `use`; URL-driven `SearchBar` with `useTransition`.
+- [`steps/05-mutations`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/05-mutations). Server Functions; `refresh()` to re-run dynamic reads after a write.
+- [`steps/06-client-boundaries`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/06-client-boundaries). Client leaves; optimistic `ProjectPin` reading the per-viewer promise with `use`; URL-driven `SearchBar` with `useTransition`.
+- [`steps/07-caching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/07-caching). `'use cache'` and tags on shared reads, including pinned ids keyed by `userId`; `'use cache: private'` reserved for the viewer's identity behind the avatar; `updateTag` to invalidate cached entries on a write.
 - [`steps/08-prefetching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/08-prefetching). Runtime prefetch with the navigation's cookies and search; instant validation for the static shell.
