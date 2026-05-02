@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
+
+id: turbo-task-pass-by-ref-hint
+message: >
+  consider taking `$NAME` by reference (`&$TYPE`); the cache key is still
+  built from the owned value at the call site, but the body avoids one
+  clone per cache miss.
+note: >
+  See `turbopack/crates/turbo-tasks/function.md` ("Argument Rewrite Rule")
+  for when this matters. Skip the migration when the body would need an
+  added explicit `.clone()` to compensate, when the parameter is consumed
+  by a callee that takes ownership, or when the body mutates it.
+severity: hint
+language: Rust
+rule:
+  any:
+    # Function items: `#[turbo_tasks::function] fn foo(x: Vec<...>)`.
+    - pattern:
+        context: 'fn _($NAME: $TYPE) {}'
+        selector: parameter
+      inside:
+        kind: function_item
+        stopBy: end
+        follows:
+          pattern: '#[turbo_tasks::function]'
+    # Trait method declarations on a `#[turbo_tasks::value_trait]` trait.
+    - pattern:
+        context: 'fn _($NAME: $TYPE);'
+        selector: parameter
+      inside:
+        kind: function_signature_item
+        stopBy: end
+        follows:
+          pattern: '#[turbo_tasks::function]'
+constraints:
+  TYPE:
+    regex: '^(Vec<|HashMap<|FxHashMap<|IndexMap<|FxIndexMap<|BTreeMap<|BTreeSet<|HashSet<|FxHashSet<|IndexSet<|String$|PathBuf$|OsString$|FileSystemPath$)'
