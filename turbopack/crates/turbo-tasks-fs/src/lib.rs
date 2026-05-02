@@ -708,14 +708,14 @@ impl Debug for DiskFileSystem {
 #[turbo_tasks::value_impl]
 impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function(fs)]
-    async fn read(&self, fs_path: FileSystemPath) -> Result<Vc<FileContent>> {
+    async fn read(&self, fs_path: &FileSystemPath) -> Result<Vc<FileContent>> {
         mark_session_dependent();
 
         // Check if path is denied - if so, treat as NotFound
-        if self.inner.is_path_denied(&fs_path) {
+        if self.inner.is_path_denied(fs_path) {
             return Ok(FileContent::NotFound.cell());
         }
-        let full_path = self.to_sys_path(&fs_path);
+        let full_path = self.to_sys_path(fs_path);
 
         self.inner.register_read_invalidator(&full_path).await?;
 
