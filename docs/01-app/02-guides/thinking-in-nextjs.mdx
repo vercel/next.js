@@ -126,7 +126,7 @@ The `○` next to `/projects` is what to look for. Every value the route renders
 
 This is the [App Router](/docs/app/glossary#app-router) version of "build a static version" from Thinking in React. The UI is visible before you decide where the real data comes from.
 
-Try the demo. Each demo throughout this guide embeds the deployed lab, and the refresh button in the browser chrome replays the load. Notice the route paints in one shot, with nothing to wait for.
+Try the demo. Each demo throughout this guide embeds the deployed tutorial, and the refresh button in the browser chrome replays the load. Notice the route paints in one shot, with nothing to wait for.
 
 <Demo
   src="https://thinking-in-nextjs-02-static-jsx.labs.vercel.dev/projects"
@@ -250,7 +250,7 @@ function Sidebar() {
 
 The fallback is the [loading UI](/docs/app/glossary#loading-ui) that renders in the static shell while the async child is still resolving. It's replaced with the real output once the child finishes. The fallback's shape matters: a skeleton that matches the streamed result's width, height, and row count keeps the shell stable; a mismatched one pushes the page around when content arrives.
 
-The overlay only catches the initial render. Every navigation after that needs the same guarantee, and [instant validation](/docs/app/guides/instant-navigation) extends the check across all of them. One config line in `next.config.ts` turns it on:
+The overlay only catches the initial render. Every navigation after that needs the same guarantee, and [instant validation](/docs/app/guides/instant-validation) extends the check across all of them. One config line in `next.config.ts` turns it on:
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -357,7 +357,7 @@ async function addPin(projectId) {
 
 The mutation pattern is uniform across the app. The write touches the underlying state, then `refresh()` re-renders the route so the dynamic reads pick up the new value.
 
-For this walkthrough, a **building** deployment flips to **ready** on a staggered server timer, not when the next read runs. The lab adds a little extra revalidation from the caching step onward so the demo keeps updating tidily—you can dig into the source later.
+For this walkthrough, a **building** deployment flips to **ready** on a staggered server timer, not when the next read runs. The tutorial adds a little extra revalidation from the caching step onward so the demo keeps updating tidily—you can dig into the source later.
 
 Submit the deploy form, then pin and unpin a project. Watch the new deployment show up in the list and the pin state flip.
 
@@ -717,8 +717,6 @@ Prefetch is the timing answer. When a [`<Link>`](/docs/app/api-reference/compone
 
 The prefetch renders against one of two shapes, and the route declares which. The default is [**static**](/docs/app/guides/prefetching), with no cookies, headers, or search string in scope. That covers the shared layout and any cached read keyed on build-time inputs. [**Runtime**](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) is opt-in, and it renders with the same cookies, headers, and search string the navigation would send, so per-viewer reads run against the real session before the click.
 
-Without the same session cookies the click would send, personalized prefetch can target the wrong viewer. We add minimal session wiring in the companion source so the demo prefetches match the click; [Authentication](/docs/app/guides/authentication) is the production reference.
-
 We can opt a page into runtime prefetch with one segment-config export, so its prefetch runs against the same cookies, headers, and search string the navigation would send.
 
 ```tsx
@@ -784,7 +782,7 @@ A few App Router pieces didn't fit this route, but they show up in real apps:
 
 ## Browse the source
 
-[`vercel-labs/thinking-in-nextjs`](https://github.com/vercel-labs/thinking-in-nextjs) holds one folder per guide step under `steps/`, each runnable on its own. The full app is also deployed at [thinking-in-nextjs.labs.vercel.dev](https://thinking-in-nextjs.labs.vercel.dev/).
+The [thinking-in-nextjs tutorial repo](https://github.com/vercel-labs/thinking-in-nextjs) holds one folder per guide step under `steps/`, each runnable on its own. The last step is also live at [the tutorial deployment](https://thinking-in-nextjs.labs.vercel.dev/).
 
 {/* TODO: restore the DemoExplorer block here once vercel/front#67624 lands on main and vercel-labs/thinking-in-nextjs is public. Intended config: repo "vercel-labs/thinking-in-nextjs", gitRef "main", path "steps", include "steps/**", exclude "node_modules,.next,.turbo,dist,build,*.lock,pnpm-lock.yaml", defaultFile "steps/07-static-jsx/app/projects/page.tsx". Source: https://github.com/vercel-labs/thinking-in-nextjs */}
 
@@ -796,4 +794,4 @@ Jump to a step on GitHub:
 - [`steps/05-mutations`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/05-mutations). Server Functions; `refresh()` to re-run dynamic reads after a write.
 - [`steps/06-client-boundaries`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/06-client-boundaries). Client leaves; optimistic `ProjectPin` reading the per-viewer promise with `use`; URL-driven `SearchBar` with `useTransition`.
 - [`steps/07-caching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/07-caching). `'use cache'` and tags on shared reads, including pinned ids keyed by `userId`; `'use cache: private'` reserved for the viewer's identity behind the avatar; `updateTag` to invalidate cached entries on a write.
-- [`steps/08-prefetching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/08-prefetching). `prefetch = 'force-runtime'`; instant validation for the static shell; minimal session wiring in source for the demo.
+- [`steps/08-prefetching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/08-prefetching). `prefetch = 'force-runtime'`; instant validation for the static shell; minimal session wiring in the tutorial source for the demo.
