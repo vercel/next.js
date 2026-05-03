@@ -253,11 +253,9 @@ The `◐` is [Partial Prerendering](/docs/app/glossary#partial-prerendering-ppr)
 
 When an async read isn't behind a boundary and isn't cached, the dev overlay points at the call site and lists three ways out:
 
-{/* TODO: Update the three `error-overhaul` links below once the Error Overhaul guide ships and the anchor names are finalized. */}
-
-- [Provide a `<Suspense>` placeholder](/docs/app/guides/error-overhaul#move-within-suspense) around the read — what the Sidebar above already does.
-- [Cache the data access with `'use cache'`](/docs/app/guides/error-overhaul#cache-dynamic-data) — the move when the result can be reused, covered later.
-- [Allow blocking route](/docs/app/guides/error-overhaul#allow-blocking-route) — an escape hatch when you knowingly want the whole route to wait.
+- [Provide a `<Suspense>` placeholder](/patterns/provide-placeholder-with-suspense) around the read — what the Sidebar above already does.
+- [Cache the data access with `'use cache'`](/patterns/prerender-and-cache) — the move when the result can be reused, covered later.
+- [Allow blocking route](/patterns/allow-blocking-route) — an escape hatch when you knowingly want the whole route to wait.
 
 Those checks fire on every server render. [Instant navigation](/docs/app/guides/instant-navigation) extends the same family to client navigations, failing `next dev` and `next build` when a route can't paint instantly on click. Wire it on once through `experimental.instant.defaultValidationLevel` in [`next.config`](/docs/app/api-reference/config/next-config-js).
 
@@ -737,8 +735,6 @@ Only the recent-deploys list paints with the static shell, since it's the one ca
 Source: [`steps/07-caching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/07-caching).
 
 ## Step 8: Optimize prefetching
-
-{/* TODO: Add `unstable_instant` link once vercel/next.js#93204 lands. Likely target: /docs/app/api-reference/file-conventions/route-segment-config/instant (paired with the overhauled /docs/app/guides/instant-navigation). */}
 
 The cache is set up, but each navigation still waits. The cached entries on this route key on `params`, cookies, or `searchParams`, values that only arrive with a real request, so nothing fills them until the request lands. The static shell paints fast on its own. The data behind it is what's still missing.
 
