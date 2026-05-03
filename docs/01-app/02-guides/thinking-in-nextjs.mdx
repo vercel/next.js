@@ -275,25 +275,29 @@ On `/projects`, the timing reads roughly:
 
 Suspense controls when a section paints. Reusing the output is a separate decision, and that comes later.
 
-Suspense boundaries nest. A `<Suspense>` inside another lets the outer section paint without waiting on the inner one, so each level reveals as soon as its own data is ready. We can use this in `BuildLogs`. `LiveLines` renders the current line and wraps the next one in its own boundary, so the lines already resolved stay on screen while the next one is still pending.
+The shell stays interactive while sections fill in. Click into a project before recent deploys finishes loading, and the navigation runs immediately. App Router renders every navigation inside a [React transition](https://react.dev/reference/react/useTransition), so an in-flight render never holds up the next click.
+
+Suspense boundaries can nest, too. `BuildLogs` already sits behind the page's `<Suspense fallback={<BuildLogsSkeleton />}>`, but the in-progress branch reads its own slow query for the live log. We can wrap that branch in its own `<Suspense>` so the empty log frame paints as soon as the deployment status is known, and a cursor skeleton fills the frame while the live query resolves:
 
 ```tsx filename="app/projects/[id]/deployments/[deployId]/_components/BuildLogs.tsx" highlight={6-8}
-function LiveLines({ lines, index }) {
-  if (index >= lines.length) return <CursorRow />
+export async function BuildLogs({ params }) {
+  const { deployId } = await params
+  const deployment = await getDeployment(deployId)
   return (
-    <>
-      <LogRow line={lines[index]} />
-      <Suspense fallback={<CursorRow />}>
-        <DelayedNextLine lines={lines} nextIndex={index + 1} />
-      </Suspense>
-    </>
+    <BuildLogsShell>
+      {deployment.status === 'building' ? (
+        <Suspense fallback={<LiveLogSkeleton />}>
+          <LiveLogStream deployId={deployId} />
+        </Suspense>
+      ) : (
+        <CompletedLogStream deployId={deployId} />
+      )}
+    </BuildLogsShell>
   )
 }
 ```
 
-The behavior only becomes visible once mutations are added and you can trigger a deployment of your own, but the structure is in place from the start.
-
-The page reads are covered. Let's add the writes.
+The page reads are covered. You can't actually see the `building` branch yet, because nothing in the app starts a deploy. Let's add the writes next.
 
 Source: [`steps/04-streaming`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/04-streaming).
 
@@ -329,6 +333,8 @@ This is the same request-response loop PHP and Rails apps ran on. The browser po
 
 > **Note**: A Server Function is an exposed endpoint, so anything it touches needs the same auth checks and input validation a public API would get. This tutorial gates every write with `requireSession()`, a small helper that reads the session cookie and throws if it's missing or invalid. [How to Think About Security in Next.js](https://nextjs.org/blog/security-nextjs-server-components-actions) is the broader reference to read before shipping.
 
+> **Note**: The real `triggerDeploy` does a bit more than the snippet shows. It bumps the project's patch version, generates a fake commit sha, and schedules the new `building` row to flip to `ready` or `failed` after a random delay between 45 seconds and 5 minutes. None of that changes the shape of the Server Function. See [`data/actions/deployments.ts`](https://github.com/vercel-labs/thinking-in-nextjs/blob/main/steps/05-mutations/data/actions/deployments.ts) and [`lib/deployment-lifecycle.ts`](https://github.com/vercel-labs/thinking-in-nextjs/blob/main/steps/05-mutations/lib/deployment-lifecycle.ts) for the whole thing.
+
 Pinning takes the same shape. `addPin` and `removePin` each require a session, write to (or delete from) the pins table, and call `refresh()`:
 
 ```tsx filename="data/actions/pinned.ts" highlight={8}
@@ -345,26 +351,29 @@ export async function addPin(projectId) {
 
 The mutation pattern stays uniform across the app. The write touches the underlying state, then `refresh()` re-renders the route so the dynamic reads pick up the new value.
 
-Submit the deploy form, then pin and unpin a project. Watch the new deployment show up in the list and the pin state flip.
+Submit the deploy form, then open the new `building` row to see the build log fill in the lines that have run so far. Refresh a few seconds later and a few more have arrived. Pin and unpin a project to see the pin state flip after each round trip.
 
 <Demo
   src="https://thinking-in-nextjs-05-mutations.labs.vercel.dev/projects"
   title="Step 5: Mutate data"
 />
 
-Functional, but visibly slow. The deploy button has no pending state, the pin doesn't flip until the server confirms, and search still requires a submit. None of these can wait for a round trip. Let's fix that next.
+The server reads feel responsive. Open the page mid-build and the log catches up to that moment as it streams in. The mutations don't.
+
+The deploy button has no pending state, the pin doesn't flip until the server confirms, search still needs a submit, and nothing pulls new log lines in without a manual refresh. None of these can wait for a round trip. Let's fix that next.
 
 Source: [`steps/05-mutations`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/05-mutations).
 
 ## Step 6: Add client interactivity
 
-What still waits on the round trip? The deploy button has no spinner, the pin doesn't flip until the server confirms, and search requires a submit. Three controls in the mockup, three places where the gesture has to update the UI before the response lands.
+What still waits on the round trip? The deploy button has no spinner, the pin doesn't flip until the server confirms, search requires a submit, and the in-progress build log only grows when the page reloads. Four places where the UI has to update without a navigation.
 
-| Control       | Updates on     | Needs client |
-| ------------- | -------------- | ------------ |
-| Pin button    | click          | yes          |
-| Search field  | each keystroke | yes          |
-| Deploy button | click          | yes          |
+| Control         | Should update on  | Needs client |
+| --------------- | ----------------- | ------------ |
+| Pin button      | click             | yes          |
+| Search field    | each keystroke    | yes          |
+| Deploy button   | click             | yes          |
+| In-progress log | every few seconds | yes          |
 
 Move each one into a [`'use client'`](/docs/app/glossary#use-client-directive) leaf. Inside the boundary the full React API is back, including `onClick`, `useState`, hooks, and refs. Server Functions stay callable from client code, so `triggerDeploy`, `addPin`, and `removePin` keep working without rewrites.
 
@@ -470,9 +479,9 @@ function SearchBar() {
 }
 ```
 
-This is the client-side twin of the same `searchParams` read on the server. [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) reads the request's `?q=`, which is a per-request input. Wrap the search bar in `<Suspense>` so the rest of the route can prerender as a static shell, with a fallback shaped like the field. React's [`useTransition`](https://react.dev/reference/react/useTransition) supplies `isPending`, and the field's leading search icon swaps to a spinner for the duration of the navigation.
+This is the client-side twin of the same `searchParams` read on the server. [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) reads the request's `?q=`, which is a per-request input. Wrap the search bar in `<Suspense>` so the rest of the route can prerender as a static shell, with a fallback shaped like the field. [`useTransition`](https://react.dev/reference/react/useTransition) supplies `isPending` for the icon swap.
 
-The deploy button keeps its form shape, now hoisted into a `'use client'` boundary so React's [`useTransition`](https://react.dev/reference/react/useTransition) hook can drive its spinner. The form's action wraps the call to `triggerDeploy` in `startTransition`, which makes `pending` observable on the button itself, the same way `isPending` swaps the search input's icon for its spinner:
+The deploy button is the third leaf. It keeps its form shape from [Step 5: Mutate data](#step-5-mutate-data), now hoisted into a `'use client'` boundary so `useTransition` can drive its spinner. The form's action wraps the call to `triggerDeploy` in `startTransition`, which makes `pending` observable on the button itself, the same way `isPending` swaps the search input's icon for its spinner:
 
 ```tsx filename="app/projects/[id]/_components/DeployButton.tsx" highlight={9-10}
 'use client'
@@ -492,14 +501,34 @@ function DeployButton({ projectId }) {
 }
 ```
 
-Try the demo. Pin a project and watch the button flip immediately, then type in the search bar to see the URL update on each keystroke. Open a project and click Deploy.
+The fourth leaf doesn't take a click. The in-progress log slice grows with `Date.now() - createdAt` on each render, so the route only needs to re-render every few seconds while a build is running. We can drop a small Client Component next to `<LiveLogStream>` that calls [`router.refresh()`](/docs/app/api-reference/functions/use-router) on an interval:
+
+```tsx filename="app/projects/[id]/deployments/[deployId]/_components/BuildLogPoller.tsx" highlight={1,9}
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
+
+export function BuildLogPoller({ intervalMs = 4000 }) {
+  const router = useRouter()
+  useEffect(() => {
+    const id = setInterval(() => router.refresh(), intervalMs)
+    return () => clearInterval(id)
+  }, [router, intervalMs])
+  return null
+}
+```
+
+`BuildLogPoller` renders nothing. It sits in the tree while the deployment is `building` and ticks the route. Each refresh re-runs `getInProgressBuildLog` with a fresh `Date.now()`, the slice grows by a line or two, and the new rows render under the cursor. When the row's status changes to `ready` or `failed`, the next tick re-renders the route as `<CompletedLogStream>`, and `BuildLogPoller` unmounts with it.
+
+Try the demo. Pin a project and watch the button flip immediately, then type in the search bar to see the URL update on each keystroke. Open a project, click Deploy, and open the new deployment to watch the build log grow on its own as time passes.
 
 <Demo
   src="https://thinking-in-nextjs-06-client-boundaries.labs.vercel.dev/projects"
   title="Step 6: Add client interactivity"
 />
 
-The pin flips before the server answers, the sidebar's pinned section catches up a beat later when the Server Function settles and the dynamic reads re-run, and the search bar pushes the new URL on each keystroke without a submit. Three Client leaves cover pin, search, and deploy, and the JavaScript shipped to the browser stays small because only those leaves cross into the client.
+The pin flips before the server answers, the sidebar's pinned section catches up a beat later when the Server Function settles and the dynamic reads re-run, the search bar pushes the new URL on each keystroke without a submit, and the build log keeps growing on its own. Four Client leaves cover pin, search, deploy, and the log poller, and the JavaScript shipped to the browser stays small because only those leaves cross into the client.
 
 The route is a complete app. Navigation between routes still feels server-y, though. Let's make repeat reads instant.
 
@@ -558,6 +587,22 @@ async function getProjects({ query }) {
 ```
 
 `q` comes in from `searchParams` in the page and passes through as `getProjects({ query: q })`, so the cards stream in behind the search bar instead of joining the static shell.
+
+The directive sits on the function, so two reads in the same file can carry different decisions. `getCompletedBuildLog` returns the final log of a finished build and carries `'use cache'`. `getInProgressBuildLog` returns more of the log on each call and doesn't:
+
+```tsx filename="data/queries/build-logs.ts" highlight={2-4,8}
+export const getCompletedBuildLog = cache(async (deployId) => {
+  'use cache'
+  cacheLife('minutes')
+  cacheTag(`build-log-${deployId}`)
+  // … read and return
+})
+
+export const getInProgressBuildLog = cache(async (deployId) => {
+  await connection()
+  // … read and return
+})
+```
 
 Per-viewer data splits into two patterns. Pinned ids stay on plain `'use cache'` keyed on `userId`. The cached function takes the id as an argument so the entry narrows on that value, while the public `getPinnedIds` reads the viewer once and delegates to it, so consumers don't have to thread the user through:
 
@@ -780,6 +825,6 @@ Jump to a step on GitHub:
 - [`steps/03-fetch-data`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/03-fetch-data). Server Components and a data access layer; `notFound()` for missing rows.
 - [`steps/04-streaming`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/04-streaming). Suspense boundaries and skeleton fallbacks around async UI; data queries unchanged.
 - [`steps/05-mutations`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/05-mutations). Server Functions; `refresh()` to re-run dynamic reads after a write.
-- [`steps/06-client-boundaries`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/06-client-boundaries). Three Client leaves: optimistic `ProjectPin` reading the per-viewer promise with `use`, URL-driven `SearchBar` with `useTransition`, and `DeployButton` with `useTransition` for the pending spinner.
+- [`steps/06-client-boundaries`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/06-client-boundaries). Four Client leaves: optimistic `ProjectPin` reading the per-viewer promise with `use`, URL-driven `SearchBar` with `useTransition`, `DeployButton` with `useTransition` for the pending spinner, and `BuildLogPoller` calling `router.refresh()` on an interval to grow the in-progress log.
 - [`steps/07-caching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/07-caching). `'use cache'` and tags on shared reads, including pinned ids keyed by `userId`; `'use cache: private'` reserved for the viewer's identity behind the avatar; `updateTag` to invalidate cached entries on a write.
 - [`steps/08-prefetching`](https://github.com/vercel-labs/thinking-in-nextjs/tree/main/steps/08-prefetching). `prefetch = 'force-runtime'`; instant validation for the static shell; minimal session wiring in the tutorial source for the demo.
