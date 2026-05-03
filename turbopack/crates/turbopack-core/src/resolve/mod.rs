@@ -4,12 +4,12 @@ use std::{
     fmt::{Display, Formatter, Write},
     future::Future,
     iter::{empty, once},
+    sync::LazyLock,
 };
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use either::Either;
-use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -18,7 +18,7 @@ use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
+    TryJoinIterExt, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 use turbo_unix_path::normalize_request;
@@ -32,7 +32,6 @@ use crate::{
         resolve::ResolvingIssue,
     },
     module::{Module, Modules, OptionModule},
-    output::{OutputAsset, OutputAssets},
     package_json::{PackageJsonIssue, read_package_json},
     raw_module::RawModule,
     reference_type::ReferenceType,
@@ -91,7 +90,6 @@ type AfterResolvePluginWithCondition = (
 #[derive(Clone, Debug)]
 pub enum ModuleResolveResultItem {
     Module(ResolvedVc<Box<dyn Module>>),
-    OutputAsset(ResolvedVc<Box<dyn OutputAsset>>),
     External {
         /// uri, path, reference, etc.
         name: RcStr,
@@ -237,21 +235,6 @@ impl ModuleResolveResult {
         ModuleResolveResult {
             primary: vec![(request_key, ModuleResolveResultItem::Module(module))]
                 .into_boxed_slice(),
-            affecting_sources: Default::default(),
-        }
-        .resolved_cell()
-    }
-
-    pub fn output_asset(
-        request_key: RequestKey,
-        output_asset: ResolvedVc<Box<dyn OutputAsset>>,
-    ) -> ResolvedVc<Self> {
-        ModuleResolveResult {
-            primary: vec![(
-                request_key,
-                ModuleResolveResultItem::OutputAsset(output_asset),
-            )]
-            .into_boxed_slice(),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -413,19 +396,6 @@ impl ModuleResolveResult {
             }
         }
         Ok(Vc::cell(set.into_iter().collect()))
-    }
-
-    #[turbo_tasks::function]
-    pub fn primary_output_assets(&self) -> Vc<OutputAssets> {
-        Vc::cell(
-            self.primary
-                .iter()
-                .filter_map(|(_, item)| match item {
-                    &ModuleResolveResultItem::OutputAsset(a) => Some(a),
-                    _ => None,
-                })
-                .collect(),
-        )
     }
 }
 
@@ -596,7 +566,7 @@ impl ValueToString for ResolveResult {
                         result,
                         " ({ty}, {traced}, {:?})",
                         if let Some(target) = target {
-                            Some(target.value_to_string().await?)
+                            Some(target.to_string_ref().await?)
                         } else {
                             None
                         }
@@ -1593,22 +1563,14 @@ pub async fn resolve_raw(
             path,
         )
         .await?;
-        results.extend(
-            collect_matches(&matches, collect_affecting_sources)
-                .await?
-                .into_iter(),
-        );
+        results.extend(collect_matches(&matches, collect_affecting_sources).await?);
     }
 
     {
         let matches =
             read_matches(lookup_dir.clone(), rcstr!(""), force_in_lookup_dir, path).await?;
 
-        results.extend(
-            collect_matches(&matches, collect_affecting_sources)
-                .await?
-                .into_iter(),
-        );
+        results.extend(collect_matches(&matches, collect_affecting_sources).await?);
     }
 
     Ok(merge_results(results))
@@ -1632,7 +1594,7 @@ pub async fn resolve_inline(
 ) -> Result<Vc<ResolveResult>> {
     let span = tracing::info_span!(
         "resolving",
-        lookup_path = display(lookup_path.value_to_string().await?),
+        lookup_path = display(lookup_path.to_string_ref().await?),
         name = tracing::field::Empty,
         reference_type = display(&reference_type),
     );
@@ -1881,7 +1843,7 @@ async fn resolve_internal_inline(
 ) -> Result<Vc<ResolveResult>> {
     let span = tracing::info_span!(
         "internal resolving",
-        lookup_path = display(lookup_path.value_to_string().await?),
+        lookup_path = display(lookup_path.to_string_ref().await?),
         name = tracing::field::Empty
     );
     if !span.is_disabled() {
@@ -2488,7 +2450,7 @@ async fn resolve_relative_request(
         forward: FxHashMap<RcStr, SmallVec<[RcStr; 3]>>,
         reverse: FxHashMap<RcStr, RcStr>,
     }
-    static TS_EXTENSION_REPLACEMENTS: Lazy<ExtensionReplacements> = Lazy::new(|| {
+    static TS_EXTENSION_REPLACEMENTS: LazyLock<ExtensionReplacements> = LazyLock::new(|| {
         let mut forward = FxHashMap::default();
         forward.insert(
             rcstr!(".js"),
@@ -3748,7 +3710,7 @@ mod tests {
                 fully_specified: bool,
                 custom_extensions: Option<Vec<RcStr>>,
             ) -> anyhow::Result<Vc<ResolveRelativeRequestOutput>> {
-                let fs = DiskFileSystem::new(rcstr!("temp"), path);
+                let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
                 let lookup_path = fs.root().owned().await?;
 
                 let result = resolve_relative_helper(

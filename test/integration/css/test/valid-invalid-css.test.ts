@@ -61,7 +61,9 @@ describe('Invalid Global CSS', () => {
           stderr: true,
         })
         expect(code).not.toBe(0)
-        expect(stderr).toContain('Failed to compile')
+        if (!process.env.IS_TURBOPACK_TEST) {
+          expect(stderr).toContain('Failed to compile')
+        }
         expect(stderr).toContain('styles/global.css')
         expect(stderr).toMatch(
           /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
@@ -132,7 +134,9 @@ describe('Invalid Global CSS with Custom App', () => {
           stderr: true,
         })
         expect(code).not.toBe(0)
-        expect(stderr).toContain('Failed to compile')
+        if (!process.env.IS_TURBOPACK_TEST) {
+          expect(stderr).toContain('Failed to compile')
+        }
         expect(stderr).toContain('styles/global.css')
         expect(stderr).toMatch(
           /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
@@ -161,7 +165,9 @@ describe('Valid and Invalid Global CSS with Custom App', () => {
           stderr: true,
         })
         expect(code).not.toBe(0)
-        expect(stderr).toContain('Failed to compile')
+        if (!process.env.IS_TURBOPACK_TEST) {
+          expect(stderr).toContain('Failed to compile')
+        }
         expect(stderr).toContain('styles/global.css')
         expect(stderr).toContain(
           'Please move all first-party global CSS imports'

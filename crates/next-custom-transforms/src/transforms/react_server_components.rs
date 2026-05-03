@@ -3,10 +3,9 @@ use std::{
     iter::FromIterator,
     path::PathBuf,
     rc::Rc,
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
@@ -739,7 +738,7 @@ impl ReactServerComponentValidator {
     }
 
     fn is_from_node_modules(&self, filepath: &str) -> bool {
-        static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"node_modules[\\/]").unwrap());
+        static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"node_modules[\\/]").unwrap());
         RE.is_match(filepath)
     }
 
@@ -950,31 +949,29 @@ impl ReactServerComponentValidator {
                         }
                     }
                     "dynamicParams" | "dynamic" | "fetchCache" | "revalidate"
-                    | "experimental_ppr" => {
-                        if self.cache_components_enabled {
-                            possibly_invalid_exports.insert(
-                                export_name.clone(),
-                                (
-                                    InvalidExportKind::RouteSegmentConfig(
-                                        NextConfigProperty::CacheComponents,
-                                    ),
-                                    *span,
+                    | "experimental_ppr"
+                        if self.cache_components_enabled =>
+                    {
+                        possibly_invalid_exports.insert(
+                            export_name.clone(),
+                            (
+                                InvalidExportKind::RouteSegmentConfig(
+                                    NextConfigProperty::CacheComponents,
                                 ),
-                            );
-                        }
+                                *span,
+                            ),
+                        );
                     }
-                    "unstable_instant" => {
-                        if !self.cache_components_enabled {
-                            possibly_invalid_exports.insert(
-                                export_name.clone(),
-                                (
-                                    InvalidExportKind::RequiresRouteSegmentConfig(
-                                        NextConfigProperty::CacheComponents,
-                                    ),
-                                    *span,
+                    "unstable_instant" if !self.cache_components_enabled => {
+                        possibly_invalid_exports.insert(
+                            export_name.clone(),
+                            (
+                                InvalidExportKind::RequiresRouteSegmentConfig(
+                                    NextConfigProperty::CacheComponents,
                                 ),
-                            );
-                        }
+                                *span,
+                            ),
+                        );
                     }
                     _ => (),
                 };

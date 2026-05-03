@@ -1,12 +1,12 @@
-use std::fmt::Write;
+use std::{fmt::Write, sync::LazyLock};
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use once_cell::sync::Lazy;
 use regex::Regex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
+    NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, ValueToStringRef, Vc,
+    trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_base38, hash_xxh3_hash64};
@@ -226,7 +226,7 @@ impl AssetIdent {
         let mut name = if let Some(inner) = context_path.get_path_to(path) {
             escape_file_path(inner)
         } else {
-            escape_file_path(&self.path.value_to_string().await?)
+            escape_file_path(&self.path.to_string_ref().await?)
         };
         let removed_extension = name.ends_with(&*expected_extension);
         if removed_extension {
@@ -436,7 +436,7 @@ impl ValueToString for AssetIdent {
 }
 
 fn escape_file_path(s: &str) -> String {
-    static SEPARATOR_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"[/#?:]").unwrap());
+    static SEPARATOR_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[/#?:]").unwrap());
     SEPARATOR_REGEX.replace_all(s, "_").to_string()
 }
 

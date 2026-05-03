@@ -1,5 +1,6 @@
 import path from 'path'
 import { pathToFileURL } from 'url'
+import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 import { arch, platform } from 'os'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
@@ -707,6 +708,13 @@ function bindingToApi(
       return napiResult
     }
 
+    async getAllCompilationIssues(): Promise<TurbopackResult<void>> {
+      const napiResult = (await binding.projectGetAllCompilationIssues(
+        this._nativeProject
+      )) as TurbopackResult<void>
+      return napiResult
+    }
+
     async writeAllEntrypointsToDisk(
       appDirOnly: boolean
     ): Promise<TurbopackResult<Partial<RawEntrypoints>>> {
@@ -936,12 +944,15 @@ function bindingToApi(
 
     // cacheHandler can be an absolute path, we need it to be relative for turbopack.
     if (nextConfigSerializable.cacheHandler) {
+      const resolvedCacheHandler = resolveCacheHandlerPathToFilesystem(
+        nextConfigSerializable.cacheHandler
+      )
       nextConfigSerializable.cacheHandler =
         './' +
         normalizePathOnWindows(
-          path.isAbsolute(nextConfigSerializable.cacheHandler)
-            ? path.relative(projectPath, nextConfigSerializable.cacheHandler)
-            : nextConfigSerializable.cacheHandler
+          path.isAbsolute(resolvedCacheHandler)
+            ? path.relative(projectPath, resolvedCacheHandler)
+            : resolvedCacheHandler
         )
     }
     if (nextConfigSerializable.cacheHandlers) {
@@ -950,15 +961,18 @@ function bindingToApi(
           nextConfigSerializable.cacheHandlers as Record<string, string>
         )
           .filter(([_, value]) => value != null)
-          .map(([key, value]) => [
-            key,
-            './' +
-              normalizePathOnWindows(
-                path.isAbsolute(value)
-                  ? path.relative(projectPath, value)
-                  : value
-              ),
-          ])
+          .map(([key, value]) => {
+            const resolved = resolveCacheHandlerPathToFilesystem(value)
+            return [
+              key,
+              './' +
+                normalizePathOnWindows(
+                  path.isAbsolute(resolved)
+                    ? path.relative(projectPath, resolved)
+                    : resolved
+                ),
+            ]
+          })
       )
     }
 
@@ -1381,10 +1395,16 @@ async function loadWasm(importPath = '') {
             `Use the --webpack flag instead.`
         )
       },
-      startTurbopackTraceServer(
+      startTurbopackTraceServerHandle(
         _traceFilePath: string,
         _port: number | undefined
-      ): void {
+      ) {
+        throw new Error(
+          `Turbopack trace server is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
+            `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.`
+        )
+      },
+      queryTraceSpans(_handle: any, _options: any) {
         throw new Error(
           `Turbopack trace server is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
             `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.`
@@ -1630,14 +1650,14 @@ function loadNative(importPath?: string): Binding {
           customBindingsPath ?? bindingsPath!,
           false
         ),
-        startTurbopackTraceServer(traceFilePath, port) {
-          Log.warn(
-            `Turbopack trace server started. View trace at https://trace.nextjs.org${port != null ? `?port=${port}` : ''}`
-          )
-          ;(customBindings ?? bindings).startTurbopackTraceServer(
+        startTurbopackTraceServerHandle(traceFilePath, port) {
+          return (customBindings ?? bindings).startTurbopackTraceServerHandle(
             traceFilePath,
             port
           )
+        },
+        queryTraceSpans(handle, options) {
+          return (customBindings ?? bindings).queryTraceSpans(handle, options)
         },
         databaseCompact(dbPath: string) {
           return (customBindings ?? bindings).turbopackDatabaseCompact(dbPath)

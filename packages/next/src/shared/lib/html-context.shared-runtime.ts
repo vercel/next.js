@@ -31,6 +31,11 @@ export type HtmlProps = {
   unstable_JsPreload?: false
   assetQueryString: string
   mutableAssetQueryString: string
+  /**
+   * Asset query string for CSS and font assets.
+   * See https://github.com/vercel/next.js/issues/92118.
+   */
+  cssAssetQueryString: string
   scriptLoader: {
     afterInteractive?: string[]
     beforeInteractive?: any[]

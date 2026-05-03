@@ -1,7 +1,6 @@
-use std::sync::LazyLock;
-
 use anyhow::Result;
-use rustc_hash::FxHashMap;
+use async_trait::async_trait;
+use phf::phf_map;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
@@ -11,7 +10,7 @@ use turbo_tasks_fs::{
 use turbopack_core::{
     diagnostics::DiagnosticExt,
     file_source::FileSource,
-    issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueSeverity, IssueStage, StyledString},
     reference_type::ReferenceType,
     resolve::{
         ExternalTraced, ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
@@ -28,24 +27,18 @@ use crate::{next_server::ServerContextType, next_telemetry::ModuleFeatureTelemet
 
 // Set of the features we want to track, following existing references in
 // webpack/plugins/telemetry-plugin.
-static FEATURE_MODULES: LazyLock<FxHashMap<&'static str, Vec<&'static str>>> =
-    LazyLock::new(|| {
-        FxHashMap::from_iter([
-            (
-                "next",
-                vec![
-                    "/image",
-                    "/future/image",
-                    "/legacy/image",
-                    "/script",
-                    "/dynamic",
-                    "/font/google",
-                    "/font/local",
-                ],
-            ),
-            ("@next/font", vec!["/google", "/local"]),
-        ])
-    });
+static FEATURE_MODULES: phf::Map<&'static str, &'static [&'static str]> = phf_map! {
+    "next" => &[
+        "/image",
+        "/future/image",
+        "/legacy/image",
+        "/script",
+        "/dynamic",
+        "/font/google",
+        "/font/local",
+    ],
+    "@next/font" => &["/google", "/local"],
+};
 
 #[turbo_tasks::value(shared)]
 pub struct InvalidImportModuleIssue {
@@ -56,47 +49,43 @@ pub struct InvalidImportModuleIssue {
     pub skip_context_message: bool,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for InvalidImportModuleIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Resolve.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Invalid import")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Invalid import")))
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        let raw_context = self.file_path.clone();
-
+    async fn description(&self) -> Result<Option<StyledString>> {
         let mut messages = self.messages.clone();
-
         if !self.skip_context_message {
             //[TODO]: how do we get the import trace?
-            messages
-                .push(format!("The error was caused by importing '{}'", raw_context.path).into());
+            messages.push(
+                format!(
+                    "The error was caused by importing '{}'",
+                    self.file_path.path
+                )
+                .into(),
+            );
         }
 
-        Ok(Vc::cell(Some(
-            StyledString::Line(
-                messages
-                    .iter()
-                    .map(|v| StyledString::Text(format!("{v}\n").into()))
-                    .collect::<Vec<StyledString>>(),
-            )
-            .resolved_cell(),
+        Ok(Some(StyledString::Line(
+            messages
+                .iter()
+                .map(|v| StyledString::Text(format!("{v}\n").into()))
+                .collect::<Vec<StyledString>>(),
         )))
     }
 }

@@ -5,7 +5,7 @@ import type { Params } from '../../../../server/request/params'
 import type { DynamicParamTypesShort } from '../../app-router-types'
 import { InvariantError } from '../../invariant-error'
 import { parseLoaderTree } from './parse-loader-tree'
-import { parseAppRoute, parseAppRouteSegment } from '../routes/app'
+import { parseNormalizedAppRoute, parseAppRouteSegment } from '../routes/app'
 import { resolveParamValue } from './resolve-param-value'
 
 /**
@@ -53,7 +53,7 @@ export function interpolateParallelRouteParams(
   ]
 
   // Parse the route from the provided page path.
-  const route = parseAppRoute(pagePath, true)
+  const route = parseNormalizedAppRoute(pagePath)
 
   while (stack.length > 0) {
     const { tree, depth } = stack.pop()!

@@ -2,16 +2,18 @@
     "output/0rv8_turbopack-tests_tests_snapshot_swc_transforms_preset_env_input_index_04jskxh.js",
     {"otherChunks":["output/turbopack_crates_turbopack-tests_tests_snapshot_1v9rcb0._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env/input/index.js [test] (ecmascript)"]}
 ]);
-(() => {
+(function(){
 if (!Array.isArray(globalThis["TURBOPACK"])) {
     return;
 }
 
-const CHUNK_BASE_PATH = "";
-const RELATIVE_ROOT_PATH = "../../../../../../..";
-const RUNTIME_PUBLIC_PATH = "";
-const ASSET_SUFFIX = "";
-const WORKER_FORWARDED_GLOBALS = [];
+var CHUNK_BASE_PATH = "";
+var WORKER_BASE_PATH = null;
+var RELATIVE_ROOT_PATH = "../../../../../../..";
+var RUNTIME_PUBLIC_PATH = "";
+var ASSET_SUFFIX = "";
+var CROSS_ORIGIN = null;
+var WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
@@ -1296,8 +1298,13 @@ browserContextPrototype.q = exportUrl;
  * @param workerOptions options to pass to the Worker constructor (optional)
  */ function createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions) {
     var isSharedWorker = WorkerConstructor.name === 'SharedWorker';
+    // `WORKER_BASE_PATH` overrides `CHUNK_BASE_PATH` for the entrypoint and the
+    // module chunks loaded inside the worker, keeping them same-origin to each
+    // other when `CHUNK_BASE_PATH` (= `assetPrefix`) is a cross-origin CDN.
+    // `null` falls back; an empty string is treated as a literal empty prefix.
+    var workerBasePath = WORKER_BASE_PATH !== null && WORKER_BASE_PATH !== void 0 ? WORKER_BASE_PATH : CHUNK_BASE_PATH;
     var chunkUrls = moduleChunks.map(function(chunk) {
-        return getChunkRelativeUrl(chunk);
+        return getChunkRelativeUrl(chunk, workerBasePath);
     }).reverse();
     var params = [
         chunkUrls,
@@ -1323,7 +1330,7 @@ browserContextPrototype.q = exportUrl;
             }
         }
     }
-    var url = new URL(getChunkRelativeUrl(entrypoint), location.origin);
+    var url = new URL(getChunkRelativeUrl(entrypoint, workerBasePath), location.origin);
     var paramsJson = JSON.stringify(params);
     if (isSharedWorker) {
         url.searchParams.set('params', paramsJson);
@@ -1345,7 +1352,8 @@ browserContextPrototype.b = createWorker;
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */ function getChunkRelativeUrl(chunkPath) {
-    return `${CHUNK_BASE_PATH}${chunkPath.split('/').map(function(p) {
+    var basePath = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : CHUNK_BASE_PATH;
+    return `${basePath}${chunkPath.split('/').map(function(p) {
         return encodeURIComponent(p);
     }).join('/')}${ASSET_SUFFIX}`;
 }
@@ -1387,17 +1395,27 @@ function getPathFromScript(chunkScript) {
         };
     }
 }
-var regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
- * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
- */ function isJs(chunkUrlOrPath) {
-    return regexJsUrl.test(chunkUrlOrPath);
+ * Checks if a given path/URL ends with the given extension,
+ * optionally followed by ?query or #fragment.
+ */ function endsWithExtension(chunkUrlOrPath, ext) {
+    // Find where the path ends (before query or fragment)
+    var q = chunkUrlOrPath.indexOf('?');
+    var end;
+    if (q !== -1) {
+        end = q;
+    } else {
+        var h = chunkUrlOrPath.indexOf('#');
+        end = h !== -1 ? h : chunkUrlOrPath.length;
+    }
+    // Check if the path portion ends with the extension
+    return end >= ext.length && chunkUrlOrPath.startsWith(ext, end - ext.length);
 }
-var regexCssUrl = /\.css(?:\?[^#]*)?(?:#.*)?$/;
-/**
- * Checks if a given path/URL ends with .css, optionally followed by ?query or #fragment.
- */ function isCss(chunkUrl) {
-    return regexCssUrl.test(chunkUrl);
+function isJs(chunkUrlOrPath) {
+    return endsWithExtension(chunkUrlOrPath, '.js');
+}
+function isCss(chunkUrl) {
+    return endsWithExtension(chunkUrl, '.css');
 }
 function loadWebAssembly(chunkPath, edgeModule, importsObj) {
     return BACKEND.loadWebAssembly(SourceType.Parent, this.m.id, chunkPath, edgeModule, importsObj);
@@ -1613,10 +1631,13 @@ function _ts_generator(thisArg, body) {
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
 /// <reference path="../../../shared/runtime/runtime-types.d.ts" />
 function getAssetSuffixFromScriptSrc() {
-    var _self_TURBOPACK_ASSET_SUFFIX;
-    var _document_currentScript_getAttribute, _document_currentScript_getAttribute1, _document_currentScript, _document;
+    var _ref;
+    var _document_currentScript_getAttribute, _document_currentScript, _document;
     // TURBOPACK_ASSET_SUFFIX is set in web workers
-    return ((_self_TURBOPACK_ASSET_SUFFIX = self.TURBOPACK_ASSET_SUFFIX) !== null && _self_TURBOPACK_ASSET_SUFFIX !== void 0 ? _self_TURBOPACK_ASSET_SUFFIX : (_document = document) === null || _document === void 0 ? void 0 : (_document_currentScript = _document.currentScript) === null || _document_currentScript === void 0 ? void 0 : (_document_currentScript_getAttribute1 = _document_currentScript.getAttribute) === null || _document_currentScript_getAttribute1 === void 0 ? void 0 : (_document_currentScript_getAttribute = _document_currentScript_getAttribute1.call(_document_currentScript, 'src')) === null || _document_currentScript_getAttribute === void 0 ? void 0 : _document_currentScript_getAttribute.replace(/^(.*(?=\?)|^.*$)/, '')) || '';
+    if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX;
+    var src = (_ref = (_document = document) === null || _document === void 0 ? void 0 : (_document_currentScript = _document.currentScript) === null || _document_currentScript === void 0 ? void 0 : (_document_currentScript_getAttribute = _document_currentScript.getAttribute) === null || _document_currentScript_getAttribute === void 0 ? void 0 : _document_currentScript_getAttribute.call(_document_currentScript, 'src')) !== null && _ref !== void 0 ? _ref : '';
+    var qi = src.indexOf('?');
+    return qi >= 0 ? src.slice(qi) : '';
 }
 var BACKEND;
 /**
@@ -1815,6 +1836,7 @@ var BACKEND;
                 } else {
                     var link = document.createElement('link');
                     link.rel = 'stylesheet';
+                    link.crossOrigin = CROSS_ORIGIN;
                     link.href = chunkUrl;
                     link.onerror = function() {
                         resolver.reject();
@@ -1856,6 +1878,7 @@ var BACKEND;
                     }
                 } else {
                     var script1 = document.createElement('script');
+                    script1.crossOrigin = CROSS_ORIGIN;
                     script1.src = chunkUrl;
                     // We'll only mark the chunk as loaded once the script has been executed,
                     // which happens in `registerChunk`. Hence the absence of `resolve()` in
@@ -1877,7 +1900,7 @@ var BACKEND;
         return fetch(getChunkRelativeUrl(wasmChunkPath));
     }
 })();
-const chunksToRegister = globalThis["TURBOPACK"];
+var chunksToRegister = globalThis["TURBOPACK"];
 globalThis["TURBOPACK"] = { push: registerChunk };
 chunksToRegister.forEach(registerChunk);
 })();

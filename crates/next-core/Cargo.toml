@@ -24,8 +24,8 @@ indoc = { workspace = true }
 itertools = { workspace = true }
 lightningcss = { workspace = true }
 mime_guess = "2.0.4"
-once_cell = { workspace = true }
 percent-encoding = "2.3.1"
+phf = { workspace = true }
 qstring = { workspace = true }
 react_remove_properties = { workspace = true }
 regex = { workspace = true }
@@ -92,10 +92,6 @@ default = ["process_pool"]
 process_pool = ["turbopack-node/process_pool"]
 worker_pool = ["turbopack-node/worker_pool"]
 next-font-local = []
-plugin = [
-  "swc_core/plugin_transform_host_native",
-  "turbopack-ecmascript-plugins/swc_ecma_transform_plugin",
-]
 image-webp = ["turbopack-image/webp"]
 image-avif = ["turbopack-image/avif"]
 

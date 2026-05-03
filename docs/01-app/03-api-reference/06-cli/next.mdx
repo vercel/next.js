@@ -74,7 +74,7 @@ The following options are available when running `next dev`:
 | `--experimental-https-cert <path>`       | Path to a HTTPS certificate file.                                                                                                                    |
 | `--experimental-https-ca <path>`         | Path to a HTTPS certificate authority file.                                                                                                          |
 | `--experimental-upload-trace <traceUrl>` | Reports a subset of the debugging trace to a remote HTTP URL.                                                                                        |
-| `--experimental-cpu-prof`                | Enables CPU profiling using V8's inspector. Profiles are saved to `.next/cpu-profiles/` on exit.                                                     |
+| `--experimental-cpu-prof`                | Enables CPU profiling using V8's inspector. Profiles are saved to `.next-profiles/` on exit.                                                         |
 
 ### `next build` options
 
@@ -106,7 +106,7 @@ The following options are available for the `next build` command:
 | `--experimental-build-mode [mode]` | Uses an experimental build mode. (choices: "compile", "generate", default: "default")                                                                                              |
 | `--debug-prerender`                | Debug prerender errors in development.                                                                                                                                             |
 | `--debug-build-paths=<patterns>`   | Build only specific routes for debugging.                                                                                                                                          |
-| `--experimental-cpu-prof`          | Enables CPU profiling using V8's inspector. Profiles are saved to `.next/cpu-profiles/` on exit.                                                                                   |
+| `--experimental-cpu-prof`          | Enables CPU profiling using V8's inspector. Profiles are saved to `.next-profiles/` on exit.                                                                                       |
 
 ### `next start` options
 
@@ -121,7 +121,7 @@ The following options are available for the `next start` command:
 | `-p` or `--port <port>`                 | Specify a port number on which to start the application. (default: 3000, env: PORT)                             |
 | `-H` or `--hostname <hostname>`         | Specify a hostname on which to start the application (default: 0.0.0.0).                                        |
 | `--keepAliveTimeout <keepAliveTimeout>` | Specify the maximum amount of milliseconds to wait before closing the inactive connections.                     |
-| `--experimental-cpu-prof`               | Enables CPU profiling using V8's inspector. Profiles are saved to `.next/cpu-profiles/` on exit.                |
+| `--experimental-cpu-prof`               | Enables CPU profiling using V8's inspector. Profiles are saved to `.next-profiles/` on exit.                    |
 
 ### `next info` options
 
@@ -288,8 +288,6 @@ This enables several experimental options to make debugging easier:
   - `experimental.turbopackMinify = false`
 - Generates source maps for server bundles:
   - `experimental.serverSourceMaps = true`
-- Enables source map consumption in child processes used for prerendering:
-  - `enablePrerenderSourceMaps = true`
 - Continues building even after the first prerender error, so you can see all issues at once:
   - `experimental.prerenderEarlyExit = false`
 
@@ -307,6 +305,9 @@ next build --debug-build-paths="app/page.tsx"
 
 # Build more than one route
 next build --debug-build-paths="app/page.tsx,pages/index.tsx"
+
+# Include route group folders in the path
+next build --debug-build-paths="app/(marketing)/about/page.tsx"
 
 # Use glob patterns
 next build --debug-build-paths="app/**/page.tsx"
@@ -369,7 +370,7 @@ NODE_OPTIONS='--inspect' next
 
 ### CPU profiling
 
-You can capture CPU profiles to analyze performance bottlenecks in your Next.js application. The `--experimental-cpu-prof` flag enables V8's built-in CPU profiler and saves profiles to `.next/cpu-profiles/` when the process exits:
+You can capture CPU profiles to analyze performance bottlenecks in your Next.js application. The `--experimental-cpu-prof` flag enables V8's built-in CPU profiler and saves profiles to `.next-profiles/` when the process exits:
 
 ```bash filename="Terminal"
 # Profile the build process

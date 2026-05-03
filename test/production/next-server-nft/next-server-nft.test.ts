@@ -72,7 +72,6 @@ async function readNormalizedNFT(next, name) {
     describe('with output:standalone', () => {
       const { next, skipped } = nextTestSetup({
         files: __dirname,
-        skipDeployment: true,
         dependencies: {
           typescript: '5.9.2',
         },
@@ -220,6 +219,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/compiled/tar/index.min.js",
            "/node_modules/next/dist/compiled/text-table/index.js",
            "/node_modules/next/dist/compiled/watchpack/watchpack.js",
+           "/node_modules/next/dist/compiled/write-file-atomic/index.js",
            "/node_modules/next/dist/compiled/ws/index.js",
            "/node_modules/next/dist/compiled/zod-validation-error/index.js",
            "/node_modules/next/dist/compiled/zod/index.cjs",
@@ -243,7 +243,6 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/download-swc.js",
            "/node_modules/next/dist/lib/error-telemetry-utils.js",
            "/node_modules/next/dist/lib/fallback.js",
-           "/node_modules/next/dist/lib/fatal-error.js",
            "/node_modules/next/dist/lib/file-exists.js",
            "/node_modules/next/dist/lib/find-config.js",
            "/node_modules/next/dist/lib/find-pages-dir.js",
@@ -267,6 +266,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/helpers/get-pkg-manager.js",
            "/node_modules/next/dist/lib/helpers/get-registry.js",
            "/node_modules/next/dist/lib/helpers/get-reserved-port.js",
+           "/node_modules/next/dist/lib/helpers/git.js",
            "/node_modules/next/dist/lib/helpers/install.js",
            "/node_modules/next/dist/lib/import-next-warning.js",
            "/node_modules/next/dist/lib/inline-static-env.js",
@@ -356,6 +356,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/shared/*",
            "/node_modules/next/dist/telemetry/anonymous-meta.js",
            "/node_modules/next/dist/telemetry/detached-flush.js",
+           "/node_modules/next/dist/telemetry/detect-agent.js",
            "/node_modules/next/dist/telemetry/events/build.js",
            "/node_modules/next/dist/telemetry/events/index.js",
            "/node_modules/next/dist/telemetry/events/plugins.js",
@@ -402,7 +403,6 @@ async function readNormalizedNFT(next, name) {
     describe('default mode', () => {
       const { next, skipped } = nextTestSetup({
         files: __dirname,
-        skipDeployment: true,
         dependencies: {
           typescript: '5.9.2',
         },

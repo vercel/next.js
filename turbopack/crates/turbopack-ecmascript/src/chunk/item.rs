@@ -14,7 +14,7 @@ use turbopack_core::{
         AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
         ChunkingContextExt, ModuleId, SourceMapSourceType,
     },
-    code_builder::{Code, CodeBuilder},
+    code_builder::{Code, CodeBuilder, PersistedCode},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
@@ -53,7 +53,7 @@ pub enum RewriteSourcePath {
 
 // Note we don't want to persist this as `module_factory_with_code_generation_issue` is already
 // persisted and we want to avoid duplicating it.
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "skip")]
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
@@ -72,6 +72,11 @@ impl EcmascriptChunkItemContent {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_options: Vc<OptionAsyncModuleOptions>,
     ) -> Result<Vc<Self>> {
+        let supports_arrow_functions = *chunking_context
+            .environment()
+            .runtime_versions()
+            .supports_arrow_functions()
+            .await?;
         let externals = *chunking_context
             .environment()
             .supports_commonjs_externals()
@@ -103,6 +108,7 @@ impl EcmascriptChunkItemContent {
                     strict: true,
                     externals,
                     async_module,
+                    supports_arrow_functions,
                     ..Default::default()
                 }
             } else {
@@ -113,6 +119,7 @@ impl EcmascriptChunkItemContent {
                 EcmascriptChunkItemOptions {
                     strict,
                     externals,
+                    supports_arrow_functions,
                     // These things are not available in ESM
                     module_and_exports: true,
                     ..Default::default()
@@ -125,16 +132,28 @@ impl EcmascriptChunkItemContent {
 }
 
 impl EcmascriptChunkItemContent {
-    async fn module_factory(&self) -> Result<ResolvedVc<Code>> {
+    async fn module_factory(&self) -> Result<ResolvedVc<PersistedCode>> {
         let mut code = CodeBuilder::default();
         for additional_id in self.additional_ids.iter() {
             writeln!(code, "{}, ", StringifyJs(&additional_id))?;
         }
-        if self.options.module_and_exports {
-            code += "((__turbopack_context__, module, exports) => {\n";
+
+        if self.options.supports_arrow_functions {
+            code += "((";
         } else {
-            code += "((__turbopack_context__) => {\n";
+            code += "(function(";
         }
+        if self.options.module_and_exports {
+            code += "__turbopack_context__, module, exports";
+        } else {
+            code += "__turbopack_context__";
+        }
+        if self.options.supports_arrow_functions {
+            code += ") => {\n";
+        } else {
+            code += "){\n";
+        }
+
         if self.options.strict {
             code += "\"use strict\";\n\n";
         } else {
@@ -142,11 +161,19 @@ impl EcmascriptChunkItemContent {
         }
 
         if self.options.async_module.is_some() {
-            writeln!(
-                code,
-                "return {TURBOPACK_ASYNC_MODULE}(async (__turbopack_handle_async_dependencies__, \
-                 __turbopack_async_result__) => {{ try {{\n"
-            )?;
+            write!(code, "return {TURBOPACK_ASYNC_MODULE}")?;
+            if self.options.supports_arrow_functions {
+                code += "(async (";
+            } else {
+                code += "(async function(";
+            }
+            code += "__turbopack_handle_async_dependencies__, __turbopack_async_result__";
+            if self.options.supports_arrow_functions {
+                code += ") => {";
+            } else {
+                code += "){";
+            }
+            code += " try {\n";
         }
 
         let source_map = match &self.rewrite_source_path {
@@ -177,7 +204,7 @@ impl EcmascriptChunkItemContent {
 
         code += "})";
 
-        Ok(code.build().resolved_cell())
+        Ok(code.build().cell_persisted())
     }
 }
 
@@ -194,6 +221,8 @@ pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item's module is async (either has a top level await
     /// or is importing async modules).
     pub async_module: Option<AsyncModuleOptions>,
+    /// Whether the environment supports arrow functions (e.g. when targeting modern browsers).
+    pub supports_arrow_functions: bool,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -257,6 +286,7 @@ where
     /// Generates the module factory for this chunk item.
     fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code> {
         module_factory_with_code_generation_issue(Vc::upcast_non_strict(self), async_module_info)
+            .to_code()
     }
 }
 
@@ -264,7 +294,7 @@ where
 async fn module_factory_with_code_generation_issue(
     chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
-) -> Result<Vc<Code>> {
+) -> Result<Vc<PersistedCode>> {
     let content = match chunk_item
         .content_with_async_module_info(async_module_info, false)
         .await
@@ -298,7 +328,7 @@ async fn module_factory_with_code_generation_issue(
             code += "(() => {{\n\n";
             writeln!(code, "throw new Error({error});", error = &js_error_message)?;
             code += "\n}})";
-            code.build().cell()
+            *code.build().cell_persisted()
         }
     })
 }

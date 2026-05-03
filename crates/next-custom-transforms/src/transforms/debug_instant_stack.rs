@@ -8,30 +8,48 @@ use swc_core::{
     quote,
 };
 
-fn build_page_extensions_regex(page_extensions: &[String]) -> String {
-    if page_extensions.is_empty() {
-        "(ts|js)x?".to_string()
-    } else {
-        let escaped: Vec<String> = page_extensions
-            .iter()
-            .map(|ext| regex::escape(ext))
-            .collect();
-        format!("({})", escaped.join("|"))
+#[derive(Debug)]
+pub struct DebugInstantStack {
+    page_or_layout: Regex,
+}
+
+impl DebugInstantStack {
+    pub fn new<I, S>(page_extensions: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let mut result = String::from(r"[\\/](page|layout|default)\.");
+        let mut iter = page_extensions.into_iter();
+        if let Some(first) = iter.next() {
+            result.push('(');
+            result.push_str(&regex::escape(first.as_ref()));
+            for ext in iter {
+                result.push('|');
+                result.push_str(&regex::escape(ext.as_ref()));
+            }
+            result.push(')');
+        } else {
+            result.push_str("(ts|js)x?");
+        }
+        result.push('$');
+        Self {
+            page_or_layout: Regex::new(&result).unwrap(),
+        }
+    }
+    pub fn get_pass(&self, filepath: String) -> impl Pass + use<> {
+        visit_mut_pass(DebugInstantStackPass {
+            filepath,
+            instant_export_span: None,
+            page_or_layout: self.page_or_layout.clone(),
+        })
     }
 }
 
-pub fn debug_instant_stack(filepath: String, page_extensions: Vec<String>) -> impl Pass {
-    visit_mut_pass(DebugInstantStack {
-        filepath,
-        instant_export_span: None,
-        page_extensions,
-    })
-}
-
-struct DebugInstantStack {
+struct DebugInstantStackPass {
     filepath: String,
     instant_export_span: Option<Span>,
-    page_extensions: Vec<String>,
+    page_or_layout: Regex,
 }
 
 /// Given an export specifier, returns `Some((exported_name, local_name))` if
@@ -80,12 +98,9 @@ fn find_var_init_span(items: &[ModuleItem], local_name: &str) -> Option<Span> {
     None
 }
 
-impl VisitMut for DebugInstantStack {
+impl VisitMut for DebugInstantStackPass {
     fn visit_mut_module_items(&mut self, items: &mut Vec<ModuleItem>) {
-        let ext_pattern = build_page_extensions_regex(&self.page_extensions);
-        let page_or_layout_re =
-            Regex::new(&format!(r"[\\/](page|layout|default)\.{ext_pattern}$")).unwrap();
-        if !page_or_layout_re.is_match(&self.filepath) {
+        if !self.page_or_layout.is_match(&self.filepath) {
             return;
         }
 

@@ -48,7 +48,10 @@ export async function exportAppRoute(
   htmlFilepath: string,
   fileWriter: MultiFileWriter,
   cacheComponents: boolean,
-  experimental: Required<Pick<ExperimentalConfig, 'authInterrupts'>>,
+  staticPageGenerationTimeout: number,
+  experimental: Required<
+    Pick<ExperimentalConfig, 'authInterrupts' | 'useCacheTimeout'>
+  >,
   buildId: string
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
@@ -81,6 +84,7 @@ export async function exportAppRoute(
       onClose: afterRunner.context.onClose,
       onAfterTaskError: afterRunner.context.onTaskError,
       cacheLifeProfiles,
+      staticPageGenerationTimeout,
     },
     sharedContext: {
       buildId,
@@ -88,6 +92,11 @@ export async function exportAppRoute(
   }
 
   try {
+    // Ensure the userland module is fully loaded before accessing it. This is
+    // required for route files that use top-level await: require() returns a
+    // Promise for async modules, so module.userland would be undefined until
+    // the Promise resolves.
+    await module.ensureUserland()
     const userland = module.userland
     // we don't bail from the static optimization for
     // metadata routes, since it's app-route we can always append /route suffix.

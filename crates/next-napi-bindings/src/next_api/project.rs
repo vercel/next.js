@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     io::Write,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, LazyLock},
     thread,
     time::Duration,
 };
@@ -39,7 +39,6 @@ use next_core::{
         TRACING_NEXT_TURBOPACK_TARGETS,
     },
 };
-use once_cell::sync::Lazy;
 use rand::RngExt;
 use serde::Serialize;
 use tokio::{io::AsyncWriteExt, runtime::Handle, time::Instant};
@@ -49,9 +48,11 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, PrettyPrintError, ReadRef,
     ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi,
-    UpdateInfo, Vc, get_effects,
+    UpdateInfo, Vc, mark_top_level_task,
     message_queue::{CompilationEvent, Severity},
+    take_effects,
     trace::TraceRawVcs,
+    unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
 use turbo_tasks_fs::{
@@ -94,9 +95,9 @@ use crate::{
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
 const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(200);
-static SOURCE_MAP_PREFIX: Lazy<String> = Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
-static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
-    Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
+static SOURCE_MAP_PREFIX: LazyLock<String> = LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
+static SOURCE_MAP_PREFIX_PROJECT: LazyLock<String> =
+    LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
 
 /// Get the `Vc<IssueFilter>` for a `ProjectContainer`.
 fn issue_filter_from_container(container: ResolvedVc<ProjectContainer>) -> Vc<IssueFilter> {
@@ -452,10 +453,28 @@ pub fn project_new(
     }
     let mut compress = Compression::None;
     if let Some(mut trace) = trace {
-        let internal_dir = PathBuf::from(&options.root_path)
-            .join(&options.project_path)
-            .join(&options.dist_dir);
-        let trace_file = internal_dir.join("trace-turbopack");
+        let trace_path_override = std::env::var_os("NEXT_TURBOPACK_TRACING_PATH")
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from);
+        let trace_file = if let Some(path) = trace_path_override {
+            if path.is_absolute() {
+                path
+            } else {
+                std::env::current_dir()
+                    .context("Unable to read current working directory")
+                    .unwrap()
+                    .join(path)
+            }
+        } else {
+            PathBuf::from(&options.root_path)
+                .join(&options.project_path)
+                .join(".next-profiles")
+                .join("trace-turbopack")
+        };
+        let trace_dir = trace_file
+            .parent()
+            .expect("Trace file path must have a parent directory")
+            .to_path_buf();
 
         println!("Turbopack tracing enabled with targets: {trace}");
         println!("  Note that this might have a small performance impact.");
@@ -494,8 +513,13 @@ pub fn project_new(
 
         let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
 
-        std::fs::create_dir_all(&internal_dir)
-            .context("Unable to create .next directory")
+        std::fs::create_dir_all(&trace_dir)
+            .with_context(|| {
+                format!(
+                    "Unable to create trace output directory {}",
+                    trace_dir.display()
+                )
+            })
             .unwrap();
         let (trace_writer, trace_writer_guard) = match compress {
             Compression::None => {
@@ -576,7 +600,7 @@ pub fn project_new(
                 .run(async move {
                     let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
                     ProjectContainer::initialize(container_op, options).await?;
-                    container_op.resolve_strongly_consistent().await
+                    container_op.resolve().strongly_consistent().await
                 })
                 .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e.into()))
                 .await?;
@@ -963,7 +987,7 @@ impl NapiEntrypoints {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct EntrypointsWithIssues {
     entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -998,14 +1022,14 @@ fn project_container_entrypoints_operation(
     container.entrypoints()
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct OperationResult {
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct AllWrittenEntrypointsWithIssues {
     entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -1798,7 +1822,7 @@ pub fn project_entrypoints_subscribe(
     )
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -1828,7 +1852,7 @@ async fn hmr_update_with_issues_operation(
     let filter = project.issue_filter();
     let issues = get_issues(update_op, filter).await?;
     let diagnostics = get_diagnostics(update_op).await?;
-    let effects = Arc::new(get_effects(update_op).await?);
+    let effects = Arc::new(take_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
         update,
         issues,
@@ -1862,6 +1886,8 @@ pub fn project_hmr_events(
                 let chunk_name: RcStr = outer_chunk_name.clone();
                 let session = session.clone();
                 async move {
+                    // HACK(bgw): Remove this unmark call
+                    unmark_top_level_task_may_leak_eventually_consistent_state();
                     let project = container.project().to_resolved().await?;
                     let state = project
                         .hmr_version_state(chunk_name.clone(), hmr_target, session)
@@ -1881,7 +1907,11 @@ pub fn project_hmr_events(
                         diagnostics,
                         effects,
                     } = &*update;
+                    // HACK(bgw): Remove this mark call
+                    mark_top_level_task();
                     effects.apply().await?;
+                    // HACK(bgw): Remove this unmark call
+                    unmark_top_level_task_may_leak_eventually_consistent_state();
                     match &**update {
                         Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -1937,7 +1967,7 @@ struct HmrChunkNames {
     pub chunk_names: Vec<RcStr>,
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct HmrChunkNamesWithIssues {
     chunk_names: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -1963,7 +1993,7 @@ async fn get_hmr_chunk_names_with_issues_operation(
     let filter = issue_filter_from_container(container);
     let issues = get_issues(hmr_chunk_names_op, filter).await?;
     let diagnostics = get_diagnostics(hmr_chunk_names_op).await?;
-    let effects = Arc::new(get_effects(hmr_chunk_names_op).await?);
+    let effects = Arc::new(take_effects(hmr_chunk_names_op).await?);
     Ok(HmrChunkNamesWithIssues {
         chunk_names: hmr_chunk_names,
         issues,
@@ -2481,6 +2511,70 @@ pub async fn project_write_analyze_data(
 
             // Write the files to disk
             effects.apply().await?;
+            Ok((issues.clone(), diagnostics.clone()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(TurbopackResult {
+        result: (),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+        diagnostics: diagnostics
+            .iter()
+            .map(|d| NapiDiagnostic::from(d))
+            .collect(),
+    })
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_all_compilation_issues_inner_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<()>> {
+    let project = container.project();
+    // Build the whole app module graph without chunking, code gen, or disk emission.
+    // We use whole_app_module_graphs_without_dropping_issues() instead of
+    // whole_app_module_graphs() because the latter drops issues in development mode
+    // (to avoid duplicate per-route HMR noise). The non-dropping variant ensures issues
+    // like missing modules and transform errors are properly collected as collectables here.
+    project
+        .whole_app_module_graphs_without_dropping_issues()
+        .as_side_effect()
+        .await?;
+    Ok(Vc::cell(()))
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_all_compilation_issues_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<OperationResult>> {
+    let inner_op = get_all_compilation_issues_inner_operation(container);
+    let filter = issue_filter_from_container(container);
+    let (_, issues, diagnostics, effects) =
+        strongly_consistent_catch_collectables(inner_op, filter).await?;
+    Ok(OperationResult {
+        issues,
+        diagnostics,
+        effects,
+    }
+    .cell())
+}
+
+#[tracing::instrument(level = "info", name = "get all compilation issues", skip_all)]
+#[napi]
+pub async fn project_get_all_compilation_issues(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<TurbopackResult<()>> {
+    let container = project.container;
+    let (issues, diagnostics) = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            let op = get_all_compilation_issues_operation(container);
+            let OperationResult {
+                issues,
+                diagnostics,
+                effects: _,
+            } = &*op.read_strongly_consistent().await?;
             Ok((issues.clone(), diagnostics.clone()))
         })
         .await

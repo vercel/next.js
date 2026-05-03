@@ -81,19 +81,35 @@ describe('Document and App - Rendering via HTTP', () => {
     })
 
     if (isNextDev) {
-      // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
-      // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-      it('adds a timestamp to link tags with preload attribute to invalidate the cache in dev', async () => {
+      // The ?ts= timestamp is a workaround for a Safari preload cache bug:
+      // https://github.com/vercel/next.js/issues/5860
+      // https://bugs.webkit.org/show_bug.cgi?id=187726
+      // It must only appear on CSS/font resources, not on script tags, because
+      // the Turbopack runtime reads ASSET_SUFFIX from the executing script's
+      // query string and would leak it onto image URLs.
+      it('adds a timestamp only to CSS/font link tags to invalidate the cache in dev', async () => {
         const $ = await next.render$('/', undefined, {
           headers: { 'user-agent': 'Safari' },
         })
-        $('link[rel=preload]').each((index, element) => {
+        // CSS preload links must have ?ts= for Safari cache busting
+        $('link[rel=preload][as=style]').each((index, element) => {
           const href = $(element).attr('href')
           expect(href).toMatch(/^[^?]+\?ts=\d+$/)
         })
+        // Font preload links must have ?ts= for Safari cache busting
+        $('link[rel=preload][as=font]').each((index, element) => {
+          const href = $(element).attr('href')
+          expect(href).toMatch(/^[^?]+\?ts=\d+$/)
+        })
+        // Script preload links must NOT have ?ts= (Turbopack ASSET_SUFFIX bug)
+        $('link[rel=preload][as=script]').each((index, element) => {
+          const src = $(element).attr('href')
+          expect(src).not.toMatch(/[?&]ts=/)
+        })
+        // Script tags must NOT have ?ts= (Turbopack ASSET_SUFFIX bug)
         $('script[src]').each((index, element) => {
           const src = $(element).attr('src')
-          expect(src).toMatch(/^[^?]+\?ts=\d+$/)
+          expect(src).not.toMatch(/[?&]ts=/)
         })
       })
     }

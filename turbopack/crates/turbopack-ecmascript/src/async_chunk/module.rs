@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use indoc::formatdoc;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
@@ -14,13 +14,13 @@ use turbopack_core::{
         ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
     },
     output::OutputAssetsWithReferenced,
-    reference::{ModuleReferences, SingleModuleReference},
+    reference::ModuleReferences,
 };
 
 use crate::{
     chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        data::EcmascriptChunkData, ecmascript_chunk_item,
+        EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
+        EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_LOAD},
     utils::{StringifyJs, StringifyModuleId},
@@ -118,14 +118,7 @@ impl Module for AsyncLoaderModule {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![ResolvedVc::upcast(
-            SingleModuleReference::new(
-                *ResolvedVc::upcast(self.await?.inner),
-                rcstr!("async module"),
-            )
-            .to_resolved()
-            .await?,
-        )]))
+        bail!("AsyncLoaderModule::references should never be called")
     }
 
     #[turbo_tasks::function]
@@ -161,6 +154,15 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let options = EcmascriptChunkItemOptions {
+            supports_arrow_functions: *chunking_context
+                .environment()
+                .runtime_versions()
+                .supports_arrow_functions()
+                .await?,
+            ..Default::default()
+        };
+
         if estimated {
             let code = formatdoc! {
                 r#"
@@ -171,6 +173,7 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
             };
             return Ok(EcmascriptChunkItemContent {
                 inner_code: code.into(),
+                options,
                 ..Default::default()
             }
             .cell());
@@ -243,6 +246,7 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
 
         Ok(EcmascriptChunkItemContent {
             inner_code: code.into(),
+            options,
             ..Default::default()
         }
         .cell())

@@ -1,8 +1,7 @@
-use std::{borrow::Cow, collections::HashSet, iter};
+use std::{borrow::Cow, collections::HashSet, iter, sync::LazyLock};
 
 use anyhow::{Context, Result};
 use const_format::concatcp;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
@@ -163,8 +162,8 @@ pub async fn resolve_source_map_sources(
                          filesystem root)"
                     )));
                 }
-                static INVALID_REGEX: Lazy<Regex> =
-                    Lazy::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
+                static INVALID_REGEX: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
                 let source = INVALID_REGEX
                     .replace_all(source_url, |s: &regex::Captures<'_>| s[0].replace('.', "_"));
                 *source_url = format!("{SOURCE_URL_PROTOCOL}///{fs_str}/{origin_str}/{source}");
@@ -374,10 +373,12 @@ mod tests {
                 };
                 let url_root = Url::from_directory_path(sys_root).unwrap();
 
-                let fs_root_path =
-                    DiskFileSystem::new(rcstr!("mock"), RcStr::from(sys_root.to_str().unwrap()))
-                        .root()
-                        .await?;
+                let fs_root_path = DiskFileSystem::new(
+                    rcstr!("mock"),
+                    Vc::cell(RcStr::from(sys_root.to_str().unwrap())),
+                )
+                .root()
+                .await?;
 
                 let resolved_source_map: SourceMapJson = serde_json::from_str(
                     &resolve_source_map_sources(

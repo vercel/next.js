@@ -1,4 +1,8 @@
-use std::{future::Future, ops::Deref, sync::Arc};
+use std::{
+    future::Future,
+    ops::Deref,
+    sync::{Arc, LazyLock},
+};
 
 use anyhow::{Context, Result, anyhow};
 use futures_util::TryFutureExt;
@@ -9,13 +13,12 @@ use napi::{
 };
 use napi_derive::napi;
 use next_code_frame::{CodeFrameLocation, CodeFrameOptions, Location, render_code_frame};
-use once_cell::sync::Lazy;
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Effects, OperationVc, ReadRef, TaskId, TryJoinIterExt, Vc, VcValueType, get_effects,
+    Effects, OperationVc, ReadRef, TaskId, TryJoinIterExt, Vc, VcValueType, take_effects,
 };
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
@@ -143,7 +146,7 @@ pub async fn get_diagnostics<T: Send>(
 fn is_internal(file_path: &str) -> bool {
     // Uses [/\\] so both Unix and Windows separators are matched without
     // needing to normalize the path
-    static RE: Lazy<Regex> = Lazy::new(|| {
+    static RE: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(
             r"(?x)
             # React vendored in Next.js dist/compiled (reactVendoredRe)
@@ -486,7 +489,7 @@ pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     let result = source_op.read_strongly_consistent().await;
     let issues = get_issues(source_op, filter).await?;
     let diagnostics = get_diagnostics(source_op).await?;
-    let effects = Arc::new(get_effects(source_op).await?);
+    let effects = Arc::new(take_effects(source_op).await?);
 
     let result = if result.is_err() && issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
         None

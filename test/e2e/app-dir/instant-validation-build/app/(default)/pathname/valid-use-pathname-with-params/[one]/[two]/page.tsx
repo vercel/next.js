@@ -3,7 +3,6 @@ import { Suspense } from 'react'
 import { PathnameReader } from './pathname-reader'
 
 export const unstable_instant: Instant = {
-  prefetch: 'static',
   samples: [
     {
       params: {
