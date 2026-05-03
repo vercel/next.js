@@ -481,7 +481,7 @@ function SearchBar() {
 
 This is the client-side twin of the same `searchParams` read on the server. [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) reads the request's `?q=`, which is a per-request input. Wrap the search bar in `<Suspense>` so the rest of the route can prerender as a static shell, with a fallback shaped like the field. [`useTransition`](https://react.dev/reference/react/useTransition) supplies `isPending` for the icon swap.
 
-The deploy button is the third leaf. It keeps its form shape from [Step 5: Mutate data](#step-5-mutate-data), now hoisted into a `'use client'` boundary so `useTransition` can drive its spinner. The form's action wraps the call to `triggerDeploy` in `startTransition`, which makes `pending` observable on the button itself, the same way `isPending` swaps the search input's icon for its spinner:
+The deploy button is the third leaf. The same form as before, now hoisted into a `'use client'` boundary so `useTransition` can drive its spinner. The form's action wraps the call to `triggerDeploy` in `startTransition`, which makes `pending` observable on the button itself, the same way `isPending` swaps the search input's icon for its spinner:
 
 ```tsx filename="app/projects/[id]/_components/DeployButton.tsx" highlight={9-10}
 'use client'
@@ -500,6 +500,8 @@ function DeployButton({ projectId }) {
   )
 }
 ```
+
+The form isn't strictly required now that we're on the client. A `<button onClick={() => startTransition(() => triggerDeploy(projectId))}>` would render the same UI. The form carries over because nothing about it needed to change.
 
 The fourth leaf doesn't take a click. The in-progress log slice grows with `Date.now() - createdAt` on each render, so the route only needs to re-render every few seconds while a build is running. We can drop a small Client Component next to `<LiveLogStream>` that calls [`router.refresh()`](/docs/app/api-reference/functions/use-router) on an interval:
 
@@ -685,6 +687,8 @@ export function Sidebar() {
   )
 }
 ```
+
+With `'use cache'` in place, that boundary could have been skipped from the start. Reaching it through Suspense first makes the pattern easier to see.
 
 Adding the cache layer changes the picture for mutations. `refresh()` re-runs the dynamic reads on the route, but it doesn't move cached entries. After a deploy, the cached deployments list still serves the old value. After a pin, the cached `getPinnedIds` still returns the old set.
 
