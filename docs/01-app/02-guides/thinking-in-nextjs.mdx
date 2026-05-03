@@ -558,8 +558,6 @@ The natural question:
 | `ViewerAvatar`                    | Yes, per viewer |
 | `PinnedSection`                   | Yes, per viewer |
 
-{/* TODO: The `caches the data access` link below points at the not-yet-shipped Error Overhaul guide; update once it lands. */}
-
 If the answer is yes, [`'use cache'`](/docs/app/glossary#use-cache-directive) is the one primitive. The same directive covers reads reused across every visitor, reads reused per viewer, and reads reused only for the current session. The variant tweaks where the entry lives, not whether to cache. Add it at the top of a data function or a Server Component. On a project read, the directive sits next to a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) for how long entries stay around and a [`cacheTag`](/docs/app/api-reference/functions/cacheTag) for invalidation later:
 
 ```tsx filename="data/queries/projects.ts" highlight={2,4}
@@ -738,7 +736,7 @@ Source: [`steps/07-caching`](https://github.com/vercel-labs/thinking-in-nextjs/t
 
 ## Step 8: Optimize prefetching
 
-{/* TODO: link target pending Joseph's instant-validation PR. */}
+{/* TODO: Add `unstable_instant` link once vercel/next.js#93204 lands. Likely target: /docs/app/api-reference/file-conventions/route-segment-config/instant (paired with the overhauled /docs/app/guides/instant-navigation). */}
 
 The cache is set up, but each navigation still waits. The cached entries on this route key on `params`, cookies, or `searchParams`, values that only arrive with a real request, so nothing fills them until the request lands. The static shell paints fast on its own. The data behind it is what's still missing.
 
