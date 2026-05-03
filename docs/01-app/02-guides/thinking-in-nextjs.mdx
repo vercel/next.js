@@ -226,7 +226,7 @@ function Sidebar() {
 
 What about the rest of the route? The avatar in `HeaderBar` reads the session. `ProjectGrid` reads the project list on `/projects`. The project detail page loads `ProjectHeader` and `Deployments`, and the deployment page loads `DeploymentHeader` and `BuildLogs`. Each one needs its own `<Suspense>` boundary and skeleton fallback alongside the JSX that uses it.
 
-This gets brittle to manage by hand. Every new async read needs a matching boundary, and missing one quietly stalls the first chunk. [`cacheComponents`](/docs/app/glossary#cache-components) is the rule that catches what we missed. Every async read of dynamic data either sits behind `<Suspense>` or carries a `'use cache'` directive, checked at `next dev` and `next build`:
+This gets brittle to manage by hand. Every new async read needs a matching boundary, and missing one quietly stalls the first chunk. [`cacheComponents`](/docs/app/glossary#cache-components) is the rule that catches what we missed. Every async read of dynamic data needs a decision, checked at `next dev` and `next build`:
 
 ```ts filename="next.config.ts" highlight={4}
 import type { NextConfig } from 'next'
@@ -258,6 +258,8 @@ When an async read isn't behind a boundary and isn't cached, the dev overlay poi
 - [Provide a `<Suspense>` placeholder](/docs/app/guides/error-overhaul#move-within-suspense) around the read — what the Sidebar above already does.
 - [Cache the data access with `'use cache'`](/docs/app/guides/error-overhaul#cache-dynamic-data) — the move when the result can be reused, covered later.
 - [Allow blocking route](/docs/app/guides/error-overhaul#allow-blocking-route) — an escape hatch when you knowingly want the whole route to wait.
+
+Those checks fire on every server render. [Instant navigation](/docs/app/guides/instant-navigation) extends the same family to client navigations, failing `next dev` and `next build` when a route can't paint instantly on click. Wire it on once through `experimental.instant.defaultValidationLevel` in [`next.config`](/docs/app/api-reference/config/next-config-js).
 
 Try the demo. The static shell ships from a CDN at 0 ms, and each async section fills in as its read resolves.
 
