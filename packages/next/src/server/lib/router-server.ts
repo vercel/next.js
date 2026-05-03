@@ -99,6 +99,17 @@ export async function initialize(opts: {
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
   }
 
+  if (
+    process.env.NEXT_PRIVATE_TEST_HEADERS &&
+    process.env.NODE_ENV === 'production'
+  ) {
+    Log.warn(
+      '`NEXT_PRIVATE_TEST_HEADERS` is set in a production environment. ' +
+        'Internal header filtering is disabled, which may expose security vulnerabilities. ' +
+        'This environment variable should only be used in test environments.'
+    )
+  }
+
   let experimentalFeatures: ConfiguredExperimentalFeature[] = []
   const config = await loadConfig(
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
