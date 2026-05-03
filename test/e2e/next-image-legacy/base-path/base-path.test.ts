@@ -8,10 +8,19 @@ import {
 } from 'next-test-utils'
 
 describe('Legacy Image Component basePath Tests', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
+    // Image URL assertions construct expected URLs via
+    // `getDeploymentId(next.testDir, ...)`, which reads the local
+    // `.next/required-server-files.json`. In deploy mode that file lives on
+    // Vercel's infrastructure (not on disk locally), so the constructed
+    // expected URL omits the `&dpl=...` query that Vercel injects at
+    // runtime. The assertions are about local-build URL shape, not deploy
+    // CDN URLs, so skip in deploy.
+    skipDeployment: true,
   })
+  if (isNextDeploy) return
 
   let dpl: string
   beforeAll(() => {
