@@ -13,7 +13,11 @@ function getData(html: string) {
 }
 
 describe('Test Draft Mode', () => {
-  const { next, isNextDev, isNextStart } = nextTestSetup({ files: __dirname })
+  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
+    files: __dirname,
+    skipDeployment: true,
+  })
+  if (skipped) return
 
   if (isNextDev) {
     it('should start development application', async () => {

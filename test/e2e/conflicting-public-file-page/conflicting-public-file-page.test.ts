@@ -1,10 +1,12 @@
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 
 describe('Errors on conflict between public file and page file', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
+  if (skipped) return
 
   if (isNextDev) {
     it('should show conflict error during development', async () => {
