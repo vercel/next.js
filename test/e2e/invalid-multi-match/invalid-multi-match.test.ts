@@ -1,10 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Custom routes invalid multi-match', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
+    // The test asserts on `next.cliOutput`, expecting the local
+    // `next build` failure message ("To use a multi-match in the
+    // destination..."). In deploy mode `next.cliOutput` contains the
+    // Vercel deploy log, which doesn't surface the same Next.js build
+    // error string at the top level, so the assertions don't apply.
+    skipDeployment: true,
   })
+  if (isNextDeploy) return
 
   it('should show error for invalid multi-match', async () => {
     await next.render('/random')
