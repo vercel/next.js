@@ -60,6 +60,7 @@ Draw a box around each region of the mockup and give it a name. Each repeating p
 | Frame around every page | `ProjectsLayout`                                                 |
 | Top bar                 | `HeaderBar`                                                      |
 | Sidebar                 | `Sidebar`, containing `PinnedSection` and `RecentDeploysSection` |
+| Project list            | `ProjectGrid`, containing one `ProjectCard` per project          |
 | Project tile            | `ProjectCard`                                                    |
 | Project page header     | `ProjectHeader`                                                  |
 | Deployments list        | `Deployments`                                                    |
@@ -169,7 +170,7 @@ export const getProjects = cache(async ({ query }) => {
 })
 ```
 
-React's [`cache`](https://react.dev/reference/react/cache) dedupes the read across one render. Two components calling `getProjects({ query: q })` share a single database round trip, so co-location costs nothing extra. If a row isn't found, the query calls [`notFound`](/docs/app/api-reference/functions/not-found) and the matching `not-found.tsx` next to that segment renders in its place. The `delay()` helper is a fixture that keeps loading and pending states visible in the recording. A real local read resolves in milliseconds.
+React's [`cache`](https://react.dev/reference/react/cache) dedupes the read across one server request. Two components calling `getProjects({ query: q })` share a single database round trip, so co-location costs nothing extra. If a row isn't found, the query calls [`notFound`](/docs/app/api-reference/functions/not-found) and the matching `not-found.tsx` next to that segment renders in its place. The `delay()` helper is a fixture that keeps loading and pending states visible in the recording. A real local read resolves in milliseconds.
 
 Every other region works the same way. The header reads the current viewer, the sidebar reads pinned ids and recent deploys, and the detail pages read what their JSX shows next to it.
 
@@ -222,7 +223,7 @@ function Sidebar() {
 
 What about the rest of the route? The avatar in `HeaderBar` reads the session. `ProjectGrid` reads the project list on `/projects`. The project detail page loads `ProjectHeader` and `Deployments`, and the deployment page loads `DeploymentHeader` and `BuildLogs`. Each one needs its own `<Suspense>` boundary and skeleton fallback alongside the JSX that uses it.
 
-This gets brittle to manage by hand. Every new async read needs a matching boundary, and missing one quietly stalls the first chunk. [`cacheComponents`](/docs/app/glossary#cache-components) is the rule that catches what we missed. Every async read either sits behind `<Suspense>` or carries a `'use cache'` directive, enforced at `next dev` and `next build`:
+This gets brittle to manage by hand. Every new async read needs a matching boundary, and missing one quietly stalls the first chunk. [`cacheComponents`](/docs/app/glossary#cache-components) is the rule that catches what we missed. Every async read of dynamic data either sits behind `<Suspense>` or carries a `'use cache'` directive, checked at `next dev` and `next build`:
 
 ```ts filename="next.config.ts" highlight={4}
 import type { NextConfig } from 'next'
@@ -245,14 +246,14 @@ Route (app)
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
-The `◐` is [Partial Prerendering](/docs/app/glossary#partial-prerendering-ppr) (PPR), the optimization that lets the static shell sit on a CDN. The dynamic split keeps working without it, but every visitor would re-render the shell. PPR keeps that work off the path.
+The `◐` is [Partial Prerendering](/docs/app/glossary#partial-prerendering-ppr) (PPR), the optimization that lets the static shell sit on a CDN. Without it the dynamic split keeps working, but every visitor would re-render the shell.
 
 When an async read isn't behind a boundary and isn't cached, the dev overlay points at the call site and lists three ways out:
 
 {/* TODO: Update the three `error-overhaul` links below once the Error Overhaul guide ships and the anchor names are finalized. */}
 
-- [Provide a `<Suspense>` placeholder](/docs/app/guides/error-overhaul#move-within-suspense) around the read — what the Sidebar above already does.
-- [Cache the data access with `'use cache'`](/docs/app/guides/error-overhaul#cache-dynamic-data) — the move when the result can be reused, covered later.
+- [Move within Suspense](/docs/app/guides/error-overhaul#move-within-suspense) — what the Sidebar above already does.
+- [Cache dynamic data](/docs/app/guides/error-overhaul#cache-dynamic-data) with `'use cache'` — the move when the result can be reused, covered later.
 - [Allow blocking route](/docs/app/guides/error-overhaul#allow-blocking-route) — an escape hatch when you knowingly want the whole route to wait.
 
 Try the demo. The static shell ships from a CDN at 0 ms, and each async section fills in as its read resolves.
@@ -273,6 +274,8 @@ Suspense controls when a section paints. Reusing the output is a separate decisi
 
 > **Note**: Suspense boundaries nest. Output that arrives in pieces, like log lines on an in-progress build, LLM tokens, or paginated work, can wrap each piece in its own boundary so each one streams independently. `BuildLogs.tsx` in the lab is one example: `LiveLines` recurses through the log and wraps each next line in its own `<Suspense>`.
 
+{/* TODO: The `instant-validation` link below points at a not-yet-shipped guide; update once the PR lands. The same link is used at line 672. */}
+
 > **Note**: A read that doesn't touch a per-request API (cookies, headers, `searchParams`, `params`) needs [`await connection()`](/docs/app/api-reference/functions/connection) at the top so Next.js excludes it from prerendering. The lab's database queries do this. Without it, a sync-feeling read like `db.select(...)` resolves at build time and the Suspense boundary above it never gets to stream. [Instant validation](/docs/app/guides/instant-validation) extends the same boundary check from the initial render to every navigation.
 
 The page reads are covered. Let's add the writes.
@@ -287,12 +290,13 @@ The first reach in client-side React might be an `onClick` handler, but that wou
 
 A [React Server Function](/docs/app/glossary#server-function), marked with `'use server'`, keeps the write on this route. Pass it to React's [`<form action>`](https://react.dev/reference/react-dom/components/form#form) prop, submit the form, and the arguments and return values cross a serialization boundary as a [Remote Procedure Call (RPC)](https://en.wikipedia.org/wiki/Remote_procedure_call). Plain data passes through; functions and class instances don't.
 
-```tsx filename="data/actions/deployments.ts" highlight={1,7}
+```tsx filename="data/actions/deployments.ts" highlight={1,6,8}
 'use server'
 
 import { refresh } from 'next/cache'
 
 export async function triggerDeploy(projectId) {
+  await requireSession()
   await db.deployment.create({ projectId })
   refresh()
 }
@@ -512,7 +516,7 @@ The natural question:
 
 {/* TODO: The `caches the data access` link below points at the not-yet-shipped Error Overhaul guide; update once it lands. */}
 
-If the answer is yes, [`'use cache'`](/docs/app/glossary#use-cache-directive) is the one primitive. The same directive covers reads reused across every visitor, reads reused per viewer, and reads reused only for the current session. The variant tweaks where the entry lives, not whether to cache. Add it at the top of a data function or a Server Component, and the result joins the static shell instead of streaming behind a fallback. On a project read, the directive sits next to a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) for how long entries stay around and a [`cacheTag`](/docs/app/api-reference/functions/cacheTag) for invalidation later:
+If the answer is yes, [`'use cache'`](/docs/app/glossary#use-cache-directive) is the one primitive. The same directive covers reads reused across every visitor, reads reused per viewer, and reads reused only for the current session. The variant tweaks where the entry lives, not whether to cache. Add it at the top of a data function or a Server Component. On a project read, the directive sits next to a [`cacheLife`](/docs/app/api-reference/functions/cacheLife) for how long entries stay around and a [`cacheTag`](/docs/app/api-reference/functions/cacheTag) for invalidation later:
 
 ```tsx filename="data/queries/projects.ts" highlight={2,4}
 async function getProject(id) {
@@ -561,7 +565,7 @@ export const getPinnedIds = cache(async () => {
 
 The store is shared; the `userId` argument is what makes each entry per-viewer. Two different ids become two entries, the same way `getProject('compass')` and `getProject('feather')` do.
 
-The current viewer is the limit case. The cookie is the input, and there's nothing further to lift out. A plain `'use cache'` can't read cookies inline, so `getCurrentUser` uses [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead. The directive shape is the same, but the function runs every render on the server and the result is held only in the browser's memory for the rest of the session, with `cookies()` and `headers()` allowed inside:
+The current viewer is the limit case. The cookie is the input, and there's nothing further to lift out. A plain `'use cache'` can't read cookies inline, so `getCurrentUser` uses [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) instead. The directive shape is the same, but the function runs every server render and the result is held only in the browser's memory until the next reload, with `cookies()` and `headers()` allowed inside:
 
 ```tsx filename="data/queries/auth.ts" highlight={2-3}
 export const getCurrentUser = cache(async () => {
@@ -583,7 +587,7 @@ A Server Component that needs the resolved array, like `PinnedSection` in the si
 
 > **Note**: A third variant, [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote), backs a durable shared cache across server instances when the default in-memory store isn't enough. The [Cache Components](/docs/app/getting-started/caching) introduction compares all three.
 
-The tree now carries a decision per node, split between the shared layout and the per-route pages:
+Every read on the route now carries its own caching decision, split between the shared layout and the per-route pages:
 
 ```txt
 persistent shell (app/projects/layout.tsx)
@@ -626,19 +630,20 @@ Adding the cache layer changes the picture for mutations. `refresh()` re-runs th
 
 [`updateTag`](/docs/app/api-reference/functions/updateTag) is the surgical answer for cached entries. From inside a Server Function, it invalidates a cached read by name, so the same write that changed the underlying data names the entries that went stale. The route re-renders with the fresh values, which is what `refresh()` was doing before. Calling both is the wrong shape, so the Server Function calls `updateTag` in place of `refresh()`:
 
-```tsx filename="data/actions/deployments.ts" highlight={7-8}
+```tsx filename="data/actions/deployments.ts" highlight={6,8-9}
 'use server'
 
 import { updateTag } from 'next/cache'
 
 async function triggerDeploy(projectId) {
+  await requireSession()
   await db.deployment.create({ projectId })
   updateTag(`deployments-${projectId}`)
   updateTag('recent-deployments')
 }
 ```
 
-The tag names match the cached reads they invalidate. Each `updateTag` call lines up with the cache entries the write touched, and the route re-renders against the fresh values. ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) is the alternative when you want stale-while-revalidate semantics, where the old value keeps serving until a fresh one finishes fetching.)
+The tag names match the cached reads they invalidate. Each `updateTag` call lines up with the cache entries the write touched, and the route re-renders against the fresh values. ([`revalidateTag(name, 'max')`](/docs/app/api-reference/functions/revalidateTag) is the alternative when you want stale-while-revalidate semantics, where the old value keeps serving until a fresh one finishes fetching.)
 
 Pinning takes the same shape. `getPinnedIds` was tagged earlier with ``cacheTag(`pinned-${userId}`)``, so `addPin` and `removePin` each invalidate that viewer's tag:
 
@@ -669,7 +674,9 @@ Source: [`steps/07-caching`](https://github.com/vercel-labs/thinking-in-nextjs/t
 
 ## Step 8: Optimize prefetching
 
-The cache is set up, but each navigation still waits. The cached entries on this route key on `params`, cookies, or `searchParams`, values that only arrive with a real request, so nothing fills them until the request lands. Instant validation keeps the shell ready at navigation; the data behind it is what's still missing.
+{/* TODO: link target pending Joseph's instant-validation PR. */}
+
+The cache is set up, but each navigation still waits. The cached entries on this route key on `params`, cookies, or `searchParams`, values that only arrive with a real request, so nothing fills them until the request lands. The static shell paints fast on its own. The data behind it is what's still missing.
 
 Prefetching fills those entries before the click. When a [`<Link>`](/docs/app/api-reference/components/link) enters the viewport, Next.js renders its destination in the background, so the tree is already cached by the time of the click.
 
