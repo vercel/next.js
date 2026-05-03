@@ -96,12 +96,12 @@ describe('jsconfig paths', () => {
 })
 
 describe('jsconfig paths without baseurl', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
-  if (isNextDeploy) return
+  if (skipped) return
 
   let originalJsconfigContent: string
 

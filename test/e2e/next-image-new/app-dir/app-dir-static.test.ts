@@ -46,10 +46,11 @@ import cheerio from 'cheerio'
 ;(process.env.__NEXT_CACHE_COMPONENTS === 'true' ? describe.skip : describe)(
   'Static Image Component Tests',
   () => {
-    const { next, isTurbopack } = nextTestSetup({
+    const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
     })
+    if (skipped) return
 
     let browser: Awaited<ReturnType<typeof next.browser>>
     let $: ReturnType<typeof cheerio.load>

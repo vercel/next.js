@@ -5,11 +5,12 @@ const srcHeader = 'X-From-Src-Middleware'
 const rootHeader = 'X-From-Root-Middleware'
 
 describe('middleware-src-node', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
+  if (skipped) return
 
   if (isNextDev) {
     beforeAll(async () => {

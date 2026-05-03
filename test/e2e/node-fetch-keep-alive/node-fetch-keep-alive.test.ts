@@ -4,12 +4,13 @@ import { createServer, Server } from 'http'
 describe('node-fetch-keep-alive', () => {
   let mockServer: Server
 
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
     skipDeployment: true,
   })
+  if (skipped) return
 
   beforeAll(async () => {
     mockServer = createServer((req, res) => {

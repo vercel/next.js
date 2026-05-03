@@ -5,7 +5,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('file-serving', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
     // Vercel's edge rejects malformed URLs (mixed-encoding traversal,
     // backslash, double-encoded, etc.) before they reach the runtime, and
@@ -14,6 +14,7 @@ describe('file-serving', () => {
     // Next.js's server.
     skipDeployment: true,
   })
+  if (skipped) return
 
   // Helper to detect malformed URLs that can't be parsed by the URL constructor
   const isMalformedUrl = (path) => {

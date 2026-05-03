@@ -5,11 +5,12 @@ import {
 } from 'next-test-utils'
 
 describe('Client 404', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
     skipDeployment: true,
   })
+  if (skipped) return
 
   beforeAll(async () => {
     // pre-build the home page so that navigating to it from the

@@ -1180,12 +1180,13 @@ Next.js Config:
 })
 
 describe('CLI Usage: duplicate sass dependencies', () => {
-  const { next, isNextStart } = nextTestSetup({
+  const { next, isNextStart, skipped } = nextTestSetup({
     files: join(__dirname, 'duplicate-sass'),
     skipStart: true,
     dependencies: reactDependencies,
     skipDeployment: true,
   })
+  if (skipped) return
 
   // The original integration test relied on pre-existing fake `sass` and
   // `node-sass` modules in `duplicate-sass/node_modules/`. In e2e mode the

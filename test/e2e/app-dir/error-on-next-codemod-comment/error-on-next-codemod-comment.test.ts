@@ -7,11 +7,12 @@ import {
 } from 'next-test-utils'
 
 describe('app-dir - error-on-next-codemod-comment', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
+  if (skipped) return
 
   if (isNextDev) {
     beforeAll(async () => {

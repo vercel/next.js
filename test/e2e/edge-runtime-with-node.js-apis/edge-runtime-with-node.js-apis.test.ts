@@ -28,7 +28,7 @@ const unsupportedClasses = [
 ]
 
 describe('Edge runtime with Node.js APIs', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     // Turbopack builds fail (non-zero exit) when edge code uses Node.js APIs,
     // but the CLI output still contains the warnings we're asserting on. Skip
@@ -38,6 +38,7 @@ describe('Edge runtime with Node.js APIs', () => {
     // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
     skipDeployment: true,
   })
+  if (skipped) return
 
   beforeAll(async () => {
     if (isNextDev) {

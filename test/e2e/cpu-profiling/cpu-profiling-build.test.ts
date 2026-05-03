@@ -10,6 +10,7 @@ describe('CPU Profiling - next build', () => {
     skipStart: true,
     skipDeployment: true,
   })
+  if (skipped) return
 
   // CPU profiling only works with local `next build`, not dev or deploy modes
   if (isNextDev || isNextDeploy || skipped) {

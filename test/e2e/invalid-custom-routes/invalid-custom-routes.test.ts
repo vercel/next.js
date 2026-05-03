@@ -2,11 +2,12 @@ import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('Errors on invalid custom routes', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
+  if (skipped) return
 
   const writeConfig = async (routes: any, type = 'redirects') => {
     await next.patchFile(

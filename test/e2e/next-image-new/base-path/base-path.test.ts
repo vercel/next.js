@@ -8,7 +8,7 @@ import {
 } from 'next-test-utils'
 
 describe('Image Component basePath Tests', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
     // Image URL assertions construct expected URLs via
@@ -20,7 +20,7 @@ describe('Image Component basePath Tests', () => {
     // CDN URLs, so skip in deploy.
     skipDeployment: true,
   })
-  if (isNextDeploy) return
+  if (skipped) return
 
   let dpl: string
   beforeAll(() => {

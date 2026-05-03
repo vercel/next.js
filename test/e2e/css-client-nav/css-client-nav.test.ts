@@ -7,7 +7,7 @@ import webdriver from 'next-webdriver'
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 
 describe('CSS Module client-side navigation', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     // Calls `next.build()` and uses an in-test proxy in front of the Next
@@ -15,6 +15,7 @@ describe('CSS Module client-side navigation', () => {
     // deploy mode.
     skipDeployment: true,
   })
+  if (skipped) return
 
   let proxyServer: http.Server
   let proxyPort: number

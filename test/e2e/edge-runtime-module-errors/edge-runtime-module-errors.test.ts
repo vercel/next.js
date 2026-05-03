@@ -117,7 +117,7 @@ function createVariants(opts: {
 describe('Edge runtime module errors', () => {
   // ==================== DEVELOPMENT MODE ====================
   ;(isNextDev ? describe : describe.skip)('development mode', () => {
-    const { next, isTurbopack } = nextTestSetup({
+    const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname,
       dependencies: {
         nanoid: 'latest',
@@ -128,6 +128,7 @@ describe('Edge runtime module errors', () => {
       startServerTimeout: 30_000,
       skipDeployment: true,
     })
+    if (skipped) return
 
     // webpack's dev server lazily compiles Edge API routes on demand and
     // keeps serving the last-successful compilation when a later compile
@@ -574,7 +575,7 @@ describe('Edge runtime module errors', () => {
 
   // ==================== PRODUCTION MODE ====================
   ;(isNextStart ? describe : describe.skip)('production mode', () => {
-    const { next, isTurbopack } = nextTestSetup({
+    const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
       dependencies: {
@@ -582,6 +583,7 @@ describe('Edge runtime module errors', () => {
       },
       skipDeployment: true,
     })
+    if (skipped) return
 
     let originalApi: string
     let originalMiddleware: string

@@ -32,10 +32,11 @@ describe('Build Error Tests for basePath', () => {
 })
 
 describe('Static Image Component Tests for basePath', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
+  if (skipped) return
 
   let browser: Awaited<ReturnType<typeof next.browser>>
   let html: string

@@ -1,12 +1,12 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 describe('Nullish configs in next.config.js', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
-  if (isNextDeploy) return
+  if (skipped) return
 
   afterEach(async () => {
     await next.stop().catch(() => {})

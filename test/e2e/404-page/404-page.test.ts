@@ -134,11 +134,12 @@ describe('404 Page Support', () => {
   }
 })
 ;(isNextStart ? describe : describe.skip)('404 Page build validation', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
+  if (skipped) return
 
   const gip404Err =
     /`pages\/404` can not have getInitialProps\/getServerSideProps/

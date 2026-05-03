@@ -15,10 +15,11 @@ jest.setTimeout(120 * 1000)
 
 describe('Edge runtime configurable guards', () => {
   ;(isNextDev ? describe : describe.skip)('development mode', () => {
-    const { next, isTurbopack } = nextTestSetup({
+    const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
     })
+    if (skipped) return
 
     let originalApiRoute: string
     let originalMiddleware: string
@@ -341,12 +342,13 @@ describe('Edge runtime configurable guards', () => {
     )
   })
   ;(isNextStart ? describe : describe.skip)('production mode', () => {
-    const { next, isTurbopack } = nextTestSetup({
+    const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
       env: shouldUseTurbopack() ? {} : { NEXT_TELEMETRY_DEBUG: '1' },
       skipDeployment: true,
     })
+    if (skipped) return
 
     let originalApiRoute: string
     let originalMiddleware: string

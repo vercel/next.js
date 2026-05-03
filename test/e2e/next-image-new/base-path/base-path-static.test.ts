@@ -39,11 +39,11 @@ describe('Build Error Tests', () => {
 })
 
 describe('Static Image Component Tests for basePath', () => {
-  const { next, isTurbopack, isNextDeploy } = nextTestSetup({
+  const { next, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
-  if (isNextDeploy) return
+  if (skipped) return
 
   let browser: Awaited<ReturnType<typeof next.browser>>
   let $: ReturnType<typeof cheerio.load>

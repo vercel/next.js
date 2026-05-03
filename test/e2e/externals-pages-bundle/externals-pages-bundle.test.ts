@@ -3,11 +3,12 @@ import { join } from 'path'
 import { nextTestSetup, isNextStart, isNextDev } from 'e2e-utils'
 
 describe('externals-pages-bundle', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
+  if (skipped) return
 
   describe('bundle pages externals with config.bundlePagesRouterDependencies', () => {
     if (!isNextStart) {

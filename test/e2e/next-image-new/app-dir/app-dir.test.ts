@@ -12,11 +12,12 @@ import { existsSync } from 'fs'
 import { join } from 'path'
 
 describe('Image Component App Dir Tests', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     disableAutoSkewProtection: true,
   })
+  if (skipped) return
 
   let dpl: string
   let assetDpl: string

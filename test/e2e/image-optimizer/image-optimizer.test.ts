@@ -284,10 +284,11 @@ describe('Image Optimizer', () => {
     'Server support for headers in next.config.js',
     () => {
       const size = 96
-      const { next } = nextTestSetup({
+      const { next, skipped } = nextTestSetup({
         files: join(__dirname, 'app'),
         skipDeployment: true,
       })
+      if (skipped) return
 
       beforeAll(async () => {
         await next.patchFile(

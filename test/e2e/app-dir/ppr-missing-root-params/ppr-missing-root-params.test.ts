@@ -2,11 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
 describe('ppr-missing-root-params (single)', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/single'),
     skipStart: true,
     skipDeployment: true,
   })
+  if (skipped) return
 
   beforeAll(async () => {
     try {
@@ -26,11 +27,12 @@ describe('ppr-missing-root-params (single)', () => {
 })
 
 describe('ppr-missing-root-params (multiple)', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/multiple'),
     skipStart: true,
     skipDeployment: true,
   })
+  if (skipped) return
 
   beforeAll(async () => {
     try {
@@ -50,11 +52,12 @@ describe('ppr-missing-root-params (multiple)', () => {
 })
 
 describe('ppr-missing-root-params (nested)', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/nested'),
     skipStart: true,
     skipDeployment: true,
   })
+  if (skipped) return
 
   beforeAll(async () => {
     try {

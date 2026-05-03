@@ -15,7 +15,7 @@ import { join } from 'path'
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('Image Component Default Tests', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
     // Image URL assertions assume local-relative `/_next/image?url=...`
@@ -23,6 +23,7 @@ describe('Image Component Default Tests', () => {
     // through the Vercel hostname and has no on-disk `.next/`.
     skipDeployment: true,
   })
+  if (skipped) return
 
   let dpl: string
   let assetDpl: string
