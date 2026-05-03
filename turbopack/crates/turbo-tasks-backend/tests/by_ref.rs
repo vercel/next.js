@@ -13,7 +13,7 @@
 #![allow(clippy::needless_return)]
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -48,6 +48,21 @@ async fn test_by_ref_operation() -> Result<Vc<()>> {
     let counter = Counter { base: 100 }.cell();
     assert_eq!(*counter.add_all(vec![1u32, 2, 3]).await?, 106);
 
+    // Regression: `&T` parameters whose `T` goes through `FromTaskInput` (e.g.
+    // `ResolvedVc<…>`, `Vec<ResolvedVc<…>>`, `Option<ResolvedVc<…>>`). Before the macro
+    // learned to borrow-cast cached `T::TaskInput` to `&T`, the runtime panicked at
+    // `downcast_args_ref` because the cache stored `Vec<Vc<T>>` while the body asked
+    // for `Vec<ResolvedVc<T>>`.
+    // The exposed signature still takes the unwrapped form (`Vc<T>`,
+    // `Vec<Vc<T>>`, `Option<Vc<T>>`), so callers pass owned `Vc`s — exactly the form the
+    // cache key is built from.
+    let a = ItemValue { v: 1 }.cell();
+    let b = ItemValue { v: 4 }.cell();
+    assert_eq!(*sum_resolved_items(vec![a, b]).await?, 5);
+    assert_eq!(*one_resolved_item(a).await?, 1);
+    assert_eq!(*maybe_resolved_item(Some(b)).await?, 4);
+    assert_eq!(*maybe_resolved_item(None).await?, 0);
+
     Ok(Vc::cell(()))
 }
 
@@ -81,4 +96,35 @@ impl Counter {
         let sum: u32 = items.iter().sum();
         Vc::cell(self.base + sum)
     }
+}
+
+#[turbo_tasks::value]
+struct ItemValue {
+    v: u32,
+}
+
+// `&Vec<ResolvedVc<…>>`: the cache stores `Vec<Vc<T>>` (post-`FromTaskInput`),
+// so the macro has to borrow-cast it back to `&Vec<ResolvedVc<T>>` for the body.
+#[turbo_tasks::function]
+async fn sum_resolved_items(items: &Vec<ResolvedVc<ItemValue>>) -> Result<Vc<u32>> {
+    let mut total = 0u32;
+    for item in items {
+        total += item.await?.v;
+    }
+    Ok(Vc::cell(total))
+}
+
+// `&ResolvedVc<…>` directly: same case at the leaf.
+#[turbo_tasks::function]
+async fn one_resolved_item(item: &ResolvedVc<ItemValue>) -> Result<Vc<u32>> {
+    Ok(Vc::cell(item.await?.v))
+}
+
+// `&Option<ResolvedVc<…>>`: the macro has to borrow-cast through the `Option` wrapper.
+#[turbo_tasks::function]
+async fn maybe_resolved_item(item: &Option<ResolvedVc<ItemValue>>) -> Result<Vc<u32>> {
+    Ok(Vc::cell(match item {
+        Some(item) => item.await?.v,
+        None => 0,
+    }))
 }

@@ -382,12 +382,14 @@ impl TurboFn<'_> {
                         };
 
                         // Run `expand_task_input_type` (e.g. `ResolvedVc<T>` -> `Vc<T>`) on the
-                        // core type. For user-by-ref params we don't currently apply the
-                        // expansion: passing references to `Vc`-shaped types is not a supported
-                        // pattern and the caller still produces the owned form for the cache key.
-                        // Operations also skip the expansion — they require explicit
-                        // `NonLocalValue` arguments and don't use the `FromTaskInput` pipeline.
-                        let expanded_core_ty: Cow<'_, Type> = if user_by_ref || self.operation {
+                        // core type. The cache always stores the expanded form, so this drives
+                        // the type that the inline closure sees in its parameter list (the
+                        // blanket impl downcasts to it). For user-by-ref + non-trivial expansion
+                        // we additionally generate a `RefFromTaskInput` borrow-cast in the body
+                        // so the user's body sees `&T` (their declared type) instead of `&T'`.
+                        // Operations skip the expansion — they require explicit `NonLocalValue`
+                        // arguments and don't use the `FromTaskInput` pipeline.
+                        let expanded_core_ty: Cow<'_, Type> = if self.operation {
                             Cow::Borrowed(core_ty)
                         } else {
                             expand_task_input_type(core_ty)
@@ -427,13 +429,14 @@ impl TurboFn<'_> {
                         });
 
                         let mut shadow_stmts: Vec<Stmt> = Vec::new();
+                        let id: &Ident = &arg_id;
                         if !user_by_ref {
                             // The user wrote an owned `T`. The inline param is now `&T'` so
                             // their body is missing an owned binding. Clone once to restore it.
                             // For Copy-type inputs (e.g. `Vc<T>`) this is a free copy; for
                             // non-Copy task inputs (e.g. `RcStr`, `FileSystemPath`) it's the
                             // same clone the existing `get_args` was performing.
-                            let id: &Ident = &arg_id;
+                            //
                             // Preserve `mut` if the user declared the parameter as `mut x: T`.
                             // Without this, function bodies that mutate the argument (e.g.
                             // `counts.pop()`) would no longer compile after the shadow rebind.
@@ -466,8 +469,27 @@ impl TurboFn<'_> {
                                     semi_token: Default::default(),
                                 }));
                             }
+                        } else if needs_from_task_input_transform {
+                            // The user wrote `&T` where `T` would be rewritten by
+                            // `expand_task_input_type` (`ResolvedVc<T>` and friends). The cache
+                            // stores `T::TaskInput`, so the inline parameter is `&T::TaskInput`,
+                            // but the user's body expects `&T`. `RefFromTaskInput` is a layout-
+                            // compatible borrow-cast that re-types the borrow without an owned
+                            // conversion or a clone — precisely the win the user wanted by
+                            // declaring `&T` in the first place.
+                            let original_core_ty = if let Type::Reference(type_ref) = &*pat_type.ty
+                            {
+                                &*type_ref.elem
+                            } else {
+                                &*pat_type.ty
+                            };
+                            shadow_stmts.push(parse_quote_spanned!(arg.span() =>
+                                let #id: & #original_core_ty =
+                                    <#original_core_ty as turbo_tasks::task::RefFromTaskInput>
+                                        ::ref_from_task_input(#id);
+                            ));
                         }
-                        // user_by_ref: the body sees `&T` directly, no shadow required.
+                        // user_by_ref + no expansion: the body sees `&T` directly, no shadow.
 
                         (arg, shadow_stmts)
                     }

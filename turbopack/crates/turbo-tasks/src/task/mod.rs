@@ -5,7 +5,7 @@ pub(crate) mod shared_reference;
 pub(crate) mod task_input;
 pub(crate) mod task_output;
 
-pub use from_task_input::FromTaskInput;
+pub use from_task_input::{FromTaskInput, RefFromTaskInput};
 pub use function::{TaskFn, TaskFnInputs};
 pub use shared_reference::{SharedReference, TypedSharedReference};
 pub use task_input::TaskInput;
