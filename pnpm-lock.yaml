@@ -941,8 +941,8 @@ importers:
         specifier: 4.0.2
         version: 4.0.2
       '@vercel/ncc':
-        specifier: 0.38.1
-        version: 0.38.1
+        specifier: 0.38.4
+        version: 0.38.4
       async-retry:
         specifier: 1.3.1
         version: 1.3.1
@@ -1048,8 +1048,8 @@ importers:
         specifier: 2.0.0
         version: 2.0.0
       '@vercel/ncc':
-        specifier: 0.34.0
-        version: 0.34.0
+        specifier: 0.38.4
+        version: 0.38.4
       fontkit:
         specifier: 2.0.2
         version: 2.0.2
@@ -1346,8 +1346,8 @@ importers:
         specifier: 2.3.2
         version: 2.3.2(patch_hash=cb53bfa5effb15b3a361e176003df667cadf757b27b7c9b458c2f0fce86ea893)
       '@vercel/ncc':
-        specifier: 0.34.0
-        version: 0.34.0
+        specifier: 0.38.4
+        version: 0.38.4
       '@vercel/nft':
         specifier: 0.27.1
         version: 0.27.1(encoding@0.1.13)
@@ -1822,8 +1822,8 @@ importers:
   packages/next-env:
     devDependencies:
       '@vercel/ncc':
-        specifier: 0.34.0
-        version: 0.34.0
+        specifier: 0.38.4
+        version: 0.38.4
       dotenv:
         specifier: 16.3.1
         version: 16.3.1
@@ -1881,8 +1881,8 @@ importers:
         specifier: ^29.5.0
         version: 29.5.5
       '@vercel/ncc':
-        specifier: 0.34.0
-        version: 0.34.0
+        specifier: 0.38.4
+        version: 0.38.4
       jest:
         specifier: ^29.5.0
         version: 29.7.0(@types/node@20.17.6(patch_hash=9c31d25336aea4076b3cb942c35e59fd160c540947f01ea455a060367153f9fd))(babel-plugin-macros@3.1.0)
@@ -6893,12 +6893,8 @@ packages:
     engines: {node: '>=14.6'}
     deprecated: 'Vercel KV is deprecated. If you had an existing KV store, it should have moved to Upstash Redis which you will see under Vercel Integrations. For new projects, install a Redis integration from Vercel Marketplace: https://vercel.com/marketplace?category=storage&search=redis'
 
-  '@vercel/ncc@0.34.0':
-    resolution: {integrity: sha512-G9h5ZLBJ/V57Ou9vz5hI8pda/YQX5HQszCs3AmIus3XzsmRn/0Ptic5otD3xVST8QLKk7AMk7AqpsyQGN7MZ9A==}
-    hasBin: true
-
-  '@vercel/ncc@0.38.1':
-    resolution: {integrity: sha512-IBBb+iI2NLu4VQn3Vwldyi2QwaXt5+hTyh58ggAMoCGE6DJmPvwL3KPBWcJl1m9LYPChBLE980Jw+CS4Wokqxw==}
+  '@vercel/ncc@0.38.4':
+    resolution: {integrity: sha512-8LwjnlP39s08C08J5NstzriPvW1SP8Zfpp1BvC2sI35kPeZnHfxVkCwu4/+Wodgnd60UtT1n8K8zw+Mp7J9JmQ==}
     hasBin: true
 
   '@vercel/nft@0.27.1':
@@ -23975,9 +23971,7 @@ snapshots:
     dependencies:
       '@upstash/redis': 1.35.3
 
-  '@vercel/ncc@0.34.0': {}
-
-  '@vercel/ncc@0.38.1': {}
+  '@vercel/ncc@0.38.4': {}
 
   '@vercel/nft@0.27.1(encoding@0.1.13)':
     dependencies:

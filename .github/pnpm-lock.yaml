@@ -20,8 +20,8 @@ importers:
         specifier: ^18.11.0
         version: 18.19.130
       '@vercel/ncc':
-        specifier: 0.34.0
-        version: 0.34.0
+        specifier: 0.38.4
+        version: 0.38.4
       typescript:
         specifier: 5.1.6
         version: 5.1.6
@@ -51,8 +51,8 @@ importers:
         specifier: ^18.11.18
         version: 18.19.130
       '@vercel/ncc':
-        specifier: 0.34.0
-        version: 0.34.0
+        specifier: 0.38.4
+        version: 0.38.4
       typescript:
         specifier: ^4.4.4
         version: 4.9.5
@@ -85,8 +85,8 @@ importers:
         version: 3.25.76
     devDependencies:
       '@vercel/ncc':
-        specifier: ^0.38.3
-        version: 0.38.3
+        specifier: 0.38.4
+        version: 0.38.4
 
   actions/next-stats-action:
     dependencies:
@@ -147,8 +147,8 @@ importers:
         version: 6.0.2
     devDependencies:
       '@vercel/ncc':
-        specifier: ^0.38.3
-        version: 0.38.3
+        specifier: 0.38.4
+        version: 0.38.4
 
   actions/upload-turboyet-data:
     dependencies:
@@ -157,8 +157,8 @@ importers:
         version: 0.2.4
     devDependencies:
       '@vercel/ncc':
-        specifier: ^0.36.0
-        version: 0.36.1
+        specifier: 0.38.4
+        version: 0.38.4
 
   actions/validate-docs-links:
     dependencies:
@@ -194,8 +194,8 @@ importers:
         specifier: ^1.3.0
         version: 1.3.0
       '@vercel/ncc':
-        specifier: 0.34.0
-        version: 0.34.0
+        specifier: 0.38.4
+        version: 0.38.4
       typescript:
         specifier: 5.1.6
         version: 5.1.6
@@ -469,16 +469,8 @@ packages:
     resolution: {integrity: sha512-uTKddsqVYS2GRAM/QMNNXCTuw9N742mLoGRXoNDcyECaxEXvIHG0dEY+ZnYISV4Vz534VwJO+64fd9XeSggSKw==}
     engines: {node: '>=14.6'}
 
-  '@vercel/ncc@0.34.0':
-    resolution: {integrity: sha512-G9h5ZLBJ/V57Ou9vz5hI8pda/YQX5HQszCs3AmIus3XzsmRn/0Ptic5otD3xVST8QLKk7AMk7AqpsyQGN7MZ9A==}
-    hasBin: true
-
-  '@vercel/ncc@0.36.1':
-    resolution: {integrity: sha512-S4cL7Taa9yb5qbv+6wLgiKVZ03Qfkc4jGRuiUQMQ8HGBD5pcNRnHeYM33zBvJE4/zJGjJJ8GScB+WmTsn9mORw==}
-    hasBin: true
-
-  '@vercel/ncc@0.38.3':
-    resolution: {integrity: sha512-rnK6hJBS6mwc+Bkab+PGPs9OiS0i/3kdTO+CkI8V0/VrW3vmz7O2Pxjw/owOlmo6PKEIxRSeZKv/kuL9itnpYA==}
+  '@vercel/ncc@0.38.4':
+    resolution: {integrity: sha512-8LwjnlP39s08C08J5NstzriPvW1SP8Zfpp1BvC2sI35kPeZnHfxVkCwu4/+Wodgnd60UtT1n8K8zw+Mp7J9JmQ==}
     hasBin: true
 
   '@vue/compiler-core@3.5.26':
@@ -1587,11 +1579,7 @@ snapshots:
     dependencies:
       '@upstash/redis': 1.25.1
 
-  '@vercel/ncc@0.34.0': {}
-
-  '@vercel/ncc@0.36.1': {}
-
-  '@vercel/ncc@0.38.3': {}
+  '@vercel/ncc@0.38.4': {}
 
   '@vue/compiler-core@3.5.26':
     dependencies:
