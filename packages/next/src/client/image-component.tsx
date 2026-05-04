@@ -158,9 +158,25 @@ function handleLoading(
         (heightModified && !widthModified) ||
         (!heightModified && widthModified)
       ) {
-        warnOnce(
-          `Image with src "${origSrc}" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.`
-        )
+        // Skip warning if the aspect ratio is preserved (e.g. global CSS
+        // like Tailwind's preflight sets `height: auto` on all images,
+        // which changes the rendered dimension but maintains aspect ratio).
+        // Use cross-multiplication to avoid floating point division, and
+        // allow for up to 1px rounding error per dimension.
+        const aspectRatioPreserved =
+          img.naturalWidth > 0 &&
+          img.naturalHeight > 0 &&
+          img.height > 0 &&
+          Math.abs(
+            img.width * img.naturalHeight -
+              img.height * img.naturalWidth
+          ) <=
+            img.naturalWidth + img.naturalHeight
+        if (!aspectRatioPreserved) {
+          warnOnce(
+            `Image with src "${origSrc}" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.`
+          )
+        }
       }
     }
   })

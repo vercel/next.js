@@ -47,6 +47,16 @@ const Page = () => {
           style={{ width: '50%', height: 'auto' }}
         />
       </div>
+      <div id="image-container5">
+        <Image
+          id="img5"
+          src="/super-wide.png"
+          width="200"
+          height="200"
+          loading="eager"
+          style={{ height: 'auto' }}
+        />
+      </div>
     </div>
   )
 }
