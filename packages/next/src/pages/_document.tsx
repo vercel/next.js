@@ -174,10 +174,23 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
   if (!nextScriptWorkers || process.env.NEXT_RUNTIME === 'edge') return null
 
   try {
-    // @ts-expect-error: Prevent webpack from processing this require
-    let { partytownSnippet } = __non_webpack_require__(
-      '@builder.io/partytown/integration'!
-    )
+    let partytownSnippet: () => string
+
+    try {
+      // @ts-expect-error: Prevent webpack from processing this require
+      ;({ partytownSnippet } = __non_webpack_require__(
+        '@qwik.dev/partytown/integration'
+      ))
+    } catch (err) {
+      if (!isError(err) || err.code !== 'MODULE_NOT_FOUND') {
+        throw err
+      }
+
+      // @ts-expect-error: Prevent webpack from processing this require
+      ;({ partytownSnippet } = __non_webpack_require__(
+        '@builder.io/partytown/integration'
+      ))
+    }
 
     const children = Array.isArray(props.children)
       ? props.children
