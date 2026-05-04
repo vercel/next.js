@@ -50,6 +50,11 @@ const MAX_UPPERS_FOLLOWER_PRODUCT: usize = 31;
 /// the task but do not enqueue a job. The optimization will eventually be picked up again the
 /// next time an aggregation update touches the task (see `check_optimization_pending`).
 const MAX_OPTIMIZE_QUEUE_SIZE: usize = 1000;
+/// Maximum number of optimizations executed by a single `AggregationUpdateQueue` instance
+/// over its lifetime. Once this many optimizations have been performed, any remaining
+/// `OptimizeJob`s are discarded (the `optimization_pending` flag is left set on those tasks
+/// so a future aggregation update can re-enqueue them).
+const MAX_OPTIMIZATIONS_PER_QUEUE: usize = 1000;
 #[cfg(not(feature = "trace_aggregation_update"))]
 const AGGREGATION_UPDATE_CATEGORY: TaskDataCategory = TaskDataCategory::Meta;
 #[cfg(feature = "trace_aggregation_update")]
@@ -895,6 +900,10 @@ pub struct AggregationUpdateQueue {
     balance_queue: FxRingSet<BalanceJob>,
     #[bincode(with = "turbo_bincode::ringset")]
     optimize_queue: FxRingSet<OptimizeJob>,
+    /// Number of optimizations performed by this queue instance so far. Once it reaches
+    /// `MAX_OPTIMIZATIONS_PER_QUEUE`, no further `OptimizeJob`s are enqueued or processed by
+    /// this queue (see `is_optimization_budget_exhausted`).
+    optimizations_executed: usize,
     #[bincode(skip, default = "FxHashMap::default")]
     scheduled_tasks: FxHashMap<TaskId, TaskPriority>,
     #[cfg(feature = "trace_aggregation_update_stats")]
@@ -911,6 +920,7 @@ impl AggregationUpdateQueue {
             find_and_schedule: FxRingSet::default(),
             balance_queue: FxRingSet::default(),
             optimize_queue: FxRingSet::default(),
+            optimizations_executed: 0,
             scheduled_tasks: FxHashMap::default(),
             #[cfg(feature = "trace_aggregation_update_stats")]
             stats: AggregationUpdateQueueStats::default(),
@@ -925,6 +935,7 @@ impl AggregationUpdateQueue {
             find_and_schedule,
             balance_queue,
             optimize_queue,
+            optimizations_executed: _,
             done_aggregation_number_updates: _,
             scheduled_tasks,
             #[cfg(feature = "trace_aggregation_update_stats")]
@@ -1016,16 +1027,27 @@ impl AggregationUpdateQueue {
             .extend(task_ids.into_iter().map(FindAndScheduleJob::new));
     }
 
+    /// Whether this queue has reached its lifetime budget for executed optimizations.
+    /// When true, no further `OptimizeJob`s will be enqueued or processed by this queue.
+    /// The `optimization_pending` flag is left set on the affected tasks so a subsequent
+    /// aggregation update operation will eventually pick the work up again.
+    fn is_optimization_budget_exhausted(&self) -> bool {
+        self.optimizations_executed >= MAX_OPTIMIZATIONS_PER_QUEUE
+    }
+
     /// Marks a task as needing optimization and enqueues an `OptimizeJob` for it.
     ///
-    /// The `optimization_pending` flag on the task is always set, even when the in-memory
-    /// `optimize_queue` is at its cap (`MAX_OPTIMIZE_QUEUE_SIZE`). When the queue is full the
-    /// new job is dropped; the optimization will be picked up again the next time an
-    /// aggregation update touches this task (see `check_optimization_pending`).
+    /// The `optimization_pending` flag on the task is always set, even when no job ends up
+    /// being enqueued (because the in-memory `optimize_queue` is at its cap, or because this
+    /// queue has already hit its `MAX_OPTIMIZATIONS_PER_QUEUE` budget). The optimization will
+    /// be picked up again the next time an aggregation update touches this task (see
+    /// `check_optimization_pending`).
     fn push_optimize_task(&mut self, task: &mut impl TaskGuard) {
         let task_id = task.id();
         task.set_optimization_pending(true);
-        if self.optimize_queue.len() < MAX_OPTIMIZE_QUEUE_SIZE {
+        if !self.is_optimization_budget_exhausted()
+            && self.optimize_queue.len() < MAX_OPTIMIZE_QUEUE_SIZE
+        {
             self.optimize_queue.push_back(OptimizeJob::new(task_id));
         }
     }
@@ -1039,11 +1061,16 @@ impl AggregationUpdateQueue {
     }
 
     /// If the `optimization_pending` flag is set on `task`, enqueues an `OptimizeJob` for it
-    /// (subject to the queue cap). Does *not* set the flag — that's the job of
-    /// [`Self::push_optimize_task`]. Used as a lazy recovery hook from aggregation update
-    /// handlers that already hold a task guard.
+    /// (subject to the queue cap and the per-queue budget). Does *not* set the flag — that's
+    /// the job of [`Self::push_optimize_task`]. Used as a lazy recovery hook from aggregation
+    /// update handlers that already hold a task guard.
     fn check_optimization_pending(&mut self, task: &impl TaskGuard) {
-        if task.optimization_pending() && self.optimize_queue.len() < MAX_OPTIMIZE_QUEUE_SIZE {
+        if self.is_optimization_budget_exhausted()
+            || self.optimize_queue.len() >= MAX_OPTIMIZE_QUEUE_SIZE
+        {
+            return;
+        }
+        if task.optimization_pending() {
             self.optimize_queue.push_back(OptimizeJob::new(task.id()));
         }
     }
@@ -1454,31 +1481,29 @@ impl AggregationUpdateQueue {
             }
             false
         } else if !self.optimize_queue.is_empty() {
-            // Process several optimize jobs per `process()` call (subject to the same budget
-            // as other queues). Optimization itself only schedules follow-up aggregation
-            // updates via `push(...)`, never new optimize jobs (except for `optimize_task`'s
-            // own self-re-enqueue, which goes to the back). So later iterations of `process()`
-            // will still pick up those follow-up updates ahead of the next batch of
-            // optimizations.
-            let mut remaining = MAX_COUNT_BEFORE_YIELD;
-            while remaining > 0 {
-                if let Some(OptimizeJob {
-                    task_id,
-                    #[cfg(feature = "trace_aggregation_update_queue")]
-                    span,
-                }) = self.optimize_queue.pop_front()
-                {
-                    #[cfg(feature = "trace_aggregation_update_queue")]
-                    let _guard = span.map(|s| s.entered());
-                    #[cfg(feature = "trace_aggregation_update_stats")]
-                    {
-                        self.stats.optimize_task += 1;
-                    }
-                    self.optimize_task(ctx, task_id);
-                    remaining -= 1;
-                } else {
+            // Drain the entire `optimize_queue` in a single `process()` call: it is bounded by
+            // `MAX_OPTIMIZE_QUEUE_SIZE` so this is finite. We also stop early once
+            // `MAX_OPTIMIZATIONS_PER_QUEUE` optimizations have been performed by this queue
+            // and discard whatever is left — those tasks still have `optimization_pending`
+            // set and will be re-enqueued by a later aggregation update operation.
+            while let Some(OptimizeJob {
+                task_id,
+                #[cfg(feature = "trace_aggregation_update_queue")]
+                span,
+            }) = self.optimize_queue.pop_front()
+            {
+                if self.is_optimization_budget_exhausted() {
+                    self.optimize_queue.clear();
                     break;
                 }
+                #[cfg(feature = "trace_aggregation_update_queue")]
+                let _guard = span.map(|s| s.entered());
+                #[cfg(feature = "trace_aggregation_update_stats")]
+                {
+                    self.stats.optimize_task += 1;
+                }
+                self.optimizations_executed += 1;
+                self.optimize_task(ctx, task_id);
             }
             false
         } else if !self.find_and_schedule.is_empty() {
