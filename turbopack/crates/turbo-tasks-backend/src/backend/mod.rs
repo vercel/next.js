@@ -2012,6 +2012,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             immutable = tracing::field::Empty,
             new_output = tracing::field::Empty,
             output_dependents = tracing::field::Empty,
+            aggregation_number = tracing::field::Empty,
             stale = tracing::field::Empty,
         )
         .entered();
@@ -2252,7 +2253,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         if has_children {
             // Prepare all new children
-            prepare_new_children(task_id, &mut task, &new_children, &mut queue);
+            let _aggregation_number =
+                prepare_new_children(task_id, &mut task, &new_children, &mut queue);
+
+            #[cfg(feature = "trace_task_details")]
+            span.record("aggregation_number", _aggregation_number);
 
             // Filter actual new children
             old_edges.extend(
