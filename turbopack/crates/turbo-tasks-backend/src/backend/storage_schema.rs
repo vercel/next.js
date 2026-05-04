@@ -295,13 +295,15 @@ struct TaskStorageSchema {
     // =========================================================================
     /// Cell data for all cells, regardless of serialization mode.
     ///
-    /// `CellData` is a newtype over `AutoMap<CellId, SharedReference>` whose
-    /// bincode impl filters out entries whose value type is not
-    /// `ValueTypePersistence::Persistable` at encode time (i.e. `SkipPersist`
-    /// or `SessionStateful`). Those entries stay in memory but are not
-    /// persisted — on restore the next read triggers the "cell index in range
-    /// but data missing" recompute path. `SessionStateful` value types are
-    /// identified on `ValueType::persistence` for future eviction handling.
+    /// `CellData` is a newtype over `AutoMap<CellId, SharedReference>` with
+    /// two policies driven by the value type registry:
+    ///
+    /// - **Persistence** (encode time): only entries whose value type has
+    ///   `ValueTypePersistence::Persistable` are written to disk. `Skip` and `HashOnly` entries
+    ///   stay in memory only — on restore the next read triggers the "cell index in range but data
+    ///   missing" recompute path.
+    /// - **Eviction** (`drop_partial`): entries are dropped iff their value type's `Evictability`
+    ///   is `Always`. `Expensive` and `Never` cells stay in memory across the eviction sweep.
     #[field(
         storage = "auto_map",
         category = "data",

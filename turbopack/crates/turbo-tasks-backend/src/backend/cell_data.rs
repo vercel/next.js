@@ -32,7 +32,9 @@ use turbo_bincode::{
     TurboBincodeDecode, TurboBincodeDecoder, TurboBincodeEncode, TurboBincodeEncoder,
     impl_decode_for_turbo_bincode_decode, impl_encode_for_turbo_bincode_encode,
 };
-use turbo_tasks::{CellId, SharedReference, ShrinkToFit, ValueTypePersistence, registry};
+use turbo_tasks::{
+    CellId, Evictability, SharedReference, ShrinkToFit, ValueTypePersistence, registry,
+};
 
 use crate::backend::storage_schema::{DropPartial, DropPartialOutcome};
 
@@ -50,37 +52,23 @@ impl CellData {
 }
 
 impl DropPartial for CellData {
-    /// Drop cells that can be cheaply reconstructed on next access, retain
-    /// those that cannot. Called by the macro-generated `TaskStorage::drop_partial`
+    /// Drop cells whose value type is freely evictable, retain those that
+    /// are not. Called by the macro-generated `TaskStorage::drop_partial`
     /// on the data-eviction path.
     ///
-    /// Dropped:
-    /// - `Persistable` — restored from disk.
-    /// - `SkipPersist { expensive: false, .. }` — cheap to re-derive by re-running the task.
+    /// Dropped (`Evictability::Always`): persistable cells (restored from
+    /// disk on next access), skip cells (re-derived by re-running the task),
+    /// and hash-only cells (re-derived; hash gates spurious invalidation).
     ///
     /// Retained:
-    /// - `SkipPersist { expensive: true, .. }` — expensive to re-derive.
-    /// - `SessionStateful` — would lose accumulated state if dropped.
+    /// - `Evictability::Expensive` — re-derivation is non-trivial, prefer keeping in memory.
+    /// - `Evictability::Never` — value type holds session-scoped state that must not leave memory
+    ///   (`State<>` cells, file watchers, worker pools).
     fn drop_partial(&mut self) -> DropPartialOutcome {
         self.0.retain(
-            |cell_id, _| match registry::get_value_type(cell_id.type_id).persistence {
-                ValueTypePersistence::Persistable(_, _)
-                | ValueTypePersistence::SkipPersist {
-                    expensive: false,
-                    hash_only: _,
-                } => {
-                    // these are either persisted or determined to not be worth persisting because
-                    // they are cheap to re-derive
-                    false
-                }
-                ValueTypePersistence::SkipPersist {
-                    expensive: true,
-                    hash_only: _,
-                }
-                | ValueTypePersistence::SessionStateful => {
-                    // These are either impossible to derive or expensive so we retain.
-                    true
-                }
+            |cell_id, _| match registry::get_value_type(cell_id.type_id).evictability {
+                Evictability::Always => false,
+                Evictability::Expensive | Evictability::Never => true,
             },
         );
         if self.0.is_empty() {
@@ -122,9 +110,9 @@ impl ShrinkToFit for CellData {
 
 impl TurboBincodeEncode for CellData {
     /// Writes `count-of-persistable-entries` followed by each persistable
-    /// `(CellId, encoded-value)`. Entries whose value type is `SkipPersist`
-    /// or `SessionStateful` (no bincode) are skipped; they will be
-    /// reconstructed on the next task execution after restore.
+    /// `(CellId, encoded-value)`. Entries whose value type is `Skip` or
+    /// `HashOnly` (no bincode codec) are skipped; they will be reconstructed
+    /// on the next task execution after restore.
     fn encode(&self, encoder: &mut TurboBincodeEncoder) -> Result<(), EncodeError> {
         // First pass: count persistable entries. One extra O(N) iteration over
         // the registry — cold path (snapshot time only) and the registry is a
@@ -185,15 +173,19 @@ impl_decode_for_turbo_bincode_decode!(CellData);
 
 #[cfg(test)]
 mod tests {
-    //! `drop_partial` must partition cells by their `ValueTypePersistence` —
-    //! keep the non-recoverable ones, drop the rest. Tests below declare one
-    //! value type per persistence variant and exercise every partition.
+    //! `drop_partial` must partition cells by their `Evictability` — keep
+    //! the non-evictable ones, drop the rest. Tests below cover every
+    //! `(persistence, evictability)` combination the macro currently emits,
+    //! including the `Persistable + Never` combo (e.g. `DiskFileSystem`).
     use turbo_tasks::{self as turbo_tasks, VcValueType};
 
     use super::*;
 
     #[turbo_tasks::value]
     struct PersistableV(#[allow(dead_code)] u32);
+
+    #[turbo_tasks::value(evict = "never")]
+    struct PersistableNeverV(#[allow(dead_code)] u32);
 
     #[turbo_tasks::value(serialization = "skip")]
     struct SkipCheapV(
@@ -229,16 +221,18 @@ mod tests {
     }
 
     #[test]
-    fn drop_partial_partitions_by_persistence() {
+    fn drop_partial_partitions_by_evictability() {
         let mut data = CellData::new();
         data.insert(cell_of::<PersistableV>(0), dummy_ref());
+        data.insert(cell_of::<PersistableNeverV>(0), dummy_ref());
         data.insert(cell_of::<SkipCheapV>(0), dummy_ref());
         data.insert(cell_of::<SkipExpensiveV>(0), dummy_ref());
         data.insert(cell_of::<SessionStatefulV>(0), dummy_ref());
         data.insert(cell_of::<HashOnlyV>(0), dummy_ref());
 
         assert_eq!(data.drop_partial(), DropPartialOutcome::HasResidue);
-        assert_eq!(data.len(), 2);
+        assert_eq!(data.len(), 3);
+        assert!(data.contains_key(&cell_of::<PersistableNeverV>(0)));
         assert!(data.contains_key(&cell_of::<SkipExpensiveV>(0)));
         assert!(data.contains_key(&cell_of::<SessionStatefulV>(0)));
         assert!(!data.contains_key(&cell_of::<PersistableV>(0)));
@@ -247,7 +241,7 @@ mod tests {
     }
 
     #[test]
-    fn drop_partial_fully_empties_when_all_recoverable() {
+    fn drop_partial_fully_empties_when_all_evictable() {
         let mut data = CellData::new();
         data.insert(cell_of::<PersistableV>(0), dummy_ref());
         data.insert(cell_of::<SkipCheapV>(0), dummy_ref());
@@ -258,13 +252,14 @@ mod tests {
     }
 
     #[test]
-    fn drop_partial_keeps_everything_when_all_non_recoverable() {
+    fn drop_partial_keeps_everything_when_all_non_evictable() {
         let mut data = CellData::new();
+        data.insert(cell_of::<PersistableNeverV>(0), dummy_ref());
         data.insert(cell_of::<SkipExpensiveV>(0), dummy_ref());
         data.insert(cell_of::<SessionStatefulV>(0), dummy_ref());
 
         assert_eq!(data.drop_partial(), DropPartialOutcome::HasResidue);
-        assert_eq!(data.len(), 2);
+        assert_eq!(data.len(), 3);
     }
 
     #[test]

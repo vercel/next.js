@@ -65,13 +65,7 @@ impl UpdateCellOperation {
         // cleared.)
         debug_assert!(
             content_hash.is_none()
-                || matches!(
-                    value_type.persistence,
-                    ValueTypePersistence::SkipPersist {
-                        expensive: _,
-                        hash_only: true
-                    }
-                ),
+                || matches!(value_type.persistence, ValueTypePersistence::HashOnly),
             "content_hash must only be supplied for HashOnly cells"
         );
 
@@ -118,23 +112,18 @@ impl UpdateCellOperation {
 
             // For HashOnly cells without available content, use hash-based comparison to
             // detect whether the value actually changed—avoiding unnecessary invalidation.
-            let skip_invalidation = matches!(
-                value_type.persistence,
-                ValueTypePersistence::SkipPersist {
-                    expensive: _,
-                    hash_only: true
-                }
-            ) && {
-                let has_old_content = task.cell_data_contains(&cell);
-                if !has_old_content {
-                    match (content_hash, task.get_cell_data_hash(&cell)) {
-                        (Some(new_hash), Some(old_hash)) => new_hash == *old_hash,
-                        _ => false,
+            let skip_invalidation =
+                matches!(value_type.persistence, ValueTypePersistence::HashOnly) && {
+                    let has_old_content = task.cell_data_contains(&cell);
+                    if !has_old_content {
+                        match (content_hash, task.get_cell_data_hash(&cell)) {
+                            (Some(new_hash), Some(old_hash)) => new_hash == *old_hash,
+                            _ => false,
+                        }
+                    } else {
+                        false
                     }
-                } else {
-                    false
-                }
-            };
+                };
 
             #[cfg(feature = "trace_task_dirty")]
             let has_updated_key_hashes = updated_key_hashes.is_some();
@@ -181,13 +170,7 @@ impl UpdateCellOperation {
                 let old_content = task.remove_cell_data(&cell);
 
                 // Update cell_data_hash before dropping the task lock
-                if matches!(
-                    value_type.persistence,
-                    ValueTypePersistence::SkipPersist {
-                        expensive: _,
-                        hash_only: true
-                    }
-                ) {
+                if matches!(value_type.persistence, ValueTypePersistence::HashOnly) {
                     update_cell_data_hash(&mut task, &cell, content_hash);
                 }
 
@@ -226,14 +209,8 @@ impl UpdateCellOperation {
             task.remove_cell_data(&cell)
         };
 
-        // Update cell_data_hash for non-hashonly cells.
-        if matches!(
-            value_type.persistence,
-            ValueTypePersistence::SkipPersist {
-                expensive: _,
-                hash_only: true
-            }
-        ) {
+        // Update cell_data_hash for hash-only cells.
+        if matches!(value_type.persistence, ValueTypePersistence::HashOnly) {
             update_cell_data_hash(&mut task, &cell, content_hash);
         }
 

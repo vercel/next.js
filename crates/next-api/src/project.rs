@@ -625,21 +625,17 @@ impl ProjectContainer {
                     .start_watching_with_invalidation_reason(watch.poll_interval)
                     .await?;
             } else {
-                project_fs
-                    .invalidate_with_reason(|path| invalidation::Initialize {
-                        // this path is just used for display purposes
-                        path: RcStr::from(path.to_string_lossy()),
-                    })
-                    .await?;
+                project_fs.invalidate_with_reason(|path| invalidation::Initialize {
+                    // this path is just used for display purposes
+                    path: RcStr::from(path.to_string_lossy()),
+                });
             }
             let output_fs = output_fs_operation(project)
                 .read_strongly_consistent()
                 .await?;
-            output_fs
-                .invalidate_with_reason(|path| invalidation::Initialize {
-                    path: RcStr::from(path.to_string_lossy()),
-                })
-                .await?;
+            output_fs.invalidate_with_reason(|path| invalidation::Initialize {
+                path: RcStr::from(path.to_string_lossy()),
+            });
             Ok(())
         }
         .instrument(span_clone)
@@ -774,20 +770,16 @@ impl ProjectContainer {
                         .start_watching_with_invalidation_reason(watch.poll_interval)
                         .await?;
                 } else {
-                    project_fs
-                        .invalidate_with_reason(|path| invalidation::Initialize {
-                            // this path is just used for display purposes
-                            path: RcStr::from(path.to_string_lossy()),
-                        })
-                        .await?;
+                    project_fs.invalidate_with_reason(|path| invalidation::Initialize {
+                        // this path is just used for display purposes
+                        path: RcStr::from(path.to_string_lossy()),
+                    });
                 }
             }
             if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
-                prev_output_fs
-                    .invalidate_with_reason(|path| invalidation::Initialize {
-                        path: RcStr::from(path.to_string_lossy()),
-                    })
-                    .await?;
+                prev_output_fs.invalidate_with_reason(|path| invalidation::Initialize {
+                    path: RcStr::from(path.to_string_lossy()),
+                });
             }
 
             Ok(())
