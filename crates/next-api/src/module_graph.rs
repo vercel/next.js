@@ -50,7 +50,7 @@ pub struct NextDynamicGraphs(Vec<ResolvedVc<NextDynamicGraph>>);
 
 #[turbo_tasks::value_impl]
 impl NextDynamicGraphs {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn new_operation(
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
@@ -248,7 +248,7 @@ pub struct ServerActionsGraphs(Vec<ResolvedVc<ServerActionsGraph>>);
 
 #[turbo_tasks::value_impl]
 impl ServerActionsGraphs {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn new_operation(
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
@@ -426,7 +426,7 @@ pub struct ClientReferencesGraphs(Vec<ResolvedVc<ClientReferencesGraph>>);
 
 #[turbo_tasks::value_impl]
 impl ClientReferencesGraphs {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn new_operation(
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,

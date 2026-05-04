@@ -33,7 +33,7 @@ pub struct EntrypointsOperation {
 
 /// Removes issues and effects from the top-level `entrypoints` operation so that they're not
 /// duplicated across many different individual entrypoints or routes.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
 ) -> Result<Vc<Entrypoints>> {
@@ -45,7 +45,7 @@ async fn entrypoints_without_collectibles_operation(
 
 #[turbo_tasks::value_impl]
 impl EntrypointsOperation {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub async fn new(entrypoints: OperationVc<Entrypoints>) -> Result<Vc<Self>> {
         let e = entrypoints.connect().await?;
         let entrypoints = entrypoints_without_collectibles_operation(entrypoints);
@@ -143,7 +143,7 @@ pub struct OptionEndpoint(Option<ResolvedVc<Box<dyn Endpoint>>>);
 /// Given a selector and the `Entrypoints` operation that it comes from, connect the operation and
 /// return an `OperationVc` containing the selected value. The returned operation will keep the
 /// entire `Entrypoints` operation alive.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn pick_endpoint(
     op: OperationVc<Entrypoints>,
     selector: EndpointSelector,
