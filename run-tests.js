@@ -981,7 +981,7 @@ ${ENDGROUP}`)
       if (/^test[/\\]integration/.test(test.file) && dirSema === undefined) {
         directorySemas.set(dirName, (dirSema = new Sema(1)))
       }
-      // TODO: Use explicit resource managment instead of this acquire/release pattern
+      // TODO: Use explicit resource management instead of this acquire/release pattern
       // once CI runs with Node.js 24+.
       if (dirSema) await dirSema.acquire()
       await sema.acquire()
