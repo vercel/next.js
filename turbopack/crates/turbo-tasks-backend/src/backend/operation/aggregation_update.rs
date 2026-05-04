@@ -45,6 +45,11 @@ const MAX_COUNT_BEFORE_YIELD: usize = 1000;
 /// of them per `process()` call before yielding.
 const FIND_AND_SCHEDULE_BATCH_SIZE: usize = 10000;
 const MAX_UPPERS_FOLLOWER_PRODUCT: usize = 31;
+/// Maximum number of `OptimizeJob`s held in the in-memory `optimize_queue`. When this is
+/// reached, further `push_optimize_task` calls leave the `optimization_pending` flag set on
+/// the task but do not enqueue a job. The optimization will eventually be picked up again the
+/// next time an aggregation update touches the task (see `check_optimization_pending`).
+const MAX_OPTIMIZE_QUEUE_SIZE: usize = 1000;
 #[cfg(not(feature = "trace_aggregation_update"))]
 const AGGREGATION_UPDATE_CATEGORY: TaskDataCategory = TaskDataCategory::Meta;
 #[cfg(feature = "trace_aggregation_update")]
@@ -1011,9 +1016,36 @@ impl AggregationUpdateQueue {
             .extend(task_ids.into_iter().map(FindAndScheduleJob::new));
     }
 
-    /// Pushes a job to optimize a task.
-    fn push_optimize_task(&mut self, task_id: TaskId) {
-        self.optimize_queue.push_back(OptimizeJob::new(task_id));
+    /// Marks a task as needing optimization and enqueues an `OptimizeJob` for it.
+    ///
+    /// The `optimization_pending` flag on the task is always set, even when the in-memory
+    /// `optimize_queue` is at its cap (`MAX_OPTIMIZE_QUEUE_SIZE`). When the queue is full the
+    /// new job is dropped; the optimization will be picked up again the next time an
+    /// aggregation update touches this task (see `check_optimization_pending`).
+    fn push_optimize_task(&mut self, task: &mut impl TaskGuard) {
+        let task_id = task.id();
+        task.set_optimization_pending(true);
+        if self.optimize_queue.len() < MAX_OPTIMIZE_QUEUE_SIZE {
+            self.optimize_queue.push_back(OptimizeJob::new(task_id));
+        }
+    }
+
+    /// Like [`Self::push_optimize_task`], but takes a task id instead of a guard. Opens a
+    /// `Meta`-category guard internally. Callers that already hold a guard for `task_id`
+    /// should use [`Self::push_optimize_task`] directly to avoid a double-lock.
+    fn push_optimize_task_by_id(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+        self.push_optimize_task(&mut task);
+    }
+
+    /// If the `optimization_pending` flag is set on `task`, enqueues an `OptimizeJob` for it
+    /// (subject to the queue cap). Does *not* set the flag — that's the job of
+    /// [`Self::push_optimize_task`]. Used as a lazy recovery hook from aggregation update
+    /// handlers that already hold a task guard.
+    fn check_optimization_pending(&mut self, task: &impl TaskGuard) {
+        if task.optimization_pending() && self.optimize_queue.len() < MAX_OPTIMIZE_QUEUE_SIZE {
+            self.optimize_queue.push_back(OptimizeJob::new(task.id()));
+        }
     }
 
     /// Runs the job and all dependent jobs until it's done. It can persist the operation, so
@@ -1421,22 +1453,33 @@ impl AggregationUpdateQueue {
                 }
             }
             false
-        } else if let Some(OptimizeJob {
-            task_id,
-            #[cfg(feature = "trace_aggregation_update_queue")]
-            span,
-        }) = self.optimize_queue.pop_front()
-        {
-            // Note: We must process one optimization completely before starting with the next one.
-            // Otherwise this could lead to optimizing every node of a subgraph of inner nodes, as
-            // all have the same upper count. Optimizing the root first
-            #[cfg(feature = "trace_aggregation_update_queue")]
-            let _guard = span.map(|s| s.entered());
-            #[cfg(feature = "trace_aggregation_update_stats")]
-            {
-                self.stats.optimize_task += 1;
+        } else if !self.optimize_queue.is_empty() {
+            // Process several optimize jobs per `process()` call (subject to the same budget
+            // as other queues). Optimization itself only schedules follow-up aggregation
+            // updates via `push(...)`, never new optimize jobs (except for `optimize_task`'s
+            // own self-re-enqueue, which goes to the back). So later iterations of `process()`
+            // will still pick up those follow-up updates ahead of the next batch of
+            // optimizations.
+            let mut remaining = MAX_COUNT_BEFORE_YIELD;
+            while remaining > 0 {
+                if let Some(OptimizeJob {
+                    task_id,
+                    #[cfg(feature = "trace_aggregation_update_queue")]
+                    span,
+                }) = self.optimize_queue.pop_front()
+                {
+                    #[cfg(feature = "trace_aggregation_update_queue")]
+                    let _guard = span.map(|s| s.entered());
+                    #[cfg(feature = "trace_aggregation_update_stats")]
+                    {
+                        self.stats.optimize_task += 1;
+                    }
+                    self.optimize_task(ctx, task_id);
+                    remaining -= 1;
+                } else {
+                    break;
+                }
             }
-            self.optimize_task(ctx, task_id);
             false
         } else if !self.find_and_schedule.is_empty() {
             let count = self
@@ -1487,6 +1530,8 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             AGGREGATION_UPDATE_CATEGORY,
         );
+        self.check_optimization_pending(&upper);
+        self.check_optimization_pending(&task);
         let upper_aggregation_number = get_aggregation_number(&upper);
         let task_aggregation_number = get_aggregation_number(&task);
 
@@ -1502,7 +1547,7 @@ impl AggregationUpdateQueue {
                 let _span = trace_span!("make inner").entered();
 
                 if upper.followers_len().is_power_of_two() {
-                    self.push_optimize_task(upper_id);
+                    self.push_optimize_task(&mut upper);
                 }
 
                 let upper_ids = get_uppers(&upper);
@@ -1510,7 +1555,7 @@ impl AggregationUpdateQueue {
                 // Add the same amount of upper edges
                 if task.update_upper_count(upper_id, count) {
                     if task.upper_len().is_power_of_two() {
-                        self.push_optimize_task(task_id);
+                        self.push_optimize_task(&mut task);
                     }
                     // When this is a new inner node, update aggregated data and
                     // followers
@@ -1574,7 +1619,7 @@ impl AggregationUpdateQueue {
                 if upper.update_followers_count(task_id, count) {
                     // May optimize the task
                     if upper.followers_len().is_power_of_two() {
-                        self.push_optimize_task(upper_id);
+                        self.push_optimize_task(&mut upper);
                     }
                     if ctx.should_track_activeness() {
                         // update active count
@@ -1717,6 +1762,7 @@ impl AggregationUpdateQueue {
             upper_ids.iter().copied(),
             "aggregated data update",
             |mut upper, ctx| {
+                self.check_optimization_pending(&upper);
                 let diff = update.apply(&mut upper, ctx.should_track_activeness(), self);
                 if !diff.is_empty() {
                     let upper_ids = get_uppers(&upper);
@@ -1752,6 +1798,7 @@ impl AggregationUpdateQueue {
                 // For performance reasons this should stay `Meta` and not `All`
                 AGGREGATION_UPDATE_CATEGORY,
             );
+            self.check_optimization_pending(&follower);
 
             // STEP 2
             let mut is_upper = true;
@@ -1844,7 +1891,7 @@ impl AggregationUpdateQueue {
                     // STEP 12
                     // May optimize the task
                     if upper.followers_len().is_power_of_two() {
-                        self.push_optimize_task(upper_id);
+                        self.push_optimize_task(&mut upper);
                     }
 
                     // STEP 13
@@ -1922,6 +1969,7 @@ impl AggregationUpdateQueue {
                 // For performance reasons this should stay `Meta` and not `All`
                 AGGREGATION_UPDATE_CATEGORY,
             );
+            self.check_optimization_pending(&follower);
 
             // STEP 2
             let mut removed_uppers = SmallVec::new();
@@ -2020,7 +2068,7 @@ impl AggregationUpdateQueue {
                     // STEP 12
                     // May optimize the task
                     if upper.followers_len().is_power_of_two() {
-                        self.push_optimize_task(upper_id);
+                        self.push_optimize_task(&mut upper);
                     }
 
                     // STEP 13
@@ -2112,6 +2160,7 @@ impl AggregationUpdateQueue {
                     // For performance reasons this should stay `Meta` and not `All`
                     AGGREGATION_UPDATE_CATEGORY,
                 );
+                self.check_optimization_pending(&follower);
 
                 // STEP 2
                 let mut remove_upper = false;
@@ -2208,7 +2257,7 @@ impl AggregationUpdateQueue {
                 if (followers_len + removed_followers.len()).next_power_of_two()
                     != followers_len.next_power_of_two()
                 {
-                    self.push_optimize_task(upper_id);
+                    self.push_optimize_task(&mut upper);
                 }
 
                 // STEP 13
@@ -2319,6 +2368,7 @@ impl AggregationUpdateQueue {
                     // For performance reasons this should stay `Meta` and not `All`
                     AGGREGATION_UPDATE_CATEGORY,
                 );
+                self.check_optimization_pending(&upper);
                 // decide if it should be an inner or follower
                 let upper_aggregation_number = get_aggregation_number(&upper);
 
@@ -2332,7 +2382,7 @@ impl AggregationUpdateQueue {
                         // STEP 3b
                         // May optimize the task
                         if upper.followers_len().is_power_of_two() {
-                            self.push_optimize_task(upper_id);
+                            self.push_optimize_task(&mut upper);
                         }
 
                         // STEP 3c
@@ -2428,7 +2478,7 @@ impl AggregationUpdateQueue {
                 // STEP 6b
                 let new_count = new_follower.upper_len();
                 if (new_count - added_uppers).next_power_of_two() != new_count.next_power_of_two() {
-                    self.push_optimize_task(new_follower_id);
+                    self.push_optimize_task(&mut new_follower);
                 }
 
                 // STEP 6c
@@ -2571,6 +2621,7 @@ impl AggregationUpdateQueue {
                     // For performance reasons this should stay `Meta` and not `All`
                     AGGREGATION_UPDATE_CATEGORY,
                 );
+                self.check_optimization_pending(&upper);
 
                 // decide if it should be an inner or follower
                 upper_aggregation_number = get_aggregation_number(&upper);
@@ -2590,7 +2641,7 @@ impl AggregationUpdateQueue {
                                 // STEP 3b
                                 // May optimize the task
                                 if upper.followers_len().is_power_of_two() {
-                                    self.push_optimize_task(upper_id);
+                                    self.push_optimize_task(&mut upper);
                                 }
 
                                 // STEP 3d and 3e are enqueued with this vec
@@ -2683,7 +2734,7 @@ impl AggregationUpdateQueue {
                     if new_follower.update_upper_count(upper_id, count) {
                         // STEP 6b
                         if new_follower.upper_len().is_power_of_two() {
-                            self.push_optimize_task(new_follower_id);
+                            self.push_optimize_task(&mut new_follower);
                         }
 
                         // STEP 6c
@@ -2813,6 +2864,7 @@ impl AggregationUpdateQueue {
                 // For performance reasons this should stay `Meta` and not `All`
                 AGGREGATION_UPDATE_CATEGORY,
             );
+            self.check_optimization_pending(&upper);
             // decide if it should be an inner or follower
             let upper_aggregation_number = get_aggregation_number(&upper);
 
@@ -2829,7 +2881,7 @@ impl AggregationUpdateQueue {
                     // STEP 3b
                     // May optimize the task
                     if upper.followers_len().is_power_of_two() {
-                        self.push_optimize_task(upper_id);
+                        self.push_optimize_task(&mut upper);
                     }
 
                     // STEP 3c
@@ -2894,7 +2946,7 @@ impl AggregationUpdateQueue {
                 if new_follower.update_upper_count(upper_id, count) {
                     // STEP 6b
                     if new_follower.upper_len().is_power_of_two() {
-                        self.push_optimize_task(new_follower_id);
+                        self.push_optimize_task(&mut new_follower);
                     }
 
                     // STEP 6c
@@ -2965,6 +3017,7 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             AGGREGATION_UPDATE_CATEGORY,
         );
+        self.check_optimization_pending(&task);
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_zero = state.decrement_active_counter();
@@ -3010,6 +3063,7 @@ impl AggregationUpdateQueue {
             // persistent_task_type is now set eagerly in initialize_new_task.
             AGGREGATION_UPDATE_CATEGORY,
         );
+        self.check_optimization_pending(&task);
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();
@@ -3057,6 +3111,7 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             AGGREGATION_UPDATE_CATEGORY,
         );
+        self.check_optimization_pending(&task);
         let current = task.get_aggregation_number().copied().unwrap_or_default();
         let old = current.effective;
         // The base aggregation number can only increase
@@ -3138,11 +3193,14 @@ impl AggregationUpdateQueue {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("check optimize").entered();
 
-        let task = ctx.task(
+        let mut task = ctx.task(
             task_id,
             // For performance reasons this should stay `Meta` and not `All`
             TaskDataCategory::Meta,
         );
+        // Clear the pending flag now. If the optimization changes the aggregation number we
+        // re-set it via `push_optimize_task_by_id` at the bottom of this function.
+        task.set_optimization_pending(false);
         let aggregation_number = task.get_aggregation_number().copied().unwrap_or_default();
         if is_root_node(aggregation_number.effective) {
             return;
@@ -3257,7 +3315,7 @@ impl AggregationUpdateQueue {
                 distance: None,
             });
             // We want to make sure to optimize again after this change has been applied
-            self.push_optimize_task(task_id);
+            self.push_optimize_task_by_id(ctx, task_id);
         }
     }
 
