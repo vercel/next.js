@@ -5,7 +5,7 @@ import { cacheLife } from 'next/cache'
 async function DynamicCache({ id }: { id: string }) {
   'use cache'
   cacheLife('seconds')
-  return <p>{new Date().toISOString()}</p>
+  return <p id="data">{new Date().toISOString()}</p>
 }
 
 export default function Page() {

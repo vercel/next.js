@@ -9,8 +9,6 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       files: __dirname,
       disableAutoSkewProtection: true,
       skipStart: true,
-      // Skip deployment so we can test the custom cache handlers log output
-      skipDeployment: true,
     })
 
     if (skipped) return
@@ -25,17 +23,28 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
         }
         try {
           await next.start()
-          let logs = next.getCliOutputFromHere()
+          let keyRoot: string, keyPrerender: string
 
-          const browser = await next.browser(`/`)
-          const initialData = await browser.elementById('data').text()
-          expect(initialData).toMatch(isoDateRegExp)
+          {
+            let match = next.cliOutput.match(
+              /CustomCacheHandler::get \["([A-Za-z0-9_-]+)","([0-9a-f]{2})+",\[\{"id":"dynamic-cache"\}\]\] \[\["_N_T_\/layout","_N_T_\/prerender\/layout","_N_T_\/prerender\/page","_N_T_\/prerender"\]\]/
+            )
+            expect(match).toBeDefined()
+            keyPrerender = match[0]
+          }
 
-          let match = logs().match(
-            /ModernCustomCacheHandler::get \["([A-Za-z0-9_-]+)","([0-9a-f]{2})+",\[\]\] \[ '_N_T_\/layout', '_N_T_\/page', '_N_T_\/', '_N_T_\/index' \]/
-          )
-          expect(match).toBeDefined()
-          return match[0]
+          {
+            let logs = next.getCliOutputFromHere()
+            const browser = await next.browser(`/`)
+            const initialData = await browser.elementById('data').text()
+            expect(initialData).toMatch(isoDateRegExp)
+            let match = logs().match(
+              /CustomCacheHandler::get \["([A-Za-z0-9_-]+)","([0-9a-f]{2})+",\[\]\] \[\["_N_T_\/layout","_N_T_\/page","_N_T_\/","_N_T_\/index"\]\]/
+            )
+            expect(match).toBeDefined()
+            keyRoot = match[0]
+          }
+          return { keyRoot, keyPrerender }
         } finally {
           if (envKey !== 'default') {
             delete next.env[envKey]
@@ -46,7 +55,8 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       let key1 = await execute('value-1')
       let key2 = await execute('value-2')
       // Second run should not use the same key
-      expect(key1).not.toBe(key2)
+      expect(key1.keyRoot).not.toBe(key2.keyRoot)
+      expect(key1.keyPrerender).not.toBe(key2.keyPrerender)
     })
   }
 )

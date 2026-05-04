@@ -1,12 +1,8 @@
 import { Suspense } from 'react'
-import { cacheLife, cacheTag } from 'next/cache'
 import { connection } from 'next/server'
 
 async function getData() {
   'use cache'
-
-  cacheLife({ revalidate: 6 })
-  cacheTag('modern')
 
   return new Date().toISOString()
 }
