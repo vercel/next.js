@@ -1,4 +1,7 @@
-use std::{collections::VecDeque, sync::Arc};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, OnceLock},
+};
 
 use bytes::Bytes;
 use napi::{
@@ -6,7 +9,6 @@ use napi::{
     threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
-use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 use tokio::sync::oneshot;
 use turbo_rcstr::RcStr;
@@ -16,14 +18,14 @@ use crate::worker_pool::{
     operation::{TaskMessage, WORKER_POOL_OPERATION},
 };
 
-static WORKER_CREATOR: OnceCell<ThreadsafeFunction<NapiWorkerCreation, ErrorStrategy::Fatal>> =
-    OnceCell::new();
+static WORKER_CREATOR: OnceLock<ThreadsafeFunction<NapiWorkerCreation, ErrorStrategy::Fatal>> =
+    OnceLock::new();
 
-static WORKER_TERMINATOR: OnceCell<
+static WORKER_TERMINATOR: OnceLock<
     ThreadsafeFunction<NapiWorkerTermination, ErrorStrategy::Fatal>,
-> = OnceCell::new();
+> = OnceLock::new();
 
-static PENDING_CREATIONS: OnceCell<Mutex<VecDeque<oneshot::Sender<u32>>>> = OnceCell::new();
+static PENDING_CREATIONS: OnceLock<Mutex<VecDeque<oneshot::Sender<u32>>>> = OnceLock::new();
 
 // Allow dead_code for test builds where napi exports are not entry points
 #[allow(dead_code)]

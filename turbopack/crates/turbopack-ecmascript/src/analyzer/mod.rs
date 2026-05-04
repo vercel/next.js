@@ -5,14 +5,13 @@ use std::{
     fmt::{Display, Formatter, Write},
     hash::{BuildHasherDefault, Hash, Hasher},
     mem::take,
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
 use anyhow::{Result, bail};
 use either::Either;
 use num_bigint::BigInt;
 use num_traits::identities::Zero;
-use once_cell::sync::Lazy;
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 use swc_core::{
@@ -3437,7 +3436,8 @@ pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> 
     } else {
         // https://webpack.js.org/api/module-methods/#requirecontext
         // > optional, default /^\.\/.*$/, any file
-        static DEFAULT_REGEX: Lazy<EsRegex> = Lazy::new(|| EsRegex::new(r"^\\./.*$", "").unwrap());
+        static DEFAULT_REGEX: LazyLock<EsRegex> =
+            LazyLock::new(|| EsRegex::new(r"^\\./.*$", "").unwrap());
 
         DEFAULT_REGEX.clone()
     };
