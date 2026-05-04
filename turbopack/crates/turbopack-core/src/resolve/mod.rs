@@ -3103,7 +3103,7 @@ async fn resolved(
 
         let resolved_result = resolve_import_map_result(
             &result,
-            path,
+            &path.parent(),
             original_context,
             original_request,
             options,
@@ -3282,7 +3282,7 @@ async fn resolve_package_internal_with_imports_field(
     };
 
     handle_exports_imports_field(
-        package_json_path,
+        &package_json_path.parent(),
         package_json_path,
         resolve_options,
         imports,

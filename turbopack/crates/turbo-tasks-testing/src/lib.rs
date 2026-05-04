@@ -20,7 +20,9 @@ use turbo_tasks::{
     CellId, DynTaskInputs, ExecutionId, InvalidationReason, LocalTaskId, RawVc, ReadCellOptions,
     ReadOutputOptions, StackDynTaskInputs, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi,
     TurboTasksCallApi,
-    backend::{CellContent, TaskCollectiblesMap, TypedCellContent, VerificationMode},
+    backend::{
+        CachedTaskType, CellContent, TaskCollectiblesMap, TypedCellContent, VerificationMode,
+    },
     event::{Event, EventListener},
     message_queue::CompilationEvent,
     test_helpers::with_turbo_tasks_for_testing,
@@ -55,7 +57,7 @@ impl VcStorage {
         // The executor now takes ownership of the cached task type so the future can
         // capture it and borrow `arg` for the entire execution. The testing harness doesn't
         // wire CachedTaskType through its own task store, so we build a one-shot Arc here.
-        let task = std::sync::Arc::new(turbo_tasks::backend::CachedTaskType {
+        let task = Arc::new(CachedTaskType {
             native_fn: func,
             this: this_arg,
             arg,
