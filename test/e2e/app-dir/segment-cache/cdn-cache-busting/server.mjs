@@ -13,6 +13,7 @@ const dir = dirname(fileURLToPath(import.meta.url))
 // target page.
 const proxyRedirects = {
   '/redirect-to-target-page': '/target-page',
+  '/redirect-to-runtime-target-page': '/runtime-target-page',
 }
 
 async function spawnNext(port) {
