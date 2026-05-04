@@ -1,4 +1,19 @@
+import { spawnSync } from 'child_process'
 import { nextTestSetup } from 'e2e-utils'
+
+// `process.allowedNodeEnvironmentFlags` only reflects flags accepted in
+// NODE_OPTIONS; some CLI-only flags (like --experimental-network-inspection on
+// older Node 20 releases) are accepted on the command line even when they are
+// not in that set. Probe the actual node binary to know whether the start
+// command will succeed.
+function nodeAcceptsExperimentalNetworkInspection() {
+  const result = spawnSync(
+    process.execPath,
+    ['--experimental-network-inspection', '-e', ''],
+    { stdio: 'ignore' }
+  )
+  return result.status === 0
+}
 
 describe('node-cli-args', () => {
   const { next } = nextTestSetup({
@@ -9,14 +24,10 @@ describe('node-cli-args', () => {
   })
 
   it('should start server with --experimental-network-inspection', async () => {
-    if (
-      !process.allowedNodeEnvironmentFlags.has(
-        '--experimental-network-inspection'
-      )
-    ) {
-      await expect(next.start()).rejects.toThrow()
-    } else {
+    if (nodeAcceptsExperimentalNetworkInspection()) {
       await next.start()
+    } else {
+      await expect(next.start()).rejects.toThrow()
     }
   })
 })
