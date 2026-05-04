@@ -413,7 +413,7 @@ pub mod test {
 
     use super::*;
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub fn noop_operation() -> Vc<ResolveSourceRequestResult> {
         ResolveSourceRequestResult::NotFound.cell()
     }
