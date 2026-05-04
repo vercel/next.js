@@ -147,6 +147,7 @@ export async function adapter(
     buildId = (requestURL as NextURL).buildId || ''
     requestURL.buildId = ''
   }
+  let deploymentId = process.env.NEXT_DEPLOYMENT_ID
 
   const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const isNextDataRequest = requestHeaders.has('x-nextjs-data')
@@ -326,6 +327,7 @@ export async function adapter(
               isPrefetchRequest:
                 request.headers.get(NEXT_ROUTER_PREFETCH_HEADER) === '1',
               buildId: buildId ?? '',
+              deploymentId: deploymentId ?? '',
               previouslyRevalidatedTags: [],
             })
 

@@ -3165,6 +3165,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     // @TODO move to workUnitStore of type Request
     isPrefetchRequest,
     buildId: sharedContext.buildId,
+    deploymentId: sharedContext.deploymentId,
     previouslyRevalidatedTags,
     nonce,
   })
@@ -6843,6 +6844,7 @@ async function validateInstantConfigInBuildWithSample(
 
     isPrefetchRequest: false,
     buildId: outerWorkStore.buildId,
+    deploymentId: outerWorkStore.deploymentId,
     reactLoadableManifest: outerWorkStore.reactLoadableManifest,
     assetPrefix: outerWorkStore.assetPrefix,
     nonce: outerWorkStore.nonce,

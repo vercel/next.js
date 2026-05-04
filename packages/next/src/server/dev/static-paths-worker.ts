@@ -57,6 +57,7 @@ export async function loadStaticPaths({
   cacheLifeProfiles,
   nextConfigOutput,
   buildId,
+  deploymentId,
   authInterrupts,
   useCacheTimeout,
   staticPageGenerationTimeout,
@@ -82,6 +83,7 @@ export async function loadStaticPaths({
   }
   nextConfigOutput: 'standalone' | 'export' | undefined
   buildId: string
+  deploymentId: string
   authInterrupts: boolean
   useCacheTimeout: number
   staticPageGenerationTimeout: number
@@ -154,6 +156,7 @@ export async function loadStaticPaths({
       isRoutePPREnabled,
       partialFallbacksEnabled: config.partialFallbacks,
       buildId,
+      deploymentId,
       authInterrupts,
       useCacheTimeout,
       staticPageGenerationTimeout,
