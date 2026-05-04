@@ -18,7 +18,7 @@ use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
 use bincode::{Decode, Encode};
 use either::Either;
-use futures::stream::FuturesUnordered;
+use futures::{FutureExt, stream::FuturesUnordered};
 use rustc_hash::{FxBuildHasher, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -1193,7 +1193,6 @@ struct TurboTasksExecutor;
 /// Turbtasks catches panics from user code and propagates throught the task tree, but if it happens
 /// as part of state management we have to abort
 async fn abort_on_panic<F: Future>(f: F) -> F::Output {
-    use futures::FutureExt;
     match AssertUnwindSafe(f).catch_unwind().await {
         Ok(r) => r,
         Err(_) => {

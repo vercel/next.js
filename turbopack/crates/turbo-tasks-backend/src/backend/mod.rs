@@ -165,7 +165,7 @@ struct TurboTasksBackendInner<B: BackingStorage> {
 
     /// Coordinates the operation/snapshot interleaving protocol. See
     /// [`SnapshotCoordinator`] for details.
-    snapshot_coord: SnapshotCoordinator<AnyOperation>,
+    snapshot_coord: SnapshotCoordinator,
     /// Serializes calls to `snapshot_and_persist`. The coordinator's
     /// `begin_snapshot` asserts that snapshots don't overlap; this mutex
     /// enforces that contract for our two callers (background loop and
@@ -920,8 +920,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut snapshot_phase = {
             let _span = tracing::info_span!("blocking").entered();
             self.snapshot_coord.begin_snapshot()
-            // `phase` drops here, releasing the snapshot bit and waking any
-            // operations parked on `snapshot_completed`.
         };
         // Enter snapshot mode, which atomically reads and resets the modified count.
         // Checking after start_snapshot ensures no concurrent increments can race.

@@ -19,13 +19,13 @@ use std::sync::{
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHashSet;
 
-use crate::utils::ptr_eq_arc::PtrEqArc;
+use crate::{backend::AnyOperation, utils::ptr_eq_arc::PtrEqArc};
 
 /// High bit: set while a snapshot is requested or in flight.
 /// Low bits: count of operations currently executing (not suspended).
 const SNAPSHOT_REQUESTED_BIT: usize = 1 << (usize::BITS - 1);
 
-/// State protected by the mutex. Kept tiny so critical sections stay short.
+/// State protected by the mutex.
 struct State<O> {
     /// `true` between `begin_snapshot` and `SnapshotPhase::drop`.
     snapshot_requested: bool,
@@ -41,12 +41,12 @@ struct State<O> {
 /// Generic over the operation type the caller wants to suspend. The
 /// coordinator only requires `O: Send + Sync + 'static`; it never inspects
 /// the value, just stores it via [`PtrEqArc`].
-pub struct SnapshotCoordinator<O> {
+pub struct SnapshotCoordinator<O = AnyOperation> {
     /// Combined count + bit. See [`SNAPSHOT_REQUESTED_BIT`].
     in_progress_operations: AtomicUsize,
     state: Mutex<State<O>>,
     /// Notified by the last operation to drain (count drops to `BIT` while
-    /// `BIT` is set). Awaited by [`begin_snapshot`].
+    /// `SNAPSHOT_REQUESTED_BIT` is set). Awaited by [`begin_snapshot`].
     operations_drained: Condvar,
     /// Notified by [`SnapshotPhase::drop`]. Awaited by operations that hit a
     /// suspend point or arrive while a snapshot is in flight.
@@ -137,7 +137,9 @@ impl<O> SnapshotCoordinator<O> {
                 // and acquiring the mutex. Nothing to do.
                 return;
             }
-            state.suspended_operations.insert(op.clone().into());
+            state
+                .suspended_operations
+                .insert(PtrEqArc::from(op.clone()));
             // Decrement the count so the snapshotter can drain.
             let prev = this.in_progress_operations.fetch_sub(1, Ordering::AcqRel);
             // Protocol violation if either invariant fails. Keep as a regular
@@ -155,7 +157,7 @@ impl<O> SnapshotCoordinator<O> {
                 .wait_while(&mut state, |s| s.snapshot_requested);
             // Resume: re-increment and remove ourselves from the suspended set.
             this.in_progress_operations.fetch_add(1, Ordering::AcqRel);
-            state.suspended_operations.remove(&op.into());
+            state.suspended_operations.remove(&PtrEqArc::from(op));
         }
         suspend_point_cold(self, suspend);
     }
@@ -305,7 +307,11 @@ impl<O> Drop for SnapshotPhase<'_, O> {
 #[cfg(test)]
 mod tests {
     use std::{
-        sync::{Arc, atomic::AtomicUsize},
+        sync::{
+            Arc,
+            atomic::{AtomicBool, AtomicUsize},
+            mpsc::{self, RecvTimeoutError},
+        },
         thread,
         time::Duration,
     };
@@ -314,6 +320,16 @@ mod tests {
 
     /// Trivial operation type for tests — just a u32 tag.
     type Op = u32;
+
+    /// Spin until `snapshot_pending()` returns true, yielding occasionally so
+    /// we don't starve the snapshotter thread on single-core CI. Replaces
+    /// fixed `thread::sleep` waits — those introduced both flakiness (too
+    /// short) and slowness (too long).
+    fn wait_for_snapshot_pending<O>(coord: &SnapshotCoordinator<O>) {
+        while !coord.snapshot_pending() {
+            thread::yield_now();
+        }
+    }
 
     #[test]
     fn no_snapshot_pending_initially() {
@@ -356,8 +372,10 @@ mod tests {
             }
         });
 
-        // Give the snapshotter time to set the bit and start waiting.
-        thread::sleep(Duration::from_millis(50));
+        // Wait for the snapshotter to set the bit. It can't make progress
+        // past begin_snapshot while we hold `g`, so started_snapshot must
+        // still be 0.
+        wait_for_snapshot_pending(&coord);
         assert_eq!(started_snapshot.load(Ordering::Acquire), 0);
 
         // Drop the operation — snapshotter should now proceed.
@@ -371,17 +389,29 @@ mod tests {
         let coord = Arc::new(SnapshotCoordinator::<Op>::new());
         let phase = coord.begin_snapshot();
         let started_op = Arc::new(AtomicUsize::new(0));
+        let arrived = Arc::new(AtomicUsize::new(0));
 
         let coord2 = coord.clone();
         let op_thread = thread::spawn({
             let started_op = started_op.clone();
+            let arrived = arrived.clone();
             move || {
+                arrived.store(1, Ordering::Release);
                 let _guard = coord2.begin_operation();
                 started_op.store(1, Ordering::Release);
             }
         });
 
-        thread::sleep(Duration::from_millis(50));
+        // Wait until the worker is alive and about to call begin_operation.
+        // We can't directly observe it entering begin_operation (its
+        // fetch_add is transient — it backs out and parks before we can
+        // sample), but since we hold `phase` the worker provably cannot
+        // set started_op=1 from anywhere inside begin_operation. So
+        // observing started_op==0 after the worker is running and on its
+        // way into begin_operation is a real check, not a vacuous one.
+        while arrived.load(Ordering::Acquire) == 0 {
+            thread::yield_now();
+        }
         assert_eq!(started_op.load(Ordering::Acquire), 0);
 
         drop(phase);
@@ -409,7 +439,7 @@ mod tests {
             }
         });
 
-        thread::sleep(Duration::from_millis(20));
+        wait_for_snapshot_pending(&coord);
         // Snapshotter is now waiting for our operation to drain. Calling
         // suspend_point should let it proceed.
         coord.suspend_point(|| 42u32);
@@ -420,109 +450,102 @@ mod tests {
         drop(g);
     }
 
-    /// Spawn a watchdog thread that aborts the process if the test doesn't
-    /// signal completion within the timeout. Aborting (vs. panicking) is the
-    /// only way to fail a test cleanly when its main thread is parked on a
-    /// missed-wakeup — a panic in another thread doesn't unblock a join.
-    fn spawn_watchdog(
+    /// Run `body` on a worker thread and wait up to `timeout` for it to
+    /// finish.
+    fn run_with_timeout(
         label: &'static str,
         timeout: Duration,
-    ) -> Arc<std::sync::atomic::AtomicBool> {
-        let done = Arc::new(std::sync::atomic::AtomicBool::new(false));
-
-        thread::spawn({
-            let done_watch = done.clone();
-            move || {
-                let deadline = std::time::Instant::now() + timeout;
-                while std::time::Instant::now() < deadline {
-                    if done_watch.load(Ordering::Acquire) {
-                        return;
-                    }
-                    thread::sleep(Duration::from_millis(50));
-                }
-                eprintln!(
-                    "[watchdog] {label}: timed out after {timeout:?}, missed-wakeup race likely; \
-                     aborting"
-                );
-                std::process::abort();
-            }
+        body: impl FnOnce() + Send + 'static,
+    ) {
+        let (tx, rx) = mpsc::channel::<()>();
+        let handle = thread::spawn(move || {
+            body();
+            let _ = tx.send(());
         });
-        done
+        match rx.recv_timeout(timeout) {
+            // Worker either finished normally or panicked (dropping the
+            // sender). Either way it's no longer running, so join to
+            // propagate any panic.
+            Ok(()) | Err(RecvTimeoutError::Disconnected) => {
+                handle.join().unwrap();
+            }
+            Err(RecvTimeoutError::Timeout) => {
+                panic!(
+                    "[watchdog] {label}: timed out after {timeout:?}, missed-wakeup race likely"
+                );
+            }
+        }
     }
 
     /// Targeted stress test that reproduces the parking_lot notify-all
     /// fast-path missed-wakeup race when `OperationGuard::drop` does NOT
-    /// take the state mutex. Many tiny operations and back-to-back
-    /// snapshots maximize the chance of catching a wake during the window
-    /// where the snapshotter has called `wait_while` but parking_lot's
-    /// internal `state` is still null.
+    /// take the state mutex.
     #[test]
     fn stress_no_missed_wakeups() {
-        let done = spawn_watchdog("stress_no_missed_wakeups", Duration::from_secs(60));
+        run_with_timeout("stress_no_missed_wakeups", Duration::from_secs(60), || {
+            let coord = Arc::new(SnapshotCoordinator::<Op>::new());
+            let snapshot_lock = Arc::new(Mutex::new(()));
+            let stop = Arc::new(AtomicBool::new(false));
+            let snap_count = Arc::new(AtomicUsize::new(0));
 
-        let coord = Arc::new(SnapshotCoordinator::<Op>::new());
-        let snapshot_lock = Arc::new(Mutex::new(()));
-        let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let snap_count = Arc::new(AtomicUsize::new(0));
-
-        let mut op_handles = Vec::new();
-        for _ in 0..8 {
-            let coord = coord.clone();
-            op_handles.push(thread::spawn({
-                let stop = stop.clone();
-                move || {
-                    while !stop.load(Ordering::Relaxed) {
-                        let _g = coord.begin_operation();
-                    }
-                }
-            }));
-        }
-        let mut snap_handles = Vec::new();
-        for _ in 0..2 {
-            snap_handles.push(thread::spawn({
+            let mut op_handles = Vec::new();
+            for _ in 0..8 {
                 let coord = coord.clone();
-                let snapshot_lock = snapshot_lock.clone();
+                op_handles.push(thread::spawn({
+                    let stop = stop.clone();
+                    move || {
+                        while !stop.load(Ordering::Relaxed) {
+                            let _g = coord.begin_operation();
+                        }
+                    }
+                }));
+            }
+            let mut snap_handles = Vec::new();
+            for _ in 0..2 {
+                snap_handles.push(thread::spawn({
+                    let coord = coord.clone();
+                    let snapshot_lock = snapshot_lock.clone();
+                    let snap_count = snap_count.clone();
+                    move || {
+                        for _ in 0..200 {
+                            let _ser = snapshot_lock.lock();
+                            let _phase = coord.begin_snapshot();
+                            snap_count.fetch_add(1, Ordering::Relaxed);
+                        }
+                    }
+                }));
+            }
+
+            // Progress watchdog: print snapshot count every 5s so we can see
+            // if the test is making progress or actually wedged.
+            let stop_progress = Arc::new(AtomicBool::new(false));
+
+            let progress = thread::spawn({
+                let stop_progress = stop_progress.clone();
                 let snap_count = snap_count.clone();
                 move || {
-                    for _ in 0..200 {
-                        let _ser = snapshot_lock.lock();
-                        let _phase = coord.begin_snapshot();
-                        snap_count.fetch_add(1, Ordering::Relaxed);
+                    while !stop_progress.load(Ordering::Relaxed) {
+                        thread::sleep(Duration::from_secs(1));
+                        eprintln!(
+                            "[stress] snapshots completed: {}",
+                            snap_count.load(Ordering::Relaxed),
+                        );
                     }
                 }
-            }));
-        }
+            });
 
-        // Progress watchdog: print snapshot count every 5s so we can see
-        // if the test is making progress or actually wedged.
-        let stop_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
-
-        let progress = thread::spawn({
-            let stop_progress = stop_progress.clone();
-            let snap_count = snap_count.clone();
-            move || {
-                while !stop_progress.load(Ordering::Relaxed) {
-                    thread::sleep(Duration::from_secs(1));
-                    eprintln!(
-                        "[stress] snapshots completed: {}",
-                        snap_count.load(Ordering::Relaxed),
-                    );
-                }
+            for h in snap_handles {
+                h.join().unwrap();
             }
+            stop.store(true, Ordering::Relaxed);
+            for h in op_handles {
+                h.join().unwrap();
+            }
+            stop_progress.store(true, Ordering::Relaxed);
+            let _ = progress.join();
+
+            assert_eq!(coord.in_progress_operations.load(Ordering::Acquire), 0);
         });
-
-        for h in snap_handles {
-            h.join().unwrap();
-        }
-        stop.store(true, Ordering::Relaxed);
-        for h in op_handles {
-            h.join().unwrap();
-        }
-        stop_progress.store(true, Ordering::Relaxed);
-        let _ = progress.join();
-
-        assert_eq!(coord.in_progress_operations.load(Ordering::Acquire), 0);
-        done.store(true, Ordering::Release);
     }
 
     #[test]
