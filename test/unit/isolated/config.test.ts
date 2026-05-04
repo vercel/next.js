@@ -1,6 +1,7 @@
 /* eslint-env jest */
 import { join } from 'path'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
+import { INFINITE_CACHE } from 'next/dist/lib/constants'
 
 const pathToConfig = join(__dirname, '_resolvedata', 'without-function')
 const pathToConfigFn = join(__dirname, '_resolvedata', 'with-function')
@@ -49,6 +50,41 @@ describe('config', () => {
       },
     })
     expect((config as any).customConfigKey).toBe('customConfigValue')
+  })
+
+  it('Should normalize Infinity cacheLife profile values', async () => {
+    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+      customConfig: {
+        cacheLife: {
+          infinite: {
+            stale: Infinity,
+            revalidate: Infinity,
+            expire: Infinity,
+          },
+        },
+      },
+    })
+
+    expect(config.cacheLife.infinite).toEqual({
+      stale: INFINITE_CACHE,
+      revalidate: INFINITE_CACHE,
+      expire: INFINITE_CACHE,
+    })
+    expect(JSON.stringify(config.cacheLife.infinite)).not.toContain('null')
+  })
+
+  it('Should reject negative Infinity cacheLife profile values', async () => {
+    await expect(async () => {
+      await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {
+          cacheLife: {
+            invalid: {
+              revalidate: -Infinity,
+            },
+          },
+        },
+      })
+    }).rejects.toThrow(/Invalid "cacheLife\.invalid\.revalidate" provided/)
   })
 
   it('Should assign object defaults deeply to customConfig', async () => {

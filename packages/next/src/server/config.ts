@@ -33,6 +33,7 @@ import {
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
+import { validateAndNormalizeCacheLifeProfile } from './use-cache/cache-life-profile'
 
 import type { ZodError } from 'next/dist/compiled/zod'
 import { hasNextSupport } from '../server/ci-info'
@@ -1290,6 +1291,13 @@ function assignDefaultsAndValidate(
         defaultCacheLifeProfile.expire =
           result.expireTime ?? defaultDefault.expire
       }
+    }
+
+    for (const [profileName, profile] of Object.entries(result.cacheLife)) {
+      validateAndNormalizeCacheLifeProfile(profile, {
+        kind: 'config',
+        profileName,
+      })
     }
   }
 
