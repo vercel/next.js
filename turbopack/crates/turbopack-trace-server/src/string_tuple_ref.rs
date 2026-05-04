@@ -25,5 +25,16 @@ mod string_tuple_ref_tests {
             s.hash_one(StringTupleRef("abc", "def")),
             s.hash_one(&(RcStr::from("abc"), RcStr::from("def")))
         );
+
+        assert_eq!(
+            s.hash_one(StringTupleRef(
+                "a_very_long_string_that_is_not_inlined",
+                "def"
+            )),
+            s.hash_one(&(
+                RcStr::from("a_very_long_string_that_is_not_inlined"),
+                RcStr::from("def")
+            ))
+        );
     }
 }
