@@ -214,6 +214,8 @@ function checkDeprecations(
       silent
     )
   }
+
+  moveConfigOptionsOutOfExperimental(userConfig, configFileName, silent)
 }
 
 export function warnOptionHasBeenMovedOutOfExperimental(
@@ -224,6 +226,8 @@ export function warnOptionHasBeenMovedOutOfExperimental(
   silent: boolean
 ) {
   if (config.experimental && oldExperimentalKey in config.experimental) {
+    const movedValue = (config.experimental as any)[oldExperimentalKey]
+
     if (!silent) {
       Log.warn(
         `\`experimental.${oldExperimentalKey}\` has been moved to \`${newKey}\`. ` +
@@ -238,12 +242,56 @@ export function warnOptionHasBeenMovedOutOfExperimental(
       ;(current as any)[key] = (current as any)[key] || {}
       current = (current as any)[key]
     }
-    ;(current as any)[newKeys.shift()!] = (config.experimental as any)[
-      oldExperimentalKey
-    ]
+    ;(current as any)[newKeys.shift()!] = movedValue
+
+    delete (config.experimental as any)[oldExperimentalKey]
+
+    if (Object.keys(config.experimental).length === 0) {
+      delete config.experimental
+    }
   }
 
   return config
+}
+
+const MOVED_EXPERIMENTAL_OPTIONS = [
+  ['bundlePagesExternals', 'bundlePagesRouterDependencies'],
+  ['serverComponentsExternalPackages', 'serverExternalPackages'],
+  ['relay', 'compiler.relay'],
+  ['styledComponents', 'compiler.styledComponents'],
+  ['emotion', 'compiler.emotion'],
+  ['reactRemoveProperties', 'compiler.reactRemoveProperties'],
+  ['removeConsole', 'compiler.removeConsole'],
+  ['swrDelta', 'expireTime'],
+  ['typedRoutes', 'typedRoutes'],
+  ['outputFileTracingRoot', 'outputFileTracingRoot'],
+  ['outputFileTracingIncludes', 'outputFileTracingIncludes'],
+  ['outputFileTracingExcludes', 'outputFileTracingExcludes'],
+  ['reactCompiler', 'reactCompiler'],
+  ['enablePrerenderSourceMaps', 'enablePrerenderSourceMaps'],
+  ['cacheComponents', 'cacheComponents'],
+  ['cacheLife', 'cacheLife'],
+  ['cacheHandlers', 'cacheHandlers'],
+  ['adapterPath', 'adapterPath'],
+  ['transpilePackages', 'transpilePackages'],
+  ['skipMiddlewareUrlNormalize', 'skipMiddlewareUrlNormalize'],
+  ['skipTrailingSlashRedirect', 'skipTrailingSlashRedirect'],
+] as const
+
+function moveConfigOptionsOutOfExperimental(
+  config: NextConfig,
+  configFileName: string,
+  silent: boolean
+) {
+  for (const [oldExperimentalKey, newKey] of MOVED_EXPERIMENTAL_OPTIONS) {
+    warnOptionHasBeenMovedOutOfExperimental(
+      config,
+      oldExperimentalKey,
+      newKey,
+      configFileName,
+      silent
+    )
+  }
 }
 
 function warnCustomizedOption(
@@ -702,132 +750,7 @@ function assignDefaultsAndValidate(
     silent
   )
 
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'bundlePagesExternals',
-    'bundlePagesRouterDependencies',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'serverComponentsExternalPackages',
-    'serverExternalPackages',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'relay',
-    'compiler.relay',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'styledComponents',
-    'compiler.styledComponents',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'emotion',
-    'compiler.emotion',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'reactRemoveProperties',
-    'compiler.reactRemoveProperties',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'removeConsole',
-    'compiler.removeConsole',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'swrDelta',
-    'expireTime',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'typedRoutes',
-    'typedRoutes',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'outputFileTracingRoot',
-    'outputFileTracingRoot',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'outputFileTracingIncludes',
-    'outputFileTracingIncludes',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'outputFileTracingExcludes',
-    'outputFileTracingExcludes',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'reactCompiler',
-    'reactCompiler',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'enablePrerenderSourceMaps',
-    'enablePrerenderSourceMaps',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'cacheComponents',
-    'cacheComponents',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'cacheLife',
-    'cacheLife',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'cacheHandlers',
-    'cacheHandlers',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'adapterPath',
-    'adapterPath',
-    configFileName,
-    silent
-  )
+  moveConfigOptionsOutOfExperimental(result, configFileName, silent)
 
   if ((result.experimental as any).outputStandalone) {
     if (!silent) {
@@ -968,28 +891,6 @@ function assignDefaultsAndValidate(
     // Store the normalized value as a number
     result.experimental.proxyClientMaxBodySize = normalizedValue
   }
-
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'transpilePackages',
-    'transpilePackages',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'skipMiddlewareUrlNormalize',
-    'skipMiddlewareUrlNormalize',
-    configFileName,
-    silent
-  )
-  warnOptionHasBeenMovedOutOfExperimental(
-    result,
-    'skipTrailingSlashRedirect',
-    'skipTrailingSlashRedirect',
-    configFileName,
-    silent
-  )
 
   if (
     result?.outputFileTracingRoot &&

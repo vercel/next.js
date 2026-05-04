@@ -92,7 +92,7 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
       false
     )
 
-    expect(config.experimental.skipTrailingSlashRedirect).toBe(true)
+    expect(config.experimental).toBeUndefined()
     expect(config.skipTrailingSlashRedirect).toBe(true)
   })
 
@@ -110,7 +110,7 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
       false
     )
 
-    expect(config.experimental.foo).toBe('bar')
+    expect(config.experimental).toBeUndefined()
     expect(config.deep.prop.baz).toBe('bar')
   })
 

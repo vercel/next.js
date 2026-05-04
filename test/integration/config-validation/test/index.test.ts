@@ -70,6 +70,32 @@ describe('next.config.js validation', () => {
         }
       )
 
+      it('should avoid duplicate unknown-key warnings for moved experimental options', async () => {
+        const configContent = `
+        module.exports = {
+          experimental: {
+            bundlePagesExternals: true,
+          },
+        }
+      `
+
+        await fs.writeFile(nextConfigPath, configContent)
+        const result = await nextBuild(path.join(__dirname, '../'), undefined, {
+          stderr: true,
+          stdout: true,
+        })
+        await fs.remove(nextConfigPath)
+
+        const cliOutput = result.stdout + result.stderr
+
+        expect(cliOutput).toContain(
+          '`experimental.bundlePagesExternals` has been moved to `bundlePagesRouterDependencies`'
+        )
+        expect(cliOutput).not.toContain(
+          `Unrecognized key(s) in object: 'bundlePagesExternals' at "experimental"`
+        )
+      })
+
       it('should allow undefined environment variables', async () => {
         const configContent = `
         module.exports = {
