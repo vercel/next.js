@@ -12,15 +12,15 @@ impl<'a> Equivalent<(RcStr, RcStr)> for StringTupleRef<'a> {
 
 #[cfg(test)]
 mod string_tuple_ref_tests {
-    use std::hash::RandomState;
+    use std::hash::BuildHasher;
+
+    use rustc_hash::FxBuildHasher;
 
     use super::*;
 
     #[test]
     fn test_string_tuple_ref_hash() {
-        use std::hash::BuildHasher;
-
-        let s = RandomState::new();
+        let s = FxBuildHasher::default();
         assert_eq!(
             s.hash_one(StringTupleRef("abc", "def")),
             s.hash_one(&(RcStr::from("abc"), RcStr::from("def")))
