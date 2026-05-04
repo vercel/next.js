@@ -254,7 +254,8 @@ async function exportPageImpl(
       fileWriter,
       commonRenderOpts.cacheComponents,
       commonRenderOpts.experimental,
-      buildId
+      buildId,
+      deploymentId
     )
   }
 
