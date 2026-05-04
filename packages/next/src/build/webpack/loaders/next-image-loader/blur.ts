@@ -65,19 +65,21 @@ export async function getBlurImage(
       blurDataURL = url.href.slice(prefix.length)
     } else {
       const resizeImageSpan = tracing('image-resize')
+      // Use webp placeholder since its fewer bytes and faster to encode
+      const blurContentType = 'image/webp'
       const resizedImage = await resizeImageSpan.traceAsyncFn(() =>
         optimizeImage({
           buffer: content,
           width: blurWidth,
           height: blurHeight,
-          contentType: `image/${extension}`,
+          contentType: blurContentType,
           quality: BLUR_QUALITY,
         })
       )
       const blurDataURLSpan = tracing('image-base64-tostring')
       blurDataURL = blurDataURLSpan.traceFn(
         () =>
-          `data:image/${extension};base64,${resizedImage.toString('base64')}`
+          `data:${blurContentType};base64,${resizedImage.toString('base64')}`
       )
     }
   }
