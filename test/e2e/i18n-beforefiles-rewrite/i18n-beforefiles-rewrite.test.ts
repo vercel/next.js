@@ -1,8 +1,10 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 import fs from 'fs'
 import path from 'path'
 
-describe('i18n-beforefiles-rewrite', () => {
+// This test inspects build artifacts in `.next/server/pages` that are not
+// produced in dev mode.
+;(isNextDev ? describe.skip : describe)('i18n-beforefiles-rewrite', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
