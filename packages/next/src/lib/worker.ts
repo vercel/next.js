@@ -1,4 +1,5 @@
 import type { ChildProcess } from 'child_process'
+import type { Worker as WorkerThread } from 'worker_threads'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Transform } from 'stream'
 import {
@@ -193,6 +194,54 @@ export class Worker {
               typeof data === 'object' &&
               'type' in data &&
               data.type === 'activity'
+            ) {
+              onActivityImpl()
+            }
+          })
+        }
+      } else {
+        for (const worker of ((this._worker as any)._workerPool?._workers ||
+          []) as {
+          _worker?: WorkerThread
+        }[]) {
+          // Capture the current thread handle at registration time.
+          // After jest-worker restarts a failed thread, worker._worker is
+          // updated to the new thread, so we must hold the old reference here.
+          const thread = worker._worker
+          thread?.on('exit', (code) => {
+            if (code && code !== 0 && this._worker) {
+              logger.error(
+                `Next.js build worker exited with code: ${code} and signal: null`
+              )
+
+              // Worker thread stderr is delivered via a MessageChannel and may
+              // still be draining when the 'exit' event fires. Wait for the thread's
+              // own stderr stream to end before calling process.exit(), so all
+              // buffered output is written to process.stderr first.
+              const exitCode = code ?? 1
+              const threadStderr = thread.stderr
+              if (threadStderr && !threadStderr.destroyed) {
+                threadStderr.once('end', () => {
+                  process.exit(exitCode)
+                })
+                threadStderr.once('error', () => {
+                  process.exit(exitCode)
+                })
+              } else {
+                process.exit(exitCode)
+              }
+            }
+          })
+
+          // if a worker thread emits a custom message (type 3 = PARENT_MESSAGE_CUSTOM),
+          // track activity so the parent process can keep track of progress
+          worker._worker?.on('message', ([type, data]: [number, unknown]) => {
+            if (
+              type === 3 && // PARENT_MESSAGE_CUSTOM
+              data &&
+              typeof data === 'object' &&
+              'type' in data &&
+              (data as any).type === 'activity'
             ) {
               onActivityImpl()
             }

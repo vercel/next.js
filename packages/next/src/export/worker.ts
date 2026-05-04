@@ -489,6 +489,14 @@ export async function exportPages(
             console.error(
               `Export encountered an error on ${pageKey}, exiting the build.`
             )
+            // Drain stderr before exiting to ensure all buffered writes
+            // (including the error messages above) are flushed to the parent
+            // process. Without this, the WritableWorkerStdio back-pressure
+            // mechanism may not have transmitted all pending data before the
+            // worker thread exits.
+            await new Promise<void>((resolve) =>
+              process.stderr.write('', () => resolve())
+            )
             process.exit(1)
           } else {
             // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
@@ -606,8 +614,15 @@ async function exportPage(
     return { error: true, duration: Date.now() - start }
   }
 
-  // Notify the parent process that we processed a page (used by the progress activity indicator)
-  process.send?.([3, { type: 'activity' }])
+  // Notify the parent process that we processed a page (used by the progress activity indicator).
+  // In child process mode, use IPC (process.send). In worker thread mode, use parentPort.
+  if (process.send) {
+    process.send([3, { type: 'activity' }])
+  } else {
+    ;(
+      require('worker_threads') as typeof import('worker_threads')
+    ).parentPort?.postMessage([3, { type: 'activity' }])
+  }
 
   // Otherwise we can return the result.
   return {
@@ -646,7 +661,12 @@ process.on('uncaughtException', (err) => {
       'A Next.js API that uses exceptions to signal framework behavior was uncaught. This suggests improper usage of a Next.js API. The original error is printed below and the build will now exit.'
     )
     console.error(err)
-    process.exit(FATAL_UNHANDLED_NEXT_API_EXIT_CODE)
+    // Drain stderr before exiting so all buffered console.error writes above
+    // are fully transmitted through the WritableWorkerStdio back-pressure
+    // mechanism before the worker thread exits.
+    process.stderr.write('', () => {
+      process.exit(FATAL_UNHANDLED_NEXT_API_EXIT_CODE)
+    })
   } else {
     console.error(err)
   }

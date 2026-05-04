@@ -88,35 +88,35 @@ describe('Config Experimental Warning', () => {
     configFile.write(`
       module.exports = {
         experimental: {
-          workerThreads: true
+          workerThreads: false
         }
       }
     `)
 
     const stdout = await collectStdoutFromDev(appDir)
     expect(stdout).toMatch(experimentalHeader)
-    expect(stdout).toMatch(' ✓ workerThreads')
+    expect(stdout).toMatch(' ⨯ workerThreads')
   })
 
   it('should show warning with config from function with experimental', async () => {
     configFile.write(`
       module.exports = (phase) => ({
         experimental: {
-          workerThreads: true
+          workerThreads: false
         }
       })
     `)
 
     const stdout = await collectStdoutFromDev(appDir)
     expect(stdout).toMatch(experimentalHeader)
-    expect(stdout).toMatch(' ✓ workerThreads')
+    expect(stdout).toMatch(' ⨯ workerThreads')
   })
 
   it('should not show warning with default value', async () => {
     configFile.write(`
       module.exports = (phase) => ({
         experimental: {
-          workerThreads: false,
+          workerThreads: true,
           // We enable this by default in CI
           strictRouteTypes: false,
         }
@@ -175,7 +175,7 @@ describe('Config Experimental Warning', () => {
     configFile.write(`
       module.exports = {
         experimental: {
-          workerThreads: true,
+          workerThreads: false,
           scrollRestoration: true,
         }
       }
@@ -183,7 +183,7 @@ describe('Config Experimental Warning', () => {
 
     const stdout = await collectStdoutFromDev(appDir)
     expect(stdout).toContain(experimentalHeader)
-    expect(stdout).toContain(' ✓ workerThreads')
+    expect(stdout).toContain(' ⨯ workerThreads')
     expect(stdout).toContain(' ✓ scrollRestoration')
   })
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -193,7 +193,6 @@ describe('Config Experimental Warning', () => {
         configFile.write(`
         module.exports = {
           experimental: {
-            workerThreads: true,
             scrollRestoration: true,
             parallelServerCompiles: true,
             cpus: 2,
@@ -216,7 +215,7 @@ describe('Config Experimental Warning', () => {
         configFile.write(`
         module.exports = {
           experimental: {
-            workerThreads: true,
+            workerThreads: false,
             scrollRestoration: true,
             parallelServerCompiles: true,
             prerenderEarlyExit: false,
@@ -227,7 +226,7 @@ describe('Config Experimental Warning', () => {
         const stdout = await collectStdoutFromBuild(appDir)
         expect(stdout).toMatch(experimentalHeader)
         expect(stdout).toMatch(' · cpus: 2')
-        expect(stdout).toMatch(' ✓ workerThreads')
+        expect(stdout).toMatch(' ⨯ workerThreads')
         expect(stdout).toMatch(' ✓ scrollRestoration')
         expect(stdout).toMatch(' ⨯ prerenderEarlyExit')
         expect(stdout).toMatch(' ✓ parallelServerCompiles')

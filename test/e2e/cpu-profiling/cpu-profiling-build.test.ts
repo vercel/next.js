@@ -35,14 +35,17 @@ describe('CPU Profiling - next build', () => {
     expect(cpuProfiles.some((f) => f.startsWith('build-main-'))).toBe(true)
 
     if (isTurbopack) {
-      // Turbopack mode generates: build-main, build-turbopack
-      expect(cpuProfiles.length).toBe(2)
+      // Turbopack mode generates: build-main, build-turbopack, build-static-worker
+      expect(cpuProfiles.length).toBe(3)
       expect(cpuProfiles.some((f) => f.startsWith('build-turbopack-'))).toBe(
         true
       )
+      expect(
+        cpuProfiles.some((f) => f.startsWith('build-static-worker-'))
+      ).toBe(true)
     } else {
-      // Webpack mode generates: build-main, build-webpack-client, build-webpack-server, build-webpack-edge-server
-      expect(cpuProfiles.length).toBe(4)
+      // Webpack mode generates: build-main, build-webpack-client, build-webpack-server, build-webpack-edge-server, build-static-worker
+      expect(cpuProfiles.length).toBe(5)
       expect(
         cpuProfiles.some((f) => f.startsWith('build-webpack-client-'))
       ).toBe(true)
@@ -51,6 +54,9 @@ describe('CPU Profiling - next build', () => {
       ).toBe(true)
       expect(
         cpuProfiles.some((f) => f.startsWith('build-webpack-edge-server-'))
+      ).toBe(true)
+      expect(
+        cpuProfiles.some((f) => f.startsWith('build-static-worker-'))
       ).toBe(true)
     }
   })
