@@ -1253,7 +1253,13 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                     wait_for_local_tasks().await;
 
                                     let result = match result {
-                                        Ok(Ok(raw_vc)) => Ok(raw_vc),
+                                        Ok(Ok(raw_vc)) => {
+                                            // This is safe because we waited for all local tasks to
+                                            // complete above
+                                            raw_vc
+                                                .to_non_local_unchecked_sync(&*this)
+                                                .map_err(|err| err.into())
+                                        }
                                         Ok(Err(err)) => Err(err.into()),
                                         Err(err) => {
                                             Err(TurboTasksExecutionError::Panic(Arc::new(err)))
@@ -1724,6 +1730,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
 }
 
 async fn wait_for_local_tasks() {
+    // This needs to be a while loop in case one local task completing/exeucting triggers another.
     while let Some(mut ltt) =
         CURRENT_TASK_STATE.with(|ts| ts.write().unwrap().local_task_tracker.take())
     {
