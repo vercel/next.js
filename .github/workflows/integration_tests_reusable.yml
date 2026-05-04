@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       name:
-        description: A unique identifer used for uploaded assets
+        description: A unique identifier used for uploaded assets
         type: string
       test_type:
         description: '"development" or "production"'
