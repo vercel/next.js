@@ -14,11 +14,14 @@ async function main() {
   const argv = await yargs(process.argv.slice(2))
     .string('mode')
     .string('group')
+    .string('preview-builds-base-url')
     .boolean('flake-detection').argv
 
   const testMode = argv.mode
   const isFlakeDetectionMode = argv['flake-detection']
   const attempts = isFlakeDetectionMode ? 3 : 1
+  const previewBuildsBaseUrl =
+    argv['preview-builds-base-url'] || 'https://vercel-packages.vercel.app/next'
 
   if (testMode && !['dev', 'deploy', 'start'].includes(testMode)) {
     throw new Error(
@@ -92,7 +95,7 @@ async function main() {
   // PR number endpoint (which resolves the PR to a SHA on every request).
   const nextTestVersion =
     testMode === 'deploy'
-      ? `https://vercel-packages.vercel.app/next/commits/${commitSha}/next`
+      ? `${previewBuildsBaseUrl}/commits/${commitSha}/next`
       : undefined
 
   if (nextTestVersion) {
