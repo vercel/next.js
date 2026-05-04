@@ -2,7 +2,7 @@
 import { join } from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
-import escapeRegex from 'escape-string-regexp'
+import escapeRegex from 'tiny-escape'
 import {
   nextBuild,
   File,

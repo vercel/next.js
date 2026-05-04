@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import escapeStringRegexp from 'escape-string-regexp'
+import escapeStringRegexp from 'tiny-escape'
 import {
   getRedboxDescription,
   getRedboxSource,

@@ -189,7 +189,7 @@
     "cross-spawn": "6.0.5",
     "dd-trace": "4.12.0",
     "es5-ext": "0.10.53",
-    "escape-string-regexp": "2.0.0",
+    "tiny-escape": "^1.1.0",
     "eslint": "9.37.0",
     "eslint-config-next": "workspace:*",
     "eslint-formatter-codeframe": "7.32.1",

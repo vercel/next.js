@@ -2,7 +2,7 @@ import fs from 'fs-extra'
 import cookie from 'cookie'
 import cheerio from 'cheerio'
 import { join, sep } from 'path'
-import escapeRegex from 'escape-string-regexp'
+import escapeRegex from 'tiny-escape'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {

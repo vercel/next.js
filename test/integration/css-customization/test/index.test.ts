@@ -3,7 +3,7 @@
 import { join } from 'path'
 import { readdir, readFile, remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
-import escapeStringRegexp from 'escape-string-regexp'
+import escapeStringRegexp from 'tiny-escape'
 
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
 const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/

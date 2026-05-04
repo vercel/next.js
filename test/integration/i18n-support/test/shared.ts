@@ -5,7 +5,7 @@ import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import escapeRegex from 'escape-string-regexp'
+import escapeRegex from 'tiny-escape'
 import assert from 'assert'
 import {
   fetchViaHTTP,
