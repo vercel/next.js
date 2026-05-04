@@ -1,11 +1,14 @@
-use std::mem::take;
+use std::{mem::take, path::PathBuf};
 
 use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueDefault, Vc, fxindexset};
-use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath, FileSystemPathOption};
+use turbo_tasks_fs::{
+    DiskFileSystem, FileContent, FileJsonContent, FileSystem, FileSystemPath, FileSystemPathOption,
+    to_sys_path,
+};
 use turbopack_core::{
     asset::Asset,
     context::AssetContext,
@@ -191,7 +194,72 @@ async fn resolve_extends_rooted_or_relative(
         )
         .first_source();
     }
-    Ok(result)
+    if result.await?.is_some() {
+        return Ok(result);
+    }
+
+    // TypeScript resolves `extends` against the OS filesystem with no sandboxing
+    // (https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3294-L3326).
+    // When the joined path leaves the project filesystem (e.g. monorepo
+    // `extends: "../tsconfig.base.json"` where the project root is the inner
+    // workspace directory), the project-FS-bound `resolve()` cannot represent it,
+    // so fall back to mounting a disk-rooted filesystem at the resolved file's
+    // parent directory.
+    resolve_extends_via_disk(lookup_path, path).await
+}
+
+async fn resolve_extends_via_disk(
+    lookup_path: FileSystemPath,
+    path: &str,
+) -> Result<Vc<OptionSource>> {
+    let Some(lookup_sys) = to_sys_path(lookup_path).await? else {
+        return Ok(Vc::cell(None));
+    };
+    let candidates: Vec<PathBuf> = if path.ends_with(".json") {
+        vec![normalize_pathbuf(&lookup_sys.join(path))]
+    } else {
+        vec![
+            normalize_pathbuf(&lookup_sys.join(format!("{path}.json"))),
+            normalize_pathbuf(&lookup_sys.join(path)),
+        ]
+    };
+
+    for absolute in candidates {
+        let Some(parent) = absolute.parent() else {
+            continue;
+        };
+        let Some(file_name) = absolute.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if file_name.is_empty() {
+            continue;
+        }
+        let parent_str: RcStr = parent.to_string_lossy().into_owned().into();
+        let fs = DiskFileSystem::new(rcstr!("tsconfig-extends"), Vc::cell(parent_str));
+        let candidate_path = fs.root().owned().await?.join(file_name)?;
+        if let FileContent::Content(_) = &*candidate_path.read().await? {
+            let source: ResolvedVc<Box<dyn Source>> =
+                ResolvedVc::upcast(FileSource::new(candidate_path).to_resolved().await?);
+            return Ok(Vc::cell(Some(source)));
+        }
+    }
+    Ok(Vc::cell(None))
+}
+
+/// Normalizes a path by resolving `.` and `..` components purely lexically.
+fn normalize_pathbuf(p: &std::path::Path) -> PathBuf {
+    use std::path::Component;
+    let mut result = PathBuf::new();
+    for component in p.components() {
+        match component {
+            Component::ParentDir => {
+                result.pop();
+            }
+            Component::CurDir => {}
+            other => result.push(other),
+        }
+    }
+    result
 }
 
 pub async fn read_from_tsconfigs<T>(
