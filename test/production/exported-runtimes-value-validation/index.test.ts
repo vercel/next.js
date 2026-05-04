@@ -51,7 +51,7 @@ describe('Exported runtimes value validation', () => {
 
       expect(result.stderr).toEqual(
         expect.stringContaining(
-          'Unknown identifier "dynamicPath" at "config.matcher[1]"'
+          'Unsupported call expression at "config.matcher[1]"'
         )
       )
     }
@@ -88,7 +88,7 @@ describe('Exported runtimes value validation', () => {
       )
       expect(result.stderr).toEqual(
         expect.stringContaining(
-          'Unsupported template literal with expressions at "config.runtime".'
+          'Unsupported node type "BinaryExpression" at "config.runtime".'
         )
       )
     }

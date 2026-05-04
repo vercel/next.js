@@ -1,9 +1,11 @@
 import type {
   ArrayExpression,
   BooleanLiteral,
+  CallExpression,
   ExportDeclaration,
   Identifier,
   KeyValueProperty,
+  MemberExpression,
   Module,
   Node,
   NullLiteral,
@@ -83,6 +85,14 @@ function isTsSatisfiesExpression(node: Node): node is TsSatisfiesExpression {
   return node.type === 'TsSatisfiesExpression'
 }
 
+function isCallExpression(node: Node): node is CallExpression {
+  return node.type === 'CallExpression'
+}
+
+function isMemberExpression(node: Node): node is MemberExpression {
+  return node.type === 'MemberExpression'
+}
+
 export type ExtractValueResult =
   | { value: any }
   | { unsupported: string; path?: string }
@@ -105,7 +115,58 @@ function formatCodePath(paths?: string[]): string | undefined {
   return codePath
 }
 
-function extractValue(node: Node, path?: string[]): ExtractValueResult {
+/**
+ * Collects module-level const declarations into a scope map for identifier resolution.
+ * Only const declarations are collected since let/var could be reassigned.
+ */
+function buildModuleScope(module: Module): Map<string, Node> {
+  const scope = new Map<string, Node>()
+  for (const item of module.body) {
+    let declaration: Node | undefined
+    if (isExportDeclaration(item)) {
+      declaration = item.declaration
+    } else if ((item as Node).type === 'VariableDeclaration') {
+      declaration = item as VariableDeclaration
+    }
+
+    if (!declaration || !isVariableDeclaration(declaration)) continue
+    if (declaration.kind !== 'const') continue
+
+    for (const decl of declaration.declarations) {
+      if (isIdentifier(decl.id) && decl.init) {
+        scope.set(decl.id.value, decl.init)
+      }
+    }
+  }
+  return scope
+}
+
+/**
+ * Evaluates a safe method call on a resolved value.
+ * Only a limited set of side-effect-free methods are supported.
+ */
+function evaluateMethodCall(
+  obj: any,
+  methodName: string,
+  args: any[],
+  path?: string[]
+): ExtractValueResult {
+  if (Array.isArray(obj) && methodName === 'join') {
+    return { value: obj.join(args[0]) }
+  }
+
+  return {
+    unsupported: `Unsupported method call ".${methodName}()"`,
+    path: formatCodePath(path),
+  }
+}
+
+function extractValue(
+  node: Node,
+  path?: string[],
+  scope?: Map<string, Node>,
+  resolving?: Set<string>
+): ExtractValueResult {
   if (isNullLiteral(node)) {
     return { value: null }
   } else if (isBooleanLiteral(node)) {
@@ -124,11 +185,28 @@ function extractValue(node: Node, path?: string[]): ExtractValueResult {
     switch (node.value) {
       case 'undefined':
         return { value: undefined }
-      default:
+      default: {
+        // Try to resolve from module-level const declarations
+        if (scope) {
+          const init = scope.get(node.value)
+          if (init) {
+            // Guard against circular references (e.g. const a = b; const b = a;)
+            const visited = resolving ?? new Set<string>()
+            if (visited.has(node.value)) {
+              return {
+                unsupported: `Circular reference in identifier "${node.value}"`,
+                path: formatCodePath(path),
+              }
+            }
+            visited.add(node.value)
+            return extractValue(init, path, scope, visited)
+          }
+        }
         return {
           unsupported: `Unknown identifier "${node.value}"`,
           path: formatCodePath(path),
         }
+      }
     }
   } else if (isArrayExpression(node)) {
     // e.g. [1, 2, 3]
@@ -146,7 +224,8 @@ function extractValue(node: Node, path?: string[]): ExtractValueResult {
 
         const result = extractValue(
           elem.expression,
-          path && [...path, `[${i}]`]
+          path && [...path, `[${i}]`],
+          scope
         )
         if ('unsupported' in result) return result
         arr.push(result.value)
@@ -183,41 +262,91 @@ function extractValue(node: Node, path?: string[]): ExtractValueResult {
         }
       }
 
-      const result = extractValue(prop.value, path && [...path, key])
+      const result = extractValue(prop.value, path && [...path, key], scope)
       if ('unsupported' in result) return result
       obj[key] = result.value
     }
 
     return { value: obj }
   } else if (isTemplateLiteral(node)) {
-    // e.g. `abc`
-    if (node.expressions.length !== 0) {
-      // TODO: should we add support for `${'e'}d${'g'}'e'`?
+    // e.g. `abc` or `/${locale}/:path*`
+    if (node.expressions.length === 0) {
+      // When TemplateLiteral has 0 expressions, the length of quasis is always 1.
+      // Because when parsing TemplateLiteral, the parser yields the first quasi,
+      // then the first expression, then the next quasi, then the next expression, etc.,
+      // until the last quasi.
+      // Thus if there is no expression, the parser ends at the frst and also last quasis
+      //
+      // A "cooked" interpretation where backslashes have special meaning, while a
+      // "raw" interpretation where backslashes do not have special meaning
+      // https://exploringjs.com/impatient-js/ch_template-literals.html#template-strings-cooked-vs-raw
+      const [{ cooked, raw }] = node.quasis
+      return { value: cooked ?? raw }
+    }
+
+    // Evaluate each expression and concatenate with quasis
+    // e.g. `/(${locales.join("|")})/:path*` → "/(en|de)/:path*"
+    let result = ''
+    for (let i = 0; i < node.quasis.length; i++) {
+      const { cooked, raw } = node.quasis[i]
+      result += cooked ?? raw
+
+      if (i < node.expressions.length) {
+        const exprResult = extractValue(
+          node.expressions[i],
+          path,
+          scope,
+          resolving
+        )
+        if ('unsupported' in exprResult) return exprResult
+        result += String(exprResult.value)
+      }
+    }
+    return { value: result }
+  } else if (isCallExpression(node)) {
+    // e.g. locales.join("|")
+    if (!isMemberExpression(node.callee)) {
       return {
-        unsupported: 'Unsupported template literal with expressions',
+        unsupported: 'Unsupported call expression',
         path: formatCodePath(path),
       }
     }
 
-    // When TemplateLiteral has 0 expressions, the length of quasis is always 1.
-    // Because when parsing TemplateLiteral, the parser yields the first quasi,
-    // then the first expression, then the next quasi, then the next expression, etc.,
-    // until the last quasi.
-    // Thus if there is no expression, the parser ends at the frst and also last quasis
-    //
-    // A "cooked" interpretation where backslashes have special meaning, while a
-    // "raw" interpretation where backslashes do not have special meaning
-    // https://exploringjs.com/impatient-js/ch_template-literals.html#template-strings-cooked-vs-raw
-    const [{ cooked, raw }] = node.quasis
+    const objResult = extractValue(node.callee.object, path, scope, resolving)
+    if ('unsupported' in objResult) return objResult
 
-    return { value: cooked ?? raw }
+    let methodName: string | undefined
+    if (isIdentifier(node.callee.property)) {
+      methodName = node.callee.property.value
+    } else {
+      return {
+        unsupported: 'Unsupported computed method call',
+        path: formatCodePath(path),
+      }
+    }
+
+    // Evaluate arguments
+    const args: any[] = []
+    for (const arg of node.arguments) {
+      if (arg.spread) {
+        return {
+          unsupported: 'Unsupported spread operator in call arguments',
+          path: formatCodePath(path),
+        }
+      }
+      const argResult = extractValue(arg.expression, path, scope, resolving)
+      if ('unsupported' in argResult) return argResult
+      args.push(argResult.value)
+    }
+
+    return evaluateMethodCall(objResult.value, methodName, args, path)
   } else if (
     isTsSatisfiesExpression(node) ||
     isTsAsExpression(node) ||
     isTsTypeAssertion(node) ||
     isTsConstAssertion(node)
   ) {
-    return extractValue(node.expression)
+    return extractValue(node.expression, path, scope, resolving)
   } else {
     return {
       unsupported: `Unsupported node type "${node.type}"`,
@@ -237,6 +366,9 @@ function extractValue(node: Node, path?: string[]): ExtractValueResult {
  *   - undefined
  *   - array containing values listed in this list
  *   - object containing values listed in this list
+ *   - template literal with expressions that resolve to the above
+ *   - references to module-level const declarations
+ *   - safe method calls (e.g. Array.join) on resolved values
  *
  * Returns null if the declaration is not found.
  * Returns { unsupported, path? } if the value contains unsupported nodes.
@@ -246,6 +378,9 @@ export function extractExportedConstValue(
   exportedName: string
 ): ExtractValueResult | null {
   if (!module) return null
+
+  const scope = buildModuleScope(module)
+
   for (const moduleItem of module.body) {
     if (!isExportDeclaration(moduleItem)) {
       continue
@@ -266,7 +401,7 @@ export function extractExportedConstValue(
         decl.id.value === exportedName &&
         decl.init
       ) {
-        return extractValue(decl.init, [exportedName])
+        return extractValue(decl.init, [exportedName], scope)
       }
     }
   }
