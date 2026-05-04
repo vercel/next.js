@@ -214,6 +214,47 @@ async function createSignedCommit({
 }
 
 /**
+ * Create the branch ref if it does not exist, otherwise fast-forward (or
+ * `force`-update) it to the given commit SHA.
+ */
+async function upsertBranchRef({
+  token,
+  owner,
+  repo,
+  branch,
+  sha,
+  force = false,
+}) {
+  const repoApiPath = `/repos/${owner}/${repo}`
+
+  try {
+    await githubRequest(token, 'POST', `${repoApiPath}/git/refs`, {
+      ref: `refs/heads/${branch}`,
+      sha,
+    })
+    return { created: true }
+  } catch (error) {
+    const errMessage = error instanceof Error ? error.message : String(error)
+
+    if (!errMessage.includes('Reference already exists')) {
+      throw error
+    }
+
+    await githubRequest(
+      token,
+      'PATCH',
+      `${repoApiPath}/git/refs/heads/${branch}`,
+      {
+        sha,
+        force,
+      }
+    )
+
+    return { created: false }
+  }
+}
+
+/**
  * Refresh local refs after API writes so subsequent steps see the
  * GitHub-signed commit instead of the unsigned local commit. Optionally also
  * fetches a freshly created tag.
@@ -256,5 +297,6 @@ module.exports = {
   createBlobForFile,
   createTreeFromLocalCommit,
   createSignedCommit,
+  upsertBranchRef,
   alignLocalBranchWithSignedCommit,
 }
