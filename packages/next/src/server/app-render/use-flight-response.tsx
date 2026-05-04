@@ -1,7 +1,10 @@
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { BinaryStreamOf } from './app-render'
 
-import { htmlEscapeJsonString } from '../../shared/lib/htmlescape'
+import {
+  htmlEscapeAttributeString,
+  htmlEscapeJsonString,
+} from '../../shared/lib/htmlescape'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -104,7 +107,7 @@ export function createInlinedDataReadableStream(
   formState: unknown | null
 ): ReadableStream<Uint8Array> {
   const startScriptTag = nonce
-    ? `<script nonce=${JSON.stringify(nonce)}>`
+    ? `<script nonce="${htmlEscapeAttributeString(nonce)}">`
     : '<script>'
 
   const flightReader = flightStream.getReader()

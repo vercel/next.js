@@ -44,6 +44,7 @@ import cheerio from 'cheerio'
           const policies = [
             `script-src 'nonce-'`, // invalid nonce
             'style-src "nonce-cmFuZG9tCg=="', // no script or default src
+            `script-src 'nonce-" onerror="alert(1)'`, // malformed nonce
             '', // empty string
           ]
 
@@ -221,15 +222,16 @@ import cheerio from 'cheerio'
           }
         })
 
-        it('throws when escape characters are included in nonce', async () => {
-          const res = await fetchWithPolicy(
-            `script-src 'nonce-"><script></script>"'`
-          )
+        it('ignores malformed nonce values without failing the request', async () => {
+          const policies = [
+            `script-src 'nonce-"><script></script>"'`,
+            `script-src 'nonce-" onerror="alert(1)'`,
+          ]
 
-          if (runtime === 'node' && process.env.__NEXT_EXPERIMENTAL_PPR) {
-            expect(res.status).toBe(200)
-          } else {
-            expect(res.status).toBe(500)
+          for (const policy of policies) {
+            const $ = await renderWithPolicy(policy)
+
+            expect($('script[nonce]').length).toBe(0)
           }
         })
       }
