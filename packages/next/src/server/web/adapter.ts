@@ -150,7 +150,6 @@ export async function adapter(
 
   const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const isNextDataRequest = requestHeaders.has('x-nextjs-data')
-  const isRSCRequest = requestHeaders.get(RSC_HEADER) === '1'
 
   if (isNextDataRequest && requestURL.pathname === '/index') {
     requestURL.pathname = '/'
@@ -174,6 +173,12 @@ export async function adapter(
     : requestURL
 
   const rscHash = normalizeURL.searchParams.get(NEXT_RSC_UNION_QUERY)
+
+  // A request is an RSC request if the `rsc` header is set to '1', or if the
+  // `_rsc` search param is present in the URL. The latter handles the case
+  // where a CDN or proxy has stripped the `rsc` header but preserved the URL
+  // with the cache-busting `_rsc` search param.
+  const isRSCRequest = requestHeaders.get(RSC_HEADER) === '1' || rscHash !== null
 
   const request = new NextRequestHint({
     page: params.page,
