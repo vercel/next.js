@@ -48,8 +48,8 @@ pub async fn emit_all_assets(
 pub async fn emit_assets(
     assets: Vc<ExpandedOutputAssets>,
     node_root: &FileSystemPath,
-    client_relative_path: FileSystemPath,
-    client_output_path: FileSystemPath,
+    client_relative_path: &FileSystemPath,
+    client_output_path: &FileSystemPath,
 ) -> Result<()> {
     enum Location {
         Node,
@@ -63,7 +63,7 @@ pub async fn emit_assets(
             let path = asset.path().owned().await?;
             let location = if path.is_inside_ref(node_root) {
                 Location::Node
-            } else if path.is_inside_ref(&client_relative_path) {
+            } else if path.is_inside_ref(client_relative_path) {
                 Location::Client
             } else {
                 return Ok(None);

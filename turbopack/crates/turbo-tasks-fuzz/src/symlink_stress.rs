@@ -192,13 +192,13 @@ async fn create_initial_symlinks_operation(
 #[turbo_tasks::function(operation)]
 async fn write_symlinks_batch_operation(
     symlinks_dir: &FileSystemPath,
-    updates: Vec<(usize, usize)>,
+    updates: &Vec<(usize, usize)>,
 ) -> anyhow::Result<()> {
     updates
-        .into_iter()
+        .iter()
         .map(|(symlink_idx, target_idx)| {
             let target = RcStr::from(format!("../_targets/{}", target_idx));
-            write_symlink(symlinks_dir.clone(), symlink_idx, target)
+            write_symlink(symlinks_dir.clone(), *symlink_idx, target)
         })
         .try_join()
         .await?;

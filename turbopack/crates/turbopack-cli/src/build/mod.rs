@@ -189,8 +189,8 @@ async fn extract_effects_operation(op: OperationVc<()>) -> Result<Vc<Effects>> {
 #[turbo_tasks::function(operation)]
 async fn build_internal(
     project_dir: &RcStr,
-    root_dir: RcStr,
-    entry_requests: Vec<EntryRequest>,
+    root_dir: &RcStr,
+    entry_requests: &Vec<EntryRequest>,
     browserslist_query: RcStr,
     source_maps_type: SourceMapsType,
     minify_type: MinifyType,
@@ -199,7 +199,7 @@ async fn build_internal(
 ) -> Result<()> {
     let output_fs = output_fs(project_dir.clone());
     const OUTPUT_DIR: &str = "dist";
-    let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
+    let project_relative = project_dir.strip_prefix(root_dir.as_str()).unwrap();
     let project_relative: RcStr = project_relative
         .strip_prefix(MAIN_SEPARATOR)
         .unwrap_or(project_relative)
@@ -263,7 +263,7 @@ async fn build_internal(
     );
 
     let entry_requests = (*entry_requests
-        .into_iter()
+        .iter()
         .map(|r| async move {
             Ok(match r {
                 EntryRequest::Relative(p) => Request::relative(
@@ -285,7 +285,6 @@ async fn build_internal(
         .to_vec();
 
     let origin = PlainResolveOrigin::new(asset_context, project_fs.root().await?.join("_")?);
-    let project_dir = &project_dir;
     let entries = async move {
         entry_requests
             .into_iter()
@@ -343,7 +342,7 @@ async fn build_internal(
                         dom: true,
                         web_worker: false,
                         service_worker: false,
-                        browserslist_query: browserslist_query.clone(),
+                        browserslist_query,
                     }
                     .resolved_cell(),
                 ))

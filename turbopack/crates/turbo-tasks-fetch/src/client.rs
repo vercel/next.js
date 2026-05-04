@@ -84,20 +84,19 @@ impl FetchClientConfig {
     pub async fn fetch(
         self: Vc<FetchClientConfig>,
         url: &RcStr,
-        user_agent: Option<RcStr>,
+        user_agent: &Option<RcStr>,
     ) -> Result<Vc<FetchResult>> {
-        let url_ref: &str = url;
         let this = self.await?;
         let response_result: reqwest::Result<HttpResponse> = async move {
             let reqwest_client = this.try_get_cached_reqwest_client()?;
 
-            let mut builder = reqwest_client.get(url_ref);
+            let mut builder = reqwest_client.get(url.as_str());
             if let Some(user_agent) = user_agent {
                 builder = builder.header("User-Agent", user_agent.as_str());
             }
 
             let response = {
-                let _span = duration_span!("fetch request", url = url_ref);
+                let _span = duration_span!("fetch request", url = url.as_str());
                 builder.send().await
             }
             .and_then(|r| r.error_for_status())?;
@@ -105,7 +104,7 @@ impl FetchClientConfig {
             let status = response.status().as_u16();
 
             let body = {
-                let _span = duration_span!("fetch response", url = url_ref);
+                let _span = duration_span!("fetch response", url = url.as_str());
                 response.bytes().await?
             }
             .to_vec();
@@ -122,9 +121,11 @@ impl FetchClientConfig {
             Err(err) => {
                 // the client failed to construct or the HTTP request failed
                 mark_session_dependent();
-                Ok(Vc::cell(Err(
-                    FetchError::from_reqwest_error(&err, url).resolved_cell()
-                )))
+                Ok(Vc::cell(Err(FetchError::from_reqwest_error(
+                    &err,
+                    url.as_str(),
+                )
+                .resolved_cell())))
             }
         }
     }

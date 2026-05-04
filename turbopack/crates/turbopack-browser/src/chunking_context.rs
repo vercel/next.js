@@ -625,7 +625,7 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn asset_url(&self, ident: &FileSystemPath, tag: Option<RcStr>) -> Result<Vc<RcStr>> {
+    async fn asset_url(&self, ident: &FileSystemPath, tag: &Option<RcStr>) -> Result<Vc<RcStr>> {
         let asset_path = ident.to_string();
 
         let client_root = tag

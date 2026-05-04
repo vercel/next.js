@@ -440,12 +440,11 @@ impl ChunkingContext for NodeJsChunkingContext {
         prefix: Option<RcStr>,
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
-        let root_path = self.chunk_root_path.clone();
         let name = ident
             .output_name(self.root_path.clone(), prefix, extension)
             .owned()
             .await?;
-        Ok(root_path.join(&name)?.cell())
+        Ok(self.chunk_root_path.join(&name)?.cell())
     }
 
     #[turbo_tasks::function]

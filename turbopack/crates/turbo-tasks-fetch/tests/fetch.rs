@@ -316,7 +316,7 @@ async fn client_cache() {
 
     // a simple fetch that should always succeed
     #[turbo_tasks::function(operation)]
-    async fn simple_fetch_operation(server_url: &RcStr, path: RcStr) -> anyhow::Result<()> {
+    async fn simple_fetch_operation(server_url: &RcStr, path: &RcStr) -> anyhow::Result<()> {
         let url = RcStr::from(format!("{}{}", server_url, path));
         let response = match &*FetchClientConfig::default()
             .cell()

@@ -63,7 +63,7 @@ impl Issue for ResolvingIssue {
 
         if let Some(import_map) = &self.resolve_options.await?.import_map {
             for req in request_parts {
-                match lookup_import_map(**import_map, self.file_path.clone(), **req).await {
+                match lookup_import_map(**import_map, &self.file_path, **req).await {
                     Ok(None) => {}
                     Ok(Some(str)) => writeln!(description, "Import map: {str}")?,
                     Err(err) => {
@@ -115,7 +115,7 @@ impl Issue for ResolvingIssue {
 
 async fn lookup_import_map(
     import_map: Vc<ImportMap>,
-    file_path: FileSystemPath,
+    file_path: &FileSystemPath,
     request: Vc<Request>,
 ) -> Result<Option<ReadRef<RcStr>>> {
     let result = import_map.await?.lookup(file_path, request).await?;

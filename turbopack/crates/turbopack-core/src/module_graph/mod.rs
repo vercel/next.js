@@ -2570,7 +2570,7 @@ pub mod tests {
         #[turbo_tasks::function(operation)]
         async fn setup_graph(
             entries: &Vec<RcStr>,
-            graph_entries: Vec<(RcStr, Vec<RcStr>)>,
+            graph_entries: &Vec<(RcStr, Vec<RcStr>)>,
         ) -> Result<Vc<SetupGraph>> {
             let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
             let root = fs.root().await?;

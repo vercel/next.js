@@ -2307,11 +2307,12 @@ pub fn get_source_map_rope_operation(
 #[turbo_tasks::function(operation)]
 pub async fn project_trace_source_operation(
     container: ResolvedVc<ProjectContainer>,
-    frame: StackFrame,
+    frame: &StackFrame,
     current_directory_file_url: &RcStr,
 ) -> Result<Vc<OptionStackFrame>> {
     let Some(map) =
-        &*SourceMap::new_from_rope_cached(get_source_map_rope(*container, frame.file)).await?
+        &*SourceMap::new_from_rope_cached(get_source_map_rope(*container, frame.file.clone()))
+            .await?
     else {
         return Ok(Vc::cell(None));
     };

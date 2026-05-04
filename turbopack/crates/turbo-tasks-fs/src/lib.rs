@@ -1760,8 +1760,8 @@ impl std::fmt::Display for FileSystemPath {
 #[turbo_tasks::function]
 pub async fn rebase(
     fs_path: &FileSystemPath,
-    old_base: FileSystemPath,
-    new_base: FileSystemPath,
+    old_base: &FileSystemPath,
+    new_base: &FileSystemPath,
 ) -> Result<Vc<FileSystemPath>> {
     let new_path;
     if old_base.path.is_empty() {
@@ -3285,13 +3285,13 @@ mod tests {
         async fn write_symlink_stress_batch(
             fs: ResolvedVc<DiskFileSystem>,
             symlinks_dir: &FileSystemPath,
-            updates: Vec<(usize, usize)>,
+            updates: &Vec<(usize, usize)>,
         ) -> anyhow::Result<()> {
             use turbo_tasks::TryJoinIterExt;
 
             updates
-                .into_iter()
-                .map(|(symlink_idx, target_idx)| {
+                .iter()
+                .map(|&(symlink_idx, target_idx)| {
                     let target = RcStr::from(format!("../_targets/{target_idx}"));
                     let symlink_path = symlinks_dir.join(&symlink_idx.to_string()).unwrap();
                     async move {

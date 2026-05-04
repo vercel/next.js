@@ -60,7 +60,7 @@ pub async fn expand_batches(
                             );
                             let asset_ident = item.chunk_item.asset_ident().to_string();
                             Ok(ChunkItemOrBatchWithInfo::ChunkItem {
-                                chunk_item: item.clone(),
+                                chunk_item: *item,
                                 size: *size.await?,
                                 asset_ident: asset_ident.owned().await?,
                             })

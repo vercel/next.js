@@ -172,7 +172,7 @@ async fn plain_chunk_items_with_info_with_type(
             Ok((
                 ty,
                 smallvec![ChunkItemOrBatchWithInfo::ChunkItem {
-                    chunk_item: chunk_item_with_info.clone(),
+                    chunk_item: *chunk_item_with_info,
                     size: *chunk_item_size.await?,
                     asset_ident: asset_ident.owned().await?,
                 }],
@@ -413,7 +413,7 @@ async fn make_chunk(
                 .into_iter()
                 .map(|item| match item {
                     ChunkItemOrBatchWithInfo::ChunkItem { chunk_item, .. } => {
-                        ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(chunk_item.clone())
+                        ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(*chunk_item)
                     }
                     &ChunkItemOrBatchWithInfo::Batch { batch, .. } => {
                         ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch)

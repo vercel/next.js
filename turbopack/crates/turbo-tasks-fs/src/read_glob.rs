@@ -20,14 +20,14 @@ pub struct ReadGlobResult {
 /// DETERMINISM: Result is in random order. Either sort result or do not depend
 /// on the order.
 #[turbo_tasks::function(fs)]
-pub async fn read_glob(directory: FileSystemPath, glob: Vc<Glob>) -> Result<Vc<ReadGlobResult>> {
+pub async fn read_glob(directory: &FileSystemPath, glob: Vc<Glob>) -> Result<Vc<ReadGlobResult>> {
     read_glob_internal("", directory, glob).await
 }
 
 #[turbo_tasks::function(fs)]
 async fn read_glob_inner(
     prefix: &RcStr,
-    directory: FileSystemPath,
+    directory: &FileSystemPath,
     glob: Vc<Glob>,
 ) -> Result<Vc<ReadGlobResult>> {
     read_glob_internal(prefix, directory, glob).await
@@ -36,7 +36,7 @@ async fn read_glob_inner(
 // The `prefix` represents the relative directory path where symlinks are not resolve.
 async fn read_glob_internal(
     prefix: &str,
-    directory: FileSystemPath,
+    directory: &FileSystemPath,
     glob: Vc<Glob>,
 ) -> Result<Vc<ReadGlobResult>> {
     let dir = directory.read_dir().await?;
@@ -135,7 +135,7 @@ async fn resolve_symlink_safely(entry: DirectoryEntry) -> Result<DirectoryEntry>
 ///  but unlike read_glob doesn't accumulate data.
 #[turbo_tasks::function(fs)]
 pub async fn track_glob(
-    directory: FileSystemPath,
+    directory: &FileSystemPath,
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {
@@ -145,7 +145,7 @@ pub async fn track_glob(
 #[turbo_tasks::function(fs)]
 async fn track_glob_inner(
     prefix: &RcStr,
-    directory: FileSystemPath,
+    directory: &FileSystemPath,
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {
@@ -154,7 +154,7 @@ async fn track_glob_inner(
 
 async fn track_glob_internal(
     prefix: &str,
-    directory: FileSystemPath,
+    directory: &FileSystemPath,
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {

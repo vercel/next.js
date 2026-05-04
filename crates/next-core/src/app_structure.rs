@@ -319,7 +319,7 @@ pub async fn find_app_dir(project_path: &FileSystemPath) -> Result<Vc<OptionAppD
 
 #[turbo_tasks::function]
 async fn get_directory_tree(
-    dir: FileSystemPath,
+    dir: &FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<DirectoryTree>> {
     let span = tracing::info_span!(
@@ -332,7 +332,7 @@ async fn get_directory_tree(
 }
 
 async fn get_directory_tree_internal(
-    dir: FileSystemPath,
+    dir: &FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<DirectoryTree>> {
     let DirectoryContent::Entries(entries) = &*dir.read_dir().await? else {
@@ -1532,13 +1532,13 @@ async fn default_route_tree(
 
 #[turbo_tasks::function]
 async fn directory_tree_to_entrypoints_internal(
-    app_dir: FileSystemPath,
+    app_dir: &FileSystemPath,
     global_metadata: ResolvedVc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
     next_mode: Vc<NextMode>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
-    app_page: AppPage,
+    app_page: &AppPage,
     root_layouts: ResolvedVc<FileSystemPathVec>,
     root_params: ResolvedVc<RootParamVecOption>,
 ) -> Result<Vc<Entrypoints>> {
@@ -1559,13 +1559,13 @@ async fn directory_tree_to_entrypoints_internal(
 }
 
 async fn directory_tree_to_entrypoints_internal_untraced(
-    app_dir: FileSystemPath,
+    app_dir: &FileSystemPath,
     global_metadata: ResolvedVc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
     next_mode: Vc<NextMode>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
-    app_page: AppPage,
+    app_page: &AppPage,
     root_layouts: ResolvedVc<FileSystemPathVec>,
     root_params: ResolvedVc<RootParamVecOption>,
 ) -> Result<Vc<Entrypoints>> {
@@ -1873,7 +1873,6 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         }
     }
 
-    let app_page = &app_page;
     let directory_name = &directory_name;
     let subdirectories = subdirectories
         .iter()
