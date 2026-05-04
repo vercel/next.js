@@ -17,6 +17,7 @@ export async function createAppRouteCode({
   name,
   page,
   pagePath,
+  rootParams,
   resolveAppRoute,
   pageExtensions,
   nextConfigOutput,
@@ -25,6 +26,7 @@ export async function createAppRouteCode({
   name: string
   page: string
   pagePath: string
+  rootParams: string[]
   resolveAppRoute: (
     pathname: string
   ) => Promise<string | undefined> | string | undefined
@@ -78,6 +80,7 @@ export async function createAppRouteCode({
     },
     {
       nextConfigOutput: JSON.stringify(nextConfigOutput),
+      rootParamNames: JSON.stringify(rootParams),
     }
   )
 }

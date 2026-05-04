@@ -109,6 +109,7 @@ pub async fn get_app_metadata_route_entry(
         project_root,
         Some(segment_config),
         next_config,
+        Vc::cell(None), // TODO(root-params): wire up root params for metadata routes
     ))
 }
 

@@ -36,6 +36,7 @@ pub async fn get_app_route_entry(
     project_root: FileSystemPath,
     original_segment_config: Option<Vc<NextSegmentConfig>>,
     next_config: Vc<NextConfig>,
+    root_params: Vc<crate::app_structure::RootParamVecOption>,
 ) -> Result<Vc<AppEntry>> {
     let segment_from_source = parse_segment_config_from_source(source, ParseSegmentMode::App);
     let config = if let Some(original_segment_config) = original_segment_config {
@@ -70,6 +71,18 @@ pub async fn get_app_route_entry(
         })
         .unwrap_or("\"\"");
 
+    // Convert root params to JSON array of parameter names
+    let root_param_names = if let Some(root_params_vec) = &*root_params.await? {
+        serde_json::to_string(
+            &root_params_vec
+                .iter()
+                .map(|param| param.as_str())
+                .collect::<Vec<_>>(),
+        )?
+    } else {
+        "[]".to_string()
+    };
+
     // Load the file from the next.js codebase.
     let virtual_source = load_next_js_template(
         "app-route.js",
@@ -83,7 +96,10 @@ pub async fn get_app_route_entry(
             ("VAR_RESOLVED_PAGE_PATH", &path.to_string_ref().await?),
             ("VAR_USERLAND", &inner),
         ],
-        [("nextConfigOutput", output_type)],
+        [
+            ("nextConfigOutput", output_type),
+            ("rootParamNames", &root_param_names),
+        ],
         [],
     )
     .await?;

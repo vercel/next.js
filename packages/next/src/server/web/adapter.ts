@@ -293,6 +293,7 @@ export async function adapter(
             const requestStore = createRequestStoreForAPI(
               request,
               request.nextUrl,
+              {}, // TODO(root-params): proxy doesn't know which route it's handling, so root params aren't available yet.
               implicitTags,
               onUpdateCookies,
               previewProps

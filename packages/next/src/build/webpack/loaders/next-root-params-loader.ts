@@ -144,7 +144,7 @@ async function findRootLayouts({
   return visit(appDir)
 }
 
-function getParamsFromLayoutFilePath({
+export function getParamsFromLayoutFilePath({
   appDir,
   layoutFilePath,
 }: {

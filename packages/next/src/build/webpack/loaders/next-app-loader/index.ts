@@ -49,6 +49,7 @@ export type AppLoaderOptions = {
   name: string
   page: string
   pagePath: string
+  rootParams: string[]
   appDir: string
   appPaths: readonly string[] | null
   // All normalized app paths across the entire app, used for computing
@@ -680,6 +681,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     appPaths,
     allNormalizedAppPaths: allNormalizedAppPathsOption,
     pagePath,
+    rootParams,
     pageExtensions,
     rootDir,
     tsconfigPath,
@@ -726,6 +728,9 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
+
+  const normalizedRootParams =
+    typeof rootParams === 'string' ? [rootParams] : rootParams || []
 
   // All normalized app paths for computing static siblings across route groups
   const allNormalizedAppPaths = allNormalizedAppPathsOption ?? []
@@ -1005,6 +1010,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       page: loaderOptions.page,
       name,
       pagePath,
+      rootParams: normalizedRootParams,
       resolveAppRoute,
       pageExtensions,
       nextConfigOutput,

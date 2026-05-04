@@ -14,6 +14,7 @@ import { PAGE_TYPES } from '../lib/page-types'
 import { isAppPageRoute } from '../lib/is-app-page-route'
 
 import { UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY } from '../shared/lib/entry-constants'
+import { getParamsFromLayoutFilePath } from './webpack/loaders/next-root-params-loader'
 
 export async function getStaticInfoIncludingLayouts({
   isInsideAppDir,
@@ -31,7 +32,7 @@ export async function getStaticInfoIncludingLayouts({
   config: NextConfigComplete
   isDev: boolean
   page: string
-}): Promise<PageStaticInfo> {
+}): Promise<PageStaticInfo & { rootParams?: string[] }> {
   // TODO: sync types for pages: PAGE_TYPES, ROUTER_TYPE, 'app' | 'pages', etc.
   const pageType = isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES
 
@@ -54,25 +55,26 @@ export async function getStaticInfoIncludingLayouts({
 
   const segments = [pageStaticInfo]
 
+  const layoutFiles: string[] = []
+  const potentialLayoutFiles = pageExtensions.map((ext) => 'layout.' + ext)
+  let dir = dirname(pageFilePath)
+
+  // We need to find the root layout for both pages and route handlers.
+  // Uses startsWith to not include directories further up.
+  while (dir.startsWith(appDir)) {
+    for (const potentialLayoutFile of potentialLayoutFiles) {
+      const layoutFile = join(dir, potentialLayoutFile)
+      if (!fs.existsSync(layoutFile)) {
+        continue
+      }
+      layoutFiles.push(layoutFile)
+    }
+    // Walk up the directory tree
+    dir = join(dir, '..')
+  }
+
   // inherit from layout files only if it's a page route and not a builtin page
   if (isAppPageRoute(page) && !isAppBuiltinPage(pageFilePath)) {
-    const layoutFiles = []
-    const potentialLayoutFiles = pageExtensions.map((ext) => 'layout.' + ext)
-    let dir = dirname(pageFilePath)
-
-    // Uses startsWith to not include directories further up.
-    while (dir.startsWith(appDir)) {
-      for (const potentialLayoutFile of potentialLayoutFiles) {
-        const layoutFile = join(dir, potentialLayoutFile)
-        if (!fs.existsSync(layoutFile)) {
-          continue
-        }
-        layoutFiles.push(layoutFile)
-      }
-      // Walk up the directory tree
-      dir = join(dir, '..')
-    }
-
     for (const layoutFile of layoutFiles) {
       const layoutStaticInfo = await getAppPageStaticInfo({
         nextConfig,
@@ -86,6 +88,11 @@ export async function getStaticInfoIncludingLayouts({
     }
   }
 
+  const rootLayout = layoutFiles.at(-1)
+  const rootParams = rootLayout
+    ? getParamsFromLayoutFilePath({ appDir, layoutFilePath: rootLayout })
+    : []
+
   const config = reduceAppConfig(segments)
 
   return {
@@ -94,5 +101,6 @@ export async function getStaticInfoIncludingLayouts({
     runtime: config.runtime,
     preferredRegion: config.preferredRegion,
     maxDuration: config.maxDuration,
+    rootParams,
   }
 }

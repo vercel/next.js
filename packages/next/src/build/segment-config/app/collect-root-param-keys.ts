@@ -48,7 +48,7 @@ export function collectRootParamKeys(
   routeModule: RouteModule
 ): readonly string[] {
   if (isAppRouteRouteModule(routeModule)) {
-    return []
+    return routeModule.rootParamNames
   }
 
   if (isAppPageRouteModule(routeModule)) {
