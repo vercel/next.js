@@ -193,6 +193,7 @@ function startServer(dir: string, port: number): Promise<void> {
       public: dir,
     })
   })
+  const listenHostname = '127.0.0.1'
 
   return new Promise((resolve, reject) => {
     function onError(err: Error) {
@@ -203,7 +204,7 @@ function startServer(dir: string, port: number): Promise<void> {
 
     server.on('error', onError)
 
-    server.listen(port, 'localhost', () => {
+    server.listen(port, listenHostname, () => {
       const address = server.address()
       if (address == null) {
         reject(new Error('Unable to get server address'))
@@ -220,6 +221,8 @@ function startServer(dir: string, port: number): Promise<void> {
         address.family === 'IPv6' &&
         (address.address === '::' || address.address === '::1')
       ) {
+        addressString = `localhost:${address.port}`
+      } else if (address.address === listenHostname) {
         addressString = `localhost:${address.port}`
       } else if (address.family === 'IPv6') {
         addressString = `[${address.address}]:${address.port}`

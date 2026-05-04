@@ -25,6 +25,7 @@ export function getRegistry(baseDir: string = process.cwd()) {
           ...process.env,
           NODE_OPTIONS: getFormattedNodeOptionsWithoutInspect(),
         },
+        stdio: ['ignore', 'pipe', 'pipe'],
       }
     )
       .toString()
