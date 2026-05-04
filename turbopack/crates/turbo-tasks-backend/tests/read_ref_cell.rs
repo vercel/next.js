@@ -77,7 +77,7 @@ impl Counter {
 
 #[turbo_tasks::value_impl]
 impl Counter {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(&self) -> Result<Vc<CounterValue>> {
         let mut lock = self.value.lock().unwrap();
         lock.1.insert(get_invalidator().unwrap());
@@ -87,7 +87,7 @@ impl Counter {
 
 #[turbo_tasks::value_impl]
 impl CounterValue {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn get_value(self: Vc<Self>) -> Vc<Self> {
         self
     }

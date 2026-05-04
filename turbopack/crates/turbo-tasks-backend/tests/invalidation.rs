@@ -12,7 +12,7 @@ static REGISTRATION: Registration = register!();
 #[turbo_tasks::value(transparent)]
 struct Step(State<u32>);
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn create_state_operation() -> Vc<Step> {
     Step(State::new(0)).cell()
 }
@@ -70,7 +70,7 @@ async fn test_invalidation_map() {
 #[turbo_tasks::value(transparent, cell = "keyed")]
 struct Map(FxHashMap<String, u32>);
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn create_map(step: ResolvedVc<Step>) -> Result<Vc<Map>> {
     let step = step.await?;
     let step_value = step.get();
@@ -89,7 +89,7 @@ struct GetValueResult {
     random: u32,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_value(map: OperationVc<Map>, key: String) -> Result<Vc<GetValueResult>> {
     let map = map.connect();
     let value = map.get(&key).await?.as_deref().copied();
@@ -151,7 +151,7 @@ async fn test_invalidation_set() {
 #[turbo_tasks::value(transparent, cell = "keyed")]
 struct Set(FxHashSet<String>);
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn create_set(step: ResolvedVc<Step>) -> Result<Vc<Set>> {
     let step = step.await?;
     let step_value = step.get();
@@ -170,7 +170,7 @@ struct HasValueResult {
     random: u32,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn has_value(set: OperationVc<Set>, key: String) -> Result<Vc<HasValueResult>> {
     let set = set.connect();
     let value = set.contains_key(&key).await?;

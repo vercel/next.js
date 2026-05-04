@@ -49,7 +49,7 @@ async fn test_graph_bug() {
     .unwrap()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn test_graph_bug_operation(nonce: u32) -> Result<Vc<()>> {
     let _ = nonce; // ensure the nonce is part of our cache key
 
@@ -98,7 +98,7 @@ fn create_iteration() -> Vc<Iteration> {
     Vc::cell(State::new(0))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn run_task_chain(
     spec: Arc<Vec<TaskSpec>>,
     iteration: Vc<Iteration>,
@@ -116,7 +116,7 @@ async fn run_task_chain(
     Ok(Vc::cell(()))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn run_task(
     spec: Arc<Vec<TaskSpec>>,
     iteration: Vc<Iteration>,

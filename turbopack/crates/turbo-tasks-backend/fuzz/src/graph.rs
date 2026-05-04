@@ -169,7 +169,7 @@ fn create_state() -> Vc<Iteration> {
     Vc::cell(State::new(0))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn run_task_chain(
     spec: Arc<Vec<TaskSpec>>,
     iteration: Vc<Iteration>,
@@ -186,7 +186,7 @@ async fn run_task_chain(
     Ok(Vc::cell(()))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn run_task(
     spec: Arc<Vec<TaskSpec>>,
     iteration: Vc<Iteration>,

@@ -267,7 +267,7 @@ type GetEntriesResultT = Vec<(FileSystemPath, ResolvedVc<Box<dyn OutputAsset>>)>
 #[turbo_tasks::value(transparent)]
 struct GetEntriesResult(GetEntriesResultT);
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_entries(assets: OperationVc<ExpandedOutputAssets>) -> Result<Vc<GetEntriesResult>> {
     let assets_ref = assets.connect().await?;
     let entries = assets_ref
@@ -281,7 +281,7 @@ async fn get_entries(assets: OperationVc<ExpandedOutputAssets>) -> Result<Vc<Get
     Ok(Vc::cell(entries))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn compute_entry_operation(
     map: ResolvedVc<VersionedContentMap>,
     assets_operation: OperationVc<ExpandedOutputAssets>,

@@ -10,7 +10,7 @@ use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn to_string_operation(value: ResolvedVc<Box<dyn ValueToString>>) -> Vc<RcStr> {
     value.to_string()
 }

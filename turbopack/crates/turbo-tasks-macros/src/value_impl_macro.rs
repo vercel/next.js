@@ -101,6 +101,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 }
             };
             let is_self_used = func_args.operation.is_some() || is_self_used(block);
+            let is_root = func_args.root.is_some();
 
             let Some(turbo_fn) = TurboFn::new(
                 sig,
@@ -112,7 +113,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     // An error occurred while parsing the function signature.
                 };
             };
-
             let inline_function_ident = turbo_fn.inline_ident();
             let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
             let inline_attrs = filter_inline_attributes(attrs.iter().copied());
@@ -123,7 +123,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 is_method: turbo_fn.is_method(),
                 is_self_used,
                 filter_trait_call_args: None, // not a trait method
-                is_root: false,
+                is_root,
             };
 
             let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
@@ -206,6 +206,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 };
                 // operations are not currently compatible with methods
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
+                let is_root = func_args.root.is_some();
 
                 let Some(turbo_fn) = TurboFn::new(
                     sig,
@@ -238,7 +239,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     is_method: turbo_fn.is_method(),
                     is_self_used,
                     filter_trait_call_args: turbo_fn.filter_trait_call_args(),
-                    is_root: false,
+                    is_root,
                 };
 
                 let native_function_ident =

@@ -45,7 +45,7 @@ async fn test_emptied_cells() {
     .unwrap();
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn get_state_operation() -> Vc<ChangingInput> {
     ChangingInput {
         state: State::new(0),
@@ -58,7 +58,7 @@ struct ChangingInput {
     state: State<u32>,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn compute_operation(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> {
     println!("compute_operation()");
     let value = *inner_compute(*input).await?;
