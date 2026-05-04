@@ -2034,6 +2034,19 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
     })
     .target('src/compiled/mini-css-extract-plugin')
   await task
+    .source(relative(__dirname, require.resolve('mini-css-extract-plugin')))
+    .ncc({
+      packageName: 'mini-css-extract-plugin',
+      externals: {
+        ...externals,
+        './index': './index.js',
+        'schema-utils': externals['schema-utils3'],
+      },
+    })
+    .target('src/compiled/mini-css-extract-plugin')
+  // v2.10+ loader references hotModuleReplacement.js from __dirname directly;
+  // the packageName step above emits it as an unbundled asset, so re-bundle it
+  await task
     .source(
       relative(
         __dirname,
@@ -2046,19 +2059,7 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
     .ncc({
       externals: {
         ...externals,
-        './hmr': './hmr',
         'schema-utils': 'next/dist/compiled/schema-utils3',
-      },
-    })
-    .target('src/compiled/mini-css-extract-plugin/hmr')
-  await task
-    .source(relative(__dirname, require.resolve('mini-css-extract-plugin')))
-    .ncc({
-      packageName: 'mini-css-extract-plugin',
-      externals: {
-        ...externals,
-        './index': './index.js',
-        'schema-utils': externals['schema-utils3'],
       },
     })
     .target('src/compiled/mini-css-extract-plugin')

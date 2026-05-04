@@ -284,7 +284,7 @@
     "loader-utils2": "npm:loader-utils@2.0.4",
     "loader-utils3": "npm:loader-utils@3.1.3",
     "lodash.curry": "4.1.1",
-    "mini-css-extract-plugin": "2.4.4",
+    "mini-css-extract-plugin": "2.10.2",
     "msw": "2.3.0",
     "nanoid": "3.1.32",
     "native-url": "0.3.4",
