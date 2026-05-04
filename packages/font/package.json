@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "@types/fontkit": "2.0.0",
-    "@vercel/ncc": "0.34.0",
+    "@vercel/ncc": "0.38.4",
     "fontkit": "2.0.2",
     "typescript": "6.0.2"
   }

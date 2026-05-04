@@ -30,7 +30,7 @@
     "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
   },
   "devDependencies": {
-    "@vercel/ncc": "0.34.0",
+    "@vercel/ncc": "0.38.4",
     "dotenv": "16.3.1",
     "dotenv-expand": "10.0.0"
   }
