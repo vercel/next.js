@@ -48,6 +48,51 @@ function onlyReactElement(
 
 const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']
 
+// Valid HTML tags that can appear in <head>
+const VALID_HEAD_TAGS = new Set([
+  'title',
+  'base',
+  'link',
+  'meta',
+  'style',
+  'script',
+  'noscript',
+])
+
+// Common invalid tags that users mistakenly put in <head>
+const INVALID_HEAD_TAGS = new Set([
+  'html',
+  'body',
+  'div',
+  'span',
+  'p',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'section',
+  'article',
+  'main',
+  'header',
+  'footer',
+  'nav',
+  'aside',
+  'ul',
+  'ol',
+  'li',
+  'table',
+  'tr',
+  'td',
+  'th',
+  'form',
+  'input',
+  'button',
+  'img',
+  'a',
+])
+
 /*
  returns a function for filtering head child elements
  which shouldn't be duplicated, like <title/>
@@ -128,6 +173,14 @@ function reduceComponents(
     .map((c: React.ReactElement<any>, i: number) => {
       const key = c.key || i
       if (process.env.NODE_ENV === 'development') {
+        // Check for invalid tags in <head>
+        const tagName = typeof c.type === 'string' ? c.type.toLowerCase() : null
+        if (tagName && INVALID_HEAD_TAGS.has(tagName)) {
+          warnOnce(
+            `Invalid tag <${tagName}> found in <Head>. Only the following tags are allowed in <Head>: ${Array.from(VALID_HEAD_TAGS).join(', ')}. This tag will be ignored. See more info here: https://nextjs.org/docs/api-reference/next/head`
+          )
+        }
+
         // omit JSON-LD structured data snippets from the warning
         if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
           const srcMessage = c.props['src']
