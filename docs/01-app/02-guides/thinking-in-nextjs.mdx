@@ -744,7 +744,7 @@ Prefetching fills those entries before the click. When a [`<Link>`](/docs/app/ap
 
 The prefetch renders against one of two shapes, and each route declares which. The default is [static](/docs/app/guides/prefetching), with no cookies, headers, or search string in scope. That covers the shared layout and any cached read keyed on build-time inputs. [Runtime](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) is opt-in, and it renders with the same cookies, headers, and search string the navigation would send, so per-viewer reads run against the real session before the click.
 
-We can opt a page into runtime prefetch with the [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) segment export:
+We can opt a page into runtime prefetch with the [`unstable_prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) segment export:
 
 ```tsx filename="app/projects/page.tsx" highlight={3}
 import { Suspense } from 'react'
