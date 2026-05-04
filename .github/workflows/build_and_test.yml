@@ -782,7 +782,8 @@ jobs:
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode dev \
-          --group ${{ matrix.group }}
+          --group ${{ matrix.group }} \
+          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
       stepName: 'test-new-tests-dev-${{matrix.group}}'
       timeout_minutes: 60 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
 
@@ -807,7 +808,8 @@ jobs:
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode start \
-          --group ${{ matrix.group }}
+          --group ${{ matrix.group }} \
+          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
       stepName: 'test-new-tests-start-${{matrix.group}}'
       timeout_minutes: 60 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
     secrets: inherit
@@ -834,7 +836,8 @@ jobs:
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         node scripts/test-new-tests.mjs \
           --mode deploy \
-          --group ${{ matrix.group }}
+          --group ${{ matrix.group }} \
+          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
       stepName: 'test-new-tests-deploy-${{matrix.group}}'
 
     secrets: inherit
@@ -868,7 +871,8 @@ jobs:
         export NEXT_E2E_TEST_TIMEOUT=240000
         node scripts/test-new-tests.mjs \
           --mode deploy \
-          --group ${{ matrix.group }}
+          --group ${{ matrix.group }} \
+          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
       stepName: 'test-new-tests-deploy-cache-components-${{matrix.group}}'
 
     secrets: inherit
