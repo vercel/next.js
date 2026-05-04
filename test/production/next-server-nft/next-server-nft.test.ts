@@ -243,7 +243,6 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/download-swc.js",
            "/node_modules/next/dist/lib/error-telemetry-utils.js",
            "/node_modules/next/dist/lib/fallback.js",
-           "/node_modules/next/dist/lib/fatal-error.js",
            "/node_modules/next/dist/lib/file-exists.js",
            "/node_modules/next/dist/lib/find-config.js",
            "/node_modules/next/dist/lib/find-pages-dir.js",

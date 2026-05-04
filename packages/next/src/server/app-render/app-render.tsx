@@ -1575,6 +1575,23 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       )
     } else {
       logValidationSkipped(ctx)
+
+      // The main render may record an invalid dynamic usage error on the work
+      // store, e.g. a `'use cache'` fill timeout, or a request API like
+      // `cookies()` being called inside a `'use cache'` scope. Even when we
+      // don't spawn the static shell validation, surface any recorded error
+      // through the dev overlay so client-side navigations see the same error
+      // as initial HTML loads, where the spawned validation forwards it. Wait
+      // for the full stream to finish accumulating so we also catch errors from
+      // the dynamic stage.
+      void accumulatedChunksPromise.then(() => {
+        if (workStore.invalidDynamicUsageError) {
+          logMessagesAndSendErrorsToBrowser(
+            [workStore.invalidDynamicUsageError],
+            ctx
+          )
+        }
+      })
     }
 
     debugChannel = returnedDebugChannel
@@ -4110,7 +4127,8 @@ async function renderToStream(
           requestStore,
           renderToNodeFizzStream,
           appElement,
-          fizzOptions
+          fizzOptions,
+          { waitForAllReady: generateStaticHTML }
         )
 
         // End the render span only after React completed rendering (including anything inside Suspense boundaries)
@@ -4396,7 +4414,8 @@ async function renderToStream(
                 bootstrapScriptContent,
                 bootstrapScripts: [errorBootstrapScript],
                 formState,
-              }
+              },
+              { waitForAllReady: generateStaticHTML }
             )
 
           errorAllReady.finally(() => {
@@ -7087,6 +7106,16 @@ async function prerenderToStream(
 
   const { cachedNavigations } = renderOpts.experimental
 
+  const renderFlightStream = process.env.__NEXT_USE_NODE_STREAMS
+    ? renderToNodeFlightStream
+    : renderToWebFlightStream
+  const renderFizzStream = process.env.__NEXT_USE_NODE_STREAMS
+    ? renderToNodeFizzStream
+    : renderToWebFizzStream
+  const createInlinedDataStream = process.env.__NEXT_USE_NODE_STREAMS
+    ? createNodeInlinedDataStream
+    : createWebInlinedDataStream
+
   const allowEmptyStaticShell =
     (renderOpts.allowEmptyStaticShell ?? false) ||
     (await isPageAllowedToBlock(tree))
@@ -7935,13 +7964,13 @@ async function prerenderToStream(
           // segments, since those are the only ones whose data is not complete.
           const emptyReactServerResult =
             await createReactServerPrerenderResultFromRender(
-              renderToWebFlightStream(ComponentMod, [], clientModules, {
+              renderFlightStream(ComponentMod, [], clientModules, {
                 filterStackFrame,
                 onError: serverComponentsErrorHandler,
               })
             )
           finalStream = await continueStaticFallbackPrerender(htmlStream, {
-            inlinedDataStream: createWebInlinedDataStream(
+            inlinedDataStream: createInlinedDataStream(
               emptyReactServerResult.consumeAsStream(),
               nonce,
               formState
@@ -7953,7 +7982,7 @@ async function prerenderToStream(
         } else {
           // Normal static prerender case, no fallback param handling needed
           finalStream = await continueStaticPrerender(htmlStream, {
-            inlinedDataStream: createWebInlinedDataStream(
+            inlinedDataStream: createInlinedDataStream(
               reactServerResult.consumeAsStream(),
               nonce,
               formState
@@ -8012,7 +8041,7 @@ async function prerenderToStream(
         await createReactServerPrerenderResultFromRender(
           workUnitAsyncStorage.run(
             reactServerPrerenderStore,
-            renderToWebFlightStream,
+            renderFlightStream,
             ComponentMod,
             RSCPayload,
             clientModules,
@@ -8207,7 +8236,7 @@ async function prerenderToStream(
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,
           stream: await continueStaticPrerender(htmlStream, {
-            inlinedDataStream: createWebInlinedDataStream(
+            inlinedDataStream: createInlinedDataStream(
               reactServerResult.consumeAsStream(),
               nonce,
               formState
@@ -8250,7 +8279,7 @@ async function prerenderToStream(
         await createReactServerPrerenderResultFromRender(
           workUnitAsyncStorage.run(
             prerenderLegacyStore,
-            renderToWebFlightStream,
+            renderFlightStream,
             ComponentMod,
             RSCPayload,
             clientModules,
@@ -8263,7 +8292,7 @@ async function prerenderToStream(
 
       const { stream: htmlStream } = await workUnitAsyncStorage.run(
         prerenderLegacyStore,
-        renderToWebFizzStream,
+        renderFizzStream,
         // eslint-disable-next-line @next/internal/no-ambiguous-jsx
         <App
           reactServerStream={reactServerResult.asUnclosingStream()}
@@ -8278,7 +8307,8 @@ async function prerenderToStream(
           onError: htmlRendererErrorHandler,
           nonce,
           bootstrapScripts: [bootstrapScript],
-        }
+        },
+        { waitForAllReady: true }
       )
 
       if (shouldGenerateStaticFlightData(workStore)) {
@@ -8305,7 +8335,7 @@ async function prerenderToStream(
         digestErrorsMap: reactServerErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(htmlStream, {
-          inlinedDataStream: createWebInlinedDataStream(
+          inlinedDataStream: createInlinedDataStream(
             reactServerResult.consumeAsStream(),
             nonce,
             formState
@@ -8450,7 +8480,7 @@ async function prerenderToStream(
 
     const errorServerStreamRaw = workUnitAsyncStorage.run(
       prerenderLegacyStore,
-      renderToWebFlightStream,
+      renderFlightStream,
       ComponentMod,
       errorRSCPayload,
       clientModules,
@@ -8476,7 +8506,7 @@ async function prerenderToStream(
     try {
       const { stream: errorHtmlStream } = await workUnitAsyncStorage.run(
         prerenderLegacyStore,
-        renderToWebFizzStream,
+        renderFizzStream,
         // eslint-disable-next-line @next/internal/no-ambiguous-jsx
         <ErrorApp
           reactServerStream={errorServerStream}
@@ -8489,7 +8519,8 @@ async function prerenderToStream(
           nonce,
           bootstrapScripts: [errorBootstrapScript],
           formState,
-        }
+        },
+        { waitForAllReady: true }
       )
 
       const resolvedFlightResult = errorFlightResultPromise
@@ -8518,7 +8549,7 @@ async function prerenderToStream(
         digestErrorsMap: reactServerErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(errorHtmlStream, {
-          inlinedDataStream: createWebInlinedDataStream(
+          inlinedDataStream: createInlinedDataStream(
             flightStream,
             nonce,
             formState

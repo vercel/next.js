@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use indoc::formatdoc;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
@@ -14,7 +14,7 @@ use turbopack_core::{
         ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
     },
     output::OutputAssetsWithReferenced,
-    reference::{ModuleReferences, SingleModuleReference},
+    reference::ModuleReferences,
 };
 
 use crate::{
@@ -118,14 +118,7 @@ impl Module for AsyncLoaderModule {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![ResolvedVc::upcast(
-            SingleModuleReference::new(
-                *ResolvedVc::upcast(self.await?.inner),
-                rcstr!("async module"),
-            )
-            .to_resolved()
-            .await?,
-        )]))
+        bail!("AsyncLoaderModule::references should never be called")
     }
 
     #[turbo_tasks::function]

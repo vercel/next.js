@@ -97,19 +97,6 @@ pub async fn children_from_module_references(
                 IntrospectableModule::new(*module).to_resolved().await?,
             ));
         }
-        for &output_asset in reference
-            .resolve_reference()
-            .primary_output_assets()
-            .await?
-            .iter()
-        {
-            children.insert((
-                key.clone(),
-                IntrospectableOutputAsset::new(*output_asset)
-                    .to_resolved()
-                    .await?,
-            ));
-        }
     }
     Ok(Vc::cell(children))
 }

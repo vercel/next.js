@@ -2,11 +2,10 @@ use std::{
     borrow::Cow,
     collections::{BTreeMap, hash_map::Entry},
     fmt::Display,
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
 use anyhow::{Context, Result};
-use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
@@ -58,11 +57,11 @@ pub struct ImportAnnotations {
 }
 
 /// Enables a specified transition for the annotated import
-static ANNOTATION_TRANSITION: Lazy<Wtf8Atom> =
-    Lazy::new(|| crate::annotations::ANNOTATION_TRANSITION.into());
+static ANNOTATION_TRANSITION: LazyLock<Wtf8Atom> =
+    LazyLock::new(|| crate::annotations::ANNOTATION_TRANSITION.into());
 
 /// Changes the type of the resolved module (only "json" is supported currently)
-static ATTRIBUTE_MODULE_TYPE: Lazy<Wtf8Atom> = Lazy::new(|| atom!("type").into());
+static ATTRIBUTE_MODULE_TYPE: LazyLock<Wtf8Atom> = LazyLock::new(|| atom!("type").into());
 
 impl ImportAnnotations {
     pub fn parse(with: Option<&ObjectLit>) -> Option<ImportAnnotations> {
