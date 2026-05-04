@@ -52,7 +52,8 @@ export async function exportAppRoute(
   experimental: Required<
     Pick<ExperimentalConfig, 'authInterrupts' | 'useCacheTimeout'>
   >,
-  buildId: string
+  buildId: string,
+  deploymentId: string
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
   req.url = `http://localhost:3000${req.url}`
@@ -88,6 +89,7 @@ export async function exportAppRoute(
     },
     sharedContext: {
       buildId,
+      deploymentId,
     },
   }
 
