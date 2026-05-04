@@ -141,15 +141,21 @@ export async function createSelfSignedCertificate(
       host && !defaultHosts.includes(host)
         ? [...defaultHosts, host]
         : defaultHosts
+    const mkcertArgs = `-key-file "${keyPath}" -cert-file "${certPath}" ${hosts.join(
+      ' '
+    )}`
 
-    execSync(
-      `"${binaryPath}" -install -key-file "${keyPath}" -cert-file "${certPath}" ${hosts.join(
-        ' '
-      )}`,
-      { stdio: 'ignore' }
-    )
+    try {
+      execSync(`"${binaryPath}" -install ${mkcertArgs}`, { stdio: 'ignore' })
+    } catch {
+      Log.warn(
+        'Failed to install the local CA. Retrying certificate generation without trust store installation.'
+      )
+      execSync(`"${binaryPath}" ${mkcertArgs}`, { stdio: 'ignore' })
+    }
 
     const caLocation = execSync(`"${binaryPath}" -CAROOT`).toString().trim()
+    const rootCAPath = path.join(caLocation, 'rootCA.pem')
 
     if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
       throw new Error('Certificate files not found')
@@ -172,7 +178,7 @@ export async function createSelfSignedCertificate(
     return {
       key: keyPath,
       cert: certPath,
-      rootCA: `${caLocation}/rootCA.pem`,
+      rootCA: fs.existsSync(rootCAPath) ? rootCAPath : undefined,
     }
   } catch (err) {
     Log.error(

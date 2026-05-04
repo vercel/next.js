@@ -13,6 +13,7 @@ const os = require('os')
 const REPO_ROOT = path.resolve(__dirname, '..')
 const IMAGE_NAME = 'nextjs-ci-playwright:latest'
 const PACKAGE_JSON_PATH = path.join(REPO_ROOT, 'package.json')
+const DEFAULT_MAX_UPLOAD_BYTES = 450 * 1024 * 1024
 
 const DOCKER_IMPORT_CHANGES = [
   'ENV DEBIAN_FRONTEND=noninteractive',
@@ -68,6 +69,14 @@ function tmpFile(name) {
 
 function sh(cmd) {
   execSync(cmd, { stdio: 'inherit', shell: true })
+}
+
+function getMaxUploadBytes() {
+  const raw = process.env.CI_PLAYWRIGHT_IMAGE_CACHE_MAX_UPLOAD_BYTES
+  const parsed = raw ? Number.parseInt(raw, 10) : NaN
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : DEFAULT_MAX_UPLOAD_BYTES
 }
 
 async function main() {
@@ -134,6 +143,19 @@ async function main() {
     sh(`docker create --name ${containerName} ${IMAGE_NAME} true`)
     sh(`docker export ${containerName} | zstd -1 -T0 --long=27 -o ${zstFile}`)
     sh(`docker rm ${containerName}`)
+
+    const uploadSize = fs.statSync(zstFile).size
+    const maxUploadBytes = getMaxUploadBytes()
+    if (uploadSize > maxUploadBytes) {
+      console.log(
+        `WARNING: Skipping turbo cache upload because artifact is too large (${(
+          uploadSize /
+          1024 /
+          1024
+        ).toFixed(1)} MiB > ${(maxUploadBytes / 1024 / 1024).toFixed(1)} MiB)`
+      )
+      return
+    }
 
     try {
       await cache.put(key, zstFile)

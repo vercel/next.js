@@ -185,6 +185,7 @@ jobs:
 
           if [ "$REQUESTED_NODE_VERSION" != "$DEFAULT_NODE_VERSION" ]; then
             NODE_PREFIX="$HOME/.local/node-v${REQUESTED_NODE_VERSION}"
+            mkdir -p "$NODE_PREFIX"
             export PATH="$NODE_PREFIX/bin:$PATH"
             curl -sfLS "https://install-node.vercel.app" | bash -s -- \
               --yes \
