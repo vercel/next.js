@@ -13,6 +13,9 @@ on:
         description: 'version of Node.js to use'
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   build_nextjs:
     name: Build Next.js for the turbopack integration test

@@ -7,6 +7,9 @@ on:
 
 name: Generate Stats
 
+permissions:
+  contents: read
+
 concurrency:
   # Keep cancel-on-update behavior for PRs, but allow canary pushes to run independently.
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
