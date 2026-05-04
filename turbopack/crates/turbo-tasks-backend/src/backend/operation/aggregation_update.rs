@@ -46,14 +46,14 @@ const MAX_COUNT_BEFORE_YIELD: usize = 1000;
 const FIND_AND_SCHEDULE_BATCH_SIZE: usize = 10000;
 const MAX_UPPERS_FOLLOWER_PRODUCT: usize = 31;
 /// Maximum number of `OptimizeJob`s held in the in-memory `optimize_queue`. When this is
-/// reached, further `push_optimize_task` calls leave the `optimization_pending` flag set on
-/// the task but do not enqueue a job. The optimization will eventually be picked up again the
+/// reached, further `push_optimize_task` calls set the `optimization_pending` flag on the
+/// task but do not enqueue a job. The optimization will eventually be picked up again the
 /// next time an aggregation update touches the task (see `check_optimization_pending`).
-const MAX_OPTIMIZE_QUEUE_SIZE: usize = 1000;
+const MAX_OPTIMIZE_QUEUE_SIZE: usize = 10000;
 /// Maximum number of optimizations executed by a single `AggregationUpdateQueue` instance
 /// over its lifetime. Once this many optimizations have been performed, any remaining
-/// `OptimizeJob`s are discarded (the `optimization_pending` flag is left set on those tasks
-/// so a future aggregation update can re-enqueue them).
+/// `OptimizeJob`s are discarded; the `optimization_pending` flag is set on those tasks so a
+/// future aggregation update can re-enqueue them.
 const MAX_OPTIMIZATIONS_PER_QUEUE: usize = 1000;
 #[cfg(not(feature = "trace_aggregation_update"))]
 const AGGREGATION_UPDATE_CATEGORY: TaskDataCategory = TaskDataCategory::Meta;
@@ -1029,45 +1029,54 @@ impl AggregationUpdateQueue {
 
     /// Whether this queue has reached its lifetime budget for executed optimizations.
     /// When true, no further `OptimizeJob`s will be enqueued or processed by this queue.
-    /// The `optimization_pending` flag is left set on the affected tasks so a subsequent
+    /// The `optimization_pending` flag is set on the affected tasks so a subsequent
     /// aggregation update operation will eventually pick the work up again.
     fn is_optimization_budget_exhausted(&self) -> bool {
         self.optimizations_executed >= MAX_OPTIMIZATIONS_PER_QUEUE
     }
 
-    /// Marks a task as needing optimization and enqueues an `OptimizeJob` for it.
-    ///
-    /// The `optimization_pending` flag on the task is always set, even when no job ends up
-    /// being enqueued (because the in-memory `optimize_queue` is at its cap, or because this
-    /// queue has already hit its `MAX_OPTIMIZATIONS_PER_QUEUE` budget). The optimization will
-    /// be picked up again the next time an aggregation update touches this task (see
-    /// `check_optimization_pending`).
-    fn push_optimize_task(&mut self, task: &mut impl TaskGuard) {
-        let task_id = task.id();
-        task.set_optimization_pending(true);
-        if !self.is_optimization_budget_exhausted()
+    /// Whether `optimize_queue` has room for another `OptimizeJob` and this queue still
+    /// has optimization budget left.
+    fn can_enqueue_optimize_job(&self) -> bool {
+        !self.is_optimization_budget_exhausted()
             && self.optimize_queue.len() < MAX_OPTIMIZE_QUEUE_SIZE
-        {
-            self.optimize_queue.push_back(OptimizeJob::new(task_id));
+    }
+
+    /// Schedules an optimization of `task`'s aggregation number.
+    ///
+    /// In the common case (queue has room and the budget is not exhausted) this just enqueues
+    /// an `OptimizeJob` and does not touch any persistent state on the task. When the
+    /// optimization can't be enqueued, the `optimization_pending` flag is set on the task
+    /// instead, so a later aggregation update can recover the dropped optimization via
+    /// [`Self::check_optimization_pending`].
+    fn push_optimize_task(&mut self, task: &mut impl TaskGuard) {
+        if self.can_enqueue_optimize_job() {
+            self.optimize_queue.push_back(OptimizeJob::new(task.id()));
+        } else {
+            // Push dropped — mark the task so a later operation recovers it.
+            task.set_optimization_pending(true);
         }
     }
 
     /// Like [`Self::push_optimize_task`], but takes a task id instead of a guard. Opens a
-    /// `Meta`-category guard internally. Callers that already hold a guard for `task_id`
-    /// should use [`Self::push_optimize_task`] directly to avoid a double-lock.
+    /// `Meta`-category guard internally only if it's actually needed (queue full / budget
+    /// exhausted). Callers that already hold a guard for `task_id` should use
+    /// [`Self::push_optimize_task`] directly to avoid a double-lock.
     fn push_optimize_task_by_id(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
-        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
-        self.push_optimize_task(&mut task);
+        if self.can_enqueue_optimize_job() {
+            self.optimize_queue.push_back(OptimizeJob::new(task_id));
+        } else {
+            let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+            task.set_optimization_pending(true);
+        }
     }
 
     /// If the `optimization_pending` flag is set on `task`, enqueues an `OptimizeJob` for it
-    /// (subject to the queue cap and the per-queue budget). Does *not* set the flag — that's
-    /// the job of [`Self::push_optimize_task`]. Used as a lazy recovery hook from aggregation
-    /// update handlers that already hold a task guard.
+    /// (subject to the queue cap and the per-queue budget). Used as a lazy recovery hook from
+    /// aggregation update handlers that already hold a task guard. The flag itself is cleared
+    /// later, when `optimize_task` actually runs for this task.
     fn check_optimization_pending(&mut self, task: &impl TaskGuard) {
-        if self.is_optimization_budget_exhausted()
-            || self.optimize_queue.len() >= MAX_OPTIMIZE_QUEUE_SIZE
-        {
+        if !self.can_enqueue_optimize_job() {
             return;
         }
         if task.optimization_pending() {
@@ -1480,31 +1489,33 @@ impl AggregationUpdateQueue {
                 }
             }
             false
-        } else if !self.optimize_queue.is_empty() {
-            // Drain the entire `optimize_queue` in a single `process()` call: it is bounded by
-            // `MAX_OPTIMIZE_QUEUE_SIZE` so this is finite. We also stop early once
-            // `MAX_OPTIMIZATIONS_PER_QUEUE` optimizations have been performed by this queue
-            // and discard whatever is left — those tasks still have `optimization_pending`
-            // set and will be re-enqueued by a later aggregation update operation.
-            while let Some(OptimizeJob {
-                task_id,
-                #[cfg(feature = "trace_aggregation_update_queue")]
-                span,
-            }) = self.optimize_queue.pop_front()
-            {
-                if self.is_optimization_budget_exhausted() {
-                    self.optimize_queue.clear();
-                    break;
-                }
-                #[cfg(feature = "trace_aggregation_update_queue")]
-                let _guard = span.map(|s| s.entered());
-                #[cfg(feature = "trace_aggregation_update_stats")]
-                {
-                    self.stats.optimize_task += 1;
-                }
-                self.optimizations_executed += 1;
-                self.optimize_task(ctx, task_id);
+        } else if let Some(OptimizeJob {
+            task_id,
+            #[cfg(feature = "trace_aggregation_update_queue")]
+            span,
+        }) = self.optimize_queue.pop_front()
+        {
+            if self.is_optimization_budget_exhausted() {
+                // Budget exhausted: drop this job and mark the task so the optimization is
+                // recovered later by a future aggregation update operation. We process one
+                // dropped job per `process()` call to spread the (cheap) flag-setting work
+                // and to keep yielding to other queues.
+                let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+                task.set_optimization_pending(true);
+                return false;
             }
+            // Note: We must process one optimization completely before starting with the next
+            // one. Otherwise this could lead to optimizing every node of a subgraph of inner
+            // nodes, as all have the same upper count. Optimizing the root first lets the
+            // children become "doesn't need optimization".
+            #[cfg(feature = "trace_aggregation_update_queue")]
+            let _guard = span.map(|s| s.entered());
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            {
+                self.stats.optimize_task += 1;
+            }
+            self.optimizations_executed += 1;
+            self.optimize_task(ctx, task_id);
             false
         } else if !self.find_and_schedule.is_empty() {
             let count = self
@@ -2031,6 +2042,7 @@ impl AggregationUpdateQueue {
                         removed_uppers.iter().copied(),
                         "remove data from uppers",
                         |mut upper, ctx| {
+                            self.check_optimization_pending(&upper);
                             // STEP 6
                             let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                             if !diff.is_empty() {
@@ -2522,6 +2534,7 @@ impl AggregationUpdateQueue {
                             .map(|(entry, _)| entry.task_id()),
                         "add data to uppers",
                         |mut upper, ctx| {
+                            self.check_optimization_pending(&upper);
                             // STEP 6d
                             if has_data {
                                 let diff =
@@ -3223,8 +3236,10 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             TaskDataCategory::Meta,
         );
-        // Clear the pending flag now. If the optimization changes the aggregation number we
-        // re-set it via `push_optimize_task_by_id` at the bottom of this function.
+        // Clear the pending flag — this is the only path that does so. The setter is a no-op
+        // when the flag was already `false` (the common case where this `OptimizeJob` was
+        // pushed directly by `push_optimize_task` without going through the lazy recovery
+        // path), so we don't dirty meta in that case.
         task.set_optimization_pending(false);
         let aggregation_number = task.get_aggregation_number().copied().unwrap_or_default();
         if is_root_node(aggregation_number.effective) {

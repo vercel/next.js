@@ -151,8 +151,9 @@ struct TaskStorageSchema {
     immutable: bool,
 
     /// Whether an optimization of the aggregation number for this task is pending.
-    /// Set when [`push_optimize_task`] is called (regardless of whether the in-memory
-    /// `optimize_queue` was at capacity), and cleared when `optimize_task` runs.
+    /// Set when an `OptimizeJob` for this task is dropped without being processed (because
+    /// the in-memory `optimize_queue` was at capacity, or the `AggregationUpdateQueue` ran
+    /// out of its optimization budget). Cleared by `optimize_task` when it actually runs.
     /// Persisted so that a dropped optimization is recovered after restart.
     #[field(storage = "flag", category = "meta")]
     optimization_pending: bool,
