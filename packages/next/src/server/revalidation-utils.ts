@@ -48,24 +48,12 @@ function diffRevalidationState(
   prev: RevalidationState,
   curr: RevalidationState
 ): RevalidationState {
-  const prevTagsWithProfile = new Set(
-    prev.pendingRevalidatedTags.map((item) => {
-      const profileKey =
-        typeof item.profile === 'object'
-          ? JSON.stringify(item.profile)
-          : item.profile || ''
-      return `${item.tag}:${profileKey}`
-    })
-  )
   const prevRevalidateWrites = new Set(prev.pendingRevalidateWrites)
   return {
-    pendingRevalidatedTags: curr.pendingRevalidatedTags.filter((item) => {
-      const profileKey =
-        typeof item.profile === 'object'
-          ? JSON.stringify(item.profile)
-          : item.profile || ''
-      return !prevTagsWithProfile.has(`${item.tag}:${profileKey}`)
-    }),
+    pendingRevalidatedTags: diffRevalidatedTags(
+      prev.pendingRevalidatedTags,
+      curr.pendingRevalidatedTags
+    ),
     pendingRevalidates: Object.fromEntries(
       Object.entries(curr.pendingRevalidates).filter(
         ([key]) => !(key in prev.pendingRevalidates)
@@ -75,6 +63,71 @@ function diffRevalidationState(
       (promise) => !prevRevalidateWrites.has(promise)
     ),
   }
+}
+
+function diffRevalidatedTags(
+  prev: RevalidationState['pendingRevalidatedTags'],
+  curr: RevalidationState['pendingRevalidatedTags']
+): RevalidationState['pendingRevalidatedTags'] {
+  const prevTagsWithProfile = new Set(prev.map(getRevalidatedTagKey))
+
+  return curr.filter((item) => {
+    return !prevTagsWithProfile.has(getRevalidatedTagKey(item))
+  })
+}
+
+function getRevalidatedTagKey(
+  item: RevalidationState['pendingRevalidatedTags'][number]
+): string {
+  const profileKey =
+    typeof item.profile === 'object'
+      ? JSON.stringify(item.profile)
+      : item.profile || ''
+
+  return `${item.tag}:${profileKey}`
+}
+
+function mergeRevalidatedTags(
+  prev: RevalidationState['pendingRevalidatedTags'],
+  curr: RevalidationState['pendingRevalidatedTags']
+): RevalidationState['pendingRevalidatedTags'] {
+  const pendingRevalidatedTags = [...prev]
+  const seenTagsWithProfile = new Set(
+    pendingRevalidatedTags.map(getRevalidatedTagKey)
+  )
+
+  for (const item of curr) {
+    const key = getRevalidatedTagKey(item)
+    if (!seenTagsWithProfile.has(key)) {
+      seenTagsWithProfile.add(key)
+      pendingRevalidatedTags.push(item)
+    }
+  }
+
+  return pendingRevalidatedTags
+}
+
+const executedRevalidatedTagsSymbol = Symbol.for(
+  '@next/executed-revalidated-tags'
+)
+
+type WorkStoreWithExecutedRevalidations = WorkStore & {
+  [key: symbol]: RevalidationState['pendingRevalidatedTags'] | undefined
+}
+
+function getExecutedRevalidatedTags(
+  workStore: WorkStore
+): RevalidationState['pendingRevalidatedTags'] | undefined {
+  const store = workStore as WorkStoreWithExecutedRevalidations
+  return store[executedRevalidatedTagsSymbol]
+}
+
+function setExecutedRevalidatedTags(
+  workStore: WorkStore,
+  pendingRevalidatedTags: RevalidationState['pendingRevalidatedTags']
+) {
+  const store = workStore as WorkStoreWithExecutedRevalidations
+  store[executedRevalidatedTagsSymbol] = pendingRevalidatedTags
 }
 
 async function revalidateTags(
@@ -188,9 +241,15 @@ export function executeRevalidates(
   state?: RevalidationState
 ): false | Promise<void> {
   const promises: Promise<unknown>[] = []
+  const revalidationState = state ?? cloneRevalidationState(workStore)
+  const executedRevalidatedTags = getExecutedRevalidatedTags(workStore)
 
-  const pendingRevalidatedTags =
-    state?.pendingRevalidatedTags ?? workStore.pendingRevalidatedTags ?? []
+  const pendingRevalidatedTags = executedRevalidatedTags
+    ? diffRevalidatedTags(
+        executedRevalidatedTags,
+        revalidationState.pendingRevalidatedTags
+      )
+    : revalidationState.pendingRevalidatedTags
 
   if (pendingRevalidatedTags.length > 0) {
     promises.push(
@@ -198,18 +257,25 @@ export function executeRevalidates(
         pendingRevalidatedTags,
         workStore.incrementalCache,
         workStore
-      )
+      ).then(() => {
+        setExecutedRevalidatedTags(
+          workStore,
+          executedRevalidatedTags
+            ? mergeRevalidatedTags(
+                executedRevalidatedTags,
+                pendingRevalidatedTags
+              )
+            : pendingRevalidatedTags
+        )
+      })
     )
   }
 
-  const pendingRevalidates = Object.values(
-    state?.pendingRevalidates ?? workStore.pendingRevalidates ?? {}
-  )
+  const pendingRevalidates = Object.values(revalidationState.pendingRevalidates)
 
   promises.push(...pendingRevalidates)
 
-  const pendingRevalidateWrites =
-    state?.pendingRevalidateWrites ?? workStore.pendingRevalidateWrites ?? []
+  const pendingRevalidateWrites = revalidationState.pendingRevalidateWrites
 
   promises.push(...pendingRevalidateWrites)
 

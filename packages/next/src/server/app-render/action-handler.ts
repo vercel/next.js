@@ -199,6 +199,28 @@ function addRevalidationHeader(
   }
 }
 
+export function executeRevalidatesOnRenderCompletion(
+  renderResult: RenderResult,
+  workStore: WorkStore
+): RenderResult {
+  renderResult.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        controller.enqueue(chunk)
+      },
+      async flush() {
+        const maybeRevalidatesPromise = executeRevalidates(workStore)
+
+        if (maybeRevalidatesPromise !== false) {
+          await maybeRevalidatesPromise
+        }
+      },
+    })
+  )
+
+  return renderResult
+}
+
 /**
  * Forwards a server action request to a separate worker. Used when the requested action is not available in the current worker.
  */
@@ -1155,18 +1177,21 @@ export async function handleAction({
           const maybeRevalidatesPromise = skipPageRendering
             ? executeRevalidates(workStore)
             : false
+          const result = await generateFlight(req, ctx, requestStore, {
+            actionResult: Promise.resolve(actionResult),
+            skipPageRendering,
+            temporaryReferences,
+            waitUntil:
+              maybeRevalidatesPromise === false
+                ? undefined
+                : maybeRevalidatesPromise,
+          })
 
           return {
             type: 'done',
-            result: await generateFlight(req, ctx, requestStore, {
-              actionResult: Promise.resolve(actionResult),
-              skipPageRendering,
-              temporaryReferences,
-              waitUntil:
-                maybeRevalidatesPromise === false
-                  ? undefined
-                  : maybeRevalidatesPromise,
-            }),
+            result: skipPageRendering
+              ? result
+              : executeRevalidatesOnRenderCompletion(result, workStore),
           }
         } else {
           // TODO: this shouldn't be reachable, because all non-fetch codepaths return early.
