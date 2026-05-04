@@ -483,7 +483,7 @@ jobs:
       - name: Create tarballs
         # github.event.after is available on push and pull_request#synchronize events.
         # For workflow_dispatch events, github.sha is the head commit.
-        run: node scripts/create-preview-tarballs.js "${{ github.event.after || github.sha }}" "${{ runner.temp }}/preview-tarballs"
+        run: node scripts/create-preview-tarballs.js "${{ github.event.after || github.sha }}" "${{ runner.temp }}/preview-tarballs" "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
 
       - name: Upload tarballs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
