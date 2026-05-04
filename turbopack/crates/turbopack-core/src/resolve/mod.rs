@@ -3702,7 +3702,7 @@ mod tests {
             #[turbo_tasks::value(transparent)]
             struct ResolveRelativeRequestOutput(Vec<(String, String)>);
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn resolve_relative_request_operation(
                 path: RcStr,
                 pattern: Pattern,

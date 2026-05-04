@@ -233,6 +233,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     method_name: #method_name_str,
                     default_method: Some(&#native_function_ident),
                     index: #index,
+                    is_root: #is_root,
                 },
             });
             default_methods.push(quote! { Some(&#native_function_ident) });
@@ -270,6 +271,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     method_name: #method_name_str,
                     default_method: None,
                     index: #index,
+                    is_root: #is_root,
                 },
             });
             default_methods.push(quote! { None });

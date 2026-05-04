@@ -1509,7 +1509,7 @@ impl Project {
 
     /// Computes the whole app module graph, dropping issues in development mode so that
     /// individual routes don't each report every issue from the shared graph.
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     pub async fn whole_app_module_graphs(
         self: ResolvedVc<Self>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {

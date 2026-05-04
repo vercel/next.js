@@ -2666,7 +2666,7 @@ mod tests {
                 subpath_ordering: Vec<String>,
             }
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn read_matches_operation() -> anyhow::Result<Vc<ReadMatchesOutput>> {
                 let root = DiskFileSystem::new(
                     rcstr!("test"),

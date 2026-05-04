@@ -613,7 +613,7 @@ pub fn project_new(
                         let result = tt
                             .clone()
                             .run(async move {
-                                #[turbo_tasks::function(operation)]
+                                #[turbo_tasks::function(operation, root)]
                                 fn project_node_root_path_operation(
                                     container: ResolvedVc<ProjectContainer>,
                                 ) -> Vc<FileSystemPath> {
@@ -995,7 +995,7 @@ struct EntrypointsWithIssues {
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_entrypoints_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<EntrypointsWithIssues>> {
@@ -1013,7 +1013,7 @@ async fn get_entrypoints_with_issues_operation(
     .cell())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn project_container_entrypoints_operation(
     // the container is a long-lived object with internally mutable state, there's no risk of it
     // becoming stale
@@ -1210,7 +1210,7 @@ async fn invalidate_deferred_entry_source_dirs_after_callback(
     #[turbo_tasks::value(cell = "new", eq = "manual")]
     struct ProjectInfo(Option<FileSystemPath>, DiskFileSystem);
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn project_info_operation(
         container: ResolvedVc<ProjectContainer>,
     ) -> Result<Vc<ProjectInfo>> {
@@ -1329,7 +1329,7 @@ pub async fn project_write_all_entrypoints_to_disk(
     let container = project.container;
     let tt = ctx.turbo_tasks();
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn has_deferred_entrypoints_operation(
         container: ResolvedVc<ProjectContainer>,
     ) -> Result<Vc<bool>> {
@@ -1369,7 +1369,7 @@ pub async fn project_write_all_entrypoints_to_disk(
                 #[turbo_tasks::value]
                 struct DeferredEntrypointInfo(ReadRef<Entrypoints>, ReadRef<Vec<RcStr>>);
 
-                #[turbo_tasks::function(operation)]
+                #[turbo_tasks::function(operation, root)]
                 async fn deferred_entrypoint_info_operation(
                     container: ResolvedVc<ProjectContainer>,
                 ) -> Result<Vc<DeferredEntrypointInfo>> {
@@ -1562,7 +1562,7 @@ pub async fn project_write_all_entrypoints_to_disk(
     })
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_all_written_entrypoints_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
@@ -1585,7 +1585,7 @@ async fn get_all_written_entrypoints_with_issues_operation(
     .cell())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn all_entrypoints_write_to_disk_operation(
     project: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
@@ -1629,7 +1629,7 @@ async fn output_assets_for_single_emit_operation(
     Ok(Vc::cell(merged_output_assets.into_iter().collect()))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn emit_all_output_assets_once_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
@@ -1646,7 +1646,7 @@ async fn emit_all_output_assets_once_operation(
     Ok(container.entrypoints())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn emit_all_output_assets_once_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
@@ -1830,7 +1830,7 @@ struct HmrUpdateWithIssues {
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn project_hmr_update_operation(
     project: ResolvedVc<Project>,
     chunk_name: RcStr,
@@ -1840,7 +1840,7 @@ fn project_hmr_update_operation(
     project.hmr_update(chunk_name, target, *state)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn hmr_update_with_issues_operation(
     project: ResolvedVc<Project>,
     chunk_name: RcStr,
@@ -1975,7 +1975,7 @@ struct HmrChunkNamesWithIssues {
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn project_hmr_chunk_names_operation(
     container: ResolvedVc<ProjectContainer>,
     target: HmrTarget,
@@ -1983,7 +1983,7 @@ fn project_hmr_chunk_names_operation(
     container.hmr_chunk_names(target)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_hmr_chunk_names_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
     target: HmrTarget,
@@ -2296,7 +2296,7 @@ pub async fn get_source_map_rope(
     Ok(map)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub fn get_source_map_rope_operation(
     container: ResolvedVc<ProjectContainer>,
     file_path: RcStr,
@@ -2304,7 +2304,7 @@ pub fn get_source_map_rope_operation(
     get_source_map_rope(*container, file_path)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn project_trace_source_operation(
     container: ResolvedVc<ProjectContainer>,
     frame: StackFrame,
@@ -2431,7 +2431,7 @@ pub async fn project_get_source_for_asset(
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
         .run(async move {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn source_content_operation(
                 container: ResolvedVc<ProjectContainer>,
                 file_path: RcStr,
@@ -2526,7 +2526,7 @@ pub async fn project_write_analyze_data(
     })
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_all_compilation_issues_inner_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<()>> {
@@ -2543,7 +2543,7 @@ async fn get_all_compilation_issues_inner_operation(
     Ok(Vc::cell(()))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_all_compilation_issues_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<OperationResult>> {

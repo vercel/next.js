@@ -22,7 +22,7 @@ pub struct WriteAnalyzeResult {
     pub effects: Arc<Effects>,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn write_analyze_data_with_issues_operation(
     project: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
@@ -41,7 +41,7 @@ pub async fn write_analyze_data_with_issues_operation(
     .cell())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn write_analyze_data_with_issues_operation_inner(
     project: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,

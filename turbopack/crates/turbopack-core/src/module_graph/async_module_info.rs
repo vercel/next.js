@@ -18,7 +18,7 @@ impl AsyncModulesInfo {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn compute_async_module_info(
     graphs: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<AsyncModulesInfo>> {
@@ -32,7 +32,7 @@ pub async fn compute_async_module_info(
         .connect())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn compute_async_module_info_single(
     graph: OperationVc<ModuleGraphLayer>,
     parent_async_modules: Option<OperationVc<AsyncModulesInfo>>,

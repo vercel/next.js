@@ -61,7 +61,7 @@ struct ContentSourceWithIssues {
     effects: Effects,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_source_with_issues_operation(
     source_op: OperationVc<Box<dyn ContentSource>>,
 ) -> Result<Vc<ContentSourceWithIssues>> {

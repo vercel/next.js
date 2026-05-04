@@ -41,7 +41,7 @@ async fn basic_get() {
             #[turbo_tasks::value]
             struct FetchOutput(u16, RcStr);
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn fetch_operation(url: RcStr) -> Result<Vc<FetchOutput>> {
                 let client_vc = FetchClientConfig::default().cell();
                 let response = &*client_vc
@@ -88,7 +88,7 @@ async fn sends_user_agent() {
             #[turbo_tasks::value]
             struct FetchOutput(u16, RcStr);
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn fetch_operation(url: RcStr) -> Result<Vc<FetchOutput>> {
                 let client_vc = FetchClientConfig::default().cell();
                 let response = &*client_vc
@@ -137,7 +137,7 @@ async fn invalidation_does_not_invalidate() {
             #[turbo_tasks::value]
             struct FetchOutput(u16, RcStr, u16, RcStr);
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn fetch_operation(url: RcStr) -> Result<Vc<FetchOutput>> {
                 let client_vc = FetchClientConfig::default().cell();
                 let response = &*client_vc
@@ -195,7 +195,7 @@ async fn errors_on_failed_connection() {
             StyledString,
         );
 
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn fetch_operation(url: RcStr) -> Result<Vc<FetchOutput>> {
             let client_vc = FetchClientConfig::default().cell();
             let response_vc = client_vc.fetch(url.clone(), None);
@@ -259,7 +259,7 @@ async fn errors_on_404() {
                 StyledString,
             );
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn fetch_operation(url: RcStr) -> Result<Vc<FetchOutput>> {
                 let client_vc = FetchClientConfig::default().cell();
                 let response_vc = client_vc.fetch(url.clone(), None);
@@ -315,7 +315,7 @@ async fn client_cache() {
     let server_url = RcStr::from(server.url());
 
     // a simple fetch that should always succeed
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn simple_fetch_operation(server_url: RcStr, path: RcStr) -> anyhow::Result<()> {
         let url = RcStr::from(format!("{}{}", server_url, path));
         let response = match &*FetchClientConfig::default()

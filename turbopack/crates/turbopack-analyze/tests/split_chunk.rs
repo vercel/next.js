@@ -55,7 +55,7 @@ async fn split_chunk() {
         }
         .resolved_cell();
 
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         fn split_parts_operation(asset: ResolvedVc<TestAsset>) -> Vc<ChunkParts> {
             split_output_asset_into_parts(Vc::upcast(*asset))
         }
@@ -96,7 +96,7 @@ async fn split_chunk() {
             }]
         );
 
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn compressed_size_operation(
             parts: OperationVc<ChunkParts>,
             index: usize,
