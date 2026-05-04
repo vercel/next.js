@@ -16294,6 +16294,7 @@ function setProp(domElement, tag, key, value, props, prevValue) {
     case "async":
     case "autoPlay":
     case "controls":
+    case "credentialless":
     case "default":
     case "defer":
     case "disabled":
@@ -17738,12 +17739,7 @@ function normalizeListenerOptions(opts) {
     ? "0"
     : "boolean" === typeof opts
       ? "c=" + (opts ? "1" : "0")
-      : "c=" +
-        (opts.capture ? "1" : "0") +
-        "&o=" +
-        (opts.once ? "1" : "0") +
-        "&p=" +
-        (opts.passive ? "1" : "0");
+      : "c=" + (opts.capture ? "1" : "0");
 }
 function indexOfEventListener(
   eventListeners,
@@ -20063,14 +20059,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2348 = React.version;
 if (
-  "19.3.0-canary-da9325b5-20260417" !==
+  "19.3.0-canary-f4e0d4ed-20260429" !==
   isomorphicReactPackageVersion$jscomp$inline_2348
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2348,
-      "19.3.0-canary-da9325b5-20260417"
+      "19.3.0-canary-f4e0d4ed-20260429"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20092,10 +20088,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2933 = {
   bundleType: 0,
-  version: "19.3.0-canary-da9325b5-20260417",
+  version: "19.3.0-canary-f4e0d4ed-20260429",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-da9325b5-20260417"
+  reconcilerVersion: "19.3.0-canary-f4e0d4ed-20260429"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2934 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -20354,7 +20350,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-canary-da9325b5-20260417";
+exports.version = "19.3.0-canary-f4e0d4ed-20260429";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
