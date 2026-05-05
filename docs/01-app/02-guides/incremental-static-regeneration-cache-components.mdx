@@ -200,6 +200,8 @@ After the first visit, Next.js renders the page in the background with the known
 
 To disable fallback shells and revert to blocking behavior for routes not in `generateStaticParams`, set [`experimental.partialFallbacks`](/docs/app/api-reference/config/next-config-js/partialFallbacks) to `false`. The page is still generated after the first visit, but visitors wait for the full render instead of seeing a loading state.
 
+> **Good to know**: When [self-hosting](/docs/app/guides/self-hosting#caching-and-isr) with a custom [`cacheHandler`](/docs/app/api-reference/config/next-config-js/cacheHandler) for ISR, you can keep it alongside [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers) for `'use cache'`. They serve different layers and coexist.
+
 ## Coming from the Pages Router
 
 If you are migrating from the Pages Router:
