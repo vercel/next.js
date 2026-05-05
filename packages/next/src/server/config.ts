@@ -1012,6 +1012,13 @@ function assignDefaultsAndValidate(
     }
   }
 
+  if (result?.turbopack?.chunkLoadingGlobal) {
+    const g = result.turbopack.chunkLoadingGlobal
+    if (!g.startsWith('TURBOPACK_')) {
+      result.turbopack.chunkLoadingGlobal = `TURBOPACK_${g}`
+    }
+  }
+
   if (
     result.experimental.runtimeServerDeploymentId == null &&
     phase === PHASE_PRODUCTION_BUILD &&

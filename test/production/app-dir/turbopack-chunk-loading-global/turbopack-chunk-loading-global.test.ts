@@ -29,12 +29,12 @@ describe('turbopack-chunk-loading-global', () => {
           .map((f) => fs.readFileSync(f, 'utf8'))
           .join('\n')
 
-        // Custom global must be used for chunk loading
-        expect(allContent).toContain('globalThis.myApp')
+        // Custom global must be used for chunk loading (auto-prefixed with TURBOPACK_)
+        expect(allContent).toContain('globalThis.TURBOPACK_myApp')
 
-        // Default TURBOPACK chunk-loading global must not appear — if it does,
+        // Bare default TURBOPACK global must not appear — if it does,
         // chunkLoadingGlobal was ignored by the Rust layer
-        expect(allContent).not.toContain('globalThis.TURBOPACK')
+        expect(allContent).not.toMatch(/globalThis\.TURBOPACK(?!_)/)
       })
     }
   )
