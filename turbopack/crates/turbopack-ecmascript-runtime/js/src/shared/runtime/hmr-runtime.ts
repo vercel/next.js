@@ -160,12 +160,8 @@ function getAffectedModuleEffects(
     if (
       // The module is not in the cache. Since this is a "modified" update,
       // it means that the module was never instantiated before.
-      !module ||
-      // In server HMR mode (autoAcceptRootModules=true), individual module
-      // self-accepts do not stop propagation. The real accept boundary is
-      // always the layout tree's acceptedDependencies. Stopping here would
-      // leave consuming modules (e.g. page.tsx) cached with stale namespace
-      // references to the old module instance.
+      !module || // The module accepted itself without invalidating globalThis.
+      // TODO is that right?
       (!autoAcceptRootModules &&
         hotState.selfAccepted &&
         !hotState.selfInvalidated)
@@ -227,11 +223,6 @@ function getAffectedModuleEffects(
         moduleId: parentId,
         dependencyChain: [...dependencyChain, moduleId],
       })
-    }
-
-    // If no parents and we're at a root module, auto-accept if configured
-    if (module.parents.length === 0 && autoAcceptRootModules) {
-      continue
     }
   }
 

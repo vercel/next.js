@@ -101,10 +101,8 @@ impl BaseLoaderTreeBuilder {
 
         let require_line = formatdoc!(
             r#"
-            const {} = () => require(/*turbopackChunkingType: shared*/"MODULE_{}");
+            const {identifier} = () => require(/*turbopackChunkingType: shared*/"MODULE_{i}");
             "#,
-            identifier,
-            i
         );
 
         // When server HMR is enabled, emit an accept() call for each non-layout
