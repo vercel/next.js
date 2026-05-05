@@ -405,7 +405,7 @@ export async function hydrate(
   if (document.documentElement.id === '__next_error__') {
     let element = reactEl
     // Server rendering failed, fall back to client-side rendering
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.__NEXT_DEV_SERVER) {
       const { RootLevelDevOverlayElement } =
         require('../next-devtools/userspace/app/client-entry') as typeof import('../next-devtools/userspace/app/client-entry')
 
