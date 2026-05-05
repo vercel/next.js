@@ -477,6 +477,7 @@ pub struct ClientChunkingContextOptions {
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub debug_ids: Vc<bool>,
+    pub worker_asset_prefix: Vc<Option<RcStr>>,
     pub should_use_absolute_url_references: Vc<bool>,
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
@@ -504,6 +505,7 @@ pub async fn get_client_chunking_context(
         scope_hoisting,
         nested_async_chunking,
         debug_ids,
+        worker_asset_prefix,
         should_use_absolute_url_references,
         css_url_suffix,
         hash_salt,
@@ -544,6 +546,7 @@ pub async fn get_client_chunking_context(
     .unused_references(unused_references.to_resolved().await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .debug_ids(*debug_ids.await?)
+    .worker_asset_prefix(worker_asset_prefix.owned().await?)
     .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals())

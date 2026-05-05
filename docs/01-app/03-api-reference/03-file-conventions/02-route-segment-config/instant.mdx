@@ -12,12 +12,17 @@ related:
     - app/api-reference/directives/use-cache
 ---
 
-The `unstable_instant` route segment config opts a route into validation for instant client-side navigations. Next.js checks, during development and at build time, that the caching structure produces an instant [static shell](/docs/app/glossary#static-shell) at every possible entry point into the route.
+The `unstable_instant` route segment config controls how Next.js validates whether a navigation into this segment would produce an instant UI.
+
+Next.js uses prefetching to preload navigations for all in-app links on the current page. However, client-side data fetching or partially prerendered results from the server can lead to navigations that don't update the UI immediately. To help you build fast-feeling navigations, `unstable_instant` lets you tell Next.js what to expect from navigations through the configured segment. For instance, you can indicate that navigations into this segment should produce a UI that renders instantly without waiting on any externally loaded data. You can also indicate that navigations aren't expected to be instant.
+
+When a segment is configured to expect an instant UI, Next.js surfaces any code in your application that would block the navigation from updating the UI immediately. See the [Instant Navigation guide](/docs/app/guides/instant-navigation) for an end-to-end walkthrough.
 
 > **Good to know**:
 >
 > - The `unstable_instant` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
 > - `unstable_instant` cannot be used in Client Components. It will throw an error.
+> - Next.js does not perform prefetches in development, so navigations may not feel as instant as they will in production. Validation reflects what will happen during `next start`, where prefetching is enabled.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
 export const unstable_instant = true
@@ -35,151 +40,60 @@ export default function Page() {
 }
 ```
 
-For routes with params, provide [`samples`](#samples) so build-time validation can simulate navigations to this page:
-
-```tsx filename="app/products/[slug]/page.tsx" switcher
-export const unstable_instant = {
-  samples: [{ params: { slug: 'example' } }],
-}
-```
-
-```jsx filename="app/products/[slug]/page.js" switcher
-export const unstable_instant = {
-  samples: [{ params: { slug: 'example' } }],
-}
-```
-
 ## Reference
 
-### `unstable_instant`
+The export accepts:
 
-Enables validation for instant navigations on a route.
-
-```tsx filename="page.tsx"
-export const unstable_instant = true
-```
-
-Accepts:
-
-- `true` - enable validation with default options
-- `false` - exempt this segment from validation
-- An object with [configuration options](#options)
-
-### Options
-
-Pass an object to configure validation:
-
-```tsx filename="page.tsx"
-export const unstable_instant = {
-  samples: [{ params: { slug: 'example' } }],
-  unstable_disableValidation: true,
-}
-```
-
-Available options:
-
-- [`samples`](#samples) - Example data for build-time validation
-- `unstable_disableValidation` - Skip validation in both dev and build
-- `unstable_disableDevValidation` - Skip validation in dev only
-- `unstable_disableBuildValidation` - Skip validation at build time only
-
-> **Good to know:** Setting any of the disable flags on any segment in the route skips validation for the entire route tree, not just that segment.
-
-### Pairing with `unstable_prefetch`
-
-`unstable_instant` only handles validation. To control how a segment is prefetched, use the separate [`unstable_prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) export. `'force-runtime'` is the most common pairing: it sends a prefetch request with the user's cookies and headers, so content that depends on runtime data can be part of the shell.
-
-```tsx filename="app/dashboard/layout.tsx"
-export const unstable_instant = {
-  samples: [
-    {
-      cookies: [{ name: 'session', value: 'abc123' }],
-    },
-  ],
-}
-
-export const unstable_prefetch = 'force-runtime'
-```
-
-See the [`unstable_prefetch` reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for the other modes and details.
+- **`true`**: Opts the segment into validation. Validation runs in development (in the dev overlay) and at build (failing the build on violations).
+- **`false`**: Opts the segment out (see [Disabling instant](#disabling-instant)).
+- An **object**: Opts in with additional options. See [`samples`](#samples).
 
 ### `samples`
 
-Provides example data for the build to simulate navigations to this page. Each sample can include params, searchParams, cookies, and headers. The build renders the route with these values and checks that every access is declared. If your code reads something that isn't in the sample, the build fails and tells you what to add.
+Provides representative request data used to validate runtime prefetches. Pair this with [`unstable_prefetch = 'force-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#force-runtime) so validation can verify the caching structure against realistic inputs.
 
-```tsx filename="app/products/[slug]/page.tsx"
+```tsx filename="page.tsx"
+export const unstable_prefetch = 'force-runtime'
 export const unstable_instant = {
   samples: [
     {
-      params: { slug: 'example-product' },
+      cookies: [{ name: 'session', value: 'test' }],
     },
   ],
 }
 ```
 
-- **Required when `unstable_prefetch = 'force-runtime'`**, otherwise optional.
-- When omitted, Next.js runs validation with an empty sample. Any access to params, cookies, headers, or searchParams during validation will fail the build because the access is undeclared.
-- **Routes with params must provide `samples`**, even if the route uses `generateStaticParams`. Build-time validation runs separately from static generation and uses only the values declared in `samples`.
-- Provide multiple samples to cover different code paths (for example, a logged-in user with an auth cookie and a logged-out user without one).
-- The sample values don't affect your app at runtime. They are only used during build-time validation.
-- Inner segments override outer segments. A page's `samples` replaces a layout's `samples` (they are not merged).
-
-#### What to declare
-
-| Your route accesses | Add to sample |
-| --- | --- |
-| `params` (e.g. `params.slug`) | `params: { slug: 'value' }` |
-| `searchParams` | `searchParams: { q: 'value' }` |
-| `cookies()` then `.get('token')` | `cookies: [{ name: 'token', value: 'sample' }]` |
-| `headers()` then `.get('x-geo')` | `headers: [['x-geo', 'US']]` |
-
-To declare an input as "allowed to access but absent", use `null` for the value:
-
-```tsx
-samples: [
-  {
-    cookies: [{ name: 'token', value: null }], // cookies().get('token') returns null
-    headers: [['x-geo', null]], // headers().get('x-geo') returns null
-    searchParams: { q: null }, // searchParams.q is undefined
-  },
-]
-```
+Each sample can specify any of `cookies`, `headers`, `params`, or `searchParams`. Provide one entry per representative request shape — for example, one for an authenticated visit and one for an anonymous visit.
 
 ### Disabling instant
 
-Set `false` to exempt a segment from validation:
+Set `false` on a layout or page to indicate that this segment is allowed to block when navigating to it.
 
-```tsx filename="app/dashboard/layout.tsx"
+This is useful when a deeper page should be instant but an ancestor can't be. For instance, if a shared layout cannot load instantly but you still want to assert that pages beneath this layout can be navigated to instantly, you can ensure that the pages have `unstable_instant = true` while the shared layout has `unstable_instant = false`.
+
+```tsx filename="app/tabs/layout.tsx"
 export const unstable_instant = false
 ```
 
-### Disabling validation
-
-If validation causes issues you can't fix yet, disable it with one of the disable flags while keeping the other options:
-
-```tsx filename="page.tsx"
-export const unstable_instant = {
-  samples: [{ params: { id: '1' } }],
-  unstable_disableValidation: true,
-}
+```tsx filename="app/tabs/[tab]/page.tsx"
+export const unstable_instant = true
 ```
+
+Navigations from outside into a tab are allowed to block at the layout. Navigations between tabs are validated for instant UI.
+
+You don't need to add `false` to ancestors of an instant page just because they do something blocking — a higher-up `unstable_instant = true` doesn't force its descendants to validate, and leaving an ancestor unconfigured is fine. Reach for `false` only when you've configured a deeper page as instant and need to exempt navigations that pass through a blocking ancestor.
+
+### Disabling static shell validation
+
+Cache Components also validates that each page in your app produces a non-empty static shell at prerender time. To opt a route out of this validation, ensure the highest `unstable_instant` config in the route's tree is `false` — a `false` higher in the tree takes precedence over any deeper `true` for the static-shell check.
+
+Setting `false` on the root layout disables static shell validation for the entire app. Place the `false` as low as possible — only as high as needed to cover the routes you want to opt out — so the rest of the app keeps validating.
 
 ## How validation works
 
 `unstable_instant` triggers validation at every shared layout boundary in the route. Validation runs during development (on page loads and HMR updates) and at build time. Errors appear in the dev error overlay or fail the build.
 
 Each error identifies the component that would block navigation. The fix is usually to cache the data with `use cache` or wrap it in a `<Suspense>` boundary.
-
-### Build-time validation and samples
-
-At build time, Next.js renders your route using the values from `samples` instead of real request data. Every access to params, cookies, headers, or searchParams is checked against what you declared. If your code reads an input that wasn't listed in `samples`, the build fails with a message identifying the specific access:
-
-```
-Route "/products/[slug]" accessed param "slug" which is not defined
-in the `samples` of `unstable_instant`. Add it to the sample's `params` object.
-```
-
-This is separate from dev-time validation, which uses actual request data and does not require `samples`.
 
 ## Inspecting loading states
 
@@ -202,7 +116,7 @@ Use both to check that your loading states look right on first visit and on navi
 
 ## Testing instant navigation
 
-The `@next/playwright` package exports an `instant()` helper that holds back dynamic content while the callback runs against the static shell. See the [guide](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) for a full example.
+The `@next/playwright` package exports an `instant()` helper that holds back dynamic content while the callback runs against the instant UI. See the [guide](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) for a full example.
 
 ```typescript
 import { instant } from '@next/playwright'
@@ -212,14 +126,14 @@ import { instant } from '@next/playwright'
 
 ## Known issue: shared cookie across projects
 
-The DevTools use a `next-instant-navigation-testing` cookie to freeze the UI at the static shell. Because cookies are scoped to the domain and not the port, running multiple projects on the same domain (typically `localhost`) means the cookie is shared across them and can cause unexpected behavior. Clear the cookie or close the Instant Navs panel when switching between projects to avoid issues.
+The DevTools use a `next-instant-navigation-testing` cookie to hold back dynamic content and freeze the page at the instant UI. Because cookies are scoped to the domain and not the port, running multiple projects on the same domain (typically `localhost`) means the cookie is shared across them and can cause unexpected behavior. Clear the cookie or close the Instant Navs panel when switching between projects to avoid issues.
 
 > **Good to know:** This will be fixed as part of stabilizing the feature.
 
 ## TypeScript
 
 ```tsx
-type Sample = {
+type RuntimeSample = {
   cookies?: Array<{ name: string; value: string | null }>
   headers?: Array<[string, string | null]>
   params?: Record<string, string | string[]>
@@ -230,25 +144,14 @@ type InstantConfig =
   | true
   | false
   | {
-      samples?: Sample[]
-      unstable_disableValidation?: true
-      unstable_disableDevValidation?: true
-      unstable_disableBuildValidation?: true
+      samples?: RuntimeSample[]
     }
 
-type PrefetchConfig =
-  | 'auto'
-  | 'force-static'
-  | 'force-runtime'
-  | 'force-disabled'
-
 export const unstable_instant: InstantConfig = true
-
-export const unstable_prefetch: PrefetchConfig = 'auto'
 ```
 
 ## Version History
 
-| Version   | Changes                                                       |
-| --------- | ------------------------------------------------------------- |
-| `v16.x.x` | `unstable_instant` export introduced (Cache Components only). |
+| Version   | Changes                                                      |
+| --------- | ------------------------------------------------------------ |
+| `v16.x.x` | `unstable_instant` export introduced (Cache Components only) |
