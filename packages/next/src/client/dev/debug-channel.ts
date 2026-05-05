@@ -8,7 +8,7 @@ export interface DebugChannelReadableWriterPair {
 
 const pairs = new Map<string, DebugChannelReadableWriterPair>()
 
-const DEBUG_CHANNEL_STORAGE_KEY = '__next_debug_channel'
+const DEBUG_CHANNEL_STORAGE_KEY_PREFIX = '__next_debug_channel:'
 
 // Buffer for the initial document's debug channel data. Written to
 // sessionStorage once complete so it can be restored when the browser serves
@@ -16,22 +16,33 @@ const DEBUG_CHANNEL_STORAGE_KEY = '__next_debug_channel'
 let initialDocumentDebugChunks: Uint8Array[] = []
 
 function persistDebugChannelToSessionStorage(requestId: string): void {
-  try {
-    const chunks = initialDocumentDebugChunks.map((chunk) => {
+  const key = DEBUG_CHANNEL_STORAGE_KEY_PREFIX + requestId
+  const value = JSON.stringify(
+    initialDocumentDebugChunks.map((chunk) => {
       let binary = ''
       for (let i = 0; i < chunk.byteLength; i++) {
         binary += String.fromCharCode(chunk[i])
       }
       return btoa(binary)
     })
+  )
 
-    sessionStorage.setItem(
-      DEBUG_CHANNEL_STORAGE_KEY,
-      JSON.stringify({ requestId, chunks })
-    )
+  try {
+    sessionStorage.setItem(key, value)
   } catch {
-    // Quota exceeded or other error — skip silently. The location.reload()
+    // Likely a quota error. Drop entries from previous documents in this tab
+    // (we only need to restore the current one's entry on cache restore) and
+    // retry once. If it still fails, skip silently — the location.reload()
     // fallback in createDebugChannel handles this case.
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i)
+      if (k?.startsWith(DEBUG_CHANNEL_STORAGE_KEY_PREFIX) && k !== key) {
+        sessionStorage.removeItem(k)
+      }
+    }
+    try {
+      sessionStorage.setItem(key, value)
+    } catch {}
   }
 }
 
@@ -50,22 +61,15 @@ function restoreDebugChannelFromSessionStorage(
   requestId: string
 ): ReadableStream<Uint8Array> | undefined {
   try {
-    const serializedData = sessionStorage.getItem(DEBUG_CHANNEL_STORAGE_KEY)
+    const serializedData = sessionStorage.getItem(
+      DEBUG_CHANNEL_STORAGE_KEY_PREFIX + requestId
+    )
 
     if (!serializedData) {
       return undefined
     }
 
-    const parsedData = JSON.parse(serializedData) as {
-      requestId: string
-      chunks: string[]
-    }
-
-    if (parsedData.requestId !== requestId) {
-      return undefined
-    }
-
-    const chunks = parsedData.chunks.map((base64) => {
+    const chunks = (JSON.parse(serializedData) as string[]).map((base64) => {
       const binary = atob(base64)
       const bytes = new Uint8Array(binary.length)
       for (let i = 0; i < binary.length; i++) {
@@ -153,13 +157,16 @@ export function createDebugChannel(
   if (!requestHeaders && wasServedFromCache()) {
     const readable = restoreDebugChannelFromSessionStorage(requestId)
 
-    if (!readable) {
-      // Debug channel can't be restored — debug deps would block hydration.
-      // Force a fresh page load from the server.
-      location.reload()
+    if (readable) {
+      return { readable }
     }
 
-    return { readable }
+    // Debug channel can't be restored — debug deps would block hydration.
+    // Force a fresh page load from the server. Return a never-closing stream
+    // so the Flight client stays parked until the reload tears the document
+    // down, instead of synchronously erroring with "Connection closed.".
+    location.reload()
+    return { readable: new ReadableStream() }
   }
 
   const { readable } = getOrCreateDebugChannelReadableWriterPair(requestId)

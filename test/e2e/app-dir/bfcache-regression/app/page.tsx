@@ -12,7 +12,7 @@ export default function Page() {
         Increment
       </button>
       <p>
-        <a href="https://example.com">External Link</a>
+        <a href="/target-page">MPA Link</a>
       </p>
     </div>
   )
