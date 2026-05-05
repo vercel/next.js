@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 
 export const unstable_instant: Instant = {
   level: 'experimental-error',
-  samples: [
+  unstable_samples: [
     {
       params: {
         one: '123',

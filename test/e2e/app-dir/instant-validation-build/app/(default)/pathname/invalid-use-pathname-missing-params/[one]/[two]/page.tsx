@@ -3,7 +3,7 @@ import { PathnameReader } from './pathname-reader'
 
 export const unstable_instant: Instant = {
   level: 'experimental-error',
-  samples: [
+  unstable_samples: [
     {
       params: {
         one: '123',

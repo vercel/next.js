@@ -3,7 +3,7 @@ import { ThrowsInClient } from './client'
 
 export const unstable_instant: Instant = {
   level: 'experimental-error',
-  samples: [{ searchParams: {} }],
+  unstable_samples: [{ searchParams: {} }],
 }
 
 export default function Page() {

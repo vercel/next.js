@@ -2,7 +2,7 @@ import { ensureThrows } from '../../../../ensure-error'
 
 export const unstable_instant = {
   level: 'experimental-error',
-  samples: [{ searchParams: { q: 'test' } }],
+  unstable_samples: [{ searchParams: { q: 'test' } }],
 }
 export const unstable_prefetch = 'force-runtime'
 

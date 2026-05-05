@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 
 export const unstable_instant: Instant = {
   level: 'experimental-error',
-  samples: [{ params: { lang: 'en' } }],
+  unstable_samples: [{ params: { lang: 'en' } }],
 }
 
 export default async function Page() {

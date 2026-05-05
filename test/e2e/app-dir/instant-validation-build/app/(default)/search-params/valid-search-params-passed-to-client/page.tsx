@@ -5,7 +5,7 @@ import { ClientChild } from './client'
 
 export const unstable_instant: Instant = {
   level: 'experimental-error',
-  samples: [
+  unstable_samples: [
     {
       searchParams: {
         single: 'test',

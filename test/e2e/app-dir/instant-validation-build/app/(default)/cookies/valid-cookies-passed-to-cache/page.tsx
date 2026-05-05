@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 
 export const unstable_instant: Instant = {
   level: 'experimental-error',
-  samples: [
+  unstable_samples: [
     {
       cookies: [{ name: 'testCookie', value: 'testValue' }],
     },

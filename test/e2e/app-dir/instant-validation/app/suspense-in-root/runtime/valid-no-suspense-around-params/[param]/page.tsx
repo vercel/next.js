@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 
 export const unstable_instant = {
   level: 'experimental-error',
-  samples: [{ cookies: [], params: { param: '123' } }],
+  unstable_samples: [{ cookies: [], params: { param: '123' } }],
 }
 export const unstable_prefetch = 'force-runtime'
 

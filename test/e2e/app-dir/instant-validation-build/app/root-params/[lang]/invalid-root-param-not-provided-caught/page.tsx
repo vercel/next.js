@@ -6,7 +6,7 @@ import { ensureRejects } from '../../../../ensure-error'
 export const unstable_instant: Instant = {
   level: 'experimental-error',
   // no samples
-  samples: [{}],
+  unstable_samples: [{}],
 }
 export const unstable_prefetch = 'force-runtime'
 

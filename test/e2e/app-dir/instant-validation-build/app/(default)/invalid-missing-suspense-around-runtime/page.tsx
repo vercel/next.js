@@ -3,7 +3,7 @@ import { connection } from 'next/server'
 
 export const unstable_instant = {
   level: 'experimental-error',
-  samples: [{ cookies: [{ name: 'auth', value: '1' }] }],
+  unstable_samples: [{ cookies: [{ name: 'auth', value: '1' }] }],
 }
 export const unstable_prefetch = 'force-runtime'
 

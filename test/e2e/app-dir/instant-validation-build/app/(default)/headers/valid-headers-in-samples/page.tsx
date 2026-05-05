@@ -6,7 +6,7 @@ import { Suspense } from 'react'
 
 export const unstable_instant: Instant = {
   level: 'experimental-error',
-  samples: [
+  unstable_samples: [
     {
       headers: [
         ['testHeader', 'testValue'],

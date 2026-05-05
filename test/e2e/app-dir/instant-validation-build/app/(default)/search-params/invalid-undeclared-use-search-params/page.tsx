@@ -3,7 +3,7 @@ import { SearchParamsReader } from './search-params-reader'
 
 export const unstable_instant: Instant = {
   level: 'experimental-error',
-  samples: [
+  unstable_samples: [
     {
       searchParams: {
         q: 'test',

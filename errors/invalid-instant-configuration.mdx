@@ -8,25 +8,17 @@ You provided an invalid configuration for `export const unstable_instant` in a L
 
 ### Example of Correct Usage
 
-#### Static Prefetching
+#### Indicating instant UI
 
-```tsx filename="app/.../layout.tsx"
-export const unstable_instant = {
-  prefetch: 'static',
-}
+```tsx filename="app/[slug]/page.tsx"
+export const unstable_instant = true
 ```
 
-#### Runtime Prefetching
+#### Customizing the validation level
 
 ```tsx filename="app/[slug]/page.tsx"
 export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [
-    {
-      cookies: [{ name: 'experiment', value: 'A' }],
-      params: { slug: 'example' },
-    },
-  ],
+  level: 'warning',
 }
 ```
 

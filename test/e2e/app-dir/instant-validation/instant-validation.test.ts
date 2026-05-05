@@ -894,7 +894,7 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input" accessed cookie "testCookie" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "testCookie", value: null }\` if it should be absent.
+         "Error: Route "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input" accessed cookie "testCookie" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "testCookie", value: null }\` if it should be absent.
              at <unknown> (app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx:26:49)
            24 |
            25 | export default async function Page() {

@@ -8,7 +8,7 @@ import { AssertParamsClient } from './client'
 // During validation, the sample params should be used, not the GSP values.
 export const unstable_instant: Instant = {
   level: 'experimental-error',
-  samples: [
+  unstable_samples: [
     {
       params: {
         slug: 'hello',

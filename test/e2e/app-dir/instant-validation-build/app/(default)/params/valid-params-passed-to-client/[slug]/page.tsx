@@ -3,7 +3,7 @@ import { ClientChild } from './client'
 
 export const unstable_instant: Instant = {
   level: 'experimental-error',
-  samples: [{ params: { slug: 'hello' } }],
+  unstable_samples: [{ params: { slug: 'hello' } }],
 }
 export const unstable_prefetch = 'force-runtime'
 

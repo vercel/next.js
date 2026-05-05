@@ -246,9 +246,9 @@ export const resolveInstantConfigSamplesForPage = async (
   if (
     instantConfig !== undefined &&
     typeof instantConfig === 'object' &&
-    instantConfig.samples
+    instantConfig.unstable_samples
   ) {
-    samples = instantConfig.samples
+    samples = instantConfig.unstable_samples
   }
 
   // The samples from inner segments override samples from outer segments,

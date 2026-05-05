@@ -4,7 +4,7 @@ import { ensureThrows } from '../../../../../../ensure-error'
 
 export const unstable_instant: Instant = {
   level: 'experimental-error',
-  samples: [
+  unstable_samples: [
     {
       params: {
         one: '123',
