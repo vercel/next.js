@@ -45,15 +45,14 @@ const MAX_COUNT_BEFORE_YIELD: usize = 1000;
 /// of them per `process()` call before yielding.
 const FIND_AND_SCHEDULE_BATCH_SIZE: usize = 10000;
 const MAX_UPPERS_FOLLOWER_PRODUCT: usize = 31;
-/// Maximum number of `OptimizeJob`s held in the in-memory `optimize_queue`. When this is
-/// reached, further `push_optimize_task` calls set the `optimization_pending` flag on the
-/// task but do not enqueue a job. The optimization will eventually be picked up again the
-/// next time an aggregation update touches the task (see `check_optimization_pending`).
+/// Maximum number of `OptimizeJob`s held in the in-memory `optimize_queue` at one time.
+/// When this is reached, further pushes are dropped and the affected tasks have their
+/// `optimization_pending` flag set so the work is recovered later by
+/// `check_optimization_pending`.
 const MAX_OPTIMIZE_QUEUE_SIZE: usize = 10000;
 /// Maximum number of optimizations executed by a single `AggregationUpdateQueue` instance
-/// over its lifetime. Once this many optimizations have been performed, any remaining
-/// `OptimizeJob`s are discarded; the `optimization_pending` flag is set on those tasks so a
-/// future aggregation update can re-enqueue them.
+/// over its lifetime. Once exhausted, queued and newly pushed `OptimizeJob`s are dropped
+/// the same way as when `MAX_OPTIMIZE_QUEUE_SIZE` is reached.
 const MAX_OPTIMIZATIONS_PER_QUEUE: usize = 1000;
 #[cfg(not(feature = "trace_aggregation_update"))]
 const AGGREGATION_UPDATE_CATEGORY: TaskDataCategory = TaskDataCategory::Meta;
@@ -907,9 +906,8 @@ pub struct AggregationUpdateQueue {
     balance_queue: FxRingSet<BalanceJob>,
     #[bincode(with = "turbo_bincode::ringset")]
     optimize_queue: FxRingSet<OptimizeJob>,
-    /// Number of optimizations performed by this queue instance so far. Once it reaches
-    /// `MAX_OPTIMIZATIONS_PER_QUEUE`, no further `OptimizeJob`s are enqueued or processed by
-    /// this queue (see `is_optimization_budget_exhausted`).
+    /// Number of optimizations executed by this queue so far. See
+    /// `MAX_OPTIMIZATIONS_PER_QUEUE`.
     optimizations_executed: usize,
     #[bincode(skip, default = "FxHashMap::default")]
     scheduled_tasks: FxHashMap<TaskId, TaskPriority>,
@@ -1035,74 +1033,81 @@ impl AggregationUpdateQueue {
     }
 
     /// Whether this queue has reached its lifetime budget for executed optimizations.
-    /// When true, no further `OptimizeJob`s will be enqueued or processed by this queue.
-    /// The `optimization_pending` flag is set on the affected tasks so a subsequent
-    /// aggregation update operation will eventually pick the work up again.
+    /// While exhausted, popped `OptimizeJob`s are dropped instead of run, and pushes don't
+    /// enqueue (see [`Self::try_enqueue_optimize_job`]).
     fn is_optimization_budget_exhausted(&self) -> bool {
         self.optimizations_executed >= MAX_OPTIMIZATIONS_PER_QUEUE
     }
 
-    /// Whether `optimize_queue` has room for another `OptimizeJob` and this queue still
-    /// has optimization budget left.
-    fn can_enqueue_optimize_job(&self) -> bool {
-        !self.is_optimization_budget_exhausted()
-            && self.optimize_queue.len() < MAX_OPTIMIZE_QUEUE_SIZE
+    /// Tries to enqueue an `OptimizeJob`. Returns `false` if the in-memory queue is at its
+    /// `MAX_OPTIMIZE_QUEUE_SIZE` cap or this queue's lifetime budget is exhausted, in which
+    /// case the caller is responsible for setting `optimization_pending` on the task so the
+    /// dropped optimization can be recovered later via [`Self::check_optimization_pending`].
+    ///
+    /// Pass `flag_already_set = true` when `optimization_pending` was just observed as
+    /// `true`. If this job is later dropped at process time (because the budget runs out
+    /// before it gets a turn), this lets us skip a task lock that would only be used to
+    /// re-write a flag that's already set.
+    #[must_use = "if false, the caller must set `optimization_pending` to recover the drop"]
+    fn try_enqueue_optimize_job(&mut self, task_id: TaskId, flag_already_set: bool) -> bool {
+        if self.is_optimization_budget_exhausted()
+            || self.optimize_queue.len() >= MAX_OPTIMIZE_QUEUE_SIZE
+        {
+            return false;
+        }
+        self.optimize_queue
+            .push_back(OptimizeJob::new(task_id, flag_already_set));
+        true
+    }
+
+    /// Acquires a `Meta`-category guard for `task_id` and sets `optimization_pending`. Use
+    /// only when the caller doesn't already hold a guard for the task — when a guard is
+    /// available, set the flag on it directly to avoid a re-acquire.
+    fn lock_and_mark_optimization_pending(
+        &self,
+        ctx: &mut impl ExecuteContext<'_>,
+        task_id: TaskId,
+    ) {
+        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+        task.set_optimization_pending(true);
     }
 
     /// Schedules an optimization of `task`'s aggregation number.
     ///
-    /// In the common case (queue has room and the budget is not exhausted) this just enqueues
-    /// an `OptimizeJob` and does not touch any persistent state on the task. The `task` guard
-    /// is held by the caller, so reading the current `optimization_pending` flag is free; we
-    /// record its value on the job so a later drop (budget exhausted at process time) can
-    /// avoid re-acquiring a guard if the flag is already set.
-    ///
-    /// When the optimization can't be enqueued (queue full or budget exhausted), the
-    /// `optimization_pending` flag is set on the task instead, so a later aggregation update
-    /// can recover the dropped optimization via [`Self::check_optimization_pending`].
+    /// Records the current `optimization_pending` flag value on the enqueued job — reading
+    /// it is free since the caller already holds the guard, and the saved flag value lets
+    /// a later drop avoid an unnecessary flag write.
+    /// If the job can't be enqueued the flag is set on the task instead.
     fn push_optimize_task(&mut self, task: &mut impl TaskGuard) {
-        if self.can_enqueue_optimize_job() {
-            let flag_already_set = task.optimization_pending();
-            self.optimize_queue
-                .push_back(OptimizeJob::new(task.id(), flag_already_set));
-        } else {
-            // Push dropped — mark the task so a later operation recovers it.
+        let flag_already_set = task.optimization_pending();
+        if !self.try_enqueue_optimize_job(task.id(), flag_already_set) {
             task.set_optimization_pending(true);
         }
     }
 
     /// Like [`Self::push_optimize_task`], but takes a task id instead of a guard.
     ///
-    /// Only called from `optimize_task`'s self re-enqueue, where the flag was just cleared at
-    /// entry, so we record `flag_already_set = false` on the enqueued job. Acquires a
-    /// `Meta`-category guard internally only when the push has to be dropped (queue full /
-    /// budget exhausted) and we therefore need to write the flag.
+    /// Only called from `optimize_task`'s self re-enqueue, which has just cleared the flag at
+    /// entry, so the enqueued job carries `flag_already_set = false`. The `Meta`-category
+    /// guard is acquired only when the push has to be dropped.
     fn push_optimize_task_by_id(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
-        if self.can_enqueue_optimize_job() {
-            self.optimize_queue
-                .push_back(OptimizeJob::new(task_id, false));
-        } else {
-            let mut task = ctx.task(task_id, TaskDataCategory::Meta);
-            task.set_optimization_pending(true);
+        if !self.try_enqueue_optimize_job(task_id, false) {
+            self.lock_and_mark_optimization_pending(ctx, task_id);
         }
     }
 
-    /// If the `optimization_pending` flag is set on `task`, enqueues an `OptimizeJob` for it
-    /// (subject to the queue cap and the per-queue budget). Used as a lazy recovery hook from
-    /// aggregation update handlers that already hold a task guard. The flag itself is cleared
-    /// later, when `optimize_task` actually runs for this task.
-    ///
-    /// We just observed `optimization_pending == true`, so jobs enqueued via this path record
-    /// `flag_already_set = true`; if such a job later has to be dropped, no guard re-acquire
-    /// is needed.
+    /// If the `optimization_pending` flag is set on `task`, enqueues an `OptimizeJob` so the
+    /// dropped optimization gets retried. Used as a lazy recovery hook from aggregation
+    /// update handlers that already hold a task guard. The flag itself is cleared later,
+    /// when `optimize_task` actually runs for this task.
     fn check_optimization_pending(&mut self, task: &impl TaskGuard) {
-        if !self.can_enqueue_optimize_job() {
+        if !task.optimization_pending() {
+            // Common case: nothing pending, no work to do.
             return;
         }
-        if task.optimization_pending() {
-            self.optimize_queue
-                .push_back(OptimizeJob::new(task.id(), true));
-        }
+        // Flag is already set: even if this job ends up being dropped, no flag write is
+        // needed and we can let the return value go.
+        let _ = self.try_enqueue_optimize_job(task.id(), true);
     }
 
     /// Runs the job and all dependent jobs until it's done. It can persist the operation, so
@@ -1523,8 +1528,7 @@ impl AggregationUpdateQueue {
                 // dropped job per `process()` call to spread the (cheap) flag-setting work
                 // and to keep yielding to other queues.
                 if !flag_already_set {
-                    let mut task = ctx.task(task_id, TaskDataCategory::Meta);
-                    task.set_optimization_pending(true);
+                    self.lock_and_mark_optimization_pending(ctx, task_id);
                 }
                 return false;
             }
