@@ -110,15 +110,19 @@ async function createBlobForFile(token, repoApiPath, commitSha, filePath) {
 async function createTreeFromLocalCommit({
   token,
   repoApiPath,
-  baseSha,
+  diffBaseSha,
+  baseTreeSha,
   localCommitSha,
+  allowEmpty = false,
 }) {
-  const baseTreeSha = await git(['rev-parse', `${baseSha}^{tree}`], {
-    captureOutput: true,
-  })
-  const changedFiles = await getChangedFiles(baseSha, localCommitSha)
+  const changedFiles = await getChangedFiles(diffBaseSha, localCommitSha)
 
   if (changedFiles.length === 0) {
+    if (allowEmpty) {
+      // Nothing changed — reuse the parent tree so the resulting commit is
+      // a no-op.
+      return baseTreeSha
+    }
     throw new Error(`Commit ${localCommitSha} has no file changes`)
   }
 
@@ -183,14 +187,21 @@ async function createSignedCommit({
   baseSha,
   localCommitSha,
   message,
+  allowEmpty = false,
 }) {
   const repoApiPath = `/repos/${owner}/${repo}`
+
+  const baseTreeSha = await git(['rev-parse', `${baseSha}^{tree}`], {
+    captureOutput: true,
+  })
 
   const treeSha = await createTreeFromLocalCommit({
     token,
     repoApiPath,
-    baseSha,
+    diffBaseSha: baseSha,
+    baseTreeSha,
     localCommitSha,
+    allowEmpty,
   })
 
   const commit = await githubRequest(
@@ -211,6 +222,84 @@ async function createSignedCommit({
   }
 
   return commit
+}
+
+/**
+ * Replay every local commit between `fromBaseSha` (exclusive) and
+ * `toLocalSha` (inclusive) as a chain of GitHub-signed commits whose root is
+ * `fromBaseSha` on the remote. Each replayed commit's tree is built by
+ * applying that local commit's file-tree diff (against its local parent) on
+ * top of the previous signed commit's tree. The local commit message is
+ * preserved.
+ *
+ * Returns the SHA of the final signed commit.
+ */
+async function replayLocalCommitsAsSigned({
+  token,
+  owner,
+  repo,
+  fromBaseSha,
+  toLocalSha,
+  allowEmpty = false,
+}) {
+  const repoApiPath = `/repos/${owner}/${repo}`
+
+  const revListOutput = await git(
+    ['rev-list', '--reverse', `${fromBaseSha}..${toLocalSha}`],
+    { captureOutput: true }
+  )
+  const localCommits = String(revListOutput).split('\n').filter(Boolean)
+
+  if (localCommits.length === 0) {
+    throw new Error(
+      `No commits to replay between ${fromBaseSha} and ${toLocalSha}`
+    )
+  }
+
+  let parentSha = fromBaseSha
+  let parentTreeSha = await git(['rev-parse', `${fromBaseSha}^{tree}`], {
+    captureOutput: true,
+  })
+
+  for (const localSha of localCommits) {
+    const localParentSha = await git(['rev-parse', `${localSha}^`], {
+      captureOutput: true,
+    })
+    const message = await git(['log', '-1', '--pretty=%B', localSha], {
+      captureOutput: true,
+    })
+
+    const treeSha = await createTreeFromLocalCommit({
+      token,
+      repoApiPath,
+      diffBaseSha: localParentSha,
+      baseTreeSha: parentTreeSha,
+      localCommitSha: localSha,
+      allowEmpty,
+    })
+
+    const commit = await githubRequest(
+      token,
+      'POST',
+      `${repoApiPath}/git/commits`,
+      {
+        message,
+        tree: treeSha,
+        parents: [parentSha],
+      }
+    )
+
+    if (!commit.verification?.verified) {
+      throw new Error(
+        `GitHub API created unsigned commit ${commit.sha}: ${commit.verification?.reason}`
+      )
+    }
+
+    parentSha = commit.sha
+    parentTreeSha = treeSha
+  }
+
+  return parentSha
 }
 
 /**
@@ -297,6 +386,7 @@ module.exports = {
   createBlobForFile,
   createTreeFromLocalCommit,
   createSignedCommit,
+  replayLocalCommitsAsSigned,
   upsertBranchRef,
   alignLocalBranchWithSignedCommit,
 }
