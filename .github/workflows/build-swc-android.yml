@@ -2,6 +2,9 @@ name: Build SWC for Android ARM64
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - android-swc-build
 
 jobs:
   build:
