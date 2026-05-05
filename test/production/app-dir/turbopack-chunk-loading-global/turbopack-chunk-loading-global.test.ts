@@ -17,8 +17,9 @@ describe('turbopack-chunk-loading-global', () => {
     files: __dirname,
   })
 
-  if (!isNextDeploy && isTurbopack) {
-    describe('chunk output', () => {
+  ;(isNextDeploy || !isTurbopack ? describe.skip : describe)(
+    'chunk output',
+    () => {
       it('uses the custom global name and drops the default TURBOPACK global', async () => {
         const staticDir = path.join(next.testDir, '.next/static')
         const jsFiles = collectJsFiles(staticDir)
@@ -35,8 +36,8 @@ describe('turbopack-chunk-loading-global', () => {
         // chunkLoadingGlobal was ignored by the Rust layer
         expect(allContent).not.toContain('globalThis.TURBOPACK')
       })
-    })
-  }
+    }
+  )
 
   describe('runtime behavior', () => {
     it('renders content and handles interactions after hydration', async () => {
