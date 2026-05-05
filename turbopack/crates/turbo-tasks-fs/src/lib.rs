@@ -504,11 +504,8 @@ impl DiskFileSystemInner {
 /// `DiskFileSystem` carries serializable fields (`name`, `root`,
 /// `denied_paths`) inside `DiskFileSystemInner` alongside session-scoped
 /// state (the `notify` watcher, invalidator maps, weak `TurboTasksApi`,
-/// etc.) that has no meaningful representation across a restart. The
-/// non-serializable fields use `#[bincode(skip)]` with `default = ...` so
-/// the inner struct can still bincode-round-trip; `evict = "never"` keeps
-/// the cell pinned in memory so the watcher and invalidator state survive
-/// the post-snapshot eviction sweep.
+/// etc.) This is important to maintain invariants in a session and ensure invalidations work, so we
+/// never evict this data.
 #[derive(Clone, ValueToString)]
 #[value_to_string(self.inner.name)]
 #[turbo_tasks::value(cell = "new", eq = "manual", evict = "never")]

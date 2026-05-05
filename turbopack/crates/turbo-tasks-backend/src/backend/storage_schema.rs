@@ -290,20 +290,6 @@ struct TaskStorageSchema {
     #[field(storage = "auto_set", category = "meta", filter_transient)]
     collectibles_dependents: AutoSet<(TraitTypeId, TaskId)>,
 
-    // =========================================================================
-    // CELL DATA (data)
-    // =========================================================================
-    /// Cell data for all cells, regardless of serialization mode.
-    ///
-    /// `CellData` is a newtype over `AutoMap<CellId, SharedReference>` with
-    /// two policies driven by the value type registry:
-    ///
-    /// - **Persistence** (encode time): only entries whose value type has
-    ///   `ValueTypePersistence::Persistable` are written to disk. `Skip` and `HashOnly` entries
-    ///   stay in memory only — on restore the next read triggers the "cell index in range but data
-    ///   missing" recompute path.
-    /// - **Eviction** (`drop_partial`): entries are dropped iff their value type's `Evictability`
-    ///   is `Always`. `Expensive` and `Never` cells stay in memory across the eviction sweep.
     #[field(
         storage = "auto_map",
         category = "data",

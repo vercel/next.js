@@ -599,3 +599,149 @@ async fn eviction_stress_concurrent() {
     tt.stop_and_wait().await;
     result.unwrap();
 }
+
+fn fresh_decoded_alive() -> Arc<AtomicBool> {
+    Arc::new(AtomicBool::new(false))
+}
+
+/// `Persistable + evict = "never"` mirrors `DiskFileSystem`: persisted
+/// fields round-trip via bincode while session-only state lives in
+/// `#[bincode(skip)]` fields. `evict = "never"` is what makes the test
+/// exercise the residue-merge path — eviction retains the cell, then
+/// restore from disk has to merge the decoded copy into existing residue.
+/// Without `evict = "never"`, eviction would just drop the cell and
+/// restore would freshly insert the decoded (defaulted) copy, which is a
+/// different (and arguably correct) failure mode.
+#[turbo_tasks::value(evict = "never", eq = "manual")]
+struct SessionAlive {
+    count: u32,
+    /// `#[bincode(skip)]` so this field doesn't round-trip; decoded copies
+    /// get a fresh-defaulted (`false`) Arc, which lets the test detect when
+    /// the live cell value has been replaced by a decoded copy.
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[bincode(skip, default = "fresh_decoded_alive")]
+    alive: Arc<AtomicBool>,
+}
+
+impl PartialEq for SessionAlive {
+    fn eq(&self, other: &Self) -> bool {
+        // Eq on the persisted field only; the `alive` Arc is session state.
+        self.count == other.count
+    }
+}
+impl Eq for SessionAlive {}
+
+/// Produces a `SessionAlive` cell. Constant input so the operation is
+/// memoized — re-running the test's outer flow doesn't invalidate it.
+#[turbo_tasks::function]
+fn create_session_alive() -> Vc<SessionAlive> {
+    SessionAlive {
+        count: 7,
+        alive: Arc::new(AtomicBool::new(true)),
+    }
+    .cell()
+}
+
+/// Persistent operation that resolves through `create_session_alive`. The
+/// writer therefore has only this persistent parent — not the transient
+/// run_once — and is eligible for the eviction sweep. The `Step` input
+/// gives us a knob to invalidate this reader (forcing re-read of the
+/// writer's cell) without invalidating `create_session_alive` itself.
+#[turbo_tasks::function(operation)]
+async fn read_session_alive_id(state: ResolvedVc<Step>) -> Result<Vc<AlivePtr>> {
+    let _state = *state.await?.get();
+    let v = create_session_alive().resolve().await?;
+    let r = v.await?;
+    let alive_now = r.alive.load(Ordering::Relaxed);
+    let alive_ptr = Arc::as_ptr(&r.alive) as usize as u64;
+    Ok(AlivePtr {
+        alive: alive_now,
+        ptr: alive_ptr,
+        random: rand::random(),
+    }
+    .cell())
+}
+
+#[turbo_tasks::value]
+struct AlivePtr {
+    alive: bool,
+    ptr: u64,
+    random: u32,
+}
+
+/// Reproduces the `Persistable + evict = "never"` regression: the cell is
+/// retained in residue by `drop_partial`, but `restore_data_from` runs
+/// `extend(incoming)` over `cell_data` and overwrites the live `Arc` with
+/// a freshly decoded one whose `#[bincode(skip)]` fields are defaulted.
+///
+/// Strategy:
+///   1. Build the `SessionAlive` cell once, capture its live `alive` flag's pointer.
+///   2. Snapshot + evict — `drop_partial` retains the cell, but sets `data_restored=false`.
+///   3. Force a fresh resolve of the writer task. The `.await` on the resolved Vc reads the cell,
+///      which goes through `task(.., Data)` → triggers restore → `restore_data_from` →
+///      `extend(incoming)` overwrites the residue with the decoded copy whose `alive` Arc is the
+///      freshly-defaulted (`false`) one.
+///   4. Read the cell again. With the bug active the value's `alive` flag is now `false` and the
+///      captured pointer no longer matches the cell's current `alive` Arc.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn eviction_persistable_never_preserves_live_cell() {
+    let tt = create_tt("eviction_persistable_never_preserves_live_cell");
+    let tt2 = tt.clone();
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+
+        let state_op = create_state(0);
+        let state_vc = state_op.resolve().strongly_consistent().await?;
+        let state = state_op.read_strongly_consistent().await?;
+
+        // First read goes through `read_session_alive_id` so the writer
+        // (`create_session_alive`) has a persistent parent and is eligible
+        // for the eviction sweep without being held alive by run_once.
+        let pre = read_session_alive_id(state_vc)
+            .read_strongly_consistent()
+            .await?;
+        assert!(pre.alive, "freshly constructed cell should be alive");
+        let live_ptr = pre.ptr;
+        drop(pre);
+
+        // Snapshot + evict. `create_session_alive`'s `cell_data` should retain
+        // the SessionAlive cell as residue (Evictability::Never), while
+        // clearing `data_restored` and persisted data flag bits.
+        let (had_data, counts) = tt2.backend().snapshot_and_evict_for_testing(&*tt2);
+        println!("persistable_never: snapshot had_data={had_data}, evicted: {counts:?}");
+        assert!(had_data, "snapshot should have persisted data");
+
+        // Invalidate the reader so the next read re-runs `read_session_alive_id`.
+        // That re-execution reads `create_session_alive`'s cell, which goes
+        // through `task(.., Data)` and triggers `restore_data_from` — the buggy
+        // path here runs `extend(incoming)` over `cell_data` and replaces the
+        // live Arc with a freshly decoded one whose `alive` is default.
+        state.set(1);
+
+        let post = read_session_alive_id(state_vc)
+            .read_strongly_consistent()
+            .await?;
+        println!(
+            "post-restore: alive={}, ptr_match={}",
+            post.alive,
+            post.ptr == live_ptr
+        );
+
+        assert_eq!(
+            post.ptr, live_ptr,
+            "post-restore cell must still hold the live `alive` Arc; a different pointer means \
+             restore_data_from overwrote the residue with a freshly decoded copy"
+        );
+        assert!(
+            post.alive,
+            "post-restore cell must still report alive=true; alive=false means the live cell \
+             value was replaced by a decoded copy with default fields"
+        );
+
+        anyhow::Ok(())
+    })
+    .await;
+    tt.stop_and_wait().await;
+    result.unwrap();
+}

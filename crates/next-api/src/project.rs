@@ -1495,8 +1495,8 @@ impl Project {
 
     /// Computes the whole app module graph without dropping issues.
     ///
-    /// Use this instead of [`whole_app_module_graphs`] when you need to collect issues from the
-    /// computation (e.g. for the `get_compilation_issues` MCP tool).
+    /// Use this instead of [Self::whole_app_module_graphs] when you need to collect issues from
+    /// the computation (e.g. for the `get_compilation_issues` MCP tool).
     #[turbo_tasks::function]
     pub async fn whole_app_module_graphs_without_dropping_issues(
         self: ResolvedVc<Self>,

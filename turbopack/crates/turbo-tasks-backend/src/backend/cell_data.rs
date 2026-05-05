@@ -2,27 +2,14 @@
 //!
 //! Every task cell — whether its value type is bincode-serializable, hash-only,
 //! derivable, or non-reconstructible — lives in a single `CellData` map keyed
-//! by [`CellId`]. The map's bincode impl decides at encode time which entries
-//! to persist, by consulting the global [`ValueType`] registry: entries whose
-//! value type has no bincode function are omitted from the serialized output.
-//!
-//! This replaces the older split of `persistent_cell_data` /
-//! `transient_cell_data` fields which routed every cell write through an
-//! `is_serializable_cell_content: bool` that threaded through ~14 call sites.
-//! By keying the bincode decision on the value type itself, the routing
-//! collapses to an unconditional insert.
-//!
-//! The inner value is stored as [`SharedReference`] rather than
-//! [`TypedSharedReference`] because the `CellId` key already carries the
-//! [`ValueTypeId`] — duplicating it in each map entry would waste memory.
-//! Encode / decode recover the value type from the key.
+//! by [`CellId`].
 
 use std::{
     hash::BuildHasherDefault,
     ops::{Deref, DerefMut},
 };
 
-use auto_hash_map::AutoMap;
+use auto_hash_map::{AutoMap, map::Entry};
 use bincode::{
     Decode, Encode,
     error::{DecodeError, EncodeError},
@@ -38,6 +25,12 @@ use turbo_tasks::{
 
 use crate::backend::storage_schema::{DropPartial, DropPartialOutcome};
 
+/// The value is stored as [`SharedReference`] rather than
+/// [`TypedSharedReference`] because the `CellId` key already carries the
+/// [`ValueTypeId`] — duplicating it in each map entry would waste memory.
+/// Encode / decode recover the value type from the key.
+/// Default inline size is 1 because this optimizes storage layout and a non-trivial number of tasks
+/// have <=1 cells
 type InnerMap = AutoMap<CellId, SharedReference, BuildHasherDefault<FxHasher>, 1>;
 
 /// Map of cell id → shared reference, with bincode that filters out entries
@@ -48,6 +41,32 @@ pub struct CellData(InnerMap);
 impl CellData {
     pub fn new() -> Self {
         Self::default()
+    }
+}
+
+impl CellData {
+    /// Merge incoming entries into `self`, preferring residue over the
+    /// incoming value on key conflict.
+    pub(crate) fn extend(&mut self, incoming: impl IntoIterator<Item = (CellId, SharedReference)>) {
+        for (k, v) in incoming {
+            match self.entry(k) {
+                Entry::Vacant(e) => {
+                    e.insert(v);
+                }
+                Entry::Occupied(_e) => {
+                    // Residue exists for this CellId. Keep it; the in-memory
+                    // value is more authoritative than the decoded one.
+                    debug_assert!(
+                        !matches!(
+                            registry::get_value_type(k.type_id).evictability,
+                            Evictability::Always,
+                        ),
+                        "Found an evictable cell in a task we are restoring into: {}",
+                        registry::get_value_type(k.type_id).ty.name,
+                    );
+                }
+            }
+        }
     }
 }
 
