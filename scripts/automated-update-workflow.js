@@ -28,10 +28,12 @@ if (!PR_GITHUB_TOKEN) {
   console.log('missing PR_GITHUB_TOKEN env')
   process.exit(1)
 }
-if (!RELEASE_GITHUB_APP_SLUG || !RELEASE_GITHUB_APP_USER_ID) {
-  console.log(
-    'missing RELEASE_GITHUB_APP_SLUG or RELEASE_GITHUB_APP_USER_ID env'
-  )
+if (!RELEASE_GITHUB_APP_SLUG) {
+  console.log('missing RELEASE_GITHUB_APP_SLUG env')
+  process.exit(1)
+}
+if (!RELEASE_GITHUB_APP_USER_ID) {
+  console.log('missing RELEASE_GITHUB_APP_USER_ID env')
   process.exit(1)
 }
 if (!SCRIPT) {
