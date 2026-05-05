@@ -593,18 +593,27 @@ impl MemberCallList {
         let prop = self.0.pop().unwrap();
         (obj, prop, self.0)
     }
-}
 
-impl std::ops::Deref for MemberCallList {
-    type Target = [JsValue];
-    fn deref(&self) -> &[JsValue] {
-        &self.0
+    fn total_nodes(&self) -> u32 {
+        total_nodes(&self.0)
     }
-}
 
-impl std::ops::DerefMut for MemberCallList {
-    fn deref_mut(&mut self) -> &mut [JsValue] {
-        &mut self.0
+    fn for_each_children(&self, visitor: &mut impl FnMut(&JsValue)) {
+        self.0.iter().for_each(visitor)
+    }
+    fn for_each_children_mut(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) -> bool {
+        let mut modified = false;
+        for child in self.0.iter_mut() {
+            if visitor(child) {
+                modified = true;
+            }
+        }
+
+        modified
+    }
+
+    fn all_similar(l: &Self, r: &Self, depth: usize) -> bool {
+        JsValue::all_similar(&l.0, &r.0, depth)
     }
 }
 
@@ -680,18 +689,27 @@ impl CallList {
         let callee = self.0.pop().unwrap();
         (callee, self.0)
     }
-}
 
-impl std::ops::Deref for CallList {
-    type Target = [JsValue];
-    fn deref(&self) -> &[JsValue] {
-        &self.0
+    fn total_nodes(&self) -> u32 {
+        total_nodes(&self.0)
     }
-}
 
-impl std::ops::DerefMut for CallList {
-    fn deref_mut(&mut self) -> &mut [JsValue] {
-        &mut self.0
+    fn for_each_children(&self, visitor: &mut impl FnMut(&JsValue)) {
+        self.0.iter().for_each(visitor)
+    }
+    fn for_each_children_mut(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) -> bool {
+        let mut modified = false;
+        for child in self.0.iter_mut() {
+            if visitor(child) {
+                modified = true;
+            }
+        }
+
+        modified
+    }
+
+    fn all_similar(l: &Self, r: &Self, depth: usize) -> bool {
+        JsValue::all_similar(&l.0, &r.0, depth)
     }
 }
 
@@ -1524,17 +1542,17 @@ impl JsValue {
                     })
                     .sum::<u32>();
             }
-            JsValue::New(c, list) => {
-                *c = 1 + total_nodes(list);
+            JsValue::New(c, call) => {
+                *c = 1 + call.total_nodes();
             }
-            JsValue::Call(c, list) => {
-                *c = 1 + total_nodes(list);
+            JsValue::Call(c, call) => {
+                *c = 1 + call.total_nodes();
             }
-            JsValue::SuperCall(c, list) => {
-                *c = 1 + total_nodes(list);
+            JsValue::SuperCall(c, args) => {
+                *c = 1 + total_nodes(args);
             }
-            JsValue::MemberCall(c, list) => {
-                *c = 1 + total_nodes(list);
+            JsValue::MemberCall(c, call) => {
+                *c = 1 + call.total_nodes();
             }
             JsValue::Member(c, o, p) => {
                 *c = 1 + o.total_nodes() + p.total_nodes();
@@ -2874,24 +2892,14 @@ impl JsValue {
                 modified
             }
             JsValue::New(_, call) => {
-                let mut modified = false;
-                for item in call.iter_mut() {
-                    if visitor(item) {
-                        modified = true
-                    }
-                }
+                let modified = call.for_each_children_mut(visitor);
                 if modified {
                     self.update_total_nodes();
                 }
                 modified
             }
             JsValue::Call(_, call) => {
-                let mut modified = false;
-                for item in call.iter_mut() {
-                    if visitor(item) {
-                        modified = true
-                    }
-                }
+                let modified = call.for_each_children_mut(visitor);
                 if modified {
                     self.update_total_nodes();
                 }
@@ -2910,12 +2918,8 @@ impl JsValue {
                 modified
             }
             JsValue::MemberCall(_, call) => {
-                let mut modified = false;
-                for item in call.iter_mut() {
-                    if visitor(item) {
-                        modified = true
-                    }
-                }
+                let modified = call.for_each_children_mut(visitor);
+
                 if modified {
                     self.update_total_nodes();
                 }
@@ -3115,14 +3119,10 @@ impl JsValue {
                 }
             }
             JsValue::New(_, call) => {
-                for item in call.iter() {
-                    visitor(item);
-                }
+                call.for_each_children(visitor);
             }
             JsValue::Call(_, call) => {
-                for item in call.iter() {
-                    visitor(item);
-                }
+                call.for_each_children(visitor);
             }
             JsValue::SuperCall(_, args) => {
                 for item in args.iter() {
@@ -3130,9 +3130,7 @@ impl JsValue {
                 }
             }
             JsValue::MemberCall(_, call) => {
-                for item in call.iter() {
-                    visitor(item);
-                }
+                call.for_each_children(visitor);
             }
             JsValue::Function(_, _, return_value) => {
                 visitor(return_value);
@@ -3348,18 +3346,19 @@ impl JsValue {
 // Similarity
 // Like equality, but with depth limit
 impl JsValue {
+    fn all_similar(a: &[JsValue], b: &[JsValue], depth: usize) -> bool {
+        if a.len() != b.len() {
+            return false;
+        }
+        a.iter().zip(b.iter()).all(|(a, b)| a.similar(b, depth))
+    }
     /// Check if the values are equal up to the given depth. Might return false
     /// even if the values are equal when hitting the depth limit.
     fn similar(&self, other: &JsValue, depth: usize) -> bool {
         if depth == 0 {
             return false;
         }
-        fn all_similar(a: &[JsValue], b: &[JsValue], depth: usize) -> bool {
-            if a.len() != b.len() {
-                return false;
-            }
-            a.iter().zip(b.iter()).all(|(a, b)| a.similar(b, depth))
-        }
+
         fn all_parts_similar(a: &[ObjectPart], b: &[ObjectPart], depth: usize) -> bool {
             if a.len() != b.len() {
                 return false;
@@ -3385,7 +3384,7 @@ impl JsValue {
                     items: ri,
                     mutable: rm,
                 },
-            ) => lc == rc && lm == rm && all_similar(li, ri, depth - 1),
+            ) => lc == rc && lm == rm && Self::all_similar(li, ri, depth - 1),
             (
                 JsValue::Object {
                     total_nodes: lc,
@@ -3410,25 +3409,27 @@ impl JsValue {
                     values: r,
                     logical_property: rp,
                 },
-            ) => lc == rc && all_similar(l, r, depth - 1) && lp == rp,
+            ) => lc == rc && Self::all_similar(l, r, depth - 1) && lp == rp,
             (JsValue::FreeVar(l), JsValue::FreeVar(r)) => l == r,
             (JsValue::Variable(l), JsValue::Variable(r)) => l == r,
             (JsValue::Concat(lc, l), JsValue::Concat(rc, r)) => {
-                lc == rc && all_similar(l, r, depth - 1)
+                lc == rc && Self::all_similar(l, r, depth - 1)
             }
-            (JsValue::Add(lc, l), JsValue::Add(rc, r)) => lc == rc && all_similar(l, r, depth - 1),
+            (JsValue::Add(lc, l), JsValue::Add(rc, r)) => {
+                lc == rc && Self::all_similar(l, r, depth - 1)
+            }
             (JsValue::Logical(lc, lo, l), JsValue::Logical(rc, ro, r)) => {
-                lc == rc && lo == ro && all_similar(l, r, depth - 1)
+                lc == rc && lo == ro && Self::all_similar(l, r, depth - 1)
             }
             (JsValue::Not(lc, l), JsValue::Not(rc, r)) => lc == rc && l.similar(r, depth - 1),
             (JsValue::New(lc, ll), JsValue::New(rc, rl)) => {
-                lc == rc && all_similar(ll, rl, depth - 1)
+                lc == rc && CallList::all_similar(ll, rl, depth - 1)
             }
             (JsValue::Call(lc, ll), JsValue::Call(rc, rl)) => {
-                lc == rc && all_similar(ll, rl, depth - 1)
+                lc == rc && CallList::all_similar(ll, rl, depth - 1)
             }
             (JsValue::MemberCall(lc, ll), JsValue::MemberCall(rc, rl)) => {
-                lc == rc && all_similar(ll, rl, depth - 1)
+                lc == rc && MemberCallList::all_similar(ll, rl, depth - 1)
             }
             (JsValue::Member(lc, lo, lp), JsValue::Member(rc, ro, rp)) => {
                 lc == rc && lo.similar(ro, depth - 1) && lp.similar(rp, depth - 1)
@@ -3519,16 +3520,22 @@ impl JsValue {
             | JsValue::Logical(_, _, v) => all_similar_hash(v, state, depth - 1),
             JsValue::Not(_, v) => v.similar_hash(state, depth - 1),
             JsValue::New(_, call) => {
-                all_similar_hash(call, state, depth - 1);
+                call.for_each_children(&mut |child: &JsValue| {
+                    child.similar_hash(state, depth - 1);
+                });
             }
             JsValue::Call(_, call) => {
-                all_similar_hash(call, state, depth - 1);
+                call.for_each_children(&mut |child: &JsValue| {
+                    child.similar_hash(state, depth - 1);
+                });
             }
             JsValue::SuperCall(_, args) => {
                 all_similar_hash(args, state, depth - 1);
             }
             JsValue::MemberCall(_, call) => {
-                all_similar_hash(call, state, depth - 1);
+                call.for_each_children(&mut |child: &JsValue| {
+                    child.similar_hash(state, depth - 1);
+                });
             }
             JsValue::Member(_, o, p) => {
                 o.similar_hash(state, depth - 1);
