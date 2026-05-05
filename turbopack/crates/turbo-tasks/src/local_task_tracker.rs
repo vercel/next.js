@@ -1,5 +1,7 @@
 //! Tracker for the local tasks of a single global task execution.
 
+use std::fmt::Display;
+
 use crate::{
     OutputContent,
     event::{Event, EventListener},
@@ -36,11 +38,14 @@ impl LocalTaskTracker {
     /// Tasks should call [`complete`] when the task transitions to `Done`.
     ///
     /// [`complete`]: LocalTaskTracker::complete
-    pub(crate) fn create(&mut self, task: LocalTask) -> LocalTaskId {
-        debug_assert!(
-            matches!(task, LocalTask::Scheduled { .. }),
-            "newly created local tasks must start in the Scheduled state"
-        );
+    pub(crate) fn create(
+        &mut self,
+        task_type: impl Display + Send + Sync + 'static,
+    ) -> LocalTaskId {
+        let task = LocalTask::Scheduled {
+            done_event: Event::new(move || move || format!("LocalTask({task_type})::done_event")),
+        };
+
         self.tasks.push(task);
         self.in_flight += 1;
         // generate a one-indexed id from len() -- we just pushed so len() is >= 1
@@ -62,7 +67,7 @@ impl LocalTaskTracker {
         // Do this before decrementing in-flight so we can ensure that tasks are always completed
         // before the task completes.
         done_event.notify(usize::MAX);
-        self.dec_in_flight();
+        self.decrement_in_flight();
     }
 
     /// Test-only: register an in-flight detached future (`spawn_detached_for_testing`). No
@@ -79,7 +84,7 @@ impl LocalTaskTracker {
     /// [`complete`] which decrements as part of the slot transition.
     ///
     /// [`complete`]: LocalTaskTracker::complete
-    pub(crate) fn dec_in_flight(&mut self) {
+    pub(crate) fn decrement_in_flight(&mut self) {
         debug_assert!(
             self.in_flight > 0,
             "LocalTaskTracker::dec_in_flight without matching increment"
@@ -92,6 +97,7 @@ impl LocalTaskTracker {
 
     /// Current in-flight count. Cheap snapshot for the early-return path in
     /// `wait_for_local_tasks`.
+    #[cfg(test)]
     pub(crate) fn in_flight(&self) -> u32 {
         self.in_flight
     }
@@ -99,8 +105,12 @@ impl LocalTaskTracker {
     /// Listen for the next "in-flight reached zero" notification. Used by
     /// `wait_for_local_tasks` together with `in_flight()` for the standard double-check
     /// pattern that avoids lost wakeups.
-    pub(crate) fn listen(&self) -> EventListener {
-        self.done.listen()
+    pub(crate) fn listen_for_in_flight(&self) -> Option<EventListener> {
+        if self.in_flight > 0 {
+            Some(self.done.listen())
+        } else {
+            None
+        }
     }
 }
 
@@ -121,9 +131,7 @@ mod tests {
         let mut tracker = LocalTaskTracker::new();
         assert_eq!(tracker.in_flight(), 0);
 
-        let id = tracker.create(LocalTask::Scheduled {
-            done_event: Event::new(|| || "test".to_string()),
-        });
+        let id = tracker.create("test");
         assert_eq!(tracker.in_flight(), 1);
 
         tracker.complete(id, dummy_output());
@@ -136,9 +144,9 @@ mod tests {
         tracker.register_detached();
         tracker.register_detached();
         assert_eq!(tracker.in_flight(), 2);
-        tracker.dec_in_flight();
+        tracker.decrement_in_flight();
         assert_eq!(tracker.in_flight(), 1);
-        tracker.dec_in_flight();
+        tracker.decrement_in_flight();
         assert_eq!(tracker.in_flight(), 0);
     }
 
@@ -147,11 +155,11 @@ mod tests {
     #[test]
     fn complete_notifies_per_task_listener() {
         let mut tracker = LocalTaskTracker::new();
-        let per_task_event = Event::new(|| || "per-task".to_string());
-        let listener = per_task_event.listen();
-        let id = tracker.create(LocalTask::Scheduled {
-            done_event: per_task_event,
-        });
+        let id = tracker.create("test");
+        let LocalTask::Scheduled { done_event: event } = tracker.get(id) else {
+            unreachable!()
+        };
+        let listener = event.listen();
         tracker.complete(id, dummy_output());
         // The listener is now ready (notify already fired) — `wait()` should return without
         // blocking. We can't `.await` in a sync test, so just check `is_notified` indirectly

@@ -729,7 +729,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     wait_for_local_tasks().await;
 
                     match result {
-                        Ok(Ok(raw_vc)) => Ok(raw_vc),
+                        Ok(Ok(value)) => Ok(value),
                         Ok(Err(err)) => Err(err.into()),
                         Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
                     }
@@ -857,11 +857,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let (global_task_state, execution_id, priority, local_task_id) =
             CURRENT_TASK_STATE.with(|gts| {
                 let mut gts_write = gts.write().unwrap();
-                let local_task_id = gts_write.local_tasks.create(LocalTask::Scheduled {
-                    done_event: Event::new(move || {
-                        move || format!("LocalTask({task_type})::done_event")
-                    }),
-                });
+                let local_task_id = gts_write.local_tasks.create(task_type);
                 (
                     Arc::clone(gts),
                     gts_write.execution_id,
@@ -1595,7 +1591,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             fut.await;
             // Pair for `register_detached`. Tasks panic-aborting upstream means we don't need
             // RAII guard semantics here; if `fut` panics, the process aborts before this dec.
-            CURRENT_TASK_STATE.with(|ts| ts.write().unwrap().local_tasks.dec_in_flight());
+            CURRENT_TASK_STATE.with(|ts| ts.write().unwrap().local_tasks.decrement_in_flight());
         };
         tokio::spawn(TURBO_TASKS.scope(
             turbo_tasks(),
@@ -1691,30 +1687,11 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
 }
 
 async fn wait_for_local_tasks() {
-    // Standard double-check pattern: take a listener, re-check the counter, then await.
-    // If a notify fires between the first read and the listen, the second read sees zero and
-    // returns. Otherwise the listener will be woken by the eventual transition-to-zero notify.
-    //
-    // No loop after the await: by the time `wait_for_local_tasks` runs, the user task body has
-    // already returned and no new local tasks (or detached test futures) can be registered
-    // from outside an existing in-flight scope. So when the notify fires, the counter is
-    // genuinely at zero — we don't need to re-check.
-    let listener = CURRENT_TASK_STATE.with(|ts| {
-        let tracker = &ts.read().unwrap().local_tasks;
-        if tracker.in_flight() == 0 {
-            None
-        } else {
-            Some(tracker.listen())
-        }
-    });
+    let listener =
+        CURRENT_TASK_STATE.with(|ts| ts.read().unwrap().local_tasks.listen_for_in_flight());
     let Some(listener) = listener else {
         return;
     };
-    // Re-check after registering the listener.
-    let still_in_flight = CURRENT_TASK_STATE.with(|ts| ts.read().unwrap().local_tasks.in_flight());
-    if still_in_flight == 0 {
-        return;
-    }
     listener.await;
 }
 
