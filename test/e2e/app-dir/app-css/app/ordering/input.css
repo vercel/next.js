@@ -1,9 +1,0 @@
-@layer default {
-  input[type='text'] {
-    padding: 0.5rem;
-  }
-
-  h1 {
-    color: red;
-  }
-}

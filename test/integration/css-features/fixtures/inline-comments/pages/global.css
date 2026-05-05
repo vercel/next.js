@@ -1,6 +1,0 @@
-// Aaaand we are dead
-// These comments are invalid CSS and it crashes the build since Next.js 9.5.0
-
-* {
-  box-sizing: border-box;
-}

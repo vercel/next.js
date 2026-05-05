@@ -1,1 +1,0 @@
-const {cat} = require('./lib')

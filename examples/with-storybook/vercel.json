@@ -1,4 +1,0 @@
-{
-  "framework": "storybook",
-  "buildCommand": "storybook build"
-}

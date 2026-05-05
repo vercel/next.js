@@ -1,5 +1,0 @@
-{
-  "dependencies": {
-    "@monorepo/adapter-next": "link:./adapter-next"
-  }
-}

@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "@opentelemetry/api": "^1.8.0",
-    "@opentelemetry/sdk-trace-node": "^1.21.0"
-  }
-}

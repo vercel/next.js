@@ -1,5 +1,0 @@
-aa = module<x2, {}>["a"]
-
-xx = module<x1, {}>["default"]
-
-yy = module<x3, {}>

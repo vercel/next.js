@@ -1,0 +1,50 @@
+name: Build SWC for Android ARM64
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout Next.js
+        uses: actions/checkout@v4
+        with:
+          # We use the user's repo or specifically v16.1.6
+          repository: vercel/next.js
+          ref: v16.1.6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Setup Android NDK
+        run: |
+          echo "ANDROID_NDK_ROOT=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
+          echo "NDK_TOOLCHAIN=$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_ENV
+
+      - name: Build next-swc-napi
+        env:
+          CC_aarch64_linux_android: ${{ env.NDK_TOOLCHAIN }}/aarch64-linux-android24-clang
+          CXX_aarch64_linux_android: ${{ env.NDK_TOOLCHAIN }}/aarch64-linux-android24-clang++
+          AR_aarch64_linux_android: ${{ env.NDK_TOOLCHAIN }}/llvm-ar
+          CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: ${{ env.NDK_TOOLCHAIN }}/aarch64-linux-android24-clang
+          BINDGEN_EXTRA_CLANG_ARGS_aarch64_linux_android: '-I${{ env.ANDROID_NDK_ROOT }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android'
+        run: |
+          # We need to build from the root because of workspace dependencies
+          cargo build --release --target aarch64-linux-android -p next-swc-napi
+
+      - name: Prepare Artifact
+        run: |
+          mkdir -p output
+          # The output filename should match what Next.js expects
+          cp target/aarch64-linux-android/release/libnext_swc_napi.so output/next-swc.android-arm64.node
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-swc-android-arm64
+          path: output/next-swc.android-arm64.node

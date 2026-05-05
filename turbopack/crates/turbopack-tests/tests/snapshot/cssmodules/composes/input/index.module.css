@@ -1,9 +1,0 @@
-.className {
-  background: red;
-  color: yellow;
-}
-
-.subClass {
-  composes: className;
-  background: blue;
-}

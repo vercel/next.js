@@ -1,1 +1,0 @@
-../../turbo-tasks-testing/tests/shrink_to_fit.rs

@@ -1,5 +1,0 @@
-O = FreeVar(Object)
-
-a = FreeVar(Object)["keys"](O)
-
-b = O["keys"](FreeVar(Object))

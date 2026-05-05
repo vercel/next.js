@@ -1,1 +1,0 @@
-export const __next_private_export_map__ = '[["x","./icons/index.js","*"]]';

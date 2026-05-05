@@ -1,9 +1,0 @@
-!node_modules
-.vscode
-
-e2e/**/tsconfig.json
-production/**/tsconfig.json
-development/**/tsconfig.json
-
-test-junit-report/
-turbopack-test-junit-report/
