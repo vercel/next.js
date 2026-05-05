@@ -775,6 +775,7 @@ mod analyzer_state {
     pub(super) struct AnalyzerState {
         is_in_fn: bool,
         cur_top_level_decl_name: Option<Id>,
+        is_in_static_member_expr_obj: bool,
     }
 
     impl AnalyzerState {
@@ -814,6 +815,20 @@ mod analyzer_state {
             let result = visitor(self);
             self.state.is_in_fn = old_is_in_fn;
             result
+        }
+
+        pub(super) fn set_is_in_static_member_expr_obj(&mut self) {
+            // Doesn't use visitor, because this propery is only valid for the current node, not the
+            // whole subtree.
+            self.state.is_in_static_member_expr_obj = true;
+        }
+
+        pub(super) fn take_is_in_static_member_expr_obj(&mut self) -> bool {
+            // Doesn't use visitor, because this propery is only valid for the current node, not the
+            // whole subtree.
+            let v = self.state.is_in_static_member_expr_obj;
+            self.state.is_in_static_member_expr_obj = false;
+            v
         }
     }
 }
@@ -1223,17 +1238,26 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_member_expr(&mut self, node: &MemberExpr) {
-        if let MemberProp::Ident(..) | MemberProp::PrivateName(..) = &node.prop
-            && node.obj.is_ident()
+        if matches!(
+            &node.prop,
+            MemberProp::Ident(..) | MemberProp::PrivateName(..)
+        ) && matches!(&*node.obj, Expr::Ident(_))
         {
-            // Skip traversing if obj is a Expr::Ident, so that it doesn't get added to
-            // full_star_imports below in visit_expr.
+            // So that it doesn't get added to full_star_imports below in visit_expr.
+            self.set_is_in_static_member_expr_obj();
+        }
+        node.visit_children_with(self);
+    }
 
-            // TODO this currently doesn't properly mark the import in self.program_decl_usage, see
-            // todo in
-            // turbopack/crates/turbopack-tests/tests/execution/turbopack/remove-unused-imports/
-            // import-star/input/index.js
-            return;
+    fn visit_expr(&mut self, node: &Expr) {
+        // Must always be called unconditionally to reset the flag
+        let is_in_static_member_expr_obj = self.take_is_in_static_member_expr_obj();
+
+        if !is_in_static_member_expr_obj
+            && let Expr::Ident(i) = node
+            && let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id())
+        {
+            self.data.full_star_imports.insert(module_path.clone());
         }
         node.visit_children_with(self);
     }
@@ -1254,15 +1278,6 @@ impl Visit for Analyzer<'_> {
             if let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id()) {
                 self.data.full_star_imports.insert(module_path.clone());
             }
-        }
-        node.visit_children_with(self);
-    }
-
-    fn visit_expr(&mut self, node: &Expr) {
-        if let Expr::Ident(i) = node
-            && let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id())
-        {
-            self.data.full_star_imports.insert(module_path.clone());
         }
         node.visit_children_with(self);
     }
