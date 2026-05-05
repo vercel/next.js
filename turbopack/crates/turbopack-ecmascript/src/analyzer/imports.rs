@@ -18,7 +18,6 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
-use triomphe::Arc;
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
