@@ -952,7 +952,9 @@ function inheritFromMetadata(
       target.title = metadata.title
     }
     if (!target.description && metadata.description) {
-      target.description = metadata.description
+      // Normalize carriage returns to prevent hydration mismatches.
+      // Windows \r\n is stripped during HTML serialization but not in RSC payload.
+      target.description = metadata.description.replace(/\r\n/g, '\n').replace(/\r/g, '')
     }
   }
 }
