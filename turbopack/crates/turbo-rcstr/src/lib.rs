@@ -29,7 +29,7 @@ use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 use crate::{
     dynamic::{deref_from, hash_bytes, new_atom, new_atom_from_prehashed, new_static_atom},
-    tagged_value::TaggedValue,
+    tagged_value::{MAX_INLINE_LEN, TaggedValue},
 };
 
 mod dynamic;
@@ -91,10 +91,10 @@ unsafe impl Send for RcStr {}
 unsafe impl Sync for RcStr {}
 
 // Marks a payload that is stored in an Arc
-const DYNAMIC_TAG: u8 = 0b_00;
+const DYNAMIC_TAG: u8 = 0b_10;
 const PREHASHED_STRING_LOCATION: u8 = 0b_0;
 // Marks a payload that has been leaked since it has a static lifetime
-const STATIC_TAG: u8 = 0b_10;
+const STATIC_TAG: u8 = 0b_00;
 // The payload is stored inline
 const INLINE_TAG: u8 = 0b_01; // len in upper nybble
 const INLINE_LOCATION: u8 = 0b_1;
@@ -486,9 +486,15 @@ pub const fn inline_atom(s: &str) -> Option<RcStr> {
     dynamic::inline_atom(s)
 }
 
+// Exports for our macro
+#[doc(hidden)]
+pub const fn is_atom_inlineable(s: &str) -> bool {
+    s.len() < MAX_INLINE_LEN
+}
+
 #[doc(hidden)]
 #[inline(always)]
-pub fn from_static(s: &'static PrehashedString) -> RcStr {
+pub const fn from_static(s: &'static PrehashedString) -> RcStr {
     dynamic::new_static_atom(s)
 }
 #[doc(hidden)]
@@ -545,12 +551,12 @@ static STATIC_TABLE: LazyLock<
 #[macro_export]
 macro_rules! rcstr {
     ($s:expr) => {{
-        const INLINE: core::option::Option<$crate::RcStr> = $crate::inline_atom($s);
+        let text = $s;
         // This condition can be compile time evaluated and inlined.
-        if INLINE.is_some() {
-            INLINE.unwrap()
+        if $crate::is_atom_inlineable(text) {
+            $crate::inline_atom(text).unwrap()
         } else {
-            fn get_rcstr() -> $crate::RcStr {
+            const fn get_rcstr() -> $crate::RcStr {
                 // Allocate static storage for the PrehashedString
                 static RCSTR_STORAGE: $crate::PrehashedString =
                     $crate::make_const_prehashed_string($s);
