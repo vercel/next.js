@@ -604,20 +604,9 @@ fn fresh_decoded_alive() -> Arc<AtomicBool> {
     Arc::new(AtomicBool::new(false))
 }
 
-/// `Persistable + evict = "never"` mirrors `DiskFileSystem`: persisted
-/// fields round-trip via bincode while session-only state lives in
-/// `#[bincode(skip)]` fields. `evict = "never"` is what makes the test
-/// exercise the residue-merge path — eviction retains the cell, then
-/// restore from disk has to merge the decoded copy into existing residue.
-/// Without `evict = "never"`, eviction would just drop the cell and
-/// restore would freshly insert the decoded (defaulted) copy, which is a
-/// different (and arguably correct) failure mode.
 #[turbo_tasks::value(evict = "never", eq = "manual")]
 struct SessionAlive {
     count: u32,
-    /// `#[bincode(skip)]` so this field doesn't round-trip; decoded copies
-    /// get a fresh-defaulted (`false`) Arc, which lets the test detect when
-    /// the live cell value has been replaced by a decoded copy.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip, default = "fresh_decoded_alive")]
     alive: Arc<AtomicBool>,
