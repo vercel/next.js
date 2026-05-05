@@ -40,3 +40,22 @@ export const Turbopack: Story = {
     isTurbopack: true,
   },
 }
+
+export const ParseError: Story = {
+  args: {
+    message: `./app/page.tsx:3:27
+Syntax Error
+  1 | export default function Page() {
+  2 |   return <div>Hello</div
+> 3 | }
+    |                           ^
+  4 |
+
+Expected '>', got '}'
+`,
+    versionInfo: {
+      installed: '15.0.0',
+      staleness: 'fresh',
+    },
+  },
+}
