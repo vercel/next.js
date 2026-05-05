@@ -340,7 +340,8 @@ function rescheduleLinkPrefetch(
 
 export function pingVisibleLinks(
   nextUrl: string | null,
-  tree: FlightRouterState
+  tree: FlightRouterState,
+  shouldRescheduleLazyLinks: boolean = true
 ) {
   // For each currently visible link, cancel the existing prefetch task (if it
   // exists) and schedule a new one. This is effectively the same as if all the
@@ -356,6 +357,16 @@ export function pingVisibleLinks(
       // changed. Bail out.
       continue
     }
+
+    if (
+      !shouldRescheduleLazyLinks &&
+      task?.priority === PrefetchPriority.Default
+    ) {
+      // If we are suppressing lazy prefetches (e.g. during a refresh), and this
+      // link hasn't been hovered yet, don't re-prefetch it.
+      continue
+    }
+
     // Something changed. Cancel the existing prefetch task and schedule a
     // new one.
     if (task !== null) {

@@ -105,7 +105,14 @@ function HistoryUpdater({
     // task. Re-prefetch all visible links with the updated values. In most
     // cases, this will not result in any new network requests, only if
     // the prefetch result actually varies on one of these inputs.
-    pingVisibleLinks(appRouterState.nextUrl, appRouterState.tree)
+    const isRefresh = !!(
+      appRouterState.tree[2] &&
+      typeof appRouterState.tree[2] === 'object' &&
+      'refresh' in appRouterState.tree[2] &&
+      appRouterState.tree[2].refresh === 'refetch'
+    )
+
+    pingVisibleLinks(appRouterState.nextUrl, appRouterState.tree, !isRefresh)
   }, [appRouterState.nextUrl, appRouterState.tree])
 
   return null
