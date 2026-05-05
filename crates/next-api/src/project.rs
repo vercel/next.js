@@ -1594,6 +1594,7 @@ impl Project {
             css_url_suffix,
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             cross_origin: self.next_config().cross_origin(),
+            chunk_loading_global: self.next_config().turbopack_chunk_loading_global(),
         }))
     }
 
