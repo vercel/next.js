@@ -830,7 +830,7 @@ function createMetadataElements(
     }
     if (og.description) {
       tags.push(
-        <meta key={i++} property="og:description" content={og.description} />
+        <meta key={i++} property="og:description" content={normalizeMetadataString(og.description)} />
       )
     }
     if (og.url) {
@@ -1541,7 +1541,7 @@ function createMetadataElements(
     }
     if (tw.description) {
       tags.push(
-        <meta key={i++} name="twitter:description" content={tw.description} />
+        <meta key={i++} name="twitter:description" content={normalizeMetadataString(tw.description)} />
       )
     }
 
