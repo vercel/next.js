@@ -13,11 +13,11 @@ function collectJsFiles(dir: string): string[] {
 }
 
 describe('turbopack-chunk-loading-global', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next, isNextDeploy, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
-  if (!isNextDeploy) {
+  if (!isNextDeploy && isTurbopack) {
     describe('chunk output', () => {
       it('uses the custom global name and drops the default TURBOPACK global', async () => {
         const staticDir = path.join(next.testDir, '.next/static')
