@@ -5175,10 +5175,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.3.0-experimental-f4e0d4ed-20260429",
+      version: "19.3.0-experimental-9635257c-20260502",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.3.0-experimental-f4e0d4ed-20260429",
+      reconcilerVersion: "19.3.0-experimental-9635257c-20260502",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
