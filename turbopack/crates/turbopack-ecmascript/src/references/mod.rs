@@ -2338,7 +2338,7 @@ where
 
             let linked_func_call = state
                 .link_value(
-                    JsValue::call(
+                    JsValue::call_from_parts(
                         JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(Box::new(
                             parent_path.path.as_str().into(),
                         ))),
@@ -2382,7 +2382,7 @@ where
             let args = linked_args().await?;
             let linked_func_call = state
                 .link_value(
-                    JsValue::call(
+                    JsValue::call_from_parts(
                         JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
                         args.clone(),
                     ),
@@ -2680,7 +2680,7 @@ where
                             } else {
                                 let linked_func_call = state
                                     .link_value(
-                                        JsValue::call(
+                                        JsValue::call_from_parts(
                                             JsValue::WellKnownFunction(
                                                 WellKnownFunctionKind::PathJoin,
                                             ),
@@ -2751,7 +2751,7 @@ where
                 } else {
                     let linked_func_call = state
                         .link_value(
-                            JsValue::call(
+                            JsValue::call_from_parts(
                                 JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
                                 vec![
                                     JsValue::FreeVar(atom!("__dirname")),
@@ -3627,7 +3627,7 @@ async fn require_resolve_visitor(
 
         match values.len() {
             0 => JsValue::unknown(
-                JsValue::call(
+                JsValue::call_from_parts(
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
                     args,
                 ),
@@ -3639,7 +3639,7 @@ async fn require_resolve_visitor(
         }
     } else {
         JsValue::unknown(
-            JsValue::call(
+            JsValue::call_from_parts(
                 JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
                 args,
             ),
@@ -3657,7 +3657,7 @@ async fn require_context_visitor(
         Ok(options) => options,
         Err(err) => {
             return Ok(JsValue::unknown(
-                JsValue::call(
+                JsValue::call_from_parts(
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
                     args,
                 ),

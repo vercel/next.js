@@ -2,10 +2,7 @@ use std::mem::take;
 
 use turbo_rcstr::rcstr;
 
-use super::{
-    CallBuilder, ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty,
-    MemberCallBuilder, ObjectPart,
-};
+use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty, ObjectPart};
 use crate::analyzer::JsValueUrlKind;
 
 /// Replaces some builtin values with their resulting values. Called early
@@ -407,12 +404,15 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                             .into_iter()
                                             .enumerate()
                                             .map(|(i, item)| {
-                                                let mut b = CallBuilder::with_arg_count(2);
-                                                b.push_arg(item);
-                                                b.push_arg(JsValue::Constant(
-                                                    ConstantValue::Num((i as f64).into()),
-                                                ));
-                                                b.finish_call(func.clone())
+                                                JsValue::call_from_iter(
+                                                    func.clone(),
+                                                    [
+                                                        item,
+                                                        JsValue::Constant(ConstantValue::Num(
+                                                            (i as f64).into(),
+                                                        )),
+                                                    ],
+                                                )
                                             })
                                             .collect(),
                                     );
@@ -434,9 +434,11 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         take(values)
                             .into_iter()
                             .map(|alt| {
-                                let mut b = MemberCallBuilder::with_arg_count(args.len());
-                                b.extend_args(args.iter().cloned());
-                                b.finish(prop.clone(), alt)
+                                JsValue::member_call_from_iter(
+                                    alt,
+                                    prop.clone(),
+                                    args.iter().cloned(),
+                                )
                             })
                             .collect(),
                     );
@@ -464,10 +466,10 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             //
             // Pass-through path: `args` came from `MemberCallList::into_parts` which yields
             // a `Vec` with `cap >= len + 2` (slack from the original layout). Re-wrapping it
-            // into `JsValue::call` only needs `+1` slot, which fits in the existing slack —
+            // into a `JsValue::Call` only needs `+1` slot, which fits in the existing slack —
             // no realloc. This is the original motivation for the `[args..., prop, obj]`
             // tail layout.
-            *value = JsValue::call(
+            *value = JsValue::call_from_parts(
                 JsValue::member(Box::new(obj), Box::new(prop)),
                 args,
             );
@@ -486,11 +488,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             *value = JsValue::alternatives(
                 values
                     .into_iter()
-                    .map(|alt| {
-                        let mut b = CallBuilder::with_arg_count(args.len());
-                        b.extend_args(args.iter().cloned());
-                        b.finish_call(alt)
-                    })
+                    .map(|alt| JsValue::call_from_iter(alt, args.iter().cloned()))
                     .collect(),
             );
             true

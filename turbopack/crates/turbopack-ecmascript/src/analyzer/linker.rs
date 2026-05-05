@@ -195,7 +195,7 @@ where
                     }
                     total_nodes += 1;
                     done.push(JsValue::unknown(
-                        JsValue::call(
+                        JsValue::call_from_parts(
                             JsValue::Function(function_nodes, func_ident, return_value),
                             args,
                         ),

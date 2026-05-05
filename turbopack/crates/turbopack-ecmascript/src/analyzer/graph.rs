@@ -25,8 +25,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbopack_core::resolve::ExportUsage;
 
 use super::{
-    CallBuilder, ConstantValue, ImportMap, JsValue, MemberCallBuilder, ObjectPart,
-    WellKnownFunctionKind, is_unresolved_id,
+    ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind, is_unresolved_id,
 };
 use crate::{
     AnalyzeMode, SpecifiedModuleType,
@@ -689,17 +688,19 @@ impl EvalContext {
                 args,
                 ..
             }) => {
+                let args = args.as_deref().unwrap_or(&[]);
                 // We currently do not handle spreads.
-                if args.iter().flatten().any(|arg| arg.spread.is_some()) {
+                if args.iter().any(|arg| arg.spread.is_some()) {
                     return JsValue::unknown_empty(
                         true,
                         rcstr!("spread in new calls is not supported"),
                     );
                 }
 
-                let mut builder = CallBuilder::with_arg_count(args.iter().flatten().count());
-                builder.extend_args(args.iter().flatten().map(|arg| self.eval(&arg.expr)));
-                builder.finish_new(self.eval(callee))
+                JsValue::new_from_iter(
+                    self.eval(callee),
+                    args.iter().map(|arg| self.eval(&arg.expr)),
+                )
             }
 
             Expr::Call(CallExpr {
@@ -716,9 +717,6 @@ impl EvalContext {
                 }
 
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(callee) {
-                    let mut builder = MemberCallBuilder::with_arg_count(args.len());
-                    builder.extend_args(args.iter().map(|arg| self.eval(&arg.expr)));
-                    let obj = self.eval(obj);
                     let prop = match prop {
                         MemberProp::Ident(i) => i.sym.clone().into(),
                         MemberProp::PrivateName(_) => {
@@ -729,11 +727,17 @@ impl EvalContext {
                         }
                         MemberProp::Computed(ComputedPropName { expr, .. }) => self.eval(expr),
                     };
-                    builder.finish(prop, obj)
+                    let obj = self.eval(obj);
+                    JsValue::member_call_from_iter(
+                        obj,
+                        prop,
+                        args.iter().map(|arg| self.eval(&arg.expr)),
+                    )
                 } else {
-                    let mut builder = CallBuilder::with_arg_count(args.len());
-                    builder.extend_args(args.iter().map(|arg| self.eval(&arg.expr)));
-                    builder.finish_call(self.eval(callee))
+                    JsValue::call_from_iter(
+                        self.eval(callee),
+                        args.iter().map(|arg| self.eval(&arg.expr)),
+                    )
                 }
             }
 
@@ -767,9 +771,10 @@ impl EvalContext {
                         rcstr!("spread in import() is not supported"),
                     );
                 }
-                let mut builder = CallBuilder::with_arg_count(args.len());
-                builder.extend_args(args.iter().map(|arg| self.eval(&arg.expr)));
-                builder.finish_call(JsValue::FreeVar(atom!("import")))
+                JsValue::call_from_iter(
+                    JsValue::FreeVar(atom!("import")),
+                    args.iter().map(|arg| self.eval(&arg.expr)),
+                )
             }
 
             Expr::Array(arr) => {
