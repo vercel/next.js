@@ -30,6 +30,9 @@ async function main() {
   // 15.0.0-canary.17 -> 15.0.0
   // 15.0.0 -> 15.0.0
   const [semverStableVersion] = lernaConfig.version.split('-')
+  // This can create colliding versions between different forks which should be incredibly rare.
+  // Preview builds are installed by URL anyway which is unique between forks by
+  // controlling the repo var setting the preview builds base url.
   const version = `${semverStableVersion}-preview-${shortSha}-${dateString}`
   //
   // Lerna version requires a non-detached HEAD
