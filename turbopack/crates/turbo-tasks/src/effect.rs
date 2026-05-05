@@ -45,7 +45,7 @@ pub trait Effect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
     type Value: Clone + DynPartialEq + Eq + Send + Sync + 'static;
 
     /// Unique key identifying this effect's target (e.g., absolute path bytes).
-    fn key(&self) -> Vec<u8>;
+    fn key(&self) -> Box<[u8]>;
 
     /// Extract the value part of this effect for storage and comparison.
     fn value(&self) -> &Self::Value;
@@ -86,18 +86,17 @@ enum EffectLastApplied {
 
 /// Per-key entry in the effect state storage.
 type EffectStateEntry = Arc<Mutex<EffectLastApplied>>;
-
 /// Shared state storage for tracking applied effects. Stored on the filesystem implementation
 /// (e.g. DiskFileSystemInner).
 #[derive(Default)]
 pub struct EffectStateStorage {
-    effect_state: Mutex<FxHashMap<Vec<u8>, EffectStateEntry>>,
+    effect_state: Mutex<FxHashMap<Box<[u8]>, EffectStateEntry>>,
 }
 
 // Private wrapper trait to allow dynamic dispatch of an `Effect`. This is similar to the pattern
 // that the dynosaur crate uses: https://github.com/spastorino/dynosaur
 trait DynEffect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
-    fn key(&self) -> Vec<u8>;
+    fn key(&self) -> Box<[u8]>;
     /// Compare `self`'s value against a stored `Box<dyn Any>`, using [`DynPartialEq`].
     fn eq_value_dyn(&self, other: &dyn Any) -> bool;
     fn value_dyn(&self) -> Box<dyn Any + Send + Sync>;
@@ -109,7 +108,7 @@ impl<T> DynEffect for T
 where
     T: Effect,
 {
-    fn key(&self) -> Vec<u8> {
+    fn key(&self) -> Box<[u8]> {
         Effect::key(self)
     }
 
@@ -322,7 +321,8 @@ impl Effects {
             let unique_indices = self
                 .unique_indices
                 .get_or_init(|| {
-                    let mut by_key: FxHashMap<Vec<u8>, SmallVec<[usize; 1]>> = FxHashMap::default();
+                    let mut by_key: FxHashMap<Box<[u8]>, SmallVec<[usize; 1]>> =
+                        FxHashMap::default();
                     for (i, effect) in self.effects.iter().enumerate() {
                         let key = effect.inner.key();
                         by_key.entry(key).or_default().push(i);

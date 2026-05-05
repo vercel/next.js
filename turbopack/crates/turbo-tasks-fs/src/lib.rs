@@ -950,8 +950,8 @@ impl FileSystem for DiskFileSystem {
             type Error = AnyhowWrapper;
             type Value = u128;
 
-            fn key(&self) -> Vec<u8> {
-                self.full_path.as_os_str().as_encoded_bytes().to_vec()
+            fn key(&self) -> Box<[u8]> {
+                self.full_path.as_os_str().as_encoded_bytes().into()
             }
 
             fn value(&self) -> &u128 {
@@ -1126,8 +1126,8 @@ impl FileSystem for DiskFileSystem {
             type Error = AnyhowWrapper;
             type Value = u128;
 
-            fn key(&self) -> Vec<u8> {
-                self.full_path.as_os_str().as_encoded_bytes().to_vec()
+            fn key(&self) -> Box<[u8]> {
+                self.full_path.as_os_str().as_encoded_bytes().into()
             }
 
             fn value(&self) -> &u128 {
