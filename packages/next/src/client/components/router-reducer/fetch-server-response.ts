@@ -8,6 +8,7 @@ import {
 } from 'react-server-dom-webpack/client'
 
 import { InvariantError } from '../../../shared/lib/invariant-error'
+import { fetch } from '../segment-cache/fetch'
 import type {
   FlightRouterState,
   InitialRSCPayload,
