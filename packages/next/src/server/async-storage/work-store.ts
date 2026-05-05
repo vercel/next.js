@@ -63,6 +63,11 @@ export type WorkStoreContext = {
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
 
   /**
+   * The deployment ID of the current build.
+   */
+  deploymentId: string
+
+  /**
    * The build ID of the current build.
    */
   buildId: string
@@ -77,6 +82,7 @@ export function createWorkStore({
   renderOpts,
   isPrefetchRequest,
   buildId,
+  deploymentId,
   previouslyRevalidatedTags,
   nonce,
 }: WorkStoreContext): WorkStore {
@@ -129,6 +135,7 @@ export function createWorkStore({
 
     isPrefetchRequest,
     buildId,
+    deploymentId,
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
     assetPrefix: renderOpts?.assetPrefix || '',
     nonce,

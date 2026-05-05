@@ -104,6 +104,7 @@ export type AppRouteModule = typeof import('../../../build/templates/app-route')
 
 export type AppRouteSharedContext = {
   buildId: string
+  deploymentId: string
 }
 
 /**
@@ -732,6 +733,7 @@ export class AppRouteRouteModule extends RouteModule<
       page: this.definition.page,
       renderOpts: context.renderOpts,
       buildId: context.sharedContext.buildId,
+      deploymentId: context.sharedContext.deploymentId,
       previouslyRevalidatedTags: [],
     }
 
