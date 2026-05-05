@@ -8,7 +8,7 @@ describe('chunk-load-failure', () => {
     files: __dirname,
   })
 
-  async function getNextDynamicChunk() {
+  async function getNextDynamicChunks() {
     const browserChunks = await listClientChunks(
       path.join(next.testDir, next.distDir)
     )
@@ -19,18 +19,32 @@ describe('chunk-load-failure', () => {
           .readFileSync(path.join(next.testDir, next.distDir, f), 'utf8')
           .includes('this is a lazy loaded async component')
     )
-    expect(nextDynamicChunks).toHaveLength(1)
+    expect(nextDynamicChunks.length).toBeGreaterThan(0)
 
-    return nextDynamicChunks[0]
+    return nextDynamicChunks.map((chunk) => chunk.replace(/\\/g, '/'))
+  }
+
+  function getMatchingChunk(chunkUrl: string, chunks: string[]) {
+    return chunks.find((chunk) => chunkUrl.includes(chunk))
   }
 
   it('should report async chunk load failures', async () => {
-    let nextDynamicChunk = await getNextDynamicChunk()
+    let nextDynamicChunks = await getNextDynamicChunks()
 
     let pageError: Error | undefined
+    let failedChunk: string | undefined
     const browser = await next.browser('/dynamic', {
       beforePageLoad(page) {
-        page.route(`**/${nextDynamicChunk}*`, async (route) => {
+        page.route('**/_next/static/**/*.js*', async (route) => {
+          const matchingChunk = getMatchingChunk(
+            route.request().url(),
+            nextDynamicChunks
+          )
+          if (!matchingChunk) {
+            await route.continue()
+            return
+          }
+          failedChunk = matchingChunk
           await route.abort('connectionreset')
         })
         page.on('pageerror', (error: Error) => {
@@ -47,24 +61,81 @@ describe('chunk-load-failure', () => {
 
     expect(pageError).toBeDefined()
     expect(pageError.name).toBe('ChunkLoadError')
+    expect(failedChunk).toBeDefined()
     if (process.env.IS_TURBOPACK_TEST) {
       expect(pageError.message).toStartWith(
-        'Failed to load chunk /_next/' + nextDynamicChunk
+        'Failed to load chunk /_next/' + failedChunk
       )
     } else {
       expect(pageError.message).toMatch(/^Loading chunk \S+ failed./)
-      expect(pageError.message).toContain('/_next/' + nextDynamicChunk)
+      expect(pageError.message).toContain('/_next/' + failedChunk)
     }
   })
 
+  it('should allow async chunk loads after a transient failure', async () => {
+    let nextDynamicChunks = await getNextDynamicChunks()
+    let failedChunk: string | undefined
+    let failedChunkRequests = 0
+
+    const browser = await next.browser('/retry', {
+      beforePageLoad(page) {
+        page.route('**/_next/static/**/*.js*', async (route) => {
+          const matchingChunk = getMatchingChunk(
+            route.request().url(),
+            nextDynamicChunks
+          )
+          if (!matchingChunk) {
+            await route.continue()
+            return
+          }
+
+          if (failedChunk == null) {
+            failedChunk = matchingChunk
+            failedChunkRequests++
+            await route.abort('connectionreset')
+            return
+          }
+
+          if (matchingChunk === failedChunk) {
+            failedChunkRequests++
+          }
+          await route.continue()
+        })
+      },
+    })
+
+    await browser.elementByCss('#load').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('#status').text()).toContain(
+        'ChunkLoadError'
+      )
+    })
+
+    await browser.elementByCss('#load').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('#status').text()).toBe(
+        'this is a lazy loaded async component'
+      )
+    })
+    expect(failedChunkRequests).toBe(2)
+  })
+
   it('should report aborted chunks when navigating away', async () => {
-    let nextDynamicChunk = await getNextDynamicChunk()
+    let nextDynamicChunks = await getNextDynamicChunks()
 
     let resolve
     try {
       const browser = await next.browser('/dynamic', {
         beforePageLoad(page) {
-          page.route(`**/${nextDynamicChunk}*`, async (route) => {
+          page.route('**/_next/static/**/*.js*', async (route) => {
+            const matchingChunk = getMatchingChunk(
+              route.request().url(),
+              nextDynamicChunks
+            )
+            if (!matchingChunk) {
+              await route.continue()
+              return
+            }
             // deterministically ensure that the async chunk is still loading during the navigation
             await new Promise((r) => {
               resolve = r

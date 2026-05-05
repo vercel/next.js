@@ -128,6 +128,21 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
     return resolver
   }
 
+  function rejectChunkLoad(
+    chunkUrl: ChunkUrl,
+    resolver: ChunkResolver,
+    error?: Error,
+    element?: Element
+  ) {
+    element?.remove()
+
+    if (!resolver.resolved && chunkResolvers.get(chunkUrl) === resolver) {
+      chunkResolvers.delete(chunkUrl)
+    }
+
+    resolver.reject(error)
+  }
+
   /**
    * Loads the given chunk, and returns a promise that resolves once the chunk
    * has been loaded.
@@ -162,7 +177,11 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         // ignore
       } else if (isJs(chunkUrl)) {
         self.TURBOPACK_NEXT_CHUNK_URLS!.push(chunkUrl)
-        importScripts(chunkUrl)
+        try {
+          importScripts(chunkUrl)
+        } catch (error) {
+          rejectChunkLoad(chunkUrl, resolver, error as Error)
+        }
       } else {
         throw new Error(
           `can't infer type of chunk from URL ${chunkUrl} in worker`
@@ -186,7 +205,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           link.crossOrigin = CROSS_ORIGIN
           link.href = chunkUrl
           link.onerror = () => {
-            resolver.reject()
+            rejectChunkLoad(chunkUrl, resolver, undefined, link)
           }
           link.onload = () => {
             // CSS chunks do not register themselves, and as such must be marked as
@@ -205,7 +224,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           // can't detect that. The Promise will never resolve in this case.
           for (const script of Array.from(previousScripts)) {
             script.addEventListener('error', () => {
-              resolver.reject()
+              rejectChunkLoad(chunkUrl, resolver, undefined, script)
             })
           }
         } else {
@@ -216,7 +235,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           // which happens in `registerChunk`. Hence the absence of `resolve()` in
           // this branch.
           script.onerror = () => {
-            resolver.reject()
+            rejectChunkLoad(chunkUrl, resolver, undefined, script)
           }
           // Append to the `head` for webpack compatibility.
           document.head.appendChild(script)

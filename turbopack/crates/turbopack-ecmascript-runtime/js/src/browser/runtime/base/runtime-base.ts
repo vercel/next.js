@@ -77,7 +77,8 @@ interface RuntimeBackend {
     params?: RuntimeParams
   ) => void
   /**
-   * Returns the same Promise for the same chunk URL.
+   * Returns the same Promise for the same chunk URL while it is loading or
+   * loaded. Failed loads should be evicted so they can be retried.
    */
   loadChunkCached: (sourceType: SourceType, chunkUrl: ChunkUrl) => Promise<void>
   loadWebAssembly: (
@@ -107,6 +108,18 @@ contextPrototype.M = moduleFactories
 const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
 
 const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
+
+function deleteCacheEntryOnFailure<K>(
+  cache: Map<K, Promise<any> | true>,
+  key: K,
+  promise: Promise<any>
+) {
+  promise.catch(() => {
+    if (cache.get(key) === promise) {
+      cache.delete(key)
+    }
+  })
+}
 
 function loadChunk(
   this: TurbopackBrowserBaseContext<Module>,
@@ -170,6 +183,11 @@ async function loadChunkInternal(
       const promise = loadChunkPath(sourceType, sourceData, moduleChunkToLoad)
 
       availableModuleChunks.set(moduleChunkToLoad, promise)
+      deleteCacheEntryOnFailure(
+        availableModuleChunks,
+        moduleChunkToLoad,
+        promise
+      )
 
       moduleChunksPromises.push(promise)
     }
@@ -182,6 +200,11 @@ async function loadChunkInternal(
     for (const includedModuleChunk of includedModuleChunksList) {
       if (!availableModuleChunks.has(includedModuleChunk)) {
         availableModuleChunks.set(includedModuleChunk, promise)
+        deleteCacheEntryOnFailure(
+          availableModuleChunks,
+          includedModuleChunk,
+          promise
+        )
       }
     }
   }
@@ -191,6 +214,7 @@ async function loadChunkInternal(
       // It might be better to race old and new promises, but it's rare that the new promise will be faster than a request started earlier.
       // In production it's even more rare, because the chunk optimization tries to deduplicate modules anyway.
       availableModules.set(included, promise)
+      deleteCacheEntryOnFailure(availableModules, included, promise)
     }
   }
 
@@ -226,6 +250,8 @@ function loadChunkByUrlInternal(
       loadedChunk
     )
     entry = thenable.then(resolve).catch((cause) => {
+      instrumentedBackendLoadChunks.delete(thenable)
+
       let loadReason: string
       switch (sourceType) {
         case SourceType.Runtime:
