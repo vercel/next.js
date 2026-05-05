@@ -44,7 +44,7 @@ export function InstantNavsPanel() {
     if (typeof cookieStore !== 'undefined') {
       cookieStore.set({
         name: COOKIE_NAME,
-        value: JSON.stringify([0, `p${Math.random()}`]),
+        value: JSON.stringify(makePendingCookieValue()),
         path: '/',
       })
     }
@@ -55,11 +55,22 @@ export function InstantNavsPanel() {
     if (typeof cookieStore !== 'undefined') {
       cookieStore.set({
         name: COOKIE_NAME,
-        value: JSON.stringify([0, `p${Math.random()}`]),
+        value: JSON.stringify(makePendingCookieValue()),
         path: '/',
       })
     }
     setIsWaitingForClientNav(true)
+  }
+
+  // Build a pending cookie value, appending the server's session ID so the
+  // server can reject stale cookies from a previous dev process.
+  function makePendingCookieValue(): unknown[] {
+    const base: unknown[] = [0, `p${Math.random()}`]
+    const sessionId = self.__next_instant_nav_session_id
+    if (typeof sessionId === 'string') {
+      base.push(sessionId)
+    }
+    return base
   }
 
   function handleContinueRendering() {

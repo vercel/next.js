@@ -144,6 +144,8 @@ interface Window {
     | 'bottom-right'
   /** @internal - Set by the server when serving a static shell for instant navigation tests */
   __next_instant_test?: 1
+  /** @internal - The server's instant-navigation session ID, stamped on cookie writes so the server can reject cookies from previous server processes. */
+  __next_instant_nav_session_id?: string
 }
 
 interface NextFetchRequestConfig {

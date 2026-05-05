@@ -9,10 +9,17 @@
  * and delete the cookie to end one. Next.js writes captured values.
  * The CookieStore handler distinguishes them by value: pending = external,
  * captured = self-write (ignored).
+ *
+ * When the server exposes `self.__next_instant_nav_session_id`, captured
+ * writes append it as a trailing element so the server can reject stale
+ * cookies left over from a previous server process. External writers
+ * without session-ID knowledge still produce valid cookies (the server
+ * treats missing session IDs as trusted).
  */
 
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 import { NEXT_INSTANT_TEST_COOKIE } from '../app-router-headers'
+import { parseInstantTestCookie } from '../../../shared/lib/instant-navigation-cookie'
 import { refreshOnInstantNavigationUnlock } from '../use-action-queue'
 
 type InstantNavCookieState = 'empty' | 'pending' | 'mpa' | 'spa'
@@ -20,30 +27,37 @@ type InstantNavCookieState = 'empty' | 'pending' | 'mpa' | 'spa'
 type InstantCookie =
   // pending (waiting to capture)
   | [captured: 0, id: string]
+  | [captured: 0, id: string, sessionId: string]
   // captured MPA page load
   | [captured: 1, id: string, state: null]
+  | [captured: 1, id: string, state: null, sessionId: string]
   // captured SPA navigation (from/to route trees)
   | [
       captured: 1,
       id: string,
       state: { from: FlightRouterState; to: FlightRouterState | null },
     ]
+  | [
+      captured: 1,
+      id: string,
+      state: { from: FlightRouterState; to: FlightRouterState | null },
+      sessionId: string,
+    ]
 
 function parseCookieValue(raw: string): InstantNavCookieState {
   if (raw === '') {
     return 'empty'
   }
-  try {
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed) && parsed.length >= 3) {
-      const rawState = parsed[2]
-      return rawState === null ? 'mpa' : 'spa'
-    }
-  } catch {}
-  return 'pending'
+  const parsed = parseInstantTestCookie(raw)
+  if (parsed === null) return 'pending'
+  return parsed.state.kind
 }
 
-function writeCookieValue(value: InstantCookie): void {
+function writeCookieValue(
+  captured: 1,
+  id: string,
+  state: null | { from: FlightRouterState; to: FlightRouterState | null }
+): void {
   if (typeof cookieStore === 'undefined') {
     return
   }
@@ -61,17 +75,21 @@ function writeCookieValue(value: InstantCookie): void {
   // into the next scope or outlive the current one.
   const lockAtCall = lockState
   cookieStore.get(NEXT_INSTANT_TEST_COOKIE).then((existing: any) => {
-    if (existing && lockState === lockAtCall && lockAtCall !== null) {
-      const options: any = {
-        name: NEXT_INSTANT_TEST_COOKIE,
-        value: JSON.stringify(value),
-        path: existing.path ?? '/',
-      }
-      if (existing.domain) {
-        options.domain = existing.domain
-      }
-      cookieStore.set(options)
+    if (!existing || lockState !== lockAtCall || lockAtCall === null) return
+    const sessionId = self.__next_instant_nav_session_id
+    const cookie: InstantCookie =
+      typeof sessionId === 'string'
+        ? [captured, id, state, sessionId]
+        : [captured, id, state]
+    const options: any = {
+      name: NEXT_INSTANT_TEST_COOKIE,
+      value: JSON.stringify(cookie),
+      path: existing.path ?? '/',
     }
+    if (existing.domain) {
+      options.domain = existing.domain
+    }
+    cookieStore.set(options)
   })
 }
 
@@ -177,8 +195,28 @@ export function startListeningForInstantNavigationCookie(): void {
         })
       }
 
-      writeCookieValue([1, `c${Math.random()}`, null])
+      writeCookieValue(1, `c${Math.random()}`, null)
       acquireLock()
+    } else if (typeof cookieStore !== 'undefined') {
+      // The server didn't serve a static shell for this page. If the
+      // browser still has a cookie left over from a *previous* server
+      // process (tagged with a sessionId that doesn't match ours),
+      // delete it so the devtools panel doesn't spuriously auto-open
+      // in a captured state.
+      const currentSessionId = self.__next_instant_nav_session_id
+      if (typeof currentSessionId === 'string') {
+        cookieStore.get(NEXT_INSTANT_TEST_COOKIE).then((cookie: any) => {
+          if (!cookie) return
+          const parsed = parseInstantTestCookie(cookie.value)
+          if (
+            parsed !== null &&
+            parsed.sessionId !== null &&
+            parsed.sessionId !== currentSessionId
+          ) {
+            cookieStore.delete(NEXT_INSTANT_TEST_COOKIE)
+          }
+        })
+      }
     }
 
     if (typeof cookieStore === 'undefined') {
@@ -225,7 +263,7 @@ export function transitionToCapturedSPA(
   toTree: FlightRouterState | null
 ): void {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    writeCookieValue([1, `c${Math.random()}`, { from: fromTree, to: toTree }])
+    writeCookieValue(1, `c${Math.random()}`, { from: fromTree, to: toTree })
   }
 }
 
@@ -238,7 +276,7 @@ export function updateCapturedSPAToTree(
   toTree: FlightRouterState
 ): void {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    writeCookieValue([1, `c${Math.random()}`, { from: fromTree, to: toTree }])
+    writeCookieValue(1, `c${Math.random()}`, { from: fromTree, to: toTree })
   }
 }
 

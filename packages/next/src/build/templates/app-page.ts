@@ -48,11 +48,12 @@ import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_INSTANT_PREFETCH_HEADER,
-  NEXT_INSTANT_TEST_COOKIE,
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../client/components/app-router-headers' with { 'turbopack-transition': 'next-server-utility' }
+import { hasValidInstantTestCookie } from '../../shared/lib/instant-navigation-cookie' with { 'turbopack-transition': 'next-server-utility' }
+import { getInstantNavigationSessionId } from '../../server/lib/instant-navigation-session' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getBotType,
   isBot,
@@ -422,13 +423,16 @@ export async function handler(
   // - Cookie: Used for MPA navigations (page reload, full page load) where we
   //   can't set request headers. Only applies to document requests (no RSC
   //   header) - RSC requests should proceed normally even during a locked scope,
-  //   with blocking happening on the client side.
+  //   with blocking happening on the client side. Cookies whose embedded
+  //   session ID doesn't match the current server are treated as absent.
   const isInstantNavigationTest =
     exposeTestingApi &&
     (req.headers[NEXT_INSTANT_PREFETCH_HEADER] === '1' ||
       (req.headers[RSC_HEADER] === undefined &&
-        typeof req.headers.cookie === 'string' &&
-        req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=')))
+        hasValidInstantTestCookie(
+          req.headers.cookie,
+          getInstantNavigationSessionId(buildId)
+        )))
 
   // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
   // prerender manifest and this is an app page.
@@ -1835,7 +1839,8 @@ export async function handler(
           routeModule.isDev === true ? crypto.randomUUID() : null
         body.pipeThrough(
           await createInstantTestScriptInsertionTransformStream(
-            instantTestRequestId
+            instantTestRequestId,
+            getInstantNavigationSessionId(buildId)
           )
         )
         return sendRenderResult({

@@ -3,8 +3,12 @@ import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
 import { Playwright } from 'next-webdriver'
 
 describe('instant-nav-panel', () => {
+  // `forcedPort: 'random'` pins the port once at setup, so `next.stop()` /
+  // `next.start()` rebind to the same origin. The stale-cookie-on-restart
+  // test below relies on that.
   const { isNextDev, isTurbopack, next } = nextTestSetup({
     files: __dirname,
+    forcedPort: 'random',
   })
 
   async function waitForPanelRouterTransition() {
@@ -198,6 +202,45 @@ describe('instant-nav-panel', () => {
 
     // Clean up
     await clearInstantModeCookie(browser)
+  })
+
+  it('ignores cookies from a previous dev server on the same port', async () => {
+    // Server A: open the panel and click "Start", which sets a pending
+    // cookie stamped with server A's session ID.
+    const browser = await next.browser('/')
+    await clearInstantModeCookie(browser)
+    await browser.waitForElementByCss('[data-testid="home-title"]')
+
+    await openInstantNavPanel(browser)
+    await clickStartClientNav(browser)
+
+    // Sanity check: the cookie really is in the browser.
+    const cookieBeforeRestart = await browser.eval(() => document.cookie)
+    expect(cookieBeforeRestart).toContain('next-instant-navigation-testing=')
+
+    // Kill server A and bring up server B on the exact same port. The
+    // browser still holds the pending cookie from server A.
+    await next.stop()
+    await next.start()
+
+    // Reload. Server B has a fresh session ID and must treat the stale
+    // cookie as absent.
+    await browser.refresh()
+    await browser.waitForElementByCss('[data-testid="home-title"]')
+
+    // The page must render its dynamic content — if server B had honored
+    // the stale cookie it would have served a static shell and we'd be
+    // stuck on the skeleton.
+    await browser.waitForElementByCss('[data-testid="home-dynamic"]')
+
+    // The on-page lock cleans up the stale cookie after hydration so the
+    // devtools panel doesn't auto-open in a bogus captured state.
+    await retry(async () => {
+      const cookieAfter = await browser.eval(() => document.cookie)
+      expect(cookieAfter).not.toContain('next-instant-navigation-testing=')
+    })
+
+    expect(await browser.hasElementByCss('.instant-nav-panel')).toBe(false)
   })
 
   it('should not set cookie when closing panel from waiting state', async () => {
