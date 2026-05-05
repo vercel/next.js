@@ -147,7 +147,7 @@ jobs:
       - run: pnpm install
 
       - name: Set preview version
-        if: ${{ contains(fromJSON('["automated-preview","force-preview"]'), needs.deploy-target.outputs.value) }}
+        if: ${{ contains(fromJSON('["automated-preview", "force-preview", "staging"]'), needs.deploy-target.outputs.value) }}
         run: |
           node scripts/set-preview-version.js "${{ github.sha }}"
           pnpm install --no-frozen-lockfile
@@ -183,13 +183,10 @@ jobs:
             build_task: build-native-release
             os:
               mac:
+                host: "['macos-15']"
                 vendor: apple
                 sys: darwin
-                arch:
-                  x86_64:
-                    host: "['macos-15-intel']"
-                  aarch64:
-                    host: "['macos-15']"
+                arch: [x86_64, aarch64]
               windows:
                 host: "['windows-latest-8-core-oss']"
                 vendor: pc
@@ -226,7 +223,7 @@ jobs:
 
     name: stable - ${{ matrix.target }} - node@20
     runs-on: ${{ fromJSON(matrix.host) }}
-    timeout-minutes: ${{ matrix.os == 'mac' && 90 || 45 }}
+    timeout-minutes: 45
     env:
       # Disable all build caches for production/staging/force-preview deploys
       NEXT_SKIP_BUILD_CACHE: ${{ contains(fromJSON('["production","staging","force-preview"]'), needs.deploy-target.outputs.value) && '1' || '' }}
@@ -486,7 +483,7 @@ jobs:
       - name: Create tarballs
         # github.event.after is available on push and pull_request#synchronize events.
         # For workflow_dispatch events, github.sha is the head commit.
-        run: node scripts/create-preview-tarballs.js "${{ github.event.after || github.sha }}" "${{ runner.temp }}/preview-tarballs"
+        run: node scripts/create-preview-tarballs.js "${{ github.event.after || github.sha }}" "${{ runner.temp }}/preview-tarballs" "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
 
       - name: Upload tarballs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

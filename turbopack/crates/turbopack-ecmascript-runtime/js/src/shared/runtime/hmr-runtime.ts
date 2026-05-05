@@ -146,11 +146,6 @@ function getAffectedModuleEffects(
     // else above can accept this update.
     if (moduleId === undefined) {
       if (autoAcceptRootModules) {
-        return {
-          type: 'accepted',
-          moduleId,
-          outdatedModules,
-          outdatedDependencies,
         continue
       }
       return {

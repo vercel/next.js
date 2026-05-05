@@ -13,12 +13,30 @@ jobs:
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
     steps:
+      - name: Create GitHub App token
+        id: release-app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: next.js
+          permission-contents: write
+
+      - name: Get GitHub App user ID
+        id: release-app-user
+        run: |
+          user_id="$(gh api "/users/${{ steps.release-app-token.outputs.app-slug }}[bot]" --jq .id)"
+          echo "user-id=$user_id" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           # Commits made with the default `GITHUB_TOKEN` won't trigger workflows.
           # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
-          token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          token: ${{ steps.release-app-token.outputs.token }}
 
       - name: Setup node
         uses: actions/setup-node@v4
@@ -39,7 +57,10 @@ jobs:
         shell: bash
         run: node scripts/automated-update-workflow.js
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
+          RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
+          RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
+          RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
+          PR_GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: turbopack-manifest
           SCRIPT: test/update-bundler-manifest.js --bundler turbopack --test-suite dev
           PR_TITLE: Update Turbopack development test manifest
@@ -49,12 +70,30 @@ jobs:
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
     steps:
+      - name: Create GitHub App token
+        id: release-app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: next.js
+          permission-contents: write
+
+      - name: Get GitHub App user ID
+        id: release-app-user
+        run: |
+          user_id="$(gh api "/users/${{ steps.release-app-token.outputs.app-slug }}[bot]" --jq .id)"
+          echo "user-id=$user_id" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           # Commits made with the default `GITHUB_TOKEN` won't trigger workflows.
           # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
-          token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          token: ${{ steps.release-app-token.outputs.token }}
 
       - name: Setup node
         uses: actions/setup-node@v4
@@ -75,7 +114,10 @@ jobs:
         shell: bash
         run: node scripts/automated-update-workflow.js
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
+          RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
+          RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
+          RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
+          PR_GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: turbopack-manifest
           SCRIPT: test/update-bundler-manifest.js --bundler turbopack --test-suite build
           PR_TITLE: Update Turbopack production test manifest
