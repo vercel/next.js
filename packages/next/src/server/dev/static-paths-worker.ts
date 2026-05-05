@@ -57,6 +57,7 @@ export async function loadStaticPaths({
   cacheLifeProfiles,
   nextConfigOutput,
   buildId,
+  deploymentId,
   authInterrupts,
   sriEnabled,
 }: {
@@ -80,6 +81,7 @@ export async function loadStaticPaths({
   }
   nextConfigOutput: 'standalone' | 'export' | undefined
   buildId: string
+  deploymentId: string
   authInterrupts: boolean
   sriEnabled: boolean
 }): Promise<StaticPathsResult> {
@@ -150,6 +152,7 @@ export async function loadStaticPaths({
       isRoutePPREnabled,
       partialFallbacksEnabled: config.partialFallbacks,
       buildId,
+      deploymentId,
       authInterrupts,
       rootParamKeys,
     })

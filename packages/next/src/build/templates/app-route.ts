@@ -134,6 +134,7 @@ export async function handler(
 
   const {
     buildId,
+    deploymentId,
     params,
     nextConfig,
     parsedUrl,
@@ -262,6 +263,7 @@ export async function handler(
     },
     sharedContext: {
       buildId,
+      deploymentId,
     },
   }
   const nodeNextReq = new NodeNextRequest(req)

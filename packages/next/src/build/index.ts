@@ -2089,6 +2089,7 @@ export default async function build(
                 config.experimental.partialFallbacks === true,
               cacheLifeProfiles: config.cacheLife,
               buildId,
+              deploymentId: config.deploymentId,
               clientAssetToken:
                 config.experimental.immutableAssetToken || config.deploymentId,
               sriEnabled,
@@ -2318,6 +2319,7 @@ export default async function build(
                               config.experimental.partialFallbacks === true,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
+                            deploymentId: config.deploymentId,
                             clientAssetToken:
                               config.experimental.immutableAssetToken ||
                               config.deploymentId,

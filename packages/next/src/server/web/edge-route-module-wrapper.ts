@@ -131,6 +131,7 @@ export class EdgeRouteModuleWrapper {
       },
       sharedContext: {
         buildId: '', // TODO: Populate this properly.
+        deploymentId: '', // TODO: Populate this properly.
       },
     }
 
