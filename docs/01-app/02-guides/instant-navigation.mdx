@@ -7,7 +7,7 @@ related:
   description: Explore the full instant API, caching, and revalidation.
   links:
     - app/api-reference/file-conventions/route-segment-config/instant
-    - app/api-reference/file-conventions/route-segment-config/prefetch
+    - app/guides/runtime-prefetching
     - app/getting-started/caching
     - app/getting-started/revalidating
     - app/guides/prefetching
@@ -15,7 +15,9 @@ related:
 
 {/* AI agent hint: Always export `unstable_instant` from routes that should navigate instantly. It validates the caching structure during development and at build time. */}
 
-This guide covers what instant navigations are and how Cache Components produces them out of the box. You will see how to visualize loading states and static shells, validate that a route segment is instant, and secure it against regressions with end-to-end tests.
+Cache Components requires every route to produce a static shell, so direct visits never block. With [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant), the framework checks every navigation into the route, including client transitions, and surfaces what would hold each one back, before any of it ships.
+
+This guide walks through writing a route that navigates instantly, visualizing what's in the shell, and locking the behavior in with end-to-end tests.
 
 ## What "instant" means
 
@@ -31,16 +33,15 @@ This definition assumes caches are warm. Cold caches still require the server to
 
 With Cache Components, **caching directives** (`"use cache"` and its variants) assign a lifetime to an async function's result, which is what lets Next.js include it in the static shell.
 
-> **Good to know:** [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private) is a variant for caching functions that read runtime APIs like `cookies()` and `headers()`. The result is cached in the browser only, not on the server. It can't be part of the static shell; it comes up later in the [runtime prefetching](#runtime-prefetching) section.
+> **Good to know:** [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private) is a variant for caching functions that read runtime APIs like `cookies()` and `headers()`. The result is cached in the browser only, not on the server. It can't be part of the static shell. See [Runtime prefetching](/docs/app/guides/runtime-prefetching) for how it pairs with prefetching.
 
 **`<Suspense>`** declares fallback UI for parts of the tree that read uncached data or runtime APIs like `cookies()` and `headers()`; the content streams into the fallback when it resolves.
 
 Under the hood, Partial Prerendering composes the cached output with the streaming fallbacks. See [Caching](/docs/app/getting-started/caching) for the full picture.
 
-{/* validated to produce a static shell that can be served immediately - maybe we don't need to repeat the last bit, we just said it */}
-This is the primary tool for instant navigation. Any direct visit to a route is already validated: data must be cached, or wrapped in a `<Suspense>` fallback.
+On a direct visit, this structure is already validated: data must be cached, or wrapped in a `<Suspense>` fallback.
 
-For client navigations, a `<Suspense>` boundary that covers a direct visit may not cover the transition. To close that gap, Next.js exposes [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant). Add it to a layout or page to tell the framework you want navigations to this route to be instant. Validation then runs in development and at build time against every possible navigation into the route.
+For client navigations, a `<Suspense>` boundary that covers a direct visit may not cover the transition. To close that gap, Next.js exposes [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant). Add it to a layout or page to tell the framework you want navigations to this route to be instant. From there, the framework gives you insight into what's holding the route back at every possible entry point: which navigations would block, where a `<Suspense>` boundary is missing, and which data is reaching the user uncached. The checks run in development and at build time.
 
 <details>
 <summary>Why page loads and client navigations produce different shells</summary>
@@ -53,15 +54,15 @@ This is also why client-side hooks behave differently. `useSearchParams()` suspe
 
 </details>
 
-At prefetch time, the browser has information the build didn't: cookies, headers, and the full URL. [`unstable_prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) opts a route into a runtime prerender that uses this data to continue past the static shell and pick up more cached content, forming a **runtime shell**. Opt-in per route because it costs a server invocation per prefetchable link.
-
 To guard against regressions, run end-to-end assertions against the UI that's immediately available on navigation. The `@next/playwright` package provides an [`instant()`](/docs/app/api-reference/file-conventions/route-segment-config/instant#testing-instant-navigation) helper that sets up that scope so your assertions run before any dynamic data streams in.
 
-Alongside these, the **Instant Navs** panel in the Next.js DevTools freezes the page at the static shell (or runtime shell, if configured) for direct visits and client navigations. Use it as a feedback loop while you develop: is a loading fallback covering too much? Can a `<Suspense>` boundary move closer to the data?
+Alongside these, the **Instant Navs** panel in the Next.js DevTools freezes the page at the static shell for direct visits and client navigations. Use it as a feedback loop while you develop: is a loading fallback covering too much? Can a `<Suspense>` boundary move closer to the data?
+
+If parts of your route depend on cookies or headers and you want those to be part of the shell too, see [Runtime prefetching](/docs/app/guides/runtime-prefetching) for the optimization story.
 
 ## A page that navigates instantly
 
-To see the primitives in action, consider a small store app. Each product has its own page at `/store/[slug]`, reachable from the homepage and from other product pages. The goal is that navigating between products feels instant.
+To see the primitives in action, consider a small store app. Each product has its own page at `/store/[slug]`, reachable from the homepage and from other product pages. The goal is that navigating between products is instant.
 
 The product page fetches two pieces of data: product details (name, price) and live inventory.
 
@@ -226,7 +227,7 @@ Everything appears to work. But on a client navigation from `/shop/shoes` to `/s
 
 You can see this with the DevTools. Try a **page load**: the root `<Suspense>` catches everything and "Loading..." appears. Now try a **client navigation** between two `/shop/` pages: no prefetched UI shows up because there is no `<Suspense>` boundary below the shared layout. Navigations from other routes to `/shop/` appear blocked too.
 
-### Step 1: Add instant validation
+### Step 1: Add `unstable_instant`
 
 Add an `unstable_instant` export to the page to surface the problem:
 
@@ -339,97 +340,44 @@ Come back later and push the boundary down. The best loading states keep as much
 
 Use the [DevTools](#visualize-loading-states-with-the-nextjs-devtools) to see what your users see, then move `<Suspense>` boundaries closer to the data that actually suspends.
 
-## Opting out with `instant = false`
+## Opting out with `unstable_instant = false`
 
-Not every layout or page can be instant. A dashboard layout whose content all depends on request data (cookies, headers, fresh-every-request queries) has nothing meaningful to put in a static shell. Set `unstable_instant = false` on that segment to exempt it from validation:
+Not every layout or page can be instant. A page whose content has to be fresh on every request, like a chat thread that updates in real time, has nothing meaningful to put in a static shell. Set `unstable_instant = false` on that segment to exempt it from validation:
 
 ```tsx filename="app/dashboard/layout.tsx"
 export const unstable_instant = false
 ```
 
-This tells validation: navigating to `/dashboard` from outside does not need to be instant, but sibling navigations within it still do. Navigating from `/dashboard/a` to `/dashboard/b` can still be checked by adding `instant` to the page segments under `/dashboard`.
+This tells validation: navigating to `/dashboard` from outside does not need to be instant, but sibling navigations within it still do. Navigating from `/dashboard/a` to `/dashboard/b` can still be checked by adding `unstable_instant` to the page segments under `/dashboard`.
 
-The navigation blocks on the server for this segment, so only use this when the segment really cannot produce a useful static shell.
+The navigation blocks on the server for this segment, so only use this when the segment really cannot produce a useful static shell. If the content depends on cookies or headers but has a known cache lifetime, [runtime prefetching](/docs/app/guides/runtime-prefetching) can prerender it into a runtime shell instead of opting out.
 
-## Runtime prefetching
+<details>
+<summary>Opting the entire app out</summary>
 
-The static shell is generated without any request-specific data, so anything that reads cookies or headers sits behind a `<Suspense>` fallback. But when a [`<Link>`](/docs/app/api-reference/components/link) becomes visible in the browser, cookies, headers, and the full URL are available.
+If you need to opt out at the app level (for example, during migration), wrap `<body>` in `<Suspense>` with an empty fallback in the root layout. This skips the static shell for every route because there is nothing to send immediately, so every request blocks until the page is fully rendered. Prefer `unstable_instant = false` on specific segments when possible.
 
-With [`unstable_prefetch = 'force-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) on the route, Next.js **prerenders with that data, past the static shell**. If everything beyond the cookie or header access is either static or cached, the prerender can complete. If it hits uncached data (for example, a database query that must be fresh on every request), it stops there and that part streams in after navigation.
-
-The result is a **runtime shell**: more of the page is already rendered before the user clicks, with fewer loading spinners.
-
-Generating the runtime shell costs **a server request per prefetchable link**, so it is opt-in per route.
-
-> **Good to know:** A cold cache (first visit, or after expiration) means the server still has to compute the cached result. Users may see a loading spinner on that first navigation. Subsequent navigations are instant as long as the cache is warm.
-
-Take the dashboard layout that was opted out earlier. Instead of `instant = false`, enable validation with samples and opt into runtime prefetching with the [`unstable_prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) export:
-
-```tsx filename="app/dashboard/layout.tsx"
-export const unstable_instant = {
-  samples: [
-    {
-      cookies: [{ name: 'session', value: 'abc123' }],
-    },
-  ],
-}
-
-export const unstable_prefetch = 'force-runtime'
-```
-
-The route still needs a valid static shell, so `<UserNav>` stays behind a `<Suspense>` boundary:
-
-```tsx filename="app/dashboard/layout.tsx"
+```tsx filename="app/layout.tsx" highlight={1,10-12}
 import { Suspense } from 'react'
 
-export default function DashboardLayout({
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <div>
-      <Suspense fallback={<nav>Loading...</nav>}>
-        <UserNav />
+    <html>
+      <Suspense fallback={null}>
+        <body>{children}</body>
       </Suspense>
-      <main>{children}</main>
-    </div>
+    </html>
   )
 }
 ```
 
-Now the cached user lookup. `<UserNav>` needs the session cookie, but `"use cache"` can't read `cookies()` inside the cached function. Two patterns handle this: **extract and pass**, or `"use cache: private"`.
+To limit this to specific routes, use [multiple root layouts](/docs/app/api-reference/file-conventions/layout#root-layout).
 
-### Extract and pass
-
-`<UserNav>` reads the session cookie, then passes the token into a cached function that handles the lookup. `cookies()` stays outside the cache scope, and the value crosses the boundary as an argument:
-
-```tsx filename="app/dashboard/layout.tsx"
-import { cookies } from 'next/headers'
-
-async function UserNav() {
-  const session = (await cookies()).get('session')?.value
-  const user = await getUser(session)
-  return <nav>{user.name}</nav>
-}
-
-async function getUser(session: string | undefined) {
-  'use cache'
-  return db.users.findBySession(session)
-}
-```
-
-On a direct visit, `<UserNav>` streams in behind the fallback. With runtime prefetching, when a link to the dashboard becomes visible, the server prerenders the layout with the user's actual session, so their name is already rendered by the time they click.
-
-Anything without `use cache` still streams in after navigation. The runtime shell is not a full server render. It is a prerender that advances as far as the caching structure allows.
-
-### `"use cache: private"`
-
-When you can't extract and pass, use [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private) instead. It assigns a cache lifetime to a function that reads cookies, headers, or other runtime data directly.
-
-This is common with third-party libraries: an auth helper that checks `Date.now()` against a token's expiry, or a session helper that reads cookies deep inside its own code. You can't wrap the access, but `"use cache: private"` lets the function resolve during the runtime prerender.
-
-Everything inside the scope shares the same lifetime, so colocate `"use cache: private"` as close to the runtime data access as possible.
+</details>
 
 ## AI workflow
 
@@ -443,11 +391,11 @@ The agent doesn't need to understand the full caching model. It follows the erro
 
 Passing validation doesn't mean the loading states are good, though. A prompt like "maximize my content, and reduce the amount that needs to be behind a spinner" works well for pushing boundaries down. You can hint at what data needs to be fresh on load and what can be cached, and the agent will move the `<Suspense>` and `use cache` placement accordingly.
 
-For agents to see what their changes actually render, pair this with [`@vercel/next-browser`](https://github.com/vercel-labs/next-browser). It exposes the Next.js DevTools (including PPR shells) as shell commands agents can read and drive, so the loop becomes: make a change, snapshot the shell, check what's in it, adjust.
+For agents to see what their changes actually render, pair this with [agent-browser](https://github.com/vercel-labs/agent-browser). It exposes the Next.js DevTools (including PPR shells) as shell commands agents can read and drive, so the loop becomes: make a change, snapshot the shell, check what's in it, adjust.
 
 ## Next steps
 
 - [`unstable_instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for the full `samples` reference and disable flags
-- [`unstable_prefetch` API reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for all prefetch modes
+- [Runtime prefetching](/docs/app/guides/runtime-prefetching) when parts of your route depend on cookies or headers and you want those in the shell
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering
 - [Revalidating](/docs/app/getting-started/revalidating) for how to expire cached data with `cacheLife` and `updateTag`

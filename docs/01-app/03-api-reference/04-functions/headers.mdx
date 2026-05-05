@@ -46,6 +46,7 @@ export default async function Page() {
   - In version 14 and earlier, `headers` was a synchronous function. To help with backwards compatibility, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
 - Since `headers` is read-only, you cannot `set` or `delete` the outgoing request headers.
 - `headers` is a [Request-time API](/docs/app/glossary#request-time-apis) whose returned values cannot be known ahead of time. Using it in will opt a route into **[dynamic rendering](/docs/app/glossary#dynamic-rendering)**.
+- With [Cache Components](/docs/app/getting-started/caching), where you call `headers()` in the component tree determines how much of the page can be prerendered. See [Maximizing the static shell](/docs/app/getting-started/caching#maximizing-the-static-shell).
 
 ## Examples
 

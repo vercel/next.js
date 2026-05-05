@@ -8,13 +8,10 @@ related:
     - app/getting-started/revalidating
     - app/api-reference/directives/use-cache
     - app/api-reference/config/next-config-js/cacheComponents
-    - app/guides/preserving-ui-state
-    - app/api-reference/file-conventions/route-segment-config/instant
-    - app/api-reference/file-conventions/route-segment-config/prefetch
     - app/guides/instant-navigation
 ---
 
-{/* AI agent hint: To ensure client-side navigations are instant with Cache Components, export `unstable_instant` from the route. See docs/01-app/02-guides/instant-navigation.mdx */}
+{/* AI agent hint: To ensure client-side navigations are instant with Cache Components, export `unstable_instant` from the route (see docs/01-app/02-guides/instant-navigation.mdx). To prerender request-specific content into a runtime shell, pair `unstable_instant` with `unstable_prefetch = 'force-runtime'` (see docs/01-app/02-guides/runtime-prefetching.mdx). */}
 
 > This page covers caching with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), enabled by setting [`cacheComponents: true`](/docs/app/api-reference/config/next-config-js/cacheComponents) in your `next.config.ts` file. If you're not using Cache Components, see the [Caching and Revalidating (Previous Model)](/docs/app/guides/caching-without-cache-components) guide.
 
@@ -24,7 +21,7 @@ Caching is a technique for storing the result of data fetching and other computa
 
 You can enable Cache Components by adding the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) option to your Next config file:
 
-```ts filename="next.config.ts" highlight={4} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -34,7 +31,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.js" highlight={3} switcher
+```js filename="next.config.js" switcher
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   cacheComponents: true,
@@ -139,7 +136,7 @@ Runtime APIs require information that is only available when a user makes a requ
 - [`cookies`](/docs/app/api-reference/functions/cookies) - User's cookie data
 - [`headers`](/docs/app/api-reference/functions/headers) - Request headers
 - [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) - URL query parameters
-- [`params`](/docs/app/api-reference/file-conventions/page#params-optional) - Dynamic route parameters (unless at least one sample is provided via [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)).
+- [`params`](/docs/app/api-reference/file-conventions/page#params-optional) - Dynamic route parameters (unless covered by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params); each param accessed at prerender time must be statically known).
 
 Components that access runtime APIs should be wrapped in `<Suspense>`:
 
@@ -198,9 +195,90 @@ async function CachedContent({ sessionId }: { sessionId: string }) {
 
 At request time, `CachedContent` executes if no matching cache entry is found, and stores the result for future requests with the same `sessionId`.
 
+This pattern also unlocks [runtime prefetching](#runtime-prefetching): on a client transition, the framework can prerender `CachedContent` with the user's actual session and have the result ready before the click.
+
 By default, `use cache` stores entries [in-memory](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations). In serverless environments where memory doesn't persist across requests, `CachedContent` may re-evaluate on every request. Consider [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote) for durable, shared caching.
 
-## Working with non-deterministic operations
+## Static, cached, and streaming
+
+Here's a complete example showing static content, cached dynamic content, and streaming dynamic content working together on a single page:
+
+```tsx filename="app/blog/page.tsx"
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+import { cacheLife, cacheTag } from 'next/cache'
+import Link from 'next/link'
+
+export default function BlogPage() {
+  return (
+    <>
+      {/* Static content - prerendered automatically */}
+      <header>
+        <h1>Our Blog</h1>
+        <nav>
+          <Link href="/">Home</Link> | <Link href="/about">About</Link>
+        </nav>
+      </header>
+
+      {/* Cached dynamic content - included in the static shell */}
+      <BlogPosts />
+
+      {/* Runtime dynamic content - streams at request time */}
+      <Suspense fallback={<p>Loading your preferences...</p>}>
+        <UserPreferences />
+      </Suspense>
+    </>
+  )
+}
+
+type Post = { id: string; title: string; author: string; date: string }
+
+// Everyone sees the same blog posts (revalidated every hour)
+async function BlogPosts() {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('posts')
+
+  const res = await fetch('https://api.vercel.app/blog')
+  const posts: Post[] = await res.json()
+
+  return (
+    <section>
+      <h2>Latest Posts</h2>
+      <ul>
+        {posts.map((post) => (
+          <li key={post.id}>
+            <h3>{post.title}</h3>
+            <p>
+              By {post.author} on {post.date}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+// UI that depends on a value stored in cookies
+async function UserPreferences() {
+  const theme = (await cookies()).get('theme')?.value || 'light'
+  const favoriteCategory = (await cookies()).get('category')?.value
+
+  return (
+    <aside>
+      <p>Your theme: {theme}</p>
+      {favoriteCategory && <p>Favorite category: {favoriteCategory}</p>}
+    </aside>
+  )
+}
+```
+
+During prerendering, the header (static) and blog posts (cached with `use cache`) become part of the static shell, along with the fallback UI for user preferences. The UI preferenced stored in cookies streams in at request time.
+
+{/* this makes no sense here though? - it should be somewhere */}
+> **Good to know:** `generateMetadata` and `generateViewport` track runtime data access separately from the page. See [Metadata with Cache Components](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [Viewport with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for how to handle this.
+
+## Random values and timestamps
 
 Operations like `Math.random()`, `Date.now()`, or `crypto.randomUUID()` produce different values each time they execute. Cache Components requires you to explicitly handle these.
 
@@ -235,24 +313,24 @@ export default async function Page() {
 }
 ```
 
-## Working with deterministic operations
+## Synchronous I/O and pure computations
 
-Operations like synchronous I/O, module imports, and pure computations can complete during prerendering. Components using only these operations have their rendered output automatically included in the static HTML shell.
+Operations like synchronous I/O, module imports, and pure computations can complete during prerendering. Components using only these operations are prerendered automatically. At build time, their output becomes part of the static HTML.
 
 ```tsx filename="page.tsx"
 import fs from 'node:fs'
 
 export default async function Page() {
-  const content = fs.readFileSync('./config.json', 'utf-8')
   const constants = await import('./constants.json')
-  const processed = JSON.parse(content).items.map((item) => item.value * 2)
+  const content = fs.readFileSync('./config.json', 'utf-8')
+  const items = JSON.parse(content).items ?? []
 
   return (
     <div>
       <h1>{constants.appName}</h1>
       <ul>
-        {processed.map((value, i) => (
-          <li key={i}>{value}</li>
+        {items.map((item) => (
+          <li key={item.id}>{item.value}</li>
         ))}
       </ul>
     </div>
@@ -262,15 +340,15 @@ export default async function Page() {
 
 > **Good to know:** This includes queries to embedded databases with synchronous APIs, such as `better-sqlite3` or Node.js's built-in [`node:sqlite`](https://nodejs.org/api/sqlite.html). If you need per-request data from a synchronous source, call [`connection()`](/docs/app/api-reference/functions/connection) before the query.
 
-## How rendering works
+## Prerendering
 
 At build time, Next.js renders your route's component tree. How each component is handled depends on the APIs it uses:
 
 - [`use cache`](#usage): the result is cached and included in the static shell
 - [`<Suspense>`](#streaming-uncached-data): fallback UI is included in the static shell while the content streams at request time
-- [Deterministic operations](#working-with-deterministic-operations): like pure computations and module imports are automatically included in the static shell
+- [Synchronous I/O and pure computations](#synchronous-io-and-pure-computations): module imports, `fs.readFileSync`, and pure computations complete during prerender and are included in the static shell automatically
 
-This generates a static shell consisting of HTML for initial page loads and a serialized [RSC Payload](/docs/app/getting-started/server-and-client-components#on-the-server) for client-side navigation, ensuring the browser receives fully rendered content instantly whether users navigate directly to the URL or transition from another page.
+This generates a static shell consisting of HTML for initial page loads and a serialized [RSC Payload](/docs/app/getting-started/server-and-client-components#on-the-server) for client-side navigation, ensuring the browser receives fully rendered content instantly whether users navigate directly to the URL or transition from another page. This rendering approach is called **Partial Prerendering (PPR)**, the default behavior with Cache Components.
 
 <Image
   alt="Partially re-rendered Product Page showing static nav and product information, and dynamic cart and recommended products"
@@ -280,9 +358,9 @@ This generates a static shell consisting of HTML for initial page loads and a se
   height="632"
 />
 
-This rendering approach is called **Partial Prerendering (PPR)**, and it's the default behavior with Cache Components.
+Every produced static shell can be served directly from a CDN, which makes direct navigations [instant](#instant-navigation).
 
-> You can verify that a route was fully prerendered by checking the [build output summary](/docs/app/api-reference/cli/next#next-build-options). Alternatively, see what content was added to the static shell of any page by viewing the page source in your browser.
+Next.js requires you to explicitly handle components that can't complete during prerendering. If a component isn't wrapped in `<Suspense>` or marked with `use cache`, you'll see a [blocking-route](https://nextjs.org/docs/messages/blocking-route) error during development and build time. The error names the offending route and points at fixes (cache the access, move it into a `<Suspense>` boundary, or opt the route out). This validation keeps every route producing a static shell, so direct navigations stay instant.
 
 <Image
   alt="Diagram showing partially rendered page on the client, with loading UI for chunks that are being streamed."
@@ -292,232 +370,120 @@ This rendering approach is called **Partial Prerendering (PPR)**, and it's the d
   height="785"
 />
 
-Next.js requires you to explicitly handle components that can't complete during prerendering. If they aren't wrapped in `<Suspense>` or marked with `use cache`, you'll see an [`Uncached data was accessed outside of <Suspense>`](https://nextjs.org/docs/messages/blocking-route) error during development and build time.
-
 > **🎥 Watch:** Why Partial Prerendering and how it works → [YouTube (10 minutes)](https://www.youtube.com/watch?v=MTcPrTIBkpA).
 
-### Opting out of the static shell
+### Maximizing the static shell
 
-When a segment's content all depends on runtime data (cookies, headers, or fresh-on-every-request queries) and none of it can be cached, there's nothing meaningful to put in a static shell. Set [`unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) on just that layout or page:
+The deeper your async work sits in the tree, the more of the page can be prerendered. This is the structural pattern Cache Components rewards: a general practice worth applying everywhere, and the foundation for the instant navigation and runtime prefetching that follow. It applies to all [runtime APIs](#working-with-runtime-apis) and async operations like data fetches.
 
-```tsx filename="app/dashboard/layout.tsx"
-export const unstable_instant = false
-```
+Consider a layout that destructures `params` at the top level:
 
-The navigation blocks on the server for that segment, but the rest of the app keeps its static shells.
-
-<details>
-<summary>Opting the entire app out</summary>
-
-If you need to opt out at the app level (for example, during migration), wrap `<body>` in `<Suspense>` with an empty fallback in the root layout. This skips the static shell for every route because there is nothing to send immediately, so every request blocks until the page is fully rendered. Prefer `unstable_instant = false` on specific segments when possible.
-
-```tsx filename="app/layout.tsx" highlight={1,10-12}
-import { Suspense } from 'react'
-
-export default function RootLayout({
+```tsx filename="app/shop/[slug]/layout.tsx"
+export default async function Layout({
   children,
-}: {
-  children: React.ReactNode
-}) {
-  return (
-    <html>
-      <Suspense fallback={null}>
-        <body>{children}</body>
-      </Suspense>
-    </html>
-  )
-}
-```
-
-To limit this to specific routes, use [multiple root layouts](/docs/app/api-reference/file-conventions/layout#root-layout).
-
-</details>
-
-> **Good to know**: This same pattern applies when `generateViewport` accesses uncached dynamic data. See [Viewport with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for a detailed example.
-
-### Putting it all together
-
-Here's a complete example showing static content, cached dynamic content, and streaming dynamic content working together on a single page:
-
-```tsx filename="app/blog/page.tsx"
-import { Suspense } from 'react'
-import { cookies } from 'next/headers'
-import { cacheLife, cacheTag, updateTag } from 'next/cache'
-import Link from 'next/link'
-
-export default function BlogPage() {
-  return (
-    <>
-      {/* Static content - prerendered automatically */}
-      <header>
-        <h1>Our Blog</h1>
-        <nav>
-          <Link href="/">Home</Link> | <Link href="/about">About</Link>
-        </nav>
-      </header>
-
-      {/* Cached dynamic content - included in the static shell */}
-      <BlogPosts />
-
-      {/* Runtime dynamic content - streams at request time */}
-      <Suspense fallback={<p>Loading your preferences...</p>}>
-        <UserPreferences />
-      </Suspense>
-
-      {/* Mutation - server action that revalidates the cache */}
-      <Suspense fallback={<p>Loading...</p>}>
-        <CreatePost />
-      </Suspense>
-    </>
-  )
-}
-
-// Everyone sees the same blog posts (revalidated every hour)
-async function BlogPosts() {
-  'use cache'
-  cacheLife('hours')
-  cacheTag('posts')
-
-  const res = await fetch('https://api.vercel.app/blog')
-  const posts = await res.json()
-
-  return (
-    <section>
-      <h2>Latest Posts</h2>
-      <ul>
-        {posts.slice(0, 5).map((post: any) => (
-          <li key={post.id}>
-            <h3>{post.title}</h3>
-            <p>
-              By {post.author} on {post.date}
-            </p>
-          </li>
-        ))}
-      </ul>
-    </section>
-  )
-}
-
-// Personalized per user based on their cookie
-async function UserPreferences() {
-  const theme = (await cookies()).get('theme')?.value || 'light'
-  const favoriteCategory = (await cookies()).get('category')?.value
-
-  return (
-    <aside>
-      <p>Your theme: {theme}</p>
-      {favoriteCategory && <p>Favorite category: {favoriteCategory}</p>}
-    </aside>
-  )
-}
-
-// Admin-only form that creates a post and revalidates the cache
-async function CreatePost() {
-  const isAdmin = (await cookies()).get('role')?.value === 'admin'
-  if (!isAdmin) return null
-
-  async function createPost(formData: FormData) {
-    'use server'
-    await db.post.create({ data: { title: formData.get('title') } })
-    updateTag('posts')
-  }
-
-  return (
-    <form action={createPost}>
-      <input name="title" placeholder="Post title" required />
-      <button type="submit">Publish</button>
-    </form>
-  )
-}
-```
-
-During prerendering, the header (static) and blog posts (cached with `use cache`) become part of the static shell along with the fallback UI for user preferences. Only the personalized preferences stream in at request time. When an admin publishes a new post, the [`updateTag`](/docs/app/getting-started/revalidating#updatetag) call immediately expires the blog posts cache so the next visitor sees it.
-
-> **Good to know:** `generateMetadata` and `generateViewport` track runtime data access separately from the page. See [Metadata with Cache Components](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [Viewport with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for how to handle this.
-
-## Instant navigation
-
-To achieve instant navigations, wrap uncached or runtime data in a `<Suspense>` boundary as close as possible to where access happens. If every component in the tree either uses `use cache`, is static, or follows this rule, your application gets instant navigations out of the box.
-
-However, during migration to Cache Components, developing new features, or refactoring, Suspense boundaries can drift higher up the component tree into shared layouts or even the root layout. This results in less meaningful loading states and, at worst, blocking client-side transitions.
-
-Client-side navigations re-render from a shared layout down. A `<Suspense>` boundary above that shared layout will not help because it is above the re-render point. If a page reads uncached data without a local Suspense boundary, the server-side render must complete before any UI is shown, blocking the navigation.
-
-> **Good to know:** Cold caches are typically a one-time cost, not a permanent block. The documentation on instant navigations assumes caches are warm.
-
-### Inspecting loading states
-
-Open the Next.js DevTools and select **Instant Navs**. The **Page load** option refreshes the page and freezes it at the initial static UI that was generated for the route. The **Client navigation** option makes every link click show the prefetched UI instead of the full result. Page loads and client navigations can produce different shells because client-side hooks like `useSearchParams` resolve synchronously on client navigations but suspend on page loads.
-
-### Preventing Suspense drift
-
-The [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) route segment config opts a route into validation for instant navigations. Next.js checks, during development and at build time, that the caching structure produces an instant shell at every possible entry point into the route.
-
-In the example below, there is no `generateStaticParams`, so `id` is only known at request time. Awaiting `params` suspends, so each component needs its own `<Suspense>` boundary. Product details rarely change and are cached as a function of `id`. Inventory must be fresh and streams behind a fallback:
-
-```tsx filename="app/products/[id]/page.tsx" highlight={1-3}
-export const unstable_instant = {
-  samples: [{ params: { id: '1' } }],
-}
-
-import { Suspense } from 'react'
-
-export default async function ProductPage({
   params,
-}: {
-  params: Promise<{ id: string }>
-}) {
+}: LayoutProps<'/shop/[slug]'>) {
+  const { slug } = await params
+
   return (
     <div>
-      <Suspense fallback={<p>Loading product...</p>}>
-        {params.then(({ id }) => (
-          <ProductInfo id={id} />
+      <Sidebar />
+      <h1>{slug}</h1>
+      {children}
+    </div>
+  )
+}
+```
+
+If this param is dynamic (not provided by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)), it is runtime data and the layout cannot be prerendered.
+
+However, it is often possible to read the parameter value further down the tree. Instead of awaiting at the layout level, pass the params promise down and await there:
+
+```tsx filename="app/shop/[slug]/layout.tsx" highlight={3,10-13}
+import { Suspense } from 'react'
+
+export default function Layout({
+  children,
+  params,
+}: LayoutProps<'/shop/[slug]'>) {
+  return (
+    <div>
+      <Sidebar />
+      <Suspense fallback={<h1>Loading...</h1>}>
+        {params.then(({ slug }) => (
+          <SlugHeading slug={slug} />
         ))}
       </Suspense>
-      <Suspense fallback={<p>Checking availability...</p>}>
-        <Inventory params={params} />
-      </Suspense>
+      {children}
     </div>
   )
 }
 
-async function ProductInfo({ id }: { id: string }) {
-  'use cache'
-  const product = await fetchProduct(id)
-  return <h1>{product.name}</h1>
-}
-
-async function Inventory({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = await params
-  const inventory = await fetchInventory(id)
-  return <p>{inventory.count} in stock</p>
+function SlugHeading({ slug }: { slug: string }) {
+  return <h1>{slug}</h1>
 }
 ```
 
-The product name is cached and part of the instant shell. The inventory count streams behind a loading state. If either component would block navigation, `instant` flags it during development and at build time.
+Now `<Sidebar />`, `{children}`, and the Suspense fallback are all part of the static shell. Only `SlugHeading` streams in at request time. You can also pass the entire `params` promise and await it in the child component.
 
-To prevent regressions, the `@next/playwright` package includes an [`instant()`](/docs/app/api-reference/file-conventions/route-segment-config/instant#testing-instant-navigation) helper that lets you write e2e assertions for the fallback states that appear during instant navigations.
+The same principle applies to `cookies()`, `headers()`, `searchParams`, and data fetches. See [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) for a related pattern.
 
-### Static and runtime prefetching
+### Instant navigation
 
-By default, components that read cookies or headers must be behind `<Suspense>`. They cannot be prefetched without the user's session data.
+Every route producing a static shell makes direct navigations instant.
 
-Opt into runtime prefetching with the [`unstable_prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) export. Next.js will then send prefetch requests with the user's actual cookies and headers, caching the response in the browser. Personalized content like a user's name or cart count can become part of the instant shell instead of streaming behind a loading state:
+{/* weirdly phrased, as in, it is no tonly Suspense, it could be that you needed a use cache, but it is one way... in general it is like, your use cache and Suspense usage might not lead to an instant transition... it appears blocking until the server is done... */}
+In a client-side transition, only the components below the shared layout re-render. A `<Suspense>` boundary higher up might not cover the transition, blocking the navigation.
 
-```tsx filename="app/dashboard/layout.tsx"
+To validate every navigation is instant, the framework provides:
+
+- The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) route segment config opts a layout or page into validation. Next.js then verifies navigation into the route, including client transitions, in development and at build time.
+- The [`instant()`](/docs/app/api-reference/file-conventions/route-segment-config/instant#testing-instant-navigation) helper in `@next/playwright` asserts on the static shell during navigation, so regressions surface in CI.
+- DevTools to visualize loading states: the **Instant Navs** panel in the Next.js DevTools (enabled with `experimental.instantNavigationDevToolsToggle`), complemented by the [React DevTools Suspense panel](https://react.dev/learn/react-developer-tools).
+- `unstable_instant = false` opts a layout or page out when you can't make it instant right now.
+
+See the [Instant navigation guide](/docs/app/guides/instant-navigation) for the full pattern, including AI agent workflows and the app-level escape hatch.
+
+### Runtime prefetching
+
+{/* feels like here we can make a contrast or similar list to the How rendering works intro... generalizaing the shell generation */}
+
+The static shell is built without any request-specific data. During a client transition, the browser already has the user's cookies, headers, and the full URL, and the framework can use that data to render more of the page before the user clicks. The result is a **runtime shell**: a prerender that incorporates request-specific content past the static shell.
+
+For example, take a dashboard that reads the user's session cookie and opts into runtime prefetching:
+
+```tsx filename="app/dashboard/page.tsx"
+import { cookies } from 'next/headers'
+import { Suspense } from 'react'
+
 export const unstable_instant = {
-  samples: [
-    {
-      cookies: [{ name: 'session', value: 'abc123' }],
-    },
-  ],
+  samples: [{ cookies: [{ name: 'session', value: 'abc123' }] }],
+}
+export const unstable_prefetch = 'force-runtime'
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <Stats />
+    </Suspense>
+  )
 }
 
-export const unstable_prefetch = 'force-runtime'
+async function Stats() {
+  const session = (await cookies()).get('session')?.value
+  if (!session) return <p>Not signed in</p>
+  const stats = await getStats(session)
+  return <pre>{JSON.stringify(stats)}</pre>
+}
+
+async function getStats(session: string) {
+  'use cache'
+  return db.users.getStats(session)
+}
 ```
 
-See the [`instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for all configuration options, including incremental adoption with `instant = false` and the `instant()` testing API.
+On a direct visit, `<Stats>` streams in behind the fallback. When a user navigates to `/dashboard` from another route, the framework prefetches with their session cookie. The `use cache` directive on `getStats` gives the result a lifetime, the same property that lets data join the [static shell](#prerendering). Here, that lifetime lets the result join the runtime shell instead, prerendered with the user's session before the click.
+
+Because the prerender happens during the prefetch, the navigation itself has nothing to wait on, even when the route reads cookies, headers, or the URL. The cost is a server invocation per prefetchable link.
+
+See the [Runtime prefetching guide](/docs/app/guides/runtime-prefetching) for full patterns and the [`unstable_prefetch` reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for all modes.
