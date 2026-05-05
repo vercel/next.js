@@ -2,6 +2,7 @@ use std::{
     any::Any,
     error::Error as StdError,
     future::Future,
+    mem::{forget, replace},
     pin::Pin,
     sync::{Arc, OnceLock},
 };
@@ -11,13 +12,13 @@ use futures::{StreamExt, TryStreamExt};
 use parking_lot::{Mutex, MutexGuard};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
-use tokio::sync::Notify;
 use tracing::Instrument;
 use turbo_dyn_eq_hash::DynPartialEq;
 
 use crate::{
     self as turbo_tasks, CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
     emit,
+    event::Event,
     manager::{debug_assert_in_top_level_task, debug_assert_not_in_top_level_task},
     trace::TraceRawVcs,
 };
@@ -76,7 +77,7 @@ impl<T> EffectError for T where T: StdError + TraceRawVcs + NonLocalValue + Send
 enum EffectLastApplied {
     Unapplied,
     InProgress {
-        write_notify: Arc<Notify>,
+        write_event: Event,
     },
     Applied {
         value: Box<dyn Any + Send + Sync>,
@@ -364,75 +365,82 @@ impl Effects {
                     let effect: &dyn DynEffect = &*self.effects[*idx].inner;
 
                     // If `effect.dyn_apply` panics or the apply future is dropped before
-                    // completion, the drop impl resets the per-key state to `Unapplied` and
-                    // notifies other waiters so they can retry rather than deadlock or observe a
-                    // stale "panic" cache entry.
-                    struct NotifyGuard<'a> {
-                        notify: Arc<Notify>,
+                    // completion, the guard's drop impl resets the per-key state to `Unapplied`
+                    // and notifies other waiters via the `Event` it recovers from the previous
+                    // `InProgress`, so they retry rather than deadlock or observe a stale
+                    // "panic" cache entry.
+                    struct EventGuard<'a> {
                         entry: &'a EffectStateEntry,
-                        incomplete: bool,
                     }
-                    impl Drop for NotifyGuard<'_> {
+                    impl Drop for EventGuard<'_> {
                         fn drop(&mut self) {
-                            if self.incomplete {
-                                *self.entry.lock() = EffectLastApplied::Unapplied;
-                            }
-                            self.notify.notify_waiters()
+                            let prev_state =
+                                replace(&mut *self.entry.lock(), EffectLastApplied::Unapplied);
+                            let EffectLastApplied::InProgress { write_event } = prev_state else {
+                                unreachable!("EventGuard: prev_state must be InProgress");
+                            };
+                            write_event.notify(usize::MAX);
                         }
                     }
 
-                    let create_notify_guard = |mut last_applied_guard: MutexGuard<'_, _>| {
-                        let write_notify = NotifyGuard {
-                            notify: Arc::new(Notify::new()),
-                            entry,
-                            incomplete: true,
-                        };
+                    let create_event_guard = |mut last_applied_guard: MutexGuard<'_, _>| {
                         *last_applied_guard = EffectLastApplied::InProgress {
-                            write_notify: write_notify.notify.clone(),
+                            write_event: Event::new(|| {
+                                || "effect application in progress".to_string()
+                            }),
                         };
-                        write_notify
+                        EventGuard { entry }
                     };
 
-                    let mut notify_guard = loop {
-                        let mut in_progress_notified;
+                    let event_guard = loop {
+                        let listener;
                         {
                             let last_applied_guard = entry.lock();
                             match &*last_applied_guard {
                                 EffectLastApplied::Unapplied => {
-                                    break create_notify_guard(last_applied_guard);
+                                    break create_event_guard(last_applied_guard);
                                 }
                                 EffectLastApplied::Applied { value, result } => {
                                     // Fast path: check if the stored value already matches
                                     if effect.eq_value_dyn(&**value) {
                                         return result.clone();
                                     } else {
-                                        break create_notify_guard(last_applied_guard);
+                                        break create_event_guard(last_applied_guard);
                                     }
                                 }
-                                EffectLastApplied::InProgress { write_notify } => {
-                                    in_progress_notified =
-                                        Box::pin(write_notify.clone().notified_owned());
-                                    // enable the notify before we drop the last_applied_guard
-                                    in_progress_notified.as_mut().enable();
+                                EffectLastApplied::InProgress { write_event } => {
+                                    // `Event::listen` registers the listener immediately, so
+                                    // notifications fired after we drop `last_applied_guard`
+                                    // cannot be missed.
+                                    listener = write_event.listen();
                                 }
                             }
                         };
                         // We didn't break out of the loop: There's a concurrent in-progress
                         // application. Wait for it to finish and then read `last_applied` again.
-                        in_progress_notified.await;
+                        listener.await;
                     };
 
                     // Apply the effect. InProgress is visible to concurrent readers, preventing
                     // stale fast-path matches.
                     let effect_result = effect.dyn_apply().await;
-                    *entry.lock() = EffectLastApplied::Applied {
-                        value: effect.value_dyn(),
-                        result: effect_result.clone(),
-                    };
 
-                    // notify any concurrent waiters
-                    notify_guard.incomplete = false;
-                    drop(notify_guard);
+                    // Update the state, clear the EventGuard
+                    let prev_state = replace(
+                        &mut *entry.lock(),
+                        EffectLastApplied::Applied {
+                            value: effect.value_dyn(),
+                            result: effect_result.clone(),
+                        },
+                    );
+                    // don't run the `Drop` impl on `EventGuard`. We'll do the notification
+                    // ourselves.
+                    forget(event_guard);
+
+                    let EffectLastApplied::InProgress { write_event } = prev_state else {
+                        unreachable!("Effect applied: prev_state must be InProgress");
+                    };
+                    write_event.notify(usize::MAX);
 
                     effect_result
                 })
