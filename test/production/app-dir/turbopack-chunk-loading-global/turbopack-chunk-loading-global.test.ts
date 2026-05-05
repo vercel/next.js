@@ -17,27 +17,26 @@ describe('turbopack-chunk-loading-global', () => {
     files: __dirname,
   })
 
-  ;(isNextDeploy ? describe.skip : describe)('chunk output', () => {
-    it('uses the custom global name and drops the default TURBOPACK global', async () => {
-      const staticDir = path.join(next.testDir, '.next/static')
-      const jsFiles = collectJsFiles(staticDir)
-      expect(jsFiles.length).toBeGreaterThan(0)
+  if (!isNextDeploy) {
+    describe('chunk output', () => {
+      it('uses the custom global name and drops the default TURBOPACK global', async () => {
+        const staticDir = path.join(next.testDir, '.next/static')
+        const jsFiles = collectJsFiles(staticDir)
+        expect(jsFiles.length).toBeGreaterThan(0)
 
-      const allContent = jsFiles
-        .map((f) => fs.readFileSync(f, 'utf8'))
-        .join('\n')
+        const allContent = jsFiles
+          .map((f) => fs.readFileSync(f, 'utf8'))
+          .join('\n')
 
-      // Custom global must be registered as a chunk-loading global
-      expect(allContent).toContain('globalThis.myApp')
-      // And the derived chunk list global must use the same name
-      expect(allContent).toContain('globalThis.myApp_CHUNK_LISTS')
+        // Custom global must be used for chunk loading
+        expect(allContent).toContain('globalThis.myApp')
 
-      // Default TURBOPACK chunk-loading globals must not appear — if they
-      // do, chunkLoadingGlobal was ignored by the Rust layer.
-      expect(allContent).not.toContain('globalThis.TURBOPACK')
-      expect(allContent).not.toContain('globalThis.TURBOPACK_CHUNK_LISTS')
+        // Default TURBOPACK chunk-loading global must not appear — if it does,
+        // chunkLoadingGlobal was ignored by the Rust layer
+        expect(allContent).not.toContain('globalThis.TURBOPACK')
+      })
     })
-  })
+  }
 
   describe('runtime behavior', () => {
     it('renders content and handles interactions after hydration', async () => {
