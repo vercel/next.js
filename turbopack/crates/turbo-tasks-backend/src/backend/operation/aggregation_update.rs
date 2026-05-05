@@ -96,6 +96,13 @@ pub fn get_uppers(task: &impl TaskGuard) -> TaskIdVec {
     task.iter_upper().map(|(&id, _count)| id).collect()
 }
 
+/// Acquires a `Meta`-category guard for `task_id` and sets `optimization_pending`. Used in
+/// the optimize-queue drop paths when the caller doesn't already hold a guard for the task.
+fn lock_and_mark_optimization_pending(ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+    let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+    task.set_optimization_pending(true);
+}
+
 /// Returns the aggregation number of the task.
 pub fn get_aggregation_number(task: &impl TaskGuard) -> u32 {
     task.get_aggregation_number()
@@ -750,6 +757,20 @@ struct OptimizeJob {
     /// per-queue optimization budget got exhausted before processing it, or because the
     /// in-memory queue was full at push time) does not require taking a task lock to mark
     /// the task pending — the flag is already set.
+    ///
+    /// This is a best-effort snapshot taken at push time. It can become stale by the time
+    /// the job is processed, either through:
+    /// - concurrent updates (another thread sets or clears `optimization_pending`), or
+    /// - `RingSet` deduplication (a second push for the same `task_id` is a no-op even if it would
+    ///   record a different snapshot — the original entry's value is kept).
+    ///
+    /// A stale snapshot is still correct, just possibly suboptimal:
+    /// - If the snapshot is `false` but the flag is now `true`: at drop we acquire a guard and
+    ///   re-set the flag (a no-op write — slightly wasted work, but correct).
+    /// - If the snapshot is `true` but the flag is now `false`: at drop we skip the guard. The
+    ///   only way this can happen is that some other path ran `optimize_task` for this task and
+    ///   cleared the flag — i.e., the optimization we were about to drop has already been
+    ///   performed. Skipping the flag set is exactly what we want.
     flag_already_set: bool,
     #[cfg(feature = "trace_aggregation_update_queue")]
     #[bincode(skip)]
@@ -907,7 +928,10 @@ pub struct AggregationUpdateQueue {
     #[bincode(with = "turbo_bincode::ringset")]
     optimize_queue: FxRingSet<OptimizeJob>,
     /// Number of optimizations executed by this queue so far. See
-    /// `MAX_OPTIMIZATIONS_PER_QUEUE`.
+    /// `MAX_OPTIMIZATIONS_PER_QUEUE`. Persisted with the queue so the budget is preserved
+    /// across suspend/resume — otherwise resuming a queue would reset the budget and a long
+    /// operation could perform arbitrarily many optimizations by going through several
+    /// suspend/resume cycles.
     optimizations_executed: usize,
     #[bincode(skip, default = "FxHashMap::default")]
     scheduled_tasks: FxHashMap<TaskId, TaskPriority>,
@@ -1060,18 +1084,6 @@ impl AggregationUpdateQueue {
         true
     }
 
-    /// Acquires a `Meta`-category guard for `task_id` and sets `optimization_pending`. Use
-    /// only when the caller doesn't already hold a guard for the task — when a guard is
-    /// available, set the flag on it directly to avoid a re-acquire.
-    fn lock_and_mark_optimization_pending(
-        &self,
-        ctx: &mut impl ExecuteContext<'_>,
-        task_id: TaskId,
-    ) {
-        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
-        task.set_optimization_pending(true);
-    }
-
     /// Schedules an optimization of `task`'s aggregation number.
     ///
     /// Records the current `optimization_pending` flag value on the enqueued job — reading
@@ -1092,7 +1104,7 @@ impl AggregationUpdateQueue {
     /// guard is acquired only when the push has to be dropped.
     fn push_optimize_task_by_id(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
         if !self.try_enqueue_optimize_job(task_id, false) {
-            self.lock_and_mark_optimization_pending(ctx, task_id);
+            lock_and_mark_optimization_pending(ctx, task_id);
         }
     }
 
@@ -1100,6 +1112,12 @@ impl AggregationUpdateQueue {
     /// dropped optimization gets retried. Used as a lazy recovery hook from aggregation
     /// update handlers that already hold a task guard. The flag itself is cleared later,
     /// when `optimize_task` actually runs for this task.
+    ///
+    /// Intentionally not called from `find_and_schedule_dirty_internal`: that function
+    /// schedules dirty tasks but doesn't perform aggregation work that materially benefits
+    /// from up-to-date optimization, so we leave its tasks for one of the other recovery
+    /// hooks to pick up. There is currently no dedicated unit test for the drop/recovery
+    /// paths; coverage relies on integration tests that exercise the aggregation graph.
     fn check_optimization_pending(&mut self, task: &impl TaskGuard) {
         if !task.optimization_pending() {
             // Common case: nothing pending, no work to do.
@@ -1528,7 +1546,7 @@ impl AggregationUpdateQueue {
                 // dropped job per `process()` call to spread the (cheap) flag-setting work
                 // and to keep yielding to other queues.
                 if !flag_already_set {
-                    self.lock_and_mark_optimization_pending(ctx, task_id);
+                    lock_and_mark_optimization_pending(ctx, task_id);
                 }
                 return false;
             }
@@ -1543,7 +1561,7 @@ impl AggregationUpdateQueue {
                 self.stats.optimize_task += 1;
             }
             self.optimizations_executed += 1;
-            self.optimize_task(ctx, task_id);
+            self.optimize_task(ctx, task_id, flag_already_set);
             false
         } else if !self.find_and_schedule.is_empty() {
             let count = self
@@ -3255,7 +3273,16 @@ impl AggregationUpdateQueue {
     /// than the number of upper edges. Increasing the aggregation reduces the number of upper
     /// edges, as it places the task in a bigger aggregation group. We want to avoid having too many
     /// upper edges as this amplifies the updates needed when changes to that task occur.
-    fn optimize_task(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+    ///
+    /// `flag_already_set` is the snapshot recorded on the `OptimizeJob`: when `true`, we
+    /// also need to clear `optimization_pending` here (this is the only path that does so);
+    /// when `false`, the flag is known to be unset already and we can skip the write.
+    fn optimize_task(
+        &mut self,
+        ctx: &mut impl ExecuteContext<'_>,
+        task_id: TaskId,
+        flag_already_set: bool,
+    ) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("check optimize").entered();
 
@@ -3264,11 +3291,13 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             TaskDataCategory::Meta,
         );
-        // Clear the pending flag — this is the only path that does so. The setter is a no-op
-        // when the flag was already `false` (the common case where this `OptimizeJob` was
-        // pushed directly by `push_optimize_task` without going through the lazy recovery
-        // path), so we don't dirty meta in that case.
-        task.set_optimization_pending(false);
+        if flag_already_set {
+            // Clear the pending flag — this is the only path that does so. We skip the
+            // write when our snapshot says the flag wasn't set (push path / self-re-enqueue
+            // path); the setter would just no-op in that case, but reading the snapshot is
+            // free and lets us elide the write entirely.
+            task.set_optimization_pending(false);
+        }
         let aggregation_number = task.get_aggregation_number().copied().unwrap_or_default();
         if is_root_node(aggregation_number.effective) {
             return;
