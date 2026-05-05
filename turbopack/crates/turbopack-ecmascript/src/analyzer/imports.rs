@@ -775,7 +775,6 @@ mod analyzer_state {
     pub(super) struct AnalyzerState {
         is_in_fn: bool,
         cur_top_level_decl_name: Option<Id>,
-        is_in_static_member_expr_obj: bool,
     }
 
     impl AnalyzerState {
@@ -815,20 +814,6 @@ mod analyzer_state {
             let result = visitor(self);
             self.state.is_in_fn = old_is_in_fn;
             result
-        }
-
-        pub(super) fn set_is_in_static_member_expr_obj(&mut self) {
-            // Doesn't use visitor, because this propery is only valid for the current node, not the
-            // whole subtree.
-            self.state.is_in_static_member_expr_obj = true;
-        }
-
-        pub(super) fn take_is_in_static_member_expr_obj(&mut self) -> bool {
-            // Doesn't use visitor, because this propery is only valid for the current node, not the
-            // whole subtree.
-            let v = self.state.is_in_static_member_expr_obj;
-            self.state.is_in_static_member_expr_obj = false;
-            v
         }
     }
 }
@@ -1241,20 +1226,20 @@ impl Visit for Analyzer<'_> {
         if matches!(
             &node.prop,
             MemberProp::Ident(..) | MemberProp::PrivateName(..)
-        ) && matches!(&*node.obj, Expr::Ident(_))
+        ) && let Expr::Ident(ident) = &*node.obj
         {
-            // So that it doesn't get added to full_star_imports below in visit_expr.
-            self.set_is_in_static_member_expr_obj();
+            // Intentionally skipping over visit_expr(node.obj) here so that it doesn't get added to
+            // full_star_imports below in visit_expr.
+            ident.visit_with(self);
+        } else {
+            node.visit_children_with(self);
         }
-        node.visit_children_with(self);
     }
 
     fn visit_expr(&mut self, node: &Expr) {
-        // Must always be called unconditionally to reset the flag
-        let is_in_static_member_expr_obj = self.take_is_in_static_member_expr_obj();
-
-        if !is_in_static_member_expr_obj
-            && let Expr::Ident(i) = node
+        // Careful about adding anything here, visit_member_expr might skip over this method for
+        // some Expr::Ident-s.
+        if let Expr::Ident(i) = node
             && let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id())
         {
             self.data.full_star_imports.insert(module_path.clone());
