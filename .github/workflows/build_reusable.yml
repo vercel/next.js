@@ -308,7 +308,11 @@ jobs:
       - run: git checkout .
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      - run: pnpm install
+      - name: pnpm install
+        run: |
+          pnpm store path
+          ls -ls $(pnpm store path)
+          pnpm install
         if: ${{ inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes' }}
 
       - name: Install node-file-trace test dependencies
