@@ -2802,9 +2802,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 return;
                             }
                             Ok((snapshot_start, new_data)) => {
-                                if !new_data {
-                                    fresh_idle = false;
-                                }
+                                // if we see 'new_data' then the next idle transition is 'fresh'
+                                fresh_idle = new_data;
                                 is_first = false;
                                 last_snapshot = snapshot_start;
 

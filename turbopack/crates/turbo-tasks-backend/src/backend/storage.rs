@@ -165,7 +165,7 @@ pub struct Storage {
     /// Maps `CachedTaskType` → `TaskId` for deduplication of persistent task creation.
     /// This is backed by the TaskCache table in the database.
     ///
-    /// LockOrdering: See the comments on [map].,
+    /// LockOrdering: See the comments on [map].
     pub task_cache: FxDashMap<Arc<CachedTaskType>, TaskId>,
 }
 
@@ -551,10 +551,17 @@ impl Storage {
             totals += evicted;
         }
         // Shrink task_cache only when we evicted more entries than remain — i.e. the map
-        // is less than half full. shrink_to_fit() acquires each shard write lock in turn
-        // and rehashes surviving CachedTaskType entries, so we gate it on meaningful slack.
+        // is less than half full. Rehashing each surviving CachedTaskType isn't free, so
+        // we gate it on meaningful slack. Within that, walk shards in parallel and shrink
+        // each one independently if it is itself less than half full.
         if totals.key_evictions > self.task_cache.len() {
-            self.task_cache.shrink_to_fit();
+            parallel::for_each(self.task_cache.shards(), |shard| {
+                let mut shard = shard.write();
+                let len = shard.len();
+                if shard.capacity() > len * 2 {
+                    shard.shrink_to(len, |(k, _v)| self.task_cache.hasher().hash_one(k));
+                }
+            });
         }
         span.record("counts", tracing::field::display(&totals));
 

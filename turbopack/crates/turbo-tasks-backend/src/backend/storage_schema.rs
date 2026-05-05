@@ -516,7 +516,6 @@ pub enum ValueEvictability {
 pub enum KeyEvictability {
     Evictable,
     /// The task was already removed from `task_cache` in a prior eviction cycle.
-    /// No hash lookup is needed; the caller can skip the remove entirely.
     AlreadyEvicted,
     /// This means the task is new, so we cannot evict it
     Unevictable,
@@ -527,12 +526,6 @@ impl TaskStorage {
     ///
     /// This checks only the flags on the TaskStorage itself. The caller
     /// must additionally check that the task is not transient (via TaskId).
-    ///
-    /// Data and meta evictability are computed independently:
-    /// - `Full` if both are evictable and there is no meaningful transient state.
-    /// - `DataAndMeta` if both are evictable but transient state must be preserved.
-    /// - `DataOnly` / `MetaOnly` if only one category is evictable.
-    /// - `No` if neither can be evicted.
     pub fn evictability(&self) -> (KeyEvictability, ValueEvictability) {
         let flags = &self.flags;
 
@@ -541,14 +534,9 @@ impl TaskStorage {
         } else {
             match &self.persistent_task_type {
                 None => KeyEvictability::Unevictable,
-                // strong_count == 1: only TaskStorage holds this Arc (And we are holding a lock on
-                // that), so no task_cache entry references it — already evicted in
-                // a prior cycle. This covers tasks that are key-evictable but not
-                // data-evictable (data stays in the shard, persistent_task_type is
-                // never dropped).
-                Some(arc) if std::sync::Arc::strong_count(arc) == 1 => {
-                    KeyEvictability::AlreadyEvicted
-                }
+                // strong_count == 1: only this TaskStorage holds this Arc, so no task_cache entry
+                // references it. It must have been already evicted on a prior cycle.
+                Some(arc) if Arc::strong_count(arc) == 1 => KeyEvictability::AlreadyEvicted,
                 Some(_) => KeyEvictability::Evictable,
             }
         };

@@ -3081,9 +3081,9 @@ fn gen_drop_lazy_match_arm(field: &FieldInfo) -> TokenStream {
 
     quote! {
         LazyField::#variant_name(v) => {
-            let keep = v.drop_partial() == DropPartialOutcome::HasResidue;
-            __has_residue |= keep;
-            keep
+            let has_residue = v.drop_partial() == DropPartialOutcome::HasResidue;
+            __has_residue |= has_residue;
+            has_residue
         }
     }
 }
