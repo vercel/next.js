@@ -2,7 +2,8 @@ import type { Instant } from 'next'
 import assert from 'node:assert/strict'
 
 export const unstable_instant: Instant = {
-  samples: [
+  level: 'experimental-error',
+  unstable_samples: [
     {
       searchParams: {
         single: 'test',

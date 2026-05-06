@@ -1,4 +1,7 @@
-export const unstable_instant = { samples: [{ searchParams: { foo: 'bar' } }] }
+export const unstable_instant = {
+  level: 'experimental-error',
+  unstable_samples: [{ searchParams: { foo: 'bar' } }],
+}
 
 export default async function Page({ searchParams }) {
   const search = await searchParams

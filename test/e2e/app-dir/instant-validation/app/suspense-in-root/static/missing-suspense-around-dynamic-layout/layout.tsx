@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 import { ReactNode } from 'react'
 
-export const unstable_instant = true
+export const unstable_instant = { level: 'experimental-error' }
 
 export default async function Layout({ children }: { children: ReactNode }) {
   await cookies()

@@ -5,7 +5,8 @@ import assert from 'node:assert'
 import { Suspense } from 'react'
 
 export const unstable_instant: Instant = {
-  samples: [
+  level: 'experimental-error',
+  unstable_samples: [
     {
       cookies: [
         { name: 'testCookie', value: 'testValue' },

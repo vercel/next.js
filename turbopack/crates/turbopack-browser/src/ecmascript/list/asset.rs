@@ -77,13 +77,16 @@ impl OutputAsset for EcmascriptDevChunkList {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        let mut ident = this.ident.owned().await?;
-        ident.add_modifier(rcstr!("ecmascript dev chunk list"));
+        let mut ident = this
+            .ident
+            .owned()
+            .await?
+            .with_modifier(rcstr!("ecmascript dev chunk list"));
 
         match this.source {
             EcmascriptDevChunkListSource::Entry => {}
             EcmascriptDevChunkListSource::Dynamic => {
-                ident.add_modifier(rcstr!("dynamic"));
+                ident = ident.with_modifier(rcstr!("dynamic"));
             }
         }
 
@@ -91,7 +94,7 @@ impl OutputAsset for EcmascriptDevChunkList {
         // ident, because it must remain stable whenever a chunk is added or
         // removed from the list.
 
-        let ident = AssetIdent::new(ident);
+        let ident = ident.into_vc();
         Ok(this
             .chunking_context
             .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))

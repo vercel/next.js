@@ -4,7 +4,8 @@ import assert from 'node:assert/strict'
 import { Suspense } from 'react'
 
 export const unstable_instant: Instant = {
-  samples: [
+  level: 'experimental-error',
+  unstable_samples: [
     {
       searchParams: {
         // TODO(instant-validation-build): specify and test escaping behavior for spaces etc

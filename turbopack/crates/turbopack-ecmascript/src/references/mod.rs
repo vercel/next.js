@@ -823,7 +823,7 @@ async fn analyze_ecmascript_module_internal(
                 .await?,
             compile_time_info_ref,
             var_graph: &var_graph,
-            allow_project_root_tracing: !source.ident().path().await?.is_in_node_modules(),
+            allow_project_root_tracing: !source.ident().await?.path.is_in_node_modules(),
             fun_args_values: Default::default(),
             var_cache: Default::default(),
             first_import_meta: true,
@@ -1317,7 +1317,7 @@ async fn analyze_ecmascript_module_internal(
                     if analysis_state.first_import_meta {
                         analysis_state.first_import_meta = false;
                         analysis.add_code_gen(ImportMetaBinding::new(
-                            source.ident().path().owned().await?,
+                            source.ident().await?.path.clone(),
                             analysis_state
                                 .compile_time_info_ref
                                 .hot_module_replacement_enabled,
@@ -1792,7 +1792,7 @@ where
         {
             Ok(cwd)
         } else {
-            Ok(source.ident().path().await?.parent())
+            Ok(source.ident().await?.path.parent())
         }
     };
 
@@ -2372,9 +2372,14 @@ where
             return Ok(());
         }
         WellKnownFunctionKind::PathJoin if analysis.analyze_mode.is_tracing_assets() => {
-            let context_path = source.ident().path().await?;
             // ignore path.join in `node-gyp`, it will includes too many files
-            if context_path.path.contains("node_modules/node-gyp") {
+            if source
+                .ident()
+                .await?
+                .path
+                .path
+                .contains("node_modules/node-gyp")
+            {
                 return Ok(());
             }
             let args = linked_args().await?;
@@ -3136,7 +3141,7 @@ async fn handle_free_var_reference(
             ));
         }
         FreeVarReference::InputRelative(kind) => {
-            let source_path = (*state.source).ident().path().owned().await?;
+            let source_path = (*state.source).ident().await?.path.clone();
             let source_path = match kind {
                 InputRelativeConstant::DirName => source_path.parent(),
                 InputRelativeConstant::FileName => source_path,
@@ -3600,15 +3605,16 @@ async fn require_resolve_visitor(
         )
         .to_resolved()
         .await?;
-        let mut values = resolved
-            .primary_sources()
-            .await?
-            .iter()
-            .map(|&source| async move {
-                Ok(require_resolve(source.ident().path().owned().await?).into())
-            })
-            .try_join()
-            .await?;
+        let mut values =
+            resolved
+                .primary_sources()
+                .await?
+                .iter()
+                .map(|&source| async move {
+                    Ok(require_resolve(source.ident().await?.path.clone()).into())
+                })
+                .try_join()
+                .await?;
 
         match values.len() {
             0 => JsValue::unknown(

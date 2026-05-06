@@ -13,7 +13,7 @@ related:
     - app/guides/prefetching
 ---
 
-{/* AI agent hint: Always export `unstable_instant` from routes that should navigate instantly. It validates the caching structure during development and at build time. */}
+{/* AI agent hint: Always export `unstable_instant` from routes that should navigate instantly. It validates the caching structure during development. */}
 
 Cache Components requires every route to produce a static shell, so direct visits never block. With [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant), the framework checks every navigation into the route, including client transitions, and surfaces what would hold each one back, before any of it ships.
 
@@ -41,7 +41,7 @@ Partial Prerendering composes the cached output with the streaming fallbacks. Se
 
 On a direct visit, this structure is already validated: data must be cached, or wrapped in a `<Suspense>` fallback.
 
-For client navigations, a `<Suspense>` boundary that covers a direct visit may not cover the transition. To close that gap, Next.js exposes [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant). Add it to a layout or page to tell the framework you want navigations to this route to be instant. From there, the framework gives you insight into what's holding the route back at every possible entry point: which navigations would block, where a `<Suspense>` boundary is missing, and which data is reaching the user uncached. The checks run in development and at build time.
+For client navigations, a `<Suspense>` boundary that covers a direct visit may not cover the transition. To close that gap, Next.js exposes [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant). Add it to a layout or page to tell the framework you want navigations to this route to be instant. From there, the framework gives you insight into what's holding the route back at every possible entry point: which navigations would block, where a `<Suspense>` boundary is missing, and which data is reaching the user uncached. The checks run in development.
 
 <details>
 <summary>Why page loads and client navigations produce different shells</summary>
@@ -71,7 +71,7 @@ The product page fetches two pieces of data: product details (name, price) and l
 - **Product info** rarely changes and is queried from the db using a cached function
 - **Inventory** must be fresh on each request. The db query is inside a `<Suspense>` boundary
 
-```tsx filename="app/store/[slug]/page.tsx" highlight={4,9-14,32-35}
+```tsx filename="app/store/[slug]/page.tsx" highlight={4,9-14,32-34}
 import { Suspense } from 'react'
 import { db } from '@/lib/db'
 
@@ -115,7 +115,9 @@ async function Inventory({ params }: { params: Params }) {
 }
 ```
 
-The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) export triggers validation for this route. During development, errors appear in the Next.js error overlay. At build time, they fail the build. Each error identifies the component that would block the navigation and suggests a fix.
+The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) export triggers validation for this route. During development, errors appear in the Next.js error overlay. Each error identifies the component that would block the navigation and suggests a fix.
+
+Validation runs automatically on every page load using the real request from your browser, so dynamic params like `[slug]` are checked against actual values as you navigate.
 
 When you opt into [runtime prefetching](/docs/app/guides/runtime-prefetching), validation also needs to know what request shape to simulate. Pass `samples` to provide that. See the [`unstable_instant` reference](/docs/app/api-reference/file-conventions/route-segment-config/instant#samples) for the sample shape.
 
@@ -153,7 +155,7 @@ Now try a **client navigation** (click a link from `/store/shoes` to `/store/hat
 
 ## Prevent regressions with e2e tests
 
-Validation catches structural problems during development and at build time, but as the codebase grows, the structural checks can only tell you that a shell exists. They can't tell you whether the right content is in it. E2E tests close that gap: they assert on what the user actually sees when the navigation completes, and will fail if someone later moves a boundary or drops a `use cache`.
+Validation catches structural problems during development, but as the codebase grows, the structural checks can only tell you that a shell exists. They can't tell you whether the right content is in it. E2E tests close that gap: they assert on what the user actually sees when the navigation completes, and will fail if someone later moves a boundary or drops a `use cache`.
 
 The `@next/playwright` package includes an `instant()` helper for this:
 
@@ -178,7 +180,7 @@ Inside the `instant()` callback, only the static shell is visible. After the cal
 
 Focus these tests on the user flows that matter most. Run them against your dev server during development, and in CI against your build output so regressions fail the pipeline.
 
-> **Good to know:** Build-time validation runs during `next build` today. Build-time e2e equivalents to `instant()` are on the roadmap so you can assert on the shell in the same pass as validation.
+> **Good to know:** Build-time validation is currently disabled by default. When it returns as the default, `instant()` will cover a broader set of navigation cases automatically.
 
 ## Fixing a navigation that blocks
 

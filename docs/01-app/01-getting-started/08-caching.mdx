@@ -276,6 +276,7 @@ async function UserPreferences() {
 During prerendering, the header (static) and blog posts (cached with `use cache`) become part of the static shell, along with the fallback UI for user preferences. The UI preferenced stored in cookies streams in at request time.
 
 {/* this makes no sense here though? - it should be somewhere */}
+
 > **Good to know:** `generateMetadata` and `generateViewport` track runtime data access separately from the page. See [Metadata with Cache Components](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [Viewport with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for how to handle this.
 
 ## Random values and timestamps
@@ -360,7 +361,7 @@ This generates a static shell consisting of HTML for initial page loads and a se
 
 Every produced static shell can be served directly from a CDN, which makes direct navigations [instant](#instant-navigation).
 
-Next.js requires you to explicitly handle components that can't complete during prerendering. If a component isn't wrapped in `<Suspense>` or marked with `use cache`, you'll see a [blocking-route](https://nextjs.org/docs/messages/blocking-route) error during development and build time. The error names the offending route and points at fixes (cache the access, move it into a `<Suspense>` boundary, or opt the route out). This validation keeps every route producing a static shell, so direct navigations stay instant.
+Next.js requires you to explicitly handle components that can't complete during prerendering. If a component isn't wrapped in `<Suspense>` or marked with `use cache`, you'll see a [blocking-route](https://nextjs.org/docs/messages/blocking-route) error during development. The error names the offending route and points at fixes (cache the access, move it into a `<Suspense>` boundary, or opt the route out). This validation keeps every route producing a static shell, so direct navigations stay instant.
 
 <Image
   alt="Diagram showing partially rendered page on the client, with loading UI for chunks that are being streamed."
@@ -437,7 +438,7 @@ In a client-side transition, only the components below the shared layout re-rend
 
 To validate every navigation is instant, the framework provides:
 
-- The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) route segment config opts a layout or page into validation. Next.js then verifies navigation into the route, including client transitions, in development and at build time.
+- The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) route segment config opts a layout or page into validation. Next.js then verifies navigation into the route, including client transitions, in development.
 - The [`instant()`](/docs/app/api-reference/file-conventions/route-segment-config/instant#testing-instant-navigation) helper in `@next/playwright` asserts on the static shell during navigation, so regressions surface in CI.
 - DevTools to visualize loading states: the **Instant Navs** panel in the Next.js DevTools (enabled with `experimental.instantNavigationDevToolsToggle`), complemented by the [React DevTools Suspense panel](https://react.dev/learn/react-developer-tools).
 - `unstable_instant = false` opts a layout or page out when you can't make it instant right now.

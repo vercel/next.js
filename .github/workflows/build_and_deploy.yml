@@ -434,7 +434,7 @@ jobs:
 
   deploy-tarball:
     if: ${{ needs.deploy-target.outputs.value != 'production' }}
-    name: Deploy preview tarball
+    name: Prepare preview tarball
     runs-on: ubuntu-latest
     needs:
       - deploy-target
@@ -485,10 +485,10 @@ jobs:
         # For workflow_dispatch events, github.sha is the head commit.
         run: node scripts/create-preview-tarballs.js "${{ github.event.after || github.sha }}" "${{ runner.temp }}/preview-tarballs" "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
 
-      - name: Upload tarballs
+      - name: Persist tarballs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          # Update all mentions of this name in vercel-packages when changing.
+          # Used by file://./upload_preview_tarballs.yml
           name: preview-tarballs
           path: ${{ runner.temp }}/preview-tarballs/*
 

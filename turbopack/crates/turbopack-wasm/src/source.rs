@@ -54,10 +54,11 @@ impl Source for WebAssemblySource {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(match self.source_ty {
             WebAssemblySourceType::Binary => self.source.ident(),
-            WebAssemblySourceType::Text => self
-                .source
-                .ident()
-                .with_path(self.source.ident().path().await?.append("_.wasm")?),
+            WebAssemblySourceType::Text => {
+                let ident = self.source.ident().owned().await?;
+                let new_path = ident.path.append("_.wasm")?;
+                ident.with_path(new_path).into_vc()
+            }
         })
     }
 
