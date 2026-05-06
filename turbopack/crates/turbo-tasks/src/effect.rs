@@ -126,11 +126,7 @@ where
     }
 
     fn dyn_apply<'a>(&'a self) -> DynEffectApplyFuture<'a> {
-        Box::pin(async move {
-            Effect::apply(self)
-                .await
-                .map_err(|err| Arc::new(err) as Arc<_>)
-        })
+        Box::pin(async move { Effect::apply(self).await.map_err(|err| Arc::new(err) as _) })
     }
 }
 
