@@ -287,15 +287,12 @@ impl ModuleResolveResult {
         // Map from module identity to the index of first occurrence
         let mut seen_modules = FxHashMap::default();
         for (i, (_, item)) in primary.iter_mut().enumerate() {
-            match *item {
-                ModuleResolveResultItem::Module(m) => {
-                    if let Some(&first) = seen_modules.get(&m) {
-                        *item = ModuleResolveResultItem::Duplicate(first);
-                    } else {
-                        seen_modules.insert(m, i);
-                    }
+            if let ModuleResolveResultItem::Module(m) = *item {
+                if let Some(&first) = seen_modules.get(&m) {
+                    *item = ModuleResolveResultItem::Duplicate(first);
+                } else {
+                    seen_modules.insert(m, i);
                 }
-                _ => {}
             }
         }
     }
