@@ -38,12 +38,26 @@ describe('debug-build-paths', () => {
         expect(buildResult.exitCode).toBe(0)
         expect(buildResult.cliOutput).toBeDefined()
 
-        // Should only build the specified page
+        // Should only build the specified page and support entries.
         expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
          "Route (pages)
-         ┌ ○ /404
+         ┌   /_app
+         ├ ○ /404
+         ├ ○ /500
          └ ○ /foo"
         `)
+
+        const pagesManifest = JSON.parse(
+          await next.readFile('.next/server/pages-manifest.json')
+        )
+        expect(pagesManifest).toContainKeys([
+          '/foo',
+          '/404',
+          '/500',
+          '/_app',
+          '/_document',
+          '/_error',
+        ])
       })
 
       it('should build multiple pages routes', async () => {
@@ -56,7 +70,9 @@ describe('debug-build-paths', () => {
         // Should build both specified pages
         expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
          "Route (pages)
-         ┌ ○ /404
+         ┌   /_app
+         ├ ○ /404
+         ├ ○ /500
          ├ ○ /bar
          └ ○ /foo"
         `)
@@ -93,7 +109,10 @@ describe('debug-build-paths', () => {
          ┌ ○ /
          └ ○ /_not-found
          Route (pages)
-         ┌ ○ /bar
+         ┌   /_app
+         ├ ○ /404
+         ├ ○ /500
+         ├ ○ /bar
          ├ ○ /foo
          └ ○ /with-index"
         `)
@@ -272,7 +291,9 @@ describe('debug-build-paths', () => {
         expect(buildResult.exitCode).toBe(0)
         expect(getTreeView(buildResult.cliOutput)).toMatchInlineSnapshot(`
          "Route (pages)
-         ┌ ○ /404
+         ┌   /_app
+         ├ ○ /404
+         ├ ○ /500
          └ ○ /foo"
         `)
       })
