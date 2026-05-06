@@ -252,8 +252,8 @@ describe('Cache Components Errors', () => {
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at Dynamic (webpack:///app/dynamic-metadata-error-route/page.tsx:20:16)
-                   at Page (webpack:///app/dynamic-metadata-error-route/page.tsx:15:7)
+                   at Dynamic (app/dynamic-metadata-error-route/page.tsx:20:16)
+                   at Page (app/dynamic-metadata-error-route/page.tsx:15:7)
                  18 | }
                  19 |
                > 20 | async function Dynamic() {
@@ -747,9 +747,9 @@ describe('Cache Components Errors', () => {
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
-                   at FetchingComponent (webpack:///app/dynamic-root/page.tsx:46:56)
-                   at Page (webpack:///app/dynamic-root/page.tsx:23:9)
+                   at fetchRandom (app/dynamic-root/page.tsx:62:16)
+                   at FetchingComponent (app/dynamic-root/page.tsx:46:56)
+                   at Page (app/dynamic-root/page.tsx:23:9)
                  60 |   // Hide uncached I/O behind a runtime API call, to ensure we still get the
                  61 |   // correct owner stack for the error.
                > 62 |   await cookies()
@@ -769,9 +769,9 @@ describe('Cache Components Errors', () => {
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
-                   at FetchingComponent (webpack:///app/dynamic-root/page.tsx:46:56)
-                   at Page (webpack:///app/dynamic-root/page.tsx:28:7)
+                   at fetchRandom (app/dynamic-root/page.tsx:62:16)
+                   at FetchingComponent (app/dynamic-root/page.tsx:46:56)
+                   at Page (app/dynamic-root/page.tsx:28:7)
                  60 |   // Hide uncached I/O behind a runtime API call, to ensure we still get the
                  61 |   // correct owner stack for the error.
                > 62 |   await cookies()
@@ -978,8 +978,8 @@ describe('Cache Components Errors', () => {
                    - Render the value on the client with \`"use client"\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                     at RandomReadingComponent (webpack:///app/sync-random-with-fallback/page.tsx:37:23)
-                     at Page (webpack:///app/sync-random-with-fallback/page.tsx:18:11)
+                     at RandomReadingComponent (app/sync-random-with-fallback/page.tsx:37:23)
+                     at Page (app/sync-random-with-fallback/page.tsx:18:11)
                    35 |     use(new Promise((r) => process.nextTick(r)))
                    36 |   }
                  > 37 |   const random = Math.random()
@@ -1128,9 +1128,9 @@ describe('Cache Components Errors', () => {
                    - Render the value on the client with \`"use client"\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                     at getRandomNumber (webpack:///app/sync-random-without-fallback/page.tsx:32:15)
-                     at RandomReadingComponent (webpack:///app/sync-random-without-fallback/page.tsx:40:18)
-                     at Page (webpack:///app/sync-random-without-fallback/page.tsx:18:11)
+                     at getRandomNumber (app/sync-random-without-fallback/page.tsx:32:15)
+                     at RandomReadingComponent (app/sync-random-without-fallback/page.tsx:40:18)
+                     at Page (app/sync-random-without-fallback/page.tsx:18:11)
                    30 |
                    31 | function getRandomNumber() {
                  > 32 |   return Math.random()
@@ -1407,7 +1407,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at CookiesReadingComponent (webpack:///app/sync-cookies/page.tsx:18:36)
+                     at CookiesReadingComponent (app/sync-cookies/page.tsx:18:36)
                    16 | async function CookiesReadingComponent() {
                    17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const token = (cookies() as any).get('token')
@@ -1741,7 +1741,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at HeadersReadingComponent (webpack:///app/sync-headers/page.tsx:18:40)
+                     at HeadersReadingComponent (app/sync-headers/page.tsx:18:40)
                    16 | async function HeadersReadingComponent() {
                    17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const userAgent = (headers() as any).get('user-agent')
@@ -2064,8 +2064,8 @@ describe('Cache Components Errors', () => {
                    - Move the read into a \`useEffect\` or event handler
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
-                     at Page (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx:22:9)
+                     at SyncIO (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at Page (app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx:22:9)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2238,8 +2238,8 @@ describe('Cache Components Errors', () => {
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at RequestData (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
-                     at Page (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:27:9)
+                     at RequestData (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
+                     at Page (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:27:9)
                    32 |
                    33 | async function RequestData() {
                  > 34 |   ;(await cookies()).get('foo')
@@ -2346,8 +2346,8 @@ describe('Cache Components Errors', () => {
                    - Move the read into a \`useEffect\` or event handler
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
-                     at Page (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx:22:9)
+                     at SyncIO (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at Page (app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx:22:9)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2491,8 +2491,8 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at CookiesReadingComponent (webpack:///app/use-cache-cookies/page.tsx:22:18)
-                     at Page (webpack:///app/use-cache-cookies/page.tsx:10:7)
+                     at CookiesReadingComponent (app/use-cache-cookies/page.tsx:22:18)
+                     at Page (app/use-cache-cookies/page.tsx:10:7)
                    20 |   // in userland.
                    21 |   try {
                  > 22 |     await cookies()
@@ -2581,8 +2581,8 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at DraftModeEnablingComponent (webpack:///app/use-cache-draft-mode/page.tsx:20:26)
-                     at Page (webpack:///app/use-cache-draft-mode/page.tsx:9:7)
+                     at DraftModeEnablingComponent (app/use-cache-draft-mode/page.tsx:20:26)
+                     at Page (app/use-cache-draft-mode/page.tsx:9:7)
                    18 |   // here to ensure that this error is shown even when it's caught in userland.
                    19 |   try {
                  > 20 |     ;(await draftMode()).enable()
@@ -2708,8 +2708,8 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at HeadersReadingComponent (webpack:///app/use-cache-headers/page.tsx:21:18)
-                     at Page (webpack:///app/use-cache-headers/page.tsx:10:7)
+                     at HeadersReadingComponent (app/use-cache-headers/page.tsx:21:18)
+                     at Page (app/use-cache-headers/page.tsx:10:7)
                    19 |   // to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
                  > 21 |     await headers()
@@ -2815,8 +2815,8 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-connection used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at ConnectionCallingComponent (webpack:///app/use-cache-connection/page.tsx:21:21)
-                     at Page (webpack:///app/use-cache-connection/page.tsx:10:7)
+                     at ConnectionCallingComponent (app/use-cache-connection/page.tsx:21:21)
+                     at Page (app/use-cache-connection/page.tsx:10:7)
                    19 |   // here to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
                  > 21 |     await connection()
@@ -3243,7 +3243,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at async Page (webpack:///app/use-cache-low-expire/nested/page.tsx:20:14)
+                       at async Page (app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
                    > 20 |     result = await outerCache()
@@ -3672,7 +3672,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at async Page (webpack:///app/use-cache-revalidate-0/nested/page.tsx:20:14)
+                       at async Page (app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
                    > 20 |     result = await outerCache()
@@ -4060,7 +4060,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route /use-cache-cookies-third-party used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at Page (webpack:///app/use-cache-cookies-third-party/page.tsx:10:7)
+                       at Page (app/use-cache-cookies-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
                       9 |       </p>
                    > 10 |       <CachedCookiesReader />
@@ -4147,7 +4147,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route /use-cache-draft-mode-third-party used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at Page (webpack:///app/use-cache-draft-mode-third-party/page.tsx:10:7)
+                       at Page (app/use-cache-draft-mode-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
                       9 |       </p>
                    > 10 |       <CachedDraftModeEnabler />
@@ -4257,7 +4257,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route /use-cache-headers-third-party used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at Page (webpack:///app/use-cache-headers-third-party/page.tsx:10:7)
+                       at Page (app/use-cache-headers-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
                       9 |       </p>
                    > 10 |       <CachedHeadersReader />
@@ -4356,7 +4356,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route /use-cache-connection-third-party used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at Page (webpack:///app/use-cache-connection-third-party/page.tsx:10:7)
+                       at Page (app/use-cache-connection-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
                       9 |       </p>
                    > 10 |       <CachedConnectionCaller />
@@ -4466,8 +4466,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
-                     at <unknown> (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                     at async ComponentWithCachedData (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:16:16)
+                     at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                     at async ComponentWithCachedData (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
                    20 |
                  > 21 | const getCachedData = unstable_cache(async () => {
@@ -4579,7 +4579,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               } else
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at Private (webpack:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at Private (app/use-cache-private-in-use-cache/page.tsx:15:1)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -4932,8 +4932,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
-                   at DateReadingComponent (webpack:///app/sync-io-current-time/date/page.tsx:19:16)
-                   at Page (webpack:///app/sync-io-current-time/date/page.tsx:11:9)
+                   at DateReadingComponent (app/sync-io-current-time/date/page.tsx:19:16)
+                   at Page (app/sync-io-current-time/date/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{Date()}</div>
@@ -5077,8 +5077,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
-                   at DateReadingComponent (webpack:///app/sync-io-current-time/date-now/page.tsx:19:21)
-                   at Page (webpack:///app/sync-io-current-time/date-now/page.tsx:11:9)
+                   at DateReadingComponent (app/sync-io-current-time/date-now/page.tsx:19:21)
+                   at Page (app/sync-io-current-time/date-now/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{Date.now()}</div>
@@ -5222,8 +5222,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
-                   at DateReadingComponent (webpack:///app/sync-io-current-time/new-date/page.tsx:19:16)
-                   at Page (webpack:///app/sync-io-current-time/new-date/page.tsx:11:9)
+                   at DateReadingComponent (app/sync-io-current-time/new-date/page.tsx:19:16)
+                   at Page (app/sync-io-current-time/new-date/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{new Date().toString()}</div>
@@ -5365,8 +5365,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (webpack:///app/sync-io-random/math-random/page.tsx:19:21)
-                   at Page (webpack:///app/sync-io-random/math-random/page.tsx:11:9)
+                   at SyncIOComponent (app/sync-io-random/math-random/page.tsx:19:21)
+                   at Page (app/sync-io-random/math-random/page.tsx:11:9)
                  17 | async function SyncIOComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{Math.random()}</div>
@@ -5507,8 +5507,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
-                   at SyncIOComponent (webpack:///app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
-                   at Page (webpack:///app/sync-io-web-crypto/get-random-value/page.tsx:11:9)
+                   at SyncIOComponent (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
+                   at Page (app/sync-io-web-crypto/get-random-value/page.tsx:11:9)
                  18 |   await new Promise((r) => process.nextTick(r))
                  19 |   const buffer = new Uint8Array(8)
                > 20 |   crypto.getRandomValues(buffer)
@@ -5650,8 +5650,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
-                   at SyncIOComponent (webpack:///app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
-                   at Page (webpack:///app/sync-io-web-crypto/random-uuid/page.tsx:11:9)
+                   at SyncIOComponent (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
+                   at Page (app/sync-io-web-crypto/random-uuid/page.tsx:11:9)
                  17 | async function SyncIOComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{crypto.randomUUID()}</div>
@@ -5838,8 +5838,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:17)
-                   at Page (webpack:///app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:12:9)
+                   at SyncIOComponent (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:17)
+                   at Page (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
@@ -6000,8 +6000,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-key-sync/page.tsx:20:17)
-                   at Page (webpack:///app/sync-io-node-crypto/generate-key-sync/page.tsx:12:9)
+                   at SyncIOComponent (app/sync-io-node-crypto/generate-key-sync/page.tsx:20:17)
+                   at Page (app/sync-io-node-crypto/generate-key-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto
@@ -6162,8 +6162,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:32)
-                   at Page (webpack:///app/sync-io-node-crypto/generate-prime-sync/page.tsx:12:9)
+                   at SyncIOComponent (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:32)
+                   at Page (app/sync-io-node-crypto/generate-prime-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
@@ -6324,8 +6324,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
-                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/get-random-values/page.tsx:21:3)
-                   at Page (webpack:///app/sync-io-node-crypto/get-random-values/page.tsx:12:9)
+                   at SyncIOComponent (app/sync-io-node-crypto/get-random-values/page.tsx:21:3)
+                   at Page (app/sync-io-node-crypto/get-random-values/page.tsx:12:9)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = new Uint8Array(8)
                > 21 |   crypto.getRandomValues(first)
@@ -6486,8 +6486,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-bytes/page.tsx:20:17)
-                   at Page (webpack:///app/sync-io-node-crypto/random-bytes/page.tsx:12:9)
+                   at SyncIOComponent (app/sync-io-node-crypto/random-bytes/page.tsx:20:17)
+                   at Page (app/sync-io-node-crypto/random-bytes/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomBytes(8)
@@ -6648,8 +6648,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-fill-sync/page.tsx:21:3)
-                   at Page (webpack:///app/sync-io-node-crypto/random-fill-sync/page.tsx:12:9)
+                   at SyncIOComponent (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:3)
+                   at Page (app/sync-io-node-crypto/random-fill-sync/page.tsx:12:9)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = new Uint8Array(16)
                > 21 |   crypto.randomFillSync(first, 4, 8)
@@ -6810,8 +6810,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-int-between/page.tsx:20:17)
-                   at Page (webpack:///app/sync-io-node-crypto/random-int-between/page.tsx:12:9)
+                   at SyncIOComponent (app/sync-io-node-crypto/random-int-between/page.tsx:20:17)
+                   at Page (app/sync-io-node-crypto/random-int-between/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomInt(128, 256)
@@ -6972,8 +6972,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-int-up-to/page.tsx:20:17)
-                   at Page (webpack:///app/sync-io-node-crypto/random-int-up-to/page.tsx:12:9)
+                   at SyncIOComponent (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:17)
+                   at Page (app/sync-io-node-crypto/random-int-up-to/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomInt(128)
@@ -7134,8 +7134,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-uuid/page.tsx:20:17)
-                   at Page (webpack:///app/sync-io-node-crypto/random-uuid/page.tsx:12:9)
+                   at SyncIOComponent (app/sync-io-node-crypto/random-uuid/page.tsx:20:17)
+                   at Page (app/sync-io-node-crypto/random-uuid/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomUUID()
@@ -7283,8 +7283,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at Client (webpack:///app/client-awaited-io/client.tsx:6:19)
-                   at Page (webpack:///app/client-awaited-io/page.tsx:5:10)
+                   at Client (app/client-awaited-io/client.tsx:6:19)
+                   at Page (app/client-awaited-io/page.tsx:5:10)
                  4 |
                  5 | export function Client({ io }: { io: Promise<string> }) {
                > 6 |   const data = use(io)
