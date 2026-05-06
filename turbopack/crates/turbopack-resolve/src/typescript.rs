@@ -231,7 +231,7 @@ async fn try_join_base_url(
     base_url: &RcStr,
 ) -> Result<Vc<FileSystemPathOption>> {
     Ok(Vc::cell(
-        source.ident().await?.path.parent().try_join(&base_url),
+        source.ident().await?.path.parent().try_join(base_url),
     ))
 }
 
