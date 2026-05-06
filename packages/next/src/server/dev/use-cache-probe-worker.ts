@@ -3,7 +3,7 @@ import type { AppPageModule } from '../route-modules/app-page/module'
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { UseCacheProbeRequestSnapshot } from '../use-cache/use-cache-probe-globals'
 
-import './use-cache-probe-require-hook'
+import '../require-hook'
 import '../node-environment'
 
 import { AfterContext } from '../after/after-context'

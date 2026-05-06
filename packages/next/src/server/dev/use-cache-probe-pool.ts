@@ -9,6 +9,7 @@ import { Worker } from 'next/dist/compiled/jest-worker'
 import { setUseCacheProbe } from '../use-cache/use-cache-probe-globals'
 import { onCacheInvalidation } from './require-cache'
 import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
+import { needsExperimentalReact } from '../../lib/needs-experimental-react'
 
 interface InstallOptions {
   distDir: string
@@ -80,17 +81,22 @@ export function installUseCacheProbe(options: InstallOptions): void {
     if (pool) {
       return pool
     }
-    // The probe worker invokes the same RSC pipeline as a real cache fill,
-    // which imports `react-server-dom-webpack/server`. That package's
-    // `./server` export throws unless Node was started with the
-    // `react-server` condition. NODE_OPTIONS is the only way to set
-    // conditions in spawned processes (and inherited by both worker_threads
-    // and the child-process fallback transport).
-    const baseNodeOptions = getFormattedNodeOptionsWithoutInspect()
-    const probeNodeOptions = baseNodeOptions
-      ? `${baseNodeOptions} --conditions=react-server`
-      : '--conditions=react-server'
-    const worker = new Worker(require.resolve('./use-cache-probe-worker'), {
+    // Strip `--inspect` from any inherited `NODE_OPTIONS` so the worker doesn't
+    // fight the parent for the same debug port.
+    const probeNodeOptions = getFormattedNodeOptionsWithoutInspect()
+
+    // The worker is shipped as four pre-bundled dev-only artifacts —
+    // {webpack,turbopack} × {stable,experimental} — so the bundler aliases and
+    // react-server layer resolve correctly at Next-build time. Pick the
+    // matching artifact from runtime env. `needsExperimentalReact` is the same
+    // predicate `define-env.ts` uses to wire `__NEXT_EXPERIMENTAL_REACT` for
+    // the user's bundle, so the worker stays in lockstep.
+    const turbo = process.env.TURBOPACK ? '-turbo' : ''
+    const channel = needsExperimentalReact(nextConfig) ? '-experimental' : ''
+    const workerPath = require.resolve(
+      `next/dist/compiled/next-server/use-cache-probe-worker${turbo}${channel}.runtime.dev.js`
+    )
+    const worker = new Worker(workerPath, {
       maxRetries: 0,
       // jest-worker has no per-task scaling: once the pool is created, all
       // `numWorkers` workers are alive until pool teardown. Set to absorb
@@ -102,11 +108,10 @@ export function installUseCacheProbe(options: InstallOptions): void {
       // then spawn lazily and shrink back when idle.
       numWorkers: 4,
       enableWorkerThreads: nextConfig.experimental.workerThreads,
-      // The worker's top-level imports include
-      // `react-server-dom-webpack/server`, which throws under the parent
-      // process's package-export conditions. Listing the methods explicitly
-      // tells jest-worker to skip the discovery `require()` it would
-      // otherwise do in the parent.
+      // Listing the methods explicitly tells jest-worker to skip the discovery
+      // `require()` it would otherwise do in the parent process. The bundle has
+      // the full RSC pipeline embedded — loading it in the parent would eagerly
+      // initialize bindings that should only run in the isolated worker.
       exposedMethods: ['probeUseCache'],
       forkOptions: {
         env: {
