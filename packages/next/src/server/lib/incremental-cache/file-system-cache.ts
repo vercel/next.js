@@ -1,4 +1,7 @@
-import type { RouteMetadata } from '../../../export/routes/types'
+import type {
+  RouteMetadata,
+  SegmentMetadata,
+} from '../../../export/routes/types'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from '.'
 import type { CacheFs } from '../../../shared/lib/utils'
 import type { TagManifestEntry } from './tags-manifest.external'
@@ -12,6 +15,7 @@ import {
 } from '../../response-cache'
 
 import type { LRUCache } from '../lru-cache'
+import type { CollectedSegmentData } from '../../app-render/collect-segment-data'
 import path from '../../../shared/lib/isomorphic/path'
 import {
   NEXT_CACHE_TAGS_HEADER,
@@ -199,27 +203,29 @@ export default class FileSystemCache implements CacheHandler {
               )
             } catch {}
 
-            let maybeSegmentData: Map<string, Buffer> | undefined
-            if (meta?.segmentPaths) {
+            let maybeSegmentData: Map<string, CollectedSegmentData> | undefined
+            if (meta?.segments) {
               // Collect all the segment data for this page.
               // TODO: To optimize file system reads, we should consider creating
               // separate cache entries for each segment, rather than storing them
               // all on the page's entry. Though the behavior is
               // identical regardless.
-              const segmentData: Map<string, Buffer> = new Map()
+              const segmentData: Map<string, CollectedSegmentData> = new Map()
               maybeSegmentData = segmentData
               const segmentsDir = key + RSC_SEGMENTS_DIR_SUFFIX
               await Promise.all(
-                meta.segmentPaths.map(async (segmentPath: string) => {
+                meta.segments.map(async ({ path: segmentPath }) => {
                   const segmentDataFilePath = this.getFilePath(
                     segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX,
                     IncrementalCacheKind.APP_PAGE
                   )
                   try {
-                    segmentData.set(
-                      segmentPath,
-                      await this.fs.readFile(segmentDataFilePath)
-                    )
+                    // structuralVaryParams is build-only metadata; runtime
+                    // cache reads always emit `null` (page-level allowQuery).
+                    segmentData.set(segmentPath, {
+                      buffer: await this.fs.readFile(segmentDataFilePath),
+                      structuralVaryParams: null,
+                    })
                   } catch {
                     // This shouldn't happen, but if for some reason we fail to
                     // load a segment from the filesystem, treat it the same as if
@@ -378,7 +384,7 @@ export default class FileSystemCache implements CacheHandler {
         headers: data.headers,
         status: data.status,
         postponed: undefined,
-        segmentPaths: undefined,
+        segments: undefined,
         prefetchHints: undefined,
       }
 
@@ -412,16 +418,20 @@ export default class FileSystemCache implements CacheHandler {
       }
 
       if (data?.kind === CachedRouteKind.APP_PAGE) {
-        let segmentPaths: string[] | undefined
+        let segments: SegmentMetadata[] | undefined
         if (data.segmentData) {
-          segmentPaths = []
+          segments = []
           const segmentsDir = htmlPath.replace(
             /\.html$/,
             RSC_SEGMENTS_DIR_SUFFIX
           )
 
-          for (const [segmentPath, buffer] of data.segmentData) {
-            segmentPaths.push(segmentPath)
+          for (const [segmentPath, { buffer }] of data.segmentData) {
+            // The runtime cache path doesn't carry per-segment structural
+            // vary params — they're a build-time concept used by the
+            // adapter to compute allowQuery for prerender outputs. At
+            // runtime, fall back to null (page-level allowQuery).
+            segments.push({ path: segmentPath, structuralVaryParams: null })
             const segmentDataFilePath =
               segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
             writer.append(segmentDataFilePath, buffer)
@@ -432,7 +442,7 @@ export default class FileSystemCache implements CacheHandler {
           headers: data.headers,
           status: data.status,
           postponed: data.postponed,
-          segmentPaths,
+          segments,
           prefetchHints: undefined,
         }
 

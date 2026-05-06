@@ -177,6 +177,35 @@ function extractFlightData(initialRSCPayload: InitialRSCPayload): {
   }
 }
 
+// Singleton empty set, reused for segments with no structural vary params
+// (e.g. the synthetic /_tree segment, or render tasks rooted at a static path).
+const EMPTY_STRUCTURAL_VARY_PARAMS: ReadonlySet<string> = new Set()
+
+export type CollectedSegmentData = {
+  /**
+   * The serialized prefetch response buffer for this segment. This is
+   * what gets written to disk and served to clients.
+   */
+  buffer: Buffer
+  /**
+   * Structural vary params for this segment: the set of dynamic path
+   * params reachable via the `params` prop from this segment (its own
+   * dynamic segment, plus all dynamic ancestors). Determined by route
+   * structure, not by what the render actually accessed — which means
+   * the build pipeline can use it to derive a per-segment allowQuery
+   * that's constant for the deployment, unlike the per-render dynamic
+   * vary set.
+   *
+   * - Empty set: no path param is in scope. The cache key never needs
+   *   to vary on params (e.g. the synthetic `/_tree` segment).
+   * - Populated set: only those params should vary the cache key.
+   * - `null`: untracked / spans the full route. Consumers should fall
+   *   back to the page-level allowQuery (e.g. the `/_full` and `/_head`
+   *   segments, which carry the entire page response or its metadata).
+   */
+  structuralVaryParams: ReadonlySet<string> | null
+}
+
 export async function collectSegmentData(
   isCacheComponentsEnabled: boolean,
   fullPageDataBuffer: Buffer,
@@ -185,11 +214,11 @@ export async function collectSegmentData(
   serverConsumerManifest: any,
   prefetchInlining: boolean,
   hints: PrefetchHints | null
-): Promise<Map<SegmentRequestKey, Buffer>> {
+): Promise<Map<SegmentRequestKey, CollectedSegmentData>> {
   // Traverse the router tree and generate a prefetch response for each segment.
 
   // A mutable map to collect the results as we traverse the route tree.
-  const resultMap = new Map<SegmentRequestKey, Buffer>()
+  const resultMap = new Map<SegmentRequestKey, CollectedSegmentData>()
 
   // Before we start, warm up the module cache by decoding the page data once.
   // Then we can assume that any remaining async tasks that occur the next time
@@ -218,7 +247,9 @@ export async function collectSegmentData(
   // tree, we'll also spawn additional tasks to generate the segment prefetches.
   // The promises for these tasks are pushed to a mutable array that we will
   // await once the route tree is fully rendered.
-  const segmentTasks: Array<Promise<[SegmentRequestKey, Buffer]>> = []
+  const segmentTasks: Array<
+    Promise<[SegmentRequestKey, CollectedSegmentData]>
+  > = []
   const { prelude: treeStream } = await prerender(
     // RootTreePrefetch is not a valid return type for a React component, but
     // we need to use a component so that when we decode the original stream
@@ -243,19 +274,29 @@ export async function collectSegmentData(
     }
   )
 
-  // Write the route tree to a special `/_tree` segment.
+  // Write the route tree to a special `/_tree` segment. The tree payload only
+  // encodes route structure (no param values), so no path param is in scope
+  // and the cache key never needs to vary by params.
   const treeBuffer = await streamToBuffer(treeStream)
-  resultMap.set('/_tree' as SegmentRequestKey, treeBuffer)
+  resultMap.set('/_tree' as SegmentRequestKey, {
+    buffer: treeBuffer,
+    structuralVaryParams: EMPTY_STRUCTURAL_VARY_PARAMS,
+  })
 
-  // Also output the entire full page data response
-  resultMap.set('/_full' as SegmentRequestKey, fullPageDataBuffer)
+  // Also output the entire full page data response. The full payload is the
+  // whole flight stream, so every path param in the route is structurally in
+  // scope — null tells consumers to fall back to the page-level allowQuery.
+  resultMap.set('/_full' as SegmentRequestKey, {
+    buffer: fullPageDataBuffer,
+    structuralVaryParams: null,
+  })
 
   // Now that we've finished rendering the route tree, all the segment tasks
   // should have been spawned. Await them in parallel and write the segment
   // prefetches to the result map.
   let hasPageSegment = false
-  for (const [segmentPath, buffer] of await Promise.all(segmentTasks)) {
-    resultMap.set(segmentPath, buffer)
+  for (const [segmentPath, entry] of await Promise.all(segmentTasks)) {
+    resultMap.set(segmentPath, entry)
     if (segmentPath.endsWith('__PAGE__')) {
       hasPageSegment = true
     }
@@ -271,10 +312,10 @@ export async function collectSegmentData(
     // TODO: Remove the __PAGE__ requirement from the build instead of
     // working around it here. The invariant is outdated now that segments
     // can be disabled.
-    resultMap.set(
-      '/todo-remove-fake-segment/__PAGE__' as SegmentRequestKey,
-      Buffer.alloc(0)
-    )
+    resultMap.set('/todo-remove-fake-segment/__PAGE__' as SegmentRequestKey, {
+      buffer: Buffer.alloc(0),
+      structuralVaryParams: EMPTY_STRUCTURAL_VARY_PARAMS,
+    })
   }
 
   return resultMap
@@ -329,16 +370,19 @@ export async function collectPrefetchHints(
       ? readVaryParams(headVaryParamsThenable)
       : null
 
-  const [, headBuffer] = await renderSegmentPrefetch(
+  // Used only to measure gzip size during hint computation; the resulting
+  // entry is discarded so the structural vary is irrelevant here.
+  const [, headEntry] = await renderSegmentPrefetch(
     buildId,
     staleTime,
     head,
     HEAD_REQUEST_KEY,
     headVaryParams,
+    null,
     clientModules,
     null
   )
-  const headGzipSize = await getGzipSize(headBuffer)
+  const headGzipSize = await getGzipSize(headEntry.buffer)
 
   // Mutable accumulator: the first segment that accepts the head sets this
   // to true. Once set, subsequent segments skip the check.
@@ -442,16 +486,19 @@ async function collectPrefetchHintsImpl(
     const varyParams =
       varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
 
-    const [, buffer] = await renderSegmentPrefetch(
+    // Used only to measure gzip size during hint computation; the resulting
+    // entry is discarded so the structural vary is irrelevant here.
+    const [, entry] = await renderSegmentPrefetch(
       buildId,
       staleTime,
       seedData[0],
       requestKey,
       varyParams,
+      null,
       clientModules,
       null
     )
-    currentGzipSize = await getGzipSize(buffer)
+    currentGzipSize = await getGzipSize(entry.buffer)
   }
 
   // Only offer this segment to its children for inlining if its gzip size
@@ -671,7 +718,7 @@ async function PrefetchTreeData({
   serverConsumerManifest: any
   clientModules: ManifestNode
   staleTime: number
-  segmentTasks: Array<Promise<[SegmentRequestKey, Buffer]>>
+  segmentTasks: Array<Promise<[SegmentRequestKey, CollectedSegmentData]>>
   onCompletedProcessingRouteTree: () => void
   prefetchInlining: boolean
   hints: PrefetchHints | null
@@ -730,11 +777,15 @@ async function PrefetchTreeData({
     prefetchInlining,
     hints,
     null,
-    headBundle
+    headBundle,
+    EMPTY_STRUCTURAL_VARY_PARAMS
   )
 
   // Spawn a task to produce a prefetch response for the "head" segment,
-  // unless it was inlined into a page's bundle.
+  // unless it was inlined into a page's bundle. The head metadata can read
+  // any of the route's path params via generateMetadata, so its structural
+  // vary covers the full route — null tells consumers to fall back to the
+  // page-level allowQuery.
   if (!headIsInlined) {
     segmentTasks.push(
       waitAtLeastOneReactRenderTask().then(() =>
@@ -744,6 +795,7 @@ async function PrefetchTreeData({
           head,
           HEAD_REQUEST_KEY,
           headVaryParams,
+          null,
           clientModules,
           null
         )
@@ -775,11 +827,12 @@ function collectSegmentDataImpl(
   seedData: CacheNodeSeedData | null,
   clientModules: ManifestNode,
   requestKey: SegmentRequestKey,
-  segmentTasks: Array<Promise<[string, Buffer]>>,
+  segmentTasks: Array<Promise<[SegmentRequestKey, CollectedSegmentData]>>,
   prefetchInlining: boolean,
   hintTree: PrefetchHints | null,
   parentBundle: SegmentBundleNode | null,
-  headBundle: SegmentBundleNode | null
+  headBundle: SegmentBundleNode | null,
+  parentStructuralVaryParams: ReadonlySet<string>
 ): TreePrefetch {
   // Union the hints already embedded in the FlightRouterState with the
   // separately-computed build-time hints. During the initial build, the
@@ -800,6 +853,36 @@ function collectSegmentDataImpl(
   const varyParamsThenable = seedData !== null ? seedData[4] : null
   const varyParams =
     varyParamsThenable !== null ? readVaryParams(varyParamsThenable) : null
+
+  const segment = route[0]
+  let name: string
+  let param: TreePrefetchParam | null
+  let structuralVaryParams: ReadonlySet<string> = parentStructuralVaryParams
+  if (typeof segment === 'string') {
+    name = segment
+    param = null
+  } else {
+    name = segment[0]
+    param = {
+      type: segment[2],
+      // This value is omitted from the prefetch response when
+      // cacheComponents is enabled.
+      key: isClientParamParsingEnabled ? null : segment[1],
+      siblings: segment[3],
+    }
+
+    // Accumulate the set of params that this segment "structurally" varies on.
+    // This is different from the params that were tracked during the actual
+    // render, because they must be constant for the duration of an entire
+    // deployment; they cannot change during a revalidation, for example. So we
+    // use the set of all params that the segment has access to.
+    // TODO: This is used to compute the "allowQuery" of each segment prerender.
+    // If in the future the allowQuery is permitted to change at runtime, then
+    // we can use the vary params set (the one tracked during render) instead.
+    const next = new Set(parentStructuralVaryParams)
+    next.add(name)
+    structuralVaryParams = next
+  }
 
   // If static prefetching is disabled for this segment (runtime prefetch or
   // instant = false), it still participates in the bundle chain but with
@@ -853,6 +936,7 @@ function collectSegmentDataImpl(
             rsc,
             requestKey,
             varyParams,
+            structuralVaryParams,
             clientModules,
             bundle
           )
@@ -897,29 +981,13 @@ function collectSegmentDataImpl(
       prefetchInlining,
       childHintTree,
       childBundle,
-      headBundle
+      headBundle,
+      structuralVaryParams
     )
     if (slotMetadata === null) {
       slotMetadata = {}
     }
     slotMetadata[parallelRouteKey] = childTree
-  }
-
-  const segment = route[0]
-  let name: string
-  let param: TreePrefetchParam | null
-  if (typeof segment === 'string') {
-    name = segment
-    param = null
-  } else {
-    name = segment[0]
-    param = {
-      type: segment[2],
-      // This value is omitted from the prefetch response when cacheComponents
-      // is enabled.
-      key: isClientParamParsingEnabled ? null : segment[1],
-      siblings: segment[3],
-    }
   }
 
   // Metadata about the segment. Sent to the client as part of the
@@ -938,9 +1006,10 @@ async function renderSegmentPrefetch(
   rsc: React.ReactNode,
   requestKey: SegmentRequestKey,
   varyParams: Set<string> | null,
+  structuralVaryParams: ReadonlySet<string> | null,
   clientModules: ManifestNode,
   bundle: SegmentBundleNode | null
-): Promise<[SegmentRequestKey, Buffer]> {
+): Promise<[SegmentRequestKey, CollectedSegmentData]> {
   // Build the SegmentPrefetch for the terminal (requested) segment.
   // The terminal always has non-null rsc data — disabled segments are
   // skipped by the caller and don't reach this function.
@@ -991,10 +1060,14 @@ async function renderSegmentPrefetch(
     onError: onSegmentPrerenderError,
   })
   const segmentBuffer = await streamToBuffer(segmentStream)
+  const entry: CollectedSegmentData = {
+    buffer: segmentBuffer,
+    structuralVaryParams,
+  }
   if (requestKey === ROOT_SEGMENT_REQUEST_KEY) {
-    return ['/_index' as SegmentRequestKey, segmentBuffer]
+    return ['/_index' as SegmentRequestKey, entry]
   } else {
-    return [requestKey, segmentBuffer]
+    return [requestKey, entry]
   }
 }
 

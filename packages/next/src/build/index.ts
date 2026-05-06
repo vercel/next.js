@@ -3400,7 +3400,7 @@ export default async function build(
 
                 if (
                   !isAppRouteHandler &&
-                  (metadata?.segmentPaths ||
+                  (metadata?.segments ||
                     (route.fallbackRootParams &&
                       route.fallbackRootParams.length > 0))
                 ) {
@@ -3416,11 +3416,11 @@ export default async function build(
                     }
                   }
 
-                  if (metadata?.segmentPaths) {
-                    const pageSegmentPath = metadata.segmentPaths.find((item) =>
-                      item.endsWith('__PAGE__')
+                  if (metadata?.segments) {
+                    const pageSegment = metadata.segments.find((item) =>
+                      item.path.endsWith('__PAGE__')
                     )
-                    if (!pageSegmentPath) {
+                    if (!pageSegment) {
                       throw new Error(`Invariant: missing __PAGE__ segmentPath`)
                     }
 
@@ -3429,7 +3429,7 @@ export default async function build(
                     // routes we output and they can be shared
                     const builtSegmentDataRoute = buildPrefetchSegmentDataRoute(
                       route.pathname,
-                      pageSegmentPath
+                      pageSegment.path
                     )
 
                     builtSegmentDataRoute.source =

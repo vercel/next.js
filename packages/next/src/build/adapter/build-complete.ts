@@ -37,6 +37,7 @@ import {
   CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  NEXT_INTERCEPTION_MARKER_PREFIX,
   NEXT_QUERY_PARAM_PREFIX,
   NEXT_RESUME_HEADER,
 } from '../../lib/constants'
@@ -426,6 +427,53 @@ export interface NextAdapter {
      */
     buildId: string
   }) => Promise<void> | void
+}
+
+// Recover the raw param name from a cache-key form (e.g. "nxtPmy-slug" →
+// "my-slug", "nxtIfoo" → "foo"). Cache keys are produced inside
+// `getNamedParametrizedRoute` as `${prefix}${rawParam}` where the prefix
+// is one of these constants (or empty when none was applied).
+function paramNameFromCacheKey(cacheKey: string): string {
+  if (cacheKey.startsWith(NEXT_INTERCEPTION_MARKER_PREFIX)) {
+    return cacheKey.slice(NEXT_INTERCEPTION_MARKER_PREFIX.length)
+  }
+  if (cacheKey.startsWith(NEXT_QUERY_PARAM_PREFIX)) {
+    return cacheKey.slice(NEXT_QUERY_PARAM_PREFIX.length)
+  }
+  return cacheKey
+}
+
+// Build the cache-key form for a query-prefixed param ("my-slug" →
+// "nxtPmy-slug"). Mirrors the encoding `getNamedParametrizedRoute`
+// applies to non-intercepted dynamic segments.
+function cacheKeyFromQueryParamName(paramName: string): string {
+  return `${NEXT_QUERY_PARAM_PREFIX}${paramName}`
+}
+
+// Narrow a page-level allowQuery to just the cache keys that this segment's
+// structural vary set actually depends on. The result is always a fresh
+// array so callers can mutate it.
+//
+// - structuralVaryParams === null: the segment spans the full route (e.g.
+//   /_full, /_head). Return the page-level allowQuery unchanged.
+// - Otherwise: keep entries whose underlying param name appears in the
+//   structural vary set. Empty result means the segment doesn't depend on
+//   any param (e.g. /_tree).
+function computeSegmentAllowQuery(
+  structuralVaryParams: string[] | null,
+  pageAllowQuery: string[] | undefined
+): string[] {
+  const base = pageAllowQuery ?? []
+  if (structuralVaryParams === null) {
+    return base.slice()
+  }
+  if (structuralVaryParams.length === 0 || base.length === 0) {
+    return []
+  }
+  const varyNameSet = new Set(structuralVaryParams)
+  return base.filter((cacheKey) =>
+    varyNameSet.has(paramNameFromCacheKey(cacheKey))
+  )
 }
 
 function normalizePathnames(
@@ -1212,7 +1260,7 @@ export async function handleBuildComplete({
           initialOutput.fallback.postponedState = meta.postponed
         }
 
-        if (meta?.segmentPaths) {
+        if (meta?.segments) {
           const normalizedRoute = normalizePagePath(route)
           const segmentsDir = path.join(
             appDistDir,
@@ -1229,28 +1277,43 @@ export async function handleBuildComplete({
           // If client param parsing is not enabled, we have to use the
           // allowQuery because the segment payloads will contain dynamic
           // segment values.
-          const segmentAllowQuery = routesManifest.rsc.clientParamParsing
+          const pageSegmentAllowQuery = routesManifest.rsc.clientParamParsing
             ? ctx.htmlAllowQuery
             : ctx.dataAllowQuery
 
-          for (const segmentPath of meta.segmentPaths) {
+          for (const segment of meta.segments) {
             const outputSegmentPath =
               path.join(
                 normalizedRoute + prefetchSegmentDirSuffix,
-                segmentPath
+                segment.path
               ) + prefetchSegmentSuffix
+
+            // Compute the per-segment allowQuery from its structural vary
+            // params (the path params reachable via this segment's `params`
+            // prop, plus all dynamic ancestors). The allowQuery is part of
+            // immutable build output, so we have to use *structural* vary —
+            // we cannot use the vary params tracked during the actual render,
+            // since they may change during a revalidation.
+            //
+            // null means the segment spans the full route (e.g. /_full,
+            // /_head). In that case, fall back to the page-level allowQuery
+            // — the existing behavior before per-segment narrowing.
+            const segmentAllowQueryForOutput = computeSegmentAllowQuery(
+              segment.structuralVaryParams,
+              initialOutput.config.allowQuery
+            )
 
             // Only use the fallback value when the allowQuery is defined and
             // either: (1) it is empty, meaning segments do not vary by params,
             // or (2) client param parsing is enabled, meaning the segment
             // payloads are safe to reuse across params.
             const shouldAttachSegmentFallback =
-              segmentAllowQuery &&
-              (segmentAllowQuery.length === 0 ||
+              pageSegmentAllowQuery &&
+              (pageSegmentAllowQuery.length === 0 ||
                 routesManifest.rsc.clientParamParsing)
 
             const fallbackPathname = shouldAttachSegmentFallback
-              ? path.join(segmentsDir, segmentPath + prefetchSegmentSuffix)
+              ? path.join(segmentsDir, segment.path + prefetchSegmentSuffix)
               : undefined
 
             outputs.prerenders.push({
@@ -1262,6 +1325,7 @@ export async function handleBuildComplete({
 
               config: {
                 ...initialOutput.config,
+                allowQuery: segmentAllowQueryForOutput,
                 bypassFor: undefined,
                 partialFallback: initialOutput.config.partialFallback,
               },
@@ -1287,8 +1351,13 @@ export async function handleBuildComplete({
 
       let prerenderGroupId = 1
 
+      type AppSegmentMeta = {
+        path: string
+        structuralVaryParams: string[] | null
+      }
+
       type AppRouteMeta = {
-        segmentPaths?: string[]
+        segments?: AppSegmentMeta[]
         postponed?: string
         headers?: Record<string, string>
         status?: number
@@ -1676,8 +1745,8 @@ export async function handleBuildComplete({
             // For opt-in partial fallbacks in cache components, keep only the
             // params that can still complete this shell.
             const remainingPrerenderableQueryKeys = new Set(
-              (remainingPrerenderableParams ?? []).map(
-                (param) => `${NEXT_QUERY_PARAM_PREFIX}${param.paramName}`
+              (remainingPrerenderableParams ?? []).map((param) =>
+                cacheKeyFromQueryParamName(param.paramName)
               )
             )
             htmlAllowQuery =

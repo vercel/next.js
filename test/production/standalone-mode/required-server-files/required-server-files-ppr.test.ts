@@ -135,12 +135,12 @@ describe.skip('required server files app router', () => {
   })
 
   it('should de-dupe client segment tree revalidate requests', async () => {
-    const { segmentPaths } = await next.readJSON(
+    const { segments } = await next.readJSON(
       'standalone/.next/server/app/isr/first.meta'
     )
     const outputIdx = cliOutput.length
 
-    for (const segmentPath of segmentPaths) {
+    for (const { path: segmentPath } of segments) {
       const outputSegmentPath =
         join('/isr/[slug].segments', segmentPath) + '.segment.rsc'
 

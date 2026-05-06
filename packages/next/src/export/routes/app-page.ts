@@ -2,7 +2,7 @@ import type { OutgoingHttpHeaders } from 'node:http'
 import type { ExportRouteResult } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
-import type { RouteMetadata } from './types'
+import type { RouteMetadata, SegmentMetadata } from './types'
 
 import type {
   MockedRequest,
@@ -161,22 +161,31 @@ export async function exportAppPage(
       }
     }
 
-    let segmentPaths
+    let segments: Array<SegmentMetadata> | undefined
     if (segmentData) {
       // Emit the per-segment prefetch data. We emit them as separate files
       // so that the cache handler has the option to treat each as a
       // separate entry.
-      segmentPaths = []
+      segments = []
       const segmentsDir = htmlFilepath.replace(
         /\.html$/,
         RSC_SEGMENTS_DIR_SUFFIX
       )
 
-      for (const [segmentPath, buffer] of segmentData) {
-        segmentPaths.push(segmentPath)
+      for (const [segmentPath, entry] of segmentData) {
+        segments.push({
+          path: segmentPath,
+          // Use `null` (not an empty array) when the segment's vary set
+          // wasn't tracked (e.g. /_full, /_head). Empty array still means
+          // "no params" — important for the `/_tree` segment.
+          structuralVaryParams:
+            entry.structuralVaryParams === null
+              ? null
+              : Array.from(entry.structuralVaryParams),
+        })
         const segmentDataFilePath =
           segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
-        fileWriter.append(segmentDataFilePath, buffer)
+        fileWriter.append(segmentDataFilePath, entry.buffer)
       }
     }
 
@@ -218,7 +227,7 @@ export async function exportAppPage(
       status,
       headers,
       postponed,
-      segmentPaths,
+      segments,
       prefetchHints,
     }
 
@@ -232,7 +241,7 @@ export async function exportAppPage(
       metadata: hasNextSupport
         ? meta
         : {
-            segmentPaths: meta.segmentPaths,
+            segments: meta.segments,
             prefetchHints: meta.prefetchHints,
           },
       hasEmptyStaticShell: Boolean(postponed) && html === '',

@@ -16,6 +16,7 @@ import {
   pipeNodeReadableToNodeResponse,
 } from './pipe-readable'
 import type { RenderResumeDataCache } from './resume-data-cache/resume-data-cache'
+import type { CollectedSegmentData } from './app-render/collect-segment-data'
 import { InvariantError } from '../shared/lib/invariant-error'
 import type {
   HTML_CONTENT_TYPE_HEADER,
@@ -51,7 +52,14 @@ export type AppPageRenderResultMetadata = {
   fetchTags?: string
   fetchMetrics?: FetchMetrics
 
-  segmentData?: Map<string, Buffer>
+  /**
+   * Per-segment prefetch data. Each entry carries the serialized response
+   * buffer (served to clients) plus the segment's structural vary params,
+   * which the export pipeline reads when computing per-segment allowQuery.
+   * Runtime cache reads have `structuralVaryParams: null` since that
+   * field is only meaningful at build time.
+   */
+  segmentData?: Map<string, CollectedSegmentData>
 
   /**
    * Per-route prefetch hints computed at build time (e.g. segment inlining
