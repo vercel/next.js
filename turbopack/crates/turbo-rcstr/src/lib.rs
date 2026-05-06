@@ -548,6 +548,10 @@ static STATIC_TABLE: LazyLock<
         HashMap::with_hasher(FxBuildHasher);
     for StaticRcStr(phs) in inventory::iter::<StaticRcStr> {
         if phs.value.as_str().len() <= MAX_INLINE_LEN {
+            // This is rare, but possible if our macro cannot determine the length of the string at
+            // macro time we may end up with a wasted PrehashedString submitted to inventory.
+
+            // Just skip it
             continue;
         }
         let entries = map.entry(phs.hash).or_default();
@@ -566,19 +570,9 @@ static STATIC_TABLE: LazyLock<
 });
 
 /// Create an rcstr from a string literal.
-///
-/// Allocates the [`RcStr`] inline when the literal is short enough to fit in
-/// the tagged value; otherwise stores a `PrehashedString` in static memory.
-/// In both cases the result is a compile-time constant.
-///
-/// The macro is implemented in the companion `turbo-rcstr-macros` crate so
-/// the literal's length can be inspected at expansion time. Unambiguously
-/// inlinable literals expand to just the inline construction; unambiguously
-/// non-inlinable literals expand to just the static + inventory submission.
-/// Lengths in the ambiguous range (where `MAX_INLINE_LEN` depends on the
-/// `atom_size_128` feature) and non-literal inputs (constant identifiers,
-/// `concat!(...)`, etc.) defer to const evaluation exactly like the previous
-/// declarative macro.
+
+/// Allocates the RcStr inline when possible, otherwise uses a static `PrehashedString`.  In
+/// either case this is a compile time constant
 pub use turbo_rcstr_macros::rcstr;
 
 /// noop
