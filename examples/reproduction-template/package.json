@@ -7,8 +7,8 @@
   },
   "dependencies": {
     "next": "canary",
-    "react": "19.2.5",
-    "react-dom": "19.2.5"
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
   },
   "devDependencies": {
     "@types/node": "^22",

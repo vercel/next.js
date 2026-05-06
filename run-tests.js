@@ -174,7 +174,7 @@ class TestProfile {
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.5";
+const nextjsReactPeerVersion = "19.2.6";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')

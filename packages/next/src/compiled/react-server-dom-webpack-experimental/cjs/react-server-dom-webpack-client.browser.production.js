@@ -351,7 +351,7 @@ function processReply(
         null === formData && (formData = new FormData());
         var data$31 = formData;
         key = nextPartId++;
-        var prefix = formFieldPrefix + key + "_";
+        var prefix = formFieldPrefix + "_" + key + "_";
         value.forEach(function (originalValue, originalKey) {
           data$31.append(prefix + originalKey, originalValue);
         });
