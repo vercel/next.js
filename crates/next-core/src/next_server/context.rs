@@ -1070,7 +1070,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         node_root.clone(),
         node_root_to_root_path,
         client_root.clone(),
-        node_root.join("server/chunks/ssr")?,
+        node_root.join("server/chunks")?,
         client_root
             .join(&client_static_folder_name)?
             .join("media")?,

@@ -25,7 +25,7 @@ describe('default', () => {
       const app = await launchApp(appDir, port)
       await renderViaHTTP(port, '/')
       if (process.env.IS_TURBOPACK_TEST) {
-        const ssrPath = join(appDir, `${getDistDir()}/server/chunks/ssr`)
+        const ssrPath = join(appDir, `${getDistDir()}/server/chunks`)
         const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
           p.match(/\.js$/)
         )

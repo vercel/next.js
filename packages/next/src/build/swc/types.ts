@@ -255,7 +255,7 @@ export type NodeJsHmrUpdate =
   | NodeJsRestartHmrUpdate
 
 export interface HmrChunkNames {
-  /** Relative paths to output chunks that can receive HMR updates (e.g., "server/chunks/ssr/..._.js") */
+  /** Relative paths to output chunks that can receive HMR updates (e.g., "server/chunks/..._.js") */
   chunkNames: string[]
 }
 

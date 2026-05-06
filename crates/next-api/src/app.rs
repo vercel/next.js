@@ -1266,7 +1266,7 @@ impl AppEndpoint {
         let ssr_chunking_context = if process_ssr {
             Some(
                 match runtime {
-                    NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context(true)),
+                    NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context()),
                     NextRuntime::Edge => this
                         .app_project
                         .project()

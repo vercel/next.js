@@ -29,7 +29,7 @@ describe('minified module ids', () => {
       global.isNextDev = false
       await nextBuild(appDir, [])
 
-      const ssrPath = join(appDir, `${getDistDir()}/server/chunks/ssr/`)
+      const ssrPath = join(appDir, `${getDistDir()}/server/chunks/`)
       const ssrBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
         p.match(/\.js$/)
       )
@@ -88,7 +88,7 @@ describe('minified module ids', () => {
 
       await renderViaHTTP(appPort, '/')
 
-      const ssrPath = join(appDir, `${getDistDir()}/server/chunks/ssr/`)
+      const ssrPath = join(appDir, `${getDistDir()}/server/chunks/`)
       const ssrBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
         p.match(/\.js$/)
       )

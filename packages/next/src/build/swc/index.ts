@@ -778,7 +778,7 @@ function bindingToApi(
 
     /**
      * Subscribe to the list of output chunk paths that can receive HMR updates.
-     * Chunk paths are output file paths like "server/chunks/ssr/..._.js" for server
+     * Chunk paths are output file paths like "server/chunks/..._.js" for server
      * or "_next/static/chunks/app/page.js" for client.
      */
     hmrChunkNamesSubscribe(target: HmrTarget) {

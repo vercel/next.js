@@ -126,7 +126,7 @@ impl MiddlewareEndpoint {
     async fn node_chunk(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
         let this = self.await?;
 
-        let chunking_context = this.project.server_chunking_context(false);
+        let chunking_context = this.project.server_chunking_context();
 
         let userland_module = self.entry_module().to_resolved().await?;
         let module_graph = this.project.module_graph(*userland_module);

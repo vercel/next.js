@@ -165,7 +165,7 @@ function setupServerHmr(
 
   /**
    * Subscribe to HMR updates for a server chunk.
-   * @param chunkPath - Server chunk output path (e.g., "server/chunks/ssr/..._.js")
+   * @param chunkPath - Server chunk output path (e.g., "server/chunks/..._.js")
    */
   function subscribeToServerHmr(chunkPath: string) {
     if (serverHmrSubscriptions.has(chunkPath)) {
@@ -1838,11 +1838,6 @@ export async function createHotReloaderTurbopack(
         if (typeof __next__clear_chunk_cache__ === 'function') {
           __next__clear_chunk_cache__()
         }
-
-        // Reset the server HMR handler registry. All server runtime chunks are
-        // cleared from require.cache above; when they're next required they'll
-        // re-register into this Map and reinstall the routing dispatcher.
-        ;(globalThis as any).__turbopack_server_hmr_handlers__ = new Map()
 
         // Clear all edge contexts
         await clearAllModuleContexts()
