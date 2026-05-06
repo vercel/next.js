@@ -2168,8 +2168,8 @@ async function getSharedNodeAssets({
 
       if (type === 'pages') {
         await pushAsset(
-          sharedNodeAssets,
-          sharedNodeAssetsHashes,
+          pagesSharedNodeAssets,
+          pagesSharedNodeAssetsHashes,
           rootRelativeFilePath,
           path.join(tracingRoot, rootRelativeFilePath)
         )
@@ -2300,17 +2300,19 @@ async function loadNFT(
     await fs.readFile(traceFilePath, 'utf8')
   )) as {
     files: string[]
-    fileHashes: string[]
+    fileHashes?: string[]
   }
 
   const traceFileDir = path.dirname(traceFilePath)
   for (let i = 0; i < files.length; i++) {
     const relativeFile = files[i]
-    const contentHash = fileHashes[i]
+    const contentHash = fileHashes?.[i]
     const tracedFilePath = path.join(traceFileDir, relativeFile)
     const fileOutputPath = path.relative(tracingRoot, tracedFilePath)
     assets[fileOutputPath] = tracedFilePath
-    assetsHashes[fileOutputPath] = contentHash
+    if (contentHash) {
+      assetsHashes[fileOutputPath] = contentHash
+    }
   }
 }
 
