@@ -77,7 +77,19 @@ describe('adapter-partial-fallback', () => {
     expect(withGspRouteTreePrerender.config.allowQuery).toEqual([])
     for (const output of withGspOtherSegmentPrerenders) {
       expect(output.config.partialFallback).toBe(true)
-      expect(output.config.allowQuery).toEqual(['nxtPslug'])
+      // `slug` is a fallback root param. For segments whose structural
+      // vary set is tracked (e.g. the __PAGE__ segment and any layout),
+      // the placeholder substitution model means the segment bytes don't
+      // depend on `slug`, so the cache key must not include it. For
+      // /_full and /_head, structural vary is `null` (full route) and we
+      // fall back to the page-level allowQuery, which still includes
+      // `nxtPslug`.
+      const expected =
+        output.pathname.includes('/_full.') ||
+        output.pathname.includes('/_head.')
+          ? ['nxtPslug']
+          : []
+      expect(output.config.allowQuery).toEqual(expected)
     }
 
     expect(withoutGspPrerender.config.partialFallback).toBeUndefined()
@@ -93,9 +105,17 @@ describe('adapter-partial-fallback', () => {
     expect(genericPrefixPrerender.config.allowQuery).toEqual(['nxtPone'])
     expect(genericPrefixRouteTreePrerender.config.partialFallback).toBe(true)
     expect(genericPrefixRouteTreePrerender.config.allowQuery).toEqual([])
+    // Same fallback-param exclusion as `with-gsp`: structural-tracked
+    // segments drop `one` (a fallback root param); /_full and /_head fall
+    // back to the page-level allowQuery.
     for (const output of genericPrefixOtherSegmentPrerenders) {
       expect(output.config.partialFallback).toBe(true)
-      expect(output.config.allowQuery).toEqual(['nxtPone'])
+      const expected =
+        output.pathname.includes('/_full.') ||
+        output.pathname.includes('/_head.')
+          ? ['nxtPone']
+          : []
+      expect(output.config.allowQuery).toEqual(expected)
     }
 
     expect(generatedPrefixPrerender.config.partialFallback).toBeUndefined()
@@ -108,13 +128,18 @@ describe('adapter-partial-fallback', () => {
     expect(generatedDashedPrerender.config.allowQuery).toEqual([])
   })
 
-  it('omits params from a segment.allowQuery when the segment cannot structurally reach them', async () => {
-    // /structural-narrowing/[outer]/[inner] has no GSP and no
-    // fallbackRootParams, so its page-level allowQuery contains both
-    // dynamic params. That's what makes this route useful as a witness:
-    // each segment's allowQuery starts from the same multi-param set,
-    // so the per-segment narrowing is the only thing that can drop
-    // entries.
+  it('narrows segment allowQuery by structural and fallback exclusion', async () => {
+    // /structural-narrowing/[outer]/[inner] has no GSP. Its page-level
+    // allowQuery contains both dynamic params, so any non-empty segment
+    // allowQuery would have to come from inheriting that set wholesale.
+    // The narrowing here is two-step:
+    //   1. Structural: only count params reachable via this segment's
+    //      `params` prop (the synthetic _tree segment reads none).
+    //   2. Fallback: drop params whose values are baked-in placeholders
+    //      at render time (substituted per request), since the segment
+    //      bytes don't actually depend on them.
+    // For this fully-dynamic shell both `outer` and `inner` are fallback
+    // route params, so even the __PAGE__ segment ends up empty.
     const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
       await next.readJSON('build-complete.json')
 
@@ -125,6 +150,9 @@ describe('adapter-partial-fallback', () => {
     if (!pagePrerender) {
       throw new Error(`No prerender for ${route}`)
     }
+    // Page-level allowQuery still carries both params: the page response
+    // varies on them at the cache layer (one fallback shell per param
+    // value combination, with placeholders substituted at request time).
     expect(pagePrerender.config.allowQuery).toEqual(
       expect.arrayContaining(['nxtPouter', 'nxtPinner'])
     )
@@ -133,25 +161,23 @@ describe('adapter-partial-fallback', () => {
       o.pathname.startsWith(segmentsDirPrefix)
     )
 
-    // The synthetic _tree segment never receives `params`, so its
-    // allowQuery must be empty even though the page-level set has two
-    // entries. Without structural narrowing this would inherit
-    // nxtPouter and nxtPinner, so the negative checks are load-bearing.
+    // The synthetic _tree segment never receives `params`. Without
+    // structural narrowing it would inherit the page-level set; the
+    // empty assertion is load-bearing for the structural pass.
     const treeSegment = segments.find((o) => o.pathname.includes('/_tree.'))
     if (!treeSegment) {
       throw new Error(`No tree segment for ${route}`)
     }
     expect(treeSegment.config.allowQuery).toEqual([])
 
-    // The __PAGE__ segment can reach both params, so narrowing must keep
-    // both. We match by substring rather than the full segment path so
-    // the test isn't coupled to the segment-encoding scheme.
+    // The __PAGE__ segment structurally reaches both params, so without
+    // fallback exclusion it would inherit ['nxtPouter','nxtPinner'].
+    // The empty assertion is load-bearing for the fallback pass: it
+    // proves both placeholder params are dropped from the cache key.
     const pageSegment = segments.find((o) => o.pathname.includes('__PAGE__'))
     if (!pageSegment) {
       throw new Error(`No page segment for ${route}`)
     }
-    expect(pageSegment.config.allowQuery).toEqual(
-      expect.arrayContaining(['nxtPouter', 'nxtPinner'])
-    )
+    expect(pageSegment.config.allowQuery).toEqual([])
   })
 })

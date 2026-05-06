@@ -38,6 +38,7 @@ import {
   printDebugThrownValueForProspectiveRender,
 } from './prospective-render-utils'
 import { workAsyncStorage } from './work-async-storage.external'
+import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
 // Contains metadata about the route tree. The client must fetch this before
 // it can fetch any actual segment data.
@@ -213,7 +214,8 @@ export async function collectSegmentData(
   clientModules: ManifestNode,
   serverConsumerManifest: any,
   prefetchInlining: boolean,
-  hints: PrefetchHints | null
+  hints: PrefetchHints | null,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
 ): Promise<Map<SegmentRequestKey, CollectedSegmentData>> {
   // Traverse the router tree and generate a prefetch response for each segment.
 
@@ -265,6 +267,7 @@ export async function collectSegmentData(
       onCompletedProcessingRouteTree={onCompletedProcessingRouteTree}
       prefetchInlining={prefetchInlining}
       hints={hints}
+      fallbackRouteParams={fallbackRouteParams}
     />,
     clientModules,
     {
@@ -712,6 +715,7 @@ async function PrefetchTreeData({
   onCompletedProcessingRouteTree,
   prefetchInlining,
   hints,
+  fallbackRouteParams,
 }: {
   isClientParamParsingEnabled: boolean
   fullPageDataBuffer: Buffer
@@ -722,6 +726,7 @@ async function PrefetchTreeData({
   onCompletedProcessingRouteTree: () => void
   prefetchInlining: boolean
   hints: PrefetchHints | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
 }): Promise<RootTreePrefetch | null> {
   // We're currently rendering a Flight response for the route tree prefetch.
   // Inside this component, decode the Flight stream for the whole page. This is
@@ -778,7 +783,8 @@ async function PrefetchTreeData({
     hints,
     null,
     headBundle,
-    EMPTY_STRUCTURAL_VARY_PARAMS
+    EMPTY_STRUCTURAL_VARY_PARAMS,
+    fallbackRouteParams
   )
 
   // Spawn a task to produce a prefetch response for the "head" segment,
@@ -832,7 +838,8 @@ function collectSegmentDataImpl(
   hintTree: PrefetchHints | null,
   parentBundle: SegmentBundleNode | null,
   headBundle: SegmentBundleNode | null,
-  parentStructuralVaryParams: ReadonlySet<string>
+  parentStructuralVaryParams: ReadonlySet<string>,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
 ): TreePrefetch {
   // Union the hints already embedded in the FlightRouterState with the
   // separately-computed build-time hints. During the initial build, the
@@ -876,12 +883,20 @@ function collectSegmentDataImpl(
     // render, because they must be constant for the duration of an entire
     // deployment; they cannot change during a revalidation, for example. So we
     // use the set of all params that the segment has access to.
+    //
+    // Skip fallback route params: at fallback-shell render time those values
+    // are baked-in placeholders that the runtime substitutes per request, so
+    // the segment bytes don't actually depend on them. Including them in the
+    // structural set would force the cache key to vary on a param that can't
+    // change the response.
     // TODO: This is used to compute the "allowQuery" of each segment prerender.
     // If in the future the allowQuery is permitted to change at runtime, then
     // we can use the vary params set (the one tracked during render) instead.
-    const next = new Set(parentStructuralVaryParams)
-    next.add(name)
-    structuralVaryParams = next
+    if (fallbackRouteParams === null || !fallbackRouteParams.has(name)) {
+      const next = new Set(parentStructuralVaryParams)
+      next.add(name)
+      structuralVaryParams = next
+    }
   }
 
   // If static prefetching is disabled for this segment (runtime prefetch or
@@ -982,7 +997,8 @@ function collectSegmentDataImpl(
       childHintTree,
       childBundle,
       headBundle,
-      structuralVaryParams
+      structuralVaryParams,
+      fallbackRouteParams
     )
     if (slotMetadata === null) {
       slotMetadata = {}

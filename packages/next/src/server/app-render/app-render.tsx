@@ -7821,7 +7821,8 @@ async function prerenderToStream(
         ComponentMod,
         renderOpts,
         ctx.pagePath,
-        metadata
+        metadata,
+        fallbackRouteParams
       )
 
       if (serverIsDynamic) {
@@ -8079,7 +8080,8 @@ async function prerenderToStream(
           ComponentMod,
           renderOpts,
           ctx.pagePath,
-          metadata
+          metadata,
+          fallbackRouteParams
         )
       }
 
@@ -8290,7 +8292,8 @@ async function prerenderToStream(
           ComponentMod,
           renderOpts,
           ctx.pagePath,
-          metadata
+          metadata,
+          fallbackRouteParams
         )
       }
 
@@ -8508,7 +8511,8 @@ async function prerenderToStream(
           ComponentMod,
           renderOpts,
           ctx.pagePath,
-          metadata
+          metadata,
+          fallbackRouteParams
         )
       }
 
@@ -8628,7 +8632,8 @@ async function collectSegmentData(
   ComponentMod: AppPageModule,
   renderOpts: RenderOpts,
   pagePath: string,
-  metadata: AppPageRenderResultMetadata
+  metadata: AppPageRenderResultMetadata,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
 ): Promise<void> {
   // Per-segment prefetch data
   //
@@ -8716,6 +8721,11 @@ async function collectSegmentData(
   // the buffer doesn't have inlining hints yet (they were just computed
   // above), so we need to merge them in here. At runtime/ISR the hints
   // are already embedded in the FlightRouterState, so this is null.
+  //
+  // Pass fallbackRouteParams so the structural vary set can exclude any
+  // param whose value is a baked-in placeholder at render time — the
+  // runtime substitutes those per request, so the segment bytes don't
+  // depend on them and the cache key shouldn't either.
   metadata.segmentData = await ComponentMod.collectSegmentData(
     renderOpts.cacheComponents,
     fullPageDataBuffer,
@@ -8723,7 +8733,8 @@ async function collectSegmentData(
     clientModules,
     serverConsumerManifest,
     Boolean(renderOpts.experimental.prefetchInlining),
-    hints
+    hints,
+    fallbackRouteParams
   )
 }
 
