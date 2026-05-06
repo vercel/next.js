@@ -15,6 +15,7 @@ import loadCustomRoutes from '../../lib/load-custom-routes'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { writeAnalyzeSnapshot } from './snapshot'
 import http from 'node:http'
 
 // @ts-expect-error types are in @types/serve-handler
@@ -85,6 +86,16 @@ export default async function analyze({
       path.join(analyzeDir, 'data', 'routes.json'),
       JSON.stringify(routes, null, 2)
     )
+
+    // Capture this build alongside any prior builds so the analyzer UI can
+    // offer it as a comparison baseline in the future.
+    await writeAnalyzeSnapshot({
+      projectDir: dir,
+      analyzeDir,
+      routes,
+      appDirOnly,
+      noMangling,
+    })
 
     let logMessage = `Analyze completed in ${durationString}.`
     if (output) {
