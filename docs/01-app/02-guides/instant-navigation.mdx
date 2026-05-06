@@ -37,7 +37,7 @@ With Cache Components, **caching directives** (`"use cache"` and its variants) a
 
 **`<Suspense>`** declares fallback UI for parts of the tree that read uncached data or runtime APIs like `cookies()` and `headers()`; the content streams into the fallback when it resolves.
 
-Under the hood, Partial Prerendering composes the cached output with the streaming fallbacks. See [Caching](/docs/app/getting-started/caching) for the full picture.
+Partial Prerendering composes the cached output with the streaming fallbacks. See [Caching](/docs/app/getting-started/caching) for the full picture.
 
 On a direct visit, this structure is already validated: data must be cached, or wrapped in a `<Suspense>` fallback.
 
@@ -58,7 +58,7 @@ To guard against regressions, run end-to-end assertions against the UI that's im
 
 Alongside these, the **Instant Navs** panel in the Next.js DevTools freezes the page at the static shell for direct visits and client navigations. Use it as a feedback loop while you develop: is a loading fallback covering too much? Can a `<Suspense>` boundary move closer to the data?
 
-If parts of your route depend on cookies or headers and you want those to be part of the shell too, see [Runtime prefetching](/docs/app/guides/runtime-prefetching) for the optimization story.
+If parts of your route depend on cookies or headers and you want those to be part of the shell too, see [Runtime prefetching](/docs/app/guides/runtime-prefetching).
 
 ## A page that navigates instantly
 
