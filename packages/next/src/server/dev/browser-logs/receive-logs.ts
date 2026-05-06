@@ -1,5 +1,4 @@
 import { configure } from 'next/dist/compiled/safe-stable-stringify'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { cyan, dim, red, yellow } from '../../../lib/picocolors'
 import type { Project } from '../../../build/swc/types'
 import util from 'util'
@@ -93,18 +92,8 @@ const colorError = (
     applyColor?: boolean
   }
 ) => {
-  const applyColor = config?.applyColor === undefined || config.applyColor
-  const colorFn = applyColor ? red : <T>(x: T) => x
-  // Code frames are emitted with ANSI escapes by `getOriginalCodeFrame` so
-  // the browser overlay can parse and render colored tokens (regardless of
-  // host TTY). On other consumers we strip the escapes so they don't leak:
-  //   - the file log (`applyColor === false`) always wants plain text;
-  //   - the terminal stream wants colors only in a TTY (matching how
-  //     picocolors gates the surrounding text).
-  const renderFrame =
-    applyColor && process.stdout?.isTTY
-      ? <T>(x: T) => x
-      : (frame: string) => stripAnsi(frame)
+  const colorFn =
+    config?.applyColor === undefined || config.applyColor ? red : <T>(x: T) => x
   switch (mapped.kind) {
     case 'mapped-stack':
     case 'stack': {
@@ -116,7 +105,7 @@ const colorError = (
     case 'with-frame-code': {
       return (
         (config?.prefix ? colorFn(config?.prefix) : '') +
-        `\n${colorFn(mapped.stack)}\n${renderFrame(mapped.frameCode)}`
+        `\n${colorFn(mapped.stack)}\n${mapped.frameCode}`
       )
     }
     // a more sophisticated version of this allows the user to config if they want ignored frames (but we need to be sure to source map them)
