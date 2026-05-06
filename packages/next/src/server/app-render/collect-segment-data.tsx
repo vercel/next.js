@@ -246,8 +246,28 @@ export async function collectSegmentData(
   // Now that we've finished rendering the route tree, all the segment tasks
   // should have been spawned. Await them in parallel and write the segment
   // prefetches to the result map.
+  let hasPageSegment = false
   for (const [segmentPath, buffer] of await Promise.all(segmentTasks)) {
     resultMap.set(segmentPath, buffer)
+    if (segmentPath.endsWith('__PAGE__')) {
+      hasPageSegment = true
+    }
+  }
+
+  if (!hasPageSegment) {
+    // The build requires at least one segment path ending with __PAGE__ to
+    // register the catch-all segment data route. When all page segments are
+    // disabled (e.g. every leaf has runtime prefetching), no __PAGE__ entry
+    // is emitted. Write a dummy entry with a path that doesn't match any
+    // real route segment so the client will never request it.
+    //
+    // TODO: Remove the __PAGE__ requirement from the build instead of
+    // working around it here. The invariant is outdated now that segments
+    // can be disabled.
+    resultMap.set(
+      '/todo-remove-fake-segment/__PAGE__' as SegmentRequestKey,
+      Buffer.alloc(0)
+    )
   }
 
   return resultMap
