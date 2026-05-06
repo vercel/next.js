@@ -1,3 +1,7 @@
+// Allow the `rcstr!` proc macro's emitted `::turbo_rcstr::...` paths to
+// resolve when used inside this crate's own source (e.g. tests, doctests).
+extern crate self as turbo_rcstr;
+
 use std::{
     borrow::{Borrow, Cow},
     collections::HashMap,
@@ -53,7 +57,7 @@ mod tagged_value;
 /// `RcStr::from(...)`, or the `rcstr!` macro.
 ///
 /// ```
-/// # use turbo_rcstr::RcStr;
+/// # use turbo_rcstr::{RcStr, rcstr};
 /// #
 /// let s = "foo";
 /// let rc_s1: RcStr = s.into();
@@ -517,6 +521,20 @@ pub struct StaticRcStr(pub &'static PrehashedString);
 
 inventory::collect!(StaticRcStr);
 
+/// Forwarder around [`inventory::submit!`] that lets the `rcstr!` proc macro
+/// emit a single path it can rely on, without depending on whether
+/// `turbo_rcstr::inventory` is reachable as a macro path in the call site
+/// crate. Macros emitted from a proc macro lose access to the proc macro
+/// crate's deps, so the submission has to bounce through this declarative
+/// macro defined where `inventory::submit!` is in scope.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __rcstr_inventory_submit {
+    ($value:expr) => {
+        $crate::inventory::submit!($value);
+    };
+}
+
 /// Read-only lookup table mapping precomputed hash -> static PrehashedString.
 /// Built once on first access from all `rcstr!` constants collected by `inventory`.
 ///
@@ -548,25 +566,20 @@ static STATIC_TABLE: LazyLock<
 });
 
 /// Create an rcstr from a string literal.
-/// Allocates the RcStr inline when possible, otherwise uses a static `PrehashedString`.  In either
-/// case this is a compile time constant
-#[macro_export]
-macro_rules! rcstr {
-    ($s:expr) => {{
-        const TEXT: &str = $s;
-        // This condition can be compile time evaluated and inlined.
-        if $crate::is_atom_inlineable(TEXT) {
-            $crate::inline_atom(TEXT).unwrap()
-        } else {
-            static RCSTR_STORAGE: $crate::PrehashedString =
-                $crate::make_const_prehashed_string(TEXT);
-            const RCSTR: $crate::RcStr = $crate::from_static(&RCSTR_STORAGE);
-            // Register with inventory so deserialization can find this static
-            $crate::inventory::submit!($crate::StaticRcStr(&RCSTR_STORAGE));
-            RCSTR
-        }
-    }};
-}
+///
+/// Allocates the [`RcStr`] inline when the literal is short enough to fit in
+/// the tagged value; otherwise stores a `PrehashedString` in static memory.
+/// In both cases the result is a compile-time constant.
+///
+/// The macro is implemented in the companion `turbo-rcstr-macros` crate so
+/// the literal's length can be inspected at expansion time. Unambiguously
+/// inlinable literals expand to just the inline construction; unambiguously
+/// non-inlinable literals expand to just the static + inventory submission.
+/// Lengths in the ambiguous range (where `MAX_INLINE_LEN` depends on the
+/// `atom_size_128` feature) and non-literal inputs (constant identifiers,
+/// `concat!(...)`, etc.) defer to const evaluation exactly like the previous
+/// declarative macro.
+pub use turbo_rcstr_macros::rcstr;
 
 /// noop
 impl ShrinkToFit for RcStr {
