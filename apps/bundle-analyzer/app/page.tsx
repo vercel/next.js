@@ -5,6 +5,7 @@ import type React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { CompareLayout } from '@/components/compare-layout'
+import { DiffTable } from '@/components/diff-table'
 import { ErrorState } from '@/components/error-state'
 import { Sidebar } from '@/components/sidebar'
 import { TopBar, Environment, CompareView } from '@/components/top-bar'
@@ -304,6 +305,18 @@ export default function Home() {
     return null
   }, [analyzeData, baselineAnalyzeData, baselineSnapshot, compareFilterSource])
 
+  // In single-build (non-compare) mode the table view still wants a list
+  // of every source for the current route. We synthesize this by diffing
+  // the build against itself, which produces an all-`identical` summary
+  // that we feed into `<DiffTable mode="single">`. This keeps a single
+  // sources-listing implementation regardless of mode.
+  const singleSourceListing = useMemo(() => {
+    if (!analyzeData || baselineSnapshot) return null
+    return diffSources(analyzeData, analyzeData, {
+      filterSource: (_, index) => filterSource(index),
+    })
+  }, [analyzeData, baselineSnapshot, filterSource])
+
   // Per-route totals for both sides, used to size the route-level diff so
   // that routes whose modules changed can be reported as `changed` rather
   // than `identical`. Only fetched in compare mode.
@@ -362,7 +375,7 @@ export default function Home() {
     >
       <TopBar
         hasSourceData={analyzeData != null}
-        showViewToggle={isCompareMode}
+        showViewToggle={analyzeData != null}
         compareView={compareView}
         onCompareViewChange={setCompareView}
         selectedRoute={selectedRoute}
@@ -436,20 +449,40 @@ export default function Home() {
         ) : analyzeData ? (
           <>
             <div className="flex-1 min-w-0">
-              <TreemapVisualizer
-                analyzeData={analyzeData}
-                sourceIndex={rootSourceIndex}
-                selectedSourceIndex={selectedSourceIndex ?? rootSourceIndex}
-                onSelectSourceIndex={setSelectedSourceIndex}
-                focusedSourceIndex={focusedSourceIndex ?? rootSourceIndex}
-                onFocusSourceIndex={setFocusedSourceIndex}
-                isMouseInTreemap={isMouseInTreemap}
-                onMouseInTreemapChange={setIsMouseInTreemap}
-                onHoveredNodeChange={setHoveredNodeInfo}
-                searchQuery={searchQuery}
-                filterSource={filterSource}
-                sizeMode={SizeMode.Compressed}
-              />
+              {compareView === CompareView.Table && singleSourceListing ? (
+                <DiffTable
+                  summary={singleSourceListing}
+                  useCompressed
+                  nameHeading="Source"
+                  mode="single"
+                  searchQuery={searchQuery}
+                  onRowSelect={(row) => {
+                    // Each table row is a leaf source in the current build,
+                    // so `sourceIndexB` is always defined here. Selecting it
+                    // surfaces the import trace in the sidebar — same UX as
+                    // clicking a tile in the treemap.
+                    if (row.sourceIndexB != null) {
+                      setSelectedSourceIndex(row.sourceIndexB)
+                      setFocusedSourceIndex(row.sourceIndexB)
+                    }
+                  }}
+                />
+              ) : (
+                <TreemapVisualizer
+                  analyzeData={analyzeData}
+                  sourceIndex={rootSourceIndex}
+                  selectedSourceIndex={selectedSourceIndex ?? rootSourceIndex}
+                  onSelectSourceIndex={setSelectedSourceIndex}
+                  focusedSourceIndex={focusedSourceIndex ?? rootSourceIndex}
+                  onFocusSourceIndex={setFocusedSourceIndex}
+                  isMouseInTreemap={isMouseInTreemap}
+                  onMouseInTreemapChange={setIsMouseInTreemap}
+                  onHoveredNodeChange={setHoveredNodeInfo}
+                  searchQuery={searchQuery}
+                  filterSource={filterSource}
+                  sizeMode={SizeMode.Compressed}
+                />
+              )}
             </div>
 
             <button
@@ -472,7 +505,7 @@ export default function Home() {
         ) : null}
       </div>
 
-      {analyzeData && !isCompareMode ? (
+      {analyzeData && !isCompareMode && compareView === CompareView.Treemap ? (
         <div className="flex-none border-t border-border bg-background px-4 py-2 h-10">
           <div className="text-sm text-muted-foreground">
             {hoveredNodeInfo ? (
