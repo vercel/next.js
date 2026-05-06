@@ -529,6 +529,9 @@ static STATIC_TABLE: LazyLock<
     let mut map: HashMap<u64, SmallVec<[&'static PrehashedString; 1]>, FxBuildHasher> =
         HashMap::with_hasher(FxBuildHasher);
     for StaticRcStr(phs) in inventory::iter::<StaticRcStr> {
+        if phs.value.as_str().len() <= MAX_INLINE_LEN {
+            continue;
+        }
         let entries = map.entry(phs.hash).or_default();
         // Deduplicate: skip if an entry with the same string content exists
         // Mostly linkers will merge static strings but this isn't guaranteed so we cannot just rely
@@ -550,22 +553,17 @@ static STATIC_TABLE: LazyLock<
 #[macro_export]
 macro_rules! rcstr {
     ($s:expr) => {{
-        let text = $s;
+        const TEXT: &str = $s;
         // This condition can be compile time evaluated and inlined.
-        if $crate::is_atom_inlineable(text) {
-            $crate::inline_atom(text).unwrap()
+        if $crate::is_atom_inlineable(TEXT) {
+            $crate::inline_atom(TEXT).unwrap()
         } else {
-            const fn get_rcstr() -> $crate::RcStr {
-                // Allocate static storage for the PrehashedString
-                static RCSTR_STORAGE: $crate::PrehashedString =
-                    $crate::make_const_prehashed_string($s);
-                // Register with inventory so deserialization can find this static
-                $crate::inventory::submit!($crate::StaticRcStr(&RCSTR_STORAGE));
-                // This basically just tags a bit onto the raw pointer and wraps it in an RcStr
-                // should be fast enough to do every time.
-                $crate::from_static(&RCSTR_STORAGE)
-            }
-            get_rcstr()
+            static RCSTR_STORAGE: $crate::PrehashedString =
+                $crate::make_const_prehashed_string(TEXT);
+            const RCSTR: $crate::RcStr = $crate::from_static(&RCSTR_STORAGE);
+            // Register with inventory so deserialization can find this static
+            $crate::inventory::submit!($crate::StaticRcStr(&RCSTR_STORAGE));
+            RCSTR
         }
     }};
 }
