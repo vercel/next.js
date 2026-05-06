@@ -379,7 +379,7 @@ impl Effects {
                         }
                     }
 
-                    let create_event_guard = |mut last_applied_guard: MutexGuard<'_, _>| {
+                    let begin_in_progress = |mut last_applied_guard: MutexGuard<'_, _>| {
                         *last_applied_guard = EffectLastApplied::InProgress {
                             write_event: Event::new(|| {
                                 || "effect application in progress".to_string()
@@ -394,14 +394,14 @@ impl Effects {
                             let last_applied_guard = entry.lock();
                             match &*last_applied_guard {
                                 EffectLastApplied::Unapplied => {
-                                    break create_event_guard(last_applied_guard);
+                                    break begin_in_progress(last_applied_guard);
                                 }
                                 EffectLastApplied::Applied { value, result } => {
                                     // Fast path: check if the stored value already matches
                                     if effect.eq_value_dyn(&**value) {
                                         return result.clone();
                                     } else {
-                                        break create_event_guard(last_applied_guard);
+                                        break begin_in_progress(last_applied_guard);
                                     }
                                 }
                                 EffectLastApplied::InProgress { write_event } => {
