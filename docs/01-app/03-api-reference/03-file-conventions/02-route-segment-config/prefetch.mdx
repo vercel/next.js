@@ -10,12 +10,14 @@ related:
     - app/api-reference/file-conventions/route-segment-config/instant
 ---
 
-The `unstable_prefetch` route segment config controls how a segment is prefetched during client-side navigation. By default (`'auto'`), the framework decides based on the segment's instant validation configuration and caching structure. The `force-` options let you declare a specific behavior. Use the force options with care since they can have implications for the speed of navigation and cost of naviagation. If you are configuring prefetching using this export consider pairing it with `unstable_instant` to validate that navigations to this Segment will in fact produce an instant UI with the prefetched data. This is especially important with runtime prefetching.
+The `unstable_prefetch` route segment config controls how a segment is prefetched during client-side navigation. The default (`'auto'`) lets Next.js manage the strategy on your behalf — today that always means a static prefetch. The `force-*` options let you declare a specific behavior — use them with care, since they can affect both navigation latency and prefetch cost.
+
+When you do set this export, consider pairing it with [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) so validation can confirm that navigations to this segment actually produce an instant UI from the prefetched data. This is especially important for runtime prefetching.
 
 > **Good to know**:
 >
 > - The `unstable_prefetch` export only works when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
-> - `unstable_prefetch` cannot be used when your Segment is a Client Component.
+> - `unstable_prefetch` cannot be used when the segment is a Client Component.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
 export const unstable_prefetch = 'force-runtime'
@@ -37,7 +39,11 @@ export default function Page() {
 
 ### `'auto'` (default)
 
-The framework decides how to prefetch this segment. Segments with instant validation enabled are prefetched statically. Segments without instant validation may not be prefetched at all. You do not need to set this explicitly. While this option is available for completeness it is generally not expected that you use it and insteaed expect that you just omit the export from this segment.
+Lets Next.js manage prefetching for this segment. Today this always means a static prefetch — to try runtime prefetching, opt in explicitly with [`'force-runtime'`](#force-runtime).
+
+A future release will use [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) validation to choose between static and runtime prefetching automatically. Leaving the default in place means your app will pick up that improvement without code changes.
+
+You typically don't need to set this explicitly — omitting the export has the same effect.
 
 ### `'force-runtime'`
 
@@ -75,7 +81,7 @@ The `unstable_prefetch` segment config and the [`<Link prefetch>` prop](/docs/ap
 - The **segment config** informs Next.js about a segment's caching characteristics — whether its data can be prefetched statically, requires a runtime prefetch with the user's session, or should be skipped entirely. This applies to the segment regardless of which link points to it.
 - The **`<Link prefetch>` prop** reflects the anticipated intent of a specific link on a specific page. A link that users rarely click can be deprioritized with `prefetch={false}`, independent of how the destination segments are configured.
 
-In general, both of these are special circumstances. The default behavior — where Next.js decides what to prefetch based on [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) validation and the segment's caching structure — is optimized to provide a good navigation experience without manual configuration.
+In general, both of these are special circumstances. The default behavior — where Next.js manages prefetching for you — is optimized to provide a good navigation experience without manual configuration.
 
 ## TypeScript
 

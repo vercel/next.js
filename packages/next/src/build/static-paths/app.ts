@@ -797,6 +797,7 @@ export async function buildAppStaticPaths({
   isRoutePPREnabled = false,
   partialFallbacksEnabled = false,
   buildId,
+  deploymentId,
   rootParamKeys,
 }: {
   dir: string
@@ -822,6 +823,7 @@ export async function buildAppStaticPaths({
   isRoutePPREnabled: boolean
   partialFallbacksEnabled?: boolean
   buildId: string
+  deploymentId: string
   rootParamKeys: readonly string[]
 }): Promise<StaticPathsResult> {
   if (
@@ -875,6 +877,7 @@ export async function buildAppStaticPaths({
       onAfterTaskError: afterRunner.context.onTaskError,
     },
     buildId,
+    deploymentId,
     previouslyRevalidatedTags: [],
   })
 

@@ -172,7 +172,11 @@ pub fn parse_import_meta_glob(
                             }
                             Some("import") => {
                                 if let Some(s) = val.as_str() {
-                                    import = Some(s.into());
+                                    // `import: '*'` means namespace import (whole module),
+                                    // which is the default behavior — no need to store it.
+                                    if s != "*" {
+                                        import = Some(s.into());
+                                    }
                                 } else {
                                     handler.span_warn_with_code(
                                         span,
@@ -191,6 +195,51 @@ pub fn parse_import_meta_glob(
                                         format!("?{s}").into()
                                     };
                                     query = Some(q);
+                                } else if let JsValue::Object { parts, .. } = val {
+                                    // Support object form: { query: { bar: 'foo', raw: true } }
+                                    // Serializes to "?bar=foo&raw=true" with URL-encoding.
+                                    use crate::analyzer::ObjectPart;
+                                    let mut pairs: Vec<String> = Vec::new();
+                                    for part in parts {
+                                        if let ObjectPart::KeyValue(k, v) = part {
+                                            if let Some(k_str) = k.as_str() {
+                                                let enc_key = urlencoding::encode(k_str);
+                                                if let Some(v_str) = v.as_str() {
+                                                    let enc_val = urlencoding::encode(v_str);
+                                                    pairs.push(format!("{enc_key}={enc_val}"));
+                                                } else if let Some(v_bool) = v.as_bool() {
+                                                    pairs.push(format!("{enc_key}={v_bool}"));
+                                                } else {
+                                                    handler.span_warn_with_code(
+                                                        span,
+                                                        &format!(
+                                                            "import.meta.glob() 'query' object \
+                                                             value for key '{k_str}' must be a \
+                                                             constant string or boolean, ignoring"
+                                                        ),
+                                                        diagnostic_id.clone(),
+                                                    );
+                                                }
+                                            } else {
+                                                handler.span_warn_with_code(
+                                                    span,
+                                                    "import.meta.glob() 'query' object keys must \
+                                                     be constant strings",
+                                                    diagnostic_id.clone(),
+                                                );
+                                            }
+                                        } else {
+                                            handler.span_warn_with_code(
+                                                span,
+                                                "import.meta.glob() 'query' object must only \
+                                                 contain constant key-value pairs",
+                                                diagnostic_id.clone(),
+                                            );
+                                        }
+                                    }
+                                    if !pairs.is_empty() {
+                                        query = Some(format!("?{}", pairs.join("&")).into());
+                                    }
                                 } else {
                                     handler.span_warn_with_code(
                                         span,
@@ -244,11 +293,12 @@ pub fn parse_import_meta_glob(
                 }
             }
             _ => {
-                handler.span_warn_with_code(
+                handler.span_err_with_code(
                     span,
                     "import.meta.glob() second argument must be an object literal",
                     diagnostic_id.clone(),
                 );
+                return None;
             }
         }
     }
@@ -305,7 +355,7 @@ async fn flatten_read_glob(result: &ReadGlobResult) -> Result<Vec<(RcStr, FileSy
     let mut pending: Vec<(String, turbo_tasks::ReadRef<ReadGlobResult>)> = Vec::new();
     collect_files(result, "", &mut files);
 
-    // Resolve child directories
+    // Resolve child directories (skip dot-directories like .git, .next, etc.)
     for (segment, inner_vc) in &result.inner {
         let child_prefix = segment.to_string();
         let inner = inner_vc.await?;

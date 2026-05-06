@@ -62,3 +62,66 @@ it('should support multiple patterns across directories', () => {
   expect(keys).toEqual(['./dir/bar.js', './dir/foo.js', './other/baz.js'])
   expect(multiModules['./other/baz.js'].default).toBe('baz')
 })
+
+// import: '*' (namespace import) — should return the whole module namespace
+// Uses ./other/*.js to avoid colliding with the eager test above (same pattern + eager + no import)
+const namespaceModules = import.meta.glob('./other/*.js', {
+  import: '*',
+  eager: true,
+})
+
+it('should return the whole module namespace with import: "*"', () => {
+  const keys = Object.keys(namespaceModules).sort()
+  expect(keys).toEqual(['./other/baz.js'])
+  // Each value is the full module namespace object
+  expect(namespaceModules['./other/baz.js'].default).toBe('baz')
+  expect(namespaceModules['./other/baz.js'].value).toBe(7)
+})
+
+// Negative pattern combined with query
+const queryWithNeg = import.meta.glob(['./dir/*.js', '!**/bar.js'], {
+  query: '?raw',
+  import: '*',
+})
+
+it('should support query option with negative patterns', () => {
+  const keys = Object.keys(queryWithNeg)
+  expect(keys).toEqual(['./dir/foo.js'])
+  // Values are thunks (lazy mode)
+  expect(typeof queryWithNeg['./dir/foo.js']).toBe('function')
+})
+
+// query as object literal — serialized to query string
+const queryObjModules = import.meta.glob('./dir/*.js', {
+  query: { bar: 'foo', raw: true },
+})
+
+it('should support query as object literal', () => {
+  const keys = Object.keys(queryObjModules).sort()
+  expect(keys).toEqual(['./dir/bar.js', './dir/foo.js'])
+  // Values are thunks (lazy)
+  expect(typeof queryObjModules['./dir/foo.js']).toBe('function')
+})
+
+// Dotfile directories are matched by wildcards (not excluded)
+const dotfileGlob = import.meta.glob(['./**/*.js', '!./index.js'], {
+  eager: true,
+})
+
+it('should include dotfile directories with wildcard patterns', () => {
+  const keys = Object.keys(dotfileGlob).sort()
+  expect(keys).toEqual([
+    './.foo/hidden.js',
+    './dir/bar.js',
+    './dir/foo.js',
+    './other/baz.js',
+  ])
+})
+
+// Dotfile directories targeted explicitly should be included
+const dotfileExplicit = import.meta.glob('./.foo/*.js', { eager: true })
+
+it('should include dotfile directories when explicitly targeted', () => {
+  const keys = Object.keys(dotfileExplicit)
+  expect(keys).toEqual(['./.foo/hidden.js'])
+})

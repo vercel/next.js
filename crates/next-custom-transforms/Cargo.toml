@@ -16,7 +16,6 @@ either = "1"
 hex = "0.4.3"
 indexmap = { workspace = true }
 indoc = { workspace = true }
-once_cell = { workspace = true }
 pathdiff = { workspace = true }
 regex = "1.5"
 rustc-hash = { workspace = true }

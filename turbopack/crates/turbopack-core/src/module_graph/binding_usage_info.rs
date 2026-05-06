@@ -272,8 +272,8 @@ pub async fn compute_binding_usage_info(
 
         #[cfg(debug_assertions)]
         {
-            use once_cell::sync::Lazy;
-            static PRINT_UNUSED_REFERENCES: Lazy<bool> = Lazy::new(|| {
+            use std::sync::LazyLock;
+            static PRINT_UNUSED_REFERENCES: LazyLock<bool> = LazyLock::new(|| {
                 std::env::var_os("TURBOPACK_PRINT_UNUSED_REFERENCES")
                     .is_some_and(|v| v == "1" || v == "true")
             });
@@ -288,6 +288,22 @@ pub async fn compute_binding_usage_info(
                             e,
                             t.ident_string().await?,
                         )))
+                        .try_join()
+                        .await?
+                );
+            }
+
+            static PRINT_USED_EXPORTS: LazyLock<bool> = LazyLock::new(|| {
+                std::env::var_os("TURBOPACK_PRINT_USED_EXPORTS")
+                    .is_some_and(|v| v == "1" || v == "true")
+            });
+            if *PRINT_USED_EXPORTS {
+                use turbo_tasks::TryJoinIterExt;
+                println!(
+                    "used exports: {:#?}",
+                    used_exports
+                        .iter()
+                        .map(async |(m, v)| Ok((m.ident_string().await?, v,)))
                         .try_join()
                         .await?
                 );

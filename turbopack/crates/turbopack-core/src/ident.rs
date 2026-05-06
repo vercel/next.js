@@ -1,8 +1,7 @@
-use std::fmt::Write;
+use std::{fmt::Write, sync::LazyLock};
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use once_cell::sync::Lazy;
 use regex::Regex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -437,7 +436,7 @@ impl ValueToString for AssetIdent {
 }
 
 fn escape_file_path(s: &str) -> String {
-    static SEPARATOR_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"[/#?:]").unwrap());
+    static SEPARATOR_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[/#?:]").unwrap());
     SEPARATOR_REGEX.replace_all(s, "_").to_string()
 }
 

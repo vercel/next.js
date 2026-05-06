@@ -16,8 +16,8 @@ use crate::{
     },
     global_name::{global_name_for_method, global_name_for_trait_method_impl},
     ident::{
-        get_cast_to_fat_pointer_ident, get_inherent_impl_function_ident, get_path_ident,
-        get_trait_impl_function_ident, get_type_ident,
+        get_inherent_impl_function_ident, get_path_ident, get_trait_impl_function_ident,
+        get_type_ident, get_vtable_register_fn_ident,
     },
     self_filter::is_self_used,
 };
@@ -173,11 +173,9 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
         items: &[ImplItem],
     ) -> TokenStream2 {
         let trait_ident = get_path_ident(trait_path);
+        let vtable_register_ident = get_vtable_register_fn_ident(ty_ident, &trait_ident);
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
-
-        let cast_to_fat_pointer_ident: Ident =
-            get_cast_to_fat_pointer_ident(&trait_ident, ty_ident);
 
         let mut trait_methods = Vec::new();
         let mut trait_functions = Vec::with_capacity(items.len());
@@ -299,23 +297,34 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     value_type: <#ty as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::ValueType>>::DEF,
                     trait_type: <::std::boxed::Box<dyn #trait_path> as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::TraitType>>::DEF,
                     methods: &METHODS,
+                    finalize_vtable_registry: || {
+                        <::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::IMPL_VTABLES
+                            .finalize();
+                    },
                 }
             }}
 
-            // These can execute later so they can reference trait_types during registration
-
-            turbo_tasks::macro_helpers::inventory_submit!{
-                turbo_tasks::macro_helpers::CollectableTraitCastFunctions(
-                    <::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id,
-                    <#ty as turbo_tasks::VcValueType>::get_value_type_id,
-                    #cast_to_fat_pointer_ident as *const ()
-                )
-            }
-
+            // Queue this `impl Trait for Concrete` into the trait's `VTableRegistry` at program
+            // load. The ctor runs before `ValueType` ids are assigned, so it just appends to a
+            // `Vec`; the map keyed by `ValueTypeId` is built lazily inside the `VALUES`
+            // `LazyLock` initializer (via `CollectableTraitMethods::finalize_vtable_registry`).
+            // The vtable pointer is materialized at compile time via the null-fat-ptr trick, so
+            // there's no runtime `transmute` or indirect fn call.
+            #[turbo_tasks::macro_helpers::ctor::ctor(
+                crate_path = turbo_tasks::macro_helpers::ctor,
+            )]
             #[allow(non_snake_case)]
-            fn #cast_to_fat_pointer_ident(raw: * const ()) -> *const dyn #trait_path {
-                let typed = raw as *const #ty;
-                typed as *const dyn #trait_path
+            fn #vtable_register_ident() {
+                <::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::IMPL_VTABLES
+                    .register(
+                        <#ty as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::ValueType>>::DEF,
+                        {
+                            let p: *const #ty = ::std::ptr::null();
+                            // This attaches a fat pointer to the null pointer.
+                            let fat: *const dyn #trait_path = p;
+                            fat
+                        },
+                    );
             }
 
             // NOTE(alexkirsz) We can't have a general `turbo_tasks::Upcast<Box<dyn Trait>> for T where T: Trait` because

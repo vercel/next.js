@@ -7,6 +7,10 @@ const semver = require('semver')
 const { Sema } = require('async-sema')
 const { execSync } = require('child_process')
 const fs = require('fs')
+const {
+  getGitHubToken,
+  getGitHubTokenMissingMessage,
+} = require('./release-github-auth')
 
 const cwd = process.cwd()
 
@@ -126,10 +130,10 @@ const cwd = process.cwd()
   }
 
   const undraft = async () => {
-    const githubToken = process.env.RELEASE_BOT_GITHUB_TOKEN
+    const githubToken = getGitHubToken()
 
     if (!githubToken) {
-      throw new Error(`Missing RELEASE_BOT_GITHUB_TOKEN`)
+      throw new Error(getGitHubTokenMissingMessage())
     }
 
     if (isCanary) {

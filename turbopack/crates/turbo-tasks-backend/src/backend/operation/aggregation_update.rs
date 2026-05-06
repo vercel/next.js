@@ -45,6 +45,19 @@ const MAX_COUNT_BEFORE_YIELD: usize = 1000;
 /// of them per `process()` call before yielding.
 const FIND_AND_SCHEDULE_BATCH_SIZE: usize = 10000;
 const MAX_UPPERS_FOLLOWER_PRODUCT: usize = 31;
+/// Maximum number of `OptimizeJob`s held in the in-memory `optimize_queue` at one time.
+/// When this is reached, further pushes are dropped and the affected tasks have their
+/// `optimization_pending` flag set so the work is recovered later by
+/// `check_optimization_pending`.
+const MAX_OPTIMIZE_QUEUE_SIZE: usize = 10000;
+/// Maximum number of optimizations executed by a single `AggregationUpdateQueue` instance
+/// over its lifetime. Once exhausted, queued and newly pushed `OptimizeJob`s are dropped
+/// the same way as when `MAX_OPTIMIZE_QUEUE_SIZE` is reached.
+const MAX_OPTIMIZATIONS_PER_QUEUE: usize = 1000;
+#[cfg(not(feature = "trace_aggregation_update"))]
+const AGGREGATION_UPDATE_CATEGORY: TaskDataCategory = TaskDataCategory::Meta;
+#[cfg(feature = "trace_aggregation_update")]
+const AGGREGATION_UPDATE_CATEGORY: TaskDataCategory = TaskDataCategory::All;
 
 type TaskIdVec = SmallVec<[TaskId; 4]>;
 type TaskIdWithCountVec = SmallVec<[(TaskId, u32); 2]>;
@@ -81,6 +94,13 @@ fn get_followers(task: &impl TaskGuard) -> TaskIdVec {
 /// aggregating over the task.
 pub fn get_uppers(task: &impl TaskGuard) -> TaskIdVec {
     task.iter_upper().map(|(&id, _count)| id).collect()
+}
+
+/// Acquires a `Meta`-category guard for `task_id` and sets `optimization_pending`. Used in
+/// the optimize-queue drop paths when the caller doesn't already hold a guard for the task.
+fn lock_and_mark_optimization_pending(ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+    let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+    task.set_optimization_pending(true);
 }
 
 /// Returns the aggregation number of the task.
@@ -240,6 +260,12 @@ pub enum AggregationUpdateJob {
     },
     /// Notifies multiple upper tasks that one of its inner tasks has new followers.
     InnerOfUppersHasNewFollowers(Box<InnerOfUppersHasNewFollowersJob>),
+    /// Notifies an upper task that one of its inner tasks has lost a follower.
+    InnerOfUpperLostFollower {
+        upper_id: TaskId,
+        lost_follower_id: TaskId,
+        retry: u16,
+    },
     /// Notifies multiple upper tasks that one of its inner tasks has lost a follower.
     InnerOfUppersLostFollower {
         upper_ids: TaskIdVec,
@@ -726,15 +752,36 @@ impl Eq for BalanceJob {}
 #[derive(Encode, Decode, Clone)]
 struct OptimizeJob {
     task_id: TaskId,
+    /// Whether the `optimization_pending` flag was known to already be set on the task at
+    /// the moment the job was enqueued. When this is true, dropping the job (because the
+    /// per-queue optimization budget got exhausted before processing it, or because the
+    /// in-memory queue was full at push time) does not require taking a task lock to mark
+    /// the task pending — the flag is already set.
+    ///
+    /// This is a best-effort snapshot taken at push time. It can become stale by the time
+    /// the job is processed, either through:
+    /// - concurrent updates (another thread sets or clears `optimization_pending`), or
+    /// - `RingSet` deduplication (a second push for the same `task_id` is a no-op even if it would
+    ///   record a different snapshot — the original entry's value is kept).
+    ///
+    /// A stale snapshot is still correct, just possibly suboptimal:
+    /// - If the snapshot is `false` but the flag is now `true`: at drop we acquire a guard and
+    ///   re-set the flag (a no-op write — slightly wasted work, but correct).
+    /// - If the snapshot is `true` but the flag is now `false`: at drop we skip the guard. The
+    ///   only way this can happen is that some other path ran `optimize_task` for this task and
+    ///   cleared the flag — i.e., the optimization we were about to drop has already been
+    ///   performed. Skipping the flag set is exactly what we want.
+    optimization_pending_flag_already_set: bool,
     #[cfg(feature = "trace_aggregation_update_queue")]
     #[bincode(skip)]
     span: Option<Span>,
 }
 
 impl OptimizeJob {
-    fn new(task: TaskId) -> Self {
+    fn new(task: TaskId, optimization_pending_flag_already_set: bool) -> Self {
         Self {
             task_id: task,
+            optimization_pending_flag_already_set,
             #[cfg(feature = "trace_aggregation_update_queue")]
             span: Some(Span::current()),
         }
@@ -787,6 +834,30 @@ impl PartialEq for FindAndScheduleJob {
 }
 
 impl Eq for FindAndScheduleJob {}
+
+#[cfg(feature = "trace_aggregation_update_stats")]
+#[derive(Default, Encode, Decode, Clone, Debug)]
+pub struct AggregationUpdateQueueStats {
+    new_followers: usize,
+    inner_of_upper_has_new_follower: usize,
+    inner_of_uppers_has_new_follower: usize,
+    inner_of_upper_has_new_followers: usize,
+    lost_followers: usize,
+    inner_of_upper_lost_follower: usize,
+    inner_of_upper_lost_followers: usize,
+    inner_of_uppers_lost_follower: usize,
+    increase_active_count: usize,
+    decrease_active_count: usize,
+    balance_edge: usize,
+    balance_edge_batches: usize,
+    update_aggregation_number: usize,
+    update_aggregation_number_batches: usize,
+    optimize_task: usize,
+    aggregated_data_update: usize,
+    find_and_schedule_dirty_batches: usize,
+    find_and_schedule_dirty: usize,
+    schedule_task: usize,
+}
 
 /// Encodes the jobs in the queue. This is used to filter out transient jobs during encoding.
 mod encode_jobs {
@@ -856,8 +927,16 @@ pub struct AggregationUpdateQueue {
     balance_queue: FxRingSet<BalanceJob>,
     #[bincode(with = "turbo_bincode::ringset")]
     optimize_queue: FxRingSet<OptimizeJob>,
+    /// Number of optimizations executed by this queue so far. See
+    /// `MAX_OPTIMIZATIONS_PER_QUEUE`. Persisted with the queue so the budget is preserved
+    /// across suspend/resume — otherwise resuming a queue would reset the budget and a long
+    /// operation could perform arbitrarily many optimizations by going through several
+    /// suspend/resume cycles.
+    optimizations_executed: usize,
     #[bincode(skip, default = "FxHashMap::default")]
     scheduled_tasks: FxHashMap<TaskId, TaskPriority>,
+    #[cfg(feature = "trace_aggregation_update_stats")]
+    pub stats: AggregationUpdateQueueStats,
 }
 
 impl AggregationUpdateQueue {
@@ -870,7 +949,10 @@ impl AggregationUpdateQueue {
             find_and_schedule: FxRingSet::default(),
             balance_queue: FxRingSet::default(),
             optimize_queue: FxRingSet::default(),
+            optimizations_executed: 0,
             scheduled_tasks: FxHashMap::default(),
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            stats: AggregationUpdateQueueStats::default(),
         }
     }
 
@@ -882,8 +964,11 @@ impl AggregationUpdateQueue {
             find_and_schedule,
             balance_queue,
             optimize_queue,
+            optimizations_executed: _,
             done_aggregation_number_updates: _,
             scheduled_tasks,
+            #[cfg(feature = "trace_aggregation_update_stats")]
+                stats: _,
         } = self;
         jobs.is_empty()
             && aggregation_number_updates.is_empty()
@@ -971,9 +1056,82 @@ impl AggregationUpdateQueue {
             .extend(task_ids.into_iter().map(FindAndScheduleJob::new));
     }
 
-    /// Pushes a job to optimize a task.
-    fn push_optimize_task(&mut self, task_id: TaskId) {
-        self.optimize_queue.push_back(OptimizeJob::new(task_id));
+    /// Whether this queue has reached its lifetime budget for executed optimizations.
+    /// While exhausted, popped `OptimizeJob`s are dropped instead of run, and pushes don't
+    /// enqueue (see [`Self::try_enqueue_optimize_job`]).
+    fn is_optimization_budget_exhausted(&self) -> bool {
+        self.optimizations_executed >= MAX_OPTIMIZATIONS_PER_QUEUE
+    }
+
+    /// Tries to enqueue an `OptimizeJob`. Returns `false` if the in-memory queue is at its
+    /// `MAX_OPTIMIZE_QUEUE_SIZE` cap or this queue's lifetime budget is exhausted, in which
+    /// case the caller is responsible for setting `optimization_pending` on the task so the
+    /// dropped optimization can be recovered later via [`Self::check_optimization_pending`].
+    ///
+    /// Pass `optimization_pending_flag_already_set = true` when `optimization_pending` was just
+    /// observed as `true`. If this job is later dropped at process time (because the budget
+    /// runs out before it gets a turn), this lets us skip a task lock that would only be used
+    /// to re-write a flag that's already set.
+    #[must_use = "if false, the caller must set `optimization_pending` to recover the drop"]
+    fn try_enqueue_optimize_job(
+        &mut self,
+        task_id: TaskId,
+        optimization_pending_flag_already_set: bool,
+    ) -> bool {
+        if self.is_optimization_budget_exhausted()
+            || self.optimize_queue.len() >= MAX_OPTIMIZE_QUEUE_SIZE
+        {
+            return false;
+        }
+        self.optimize_queue.push_back(OptimizeJob::new(
+            task_id,
+            optimization_pending_flag_already_set,
+        ));
+        true
+    }
+
+    /// Schedules an optimization of `task`'s aggregation number.
+    ///
+    /// Records the current `optimization_pending` flag value on the enqueued job — reading
+    /// it is free since the caller already holds the guard, and the saved flag value lets
+    /// a later drop avoid an unnecessary flag write.
+    /// If the job can't be enqueued the flag is set on the task instead.
+    fn push_optimize_task(&mut self, task: &mut impl TaskGuard) {
+        let optimization_pending_flag_already_set = task.optimization_pending();
+        if !self.try_enqueue_optimize_job(task.id(), optimization_pending_flag_already_set) {
+            task.set_optimization_pending(true);
+        }
+    }
+
+    /// Like [`Self::push_optimize_task`], but takes a task id instead of a guard.
+    ///
+    /// Only called from `optimize_task`'s self re-enqueue, which has just cleared the flag at
+    /// entry, so the enqueued job carries `optimization_pending_flag_already_set = false`. The
+    /// `Meta`-category guard is acquired only when the push has to be dropped.
+    fn push_optimize_task_by_id(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+        if !self.try_enqueue_optimize_job(task_id, false) {
+            lock_and_mark_optimization_pending(ctx, task_id);
+        }
+    }
+
+    /// If the `optimization_pending` flag is set on `task`, enqueues an `OptimizeJob` so the
+    /// dropped optimization gets retried. Used as a lazy recovery hook from aggregation
+    /// update handlers that already hold a task guard. The flag itself is cleared later,
+    /// when `optimize_task` actually runs for this task.
+    ///
+    /// Intentionally not called from `find_and_schedule_dirty_internal`: that function
+    /// schedules dirty tasks but doesn't perform aggregation work that materially benefits
+    /// from up-to-date optimization, so we leave its tasks for one of the other recovery
+    /// hooks to pick up. There is currently no dedicated unit test for the drop/recovery
+    /// paths; coverage relies on integration tests that exercise the aggregation graph.
+    fn check_optimization_pending(&mut self, task: &impl TaskGuard) {
+        if !task.optimization_pending() {
+            // Common case: nothing pending, no work to do.
+            return;
+        }
+        // Flag is already set: even if this job ends up being dropped, no flag write is
+        // needed and we can let the return value go.
+        let _ = self.try_enqueue_optimize_job(task.id(), true);
     }
 
     /// Runs the job and all dependent jobs until it's done. It can persist the operation, so
@@ -1003,6 +1161,11 @@ impl AggregationUpdateQueue {
                     let uppers = upper_ids.len();
                     let followers = new_follower_ids.len();
                     if uppers == 1 && followers == 1 {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += 1;
+                            self.stats.inner_of_upper_has_new_follower += 1;
+                        }
                         self.inner_of_upper_has_new_follower(
                             ctx,
                             new_follower_ids[0],
@@ -1020,6 +1183,11 @@ impl AggregationUpdateQueue {
                             } else {
                                 take(upper_ids)
                             };
+                            #[cfg(feature = "trace_aggregation_update_stats")]
+                            {
+                                self.stats.new_followers += uppers;
+                                self.stats.inner_of_uppers_has_new_follower += 1;
+                            }
                             self.inner_of_uppers_has_new_follower(ctx, new_follower_id, upper_ids);
                         }
                     } else if let Some(upper_id) = upper_ids.pop() {
@@ -1032,6 +1200,11 @@ impl AggregationUpdateQueue {
                         } else {
                             take(new_follower_ids)
                         };
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += followers;
+                            self.stats.inner_of_upper_has_new_followers += 1;
+                        }
                         self.inner_of_upper_has_new_followers(ctx, new_follower_ids, upper_id);
                     }
                 }
@@ -1040,8 +1213,18 @@ impl AggregationUpdateQueue {
                     new_follower_id,
                 } => {
                     if upper_ids.len() == 1 {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += upper_ids.len();
+                            self.stats.inner_of_upper_has_new_follower += 1;
+                        }
                         self.inner_of_upper_has_new_follower(ctx, new_follower_id, upper_ids[0], 1);
                     } else {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += upper_ids.len();
+                            self.stats.inner_of_uppers_has_new_follower += 1;
+                        }
                         self.inner_of_uppers_has_new_follower(ctx, new_follower_id, upper_ids);
                     }
                 }
@@ -1051,8 +1234,18 @@ impl AggregationUpdateQueue {
                 } => {
                     if upper_ids.len() == 1 {
                         let (id, count) = upper_ids[0];
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += upper_ids.len();
+                            self.stats.inner_of_upper_has_new_follower += 1;
+                        }
                         self.inner_of_upper_has_new_follower(ctx, new_follower_id, id, count);
                     } else {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += upper_ids.len();
+                            self.stats.inner_of_uppers_has_new_follower += 1;
+                        }
                         self.inner_of_uppers_has_new_follower(ctx, new_follower_id, upper_ids);
                     }
                 }
@@ -1061,8 +1254,18 @@ impl AggregationUpdateQueue {
                     new_follower_ids,
                 } => {
                     if new_follower_ids.len() == 1 {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += new_follower_ids.len();
+                            self.stats.inner_of_upper_has_new_follower += 1;
+                        }
                         self.inner_of_upper_has_new_follower(ctx, new_follower_ids[0], upper_id, 1);
                     } else {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += new_follower_ids.len();
+                            self.stats.inner_of_upper_has_new_followers += 1;
+                        }
                         self.inner_of_upper_has_new_followers(ctx, new_follower_ids, upper_id);
                     }
                 }
@@ -1072,8 +1275,18 @@ impl AggregationUpdateQueue {
                 } => {
                     if new_follower_ids.len() == 1 {
                         let (id, count) = new_follower_ids[0];
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += new_follower_ids.len();
+                            self.stats.inner_of_upper_has_new_follower += 1;
+                        }
                         self.inner_of_upper_has_new_follower(ctx, id, upper_id, count);
                     } else {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += new_follower_ids.len();
+                            self.stats.inner_of_upper_has_new_followers += 1;
+                        }
                         self.inner_of_upper_has_new_followers(ctx, new_follower_ids, upper_id);
                     }
                 }
@@ -1081,14 +1294,45 @@ impl AggregationUpdateQueue {
                     upper_id,
                     new_follower_id,
                 } => {
+                    #[cfg(feature = "trace_aggregation_update_stats")]
+                    {
+                        self.stats.new_followers += 1;
+                        self.stats.inner_of_upper_has_new_follower += 1;
+                    }
                     self.inner_of_upper_has_new_follower(ctx, new_follower_id, upper_id, 1);
+                }
+                AggregationUpdateJob::InnerOfUpperLostFollower {
+                    lost_follower_id,
+                    upper_id,
+                    retry,
+                } => {
+                    #[cfg(feature = "trace_aggregation_update_stats")]
+                    {
+                        self.stats.lost_followers += 1;
+                        self.stats.inner_of_upper_lost_follower += 1;
+                    }
+                    self.inner_of_upper_lost_follower(ctx, lost_follower_id, upper_id, retry);
                 }
                 AggregationUpdateJob::InnerOfUppersLostFollowers(mut boxed) => {
                     let InnerOfUppersLostFollowersJob {
                         upper_ids,
                         lost_follower_ids,
                     } = &mut *boxed;
-                    if upper_ids.len() > lost_follower_ids.len() {
+                    let uppers = upper_ids.len();
+                    let followers = lost_follower_ids.len();
+                    if uppers == 1 && followers == 1 {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += 1;
+                            self.stats.inner_of_upper_lost_follower += 1;
+                        }
+                        self.inner_of_upper_lost_follower(
+                            ctx,
+                            lost_follower_ids[0],
+                            upper_ids[0],
+                            0,
+                        );
+                    } else if uppers > followers {
                         if let Some(lost_follower_id) = lost_follower_ids.pop() {
                             let upper_ids = if !lost_follower_ids.is_empty() {
                                 let upper_ids = upper_ids.clone();
@@ -1099,6 +1343,11 @@ impl AggregationUpdateQueue {
                             } else {
                                 take(upper_ids)
                             };
+                            #[cfg(feature = "trace_aggregation_update_stats")]
+                            {
+                                self.stats.lost_followers += uppers;
+                                self.stats.inner_of_upper_lost_follower += 1;
+                            }
                             self.inner_of_uppers_lost_follower(ctx, lost_follower_id, upper_ids, 0);
                         }
                     } else if let Some(upper_id) = upper_ids.pop() {
@@ -1111,6 +1360,11 @@ impl AggregationUpdateQueue {
                         } else {
                             take(lost_follower_ids)
                         };
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += followers;
+                            self.stats.inner_of_upper_lost_followers += 1;
+                        }
                         self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, 0);
                     }
                 }
@@ -1119,19 +1373,61 @@ impl AggregationUpdateQueue {
                     lost_follower_id,
                     retry,
                 } => {
-                    self.inner_of_uppers_lost_follower(ctx, lost_follower_id, upper_ids, retry);
+                    if upper_ids.len() == 1 {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += upper_ids.len();
+                            self.stats.inner_of_upper_lost_follower += 1;
+                        }
+                        self.inner_of_upper_lost_follower(
+                            ctx,
+                            lost_follower_id,
+                            upper_ids[0],
+                            retry,
+                        );
+                    } else {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += upper_ids.len();
+                            self.stats.inner_of_uppers_lost_follower += 1;
+                        }
+                        self.inner_of_uppers_lost_follower(ctx, lost_follower_id, upper_ids, retry);
+                    }
                 }
                 AggregationUpdateJob::InnerOfUpperLostFollowers {
                     upper_id,
                     lost_follower_ids,
                     retry,
                 } => {
-                    self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, retry);
+                    if lost_follower_ids.len() == 1 {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += lost_follower_ids.len();
+                            self.stats.inner_of_upper_lost_follower += 1;
+                        }
+                        self.inner_of_upper_lost_follower(
+                            ctx,
+                            lost_follower_ids[0],
+                            upper_id,
+                            retry,
+                        );
+                    } else {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += lost_follower_ids.len();
+                            self.stats.inner_of_upper_lost_followers += 1;
+                        }
+                        self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, retry);
+                    }
                 }
                 AggregationUpdateJob::AggregatedDataUpdate(box AggregatedDataUpdateJob {
                     upper_ids,
                     update,
                 }) => {
+                    #[cfg(feature = "trace_aggregation_update_stats")]
+                    {
+                        self.stats.aggregated_data_update += 1;
+                    }
                     self.aggregated_data_update(upper_ids, ctx, update);
                 }
                 AggregationUpdateJob::InvalidateDueToCollectiblesChange {
@@ -1178,6 +1474,10 @@ impl AggregationUpdateQueue {
             }
             false
         } else if !self.aggregation_number_updates.is_empty() {
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            {
+                self.stats.update_aggregation_number_batches += 1;
+            }
             let mut remaining = MAX_COUNT_BEFORE_YIELD;
             while remaining > 0 {
                 if let Some((
@@ -1201,6 +1501,10 @@ impl AggregationUpdateQueue {
                             span: None,
                         },
                     );
+                    #[cfg(feature = "trace_aggregation_update_stats")]
+                    {
+                        self.stats.update_aggregation_number += 1;
+                    }
                     self.update_aggregation_number(ctx, task_id, distance, base_aggregation_number);
                     remaining -= 1;
                 } else {
@@ -1209,6 +1513,10 @@ impl AggregationUpdateQueue {
             }
             false
         } else if !self.balance_queue.is_empty() {
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            {
+                self.stats.balance_edge_batches += 1;
+            }
             let mut remaining = MAX_COUNT_BEFORE_YIELD;
             while remaining > 0 {
                 if let Some(BalanceJob {
@@ -1220,6 +1528,10 @@ impl AggregationUpdateQueue {
                 {
                     #[cfg(feature = "trace_aggregation_update_queue")]
                     let _guard = span.map(|s| s.entered());
+                    #[cfg(feature = "trace_aggregation_update_stats")]
+                    {
+                        self.stats.balance_edge += 1;
+                    }
                     self.balance_edge(ctx, upper, task);
                     remaining -= 1;
                 } else {
@@ -1229,16 +1541,33 @@ impl AggregationUpdateQueue {
             false
         } else if let Some(OptimizeJob {
             task_id,
+            optimization_pending_flag_already_set,
             #[cfg(feature = "trace_aggregation_update_queue")]
             span,
         }) = self.optimize_queue.pop_front()
         {
-            // Note: We must process one optimization completely before starting with the next one.
-            // Otherwise this could lead to optimizing every node of a subgraph of inner nodes, as
-            // all have the same upper count. Optimizing the root first
+            if self.is_optimization_budget_exhausted() {
+                // Budget exhausted: drop this job and mark the task so the optimization is
+                // recovered later by a future aggregation update operation. We process one
+                // dropped job per `process()` call to spread the (cheap) flag-setting work
+                // and to keep yielding to other queues.
+                if !optimization_pending_flag_already_set {
+                    lock_and_mark_optimization_pending(ctx, task_id);
+                }
+                return false;
+            }
+            // Note: We must process one optimization completely before starting with the next
+            // one. Otherwise this could lead to optimizing every node of a subgraph of inner
+            // nodes, as all have the same upper count. Optimizing the root first lets the
+            // children become "doesn't need optimization".
             #[cfg(feature = "trace_aggregation_update_queue")]
             let _guard = span.map(|s| s.entered());
-            self.optimize_task(ctx, task_id);
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            {
+                self.stats.optimize_task += 1;
+            }
+            self.optimizations_executed += 1;
+            self.optimize_task(ctx, task_id, optimization_pending_flag_already_set);
             false
         } else if !self.find_and_schedule.is_empty() {
             let count = self
@@ -1247,9 +1576,18 @@ impl AggregationUpdateQueue {
                 .min(FIND_AND_SCHEDULE_BATCH_SIZE);
             let jobs: SmallVec<[FindAndScheduleJob; 4]> =
                 self.find_and_schedule.drain(..count).collect();
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            {
+                self.stats.find_and_schedule_dirty_batches += 1;
+                self.stats.find_and_schedule_dirty += jobs.len();
+            }
             self.find_and_schedule_dirty(jobs, ctx);
             false
         } else if !self.scheduled_tasks.is_empty() {
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            {
+                self.stats.schedule_task += self.scheduled_tasks.len();
+            }
             ctx.for_each_task_all(
                 self.scheduled_tasks.keys().copied(),
                 "schedule tasks",
@@ -1278,8 +1616,10 @@ impl AggregationUpdateQueue {
             upper_id,
             task_id,
             // For performance reasons this should stay `Meta` and not `All`
-            TaskDataCategory::Meta,
+            AGGREGATION_UPDATE_CATEGORY,
         );
+        self.check_optimization_pending(&upper);
+        self.check_optimization_pending(&task);
         let upper_aggregation_number = get_aggregation_number(&upper);
         let task_aggregation_number = get_aggregation_number(&task);
 
@@ -1295,7 +1635,7 @@ impl AggregationUpdateQueue {
                 let _span = trace_span!("make inner").entered();
 
                 if upper.followers_len().is_power_of_two() {
-                    self.push_optimize_task(upper_id);
+                    self.push_optimize_task(&mut upper);
                 }
 
                 let upper_ids = get_uppers(&upper);
@@ -1303,7 +1643,7 @@ impl AggregationUpdateQueue {
                 // Add the same amount of upper edges
                 if task.update_upper_count(upper_id, count) {
                     if task.upper_len().is_power_of_two() {
-                        self.push_optimize_task(task_id);
+                        self.push_optimize_task(&mut task);
                     }
                     // When this is a new inner node, update aggregated data and
                     // followers
@@ -1367,7 +1707,7 @@ impl AggregationUpdateQueue {
                 if upper.update_followers_count(task_id, count) {
                     // May optimize the task
                     if upper.followers_len().is_power_of_two() {
-                        self.push_optimize_task(upper_id);
+                        self.push_optimize_task(&mut upper);
                     }
                     if ctx.should_track_activeness() {
                         // update active count
@@ -1510,6 +1850,7 @@ impl AggregationUpdateQueue {
             upper_ids.iter().copied(),
             "aggregated data update",
             |mut upper, ctx| {
+                self.check_optimization_pending(&upper);
                 let diff = update.apply(&mut upper, ctx.should_track_activeness(), self);
                 if !diff.is_empty() {
                     let upper_ids = get_uppers(&upper);
@@ -1525,6 +1866,177 @@ impl AggregationUpdateQueue {
                 }
             },
         );
+    }
+
+    fn inner_of_upper_lost_follower(
+        &mut self,
+        ctx: &mut impl ExecuteContext<'_>,
+        lost_follower_id: TaskId,
+        upper_id: TaskId,
+        mut retry: u16,
+    ) {
+        #[cfg(feature = "trace_aggregation_update")]
+        let _span = trace_span!("lost follower").entered();
+
+        // see documentation of `retry_loop` for more information why this is needed
+        let result = retry_loop(retry, || {
+            // STEP 1
+            let mut follower = ctx.task(
+                lost_follower_id,
+                // For performance reasons this should stay `Meta` and not `All`
+                AGGREGATION_UPDATE_CATEGORY,
+            );
+            self.check_optimization_pending(&follower);
+
+            // STEP 2
+            let mut is_upper = true;
+            let mut removed_upper = false;
+
+            // STEP 3
+            follower.update_upper(upper_id, |old| {
+                let Some(old) = old else {
+                    is_upper = false;
+                    return None;
+                };
+                if old == 1 {
+                    removed_upper = true;
+                    return None;
+                }
+                Some(old - 1)
+            });
+
+            // STEP 4
+            if is_upper {
+                if removed_upper {
+                    let data = AggregatedDataUpdate::from_task(&mut follower).invert();
+                    let followers = get_followers(&follower);
+                    drop(follower);
+
+                    // STEP 5
+                    if !data.is_empty() {
+                        // remove data from upper
+                        let mut upper = ctx.task(
+                            upper_id,
+                            // For performance reasons this should stay `Meta` and not `All`
+                            AGGREGATION_UPDATE_CATEGORY,
+                        );
+                        // STEP 6
+                        let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
+                        if !diff.is_empty() {
+                            let upper_ids = get_uppers(&upper);
+                            self.push(
+                                AggregatedDataUpdateJob {
+                                    upper_ids,
+                                    update: diff,
+                                }
+                                .into(),
+                            )
+                        }
+                    }
+                    // STEP 7
+                    if !followers.is_empty() {
+                        self.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
+                            upper_id,
+                            lost_follower_ids: followers,
+                            retry: 0,
+                        });
+                    }
+                } else {
+                    drop(follower);
+                }
+
+                // STEP 8
+                return ControlFlow::Break(());
+            }
+
+            drop(follower);
+
+            // STEP 9
+            let mut upper = ctx.task(
+                upper_id,
+                // For performance reasons this should stay `Meta` and not `All`
+                AGGREGATION_UPDATE_CATEGORY,
+            );
+            let mut is_follower = true;
+            let mut removed_follower = false;
+
+            // STEP 10
+            upper.update_followers(lost_follower_id, |old| {
+                let Some(old) = old else {
+                    is_follower = false;
+                    return None;
+                };
+                if old == 1 {
+                    removed_follower = true;
+                    return None;
+                }
+                Some(old - 1)
+            });
+
+            // STEP 11
+            if is_follower {
+                if removed_follower {
+                    // STEP 12
+                    // May optimize the task
+                    if upper.followers_len().is_power_of_two() {
+                        self.push_optimize_task(&mut upper);
+                    }
+
+                    // STEP 13
+                    let has_active_count = ctx.should_track_activeness()
+                        && upper.get_activeness().is_some_and(|a| a.active_counter > 0);
+                    let upper_ids = get_uppers(&upper);
+                    drop(upper);
+
+                    // STEP 14
+                    // update active count
+                    if has_active_count {
+                        self.push(AggregationUpdateJob::DecreaseActiveCount {
+                            task: lost_follower_id,
+                        });
+                    }
+
+                    // STEP 15
+                    // notify uppers about lost follower
+                    if !upper_ids.is_empty() {
+                        self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
+                            upper_ids,
+                            lost_follower_id,
+                            retry: 0,
+                        });
+                    }
+                } else {
+                    drop(upper);
+                }
+
+                // STEP 16
+                return ControlFlow::Break(());
+            }
+            ControlFlow::Continue(())
+        });
+
+        // STEP 17
+        if result.is_err() {
+            retry += 1;
+            if retry > MAX_RETRIES {
+                let lost_follower_description = ctx
+                    .task(lost_follower_id, TaskDataCategory::Data)
+                    .get_task_description();
+                let upper_description = ctx
+                    .task(upper_id, TaskDataCategory::Data)
+                    .get_task_description();
+                panic!(
+                    "inner_of_upper_lost_follower is not able to remove follower \
+                     {lost_follower_id} ({lost_follower_description}) from {upper_id} \
+                     {upper_description} as it doesn't exist as upper or follower edges",
+                );
+            }
+            self.push(AggregationUpdateJob::InnerOfUpperLostFollower {
+                upper_id,
+                lost_follower_id,
+                retry,
+            });
+        }
     }
 
     fn inner_of_uppers_lost_follower(
@@ -1543,8 +2055,9 @@ impl AggregationUpdateQueue {
             let mut follower = ctx.task(
                 lost_follower_id,
                 // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
+                AGGREGATION_UPDATE_CATEGORY,
             );
+            self.check_optimization_pending(&follower);
 
             // STEP 2
             let mut removed_uppers = SmallVec::new();
@@ -1581,6 +2094,7 @@ impl AggregationUpdateQueue {
                         removed_uppers.iter().copied(),
                         "remove data from uppers",
                         |mut upper, ctx| {
+                            self.check_optimization_pending(&upper);
                             // STEP 6
                             let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                             if !diff.is_empty() {
@@ -1620,7 +2134,7 @@ impl AggregationUpdateQueue {
                 let mut upper = ctx.task(
                     upper_id,
                     // For performance reasons this should stay `Meta` and not `All`
-                    TaskDataCategory::Meta,
+                    AGGREGATION_UPDATE_CATEGORY,
                 );
                 let mut not_a_follower = false;
                 let mut removed_follower = false;
@@ -1643,7 +2157,7 @@ impl AggregationUpdateQueue {
                     // STEP 12
                     // May optimize the task
                     if upper.followers_len().is_power_of_two() {
-                        self.push_optimize_task(upper_id);
+                        self.push_optimize_task(&mut upper);
                     }
 
                     // STEP 13
@@ -1733,8 +2247,9 @@ impl AggregationUpdateQueue {
                 let mut follower = ctx.task(
                     lost_follower_id,
                     // For performance reasons this should stay `Meta` and not `All`
-                    TaskDataCategory::Meta,
+                    AGGREGATION_UPDATE_CATEGORY,
                 );
+                self.check_optimization_pending(&follower);
 
                 // STEP 2
                 let mut remove_upper = false;
@@ -1765,7 +2280,7 @@ impl AggregationUpdateQueue {
                         let mut upper = ctx.task(
                             upper_id,
                             // For performance reasons this should stay `Meta` and not `All`
-                            TaskDataCategory::Meta,
+                            AGGREGATION_UPDATE_CATEGORY,
                         );
                         // STEP 6
                         let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
@@ -1805,7 +2320,7 @@ impl AggregationUpdateQueue {
             let mut upper = ctx.task(
                 upper_id,
                 // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
+                AGGREGATION_UPDATE_CATEGORY,
             );
             swap_retain(&mut lost_follower_ids, |&mut lost_follower_id| {
                 let mut not_a_follower = false;
@@ -1831,7 +2346,7 @@ impl AggregationUpdateQueue {
                 if (followers_len + removed_followers.len()).next_power_of_two()
                     != followers_len.next_power_of_two()
                 {
-                    self.push_optimize_task(upper_id);
+                    self.push_optimize_task(&mut upper);
                 }
 
                 // STEP 13
@@ -1924,7 +2439,7 @@ impl AggregationUpdateQueue {
             let follower = ctx.task(
                 new_follower_id,
                 // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
+                AGGREGATION_UPDATE_CATEGORY,
             );
             get_aggregation_number(&follower)
         };
@@ -1940,8 +2455,9 @@ impl AggregationUpdateQueue {
                 let mut upper = ctx.task(
                     upper_id,
                     // For performance reasons this should stay `Meta` and not `All`
-                    TaskDataCategory::Meta,
+                    AGGREGATION_UPDATE_CATEGORY,
                 );
+                self.check_optimization_pending(&upper);
                 // decide if it should be an inner or follower
                 let upper_aggregation_number = get_aggregation_number(&upper);
 
@@ -1955,7 +2471,7 @@ impl AggregationUpdateQueue {
                         // STEP 3b
                         // May optimize the task
                         if upper.followers_len().is_power_of_two() {
-                            self.push_optimize_task(upper_id);
+                            self.push_optimize_task(&mut upper);
                         }
 
                         // STEP 3c
@@ -2011,7 +2527,7 @@ impl AggregationUpdateQueue {
             let mut new_follower = ctx.task(
                 new_follower_id,
                 // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
+                AGGREGATION_UPDATE_CATEGORY,
             );
             let follower_aggregation_number = get_aggregation_number(&new_follower);
 
@@ -2051,7 +2567,7 @@ impl AggregationUpdateQueue {
                 // STEP 6b
                 let new_count = new_follower.upper_len();
                 if (new_count - added_uppers).next_power_of_two() != new_count.next_power_of_two() {
-                    self.push_optimize_task(new_follower_id);
+                    self.push_optimize_task(&mut new_follower);
                 }
 
                 // STEP 6c
@@ -2070,6 +2586,7 @@ impl AggregationUpdateQueue {
                             .map(|(entry, _)| entry.task_id()),
                         "add data to uppers",
                         |mut upper, ctx| {
+                            self.check_optimization_pending(&upper);
                             // STEP 6d
                             if has_data {
                                 let diff =
@@ -2172,7 +2689,7 @@ impl AggregationUpdateQueue {
                 let follower = ctx.task(
                     new_follower_id,
                     // For performance reasons this should stay `Meta` and not `All`
-                    TaskDataCategory::Meta,
+                    AGGREGATION_UPDATE_CATEGORY,
                 );
                 (new_follower_id, count, get_aggregation_number(&follower))
             })
@@ -2192,8 +2709,9 @@ impl AggregationUpdateQueue {
                 let mut upper = ctx.task(
                     upper_id,
                     // For performance reasons this should stay `Meta` and not `All`
-                    TaskDataCategory::Meta,
+                    AGGREGATION_UPDATE_CATEGORY,
                 );
+                self.check_optimization_pending(&upper);
 
                 // decide if it should be an inner or follower
                 upper_aggregation_number = get_aggregation_number(&upper);
@@ -2213,7 +2731,7 @@ impl AggregationUpdateQueue {
                                 // STEP 3b
                                 // May optimize the task
                                 if upper.followers_len().is_power_of_two() {
-                                    self.push_optimize_task(upper_id);
+                                    self.push_optimize_task(&mut upper);
                                 }
 
                                 // STEP 3d and 3e are enqueued with this vec
@@ -2289,7 +2807,7 @@ impl AggregationUpdateQueue {
                     let mut new_follower = ctx.task(
                         new_follower_id,
                         // For performance reasons this should stay `Meta` and not `All`
-                        TaskDataCategory::Meta,
+                        AGGREGATION_UPDATE_CATEGORY,
                     );
                     let follower_aggregation_number = get_aggregation_number(&new_follower);
 
@@ -2306,7 +2824,7 @@ impl AggregationUpdateQueue {
                     if new_follower.update_upper_count(upper_id, count) {
                         // STEP 6b
                         if new_follower.upper_len().is_power_of_two() {
-                            self.push_optimize_task(new_follower_id);
+                            self.push_optimize_task(&mut new_follower);
                         }
 
                         // STEP 6c
@@ -2347,7 +2865,7 @@ impl AggregationUpdateQueue {
             let mut upper = ctx.task(
                 upper_id,
                 // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
+                AGGREGATION_UPDATE_CATEGORY,
             );
             let diffs = upper_data_updates
                 .into_iter()
@@ -2388,7 +2906,7 @@ impl AggregationUpdateQueue {
                 let upper = ctx.task(
                     upper_id,
                     // For performance reasons this should stay `Meta` and not `All`
-                    TaskDataCategory::Meta,
+                    AGGREGATION_UPDATE_CATEGORY,
                 );
                 is_active = upper.has_activeness();
             }
@@ -2417,7 +2935,7 @@ impl AggregationUpdateQueue {
             let follower = ctx.task(
                 new_follower_id,
                 // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
+                AGGREGATION_UPDATE_CATEGORY,
             );
             get_aggregation_number(&follower)
         };
@@ -2434,8 +2952,9 @@ impl AggregationUpdateQueue {
             let mut upper = ctx.task(
                 upper_id,
                 // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
+                AGGREGATION_UPDATE_CATEGORY,
             );
+            self.check_optimization_pending(&upper);
             // decide if it should be an inner or follower
             let upper_aggregation_number = get_aggregation_number(&upper);
 
@@ -2452,7 +2971,7 @@ impl AggregationUpdateQueue {
                     // STEP 3b
                     // May optimize the task
                     if upper.followers_len().is_power_of_two() {
-                        self.push_optimize_task(upper_id);
+                        self.push_optimize_task(&mut upper);
                     }
 
                     // STEP 3c
@@ -2502,7 +3021,7 @@ impl AggregationUpdateQueue {
             let mut new_follower = ctx.task(
                 new_follower_id,
                 // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
+                AGGREGATION_UPDATE_CATEGORY,
             );
             let follower_aggregation_number = get_aggregation_number(&new_follower);
 
@@ -2517,7 +3036,7 @@ impl AggregationUpdateQueue {
                 if new_follower.update_upper_count(upper_id, count) {
                     // STEP 6b
                     if new_follower.upper_len().is_power_of_two() {
-                        self.push_optimize_task(new_follower_id);
+                        self.push_optimize_task(&mut new_follower);
                     }
 
                     // STEP 6c
@@ -2532,7 +3051,7 @@ impl AggregationUpdateQueue {
                         let mut upper = ctx.task(
                             upper_id,
                             // For performance reasons this should stay `Meta` and not `All`
-                            TaskDataCategory::Meta,
+                            AGGREGATION_UPDATE_CATEGORY,
                         );
                         let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                         if !diff.is_empty() {
@@ -2560,7 +3079,7 @@ impl AggregationUpdateQueue {
                         let upper = ctx.task(
                             upper_id,
                             // For performance reasons this should stay `Meta` and not `All`
-                            TaskDataCategory::Meta,
+                            AGGREGATION_UPDATE_CATEGORY,
                         );
                         is_active = upper.has_activeness();
                     }
@@ -2586,8 +3105,9 @@ impl AggregationUpdateQueue {
         let mut task = ctx.task(
             task_id,
             // For performance reasons this should stay `Meta` and not `All`
-            TaskDataCategory::Meta,
+            AGGREGATION_UPDATE_CATEGORY,
         );
+        self.check_optimization_pending(&task);
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_zero = state.decrement_active_counter();
@@ -2631,8 +3151,9 @@ impl AggregationUpdateQueue {
             task_id,
             // For performance reasons this should stay Meta and not All.
             // persistent_task_type is now set eagerly in initialize_new_task.
-            TaskDataCategory::Meta,
+            AGGREGATION_UPDATE_CATEGORY,
         );
+        self.check_optimization_pending(&task);
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();
@@ -2678,8 +3199,9 @@ impl AggregationUpdateQueue {
         let mut task = ctx.task(
             task_id,
             // For performance reasons this should stay `Meta` and not `All`
-            TaskDataCategory::Meta,
+            AGGREGATION_UPDATE_CATEGORY,
         );
+        self.check_optimization_pending(&task);
         let current = task.get_aggregation_number().copied().unwrap_or_default();
         let old = current.effective;
         // The base aggregation number can only increase
@@ -2710,7 +3232,7 @@ impl AggregationUpdateQueue {
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!(
                 "update aggregation number",
-                task = ctx.get_task_description(task_id),
+                task = task.get_task_description(),
                 old,
                 aggregation_number
             )
@@ -2757,15 +3279,31 @@ impl AggregationUpdateQueue {
     /// than the number of upper edges. Increasing the aggregation reduces the number of upper
     /// edges, as it places the task in a bigger aggregation group. We want to avoid having too many
     /// upper edges as this amplifies the updates needed when changes to that task occur.
-    fn optimize_task(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+    ///
+    /// `optimization_pending_flag_already_set` is the snapshot recorded on the `OptimizeJob`: when
+    /// `true`, we also need to clear `optimization_pending` here (this is the only path that
+    /// does so); when `false`, the flag is known to be unset already and we can skip the write.
+    fn optimize_task(
+        &mut self,
+        ctx: &mut impl ExecuteContext<'_>,
+        task_id: TaskId,
+        optimization_pending_flag_already_set: bool,
+    ) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("check optimize").entered();
 
-        let task = ctx.task(
+        let mut task = ctx.task(
             task_id,
             // For performance reasons this should stay `Meta` and not `All`
             TaskDataCategory::Meta,
         );
+        if optimization_pending_flag_already_set {
+            // Clear the pending flag — this is the only path that does so. We skip the
+            // write when our snapshot says the flag wasn't set (push path / self-re-enqueue
+            // path); the setter would just no-op in that case, but reading the snapshot is
+            // free and lets us elide the write entirely.
+            task.set_optimization_pending(false);
+        }
         let aggregation_number = task.get_aggregation_number().copied().unwrap_or_default();
         if is_root_node(aggregation_number.effective) {
             return;
@@ -2880,7 +3418,30 @@ impl AggregationUpdateQueue {
                 distance: None,
             });
             // We want to make sure to optimize again after this change has been applied
-            self.push_optimize_task(task_id);
+            self.push_optimize_task_by_id(ctx, task_id);
+        }
+    }
+
+    #[cfg(feature = "trace_aggregation_update_stats")]
+    pub fn execute_with_stats(
+        mut self,
+        ctx: &mut impl ExecuteContext<'_>,
+    ) -> AggregationUpdateQueueStats {
+        loop {
+            ctx.operation_suspend_point(&self);
+            if self.process(ctx) {
+                return self.stats;
+            }
+        }
+    }
+
+    #[cfg(not(feature = "trace_aggregation_update_stats"))]
+    pub fn execute_with_stats(mut self, ctx: &mut impl ExecuteContext<'_>) {
+        loop {
+            ctx.operation_suspend_point(&self);
+            if self.process(ctx) {
+                return;
+            }
         }
     }
 }

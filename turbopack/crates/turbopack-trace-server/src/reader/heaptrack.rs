@@ -7,7 +7,12 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::{RcStr, rcstr};
 
 use super::TraceFormat;
-use crate::{FxIndexMap, span::SpanIndex, store_container::StoreContainer, timestamp::Timestamp};
+use crate::{
+    FxIndexMap,
+    span::{SpanArgs, SpanIndex},
+    store_container::StoreContainer,
+    timestamp::Timestamp,
+};
 
 #[derive(Debug, Clone, Copy)]
 struct TraceNode {
@@ -276,7 +281,7 @@ impl TraceFormat for HeaptrackFormat {
                                             self.last_timestamp,
                                             RcStr::default(),
                                             rcstr!("recursion"),
-                                            Vec::new(),
+                                            SpanArgs::new(),
                                             &mut outdated_spans,
                                         );
                                         store.complete_span(span_index);
@@ -321,7 +326,7 @@ impl TraceFormat for HeaptrackFormat {
                     } else {
                         "unknown".to_string()
                     };
-                    let mut args = Vec::new();
+                    let mut args = SpanArgs::new();
                     for Frame {
                         function_index,
                         file_index,
