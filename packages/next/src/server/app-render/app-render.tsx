@@ -662,12 +662,17 @@ async function generateDynamicRSCPayload(
 
   if (!options?.skipPageRendering) {
     const preloadCallbacks: PreloadCallbacks = []
+    const requestStore = workUnitAsyncStorage.getStore()
 
     // If we're performing instant validation, we need to render the whole tree,
     // without skipping shared layouts.
     const needsFullTree =
       process.env.__NEXT_DEV_SERVER &&
       ctx.renderOpts.cacheComponents &&
+      !(
+        requestStore?.type === 'request' &&
+        isBypassingCachesInDev(requestStore, workStore)
+      ) &&
       !options?.actionResult && // Only for navigations
       (await anySegmentNeedsInstantValidationInDev(loaderTree))
 
@@ -1482,7 +1487,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   // instant configs exist, since we render all the layouts necessary to perform
   // the validation in those cases.
   const shouldValidate =
-    !isBypassingCachesInDev(initialRequestStore) &&
+    !isBypassingCachesInDev(initialRequestStore, workStore) &&
     (initialRequestStore.isHmrRefresh === true ||
       (await anySegmentNeedsInstantValidationInDev(loaderTree)))
 
@@ -1496,7 +1501,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       undefined
     )
 
-    if (isBypassingCachesInDev(requestStore)) {
+    if (isBypassingCachesInDev(requestStore, workStore)) {
       // Mark the RSC payload to indicate that caches were bypassed in dev.
       // This lets the client know not to cache anything based on this render.
       payload._bypassCachesInDev = createElement(WarnForBypassCachesInDev, {
@@ -1519,8 +1524,9 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     // (which is not the case for renders after an action)
     createRequestStore &&
     // We only do this flow if we're not bypassing caches in dev using
-    // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
-    !isBypassingCachesInDev(initialRequestStore)
+    // "disable cache" in devtools, a hard refresh (cache-control: "no-cache"),
+    // or draft mode.
+    !isBypassingCachesInDev(initialRequestStore, workStore)
   ) {
     // Before we kick off the render, we set the cache status back to it's initial state
     // in case a previous render bypassed the cache.
@@ -3439,7 +3445,7 @@ async function renderToStream(
                 { is404: res.statusCode === 404 }
               )
 
-            if (isBypassingCachesInDev(requestStore)) {
+            if (isBypassingCachesInDev(requestStore, workStore)) {
               // Mark the RSC payload to indicate that caches were bypassed in dev.
               // This lets the client know not to cache anything based on this render.
               if (renderOpts.setCacheStatus) {
@@ -3462,8 +3468,9 @@ async function renderToStream(
             // (which is not the case for renders after an action)
             createRequestStore &&
             // We only do this flow if we're not bypassing caches in dev using
-            // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
-            !isBypassingCachesInDev(requestStore)
+            // "disable cache" in devtools, a hard refresh (cache-control: "no-cache"),
+            // or draft mode.
+            !isBypassingCachesInDev(requestStore, workStore)
           ) {
             const {
               stream: serverStream,
@@ -3557,7 +3564,7 @@ async function renderToStream(
                 { is404: res.statusCode === 404 }
               )
 
-            if (isBypassingCachesInDev(requestStore)) {
+            if (isBypassingCachesInDev(requestStore, workStore)) {
               // Mark the RSC payload to indicate that caches were bypassed in dev.
               // This lets the client know not to cache anything based on this render.
               if (renderOpts.setCacheStatus) {
@@ -3580,8 +3587,9 @@ async function renderToStream(
             // (which is not the case for renders after an action)
             createRequestStore &&
             // We only do this flow if we're not bypassing caches in dev using
-            // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
-            !isBypassingCachesInDev(requestStore)
+            // "disable cache" in devtools, a hard refresh (cache-control: "no-cache"),
+            // or draft mode.
+            !isBypassingCachesInDev(requestStore, workStore)
           ) {
             const {
               stream: serverStream,
@@ -8761,10 +8769,15 @@ async function collectSegmentData(
   )
 }
 
-function isBypassingCachesInDev(requestStore: RequestStore): boolean {
+function isBypassingCachesInDev(
+  requestStore: RequestStore,
+  workStore: WorkStore
+): boolean {
   return (
     !!process.env.__NEXT_DEV_SERVER &&
-    requestStore.headers.get('cache-control') === 'no-cache'
+    (requestStore.headers.get('cache-control') === 'no-cache' ||
+      requestStore.draftMode.isEnabled ||
+      workStore.isDraftMode === true)
   )
 }
 

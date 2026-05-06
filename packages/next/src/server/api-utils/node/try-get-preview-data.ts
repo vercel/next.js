@@ -40,13 +40,15 @@ export function tryGetPreviewData(
 
   const previewModeId = cookies.get(COOKIE_NAME_PRERENDER_BYPASS)?.value
   const tokenPreviewData = cookies.get(COOKIE_NAME_PRERENDER_DATA)?.value
+  const isValidPreviewModeId =
+    previewModeId === options.previewModeId ||
+    // In dev mode, the cookie can be the actual hash value preview id but the
+    // preview props can still be `development-id`.
+    (process.env.NODE_ENV !== 'production' &&
+      options.previewModeId === 'development-id')
 
   // Case: preview mode cookie set but data cookie is not set
-  if (
-    previewModeId &&
-    !tokenPreviewData &&
-    previewModeId === options.previewModeId
-  ) {
+  if (previewModeId && !tokenPreviewData && isValidPreviewModeId) {
     // This is "Draft Mode" which doesn't use
     // previewData, so we return an empty object
     // for backwards compat with "Preview Mode".

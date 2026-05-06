@@ -70,6 +70,34 @@ describe('cache-indicator', () => {
       expect(badgeText).toBe('Cache disabled')
     })
 
+    it('shows cache-bypassing badge when draft mode is enabled', async () => {
+      const browser = await next.browser('/api/draft/enable')
+
+      // Wait for the badge to appear and show cache-bypassing status
+      await retry(async () => {
+        const badge = await browser.elementByCss('[data-next-badge]')
+        const cacheBypassingAttr = await badge.getAttribute(
+          'data-cache-bypassing'
+        )
+        expect(cacheBypassingAttr).toBe('true')
+      })
+
+      // Verify the cache bypass badge is visible
+      await retry(async () => {
+        const hasCacheBypassBadge = await browser.hasElementByCss(
+          '[data-cache-bypass-badge]'
+        )
+        expect(hasCacheBypassBadge).toBe(true)
+      })
+
+      // Verify the badge shows "Cache disabled" text
+      const badgeButton = await browser.elementByCss(
+        '[data-cache-bypass-badge] [data-issues-open]'
+      )
+      const badgeText = await badgeButton.text()
+      expect(badgeText).toBe('Cache disabled')
+    })
+
     it('persists cache-bypassing badge after navigation when cache is disabled', async () => {
       const browser = await next.browser('/', {
         extraHTTPHeaders: { 'cache-control': 'no-cache' },
