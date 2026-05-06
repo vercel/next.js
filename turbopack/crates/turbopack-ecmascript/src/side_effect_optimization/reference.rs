@@ -152,7 +152,7 @@ impl EcmascriptModulePartReference {
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
         let referenced_asset = referenced_asset.await?;
 
-        let ReferencedAsset::Some(module) = *referenced_asset else {
+        let ReferencedAsset::Some(module) = referenced_asset else {
             bail!("part module reference should have an module reference");
         };
 

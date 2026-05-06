@@ -81,7 +81,7 @@ impl EsmBinding {
             Unresolvable,
         }
 
-        let imported_ident = match &*imported_module {
+        let imported_ident = match &imported_module {
             ReferencedAsset::None => ImportedIdent::None,
             imported_module => imported_module
                 .get_ident(chunking_context, export, scope_hoisting_context)
