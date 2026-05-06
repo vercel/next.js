@@ -1588,10 +1588,16 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             .local_tasks
             .register_detached();
         let wrapped = async move {
+            // use a drop guard for panic safety
+            struct DropGuard;
+            impl Drop for DropGuard {
+                fn drop(&mut self) {
+                    CURRENT_TASK_STATE
+                        .with(|ts| ts.write().unwrap().local_tasks.decrement_in_flight());
+                }
+            }
+            let _guard = DropGuard;
             fut.await;
-            // Pair for `register_detached`. Tasks panic-aborting upstream means we don't need
-            // RAII guard semantics here; if `fut` panics, the process aborts before this dec.
-            CURRENT_TASK_STATE.with(|ts| ts.write().unwrap().local_tasks.decrement_in_flight());
         };
         tokio::spawn(TURBO_TASKS.scope(
             turbo_tasks(),
