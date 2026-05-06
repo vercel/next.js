@@ -948,14 +948,13 @@ impl FileSystem for DiskFileSystem {
 
         impl Effect for WriteEffect {
             type Error = AnyhowWrapper;
-            type Value = u128;
 
             fn key(&self) -> Box<[u8]> {
                 self.full_path.as_os_str().as_encoded_bytes().into()
             }
 
-            fn value(&self) -> &u128 {
-                &self.content_hash
+            fn value_hash(&self) -> u128 {
+                self.content_hash
             }
 
             fn state_storage(&self) -> &EffectStateStorage {
@@ -1124,14 +1123,13 @@ impl FileSystem for DiskFileSystem {
 
         impl Effect for WriteLinkEffect {
             type Error = AnyhowWrapper;
-            type Value = u128;
 
             fn key(&self) -> Box<[u8]> {
                 self.full_path.as_os_str().as_encoded_bytes().into()
             }
 
-            fn value(&self) -> &u128 {
-                &self.content_hash
+            fn value_hash(&self) -> u128 {
+                self.content_hash
             }
 
             fn state_storage(&self) -> &EffectStateStorage {
