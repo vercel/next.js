@@ -57,9 +57,9 @@ fn main() -> anyhow::Result<()> {
         )
         .build()?;
     vergen_gitcl::Emitter::default()
+        .fail_on_error()
         .add_instructions(&cargo)?
         .add_instructions(&git)?
-        .fail_on_error()
         .emit()?;
 
     match Command::new("git").args(["rev-parse", "HEAD"]).output() {
