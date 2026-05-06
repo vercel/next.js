@@ -1632,8 +1632,10 @@ export default class NextNodeServer extends BaseServer<
 
     // Middleware is skipped for on-demand revalidate requests
     if (
-      checkIsOnDemandRevalidate(params.request, this.renderOpts.previewProps)
-        .isOnDemandRevalidate
+      checkIsOnDemandRevalidate(
+        params.request.headers,
+        this.renderOpts.previewProps
+      ).isOnDemandRevalidate
     ) {
       return {
         response: new Response(null, { headers: { 'x-middleware-next': '1' } }),
