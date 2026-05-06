@@ -14,6 +14,8 @@ pub struct AppEntry {
     pub original_name: RcStr,
     /// The RSC module asset for the route or page.
     pub rsc_entry: ResolvedVc<Box<dyn Module>>,
+    /// For edge, the module wrapped by the sync-ifying facade
+    pub rsc_edge_inner: Option<ResolvedVc<Box<dyn Module>>>,
     /// The source code config for this entry.
     pub config: ResolvedVc<NextSegmentConfig>,
 }

@@ -170,7 +170,9 @@ impl DevHtmlAsset {
                     chunking_context
                         .root_chunk_group_assets(
                             chunkable_module.ident(),
-                            ChunkGroup::Entry(vec![ResolvedVc::upcast(chunkable_module)]),
+                            ChunkGroup::Entry(
+                                [ResolvedVc::upcast(chunkable_module)].into_iter().collect(),
+                            ),
                             *module_graph,
                         )
                         .await?

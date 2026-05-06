@@ -1326,16 +1326,31 @@ impl AppEndpoint {
             *client_chunking_context,
             availability_info,
             ssr_chunking_context.map(|ctx| *ctx),
+            if let Some(rsc_edge_inner) = app_entry.rsc_edge_inner {
+                ChunkGroup::Async(rsc_edge_inner)
+            } else {
+                ChunkGroup::Entry([app_entry.rsc_entry].into_iter().collect())
+            },
+            project.project_path(),
         )
         .to_resolved()
         .await?;
         let client_references_chunks_ref = client_references_chunks.await?;
 
-        for &assets in client_references_chunks_ref
+        for assets in client_references_chunks_ref
             .layout_segment_client_chunks
             .values()
         {
-            client_assets.extend(assets.all_assets().await?.iter().copied());
+            client_assets.extend(
+                assets
+                    .iter()
+                    .map(|a| a.all_assets())
+                    .try_join()
+                    .await?
+                    .iter()
+                    .flatten()
+                    .copied(),
+            );
         }
         for &assets in client_references_chunks_ref
             .client_component_client_chunks
@@ -1788,7 +1803,7 @@ impl AppEndpoint {
 
                 let chunk_group2_assets = chunking_context.evaluated_chunk_group_assets(
                     app_entry.rsc_entry.ident(),
-                    ChunkGroup::Entry(vec![app_entry.rsc_entry]),
+                    ChunkGroup::Entry([app_entry.rsc_entry].into_iter().collect()),
                     module_graph,
                     chunk_group1.await?.availability_info,
                 );
@@ -1801,7 +1816,8 @@ impl AppEndpoint {
                 async {
                     let mut current_chunk_group = ChunkGroupResult::empty_resolved();
 
-                    let entry_chunk_group = ChunkGroup::Entry(vec![app_entry.rsc_entry]);
+                    let entry_chunk_group =
+                        ChunkGroup::Entry([app_entry.rsc_entry].into_iter().collect());
 
                     let chunk_group_info = module_graph.chunk_group_info();
 
@@ -1820,7 +1836,9 @@ impl AppEndpoint {
                             .iter()
                             .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
                             .try_join()
-                            .await?;
+                            .await?
+                            .into_iter()
+                            .collect();
                         let chunk_group = chunking_context
                             .chunk_group(
                                 AssetIdent::from_path(
@@ -1830,7 +1848,7 @@ impl AppEndpoint {
                                 ChunkGroup::SharedMerged {
                                     merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
                                     entries: server_utils,
-                                    parent: parent_chunk_group,
+                                    parent: parent_chunk_group as usize,
                                 },
                                 module_graph,
                                 AvailabilityInfo::root(),

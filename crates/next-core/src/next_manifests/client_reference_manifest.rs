@@ -409,8 +409,16 @@ async fn build_manifest(
             }
         }
 
+        // The server utility chunks are merged into the first layout segment
+        let mut server_utility_chunks = layout_segment_client_chunks.get(&None);
+
         // per layout segment chunks need to be emitted into the manifest too
         for (server_component, client_assets) in layout_segment_client_chunks.iter() {
+            let Some(server_component) = server_component else {
+                // Handled via server_utility_chunks
+                continue;
+            };
+
             // Use source_path() to get the original source path (e.g., page.mdx) instead of
             // server_path() which returns the transformed path (e.g., page.mdx.tsx).
             // This ensures the manifest key matches what the LoaderTree stores and what
@@ -421,19 +429,26 @@ async fn build_manifest(
                 .with_extension("")
                 .to_string_ref()
                 .await?;
-            let entry_js_files = entry_manifest
-                .entry_js_files
-                .entry(server_component_name.clone())
-                .or_default();
+            // let entry_js_files = entry_manifest
+            //     .entry_js_files
+            //     .entry(server_component_name.clone())
+            //     .or_default();
             let entry_css_files = entry_manifest
                 .entry_css_files
                 .entry(server_component_name)
                 .or_default();
 
-            let client_chunks = client_assets.primary_assets().await?;
-            let client_chunks_with_path =
-                cached_chunk_paths(&mut client_chunk_path_cache, client_chunks.iter().copied())
-                    .await?;
+            let client_chunks = client_assets
+                .iter()
+                .chain(server_utility_chunks.take().into_iter().flatten())
+                .map(|assets| assets.primary_assets())
+                .try_join()
+                .await?;
+            let client_chunks_with_path = cached_chunk_paths(
+                &mut client_chunk_path_cache,
+                client_chunks.iter().flatten().copied(),
+            )
+            .await?;
             // Inlining breaks HMR so it is always disabled in dev.
             let inlined_css = *next_config.inline_css().await? && mode.is_production();
 
@@ -461,8 +476,8 @@ async fn build_manifest(
                             inlined: inlined_css,
                             content,
                         });
-                    } else {
-                        entry_js_files.insert(path);
+                    // } else {
+                        // entry_js_files.insert(path);
                     }
                 }
             }

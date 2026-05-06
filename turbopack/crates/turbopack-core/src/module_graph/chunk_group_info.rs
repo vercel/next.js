@@ -1,4 +1,5 @@
 use std::{
+    collections::VecDeque,
     hash::Hash,
     ops::{Deref, DerefMut},
 };
@@ -13,7 +14,7 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
-    Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
+    Vc, debug::ValueDebugFormat, primitives::HashableIndexSet, trace::TraceRawVcs, turbofmt,
 };
 
 use crate::{
@@ -94,6 +95,12 @@ pub struct ChunkGroupInfo {
     #[turbo_tasks(trace_ignore)]
     #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_group_keys: FxIndexSet<ChunkGroupKey>,
+    /// Map parent chunk group & merge tag -> children (immediate or via async)
+    #[turbo_tasks(trace_ignore)]
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub merged_chunk_groups: FxIndexMap<(ChunkGroupId, RcStr), Vec<ChunkGroupId>>,
+    #[turbo_tasks(trace_ignore)]
+    pub chunk_group_children: FxHashMap<ChunkGroupId, Vec<ChunkGroupId>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -104,9 +111,9 @@ impl ChunkGroupInfo {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_index_of(&self, chunk_group: ChunkGroup) -> Result<Vc<usize>> {
+    pub async fn get_index_of(&self, chunk_group: ChunkGroup) -> Result<Vc<ChunkGroupId>> {
         if let Some(idx) = self.chunk_groups.get_index_of(&chunk_group) {
-            Ok(Vc::cell(idx))
+            Ok(Vc::cell(idx as u32))
         } else {
             if cfg!(debug_assertions) {
                 bail!(
@@ -121,6 +128,89 @@ impl ChunkGroupInfo {
                 );
             } else {
                 bail!("Couldn't find chunk group index")
+            }
+        }
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_merged_group(
+        &self,
+        parent: ChunkGroup,
+        merge_tag: RcStr,
+    ) -> Result<Vc<ChunkGroups>> {
+        if let Some(parent_idx) = self.chunk_groups.get_index_of(&parent) {
+            let merged = self
+                .merged_chunk_groups
+                .get(&(ChunkGroupId(parent_idx as u32), merge_tag))
+                .iter()
+                .flat_map(|v| v.iter())
+                .map(|&idx| self.chunk_groups[*idx as usize].clone())
+                .collect();
+            Ok(Vc::cell(merged))
+        } else {
+            bail!(
+                "Couldn't find chunk group index for parent {} in {}",
+                parent.debug_str(self).await?,
+                self.chunk_groups
+                    .iter()
+                    .map(|c| c.debug_str(self))
+                    .try_join()
+                    .await?
+                    .join(", ")
+            );
+        }
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_all_merged_groups(
+        &self,
+        parent: ChunkGroup,
+        merge_tag: RcStr,
+    ) -> Result<Vc<ChunkGroups>> {
+        if let Some(parent_idx) = self.chunk_groups.get_index_of(&parent) {
+            let mut result = RoaringBitmap::new();
+            self.traverse_chunk_groups(ChunkGroupId(parent_idx as u32), |idx| {
+                result.extend(
+                    self.merged_chunk_groups
+                        .get(&(idx, merge_tag.clone()))
+                        .iter()
+                        .flat_map(|v| v.iter())
+                        .map(|v| v.0),
+                );
+            });
+            Ok(Vc::cell(
+                result
+                    .iter()
+                    .map(|idx| self.chunk_groups[idx as usize].clone())
+                    .collect(),
+            ))
+        } else {
+            bail!(
+                "Couldn't find chunk group index for parent {} in {}",
+                parent.debug_str(self).await?,
+                self.chunk_groups
+                    .iter()
+                    .map(|c| c.debug_str(self))
+                    .try_join()
+                    .await?
+                    .join(", ")
+            );
+        }
+    }
+}
+
+impl ChunkGroupInfo {
+    pub fn traverse_chunk_groups(&self, entry: ChunkGroupId, mut visit: impl FnMut(ChunkGroupId)) {
+        let mut visited = RoaringBitmap::from_sorted_iter(std::iter::once(entry.0)).unwrap();
+        let mut queue = VecDeque::from(vec![entry]);
+        while let Some(group) = queue.pop_front() {
+            visit(group);
+            if let Some(children) = self.chunk_group_children.get(&group) {
+                for child in children {
+                    if visited.insert(child.0) {
+                        queue.push_back(*child);
+                    }
+                }
             }
         }
     }
@@ -161,11 +251,13 @@ impl ChunkGroupEntry {
     }
 }
 
-#[derive(Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(
+    Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, Encode, Decode, NonLocalValue,
+)]
 pub enum ChunkGroup {
     /// The entry chunk group of the compilation, e.g. src/index.js for a SPA, or app/foo/page.js
     /// for Next.js.
-    Entry(Vec<ResolvedVc<Box<dyn Module>>>),
+    Entry(HashableIndexSet<ResolvedVc<Box<dyn Module>>>),
     /// An async chunk group. Corresponds to an incoming [ChunkingType::Async] reference
     Async(ResolvedVc<Box<dyn Module>>),
     /// An isolated chunk group. Corresponds to an incoming [ChunkingType::Isolated] reference with
@@ -176,19 +268,19 @@ pub enum ChunkGroup {
     IsolatedMerged {
         parent: usize,
         merge_tag: RcStr,
-        entries: Vec<ResolvedVc<Box<dyn Module>>>,
+        entries: HashableIndexSet<ResolvedVc<Box<dyn Module>>>,
     },
     /// A shared chunk group. Corresponds to an incoming [ChunkingType::Shared] reference with
     /// `merge_tag: None`
     Shared(ResolvedVc<Box<dyn Module>>),
     /// A shared chunk group with multiple entries.
-    SharedMultiple(Vec<ResolvedVc<Box<dyn Module>>>),
+    SharedMultiple(HashableIndexSet<ResolvedVc<Box<dyn Module>>>),
     /// A shared chunk group. Corresponds to an incoming [ChunkingType::Shared] reference with
     /// `merge_tag: Some(_)`
     SharedMerged {
         parent: usize,
         merge_tag: RcStr,
-        entries: Vec<ResolvedVc<Box<dyn Module>>>,
+        entries: HashableIndexSet<ResolvedVc<Box<dyn Module>>>,
     },
 }
 
@@ -310,7 +402,6 @@ pub enum ChunkGroupKey {
         merge_tag: RcStr,
     },
 }
-
 impl ChunkGroupKey {
     pub async fn debug_str(
         &self,
@@ -360,7 +451,8 @@ impl ChunkGroupKey {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Encode, Decode)]
+#[turbo_tasks::value(transparent)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub struct ChunkGroupId(u32);
 
 impl From<usize> for ChunkGroupId {
@@ -368,6 +460,10 @@ impl From<usize> for ChunkGroupId {
         Self(id as u32)
     }
 }
+
+#[turbo_tasks::value(transparent)]
+#[derive(Debug, Clone, Hash)]
+pub struct ChunkGroups(Vec<ChunkGroup>);
 
 impl Deref for ChunkGroupId {
     type Target = u32;
@@ -378,7 +474,7 @@ impl Deref for ChunkGroupId {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct TraversalPriority {
-    depth: usize,
+    depth: u32,
     chunk_group_len: u64,
 }
 impl PartialOrd for TraversalPriority {
@@ -409,11 +505,16 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
     let span = span_outer.clone();
     async move {
+        // chunk group -> its id and (for merged groups) list of contained modules
         #[allow(clippy::type_complexity)]
         let mut chunk_groups_map: FxIndexMap<
             ChunkGroupKey,
             (ChunkGroupId, FxIndexSet<ResolvedVc<Box<dyn Module>>>),
         > = FxIndexMap::default();
+
+        // chunk group -> child async chunk groups
+        let mut chunk_group_children: FxHashMap<ChunkGroupId, FxIndexSet<ChunkGroupId>> =
+            FxHashMap::default();
 
         // For each module, the indices in the bitmap store which chunk groups in `chunk_groups_map`
         // that module is part of.
@@ -435,7 +536,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             .collect::<Vec<_>>();
 
         // First, compute the depth for each module in the graph
-        let module_depth: FxHashMap<ResolvedVc<Box<dyn Module>>, usize> = {
+        let module_depth: FxHashMap<ResolvedVc<Box<dyn Module>>, u32> = {
             let mut module_depth =
                 FxHashMap::with_capacity_and_hasher(module_count, Default::default());
             graph.traverse_edges_bfs(
@@ -623,7 +724,8 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                 ChunkGroupKey::IsolatedMerged { .. }
                                     | ChunkGroupKey::SharedMerged { .. }
                             );
-                            match chunk_groups_map.entry(chunk_group) {
+                            let is_async = matches!(chunk_group, ChunkGroupKey::Async { .. });
+                            let id = match chunk_groups_map.entry(chunk_group) {
                                 Entry::Occupied(mut e) => {
                                     let (id, merged_entries) = e.get_mut();
                                     if is_merged {
@@ -640,7 +742,21 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                     e.insert((ChunkGroupId(chunk_group_id), set));
                                     chunk_group_id
                                 }
+                            };
+                            if is_async && let Some((parent, _, _)) = parent_info {
+                                let parent_groups = module_chunk_groups
+                                    .get(&parent)
+                                    .unwrap()
+                                    .iter()
+                                    .map(ChunkGroupId);
+                                for parent in parent_groups {
+                                    chunk_group_children
+                                        .entry(parent)
+                                        .or_default()
+                                        .insert(ChunkGroupId(id));
+                                }
                             }
+                            id
                         });
 
                         let chunk_groups =
@@ -763,30 +879,51 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             }
         }
 
+        let mut chunk_groups =
+            FxIndexSet::with_capacity_and_hasher(chunk_groups_map.len(), Default::default());
+        let mut merged_chunk_groups: FxIndexMap<_, Vec<_>> = FxIndexMap::default();
+
+        for (key, (id, merged_entries)) in &chunk_groups_map {
+            if let ChunkGroupKey::IsolatedMerged { parent, merge_tag }
+            | ChunkGroupKey::SharedMerged { parent, merge_tag } = key
+            {
+                merged_chunk_groups
+                    .entry((*parent, merge_tag.clone()))
+                    .or_default()
+                    .push(*id);
+            }
+
+            chunk_groups.insert(match key {
+                ChunkGroupKey::Entry(entries) => {
+                    ChunkGroup::Entry(entries.iter().copied().collect())
+                }
+                ChunkGroupKey::Async(module) => ChunkGroup::Async(*module),
+                ChunkGroupKey::Isolated(module) => ChunkGroup::Isolated(*module),
+                ChunkGroupKey::IsolatedMerged { parent, merge_tag } => ChunkGroup::IsolatedMerged {
+                    parent: parent.0 as usize,
+                    merge_tag: merge_tag.clone(),
+                    entries: merged_entries.into_iter().copied().collect(),
+                },
+                ChunkGroupKey::Shared(module) => ChunkGroup::Shared(*module),
+                ChunkGroupKey::SharedMultiple(entries) => {
+                    ChunkGroup::SharedMultiple(entries.iter().copied().collect())
+                }
+                ChunkGroupKey::SharedMerged { parent, merge_tag } => ChunkGroup::SharedMerged {
+                    parent: parent.0 as usize,
+                    merge_tag: merge_tag.clone(),
+                    entries: merged_entries.into_iter().copied().collect(),
+                },
+            });
+        }
+
         Ok(ChunkGroupInfo {
             module_chunk_groups: ResolvedVc::cell(module_chunk_groups),
             chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
-            chunk_groups: chunk_groups_map
+            chunk_groups,
+            merged_chunk_groups,
+            chunk_group_children: chunk_group_children
                 .into_iter()
-                .map(|(k, (_, merged_entries))| match k {
-                    ChunkGroupKey::Entry(entries) => ChunkGroup::Entry(entries),
-                    ChunkGroupKey::Async(module) => ChunkGroup::Async(module),
-                    ChunkGroupKey::Isolated(module) => ChunkGroup::Isolated(module),
-                    ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
-                        ChunkGroup::IsolatedMerged {
-                            parent: parent.0 as usize,
-                            merge_tag,
-                            entries: merged_entries.into_iter().collect(),
-                        }
-                    }
-                    ChunkGroupKey::Shared(module) => ChunkGroup::Shared(module),
-                    ChunkGroupKey::SharedMultiple(entries) => ChunkGroup::SharedMultiple(entries),
-                    ChunkGroupKey::SharedMerged { parent, merge_tag } => ChunkGroup::SharedMerged {
-                        parent: parent.0 as usize,
-                        merge_tag,
-                        entries: merged_entries.into_iter().collect(),
-                    },
-                })
+                .map(|(k, v)| (k, v.into_iter().collect()))
                 .collect(),
         }
         .cell())
