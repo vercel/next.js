@@ -2,12 +2,12 @@
 
 import type React from 'react'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { CompareLayout } from '@/components/compare-layout'
 import { ErrorState } from '@/components/error-state'
 import { Sidebar } from '@/components/sidebar'
-import { TopBar, Environment } from '@/components/top-bar'
+import { TopBar, Environment, CompareView } from '@/components/top-bar'
 import { TreemapVisualizer } from '@/components/treemap-visualizer'
 
 import { Badge } from '@/components/ui/badge'
@@ -53,6 +53,22 @@ export default function Home() {
   // compare mode and starts fetching from `history/<id>/...`.
   const [baselineSnapshot, setBaselineSnapshot] =
     useState<SnapshotMetadata | null>(null)
+  // Default view depends on mode: compare mode opens to the diff table
+  // (the change list is the headline), single-build mode opens to the
+  // treemap (size-by-area is the headline). Whenever the user toggles
+  // between modes we reset to that mode's default; explicit user choices
+  // within a mode are preserved until the mode changes again.
+  const [compareView, setCompareView] = useState<CompareView>(
+    CompareView.Treemap
+  )
+  const wasCompareModeRef = useRef(baselineSnapshot != null)
+  useEffect(() => {
+    const isNowCompare = baselineSnapshot != null
+    if (wasCompareModeRef.current !== isNowCompare) {
+      wasCompareModeRef.current = isNowCompare
+      setCompareView(isNowCompare ? CompareView.Table : CompareView.Treemap)
+    }
+  }, [baselineSnapshot])
 
   const {
     data: modulesData,
@@ -346,6 +362,9 @@ export default function Home() {
     >
       <TopBar
         hasSourceData={analyzeData != null}
+        showViewToggle={isCompareMode}
+        compareView={compareView}
+        onCompareViewChange={setCompareView}
         selectedRoute={selectedRoute}
         setSelectedRoute={setSelectedRoute}
         environmentFilter={environmentFilter}
@@ -367,6 +386,8 @@ export default function Home() {
         ) : isCompareMode ? (
           <CompareLayout
             baselineSnapshot={baselineSnapshot!}
+            compareView={compareView}
+            searchQuery={searchQuery}
             selectedRoute={selectedRoute}
             currentRouteCount={currentRoutes?.length ?? null}
             routeDiff={routeDiff}

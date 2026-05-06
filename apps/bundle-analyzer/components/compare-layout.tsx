@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { CompareSidebar } from '@/components/sidebar'
+import { DiffTable } from '@/components/diff-table'
 import { DiffTreemap } from '@/components/diff-treemap'
 import { TreemapSkeleton } from '@/components/ui/skeleton'
 import { StatCard, CountCard } from '@/components/stat-cards'
-import { Environment } from '@/components/top-bar'
+import { CompareView, Environment } from '@/components/top-bar'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import {
   diffRoutesWithSizes,
@@ -18,6 +19,7 @@ import { cn, formatBytes } from '@/lib/utils'
 
 export interface CompareLayoutProps {
   baselineSnapshot: SnapshotMetadata
+  compareView: CompareView
   selectedRoute: string | null
   currentRouteCount: number | null
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
@@ -28,6 +30,7 @@ export interface CompareLayoutProps {
   isBaselineAnalyzeLoading: boolean
   baselineAnalyzeError: unknown | null
   useCompressed: boolean
+  searchQuery: string
   compareSelectedKey: string | null
   setCompareSelectedKey: (key: string | null) => void
   modulesData: ModulesData | null
@@ -38,16 +41,17 @@ export interface CompareLayoutProps {
 }
 
 /**
- * Renders the comparison view (treemap) with a context strip at the top
- * showing the two builds being compared. The "before" build (A) is rendered
- * on the left and the "after" build (B) — the latest one — on the right,
- * matching the user's mental model.
+ * Renders the comparison view (treemap + table) with a context strip at the
+ * top showing the two builds being compared. The "before" build (A) is
+ * rendered on the left and the "after" build (B) — the latest one — on the
+ * right, matching the user's mental model.
  *
  * Route selection lives in the top-bar route picker (`RouteTypeahead`),
  * which also renders per-route deltas in compare mode.
  */
 export function CompareLayout({
   baselineSnapshot,
+  compareView,
   selectedRoute,
   currentRouteCount,
   routeDiff,
@@ -58,6 +62,7 @@ export function CompareLayout({
   isBaselineAnalyzeLoading,
   baselineAnalyzeError,
   useCompressed,
+  searchQuery,
   compareSelectedKey,
   setCompareSelectedKey,
   modulesData,
@@ -115,12 +120,13 @@ export function CompareLayout({
       </div>
 
       {/*
-        Per-route source diff + sidebar. The sidebar slides in when a
+        Per-route source diff + sidebar. The sidebar slides in when a row or
         treemap tile is selected and shows the import chain for that source.
       */}
       <div className="flex flex-1 min-h-0">
         <div className="flex flex-1 min-w-0 flex-col">
           <ComparePerRoutePanel
+            compareView={compareView}
             selectedRoute={selectedRoute}
             sourceDiff={sourceDiff}
             analyzeData={analyzeData}
@@ -128,6 +134,8 @@ export function CompareLayout({
             isAnalyzeLoading={isAnalyzeLoading}
             isBaselineAnalyzeLoading={isBaselineAnalyzeLoading}
             useCompressed={useCompressed}
+            searchQuery={searchQuery}
+            baselineSnapshot={baselineSnapshot}
             compareSelectedKey={compareSelectedKey}
             onCompareSelectedKeyChange={setCompareSelectedKey}
           />
@@ -381,11 +389,12 @@ function RouteStatsBody({
 }
 
 /**
- * Per-route comparison panel. Shows the diff treemap. Handles missing-route
- * states (the route is new in the latest build, or was removed) with
- * friendly messaging.
+ * Per-route comparison panel. Shows either the diff treemap or the diff table,
+ * controlled by `compareView`. Handles missing-route states (the route is new
+ * in the latest build, or was removed) with friendly messaging.
  */
 function ComparePerRoutePanel({
+  compareView,
   selectedRoute,
   sourceDiff,
   analyzeData,
@@ -393,9 +402,12 @@ function ComparePerRoutePanel({
   isAnalyzeLoading,
   isBaselineAnalyzeLoading,
   useCompressed,
+  searchQuery,
+  baselineSnapshot,
   compareSelectedKey,
   onCompareSelectedKeyChange,
 }: {
+  compareView: CompareView
   selectedRoute: string | null
   sourceDiff: DiffSummary<SourceDiffRow> | null
   analyzeData: AnalyzeData | null
@@ -403,6 +415,8 @@ function ComparePerRoutePanel({
   isAnalyzeLoading: boolean
   isBaselineAnalyzeLoading: boolean
   useCompressed: boolean
+  searchQuery: string
+  baselineSnapshot: SnapshotMetadata
   compareSelectedKey: string | null
   onCompareSelectedKeyChange: (key: string | null) => void
 }) {
@@ -430,14 +444,27 @@ function ComparePerRoutePanel({
 
   return (
     <div className="flex flex-1 min-h-0 flex-col">
-      <DiffTreemap
-        summary={sourceDiff}
-        useCompressed={useCompressed}
-        analyzeData={analyzeData}
-        baselineAnalyzeData={baselineAnalyzeData}
-        selectedKey={compareSelectedKey}
-        onSelectKey={onCompareSelectedKeyChange}
-      />
+      {compareView === CompareView.Treemap ? (
+        <DiffTreemap
+          summary={sourceDiff}
+          useCompressed={useCompressed}
+          analyzeData={analyzeData}
+          baselineAnalyzeData={baselineAnalyzeData}
+          selectedKey={compareSelectedKey}
+          onSelectKey={onCompareSelectedKeyChange}
+        />
+      ) : (
+        <DiffTable
+          summary={sourceDiff}
+          useCompressed={useCompressed}
+          nameHeading="Source"
+          aHeading={formatSnapshotLabel(baselineSnapshot)}
+          bHeading="Latest"
+          searchQuery={searchQuery}
+          selectedKey={compareSelectedKey}
+          onRowSelect={(row) => onCompareSelectedKeyChange(row.key)}
+        />
+      )}
     </div>
   )
 }
