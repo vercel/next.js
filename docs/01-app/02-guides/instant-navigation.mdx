@@ -71,13 +71,11 @@ The product page fetches two pieces of data: product details (name, price) and l
 - **Product info** rarely changes and is queried from the db using a cached function
 - **Inventory** must be fresh on each request. The db query is inside a `<Suspense>` boundary
 
-```tsx filename="app/store/[slug]/page.tsx" highlight={4-7,12-17,35-37}
+```tsx filename="app/store/[slug]/page.tsx" highlight={4,9-14,32-35}
 import { Suspense } from 'react'
 import { db } from '@/lib/db'
 
-export const unstable_instant = {
-  samples: [{ params: { slug: 'example' } }],
-}
+export const unstable_instant = true
 
 export default function ProductPage(props: PageProps<'/store/[slug]'>) {
   return (
@@ -119,15 +117,15 @@ async function Inventory({ params }: { params: Params }) {
 
 The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) export triggers validation for this route. During development, errors appear in the Next.js error overlay. At build time, they fail the build. Each error identifies the component that would block the navigation and suggests a fix.
 
-During development, validation runs on every page load using the real request from your browser. At build time there is no browser request, so `samples` provides the example data. In this example, one sample with `slug: 'example'` is enough. If your route reads `cookies`, `headers`, or `searchParams`, add those to the sample too. You can provide multiple samples to cover different code paths.
+When you opt into [runtime prefetching](/docs/app/guides/runtime-prefetching), validation also needs to know what request shape to simulate. Pass `samples` to provide that. See the [`unstable_instant` reference](/docs/app/api-reference/file-conventions/route-segment-config/instant#samples) for the sample shape.
 
 ## Visualize loading states with the Next.js DevTools
 
 As you develop a route, the Next.js DevTools let you see what your users see on page loads and client navigations before dynamic data streams in. Use it to verify your loading states look right, confirm the content you expect appears immediately, and iterate on where to place `<Suspense>` boundaries.
 
-{/* TODO: reference React Suspense DevTools */}
+The [React DevTools Suspense panel](https://react.dev/learn/react-developer-tools) complements this: it lists the `<Suspense>` boundaries in the tree and lets you toggle each one between its fallback and resolved state, so you can see exactly which boundary covers which part of the page.
 
-Enable the toggle in your Next.js config:
+Enable the Next.js DevTools toggle in your config:
 
 ```ts filename="next.config.ts" highlight={5-7}
 import type { NextConfig } from 'next'
@@ -231,12 +229,10 @@ You can see this with the DevTools. Try a **page load**: the root `<Suspense>` c
 
 Add an `unstable_instant` export to the page to surface the problem:
 
-```tsx filename="app/shop/[slug]/page.tsx" highlight={3-5}
+```tsx filename="app/shop/[slug]/page.tsx" highlight={3}
 import { db } from '@/lib/db'
 
-export const unstable_instant = {
-  samples: [{ params: { slug: 'example' } }],
-}
+export const unstable_instant = true
 
 export default async function ProductPage(props: PageProps<'/shop/[slug]'>) {
   const { slug } = await props.params
@@ -294,13 +290,11 @@ async function Inventory({ params }: { params: Promise<{ slug: string }> }) {
 
 The page passes `params` to each component and wraps them with `<Suspense>`:
 
-```tsx filename="app/shop/[slug]/page.tsx" highlight={4-6,11-16}
+```tsx filename="app/shop/[slug]/page.tsx" highlight={4,9-14}
 import { Suspense } from 'react'
 import { db } from '@/lib/db'
 
-export const unstable_instant = {
-  samples: [{ params: { slug: 'example' } }],
-}
+export const unstable_instant = true
 
 export default function ProductPage(props: PageProps<'/shop/[slug]'>) {
   return (
@@ -395,7 +389,7 @@ For agents to see what their changes actually render, pair this with [agent-brow
 
 ## Next steps
 
-- [`unstable_instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for the full `samples` reference and disable flags
+- [`unstable_instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for the full configuration and `samples` shape
 - [Runtime prefetching](/docs/app/guides/runtime-prefetching) when parts of your route depend on cookies or headers and you want those in the shell
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering
 - [Revalidating](/docs/app/getting-started/revalidating) for how to expire cached data with `cacheLife` and `updateTag`
