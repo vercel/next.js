@@ -171,8 +171,7 @@ impl RcStr {
     /// Accepts `&str` so that borrow-decode paths can avoid heap allocation
     /// entirely for inline strings (≤7 bytes) and static table hits.
     fn from_deserialized(s: &str) -> Self {
-        let len = s.len();
-        if len > tagged_value::MAX_INLINE_LEN {
+        if !is_atom_inlineable(s) {
             let hash = hash_bytes(s.as_bytes());
             // Check the static table
             if let Some(entries) = STATIC_TABLE.get(&hash)
@@ -489,7 +488,7 @@ pub const fn inline_atom(s: &str) -> Option<RcStr> {
 // Exports for our macro
 #[doc(hidden)]
 pub const fn is_atom_inlineable(s: &str) -> bool {
-    s.len() < MAX_INLINE_LEN
+    s.len() <= MAX_INLINE_LEN
 }
 
 #[doc(hidden)]
@@ -649,7 +648,7 @@ impl RcStrInterning {
     /// already zero-allocation inline atoms). Longer strings are looked up
     /// in the interning table and deduplicated.
     pub fn intern(&mut self, s: &str) -> RcStr {
-        if s.len() <= tagged_value::MAX_INLINE_LEN {
+        if is_atom_inlineable(s) {
             // Inline atom — no allocation needed, don't bother with the set.
             return RcStr::from(s);
         }
@@ -664,7 +663,7 @@ impl RcStrInterning {
     /// Intern an owned `String`. When the string is not yet interned, avoids
     /// an extra copy compared to [`intern`](Self::intern).
     fn intern_owned(&mut self, s: String) -> RcStr {
-        if s.len() <= tagged_value::MAX_INLINE_LEN {
+        if is_atom_inlineable(&s) {
             return RcStr::from(s);
         }
         if let Some(existing) = self.set.get(s.as_str()) {

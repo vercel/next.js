@@ -4,7 +4,7 @@ use triomphe::Arc;
 
 use crate::{
     DYNAMIC_TAG, INLINE_TAG, INLINE_TAG_INIT, LEN_OFFSET, RcStr, STATIC_TAG, TAG_MASK,
-    tagged_value::{MAX_INLINE_LEN, TaggedValue},
+    is_atom_inlineable, tagged_value::TaggedValue,
 };
 
 pub enum Payload {
@@ -56,19 +56,19 @@ pub unsafe fn restore_arc(v: TaggedValue) -> Arc<PrehashedString> {
 /// This can create any kind of [Atom], although this lives in the `dynamic`
 /// module.
 pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
-    let len = text.as_ref().len();
-
-    if len <= MAX_INLINE_LEN {
+    let text = text.as_ref();
+    if is_atom_inlineable(text) {
+        let len = text.len();
         // INLINE_TAG ensures this is never zero
         let tag = INLINE_TAG_INIT | ((len as u8) << LEN_OFFSET);
         let mut unsafe_data = TaggedValue::new_tag(tag);
         unsafe {
-            unsafe_data.data_mut()[..len].copy_from_slice(text.as_ref().as_bytes());
+            unsafe_data.data_mut()[..len].copy_from_slice(text.as_bytes());
         }
         return RcStr { unsafe_data };
     }
 
-    let hash = hash_bytes(text.as_ref().as_bytes());
+    let hash = hash_bytes(text.as_bytes());
 
     let prehashed = PrehashedString {
         value: Payload::String(text.into()),
@@ -116,8 +116,8 @@ pub(crate) const fn new_static_atom(string: &'static PrehashedString) -> RcStr {
 /// This is primarily useful in constant contexts.
 #[doc(hidden)]
 pub(crate) const fn inline_atom(text: &str) -> Option<RcStr> {
-    let len = text.len();
-    if len <= MAX_INLINE_LEN {
+    if is_atom_inlineable(text) {
+        let len = text.len();
         let tag = INLINE_TAG | ((len as u8) << LEN_OFFSET);
         let mut unsafe_data = TaggedValue::new_tag(NonZeroU8::new(tag).unwrap());
 
