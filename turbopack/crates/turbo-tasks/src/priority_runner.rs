@@ -14,7 +14,6 @@ use std::{
 
 use parking_lot::Mutex;
 use pin_project_lite::pin_project;
-use tokio::sync::oneshot::{Receiver, Sender};
 
 pub trait Executor<C, T, P>: Send + Sync {
     type Future: Future<Output = ()> + Send;
@@ -37,7 +36,6 @@ where
 struct HeapItem<P, T> {
     priority: P,
     task: T,
-    tx: Option<Sender<()>>,
 }
 
 impl<P: Eq, T> PartialEq for HeapItem<P, T> {
@@ -95,33 +93,12 @@ impl<
     }
 
     pub fn schedule(self: &Arc<Self>, execute_context: &Arc<C>, task: T, priority: P) {
-        self.schedule_internal(execute_context, task, priority, None);
-    }
-
-    pub fn schedule_with_join_handle(
-        self: &Arc<Self>,
-        execute_context: &Arc<C>,
-        task: T,
-        priority: P,
-    ) -> JoinHandle {
-        let (tx, rx) = tokio::sync::oneshot::channel();
-        self.schedule_internal(execute_context, task, priority, Some(tx));
-        JoinHandle { receiver: rx }
-    }
-
-    fn schedule_internal(
-        self: &Arc<Self>,
-        execute_context: &Arc<C>,
-        task: T,
-        priority: P,
-        tx: Option<Sender<()>>,
-    ) {
         let mut queue = self.queue.lock();
         if !queue.is_empty() {
             // If there is already work in the queue, we don't have any
             // free capacity so we can just push the task to the queue.
             // It will be picked up by existing workers.
-            queue.push(HeapItem { priority, task, tx });
+            queue.push(HeapItem { priority, task });
             return;
         }
         // The queue is empty, so we might have free capacity to spawn a new worker.
@@ -131,10 +108,10 @@ impl<
             drop(queue);
 
             let future = self.executor.execute(execute_context, task, priority);
-            WorkerFuture::spawn(future, tx, execute_context.clone(), self.clone());
+            WorkerFuture::spawn(future, execute_context.clone(), self.clone());
         } else {
             // No free capacity, push the task to the queue.
-            queue.push(HeapItem { priority, task, tx });
+            queue.push(HeapItem { priority, task });
             drop(queue);
 
             // Undo the added active worker since we didn't spawn a new worker.
@@ -170,20 +147,15 @@ impl<
         }
     }
 
-    fn pop_future_from_worker(
-        &self,
-        execute_context: &Arc<C>,
-    ) -> Option<(E::Future, Option<Sender<()>>)> {
+    fn pop_future_from_worker(&self, execute_context: &Arc<C>) -> Option<E::Future> {
         let mut queue = self.queue.lock();
         if let Some(heap_item) = queue.pop() {
             shrink_amortized(&mut queue);
             drop(queue);
-            let tx = heap_item.tx;
-            Some((
+            Some(
                 self.executor
                     .execute(execute_context, heap_item.task, heap_item.priority),
-                tx,
-            ))
+            )
         } else {
             None
         }
@@ -198,7 +170,6 @@ impl<
         if let Some(heap_item) = queue.pop() {
             shrink_amortized(&mut queue);
             drop(queue);
-            let tx = heap_item.tx;
             let new_future =
                 self.executor
                     .execute(execute_context, heap_item.task, heap_item.priority);
@@ -206,7 +177,7 @@ impl<
             if !unused_active_count {
                 self.active_workers.fetch_add(1, Ordering::Relaxed);
             }
-            WorkerFuture::spawn(new_future, tx, execute_context.clone(), self.clone());
+            WorkerFuture::spawn(new_future, execute_context.clone(), self.clone());
             true
         } else {
             false
@@ -249,7 +220,6 @@ pin_project! {
     {
         #[pin]
         future: E::Future,
-        tx: Option<Sender<()>>,
         execute_context: Arc<C>,
         runner: Arc<PriorityRunner<C, T, P, E>>,
         state: WorkerState,
@@ -263,15 +233,9 @@ impl<
     E: Executor<C, T, P> + 'static,
 > WorkerFuture<C, T, P, E>
 {
-    fn spawn(
-        future: E::Future,
-        tx: Option<Sender<()>>,
-        execute_context: Arc<C>,
-        runner: Arc<PriorityRunner<C, T, P, E>>,
-    ) {
+    fn spawn(future: E::Future, execute_context: Arc<C>, runner: Arc<PriorityRunner<C, T, P, E>>) {
         tokio::task::spawn(Self {
             future,
-            tx,
             execute_context,
             runner,
             state: WorkerState::UnfinishedFuture,
@@ -304,11 +268,6 @@ impl<
                 WorkerState::UnfinishedFuture => {
                     match this.future.as_mut().poll(cx) {
                         Poll::Ready(()) => {
-                            // Notify that the task is done
-                            if let Some(tx) = this.tx.take() {
-                                let _ = tx.send(());
-                            }
-
                             *this.state = WorkerState::Done;
 
                             if last_yield.elapsed() > Duration::from_millis(5) {
@@ -339,7 +298,7 @@ impl<
 
                     // This future is done, we need to check the queue for more tasks,
                     // so we can continue working on a new future in this worker.
-                    if let Some((new_future, new_tx)) =
+                    if let Some(new_future) =
                         this.runner.pop_future_from_worker(this.execute_context)
                     {
                         // We are replacing the future with a new one, but the current future is
@@ -353,7 +312,6 @@ impl<
                             drop_in_place(future_slot);
                             future_slot.write(new_future);
                         }
-                        *this.tx = new_tx;
                         *this.state = WorkerState::UnfinishedFuture;
                     } else {
                         // No more tasks to execute
@@ -364,25 +322,6 @@ impl<
                     }
                 }
             }
-        }
-    }
-}
-
-pub struct JoinHandle {
-    receiver: Receiver<()>,
-}
-
-impl Future for JoinHandle {
-    type Output = ();
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = self.get_mut();
-        match Pin::new(&mut this.receiver).poll(cx) {
-            Poll::Ready(result) => {
-                let _ = result;
-                Poll::Ready(())
-            }
-            Poll::Pending => Poll::Pending,
         }
     }
 }

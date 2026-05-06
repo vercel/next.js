@@ -1065,7 +1065,7 @@ impl Project {
         };
 
         Ok(DiskFileSystem::new_with_denied_paths(
-            rcstr!(PROJECT_FILESYSTEM_NAME),
+            PROJECT_FILESYSTEM_NAME,
             *self.root_path,
             vec![denied_path],
         ))
