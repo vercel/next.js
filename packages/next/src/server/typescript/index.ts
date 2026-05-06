@@ -349,7 +349,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
               }
             }
           }
-        }
         } else if (ts.isExportDeclaration(node)) {
           // export { ... }
           if (isAppEntry) {
