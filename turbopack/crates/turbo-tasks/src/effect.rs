@@ -2,20 +2,23 @@ use std::{
     any::Any,
     error::Error as StdError,
     future::Future,
+    mem::{forget, replace},
     pin::Pin,
     sync::{Arc, OnceLock},
 };
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use futures::{StreamExt, TryStreamExt};
-use parking_lot::Mutex;
+use parking_lot::{Mutex, MutexGuard};
 use rustc_hash::{FxHashMap, FxHashSet};
+use smallvec::SmallVec;
 use tracing::Instrument;
 use turbo_dyn_eq_hash::DynPartialEq;
 
 use crate::{
     self as turbo_tasks, CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
     emit,
+    event::Event,
     manager::{debug_assert_in_top_level_task, debug_assert_not_in_top_level_task},
     trace::TraceRawVcs,
 };
@@ -43,7 +46,7 @@ pub trait Effect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
     type Value: Clone + DynPartialEq + Eq + Send + Sync + 'static;
 
     /// Unique key identifying this effect's target (e.g., absolute path bytes).
-    fn key(&self) -> Vec<u8>;
+    fn key(&self) -> Box<[u8]>;
 
     /// Extract the value part of this effect for storage and comparison.
     fn value(&self) -> &Self::Value;
@@ -71,37 +74,30 @@ pub trait Effect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
 pub trait EffectError: StdError + TraceRawVcs + NonLocalValue + Send + Sync + 'static {}
 impl<T> EffectError for T where T: StdError + TraceRawVcs + NonLocalValue + Send + Sync + 'static {}
 
+enum EffectLastApplied {
+    Unapplied,
+    InProgress {
+        write_event: Event,
+    },
+    Applied {
+        value: Box<dyn Any + Send + Sync>,
+        result: Result<(), Arc<dyn EffectError>>,
+    },
+}
+
 /// Per-key entry in the effect state storage.
-///
-/// - `last_applied`: the value that was last successfully written (sync-readable for fast-path
-///   dedup)
-/// - `write_lock`: async mutex held during the actual write; ensures only one concurrent write per
-///   key
-struct EffectStateEntry {
-    last_applied: Mutex<Option<Box<dyn Any + Send + Sync>>>,
-    write_lock: tokio::sync::Mutex<()>,
-}
-
-impl Default for EffectStateEntry {
-    fn default() -> Self {
-        Self {
-            last_applied: Mutex::new(None),
-            write_lock: tokio::sync::Mutex::new(()),
-        }
-    }
-}
-
+type EffectStateEntry = Arc<Mutex<EffectLastApplied>>;
 /// Shared state storage for tracking applied effects. Stored on the filesystem implementation
 /// (e.g. DiskFileSystemInner).
 #[derive(Default)]
 pub struct EffectStateStorage {
-    effect_state: Mutex<FxHashMap<Vec<u8>, Arc<EffectStateEntry>>>,
+    effect_state: Mutex<FxHashMap<Box<[u8]>, EffectStateEntry>>,
 }
 
 // Private wrapper trait to allow dynamic dispatch of an `Effect`. This is similar to the pattern
 // that the dynosaur crate uses: https://github.com/spastorino/dynosaur
 trait DynEffect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
-    fn key(&self) -> Vec<u8>;
+    fn key(&self) -> Box<[u8]>;
     /// Compare `self`'s value against a stored `Box<dyn Any>`, using [`DynPartialEq`].
     fn eq_value_dyn(&self, other: &dyn Any) -> bool;
     fn value_dyn(&self) -> Box<dyn Any + Send + Sync>;
@@ -113,7 +109,7 @@ impl<T> DynEffect for T
 where
     T: Effect,
 {
-    fn key(&self) -> Vec<u8> {
+    fn key(&self) -> Box<[u8]> {
         Effect::key(self)
     }
 
@@ -130,11 +126,12 @@ where
     }
 
     fn dyn_apply<'a>(&'a self) -> DynEffectApplyFuture<'a> {
-        Box::pin(async move { Effect::apply(self).await.map_err(anyhow::Error::from) })
+        Box::pin(async move { Effect::apply(self).await.map_err(|err| Arc::new(err) as _) })
     }
 }
 
-type DynEffectApplyFuture<'a> = Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>;
+type DynEffectApplyFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<(), Arc<dyn EffectError>>> + Send + 'a>>;
 
 /// A trait to emit a task effect as collectible. This trait only has one implementation,
 /// `EffectInstance` and no other implementation is allowed. The trait is private to this module so
@@ -246,11 +243,17 @@ pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
     })
 }
 
+#[derive(thiserror::Error, Debug, TraceRawVcs, NonLocalValue)]
+#[error("Conflicting effects for the same key (key length: {key_len} bytes)")]
+struct ConflictingEffectError {
+    key_len: usize,
+}
+
 /// Cached result of grouping effects by key and dedup/conflict detection.
-/// Each entry is (index into `effects`, Arc to per-key state entry).
-/// The `Arc<EffectStateEntry>` is resolved once and cached to avoid repeated map lookups on
-/// subsequent `apply()` calls.
-type UniqueEffectIndices = Result<Vec<(usize, Arc<EffectStateEntry>)>, String>;
+/// Each entry is (index into `effects`, per-key state entry).
+/// The `EffectStateEntry` is resolved once and cached to avoid repeated map lookups on subsequent
+/// `apply()` calls.
+type UniqueEffectIndices = Result<Vec<(usize, EffectStateEntry)>, Arc<ConflictingEffectError>>;
 
 /// Captured effects from an operation. This struct can be used to return Effects from a turbo-tasks
 /// function and apply them later.
@@ -297,7 +300,7 @@ impl Effects {
     /// consistency][crate::OperationVc::read_strongly_consistent].
     ///
     /// See [`take_effects`] for example usage.
-    pub async fn apply(&self) -> Result<()> {
+    pub async fn apply(&self) -> Result<(), Arc<dyn EffectError>> {
         debug_assert_in_top_level_task(
             "Effects::apply must be called from a top-level task to avoid unintended \
              re-executions due to eventual consistency",
@@ -310,90 +313,134 @@ impl Effects {
 
         async {
             // Compute unique (index, state_entry) pairs once; reuse on later calls.
-            // The Arc<EffectStateEntry> is resolved from the state map on first call and cached
+            // The EffectStateEntry is resolved from the state map on first call and cached
             // here, so subsequent apply() calls bypass the map lookup entirely.
-            let unique_indices = self.unique_indices.get_or_init(|| {
-                let mut by_key: FxHashMap<Vec<u8>, Vec<usize>> = FxHashMap::default();
-                for (i, effect) in self.effects.iter().enumerate() {
-                    let key = effect.inner.key();
-                    by_key.entry(key).or_default().push(i);
-                }
+            let unique_indices = self
+                .unique_indices
+                .get_or_init(|| {
+                    let mut by_key: FxHashMap<Box<[u8]>, SmallVec<[usize; 1]>> =
+                        FxHashMap::default();
+                    for (i, effect) in self.effects.iter().enumerate() {
+                        let key = effect.inner.key();
+                        by_key.entry(key).or_default().push(i);
+                    }
 
-                let mut indices = Vec::with_capacity(by_key.len());
-                for (key, group) in by_key {
-                    if group.len() > 1 {
-                        let first_value = self.effects[group[0]].inner.value_dyn();
-                        for &idx in &group[1..] {
-                            if !self.effects[idx].inner.eq_value_dyn(&*first_value) {
-                                return Err(format!(
-                                    "Conflicting effects for the same key (key length: {} bytes)",
-                                    key.len()
-                                ));
+                    let mut indices = Vec::with_capacity(by_key.len());
+                    for (key, group) in by_key {
+                        if group.len() > 1 {
+                            let first_value = self.effects[group[0]].inner.value_dyn();
+                            for &idx in &group[1..] {
+                                if !self.effects[idx].inner.eq_value_dyn(&*first_value) {
+                                    return Err(Arc::new(ConflictingEffectError {
+                                        key_len: key.len(),
+                                    }));
+                                }
                             }
                         }
+                        let idx = group[0];
+                        let state_storage = self.effects[idx].inner.state_storage();
+                        // Look up or create the per-key state entry and cache the Arc directly.
+                        let entry = state_storage
+                            .effect_state
+                            .lock()
+                            .entry(key)
+                            .or_insert_with(|| Arc::new(Mutex::new(EffectLastApplied::Unapplied)))
+                            .clone();
+                        indices.push((idx, entry));
                     }
-                    let idx = group[0];
-                    let state_storage = self.effects[idx].inner.state_storage();
-                    // Look up or create the per-key state entry and cache the Arc directly.
-                    let entry = state_storage
-                        .effect_state
-                        .lock()
-                        .entry(key)
-                        .or_insert_with(|| Arc::new(EffectStateEntry::default()))
-                        .clone();
-                    indices.push((idx, entry));
-                }
-                Ok(indices)
-            });
-            let unique_indices = match unique_indices {
-                Ok(indices) => indices,
-                Err(msg) => bail!("{msg}"),
-            };
+                    Ok(indices)
+                })
+                .as_ref()
+                .map_err(|err| err.clone() as Arc<_>)?;
 
             // Apply effects using cached (index, state_entry) pairs.
-            // Hot path: no map lookup — Arc<EffectStateEntry> is cached in unique_indices.
+            // Hot path: no map lookup — EffectStateEntry is cached in unique_indices.
             futures::stream::iter(unique_indices.iter())
-                .map(Ok::<_, anyhow::Error>)
+                .map(Ok::<_, Arc<dyn EffectError>>)
                 .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |(idx, entry)| {
                     let effect: &dyn DynEffect = &*self.effects[*idx].inner;
 
-                    // Fast path: check if the stored value already matches (sync, no await)
-                    {
-                        let stored = entry.last_applied.lock();
-                        if let Some(stored_val) = stored.as_ref()
-                            && effect.eq_value_dyn(&**stored_val)
-                        {
-                            return Ok(());
+                    // If `effect.dyn_apply` panics or the apply future is dropped before
+                    // completion, the guard's drop impl resets the per-key state to `Unapplied`
+                    // and notifies other waiters via the `Event` it recovers from the previous
+                    // `InProgress`, so they retry rather than deadlock or observe a stale
+                    // "panic" cache entry.
+                    struct EventGuard<'a> {
+                        entry: &'a EffectStateEntry,
+                    }
+                    impl Drop for EventGuard<'_> {
+                        fn drop(&mut self) {
+                            let prev_state =
+                                replace(&mut *self.entry.lock(), EffectLastApplied::Unapplied);
+                            let EffectLastApplied::InProgress { write_event } = prev_state else {
+                                unreachable!("EventGuard: prev_state must be InProgress");
+                            };
+                            write_event.notify(usize::MAX);
                         }
                     }
 
-                    // Slow path: acquire the write lock and re-check before writing
-                    let _write_guard = entry.write_lock.lock().await;
+                    let begin_in_progress = |mut last_applied_guard: MutexGuard<'_, _>| {
+                        *last_applied_guard = EffectLastApplied::InProgress {
+                            write_event: Event::new(|| {
+                                || "effect application in progress".to_string()
+                            }),
+                        };
+                        EventGuard { entry }
+                    };
 
-                    {
-                        let stored = entry.last_applied.lock();
-                        if let Some(stored_val) = stored.as_ref()
-                            && effect.eq_value_dyn(&**stored_val)
+                    let event_guard = loop {
+                        let listener;
                         {
-                            return Ok(());
-                        }
-                    }
+                            let last_applied_guard = entry.lock();
+                            match &*last_applied_guard {
+                                EffectLastApplied::Unapplied => {
+                                    break begin_in_progress(last_applied_guard);
+                                }
+                                EffectLastApplied::Applied { value, result } => {
+                                    // Fast path: check if the stored value already matches
+                                    if effect.eq_value_dyn(&**value) {
+                                        return result.clone();
+                                    } else {
+                                        break begin_in_progress(last_applied_guard);
+                                    }
+                                }
+                                EffectLastApplied::InProgress { write_event } => {
+                                    // `Event::listen` registers the listener immediately, so
+                                    // notifications fired after we drop `last_applied_guard`
+                                    // cannot be missed.
+                                    listener = write_event.listen();
+                                }
+                            }
+                        };
+                        // We didn't break out of the loop: There's a concurrent in-progress
+                        // application. Wait for it to finish and then read `last_applied` again.
+                        listener.await;
+                    };
 
-                    // Clear stored value so concurrent fast-path checks won't
-                    // match against the stale value while we're writing.
-                    *entry.last_applied.lock() = None;
+                    // Apply the effect. InProgress is visible to concurrent readers, preventing
+                    // stale fast-path matches.
+                    let effect_result = effect.dyn_apply().await;
 
-                    // Apply the effect
-                    effect.dyn_apply().await?;
+                    // Update the state, clear the EventGuard
+                    let prev_state = replace(
+                        &mut *entry.lock(),
+                        EffectLastApplied::Applied {
+                            value: effect.value_dyn(),
+                            result: effect_result.clone(),
+                        },
+                    );
+                    // don't run the `Drop` impl on `EventGuard`. We'll do the notification
+                    // ourselves.
+                    forget(event_guard);
 
-                    // Store the new value (sync)
-                    *entry.last_applied.lock() = Some(effect.value_dyn());
+                    let EffectLastApplied::InProgress { write_event } = prev_state else {
+                        unreachable!("Effect applied: prev_state must be InProgress");
+                    };
+                    write_event.notify(usize::MAX);
 
-                    Ok(())
+                    effect_result
                 })
-                .await?;
-
-            anyhow::Ok(())
+                .await
         }
         .instrument(span)
         .await
