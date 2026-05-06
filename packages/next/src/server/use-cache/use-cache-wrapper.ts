@@ -1421,23 +1421,17 @@ export async function cache(
     )
   }
 
-  // Probe re-executions inside the dev-server's hang-detection worker never
-  // reach the cache-handler get/set paths — the `useCacheProbeMode` branch
-  // below returns before any handler is consulted — so we skip both the
-  // lookup and the "Unknown cache handler" guard. This lets the probe
-  // worker boot without registering handlers at all. The
-  // `__NEXT_DEV_SERVER` gate also lets the bundler fold `isProbeMode` to
-  // `false` in production, simplifying the conditionals below.
-  const isProbeMode =
-    !!process.env.__NEXT_DEV_SERVER && workStore.useCacheProbeMode !== undefined
-
-  // Private caches are currently only stored in the Resume Data Cache (RDC),
-  // and not in cache handlers.
-  const cacheHandler =
-    isPrivate || isProbeMode ? undefined : getCacheHandler(kind)
-
-  if (!isPrivate && !isProbeMode && !cacheHandler) {
-    throw new Error('Unknown cache handler: ' + kind)
+  // Two cases skip the cache handler lookup:
+  //   - Private caches go to the Resume Data Cache (RDC), not cache handlers.
+  //   - Probe re-executions short-circuit further down before any handler is
+  //     consulted, so the dev-server's hang-detection worker can boot without
+  //     registering handlers at all.
+  let cacheHandler: CacheHandler | undefined
+  if (!isPrivate && workStore.useCacheProbeMode === undefined) {
+    cacheHandler = getCacheHandler(kind)
+    if (!cacheHandler) {
+      throw new Error('Unknown cache handler: ' + kind)
+    }
   }
 
   const timeoutError = new UseCacheTimeoutError()
