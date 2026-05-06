@@ -5,6 +5,7 @@ import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { CacheLife } from '../use-cache/cache-life'
+import type { ValidationLevel } from '../config-shared'
 
 import { AfterContext } from '../after/after-context'
 
@@ -27,6 +28,7 @@ export type WorkStoreContext = {
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
     cacheComponents: boolean
+    validationLevel: ValidationLevel
     fetchCache?: AppSegmentConfig['fetchCache']
     isPossibleServerAction?: boolean
     pendingWaitUntil?: Promise<any>
@@ -64,6 +66,11 @@ export type WorkStoreContext = {
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
 
   /**
+   * The deployment ID of the current build.
+   */
+  deploymentId: string
+
+  /**
    * The build ID of the current build.
    */
   buildId: string
@@ -78,6 +85,7 @@ export function createWorkStore({
   renderOpts,
   isPrefetchRequest,
   buildId,
+  deploymentId,
   previouslyRevalidatedTags,
   nonce,
 }: WorkStoreContext): WorkStore {
@@ -132,12 +140,14 @@ export function createWorkStore({
 
     isPrefetchRequest,
     buildId,
+    deploymentId,
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
     assetPrefix: renderOpts?.assetPrefix || '',
     nonce,
 
     afterContext: createAfterContext(renderOpts),
     cacheComponentsEnabled: renderOpts.cacheComponents,
+    validationLevel: renderOpts.validationLevel,
     previouslyRevalidatedTags,
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
     runInCleanSnapshot: createSnapshot(),

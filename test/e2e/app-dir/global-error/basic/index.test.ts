@@ -28,7 +28,7 @@ describe('app dir - global-error', () => {
       `)
     }
     expect(await browser.elementByCss('#error').text()).toBe(
-      'Global error: Client error'
+      'Global error: Error: Client error'
     )
   })
 
@@ -54,8 +54,8 @@ describe('app dir - global-error', () => {
     // Show original error message in dev mode, but hide with the react fallback RSC error message in production mode
     expect(await browser.elementByCss('#error').text()).toBe(
       isNextDev
-        ? 'Global error: server page error'
-        : 'Global error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
+        ? 'Global error: Error: server page error'
+        : 'Global error: Error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
     )
     expect(await browser.elementByCss('#digest').text()).toMatch(/\w+/)
   })
@@ -80,10 +80,56 @@ describe('app dir - global-error', () => {
     }
     expect(await browser.elementByCss('h1').text()).toBe('Global Error')
     expect(await browser.elementByCss('#error').text()).toBe(
-      'Global error: client page error'
+      'Global error: Error: client page error'
     )
 
     expect(await browser.hasElementByCssSelector('#digest')).toBeFalsy()
+  })
+
+  it('should render global error when undefined is thrown in a server component', async () => {
+    const browser = await next.browser('/rsc-throw-undefined')
+    // Non-error values thrown during RSC render get wrapped in an Error when transported.
+    expect(await browser.waitForElementByCss('#error').text()).toBe(
+      isNextDev
+        ? 'Global error: Error: undefined'
+        : 'Global error: Error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
+    )
+    expect(await browser.elementByCss('h1').text()).toBe('Global Error')
+  })
+
+  it('should render global error when null is thrown in a server component', async () => {
+    const browser = await next.browser('/rsc-throw-null')
+    // Non-error values thrown during RSC render get wrapped in an Error when transported.
+    expect(await browser.waitForElementByCss('#error').text()).toBe(
+      isNextDev
+        ? 'Global error: Error: null'
+        : 'Global error: Error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
+    )
+    expect(await browser.elementByCss('h1').text()).toBe('Global Error')
+  })
+
+  it('should render global error when undefined is thrown in a client component', async () => {
+    const browser = await next.browser('/client-throw-undefined')
+    await browser
+      .waitForElementByCss('#error-trigger-button')
+      .elementByCss('#error-trigger-button')
+      .click()
+    expect(await browser.waitForElementByCss('#error').text()).toBe(
+      'Global error: undefined'
+    )
+    expect(await browser.elementByCss('h1').text()).toBe('Global Error')
+  })
+
+  it('should render global error when null is thrown in a client component', async () => {
+    const browser = await next.browser('/client-throw-null')
+    await browser
+      .waitForElementByCss('#error-trigger-button')
+      .elementByCss('#error-trigger-button')
+      .click()
+    expect(await browser.waitForElementByCss('#error').text()).toBe(
+      'Global error: null'
+    )
+    expect(await browser.elementByCss('h1').text()).toBe('Global Error')
   })
 
   it('should catch metadata error in error boundary if presented', async () => {
@@ -116,8 +162,8 @@ describe('app dir - global-error', () => {
     expect(await browser.elementByCss('h1').text()).toBe('Global Error')
     expect(await browser.elementByCss('#error').text()).toBe(
       isNextDev
-        ? 'Global error: Metadata error'
-        : 'Global error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
+        ? 'Global error: Error: Metadata error'
+        : 'Global error: Error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
     )
   })
 
@@ -140,7 +186,7 @@ describe('app dir - global-error', () => {
     }
     expect(await browser.elementByCss('h1').text()).toBe('Global Error')
     expect(await browser.elementByCss('#error').text()).toBe(
-      'Global error: nested error'
+      'Global error: Error: nested error'
     )
   })
 })

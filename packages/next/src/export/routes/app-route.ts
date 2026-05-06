@@ -52,7 +52,8 @@ export async function exportAppRoute(
   experimental: Required<
     Pick<ExperimentalConfig, 'authInterrupts' | 'useCacheTimeout'>
   >,
-  buildId: string
+  buildId: string,
+  deploymentId: string
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
   req.url = `http://localhost:3000${req.url}`
@@ -76,6 +77,10 @@ export async function exportAppRoute(
     },
     renderOpts: {
       cacheComponents,
+      // app-route handlers don't run instant validation, so the level
+      // value is irrelevant here.
+      // TODO: move validationLevel and other global config out of renderOpts
+      validationLevel: 'warning',
       experimental,
       isBuildTimePrerendering: true,
       supportsDynamicResponse: false,
@@ -88,6 +93,7 @@ export async function exportAppRoute(
     },
     sharedContext: {
       buildId,
+      deploymentId,
     },
   }
 

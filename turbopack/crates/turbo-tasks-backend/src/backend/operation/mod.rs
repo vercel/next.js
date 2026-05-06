@@ -26,8 +26,8 @@ use turbo_tasks::{
 use self::aggregation_update::ComputeDirtyAndCleanUpdate;
 use crate::{
     backend::{
-        EventDescription, OperationGuard, TaskDataCategory, TurboTasksBackend,
-        TurboTasksBackendInner,
+        EventDescription, TaskDataCategory, TurboTasksBackend, TurboTasksBackendInner,
+        snapshot_coordinator::OperationGuard,
         storage::{SpecificTaskDataCategory, StorageWriteGuard},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
@@ -168,7 +168,7 @@ impl TaskLockCounter {
 pub struct ExecuteContextImpl<'e, B: BackingStorage> {
     backend: &'e TurboTasksBackendInner<B>,
     turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    _operation_guard: Option<OperationGuard<'e, B>>,
+    _operation_guard: Option<OperationGuard<'e, AnyOperation>>,
     task_lock_counter: TaskLockCounter,
 }
 

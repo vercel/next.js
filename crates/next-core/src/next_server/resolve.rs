@@ -167,7 +167,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         }
 
         async fn get_file_type(
-            fs_path: FileSystemPath,
+            fs_path: &FileSystemPath,
             raw_fs_path: &FileSystemPath,
         ) -> Result<FileType> {
             // node.js only supports these file extensions
@@ -257,8 +257,9 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             break result_from_original_location;
         };
 
-        let path = result_from_original_location.ident().path().await?;
-        let file_type = get_file_type((*path).clone(), &path).await?;
+        let ident = result_from_original_location.ident().await?;
+        let path = &ident.path;
+        let file_type = get_file_type(path, path).await?;
 
         let external_type = match (file_type, is_esm) {
             (FileType::UnsupportedExtension, _) => {
@@ -288,8 +289,9 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     node_resolve_options,
                 );
                 let resolves_equal = if let Some(result) = *node_resolved.first_source().await? {
-                    let cjs_path = result.ident().path().owned().await?;
-                    cjs_path == *path
+                    let ident = result.ident().await?;
+                    let cjs_path = &ident.path;
+                    cjs_path == path
                 } else {
                     false
                 };
@@ -320,7 +322,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             }
         };
 
-        let target = result_from_original_location.ident().path().owned().await?;
+        let target = result_from_original_location.ident().await?.path.clone();
 
         Ok(ResolveResultOption::some(
             ResolveResult::primary(ResolveResultItem::External {

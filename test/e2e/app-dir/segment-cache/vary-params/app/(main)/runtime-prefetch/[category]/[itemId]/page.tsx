@@ -12,9 +12,9 @@ import { connection } from 'next/server'
  * providing instant loading feedback when navigating.
  */
 export const unstable_instant: {
-  samples: Array<{ params: { category: string; itemId: string } }>
+  unstable_samples: Array<{ params: { category: string; itemId: string } }>
 } = {
-  samples: [
+  unstable_samples: [
     { params: { category: 'electronics', itemId: 'phone' } },
     { params: { category: 'clothing', itemId: 'shirt' } },
   ],

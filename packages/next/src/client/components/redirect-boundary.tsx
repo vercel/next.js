@@ -44,7 +44,7 @@ export class RedirectErrorBoundary extends React.Component<
     this.state = { redirect: null, redirectType: null }
   }
 
-  static getDerivedStateFromError(error: any) {
+  static getDerivedStateFromError(error: unknown) {
     if (isRedirectError(error)) {
       const url = getURLFromRedirectError(error)
       const redirectType = getRedirectTypeFromError(error)

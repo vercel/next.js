@@ -1,0 +1,21 @@
+---
+title: preferredRegion Deprecated
+---
+
+## Why This Warning Occurred
+
+One or more routes in your application use `export const preferredRegion`, which is deprecated.
+
+## How to Migrate
+
+Remove the `preferredRegion` export from your route files:
+
+```diff
+- export const preferredRegion = 'home'
+```
+
+This applies to all route files that support the `preferredRegion` segment config: `page.ts`, `layout.ts`, and `route.ts`.
+
+## Useful Links
+
+- [Route Segment Config](/docs/app/api-reference/file-conventions/route-segment-config/preferredRegion)

@@ -2423,7 +2423,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E394",
+               "code": "E831",
                "description": "Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": null,
                "label": "Runtime Error",
@@ -2532,7 +2532,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E394",
+               "code": "E829",
                "description": "Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": null,
                "label": "Runtime Error",
@@ -2640,7 +2640,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E394",
+               "code": "E833",
                "description": "Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": null,
                "label": "Runtime Error",
@@ -2747,7 +2747,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E394",
+               "code": "E841",
                "description": "Route /use-cache-connection used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": null,
                "label": "Runtime Error",
@@ -3177,7 +3177,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E394",
+                 "code": "E1009",
                  "description": "A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -3606,7 +3606,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E394",
+                 "code": "E1000",
                  "description": "A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -4001,7 +4001,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E394",
+                 "code": "E831",
                  "description": "Route /use-cache-cookies-third-party used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -4100,7 +4100,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E394",
+                 "code": "E829",
                  "description": "Route /use-cache-draft-mode-third-party used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -4198,7 +4198,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E394",
+                 "code": "E833",
                  "description": "Route /use-cache-headers-third-party used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -4297,7 +4297,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E394",
+                 "code": "E841",
                  "description": "Route /use-cache-connection-third-party used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -4400,7 +4400,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             if (isTurbopack) {
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E394",
+                 "code": "E1016",
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -4416,7 +4416,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             } else {
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E394",
+                 "code": "E1016",
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -4528,7 +4528,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E394",
+               "code": "E1001",
                "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
                "environmentLabel": null,
                "label": "Runtime Error",

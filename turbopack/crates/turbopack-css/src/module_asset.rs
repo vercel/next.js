@@ -64,8 +64,11 @@ impl Module for EcmascriptCssModule {
         Ok(self
             .source
             .ident()
+            .owned()
+            .await?
             .with_modifier(rcstr!("css module"))
-            .with_layer(self.asset_context.into_trait_ref().await?.layer()))
+            .with_layer(self.asset_context.into_trait_ref().await?.layer())
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -354,8 +357,8 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for EcmascriptCssModule {
     #[turbo_tasks::function]
-    fn origin_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
+    async fn origin_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self.source.ident().await?.path.clone().cell())
     }
 
     #[turbo_tasks::function]

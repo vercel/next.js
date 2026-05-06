@@ -44,7 +44,12 @@ impl EcmascriptBuildNodeChunk {
         let this = self.await?;
         Ok(SourceMapAsset::new(
             Vc::upcast(*this.chunking_context),
-            this.chunk.ident().with_modifier(modifier()),
+            this.chunk
+                .ident()
+                .owned()
+                .await?
+                .with_modifier(modifier())
+                .into_vc(),
             Vc::upcast(self),
         ))
     }
@@ -102,7 +107,13 @@ impl OutputAsset for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        let ident = this.chunk.ident().with_modifier(modifier());
+        let ident = this
+            .chunk
+            .ident()
+            .owned()
+            .await?
+            .with_modifier(modifier())
+            .into_vc();
         Ok(this
             .chunking_context
             .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))

@@ -147,6 +147,7 @@ export async function adapter(
     buildId = (requestURL as NextURL).buildId || ''
     requestURL.buildId = ''
   }
+  let deploymentId = process.env.NEXT_DEPLOYMENT_ID
 
   const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const isNextDataRequest = requestHeaders.has('x-nextjs-data')
@@ -308,6 +309,10 @@ export async function adapter(
                 // default.
                 staticPageGenerationTimeout: 0,
                 cacheComponents: false,
+                // Proxy doesn't run instant validation; the level value is
+                // irrelevant here.
+                // TODO: remove validationLevel and other global config from renderOpts
+                validationLevel: 'warning',
                 experimental: {
                   isRoutePPREnabled: false,
                   authInterrupts:
@@ -326,6 +331,7 @@ export async function adapter(
               isPrefetchRequest:
                 request.headers.get(NEXT_ROUTER_PREFETCH_HEADER) === '1',
               buildId: buildId ?? '',
+              deploymentId: deploymentId ?? '',
               previouslyRevalidatedTags: [],
             })
 

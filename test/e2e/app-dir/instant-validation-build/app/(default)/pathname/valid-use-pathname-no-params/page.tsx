@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { PathnameReader } from './pathname-reader'
 
-export const unstable_instant = true
+export const unstable_instant = { level: 'experimental-error' }
 
 export default function Page() {
   return (

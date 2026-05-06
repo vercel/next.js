@@ -13,7 +13,6 @@ use turbopack_core::{
         ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
     },
     output::OutputAssetsWithReferenced,
-    reference::{ModuleReferences, SingleOutputAssetReference},
 };
 
 use crate::{
@@ -110,11 +109,18 @@ impl ManifestAsyncModule {
 
     #[turbo_tasks::function]
     pub async fn content_ident(&self) -> Result<Vc<AssetIdent>> {
-        let mut ident = self.inner.ident();
-        if let Some(available_modules) = self.availability_info.available_modules() {
-            ident = ident.with_modifier(available_modules.hash().await?.to_string().into());
-        }
-        Ok(ident)
+        let ident = self.inner.ident();
+        Ok(
+            if let Some(available_modules) = self.availability_info.available_modules() {
+                ident
+                    .owned()
+                    .await?
+                    .with_modifier(available_modules.hash().await?.to_string().into())
+                    .into_vc()
+            } else {
+                ident
+            },
+        )
     }
 
     #[turbo_tasks::function]
@@ -134,38 +140,19 @@ fn manifest_chunk_reference_description() -> RcStr {
 #[turbo_tasks::value_impl]
 impl Module for ManifestAsyncModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.inner
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .inner
             .ident()
+            .owned()
+            .await?
             .with_modifier(manifest_chunk_reference_description())
+            .into_vc())
     }
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
         Vc::cell(None)
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let assets = self.chunk_group().expand_all_assets().await?;
-
-        Ok(Vc::cell(
-            assets
-                .into_iter()
-                .copied()
-                .map(|chunk| async move {
-                    Ok(ResolvedVc::upcast(
-                        SingleOutputAssetReference::new(
-                            *chunk,
-                            manifest_chunk_reference_description(),
-                        )
-                        .to_resolved()
-                        .await?,
-                    ))
-                })
-                .try_join()
-                .await?,
-        ))
     }
 
     #[turbo_tasks::function]

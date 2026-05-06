@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 
 // this page is NOT runtime-prefetchable,
 // so Sync IO in generateMetadata should be allowed.
-export const unstable_instant = true
+export const unstable_instant = { level: 'experimental-error' }
 
 export async function generateMetadata() {
   await cookies()

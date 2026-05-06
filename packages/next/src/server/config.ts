@@ -1459,11 +1459,6 @@ function assignDefaultsAndValidate(
   if (result.cacheComponents) {
     // TODO: remove once we've finished migrating internally to cacheComponents.
     result.experimental.ppr = true
-
-    // Prerender sourcemaps are enabled by default when using cacheComponents, unless explicitly disabled.
-    if (result.enablePrerenderSourceMaps === undefined) {
-      result.enablePrerenderSourceMaps = true
-    }
   }
 
   // "use cache" was originally implicitly enabled with the cacheComponents flag, so
@@ -1535,6 +1530,21 @@ function assignDefaultsAndValidate(
   }
 
   return result as NextConfigComplete
+}
+
+/**
+ * Post-processing applied by `loadConfig` after `applyModifyConfig`, so that
+ * any mutations the user made through `modifyConfig` still flow through the
+ * same defaulting rules. Keep framework-default resolution in one place so
+ * consumers don't each need to know the current framework default (which may
+ * evolve over time).
+ */
+function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
+  config.experimental.instantInsights = {
+    validationLevel:
+      config.experimental.instantInsights?.validationLevel ?? 'manual-warning',
+  }
+  return config
 }
 
 async function applyModifyConfig(
@@ -1716,19 +1726,21 @@ export default async function loadConfig(
     // Check deprecation warnings on the custom config before merging with defaults
     checkDeprecations(customConfig as NextConfig, configFileName, silent, dir)
 
-    const config = await applyModifyConfig(
-      assignDefaultsAndValidate(
-        dir,
-        {
-          configOrigin: 'server',
-          configFileName,
-          ...customConfig,
-        },
-        silent,
-        phase
-      ),
-      phase,
-      silent
+    const config = finalizeConfig(
+      await applyModifyConfig(
+        assignDefaultsAndValidate(
+          dir,
+          {
+            configOrigin: 'server',
+            configFileName,
+            ...customConfig,
+          },
+          silent,
+          phase
+        ),
+        phase,
+        silent
+      )
     )
 
     // Cache the custom config result
@@ -1924,7 +1936,9 @@ export default async function loadConfig(
       phase
     )
 
-    const finalConfig = await applyModifyConfig(completeConfig, phase, silent)
+    const finalConfig = finalizeConfig(
+      await applyModifyConfig(completeConfig, phase, silent)
+    )
 
     // Cache the final result
     configCache.set(cacheKey, {
@@ -1981,7 +1995,9 @@ export default async function loadConfig(
 
   setHttpClientAndAgentOptions(completeConfig)
 
-  const finalConfig = await applyModifyConfig(completeConfig, phase, silent)
+  const finalConfig = finalizeConfig(
+    await applyModifyConfig(completeConfig, phase, silent)
+  )
 
   // Cache the default config result
   configCache.set(cacheKey, {
@@ -2025,9 +2041,6 @@ function enforceExperimentalFeatures(
     debugPrerender &&
     (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT)
   ) {
-    // TODO: This is not an experimental feature, but should be enabled alongside other prerender debugging features.
-    config.enablePrerenderSourceMaps = true
-
     setExperimentalFeatureForDebugPrerender(
       config.experimental,
       'serverSourceMaps',

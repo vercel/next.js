@@ -136,6 +136,8 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::path_sep("path-sep")]
 // #[case::phantomjs_prebuilt("phantomjs-prebuilt")]
 // #[case::pino_transport("pino-transport")]
+// #[case::pino_transport_constructor("pino-transport-constructor")]
+// #[case::pino_transport_fastify("pino-transport-fastify")]
 // #[case::pino_transport_targets("pino-transport-targets")]
 // #[case::pixelmatch("pixelmatch")]
 // #[case::pkg_dir_outside_base("pkg-dir-outside-base")]
@@ -263,7 +265,7 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
         TracedAsset::new(module).to_resolved().await?,
     )])
     .await?;
-    paths.push(module.ident().path().await?.path.clone());
+    paths.push(module.ident().await?.path.path.clone());
 
     Ok(Vc::cell(paths))
 }
