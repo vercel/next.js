@@ -49,6 +49,24 @@ export function getRenderedPathname(
       .pathname) as NormalizedPathname
 }
 
+// Pathname parts come from `URL.pathname.split('/')`, so they are already
+// in the encoded form the URL parser produces. The server-side equivalent
+// (`get-dynamic-param.ts`) starts from a decoded param value and applies
+// `encodeURIComponent` once. The two encodings are not the same — for
+// example, the URL parser leaves `,` and `:` untouched while
+// `encodeURIComponent` percent-encodes them. To produce the same canonical
+// form on the client (and avoid double-encoding `%xx` sequences such as
+// `%2F` → `%252F`), we decode the URL part first and re-encode it.
+function canonicalizeURLPart(part: string): string {
+  try {
+    return encodeURIComponent(decodeURIComponent(part))
+  } catch {
+    // `decodeURIComponent` throws on malformed sequences. Fall back to the
+    // already-encoded form rather than failing the navigation.
+    return part
+  }
+}
+
 export function parseDynamicParamFromURLPart(
   paramType: DynamicParamTypesShort,
   pathnameParts: Array<string>,
@@ -61,7 +79,7 @@ export function parseDynamicParamFromURLPart(
       // Catchalls receive all the remaining URL parts. If there are no
       // remaining pathname parts, return an empty array.
       return partIndex < pathnameParts.length
-        ? pathnameParts.slice(partIndex).map((s) => encodeURIComponent(s))
+        ? pathnameParts.slice(partIndex).map((s) => canonicalizeURLPart(s))
         : []
     }
     // Catchall intercepted
@@ -73,10 +91,10 @@ export function parseDynamicParamFromURLPart(
       return partIndex < pathnameParts.length
         ? pathnameParts.slice(partIndex).map((s, i) => {
             if (i === 0) {
-              return encodeURIComponent(s.slice(prefix))
+              return canonicalizeURLPart(s.slice(prefix))
             }
 
-            return encodeURIComponent(s)
+            return canonicalizeURLPart(s)
           })
         : []
     }
@@ -85,7 +103,7 @@ export function parseDynamicParamFromURLPart(
       // Optional catchalls receive all the remaining URL parts, unless this is
       // the end of the pathname, in which case they return null.
       return partIndex < pathnameParts.length
-        ? pathnameParts.slice(partIndex).map((s) => encodeURIComponent(s))
+        ? pathnameParts.slice(partIndex).map((s) => canonicalizeURLPart(s))
         : null
     }
     // Dynamic
@@ -100,7 +118,7 @@ export function parseDynamicParamFromURLPart(
         // recovery options.
         return ''
       }
-      return encodeURIComponent(pathnameParts[partIndex])
+      return canonicalizeURLPart(pathnameParts[partIndex])
     }
     // Dynamic intercepted
     case 'di(..)(..)':
@@ -119,7 +137,7 @@ export function parseDynamicParamFromURLPart(
         return ''
       }
 
-      return encodeURIComponent(pathnameParts[partIndex].slice(prefix))
+      return canonicalizeURLPart(pathnameParts[partIndex].slice(prefix))
     }
     default:
       paramType satisfies never
