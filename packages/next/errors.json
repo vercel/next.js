@@ -1178,5 +1178,8 @@
   "1177": "The middleware \"%s\" accepts an async API directly with the form:\n  \n  export function middleware(request, event) {\n    return NextResponse.redirect('/new-location')\n  }\n  \n  Read more: https://nextjs.org/docs/messages/middleware-new-signature\n  ",
   "1178": "The request.page has been deprecated in favour of \\`URLPattern\\`.\n  Read more: https://nextjs.org/docs/messages/middleware-request-page\n  ",
   "1179": "Invariant: %s This is a bug in Next.js.",
-  "1180": "Cookies can only be modified in a Server Action or Route Handler. Read more: https://nextjs.org/docs/app/api-reference/functions/cookies#options"
+  "1180": "Cookies can only be modified in a Server Action or Route Handler. Read more: https://nextjs.org/docs/app/api-reference/functions/cookies#options",
+  "1181": "Filling a \"use cache\" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. \"use cache\" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on \"use cache\" alone for deduping.",
+  "1182": "`deadlockError` should be constructed inside `cache()` before reaching the probe scheduler.",
+  "1183": "Unexpected `prerender-dynamic` result in `use cache` probe mode."
 }
