@@ -58,7 +58,7 @@ pub unsafe fn restore_arc(v: TaggedValue) -> Arc<PrehashedString> {
 pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
     let len = text.as_ref().len();
 
-    if len < MAX_INLINE_LEN {
+    if len <= MAX_INLINE_LEN {
         // INLINE_TAG ensures this is never zero
         let tag = INLINE_TAG_INIT | ((len as u8) << LEN_OFFSET);
         let mut unsafe_data = TaggedValue::new_tag(tag);
@@ -113,7 +113,7 @@ pub(crate) fn new_static_atom(string: &'static PrehashedString) -> RcStr {
 #[doc(hidden)]
 pub(crate) const fn inline_atom(text: &str) -> Option<RcStr> {
     let len = text.len();
-    if len < MAX_INLINE_LEN {
+    if len <= MAX_INLINE_LEN {
         let tag = INLINE_TAG | ((len as u8) << LEN_OFFSET);
         let mut unsafe_data = TaggedValue::new_tag(NonZeroU8::new(tag).unwrap());
 
