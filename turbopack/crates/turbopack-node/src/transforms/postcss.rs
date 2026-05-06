@@ -315,8 +315,9 @@ impl Source for JsonSource {
         match &*self.key.await? {
             Some(key) => Ok(AssetIdent::from_path(
                 self.path.append(".")?.append(key)?.append(".json")?,
-            )),
-            None => Ok(AssetIdent::from_path(self.path.append(".json")?)),
+            )
+            .into_vc()),
+            None => Ok(AssetIdent::from_path(self.path.append(".json")?).into_vc()),
         }
     }
 }
@@ -454,11 +455,11 @@ async fn find_config_in_location(
         }
         // Check project root first, fall back to the CSS file's directory.
         PostCssConfigLocation::ProjectPathOrLocalPath => {
-            vec![project_path, source.ident().path().await?.parent()]
+            vec![project_path, source.ident().await?.path.parent()]
         }
         // Check the CSS file's directory first, fall back to the project root.
         PostCssConfigLocation::LocalPathOrProjectPath => {
-            vec![source.ident().path().await?.parent(), project_path]
+            vec![source.ident().await?.path.parent(), project_path]
         }
     };
 
@@ -558,17 +559,17 @@ impl PostCssTransformedAsset {
         .to_resolved()
         .await?;
 
-        let css_fs_path = self.source.ident().path();
+        let source_ident = self.source.ident().await?;
 
         // We need to get a path relative to the project because the postcss loader
         // runs with the project as the current working directory.
-        let css_path =
-            if let Some(css_path) = project_path.get_relative_path_to(&*css_fs_path.await?) {
-                css_path.into_owned()
-            } else {
-                // This shouldn't be an error since it can happen on virtual assets
-                "".into()
-            };
+        let css_path = if let Some(css_path) = project_path.get_relative_path_to(&source_ident.path)
+        {
+            css_path.into_owned()
+        } else {
+            // This shouldn't be an error since it can happen on virtual assets
+            "".into()
+        };
 
         let config_value = evaluate_webpack_loader(WebpackLoaderContext {
             entries,

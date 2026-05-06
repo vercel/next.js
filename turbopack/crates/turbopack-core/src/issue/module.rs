@@ -42,7 +42,7 @@ impl Issue for ModuleIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.ident.path().owned().await
+        Ok(self.ident.await?.path.clone())
     }
 
     async fn title(&self) -> Result<StyledString> {

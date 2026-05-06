@@ -88,8 +88,14 @@ impl RawEcmascriptModule {
 #[turbo_tasks::value_impl]
 impl Module for RawEcmascriptModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().with_modifier(rcstr!("raw"))
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .source
+            .ident()
+            .owned()
+            .await?
+            .with_modifier(rcstr!("raw"))
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -208,7 +214,7 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
             code += "(function(){\n";
             let source_mapping_url = extract_source_mapping_url_from_content(&content_str);
             let source_map = if let Some((source_map, _)) =
-                parse_source_map_comment(source, source_mapping_url, &*self.ident().path().await?)
+                parse_source_map_comment(source, source_mapping_url, &self.ident().await?.path)
                     .await?
             {
                 let source_map = source_map.generate_source_map().await?;

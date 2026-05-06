@@ -275,7 +275,7 @@ impl Module for CachedExternalModule {
             ident = ident.with_modifier(target.to_string_ref().await?);
         }
 
-        Ok(ident)
+        Ok(ident.into_vc())
     }
 
     #[turbo_tasks::function]

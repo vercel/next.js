@@ -83,25 +83,77 @@ pub struct AssetIdent {
 }
 
 impl AssetIdent {
-    pub fn new(ident: AssetIdent) -> Vc<Self> {
-        AssetIdent::new_inner(ReadRef::new_owned(ident))
+    /// Creates an [AssetIdent] from a [FileSystemPath].
+    ///
+    /// Returns an owned value; call [`AssetIdent::into_vc`] at the end of the builder chain to
+    /// turn it into a [`Vc<AssetIdent>`].
+    pub fn from_path(path: FileSystemPath) -> Self {
+        AssetIdent {
+            path,
+            query: RcStr::default(),
+            fragment: RcStr::default(),
+            assets: Vec::new(),
+            modifiers: Vec::new(),
+            parts: Vec::new(),
+            layer: None,
+            content_type: None,
+        }
     }
 
-    pub fn add_modifier(&mut self, modifier: RcStr) {
+    /// Finalizes the builder by turning the owned [`AssetIdent`] into a cached [`Vc<AssetIdent>`].
+    pub fn into_vc(self) -> Vc<Self> {
+        // This optimizes cache misses in cold builds by only storing one copy of the AssetIdent.
+        AssetIdent::new_inner(ReadRef::new_owned(self))
+    }
+
+    pub fn with_query(mut self, query: RcStr) -> Self {
+        self.query = query;
+        self
+    }
+
+    pub fn with_fragment(mut self, fragment: RcStr) -> Self {
+        self.fragment = fragment;
+        self
+    }
+
+    pub fn with_modifier(mut self, modifier: RcStr) -> Self {
         debug_assert!(!modifier.is_empty(), "modifiers cannot be empty.");
         self.modifiers.push(modifier);
+        self
     }
 
-    pub fn add_asset(&mut self, key: RcStr, asset: ResolvedVc<AssetIdent>) {
+    pub fn with_part(mut self, part: ModulePart) -> Self {
+        self.parts.push(part);
+        self
+    }
+
+    pub fn with_path(mut self, path: FileSystemPath) -> Self {
+        self.path = path;
+        self
+    }
+
+    pub fn with_layer(mut self, layer: Layer) -> Self {
+        self.layer = Some(layer);
+        self
+    }
+
+    pub fn with_content_type(mut self, content_type: RcStr) -> Self {
+        self.content_type = Some(content_type);
+        self
+    }
+
+    pub fn with_asset(mut self, key: RcStr, asset: ResolvedVc<AssetIdent>) -> Self {
         self.assets.push((key, asset));
+        self
     }
 
-    pub async fn rename_as_ref(&mut self, pattern: &str) -> Result<()> {
-        let root = self.path.root().await?;
-        let path = self.path.clone();
-        self.path = root.join(&pattern.replace('*', &path.path))?;
+    pub fn rename_as(mut self, pattern: &str) -> Self {
+        self.path = FileSystemPath::new_normalized_unchecked(
+            self.path.fs,
+            pattern.replace('*', &self.path.path).into(),
+        );
         self.content_type = None;
-        Ok(())
+        self
     }
 }
 
@@ -118,89 +170,6 @@ impl AssetIdent {
             "query should be empty or start with a `?`"
         );
         ReadRef::cell(ident)
-    }
-
-    /// Creates an [AssetIdent] from a [FileSystemPath]
-    #[turbo_tasks::function]
-    pub fn from_path(path: FileSystemPath) -> Vc<Self> {
-        Self::new(AssetIdent {
-            path,
-            query: RcStr::default(),
-            fragment: RcStr::default(),
-            assets: Vec::new(),
-            modifiers: Vec::new(),
-            parts: Vec::new(),
-            layer: None,
-            content_type: None,
-        })
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_query(&self, query: RcStr) -> Vc<Self> {
-        let mut this = self.clone();
-        this.query = query;
-        Self::new(this)
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_fragment(&self, fragment: RcStr) -> Vc<Self> {
-        let mut this = self.clone();
-        this.fragment = fragment;
-        Self::new(this)
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_modifier(&self, modifier: RcStr) -> Vc<Self> {
-        let mut this = self.clone();
-        this.add_modifier(modifier);
-        Self::new(this)
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_part(&self, part: ModulePart) -> Vc<Self> {
-        let mut this = self.clone();
-        this.parts.push(part);
-        Self::new(this)
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_path(&self, path: FileSystemPath) -> Vc<Self> {
-        let mut this = self.clone();
-        this.path = path;
-        Self::new(this)
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_layer(&self, layer: Layer) -> Vc<Self> {
-        let mut this = self.clone();
-        this.layer = Some(layer);
-        Self::new(this)
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_content_type(&self, content_type: RcStr) -> Vc<Self> {
-        let mut this = self.clone();
-        this.content_type = Some(content_type);
-        Self::new(this)
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_asset(&self, key: RcStr, asset: ResolvedVc<AssetIdent>) -> Vc<Self> {
-        let mut this = self.clone();
-        this.add_asset(key, asset);
-        Self::new(this)
-    }
-
-    #[turbo_tasks::function]
-    pub async fn rename_as(&self, pattern: RcStr) -> Result<Vc<Self>> {
-        let mut this = self.clone();
-        this.rename_as_ref(&pattern).await?;
-        Ok(Self::new(this))
-    }
-
-    #[turbo_tasks::function]
-    pub fn path(&self) -> Vc<FileSystemPath> {
-        self.path.clone().cell()
     }
 
     /// Computes a unique output asset name for the given asset identifier.
@@ -465,7 +434,7 @@ pub mod tests {
                 let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
                 let root = fs.root().owned().await?;
 
-                let asset_ident = AssetIdent::from_path(root.join("a:b?c#d.js")?);
+                let asset_ident = AssetIdent::from_path(root.join("a:b?c#d.js")?).into_vc();
                 let output_name = asset_ident
                     .output_name(root, Some(rcstr!("prefix")), rcstr!(".js"))
                     .await?;

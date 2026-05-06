@@ -602,8 +602,8 @@ impl IssueSource {
     }
 
     /// Returns the file path for the source file.
-    pub fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
+    pub async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.source.ident().await?.path.clone())
     }
 
     /// If this source implements `GenerateSourceMap`, returns an
@@ -1024,8 +1024,8 @@ pub struct PlainIssueSource {
 #[turbo_tasks::value(serialization = "skip")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainSource {
-    pub ident: ReadRef<RcStr>,
-    pub file_path: ReadRef<RcStr>,
+    pub ident: RcStr,
+    pub file_path: RcStr,
     #[turbo_tasks(debug_ignore)]
     pub content: ReadRef<FileContent>,
 }
@@ -1041,8 +1041,8 @@ impl PlainSource {
         };
 
         Ok(PlainSource {
-            ident: asset.ident().to_string().await?,
-            file_path: asset.ident().path().to_string().await?,
+            ident: asset.ident().to_string().owned().await?,
+            file_path: asset.ident().await?.path.to_string_ref().await?,
             content,
         }
         .cell())

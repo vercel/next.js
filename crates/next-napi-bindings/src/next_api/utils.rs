@@ -364,8 +364,8 @@ pub struct NapiSource {
 impl From<&PlainSource> for NapiSource {
     fn from(source: &PlainSource) -> Self {
         Self {
-            ident: (*source.ident).clone(),
-            file_path: (*source.file_path).clone(),
+            ident: source.ident.clone(),
+            file_path: source.file_path.clone(),
         }
     }
 }

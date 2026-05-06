@@ -134,7 +134,8 @@ impl EcmascriptBuildNodeRuntimeChunk {
                 .root()
                 .await?
                 .join("runtime.js")?,
-        ))
+        )
+        .into_vc())
     }
 
     #[turbo_tasks::function]

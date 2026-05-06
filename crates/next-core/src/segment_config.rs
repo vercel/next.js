@@ -262,7 +262,7 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.ident.path().owned().await
+        Ok(self.ident.await?.path.clone())
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
@@ -365,7 +365,8 @@ pub async fn parse_segment_config_from_source(
     source: ResolvedVc<Box<dyn Source>>,
     mode: ParseSegmentMode,
 ) -> Result<Vc<NextSegmentConfig>> {
-    let path = source.ident().path().await?;
+    let ident = source.ident().await?;
+    let path = &ident.path;
 
     // Don't try parsing if it's not a javascript file, otherwise it will emit an
     // issue causing the build to "fail".

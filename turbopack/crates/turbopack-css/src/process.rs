@@ -765,7 +765,7 @@ impl Issue for ParsingIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().owned().await
+        self.source.file_path().await
     }
 
     fn stage(&self) -> IssueStage {

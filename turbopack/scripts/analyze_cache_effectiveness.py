@@ -108,7 +108,7 @@ def print_analysis(tasks: List[TaskStats]):
 
     # Print summary
     print()
-    print(f"Total tasks: {len(tasks)}")
+    print(f"Total functions: {len(tasks)}")
     print(f"Total cache misses: {total_misses:,}")
     print(f"Overall cache hit rate: {overall_hit_rate:.1%} ({total_hits:,} hits / {total_ops:,} total)")
     print(f"Tasks with <50% hit rate: {low_hit_rate_count}")

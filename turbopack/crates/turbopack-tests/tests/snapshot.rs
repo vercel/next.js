@@ -598,7 +598,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                         .entry_chunk_group(
                             // `expected` expects a completely flat output directory.
                             chunk_root_path
-                                .join(entry_module.ident().path().await?.file_stem().unwrap())?
+                                .join(entry_module.ident().await?.path.file_stem().unwrap())?
                                 .with_extension("entry.js"),
                             ChunkGroup::Entry(entry_modules),
                             module_graph,

@@ -1283,7 +1283,8 @@ impl AppEndpoint {
         let (availability_info, client_shared_chunks) = if is_app_page {
             let client_shared_chunk_group = get_app_client_shared_chunk_group(
                 AssetIdent::from_path(project.project_path().owned().await?)
-                    .with_modifier(rcstr!("client-shared-chunks")),
+                    .with_modifier(rcstr!("client-shared-chunks"))
+                    .into_vc(),
                 this.app_project.client_runtime_entries(),
                 *module_graphs.full,
                 *client_chunking_context,
@@ -1826,7 +1827,8 @@ impl AppEndpoint {
                                 AssetIdent::from_path(
                                     this.app_project.project().project_path().owned().await?,
                                 )
-                                .with_modifier(rcstr!("server-utils")),
+                                .with_modifier(rcstr!("server-utils"))
+                                .into_vc(),
                                 ChunkGroup::SharedMerged {
                                     merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
                                     entries: server_utils,

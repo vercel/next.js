@@ -156,7 +156,12 @@ impl Source for WebpackLoadersProcessedAsset {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(
             if let Some(rename_as) = self.transform.await?.rename_as.as_deref() {
-                self.source.ident().rename_as(rename_as.into())
+                self.source
+                    .ident()
+                    .owned()
+                    .await?
+                    .rename_as(rename_as)
+                    .into_vc()
             } else {
                 self.source.ident()
             },
@@ -286,8 +291,9 @@ impl WebpackLoadersProcessedAsset {
             .to_resolved()
             .await?;
 
-            let resource_fs_path = self.source.ident().path().await?;
-            let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {
+            let source_ident = self.source.ident().await?;
+            let resource_fs_path = &source_ident.path;
+            let Some(resource_path) = project_path.get_relative_path_to(resource_fs_path) else {
                 bail!(
                     "Resource path \"{}\" needs to be on project filesystem \"{}\"",
                     resource_fs_path,
@@ -341,7 +347,7 @@ impl WebpackLoadersProcessedAsset {
                     .map(|source_map| Rope::from(source_map.into_owned()))
             };
             let source_map =
-                resolve_source_map_sources(source_map.as_ref(), &resource_fs_path).await?;
+                resolve_source_map_sources(source_map.as_ref(), resource_fs_path).await?;
 
             let file = match processed.source {
                 Either::Left(str) => File::from(str),
@@ -656,10 +662,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 );
 
                 if let Some(source) = *resolved.first_source().await? {
-                    if let Some(path) = self
-                        .cwd
-                        .get_relative_path_to(&*source.ident().path().await?)
-                    {
+                    if let Some(path) = self.cwd.get_relative_path_to(&source.ident().await?.path) {
                         Ok(ResponseMessage::Resolve { path })
                     } else {
                         bail!(
@@ -944,7 +947,7 @@ impl Issue for BuildDependencyIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().owned().await
+        self.source.file_path().await
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
@@ -979,7 +982,7 @@ pub struct EvaluateEmittedErrorIssue {
 #[turbo_tasks::value_impl]
 impl Issue for EvaluateEmittedErrorIssue {
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().owned().await
+        self.source.file_path().await
     }
 
     fn stage(&self) -> IssueStage {
@@ -1028,7 +1031,7 @@ pub struct EvaluateErrorLoggingIssue {
 #[turbo_tasks::value_impl]
 impl Issue for EvaluateErrorLoggingIssue {
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().owned().await
+        self.source.file_path().await
     }
 
     fn stage(&self) -> IssueStage {

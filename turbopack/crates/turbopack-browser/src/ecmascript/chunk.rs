@@ -44,17 +44,21 @@ impl EcmascriptBrowserChunk {
         let this = self.await?;
         Ok(SourceMapAsset::new(
             Vc::upcast(*this.chunking_context),
-            this.ident_for_path(),
+            this.ident_for_path().await?,
             Vc::upcast(self),
         ))
     }
 }
 
 impl EcmascriptBrowserChunk {
-    fn ident_for_path(&self) -> Vc<AssetIdent> {
-        self.chunk
+    async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .chunk
             .ident()
+            .owned()
+            .await?
             .with_modifier(rcstr!("ecmascript dev chunk"))
+            .into_vc())
     }
 }
 
@@ -123,7 +127,7 @@ impl OutputAsset for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        let ident = this.ident_for_path();
+        let ident = this.ident_for_path().await?;
         Ok(this
             .chunking_context
             .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))

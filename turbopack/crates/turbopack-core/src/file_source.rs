@@ -47,14 +47,10 @@ impl FileSource {
 impl Source for FileSource {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        let mut ident = AssetIdent::from_path(self.path.clone());
-        if !self.query.is_empty() {
-            ident = ident.with_query(self.query.clone());
-        }
-        if !self.fragment.is_empty() {
-            ident = ident.with_fragment(self.fragment.clone());
-        }
-        ident
+        AssetIdent::from_path(self.path.clone())
+            .with_query(self.query.clone())
+            .with_fragment(self.fragment.clone())
+            .into_vc()
     }
 
     #[turbo_tasks::function]
