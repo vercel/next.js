@@ -75,10 +75,12 @@ export async function getData() {
 
 A cache entry's key is generated using a serialized version of its inputs, which includes:
 
-1. **Build ID** - Unique per build, changing this invalidates all cache entries
+1. **Build ID** - Unique per build, changing this invalidates all cache entries. If [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) is configured, it overrides the build ID for cache key purposes.
 2. **Function ID** - A secure hash of the function's location and signature in the codebase
 3. **Serializable arguments** - Props (for components) or function arguments
 4. **HMR refresh hash** (development only) - Invalidates cache on hot module replacement
+
+> **Good to know**: `'use cache'` is stored in-memory by default, so entries don't persist across process restarts or deploys. For data that needs to survive a redeploy, use [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) for non-`fetch` functions or the [`fetch`](/docs/app/api-reference/functions/fetch) cache.
 
 When a cached function references variables from outer scopes, those variables are automatically captured and bound as arguments, making them part of the cache key.
 
@@ -197,7 +199,7 @@ Cached functions and components **cannot** directly access runtime APIs like `co
 
 While `use cache` is designed primarily to include uncached data in the static shell, it can also cache data at runtime using in-memory LRU (Least Recently Used) storage.
 
-Runtime cache behavior depends on your hosting environment:
+With the default in-memory handler, runtime cache behavior depends on your hosting environment:
 
 | Environment     | Runtime Caching Behavior                                                                                                                                          |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
