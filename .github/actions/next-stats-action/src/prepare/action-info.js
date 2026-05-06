@@ -8,7 +8,6 @@ module.exports = function actionInfo() {
     ISSUE_ID,
     SKIP_CLONE,
     GITHUB_REF,
-    GITHUB_SHA,
     LOCAL_STATS,
     GIT_ROOT_DIR,
     GITHUB_ACTION,
@@ -16,6 +15,7 @@ module.exports = function actionInfo() {
     GITHUB_REPOSITORY,
     GITHUB_EVENT_PATH,
     PR_STATS_COMMENT_TOKEN,
+    PREVIEW_BUILDS_BASE_URL,
   } = process.env
 
   delete process.env.GITHUB_TOKEN
@@ -56,13 +56,12 @@ module.exports = function actionInfo() {
     prRef: GITHUB_REF,
     isLocal: LOCAL_STATS,
     commitId: null,
-    // Mirrors github.event.after || github.sha used by build_and_deploy.yml
-    // to ensure the tarball URL matches the deployed artifact.
-    githubHeadSha: GITHUB_SHA || null,
     issueId: ISSUE_ID,
     isRelease:
       GITHUB_REPOSITORY === 'vercel/next.js' &&
       (GITHUB_REF || '').includes('canary'),
+    previewBuildsBaseUrl:
+      PREVIEW_BUILDS_BASE_URL || 'https://vercel-packages.vercel.app/next',
   }
 
   if (info.isRelease) {
@@ -73,10 +72,6 @@ module.exports = function actionInfo() {
   if (GITHUB_EVENT_PATH) {
     const event = require(GITHUB_EVENT_PATH)
     info.actionName = event.action || info.actionName
-
-    if (event.after) {
-      info.githubHeadSha = event.after
-    }
 
     if (releaseTypes.has(info.actionName)) {
       info.isRelease = true

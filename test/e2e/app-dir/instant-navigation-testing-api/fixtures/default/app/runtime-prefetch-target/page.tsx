@@ -2,9 +2,9 @@ import { Suspense } from 'react'
 import { connection } from 'next/server'
 
 export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ searchParams: { myParam: 'testValue' } }],
+  unstable_samples: [{ searchParams: { myParam: 'testValue' } }],
 }
+export const unstable_prefetch = 'force-runtime'
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 

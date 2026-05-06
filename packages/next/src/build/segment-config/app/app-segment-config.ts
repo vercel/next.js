@@ -19,22 +19,11 @@ const RuntimeSampleSchema = z
   })
   .strict()
 
-const InstantConfigStaticSchema = z
+const InstantConfigObjectSchema = z
   .object({
-    prefetch: z.literal('static'),
-    samples: z.array(RuntimeSampleSchema).min(1).optional(),
-    from: z.array(z.string()).optional(),
-    unstable_disableValidation: z.literal(true).optional(),
-    unstable_disableDevValidation: z.literal(true).optional(),
-    unstable_disableBuildValidation: z.literal(true).optional(),
-  })
-  .strict()
-
-const InstantConfigRuntimeSchema = z
-  .object({
-    prefetch: z.literal('runtime'),
-    samples: z.array(RuntimeSampleSchema).min(1),
-    from: z.array(z.string()).optional(),
+    level: z.enum(['warning', 'experimental-error']).optional(),
+    unstable_samples: z.array(RuntimeSampleSchema).min(1).optional(),
+    unstable_from: z.array(z.string()).optional(),
     unstable_disableValidation: z.literal(true).optional(),
     unstable_disableDevValidation: z.literal(true).optional(),
     unstable_disableBuildValidation: z.literal(true).optional(),
@@ -42,47 +31,40 @@ const InstantConfigRuntimeSchema = z
   .strict()
 
 const InstantConfigSchema = z.union([
-  z.discriminatedUnion('prefetch', [
-    InstantConfigStaticSchema,
-    InstantConfigRuntimeSchema,
-  ]),
+  InstantConfigObjectSchema,
+  z.literal(true),
   z.literal(false),
 ])
 
-export type Instant = InstantConfigStatic | InstantConfigRuntime | false
+const PrefetchSchema = z.enum([
+  'auto',
+  'force-disabled',
+  'force-static',
+  'force-runtime',
+])
+
+export type Instant = InstantConfig | true | false
+
+export type Prefetch =
+  | 'auto'
+  | 'force-disabled'
+  | 'force-static'
+  | 'force-runtime'
 
 export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
-// the __GenericPrefetch type is used to avoid type widening issues with
+// the __GenericInstantConfig type is used to avoid type widening issues with
 // our choice to make exports the medium for programming a Next.js application
 // With exports the type is controlled by the module and all we can do is assert on it
 // from a consumer. However with string literals in objects these are by default typed widely
 // and thus cannot match the discriminated union type. If we figure out a better way we should
-// delete the __GenericPrefetch member.
+// delete the __GenericInstantConfig member.
 interface __GenericInstantConfig {
-  prefetch: string
-  samples?: Array<WideInstantSample>
-  from?: string[]
+  level?: string
+  unstable_samples?: Array<WideInstantSample>
+  unstable_from?: string[]
   unstable_disableValidation?: boolean
   unstable_disableDevValidation?: boolean
   unstable_disableBuildValidation?: boolean
-}
-
-interface InstantConfigStatic {
-  prefetch: 'static'
-  samples?: Array<InstantSample>
-  from?: string[]
-  unstable_disableValidation?: true
-  unstable_disableDevValidation?: true
-  unstable_disableBuildValidation?: true
-}
-
-interface InstantConfigRuntime {
-  prefetch: 'runtime'
-  samples: Array<InstantSample>
-  from?: string[]
-  unstable_disableValidation?: true
-  unstable_disableDevValidation?: true
-  unstable_disableBuildValidation?: true
 }
 
 type WideInstantSample = {
@@ -90,6 +72,15 @@ type WideInstantSample = {
   headers?: Array<string[]>
   params?: InstantSample['params']
   searchParams?: InstantSample['searchParams']
+}
+
+export interface InstantConfig {
+  level?: 'warning' | 'experimental-error'
+  unstable_samples?: Array<InstantSample>
+  unstable_from?: string[]
+  unstable_disableValidation?: true
+  unstable_disableDevValidation?: true
+  unstable_disableBuildValidation?: true
 }
 
 export type InstantSample = {
@@ -146,6 +137,13 @@ const AppSegmentConfigSchema = z.object({
   unstable_instant: InstantConfigSchema.optional(),
 
   /**
+   * Controls runtime prefetching for this segment.
+   * 'static' is a noop (default behavior).
+   * 'runtime' enables runtime prefetching.
+   */
+  unstable_prefetch: PrefetchSchema.optional(),
+
+  /**
    * The stale time for dynamic responses in seconds.
    * Controls how long the client-side router cache retains dynamic page data.
    * Pages only — not allowed in layouts.
@@ -192,7 +190,12 @@ export function parseAppSegmentConfig(
           case 'unstable_instant': {
             return {
               // @TODO replace this link with a link to the docs when they are written
-              message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be an object with \`prefetch: "static"\` or \`prefetch: "runtime"\`, or \`false\`. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
+              message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be \`true\`, \`false\`, or an object. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
+            }
+          }
+          case 'unstable_prefetch': {
+            return {
+              message: `Invalid unstable_prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "force-disabled", "force-static", or "force-runtime".`,
             }
           }
           case 'unstable_dynamicStaleTime': {
@@ -253,6 +256,13 @@ export type AppSegmentConfig = {
    * How this segment should be prefetched.
    */
   unstable_instant?: Instant
+
+  /**
+   * Controls runtime prefetching for this segment.
+   * 'static' is a noop (default behavior).
+   * 'runtime' enables runtime prefetching.
+   */
+  unstable_prefetch?: Prefetch
 
   /**
    * The stale time for dynamic responses in seconds.

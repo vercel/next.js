@@ -40,4 +40,11 @@ export const styles = `
     background: var(--color-blue-100);
     color: var(--color-blue-900);
   }
+
+  .nextjs__container_errors_label_instant {
+    background: var(--color-amber-200);
+    color: var(--color-amber-900);
+    font-family: var(--font-stack-sans);
+    font-weight: 500;
+  }
 `

@@ -144,10 +144,9 @@ impl Visit for IdentCollector {
     }
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(shared, serialization = "skip", eq = "manual", cell = "new")]
 #[allow(clippy::large_enum_variant)]
 pub enum ParseResult {
-    // Note: Ok must not contain any Vc as it's snapshot by failsafe_parse
     Ok {
         #[turbo_tasks(debug_ignore, trace_ignore)]
         program: Program,
@@ -160,6 +159,11 @@ pub enum ParseResult {
         #[turbo_tasks(debug_ignore, trace_ignore)]
         source_map: Arc<swc_core::common::SourceMap>,
         source_mapping_url: Option<RcStr>,
+        /// Raw bytes of the source that produced this parse, captured atomically
+        /// with the AST. `failsafe_parse` uses this to recover good parses in development on
+        /// error.
+        #[turbo_tasks(debug_ignore, trace_ignore)]
+        program_source: Rope,
     },
     Unparsable {
         messages: Option<Vec<RcStr>>,
@@ -268,6 +272,7 @@ pub async fn parse(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    node_env: RcStr,
     is_external_tracing: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
@@ -277,9 +282,16 @@ pub async fn parse(
         ty = display(&ty)
     );
 
-    match parse_internal(source, ty, transforms, is_external_tracing, inline_helpers)
-        .instrument(span)
-        .await
+    match parse_internal(
+        source,
+        ty,
+        transforms,
+        node_env,
+        is_external_tracing,
+        inline_helpers,
+    )
+    .instrument(span)
+    .await
     {
         Ok(result) => Ok(result),
         // ast-grep-ignore: no-context-turbofmt
@@ -291,13 +303,15 @@ async fn parse_internal(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    node_env: RcStr,
     loose_errors: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
-    let fs_path = source.ident().path().owned().await?;
+    let source_ident = source.ident().await?;
+    let fs_path = &source_ident.path;
     let ident = &*source.ident().to_string().await?;
-    let file_path_hash = hash_xxh3_hash64(&*source.ident().to_string().await?) as u128;
+    let file_path_hash = hash_xxh3_hash64(ident) as u128;
     let content = match content.await {
         Ok(content) => content,
         Err(error) => {
@@ -324,61 +338,29 @@ async fn parse_internal(
         AssetContent::File(file) => match &*file.await? {
             FileContent::NotFound => ParseResult::NotFound.cell(),
             FileContent::Content(file) => {
-                match BytesStr::from_utf8(file.content().clone().into_bytes()) {
-                    Ok(string) => {
-                        let transforms = &*transforms.await?;
-                        match parse_file_content(
-                            string,
-                            &fs_path,
-                            ident,
-                            source.ident().await?.query.clone(),
-                            file_path_hash,
-                            source,
-                            ty,
-                            transforms,
-                            loose_errors,
-                            inline_helpers,
-                        )
-                        .await
-                        {
-                            Ok(result) => result,
-                            Err(e) => {
-                                // ast-grep-ignore: no-context-turbofmt
-                                return Err(e).context(
-                                    turbofmt!(
-                                        "Transforming and/or parsing of {} failed",
-                                        source.ident()
-                                    )
-                                    .await?,
-                                );
-                            }
-                        }
-                    }
-                    Err(error) => {
-                        let error: RcStr = PrettyPrintError(
-                            &anyhow::anyhow!(error).context("failed to convert rope into string"),
-                        )
-                        .to_string()
-                        .into();
-                        ReadSourceIssue {
-                            // Technically we could supply byte offsets to the issue source, but
-                            // that would cause another utf8 error to be produced when we
-                            // attempt to infer line/column
-                            // offsets
-                            source: IssueSource::from_source_only(source),
-                            error: error.clone(),
-                            severity: if loose_errors {
-                                IssueSeverity::Warning
-                            } else {
-                                IssueSeverity::Error
-                            },
-                        }
-                        .resolved_cell()
-                        .emit();
-                        ParseResult::Unparsable {
-                            messages: Some(vec![error]),
-                        }
-                        .cell()
+                let transforms = &*transforms.await?;
+                match parse_file_content(
+                    file.content().clone(),
+                    fs_path,
+                    ident,
+                    source_ident.query.clone(),
+                    file_path_hash,
+                    source,
+                    ty,
+                    transforms,
+                    node_env.clone(),
+                    loose_errors,
+                    inline_helpers,
+                )
+                .await
+                {
+                    Ok(result) => result,
+                    Err(e) => {
+                        // ast-grep-ignore: no-context-turbofmt
+                        return Err(e).context(
+                            turbofmt!("Transforming and/or parsing of {} failed", source.ident())
+                                .await?,
+                        );
                     }
                 }
             }
@@ -388,7 +370,7 @@ async fn parse_internal(
 }
 
 async fn parse_file_content(
-    string: BytesStr,
+    program_source: Rope,
     fs_path: &FileSystemPath,
     ident: &str,
     query: RcStr,
@@ -396,9 +378,39 @@ async fn parse_file_content(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: &[EcmascriptInputTransform],
+    node_env: RcStr,
     loose_errors: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
+    let string = match BytesStr::from_utf8(program_source.clone().into_bytes()) {
+        Ok(s) => s,
+        Err(error) => {
+            let error: RcStr = PrettyPrintError(
+                &anyhow::anyhow!(error).context("failed to convert rope into string"),
+            )
+            .to_string()
+            .into();
+            ReadSourceIssue {
+                // Technically we could supply byte offsets to the issue source, but
+                // that would cause another utf8 error to be produced when we
+                // attempt to infer line/column
+                // offsets
+                source: IssueSource::from_source_only(source),
+                error: error.clone(),
+                severity: if loose_errors {
+                    IssueSeverity::Warning
+                } else {
+                    IssueSeverity::Error
+                },
+            }
+            .resolved_cell()
+            .emit();
+            return Ok(ParseResult::Unparsable {
+                messages: Some(vec![error]),
+            }
+            .cell());
+        }
+    };
     let source_map: Arc<swc_core::common::SourceMap> = Default::default();
     let (emitter, collector) = IssueEmitter::new(
         source,
@@ -552,6 +564,7 @@ async fn parse_file_content(
                 query_str: query,
                 file_path: fs_path.clone(),
                 source,
+                node_env,
             };
             let span = tracing::trace_span!("transforms");
             async {
@@ -593,7 +606,6 @@ async fn parse_file_content(
                 top_level_mark,
                 Arc::new(var_with_ts_declare),
                 Some(&comments),
-                Some(source),
             );
 
             let (comments, source_mapping_url) =
@@ -608,6 +620,7 @@ async fn parse_file_content(
                 globals: Arc::new(Globals::new()),
                 source_map,
                 source_mapping_url: source_mapping_url.map(|s| s.into()),
+                program_source,
             })
         },
         |f, cx| GLOBALS.set(globals_ref, || HANDLER.set(&handler, || f.poll(cx))),
@@ -636,7 +649,7 @@ struct ReadSourceIssue {
 #[turbo_tasks::value_impl]
 impl Issue for ReadSourceIssue {
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().owned().await
+        self.source.file_path().await
     }
 
     async fn title(&self) -> Result<StyledString> {
@@ -739,6 +752,38 @@ impl Visit for VarDeclWithTsDeclareCollector {
             self.id_with_ts_declare.insert(id.to_id());
         }
     }
+}
+
+/// Re-parses a module directly from saved bytes, bypassing `source.content()`.
+///
+/// Used by `failsafe_parse` to serve the last good AST when the live file has a syntax error.
+pub async fn parse_from_rope(
+    rope: Rope,
+    source: ResolvedVc<Box<dyn Source>>,
+    ty: EcmascriptModuleAssetType,
+    transforms: ResolvedVc<EcmascriptInputTransforms>,
+    node_env: RcStr,
+) -> Result<Vc<ParseResult>> {
+    let ident_vc = source.ident();
+    let ident_ref = ident_vc.await?;
+    let ident = &*ident_vc.to_string().await?;
+    let file_path_hash = hash_xxh3_hash64(ident) as u128;
+    let query = ident_ref.query.clone();
+    let transforms = &*transforms.await?;
+    parse_file_content(
+        rope,
+        &ident_ref.path,
+        ident,
+        query,
+        file_path_hash,
+        source,
+        ty,
+        transforms,
+        node_env,
+        false,
+        false,
+    )
+    .await
 }
 
 #[cfg(test)]

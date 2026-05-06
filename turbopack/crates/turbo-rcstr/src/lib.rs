@@ -29,7 +29,7 @@ use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 use crate::{
     dynamic::{deref_from, hash_bytes, new_atom, new_atom_from_prehashed, new_static_atom},
-    tagged_value::TaggedValue,
+    tagged_value::{MAX_INLINE_LEN, TaggedValue},
 };
 
 mod dynamic;
@@ -91,10 +91,10 @@ unsafe impl Send for RcStr {}
 unsafe impl Sync for RcStr {}
 
 // Marks a payload that is stored in an Arc
-const DYNAMIC_TAG: u8 = 0b_00;
+const DYNAMIC_TAG: u8 = 0b_10;
 const PREHASHED_STRING_LOCATION: u8 = 0b_0;
 // Marks a payload that has been leaked since it has a static lifetime
-const STATIC_TAG: u8 = 0b_10;
+const STATIC_TAG: u8 = 0b_00;
 // The payload is stored inline
 const INLINE_TAG: u8 = 0b_01; // len in upper nybble
 const INLINE_LOCATION: u8 = 0b_1;
@@ -169,10 +169,9 @@ impl RcStr {
     /// zero-cost static copy instead of allocating a new Arc.
     ///
     /// Accepts `&str` so that borrow-decode paths can avoid heap allocation
-    /// entirely for inline strings (≤6 bytes) and static table hits.
+    /// entirely for inline strings (≤7 bytes) and static table hits.
     fn from_deserialized(s: &str) -> Self {
-        let len = s.len();
-        if len >= tagged_value::MAX_INLINE_LEN {
+        if !is_atom_inlineable(s) {
             let hash = hash_bytes(s.as_bytes());
             // Check the static table
             if let Some(entries) = STATIC_TABLE.get(&hash)
@@ -486,9 +485,15 @@ pub const fn inline_atom(s: &str) -> Option<RcStr> {
     dynamic::inline_atom(s)
 }
 
+// Exports for our macro
+#[doc(hidden)]
+pub const fn is_atom_inlineable(s: &str) -> bool {
+    s.len() <= MAX_INLINE_LEN
+}
+
 #[doc(hidden)]
 #[inline(always)]
-pub fn from_static(s: &'static PrehashedString) -> RcStr {
+pub const fn from_static(s: &'static PrehashedString) -> RcStr {
     dynamic::new_static_atom(s)
 }
 #[doc(hidden)]
@@ -545,12 +550,12 @@ static STATIC_TABLE: LazyLock<
 #[macro_export]
 macro_rules! rcstr {
     ($s:expr) => {{
-        const INLINE: core::option::Option<$crate::RcStr> = $crate::inline_atom($s);
+        let text = $s;
         // This condition can be compile time evaluated and inlined.
-        if INLINE.is_some() {
-            INLINE.unwrap()
+        if $crate::is_atom_inlineable(text) {
+            $crate::inline_atom(text).unwrap()
         } else {
-            fn get_rcstr() -> $crate::RcStr {
+            const fn get_rcstr() -> $crate::RcStr {
                 // Allocate static storage for the PrehashedString
                 static RCSTR_STORAGE: $crate::PrehashedString =
                     $crate::make_const_prehashed_string($s);
@@ -611,6 +616,76 @@ mod napi_impl {
         unsafe fn validate(env: napi_env, napi_val: napi_value) -> napi::Result<napi_value> {
             unsafe { String::validate(env, napi_val) }
         }
+    }
+}
+
+/// Runtime string interning table.
+///
+/// Deduplicates strings by storing them in an `FxHashSet<RcStr>`. Strings
+/// shorter than the inline threshold are already zero-allocation, so only
+/// longer strings benefit from interning.
+pub struct RcStrInterning {
+    set: rustc_hash::FxHashSet<RcStr>,
+}
+
+impl Default for RcStrInterning {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RcStrInterning {
+    /// Create a new empty interning table.
+    pub fn new() -> Self {
+        Self {
+            set: rustc_hash::FxHashSet::default(),
+        }
+    }
+
+    /// Intern a string slice. Returns a cheap-to-clone [`RcStr`].
+    ///
+    /// Strings below the inline threshold are returned directly (they are
+    /// already zero-allocation inline atoms). Longer strings are looked up
+    /// in the interning table and deduplicated.
+    pub fn intern(&mut self, s: &str) -> RcStr {
+        if is_atom_inlineable(s) {
+            // Inline atom — no allocation needed, don't bother with the set.
+            return RcStr::from(s);
+        }
+        if let Some(existing) = self.set.get(s) {
+            return existing.clone();
+        }
+        let rc = RcStr::from(s);
+        self.set.insert(rc.clone());
+        rc
+    }
+
+    /// Intern an owned `String`. When the string is not yet interned, avoids
+    /// an extra copy compared to [`intern`](Self::intern).
+    fn intern_owned(&mut self, s: String) -> RcStr {
+        if is_atom_inlineable(&s) {
+            return RcStr::from(s);
+        }
+        if let Some(existing) = self.set.get(s.as_str()) {
+            return existing.clone();
+        }
+        let rc = RcStr::from(s);
+        self.set.insert(rc.clone());
+        rc
+    }
+
+    /// Intern a `Cow<str>`. When the cow is `Owned`, avoids an extra copy
+    /// if the string is not yet interned.
+    pub fn intern_cow(&mut self, s: std::borrow::Cow<'_, str>) -> RcStr {
+        match s {
+            std::borrow::Cow::Borrowed(s) => self.intern(s),
+            std::borrow::Cow::Owned(s) => self.intern_owned(s),
+        }
+    }
+
+    /// Intern the [`Display`](std::fmt::Display) output of a value.
+    pub fn intern_display(&mut self, v: &impl std::fmt::Display) -> RcStr {
+        self.intern_owned(v.to_string())
     }
 }
 
@@ -761,5 +836,39 @@ mod tests {
         assert_eq!(decoded.as_str(), STATIC_STR);
         // Decoded via peek_read path should find the static constant
         assert_eq!(decoded.tag(), STATIC_TAG);
+    }
+
+    #[test]
+    fn test_interning() {
+        let mut interner = RcStrInterning::new();
+
+        // Short strings are always inline (no interning needed)
+        let a = interner.intern("hi");
+        let b = interner.intern("hi");
+        assert_eq!(a, b);
+
+        // Long strings should be deduplicated to the same allocation.
+        let long = "this is a long string that exceeds inline threshold";
+        let c = interner.intern(long);
+        let d = interner.intern(long);
+        assert_eq!(c, d);
+        assert!(std::ptr::eq(c.as_str().as_ptr(), d.as_str().as_ptr()));
+
+        // intern_cow with borrowed — same allocation as c
+        let e = interner.intern_cow(std::borrow::Cow::Borrowed(long));
+        assert_eq!(e, c);
+        assert!(std::ptr::eq(e.as_str().as_ptr(), c.as_str().as_ptr()));
+
+        // intern_cow with owned — same allocation as c (no new alloc)
+        let f = interner.intern_cow(std::borrow::Cow::Owned(long.to_string()));
+        assert_eq!(f, c);
+        assert!(std::ptr::eq(f.as_str().as_ptr(), c.as_str().as_ptr()));
+
+        // intern_display — a fresh long string, verify it is interned too
+        let long2 = "another long string that exceeds the inline threshold here";
+        let g = interner.intern_display(&long2);
+        let h = interner.intern_display(&long2);
+        assert_eq!(g, h);
+        assert!(std::ptr::eq(g.as_str().as_ptr(), h.as_str().as_ptr()));
     }
 }

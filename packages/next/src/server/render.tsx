@@ -103,6 +103,7 @@ import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 import { getCacheControlHeader } from './lib/cache-control'
 import { getErrorSource } from '../shared/lib/error-source'
+import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
 import { getScriptNonceFromHeader } from './app-render/get-script-nonce-from-header'
@@ -254,7 +255,6 @@ export type RenderOptsPartial = {
   optimizeCss: any
   nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers: any
-  assetQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
   setIsrStatus?: (key: string, value: boolean | undefined) => void
@@ -424,6 +424,7 @@ export function errorToJSON(err: Error) {
     message: stripAnsi(err.message),
     stack: err.stack,
     digest: (err as any).digest,
+    __NEXT_ERROR_CODE: extractNextErrorCode(err),
   }
 }
 
@@ -445,6 +446,16 @@ function serializeError(
   }
 }
 
+function getSafariCacheBusterQueryString(req: IncomingMessage): string {
+  if (process.env.__NEXT_DEV_SERVER) {
+    const userAgent = (req.headers['user-agent'] || '').toLowerCase()
+    if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
+      return `?ts=${Date.now()}`
+    }
+  }
+  return ''
+}
+
 export async function renderToHTMLImpl(
   req: IncomingMessage,
   res: ServerResponse,
@@ -458,35 +469,30 @@ export async function renderToHTMLImpl(
   // Adds support for reading `cookies` in `getServerSideProps` when SSR.
   setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
-  let baseAssetQueryString =
-    (process.env.__NEXT_DEV_SERVER && renderOpts.assetQueryString) || ''
+  // cssCacheBuster is a workaround for a Safari bug
+  // (https://bugs.webkit.org/show_bug.cgi?id=187726) where preloaded CSS
+  // resources are cached and not re-fetched on HMR. It must only be applied
+  // to CSS and font assets — not to script tags — because the Turbopack
+  // runtime infers ASSET_SUFFIX from the executing script's query string and
+  // leaks it onto all static asset URLs (including images), causing
+  // next/image validation errors.
+  // See https://github.com/vercel/next.js/issues/92118.
+  const cssCacheBuster = getSafariCacheBusterQueryString(req)
 
-  if (process.env.__NEXT_DEV_SERVER && !baseAssetQueryString) {
-    const userAgent = (req.headers['user-agent'] || '').toLowerCase()
-    if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
-      // In dev we invalidate the cache by appending a timestamp to the resource URL.
-      // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
-      // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-      // Note: The workaround breaks breakpoints on reload since the script url always changes,
-      // so we only apply it to Safari.
-      baseAssetQueryString = `?ts=${Date.now()}`
-    }
-  }
-
-  const mutableAssetQueryString =
-    baseAssetQueryString +
-    (sharedContext.deploymentId
-      ? `${baseAssetQueryString ? '&' : '?'}dpl=${sharedContext.deploymentId}`
-      : '')
-  const assetQueryString =
-    baseAssetQueryString +
+  const mutableAssetQueryString = sharedContext.deploymentId
+    ? `?dpl=${sharedContext.deploymentId}`
+    : ''
+  const assetQueryString = sharedContext.clientAssetToken
+    ? `?dpl=${sharedContext.clientAssetToken}`
+    : ''
+  // cssAssetQueryString is assetQueryString with the cacheBuster prepended.
+  // Use this for CSS and font URLs; use assetQueryString for script URLs.
+  const cssAssetQueryString =
+    cssCacheBuster +
     (sharedContext.clientAssetToken
-      ? `${baseAssetQueryString ? '&' : '?'}dpl=${sharedContext.clientAssetToken}`
+      ? `${cssCacheBuster ? '&' : '?'}dpl=${sharedContext.clientAssetToken}`
       : '')
-  const metadata: PagesRenderResultMetadata = {
-    assetQueryString,
-    mutableAssetQueryString,
-  }
+  const metadata: PagesRenderResultMetadata = {}
 
   // don't modify original query object
   query = Object.assign({}, query)
@@ -1530,8 +1536,9 @@ export async function renderToHTMLImpl(
         ? pageConfig.unstable_runtimeJS
         : undefined,
     unstable_JsPreload: pageConfig.unstable_JsPreload,
-    assetQueryString: assetQueryString || '',
-    mutableAssetQueryString: mutableAssetQueryString || '',
+    assetQueryString,
+    cssAssetQueryString,
+    mutableAssetQueryString,
     scriptLoader,
     locale,
     disableOptimizedLoading,

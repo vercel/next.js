@@ -2,9 +2,10 @@ import type { Instant } from 'next'
 import assert from 'node:assert/strict'
 
 export const unstable_instant: Instant = {
-  prefetch: 'runtime',
-  samples: [{ params: { slug: 'hello' } }],
+  level: 'experimental-error',
+  unstable_samples: [{ params: { slug: 'hello' } }],
 }
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page({
   params,

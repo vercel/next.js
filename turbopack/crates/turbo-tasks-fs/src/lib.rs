@@ -69,6 +69,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
+    hash_xxh3_hash128,
 };
 use turbo_unix_path::{
     get_parent_path, get_relative_path_to, join_path, normalize_path, sys_to_unix, unix_to_sys,
@@ -222,7 +223,7 @@ pub trait FileSystem: ValueToString {
     /// Returns the path to the root of the file system.
     #[turbo_tasks::function]
     fn root(self: ResolvedVc<Self>) -> Vc<FileSystemPath> {
-        FileSystemPath::new_normalized(self, RcStr::default()).cell()
+        FileSystemPath::new_normalized_unchecked(self, RcStr::default()).cell()
     }
     #[turbo_tasks::function]
     fn read(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<FileContent>;
@@ -312,10 +313,12 @@ impl DiskFileSystemInner {
 
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
-    fn register_read_invalidator(&self, path: &Path) -> Result<()> {
+    async fn register_read_invalidator(&self, path: &Path) -> Result<()> {
         if let Some(invalidator) = turbo_tasks::get_invalidator() {
             self.invalidator_map.insert(path.to_owned(), invalidator);
-            self.watcher.ensure_watched_file(path, self.root_path())?;
+            self.watcher
+                .ensure_watched_file(path, self.root_path())
+                .await?;
         }
         Ok(())
     }
@@ -341,11 +344,13 @@ impl DiskFileSystemInner {
 
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
-    fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
+    async fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
         if let Some(invalidator) = turbo_tasks::get_invalidator() {
             self.dir_invalidator_map
                 .insert(path.to_owned(), invalidator);
-            self.watcher.ensure_watched_dir(path, self.root_path())?;
+            self.watcher
+                .ensure_watched_dir(path, self.root_path())
+                .await?;
         }
         Ok(())
     }
@@ -489,7 +494,8 @@ impl DiskFileSystemInner {
             .await?;
 
         self.watcher
-            .start_watching(self.clone(), report_invalidation_reason, poll_interval)?;
+            .start_watching(self.clone(), report_invalidation_reason, poll_interval)
+            .await?;
 
         Ok(())
     }
@@ -546,8 +552,8 @@ impl DiskFileSystem {
             .await
     }
 
-    pub fn stop_watching(&self) {
-        self.inner.watcher.stop_watching();
+    pub async fn stop_watching(&self) {
+        self.inner.watcher.stop_watching().await;
     }
 
     /// Try to convert [`Path`] to [`FileSystemPath`]. Return `None` if the file path leaves the
@@ -711,7 +717,7 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_read_invalidator(&full_path)?;
+        self.inner.register_read_invalidator(&full_path).await?;
 
         let _lock = self.inner.lock_path(&full_path).await;
         let content = match retry_blocking(|| File::from_path(&full_path))
@@ -739,7 +745,7 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_dir_invalidator(&full_path)?;
+        self.inner.register_dir_invalidator(&full_path).await?;
 
         // we use the sync std function here as it's a lot faster (600%) in node-file-trace
         let read_dir = match retry_blocking(|| std::fs::read_dir(&full_path))
@@ -829,7 +835,7 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_read_invalidator(&full_path)?;
+        self.inner.register_read_invalidator(&full_path).await?;
 
         let _lock = self.inner.lock_path(&full_path).await;
         let link_path = match retry_blocking(|| std::fs::read_link(&full_path))
@@ -879,9 +885,12 @@ impl FileSystem for DiskFileSystem {
             let target_string = RcStr::from(relative_to_root_path.to_string_lossy());
             (
                 target_string.clone(),
-                FileSystemPath::new_normalized(fs_path.fs().to_resolved().await?, target_string)
-                    .get_type()
-                    .await?,
+                FileSystemPath::new_normalized_unchecked(
+                    fs_path.fs().to_resolved().await?,
+                    target_string,
+                )
+                .get_type()
+                .await?,
             )
         } else {
             let link_path_string_cow = link_path.to_string_lossy();
@@ -934,18 +943,19 @@ impl FileSystem for DiskFileSystem {
             full_path: PathBuf,
             inner: Arc<DiskFileSystemInner>,
             content: ReadRef<PersistedFileContent>,
+            content_hash: u128,
         }
 
         impl Effect for WriteEffect {
             type Error = AnyhowWrapper;
-            type Value = ReadRef<PersistedFileContent>;
+            type Value = u128;
 
             fn key(&self) -> Vec<u8> {
                 self.full_path.as_os_str().as_encoded_bytes().to_vec()
             }
 
-            fn value(&self) -> &ReadRef<PersistedFileContent> {
-                &self.content
+            fn value(&self) -> &u128 {
+                &self.content_hash
             }
 
             fn state_storage(&self) -> &EffectStateStorage {
@@ -1077,10 +1087,12 @@ impl FileSystem for DiskFileSystem {
             }
         }
 
+        let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content));
         emit_effect(WriteEffect {
             full_path,
             inner,
             content,
+            content_hash,
         });
 
         Ok(())
@@ -1107,18 +1119,19 @@ impl FileSystem for DiskFileSystem {
             full_path: PathBuf,
             inner: Arc<DiskFileSystemInner>,
             content: ReadRef<LinkContent>,
+            content_hash: u128,
         }
 
         impl Effect for WriteLinkEffect {
             type Error = AnyhowWrapper;
-            type Value = ReadRef<LinkContent>;
+            type Value = u128;
 
             fn key(&self) -> Vec<u8> {
                 self.full_path.as_os_str().as_encoded_bytes().to_vec()
             }
 
-            fn value(&self) -> &ReadRef<LinkContent> {
-                &self.content
+            fn value(&self) -> &u128 {
+                &self.content_hash
             }
 
             fn state_storage(&self) -> &EffectStateStorage {
@@ -1356,10 +1369,12 @@ impl FileSystem for DiskFileSystem {
             }
         }
 
+        let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content));
         emit_effect(WriteLinkEffect {
             full_path,
             inner,
             content,
+            content_hash,
         });
         Ok(())
     }
@@ -1374,7 +1389,7 @@ impl FileSystem for DiskFileSystem {
             turbobail!("Cannot read metadata from denied path: {fs_path}");
         }
 
-        self.inner.register_read_invalidator(&full_path)?;
+        self.inner.register_read_invalidator(&full_path).await?;
 
         let _lock = self.inner.lock_path(&full_path).await;
         let meta = retry_blocking(|| std::fs::metadata(&full_path))
@@ -1582,7 +1597,7 @@ impl FileSystemPath {
     /// Create a new FileSystemPath from a path within a FileSystem. The
     /// /-separated path is expected to be already normalized (this is asserted
     /// in dev mode).
-    fn new_normalized(fs: ResolvedVc<Box<dyn FileSystem>>, path: RcStr) -> Self {
+    pub fn new_normalized_unchecked(fs: ResolvedVc<Box<dyn FileSystem>>, path: RcStr) -> Self {
         // On Windows, the path must be converted to a unix path before creating. But on
         // Unix, backslashes are a valid char in file names, and the path can be
         // provided by the user, so we allow it.
@@ -1602,7 +1617,7 @@ impl FileSystemPath {
     /// "." segments, but it must not leave the root of the filesystem.
     pub fn join(&self, path: &str) -> Result<Self> {
         if let Some(path) = join_path(&self.path, path) {
-            Ok(Self::new_normalized(self.fs, path.into()))
+            Ok(Self::new_normalized_unchecked(self.fs, path.into()))
         } else {
             bail!(
                 "FileSystemPath(\"{}\").join(\"{}\") leaves the filesystem root",
@@ -1621,7 +1636,7 @@ impl FileSystemPath {
                 path,
             )
         }
-        Ok(Self::new_normalized(
+        Ok(Self::new_normalized_unchecked(
             self.fs,
             format!("{}{}", self.path, path).into(),
         ))
@@ -1638,12 +1653,12 @@ impl FileSystemPath {
             )
         }
         if let (path, Some(ext)) = self.split_extension() {
-            return Ok(Self::new_normalized(
+            return Ok(Self::new_normalized_unchecked(
                 self.fs,
                 format!("{path}{appending}.{ext}").into(),
             ));
         }
-        Ok(Self::new_normalized(
+        Ok(Self::new_normalized_unchecked(
             self.fs,
             format!("{}{}", self.path, appending).into(),
         ))
@@ -1657,7 +1672,8 @@ impl FileSystemPath {
         #[cfg(target_os = "windows")]
         let path = path.replace('\\', "/");
 
-        join_path(&self.path, &path).map(|p| Self::new_normalized(self.fs, RcStr::from(p)))
+        join_path(&self.path, &path)
+            .map(|p| Self::new_normalized_unchecked(self.fs, RcStr::from(p)))
     }
 
     /// Similar to [FileSystemPath::try_join], but returns [`None`] when the new path would leave
@@ -1667,7 +1683,7 @@ impl FileSystemPath {
         if let Some(p) = join_path(&self.path, path)
             && p.starts_with(&*self.path)
         {
-            return Some(Self::new_normalized(self.fs, RcStr::from(p)));
+            return Some(Self::new_normalized_unchecked(self.fs, RcStr::from(p)));
         }
         None
     }
@@ -1707,7 +1723,7 @@ impl FileSystemPath {
     /// extension.
     pub fn with_extension(&self, extension: &str) -> FileSystemPath {
         let (path_without_extension, _) = self.split_extension();
-        Self::new_normalized(
+        Self::new_normalized_unchecked(
             self.fs,
             // Like `Path::with_extension` and `PathBuf::set_extension`, if the extension is empty,
             // we remove the extension altogether.
@@ -1861,7 +1877,7 @@ impl FileSystemPath {
         if path.is_empty() {
             return self.clone();
         }
-        FileSystemPath::new_normalized(self.fs, RcStr::from(get_parent_path(path)))
+        FileSystemPath::new_normalized_unchecked(self.fs, RcStr::from(get_parent_path(path)))
     }
 
     // It is important that get_type uses read_dir and not stat/metadata.
@@ -2087,7 +2103,7 @@ bitflags! {
 /// creating a new link, we always create junction points, because symlink creation may fail if
 /// Windows "developer mode" is not enabled and we're running in an unprivileged environment.
 #[turbo_tasks::value(shared)]
-#[derive(Debug)]
+#[derive(Debug, DeterministicHash)]
 pub enum LinkContent {
     /// A valid symbolic link pointing to `target`.
     ///
@@ -2466,7 +2482,7 @@ impl FileContent {
 }
 
 /// A file's content interpreted as a JSON value.
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "skip")]
 pub enum FileJsonContent {
     Content(Value),
     Unparsable(Box<UnparsableJson>),
@@ -2537,7 +2553,7 @@ impl FileLine {
     }
 }
 
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "skip")]
 pub enum FileLinesContent {
     Lines(#[turbo_tasks(trace_ignore)] Vec<FileLine>),
     Unparsable,
@@ -2769,7 +2785,7 @@ async fn read_dir(path: FileSystemPath) -> Result<Vc<DirectoryContent>> {
                     RcStr::from(format!("{dir_path}/{name}"))
                 };
 
-                let entry_path = FileSystemPath::new_normalized(fs, path);
+                let entry_path = FileSystemPath::new_normalized_unchecked(fs, path);
                 let entry = match entry {
                     RawDirectoryEntry::File => DirectoryEntry::File(entry_path),
                     RawDirectoryEntry::Directory => DirectoryEntry::Directory(entry_path),
@@ -2961,7 +2977,7 @@ mod tests {
                 .to_resolved()
                 .await?;
 
-            let path_txt = FileSystemPath::new_normalized(fs, rcstr!("foo/bar.txt"));
+            let path_txt = FileSystemPath::new_normalized_unchecked(fs, rcstr!("foo/bar.txt"));
 
             let path_json = path_txt.with_extension("json");
             assert_eq!(&*path_json.path, "foo/bar.json");
@@ -2972,7 +2988,7 @@ mod tests {
             let path_new_ext = path_no_ext.with_extension("json");
             assert_eq!(&*path_new_ext.path, "foo/bar.json");
 
-            let path_no_slash_txt = FileSystemPath::new_normalized(fs, rcstr!("bar.txt"));
+            let path_no_slash_txt = FileSystemPath::new_normalized_unchecked(fs, rcstr!("bar.txt"));
 
             let path_no_slash_json = path_no_slash_txt.with_extension("json");
             assert_eq!(path_no_slash_json.path.as_str(), "bar.json");
@@ -2996,19 +3012,19 @@ mod tests {
                 .to_resolved()
                 .await?;
 
-            let path = FileSystemPath::new_normalized(fs, rcstr!(""));
+            let path = FileSystemPath::new_normalized_unchecked(fs, rcstr!(""));
             assert_eq!(path.file_stem(), None);
 
-            let path = FileSystemPath::new_normalized(fs, rcstr!("foo/bar.txt"));
+            let path = FileSystemPath::new_normalized_unchecked(fs, rcstr!("foo/bar.txt"));
             assert_eq!(path.file_stem(), Some("bar"));
 
-            let path = FileSystemPath::new_normalized(fs, rcstr!("bar.txt"));
+            let path = FileSystemPath::new_normalized_unchecked(fs, rcstr!("bar.txt"));
             assert_eq!(path.file_stem(), Some("bar"));
 
-            let path = FileSystemPath::new_normalized(fs, rcstr!("foo/bar"));
+            let path = FileSystemPath::new_normalized_unchecked(fs, rcstr!("foo/bar"));
             assert_eq!(path.file_stem(), Some("bar"));
 
-            let path = FileSystemPath::new_normalized(fs, rcstr!("foo/.bar"));
+            let path = FileSystemPath::new_normalized_unchecked(fs, rcstr!("foo/.bar"));
             assert_eq!(path.file_stem(), Some(".bar"));
 
             anyhow::Ok(())

@@ -2,8 +2,8 @@ import type { Instant } from 'next'
 import assert from 'node:assert/strict'
 
 export const unstable_instant: Instant = {
-  prefetch: 'runtime',
-  samples: [
+  level: 'experimental-error',
+  unstable_samples: [
     {
       searchParams: {
         single: 'test',
@@ -12,6 +12,7 @@ export const unstable_instant: Instant = {
     },
   ],
 }
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page({
   searchParams,

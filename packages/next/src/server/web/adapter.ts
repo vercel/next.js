@@ -147,6 +147,7 @@ export async function adapter(
     buildId = (requestURL as NextURL).buildId || ''
     requestURL.buildId = ''
   }
+  let deploymentId = process.env.NEXT_DEPLOYMENT_ID
 
   const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const isNextDataRequest = requestHeaders.has('x-nextjs-data')
@@ -302,11 +303,25 @@ export async function adapter(
               renderOpts: {
                 cacheLifeProfiles:
                   params.request.nextConfig?.experimental?.cacheLife,
+                // Proxy doesn't do static generation, so this value does not
+                // apply here. 0 is a sentinel: if something ever reads it,
+                // it'll surface loudly instead of silently using a misleading
+                // default.
+                staticPageGenerationTimeout: 0,
                 cacheComponents: false,
+                // Proxy doesn't run instant validation; the level value is
+                // irrelevant here.
+                // TODO: remove validationLevel and other global config from renderOpts
+                validationLevel: 'warning',
                 experimental: {
                   isRoutePPREnabled: false,
                   authInterrupts:
                     !!params.request.nextConfig?.experimental?.authInterrupts,
+                  // Proxy doesn't fill Cache Components entries, so this value
+                  // is never read. 0 is a sentinel: if something ever reads it,
+                  // the cache fill will time out immediately and surface the
+                  // bug.
+                  useCacheTimeout: 0,
                 },
                 supportsDynamicResponse: true,
                 waitUntil,
@@ -316,6 +331,7 @@ export async function adapter(
               isPrefetchRequest:
                 request.headers.get(NEXT_ROUTER_PREFETCH_HEADER) === '1',
               buildId: buildId ?? '',
+              deploymentId: deploymentId ?? '',
               previouslyRevalidatedTags: [],
             })
 

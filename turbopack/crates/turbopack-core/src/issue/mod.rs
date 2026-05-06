@@ -602,8 +602,8 @@ impl IssueSource {
     }
 
     /// Returns the file path for the source file.
-    pub fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
+    pub async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.source.ident().await?.path.clone())
     }
 
     /// If this source implements `GenerateSourceMap`, returns an
@@ -892,7 +892,7 @@ impl Display for IssueStage {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainIssue {
     pub severity: IssueSeverity,
@@ -910,7 +910,7 @@ pub struct PlainIssue {
     pub import_traces: Vec<PlainTrace>,
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainAdditionalIssueSource {
     pub description: RcStr,
@@ -1014,18 +1014,18 @@ impl PlainIssue {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainIssueSource {
     pub asset: ReadRef<PlainSource>,
     pub range: Option<(SourcePos, SourcePos)>,
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainSource {
-    pub ident: ReadRef<RcStr>,
-    pub file_path: ReadRef<RcStr>,
+    pub ident: RcStr,
+    pub file_path: RcStr,
     #[turbo_tasks(debug_ignore)]
     pub content: ReadRef<FileContent>,
 }
@@ -1041,8 +1041,8 @@ impl PlainSource {
         };
 
         Ok(PlainSource {
-            ident: asset.ident().to_string().await?,
-            file_path: asset.ident().path().to_string().await?,
+            ident: asset.ident().to_string().owned().await?,
+            file_path: asset.ident().await?.path.to_string_ref().await?,
             content,
         }
         .cell())

@@ -37,11 +37,10 @@ export function dynamicBodyMessage(route: string): string {
 
 export function runtimeMetadataMessage(route: string): string {
   return (
-    `Route "${route}" has metadata that blocks loading.\n\n` +
+    `Route "${route}": Next.js encountered runtime data in generateMetadata().\n\n` +
+    `This route's metadata is blocked, but the rest of its content can be prerendered.\n\n` +
     `Cause: A request-time API was used inside generateMetadata() ` +
-    `(or you have file-based metadata like icons that depend on ` +
-    `dynamic params). The rest of the page could have been fully ` +
-    `prerendered.\n\n` +
+    `(or you have file-based metadata like icons that depend on dynamic params).\n\n` +
     `Learn more: ` +
     `https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
   )
@@ -49,7 +48,8 @@ export function runtimeMetadataMessage(route: string): string {
 
 export function dynamicMetadataMessage(route: string): string {
   return (
-    `Route "${route}" has metadata that blocks loading.\n\n` +
+    `Route "${route}": Next.js encountered uncached data in generateMetadata().\n\n` +
+    `This route's metadata is blocked, but the rest of its content can be prerendered.\n\n` +
     `Cause: generateMetadata() depends on data that can't be resolved ` +
     `at build time (e.g. cookies(), headers(), an uncached fetch, or ` +
     `file-based metadata with dynamic params).\n\n` +
@@ -97,14 +97,27 @@ export function disallowedDynamicViewportMessage(route: string): string {
 
 export function disallowedDynamicMetadataMessage(route: string): string {
   return (
-    `Route "${route}" has metadata that blocks loading.\n\n` +
+    `Route "${route}": Next.js encountered uncached or runtime data in generateMetadata().\n\n` +
+    `This route's metadata is blocked, but the rest of its content can be prerendered.\n\n` +
     `Cause: generateMetadata() depends on data that can't be resolved ` +
-    `at build time, but the rest of the page is fully static. ` +
-    `This makes metadata the only dynamic part, so the entire page ` +
-    `can't be prerendered.\n\n` +
+    `at build time, but the rest of the page is fully static.\n\n` +
     `Fix: Cache the data with "use cache", or mark another part of ` +
     `the page as dynamic to confirm this is intentional.\n\n` +
     `Learn more: ` +
     `https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
   )
+}
+
+export function logBuildDebugHint(route: string): void {
+  if (process.env.NODE_ENV !== 'development') {
+    console.error(
+      `To get a more detailed stack trace and pinpoint the issue, try one of the following:\n` +
+        `  - Start the app in development mode by running \`next dev\`, then open "${route}" in your browser to investigate the error.\n` +
+        `  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.`
+    )
+  } else if (!process.env.__NEXT_DEV_SERVER) {
+    console.error(
+      `To debug the issue, start the app in development mode by running \`next dev\`, then open "${route}" in your browser to investigate the error.`
+    )
+  }
 }

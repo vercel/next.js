@@ -26,12 +26,12 @@ use std::{future::Future, marker::PhantomData, pin::Pin};
 use anyhow::Result;
 
 use super::{TaskInput, TaskOutput};
-use crate::{RawVc, Vc, VcRead, VcValueType, magic_any::MagicAny};
+use crate::{RawVc, Vc, VcRead, VcValueType, dyn_task_inputs::DynTaskInputs};
 
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
 
 pub trait TaskFn: Send + Sync + 'static {
-    fn functor(&self, this: Option<RawVc>, arg: &dyn MagicAny) -> Result<NativeTaskFuture>;
+    fn functor(&self, this: Option<RawVc>, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture>;
 }
 
 /// A trait for `TaskFn` implementations that allows task inputs to be extracted as a type.
@@ -81,7 +81,7 @@ where
     Mode: TaskFnMode,
     Inputs: TaskInputs,
 {
-    fn functor(&self, _this: Option<RawVc>, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
+    fn functor(&self, _this: Option<RawVc>, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
         TaskFnInputFunction::functor(&self.task_fn, arg)
     }
 }
@@ -114,7 +114,7 @@ where
     This: Sync + Send + 'static,
     Inputs: TaskInputs,
 {
-    fn functor(&self, this: Option<RawVc>, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
+    fn functor(&self, this: Option<RawVc>, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
         let Some(this) = this else {
             panic!("Method needs a `self` argument");
         };
@@ -136,7 +136,7 @@ where
 pub trait TaskFnInputFunction<Mode: TaskFnMode, Inputs: TaskInputs>:
     Send + Sync + Clone + 'static
 {
-    fn functor(&self, arg: &dyn MagicAny) -> Result<NativeTaskFuture>;
+    fn functor(&self, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture>;
 }
 
 #[doc(hidden)]
@@ -146,7 +146,7 @@ pub trait TaskFnInputFunctionWithThis<
     Inputs: TaskInputs,
 >: Send + Sync + Clone + 'static
 {
-    fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture>;
+    fn functor(&self, this: RawVc, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture>;
 }
 
 pub trait TaskInputs: Send + Sync + 'static {}
@@ -184,22 +184,17 @@ macro_rules! task_inputs_impl {
 /// This helper function for `task_fn_impl!()` reduces the amount of code inside the macro, and
 /// gives the compiler more chances to dedupe monomorphized code across small functions with less
 /// typevars.
-fn get_args<T: MagicAny + Clone>(arg: &dyn MagicAny) -> Result<T> {
+fn get_args<T: DynTaskInputs + Clone>(arg: &dyn DynTaskInputs) -> Result<T> {
     let value = (arg as &dyn std::any::Any).downcast_ref::<T>().cloned();
     #[cfg(debug_assertions)]
     return anyhow::Context::with_context(value, || {
         crate::native_function::debug_downcast_args_error_msg(
             std::any::type_name::<T>(),
-            arg.magic_type_name(),
+            arg.dyn_type_name(),
         )
     });
     #[cfg(not(debug_assertions))]
     return anyhow::Context::context(value, "Invalid argument type");
-}
-
-// Helper function for `task_fn_impl!()`
-async fn output_try_into_non_local_raw_vc(output: impl TaskOutput) -> Result<RawVc> {
-    output.try_into_raw_vc()?.to_non_local().await
 }
 
 macro_rules! task_fn_impl {
@@ -211,12 +206,11 @@ macro_rules! task_fn_impl {
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
+            fn functor(&self, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
-                    let output = (task_fn)($($arg,)*);
-                    output_try_into_non_local_raw_vc(output).await
+                    (task_fn)($($arg,)*).try_into_raw_vc()
                 }))
             }
         }
@@ -229,12 +223,11 @@ macro_rules! task_fn_impl {
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
+            fn functor(&self, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
-                    let output = (task_fn)($($arg,)*).await;
-                    output_try_into_non_local_raw_vc(output).await
+                    (task_fn)($($arg,)*).await.try_into_raw_vc()
                 }))
             }
         }
@@ -247,15 +240,14 @@ macro_rules! task_fn_impl {
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
+            fn functor(&self, this: RawVc, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
                 let recv = Vc::<Recv>::from(this);
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
                     let recv = recv.await?;
                     let recv = <Recv::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
-                    let output = (task_fn)(recv, $($arg,)*);
-                    output_try_into_non_local_raw_vc(output).await
+                    (task_fn)(recv, $($arg,)*).try_into_raw_vc()
                 }))
             }
         }
@@ -268,13 +260,12 @@ macro_rules! task_fn_impl {
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
+            fn functor(&self, this: RawVc, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
                 let recv = Vc::<Recv>::from(this);
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
-                    let output = (task_fn)(recv, $($arg,)*);
-                    output_try_into_non_local_raw_vc(output).await
+                    (task_fn)(recv, $($arg,)*).try_into_raw_vc()
                 }))
             }
         }
@@ -301,15 +292,14 @@ macro_rules! task_fn_impl {
             F: for<'a> $async_fn_trait<&'a Recv, $($arg,)*> + Clone + Send + Sync + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
+            fn functor(&self, this: RawVc, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
                 let recv = Vc::<Recv>::from(this);
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
                     let recv = recv.await?;
                     let recv = <Recv::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
-                    let output = (task_fn)(recv, $($arg,)*).await;
-                    output_try_into_non_local_raw_vc(output).await
+                    (task_fn)(recv, $($arg,)*).await.try_into_raw_vc()
                 }))
             }
         }
@@ -321,13 +311,12 @@ macro_rules! task_fn_impl {
             F: $async_fn_trait<Vc<Recv>, $($arg,)*> + Clone + Send + Sync + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
+            fn functor(&self, this: RawVc, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
                 let recv = Vc::<Recv>::from(this);
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
-                    let output = (task_fn)(recv, $($arg,)*).await;
-                    output_try_into_non_local_raw_vc(output).await
+                    (task_fn)(recv, $($arg,)*).await.try_into_raw_vc()
                 }))
             }
         }

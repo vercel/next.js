@@ -623,6 +623,7 @@
             case "async":
             case "autoPlay":
             case "controls":
+            case "credentialless":
             case "default":
             case "defer":
             case "disabled":
@@ -684,6 +685,7 @@
               case "async":
               case "autoPlay":
               case "controls":
+              case "credentialless":
               case "default":
               case "defer":
               case "disabled":
@@ -1555,6 +1557,7 @@
         case "async":
         case "autoPlay":
         case "controls":
+        case "credentialless":
         case "default":
         case "defer":
         case "disabled":
@@ -7916,14 +7919,13 @@
               null !== row &&
                 hoistHoistables(row.hoistables, boundary.contentState),
               isEligibleForOutlining(request, boundary) ||
-                (boundary.fallbackAbortableTasks.forEach(
-                  abortTaskSoft,
-                  request
-                ),
+                (request.allPendingTasks++,
+                boundary.fallbackAbortableTasks.forEach(abortTaskSoft, request),
                 boundary.fallbackAbortableTasks.clear(),
                 null !== row &&
                   0 === --row.pendingTasks &&
-                  finishSuspenseListRow(request, row)),
+                  finishSuspenseListRow(request, row),
+                request.allPendingTasks--),
               0 === request.pendingRootTasks &&
                 null === request.trackedPostpones &&
                 null !== boundary.preamble &&
@@ -7950,8 +7952,10 @@
                     finishedTask(request, postponedBoundary, null, null);
                   }
               }
+              request.allPendingTasks++;
               0 === --boundary.pendingTasks &&
                 finishSuspenseListRow(request, boundary);
+              request.allPendingTasks--;
             }
           }
         else
@@ -8194,8 +8198,10 @@
                     untrackBoundary(request, boundary$jscomp$0);
                     var boundaryRow = boundary$jscomp$0.row;
                     null !== boundaryRow &&
+                      (request.allPendingTasks++,
                       0 === --boundaryRow.pendingTasks &&
-                      finishSuspenseListRow(request, boundaryRow);
+                        finishSuspenseListRow(request, boundaryRow),
+                      request.allPendingTasks--);
                     boundary$jscomp$0.parentFlushed &&
                       request.clientRenderedBoundaries.push(boundary$jscomp$0);
                     0 === request.pendingRootTasks &&
@@ -9128,11 +9134,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-404b38c7-20260408" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-dd453071-20260506" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-404b38c7-20260408\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-dd453071-20260506\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -9373,6 +9379,7 @@
         controls: "controls",
         controlslist: "controlsList",
         coords: "coords",
+        credentialless: "credentialless",
         crossorigin: "crossOrigin",
         dangerouslysetinnerhtml: "dangerouslySetInnerHTML",
         data: "data",
@@ -10937,5 +10944,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.3.0-canary-404b38c7-20260408";
+    exports.version = "19.3.0-canary-dd453071-20260506";
   })();

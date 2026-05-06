@@ -1819,7 +1819,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         }
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named_export))
-                        if named_export.src.is_none() =>
+                        if named_export.src.is_none() && !named_export.type_only =>
                     {
                         for spec in &named_export.specifiers {
                             match spec {
@@ -2870,8 +2870,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         if let (
             AssignTarget::Simple(SimpleAssignTarget::Ident(ident)),
-            box Expr::Arrow(_) | box Expr::Fn(_),
-        ) = (&assign_expr.left, &assign_expr.right)
+            Expr::Arrow(_) | Expr::Fn(_),
+        ) = (&assign_expr.left, &*assign_expr.right)
         {
             self.arrow_or_fn_expr_ident = Some(ident.id.clone());
         }

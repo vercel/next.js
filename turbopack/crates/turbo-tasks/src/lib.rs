@@ -19,6 +19,7 @@ pub mod debug;
 #[doc = include_str!("../FORMATTING.md")]
 pub mod display;
 pub mod duration_span;
+mod dyn_task_inputs;
 mod effect;
 mod error;
 pub mod event;
@@ -28,9 +29,9 @@ mod id_factory;
 mod invalidation;
 mod join_iter_ext;
 pub mod keyed;
+mod local_task_tracker;
 #[doc(hidden)]
 pub mod macro_helpers;
-mod magic_any;
 mod manager;
 pub mod mapped_read_ref;
 mod marker_trait;
@@ -75,6 +76,9 @@ pub use crate::{
     collectibles::CollectiblesSource,
     completion::{Completion, Completions},
     display::{ValueToString, ValueToStringRef},
+    dyn_task_inputs::{
+        DynTaskInputs, OwnedStackDynTaskInputs, StackDynTaskInputs, StackDynTaskInputsSlot,
+    },
     effect::{Effect, EffectError, EffectStateStorage, Effects, emit_effect, take_effects},
     error::PrettyPrintError,
     id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
@@ -83,7 +87,6 @@ pub use crate::{
         get_invalidator,
     },
     join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
-    magic_any::MagicAny,
     manager::{
         CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
         TaskPriority, TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused,
@@ -99,7 +102,7 @@ pub use crate::{
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,
     spawn::{JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread},
-    state::{State, TransientState},
+    state::{State, parking_lot_mutex_bincode},
     task::{
         SharedReference, TypedSharedReference,
         task_input::{EitherTaskInput, TaskInput},
@@ -107,7 +110,7 @@ pub use crate::{
     task_execution_reason::TaskExecutionReason,
     trait_ref::TraitRef,
     value::{TransientInstance, TransientValue},
-    value_type::{TraitMethod, TraitType, ValueType},
+    value_type::{TraitMethod, TraitType, ValueType, ValueTypePersistence},
     vc::{
         Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture,
         ResolveOperationVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast,

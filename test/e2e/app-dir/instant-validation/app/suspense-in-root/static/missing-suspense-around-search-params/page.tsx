@@ -1,6 +1,6 @@
 export const unstable_instant = {
-  prefetch: 'static',
-  samples: [{ searchParams: { foo: 'bar' } }],
+  level: 'experimental-error',
+  unstable_samples: [{ searchParams: { foo: 'bar' } }],
 }
 
 export default async function Page({ searchParams }) {

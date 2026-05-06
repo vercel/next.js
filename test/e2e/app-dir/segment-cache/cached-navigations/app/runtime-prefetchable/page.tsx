@@ -5,8 +5,7 @@ import { setTimeout } from 'timers/promises'
 import { Suspense } from 'react'
 
 export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [
+  unstable_samples: [
     {
       cookies: [{ name: 'testCookie', value: 'testValue' }],
       headers: [['x-test-header', 'test']],
@@ -14,6 +13,7 @@ export const unstable_instant = {
     },
   ],
 }
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page({
   searchParams,

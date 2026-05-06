@@ -1,6 +1,6 @@
 {
   "name": "@next/codemod",
-  "version": "16.2.1-canary.34",
+  "version": "16.3.0-canary.12",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -40,6 +40,6 @@
     "@types/jscodeshift": "0.11.0",
     "@types/prompts": "2.4.2",
     "@types/semver": "7.3.1",
-    "typescript": "5.9.2"
+    "typescript": "6.0.2"
   }
 }

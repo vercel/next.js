@@ -95,10 +95,10 @@ describe('metadata-files-static-output-group-route', () => {
       twitterImageRes,
       sitemapRes,
     ] = await Promise.all([
-      next.fetch(`/group/apple-icon-131tc6.png`),
-      next.fetch(`/group/icon-131tc6.png`),
-      next.fetch(`/group/opengraph-image-131tc6.png`),
-      next.fetch(`/group/twitter-image-131tc6.png`),
+      next.fetch('/group/apple-icon-131tc6.png'),
+      next.fetch('/group/icon-131tc6.png'),
+      next.fetch('/group/opengraph-image-131tc6.png'),
+      next.fetch('/group/twitter-image-131tc6.png'),
       next.fetch('/group/sitemap.xml'),
     ])
 

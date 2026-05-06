@@ -3,13 +3,14 @@ import { headers } from 'next/headers'
 import assert from 'node:assert/strict'
 
 export const unstable_instant: Instant = {
-  prefetch: 'runtime',
-  samples: [
+  level: 'experimental-error',
+  unstable_samples: [
     {
       headers: [['x-test-header', 'testValue']],
     },
   ],
 }
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page() {
   return (

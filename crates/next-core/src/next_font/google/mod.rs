@@ -68,13 +68,15 @@ pub const GOOGLE_FONTS_STYLESHEET_URL: &str = "https://fonts.googleapis.com/css2
 // Always sending this user agent ensures consistent results from Google Fonts.
 // Google Fonts will vary responses based on user agent, e.g. only returning
 // references to certain font types for certain browsers.
-pub const USER_AGENT_FOR_GOOGLE_FONTS: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
-                                               AppleWebKit/537.36 (KHTML, like Gecko) \
-                                               Chrome/104.0.0.0 Safari/537.36";
+pub const USER_AGENT_FOR_GOOGLE_FONTS: RcStr = rcstr!(
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) \
+     Chrome/104.0.0.0 Safari/537.36"
+);
 
 /// The google fonts plugin downloads fonts locally and transforms the url in the css into a
 /// specific format that is then intercepted later. This is the prefix we use for the new url.
-pub const GOOGLE_FONTS_INTERNAL_PREFIX: &str = "@vercel/turbopack-next/internal/font/google/font";
+pub const GOOGLE_FONTS_INTERNAL_PREFIX: RcStr =
+    rcstr!("@vercel/turbopack-next/internal/font/google/font");
 
 #[turbo_tasks::value(transparent)]
 #[derive(Deserialize)]
@@ -705,7 +707,7 @@ async fn fetch_from_google_fonts(
     virtual_path: FileSystemPath,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
     let result = fetch_client
-        .fetch(url, Some(rcstr!(USER_AGENT_FOR_GOOGLE_FONTS)))
+        .fetch(url, Some(USER_AGENT_FOR_GOOGLE_FONTS))
         .await?;
 
     Ok(match *result {
@@ -774,11 +776,14 @@ async fn get_mock_stylesheet(
         .module();
 
     let entries = get_evaluate_entries(mocked_response_asset, asset_context, *node_backend, None);
-    let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
-        entries.graph_entries().to_resolved().await?,
-        false,
-        false,
-    ));
+    let module_graph = ModuleGraph::from_graphs(
+        vec![SingleModuleGraph::new_with_entries(
+            entries.graph_entries().to_resolved().await?,
+            false,
+            false,
+        )],
+        None,
+    );
     let module_graph = module_graph.connect();
 
     let root = mock_fs.root().owned().await?;

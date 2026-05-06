@@ -10,7 +10,8 @@ use swc_core::{
     ecma::{
         ast::{
             ClassExpr, Decl, ExportSpecifier, Expr, ExprStmt, FnExpr, Lit, ModuleDecl,
-            ModuleExportName, ModuleItem, Program, Stmt, Str, TsSatisfiesExpr,
+            ModuleExportName, ModuleItem, Program, Stmt, Str, TsAsExpr, TsConstAssertion,
+            TsSatisfiesExpr, TsTypeAssertion,
         },
         utils::IsDirective,
     },
@@ -119,6 +120,9 @@ pub struct NextSegmentConfig {
     #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]
     pub unstable_instant: Option<Span>,
+    #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
+    pub unstable_prefetch: Option<Span>,
 }
 
 #[turbo_tasks::value_impl]
@@ -258,7 +262,7 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.ident.path().owned().await
+        Ok(self.ident.await?.path.clone())
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
@@ -361,7 +365,8 @@ pub async fn parse_segment_config_from_source(
     source: ResolvedVc<Box<dyn Source>>,
     mode: ParseSegmentMode,
 ) -> Result<Vc<NextSegmentConfig>> {
-    let path = source.ident().path().await?;
+    let ident = source.ident().await?;
+    let path = &ident.path;
 
     // Don't try parsing if it's not a javascript file, otherwise it will emit an
     // issue causing the build to "fail".
@@ -390,6 +395,9 @@ pub async fn parse_segment_config_from_source(
             EcmascriptModuleAssetType::Ecmascript
         },
         EcmascriptInputTransforms::empty(),
+        // node_env is not used here: EcmascriptInputTransforms::empty() means no
+        // transforms are applied, so TransformContext::node_env is never accessed.
+        rcstr!("development"),
         false,
         false,
     )
@@ -533,9 +541,25 @@ pub async fn parse_segment_config_from_source(
                 "unstable_instant",
                 span,
                 rcstr!(
-                    "App pages cannot export \"unstable_instant\" from a Client Component module. \
-                     To use this API, convert this module to a Server Component by removing the \
-                     \"use client\" directive."
+                    "\"unstable_instant\" is a route segment config and can only be used when the \
+                     segment is a Server Component module. Remove the \"use client\" directive to \
+                     use this API."
+                ),
+                None,
+                IssueSeverity::Error,
+            )
+            .await?;
+        }
+
+        if let Some(span) = config.unstable_prefetch {
+            invalid_config(
+                source,
+                "unstable_prefetch",
+                span,
+                rcstr!(
+                    "\"unstable_prefetch\" is a route segment config and can only be used when \
+                     the segment is a Server Component module. Remove the \"use client\" \
+                     directive to use this API."
                 ),
                 None,
                 IssueSeverity::Error,
@@ -587,12 +611,14 @@ async fn parse_config_value(
 ) -> Result<()> {
     let get_value = || {
         let init = init.as_deref();
-        // Unwrap `export const config = { .. } satisfies ProxyConfig`, usually this is already
-        // transpiled away, but we are looking at the original source here.
-        let init = if let Some(Expr::TsSatisfies(TsSatisfiesExpr { expr, .. })) = init {
-            Some(&**expr)
-        } else {
-            init
+        // Unwrap typecasts such as `export const config = { .. } satisfies ProxyConfig`, usually
+        // this is already transpiled away, but we are looking at the original source here.
+        let init = match init {
+            Some(Expr::TsAs(TsAsExpr { expr, .. }))
+            | Some(Expr::TsTypeAssertion(TsTypeAssertion { expr, .. }))
+            | Some(Expr::TsConstAssertion(TsConstAssertion { expr, .. }))
+            | Some(Expr::TsSatisfies(TsSatisfiesExpr { expr, .. })) => Some(&**expr),
+            _ => init,
         };
         init.map(|init| eval_context.eval(init)).map(|v| {
             // Special case, as we don't call `link` here: assume that `undefined` is a free
@@ -961,6 +987,9 @@ async fn parse_config_value(
         }
         "unstable_instant" => {
             config.unstable_instant = Some(span);
+        }
+        "unstable_prefetch" => {
+            config.unstable_prefetch = Some(span);
         }
         _ => {}
     }

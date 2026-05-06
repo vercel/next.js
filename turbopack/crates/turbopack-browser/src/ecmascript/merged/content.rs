@@ -15,7 +15,7 @@ use super::{
 /// [`EcmascriptChunkContentMerger`].
 ///
 /// [`EcmascriptChunkContentMerger`]: super::merger::EcmascriptChunkContentMerger
-#[turbo_tasks::value(serialization = "none", shared)]
+#[turbo_tasks::value(serialization = "skip", shared)]
 pub(super) struct EcmascriptBrowserMergedChunkContent {
     pub contents: Vec<ResolvedVc<EcmascriptBrowserChunkContent>>,
 }

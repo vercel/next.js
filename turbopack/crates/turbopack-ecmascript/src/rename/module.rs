@@ -1,6 +1,5 @@
-use std::collections::BTreeMap;
-
 use anyhow::{Result, bail};
+use turbo_frozenmap::FrozenMap;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
@@ -118,8 +117,14 @@ impl Module for EcmascriptModuleRenameModule {
     }
 
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.module.ident().with_part(self.part.clone())
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .module
+            .ident()
+            .owned()
+            .await?
+            .with_part(self.part.clone())
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -208,33 +213,28 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleRenameModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
         let reference = self.module_reference().await?;
-        let mut exports = BTreeMap::new();
 
-        match &self.part {
+        let export = match &self.part {
             ModulePart::RenamedExport {
                 original_export,
                 export,
-            } => {
-                exports.insert(
-                    export.clone(),
-                    EsmExport::ImportedBinding(
-                        ResolvedVc::upcast(reference),
-                        original_export.clone(),
-                        false,
-                    ),
-                );
-            }
-            ModulePart::RenamedNamespace { export } => {
-                exports.insert(
-                    export.clone(),
-                    EsmExport::ImportedNamespace(ResolvedVc::upcast(reference)),
-                );
-            }
+            } => (
+                export.clone(),
+                EsmExport::ImportedBinding(
+                    ResolvedVc::upcast(reference),
+                    original_export.clone(),
+                    false,
+                ),
+            ),
+            ModulePart::RenamedNamespace { export } => (
+                export.clone(),
+                EsmExport::ImportedNamespace(ResolvedVc::upcast(reference)),
+            ),
             _ => bail!("Unexpected ModulePart for EcmascriptModuleRenameModule"),
-        }
+        };
 
         let exports = EsmExports {
-            exports,
+            exports: FrozenMap::from_unique_sorted_box(Box::new([export])),
             star_exports: Vec::new(),
         }
         .resolved_cell();

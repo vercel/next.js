@@ -31,20 +31,21 @@ use std::{
     fs::read_to_string,
     panic::{AssertUnwindSafe, catch_unwind},
     rc::Rc,
+    sync::{Arc, LazyLock},
 };
 
 use anyhow::{Context as _, anyhow, bail};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use next_custom_transforms::chain_transforms::{TransformOptions, custom_before_pass};
-use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
-    base::{Compiler, TransformOutput, try_with_handler},
+    base::{Compiler, TransformOutput, config::RuntimeOptions, try_with_handler},
     common::{FileName, GLOBALS, Mark, comments::SingleThreadedComments, errors::ColorConfig},
     ecma::ast::noop_pass,
 };
+use swc_plugin_backend_wasmtime::WasmtimeRuntime;
 
 use crate::{complete_output, get_compiler, util::MapErr};
 
@@ -74,7 +75,7 @@ fn skip_filename() -> bool {
         !v.is_empty() && v != "0"
     }
 
-    static SKIP_FILENAME: Lazy<bool> = Lazy::new(|| {
+    static SKIP_FILENAME: LazyLock<bool> = LazyLock::new(|| {
         check("NEXT_TEST_MODE") || check("__NEXT_TEST_MODE") || check("NEXT_TEST_JOB")
     });
 
@@ -128,15 +129,8 @@ impl Task for TransformTask {
                             let unresolved_mark = Mark::new();
                             let mut options = options.patch(&fm);
                             options.swc.unresolved_mark = Some(unresolved_mark);
-
-                            #[cfg(feature = "plugin")]
-                            {
-                                options.swc.runtime_options =
-                                    swc_core::base::config::RuntimeOptions::default()
-                                        .plugin_runtime(std::sync::Arc::new(
-                                            swc_plugin_backend_wasmtime::WasmtimeRuntime,
-                                        ));
-                            }
+                            options.swc.runtime_options =
+                                RuntimeOptions::default().plugin_runtime(Arc::new(WasmtimeRuntime));
 
                             let cm = self.c.cm.clone();
                             let file = fm.clone();

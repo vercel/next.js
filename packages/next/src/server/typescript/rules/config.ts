@@ -61,12 +61,12 @@ const API_DOCS: Record<
   },
   preferredRegion: {
     description:
-      'Specify the perferred region that this layout or page should be deployed to. If the region option is not specified, it inherits the option from the nearest parent layout. The root defaults to `"auto"`.\n\nYou can also specify a region, such as "iad1", or an array of regions, such as `["iad1", "sfo1"]`.',
+      '@deprecated\\n\\nThe `preferredRegion` route segment config is deprecated. Remove this export.',
     options: {
       '"auto"':
-        'Next.js will first deploy to the `"home"` region. Then if it doesn\'t detect any waterfall requests after a few requests, it can upgrade that route, to be deployed globally. If it detects any waterfall requests after that, it can eventually downgrade back to `"home`".',
-      '"global"': 'Prefer deploying globally.',
-      '"home"': 'Prefer deploying to the Home region.',
+        '@deprecated\\n\\nNext.js will first deploy to the `"home"` region. Then if it doesn\'t detect any waterfall requests after a few requests, it can upgrade that route, to be deployed globally. If it detects any waterfall requests after that, it can eventually downgrade back to `"home`".',
+      '"global"': '@deprecated\\n\\nPrefer deploying globally.',
+      '"home"': '@deprecated\\n\\nPrefer deploying to the Home region.',
     },
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#preferredregion',
     isValid: (value: string) => {
@@ -124,7 +124,7 @@ const API_DOCS: Record<
       'The `runtime` option controls the preferred runtime to render this route.',
     options: {
       '"nodejs"': 'Prefer the Node.js runtime.',
-      '"edge"': 'Prefer the Edge runtime.',
+      '"edge"': `@deprecated\n\nThe Edge Runtime is deprecated. Use \`"nodejs"\` instead.`,
       '"experimental-edge"': `@deprecated\n\nThis option is no longer experimental. Use \`edge\` instead.`,
     } satisfies DocsOptionsObject<
       FullAppSegmentConfig['runtime'] | 'experimental-edge'
@@ -147,14 +147,26 @@ const API_DOCS: Record<
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#maxduration',
   },
   unstable_instant: {
-    description: `Specifies the default prefetching behavior for this segment. This configuration is currently under development and will change.`,
+    description: `Enables instant navigation validation for this segment. This configuration is currently under development and will change.`,
     link: '(docs coming soon)',
-    type: 'object | false',
+    type: 'true | object | false',
     // TODO: ideally, we'd validate the config object somehow, but this is difficult to do
     // with the way this plugin is currently structured.
     // For now, since we don't provide an `options` here, we won't do any validation in
     // `getSemanticDiagnosticsForExportVariableStatement` below, and only provide hover a tooltip + autocomplete.
-    insertText: 'unstable_instant = { prefetch: "static" };',
+    insertText: 'unstable_instant = true;',
+  },
+  unstable_prefetch: {
+    description: `Controls prefetching behavior for this segment. This configuration is currently under development and will change.`,
+    link: '(docs coming soon)',
+    type: `"auto" | "force-disabled" | "force-static" | "force-runtime"`,
+    options: {
+      auto: 'Default. Framework decides based on instant validation and segment configuration. You do not need to set this explicitly.',
+      'force-disabled': 'Never prefetch this segment.',
+      'force-static': 'Always prefetch this segment statically.',
+      'force-runtime': 'Always prefetch this segment at runtime.',
+    },
+    insertText: `unstable_prefetch = 'force-runtime';`,
   },
   unstable_dynamicStaleTime: {
     description: `Controls how long the client-side router cache retains dynamic page data (in seconds). Pages only — not allowed in layouts. Cannot be combined with \`unstable_instant\`.`,

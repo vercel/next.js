@@ -99,8 +99,14 @@ struct MdxTransformedAsset {
 #[turbo_tasks::value_impl]
 impl Source for MdxTransformedAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().rename_as(rcstr!("*.tsx"))
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .source
+            .ident()
+            .owned()
+            .await?
+            .rename_as("*.tsx")
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -161,7 +167,7 @@ impl MdxTransformedAsset {
                 .jsx_import_source
                 .clone()
                 .map(RcStr::into_owned),
-            filepath: Some(self.source.ident().path().await?.to_string()),
+            filepath: Some(self.source.ident().await?.path.to_string()),
             ..Default::default()
         };
 
@@ -246,7 +252,7 @@ struct MdxIssue {
 #[turbo_tasks::value_impl]
 impl Issue for MdxIssue {
     async fn file_path(&self) -> anyhow::Result<FileSystemPath> {
-        self.source.file_path().owned().await
+        self.source.file_path().await
     }
 
     fn source(&self) -> Option<IssueSource> {

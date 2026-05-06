@@ -2,8 +2,8 @@ import type { Instant } from 'next'
 import { PathnameReader } from './pathname-reader'
 
 export const unstable_instant: Instant = {
-  prefetch: 'static',
-  samples: [
+  level: 'experimental-error',
+  unstable_samples: [
     {
       params: {
         one: '123',

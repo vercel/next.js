@@ -1,4 +1,4 @@
-export const unstable_instant = { prefetch: 'static' }
+export const unstable_instant = { level: 'experimental-error' }
 
 export default function StaticLayout({ children }) {
   return (

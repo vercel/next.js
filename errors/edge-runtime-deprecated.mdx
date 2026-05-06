@@ -1,0 +1,23 @@
+---
+title: Edge Runtime Deprecated
+---
+
+## Why This Warning Occurred
+
+One or more routes in your application use `export const runtime = 'edge'`, which is deprecated.
+
+## How to Migrate
+
+Remove the `runtime` export from your route files:
+
+```diff
+- export const runtime = 'edge'
+```
+
+The Node.js runtime is the default, so no replacement is needed.
+
+This applies to all route files that support the `runtime` segment config: `page.ts`, `layout.ts`, `route.ts`, and API routes.
+
+## Useful Links
+
+- [Route Segment Config](/docs/app/api-reference/file-conventions/route-segment-config/runtime)

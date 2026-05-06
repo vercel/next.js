@@ -63,6 +63,50 @@ jobs:
           )
         }}
 
+  pr-ci-metadata:
+    name: Upload PR CI metadata
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Write PR metadata
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_IS_FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          mkdir -p pr-ci-metadata
+          node <<'NODE'
+          const fs = require('fs')
+
+          fs.writeFileSync(
+            'pr-ci-metadata/pr.json',
+            JSON.stringify(
+              {
+                number: Number(process.env.PR_NUMBER),
+                headSha: process.env.PR_HEAD_SHA,
+                headRef: process.env.PR_HEAD_REF,
+                headRepo: process.env.PR_HEAD_REPO,
+                baseRef: process.env.PR_BASE_REF,
+                isFork: process.env.PR_IS_FORK === 'true',
+              },
+              null,
+              2
+            )
+          )
+          NODE
+
+      - name: Upload PR metadata
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-ci-metadata
+          path: pr-ci-metadata/pr.json
+          retention-days: 1
+
   build-native:
     name: build-native
     uses: ./.github/workflows/build_reusable.yml
@@ -71,6 +115,7 @@ jobs:
     with:
       skipInstallBuild: 'yes'
       stepName: 'build-native'
+      uploadNativeArtifact: 'next-swc-linux'
     secrets: inherit
 
   build-native-windows:
@@ -81,8 +126,9 @@ jobs:
     with:
       skipInstallBuild: 'yes'
       stepName: 'build-native-windows'
-      runs_on_labels: '["windows","self-hosted","x64"]'
+      runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
+      uploadNativeArtifact: 'next-swc-windows'
 
     secrets: inherit
 
@@ -134,7 +180,7 @@ jobs:
           fi
 
       - name: Upload test timings
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-timings
           path: test-timings.json
@@ -192,6 +238,7 @@ jobs:
       needsRust: 'yes'
       needsNextest: 'yes'
       skipNativeBuild: 'yes'
+      skipInstallBuild: 'yes'
       afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit ${TURBO_ARGS}
       stepName: 'test-cargo-unit'
     secrets: inherit
@@ -698,7 +745,7 @@ jobs:
 
   test-unit-windows:
     name: test unit windows
-    needs: ['changes', 'build-native', 'build-native-windows']
+    needs: ['changes', 'build-native-windows', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -711,7 +758,7 @@ jobs:
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-windows-${{ matrix.node }}'
-      runs_on_labels: '["windows","self-hosted","x64"]'
+      runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
 
     secrets: inherit
@@ -735,7 +782,8 @@ jobs:
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode dev \
-          --group ${{ matrix.group }}
+          --group ${{ matrix.group }} \
+          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
       stepName: 'test-new-tests-dev-${{matrix.group}}'
       timeout_minutes: 60 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
 
@@ -760,7 +808,8 @@ jobs:
         node scripts/test-new-tests.mjs \
           --flake-detection \
           --mode start \
-          --group ${{ matrix.group }}
+          --group ${{ matrix.group }} \
+          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
       stepName: 'test-new-tests-start-${{matrix.group}}'
       timeout_minutes: 60 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
     secrets: inherit
@@ -787,7 +836,8 @@ jobs:
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         node scripts/test-new-tests.mjs \
           --mode deploy \
-          --group ${{ matrix.group }}
+          --group ${{ matrix.group }} \
+          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
       stepName: 'test-new-tests-deploy-${{matrix.group}}'
 
     secrets: inherit
@@ -821,7 +871,8 @@ jobs:
         export NEXT_E2E_TEST_TIMEOUT=240000
         node scripts/test-new-tests.mjs \
           --mode deploy \
-          --group ${{ matrix.group }}
+          --group ${{ matrix.group }} \
+          --preview-builds-base-url "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
       stepName: 'test-new-tests-deploy-cache-components-${{matrix.group}}'
 
     secrets: inherit
@@ -866,14 +917,7 @@ jobs:
 
   test-dev-windows:
     name: test dev windows
-    needs:
-      [
-        'optimize-ci',
-        'changes',
-        'build-native-windows',
-        'build-native',
-        'build-next',
-      ]
+    needs: ['optimize-ci', 'changes', 'build-native-windows', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
@@ -890,20 +934,13 @@ jobs:
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts \
           test/development/app-dir/segment-explorer/segment-explorer.test.ts
       stepName: 'test-dev-windows'
-      runs_on_labels: '["windows","self-hosted","x64"]'
+      runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
   test-integration-windows:
     name: test integration windows
-    needs:
-      [
-        'optimize-ci',
-        'changes',
-        'build-native-windows',
-        'build-native',
-        'build-next',
-      ]
+    needs: ['optimize-ci', 'changes', 'build-native-windows', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
@@ -920,20 +957,13 @@ jobs:
           test/integration/create-next-app/index.test.ts \
           test/integration/create-next-app/package-manager/pnpm.test.ts
       stepName: 'test-integration-windows'
-      runs_on_labels: '["windows","self-hosted","x64"]'
+      runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
   test-prod-windows:
     name: test prod windows
-    needs:
-      [
-        'optimize-ci',
-        'changes',
-        'build-native-windows',
-        'build-native',
-        'build-next',
-      ]
+    needs: ['optimize-ci', 'changes', 'build-native-windows', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
@@ -950,7 +980,7 @@ jobs:
           test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts \
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts
       stepName: 'test-prod-windows'
-      runs_on_labels: '["windows","self-hosted","x64"]'
+      runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 

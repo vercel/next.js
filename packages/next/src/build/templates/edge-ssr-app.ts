@@ -96,7 +96,7 @@ async function requestHandler(
   const isPossibleServerAction = getIsPossibleServerAction(req)
   const botType = getBotType(req.headers.get('User-Agent') || '')
   const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
-    req,
+    req.headers,
     prerenderManifest.preview
   )
 
@@ -152,12 +152,14 @@ async function requestHandler(
 
       multiZoneDraftMode: false,
       cacheLifeProfiles: nextConfig.cacheLife,
+      staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
       basePath: nextConfig.basePath,
       serverActions: nextConfig.experimental.serverActions,
       logServerFunctions:
         typeof nextConfig.logging === 'object' &&
         Boolean(nextConfig.logging.serverFunctions),
       cacheComponents: Boolean(nextConfig.cacheComponents),
+      validationLevel: nextConfig.experimental.instantInsights.validationLevel,
       experimental: {
         isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
@@ -167,6 +169,7 @@ async function requestHandler(
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        useCacheTimeout: nextConfig.experimental.useCacheTimeout,
         cachedNavigations: Boolean(nextConfig.experimental.cachedNavigations),
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
