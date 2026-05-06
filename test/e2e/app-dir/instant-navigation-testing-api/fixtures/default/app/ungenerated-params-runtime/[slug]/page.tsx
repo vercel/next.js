@@ -5,9 +5,9 @@ import { Suspense } from 'react'
 // the resolved `slug`, so the param should be visible inside the instant
 // scope instead of suspending.
 export const unstable_instant: {
-  samples: Array<{ params: { slug: string } }>
+  unstable_samples: Array<{ params: { slug: string } }>
 } = {
-  samples: [{ params: { slug: 'anything' } }],
+  unstable_samples: [{ params: { slug: 'anything' } }],
 }
 export const unstable_prefetch = 'force-runtime'
 

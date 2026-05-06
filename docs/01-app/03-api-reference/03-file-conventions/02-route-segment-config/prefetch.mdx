@@ -49,19 +49,10 @@ You typically don't need to set this explicitly — omitting the export has the 
 
 Always prefetch this segment at runtime. The server renders a fresh response for the segment during prefetch, allowing runtime data like cookies, headers, and search params to be included. This is useful for personalized content that should still be available instantly on navigation.
 
-When using `'force-runtime'`, you should also configure [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) with `samples` so that instant validation can verify your caching structure against realistic request data.
-
 > **Good to know**: When a segment uses runtime prefetching, all downstream segments are included in the same runtime prefetch request. This means segments deeper in the tree that are configured with `'force-static'` or `'force-disabled'` will still be prefetched as part of the runtime response.
 
 ```tsx filename="page.tsx"
 export const unstable_prefetch = 'force-runtime'
-export const unstable_instant = {
-  samples: [
-    {
-      cookies: [{ name: 'session', value: 'test' }],
-    },
-  ],
-}
 ```
 
 ### `'force-static'`

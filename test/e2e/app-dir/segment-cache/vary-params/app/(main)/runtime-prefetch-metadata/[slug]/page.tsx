@@ -11,9 +11,9 @@ import { connection } from 'next/server'
  * - Body segment should be cached (body does NOT access slug)
  */
 export const unstable_instant: {
-  samples: Array<{ params: { slug: string } }>
+  unstable_samples: Array<{ params: { slug: string } }>
 } = {
-  samples: [{ params: { slug: 'aaa' } }, { params: { slug: 'bbb' } }],
+  unstable_samples: [{ params: { slug: 'aaa' } }, { params: { slug: 'bbb' } }],
 }
 export const unstable_prefetch = 'force-runtime'
 

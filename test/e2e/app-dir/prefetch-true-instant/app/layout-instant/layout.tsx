@@ -1,7 +1,7 @@
 import { ReactNode } from 'react'
 
 export const unstable_instant = {
-  samples: [{ cookies: [{ name: 'test', value: null }] }],
+  unstable_samples: [{ cookies: [{ name: 'test', value: null }] }],
 }
 export const unstable_prefetch = 'force-runtime'
 

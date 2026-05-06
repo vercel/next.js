@@ -247,6 +247,7 @@ export async function handler(
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
       },
       cacheComponents: Boolean(nextConfig.cacheComponents),
+      validationLevel: nextConfig.experimental.instantInsights.validationLevel,
       supportsDynamicResponse,
       incrementalCache,
       cacheLifeProfiles: nextConfig.cacheLife,

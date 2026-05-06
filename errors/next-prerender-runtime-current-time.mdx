@@ -23,10 +23,7 @@ If you are using the current time for performance tracking with elapsed time use
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [...],
-}
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page({ params }) {
   const { id } = await params
@@ -42,10 +39,7 @@ export default async function Page({ params }) {
 After:
 
 ```jsx filename="app/page.js"
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [...],
-}
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page({ params }) {
   const { id } = await params
@@ -67,10 +61,7 @@ If you want to read the time when some cache entry is created (such as when a Ne
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [...],
-}
+export const unstable_prefetch = 'force-runtime'
 
 async function InformationTable({ id }) {
   const data = await fetch(urlFrom(id))
@@ -86,7 +77,7 @@ export default async function Page({ params }) {
   const { id } = await params
   return (
     <main>
-      <InformationTable id={id}/>
+      <InformationTable id={id} />
       Last Refresh: {new Date().toString()}
     </main>
   )
@@ -96,13 +87,10 @@ export default async function Page({ params }) {
 After:
 
 ```jsx filename="app/page.js"
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [...],
-}
+export const unstable_prefetch = 'force-runtime'
 
 async function InformationTable({ id }) {
-  "use cache"
+  'use cache'
   const data = await fetch(urlFrom(id))
   return (
     <>
@@ -119,7 +107,7 @@ export default async function Page({ params }) {
   const { id } = await params
   return (
     <main>
-      <InformationTable id={id}/>
+      <InformationTable id={id} />
     </main>
   )
 }
@@ -136,10 +124,7 @@ If you go with this approach you will need to ensure the Client Component which 
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [...],
-}
+export const unstable_prefetch = 'force-runtime'
 
 function RelativeTime({ when }) {
   return computeTimeAgo(new Date(), when)
@@ -193,10 +178,7 @@ export function RelativeTime({ when }) {
 ```
 
 ```jsx filename="app/page.js"
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [...],
-}
+export const unstable_prefetch = 'force-runtime'
 
 import { RelativeTime } from './relative-time'
 
@@ -230,13 +212,12 @@ Next.js enforces that it can always produce at least a partially static initial 
 Before:
 
 ```jsx filename="app/page.js"
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [...],
-}
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page() {
-  const lastImpressionTime = (await cookies()).get('last-impression-time')?.value
+  const lastImpressionTime = (await cookies()).get(
+    'last-impression-time'
+  )?.value
   const currentTime = Date.now()
   if (currentTime > lastImpressionTime + SOME_INTERVAL) {
     return <SpecialBanner />
@@ -249,10 +230,7 @@ export default async function Page() {
 After:
 
 ```jsx filename="app/page.js"
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [...],
-}
+export const unstable_prefetch = 'force-runtime'
 
 import { Suspense } from 'react'
 import { connection } from 'next/server'

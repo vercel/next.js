@@ -309,6 +309,10 @@ export async function adapter(
                 // default.
                 staticPageGenerationTimeout: 0,
                 cacheComponents: false,
+                // Proxy doesn't run instant validation; the level value is
+                // irrelevant here.
+                // TODO: remove validationLevel and other global config from renderOpts
+                validationLevel: 'warning',
                 experimental: {
                   isRoutePPREnabled: false,
                   authInterrupts:

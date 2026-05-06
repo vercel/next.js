@@ -5,6 +5,7 @@ import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { CacheLife } from '../use-cache/cache-life'
+import type { ValidationLevel } from '../config-shared'
 
 import { AfterContext } from '../after/after-context'
 
@@ -27,6 +28,7 @@ export type WorkStoreContext = {
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
     cacheComponents: boolean
+    validationLevel: ValidationLevel
     fetchCache?: AppSegmentConfig['fetchCache']
     isPossibleServerAction?: boolean
     pendingWaitUntil?: Promise<any>
@@ -145,6 +147,7 @@ export function createWorkStore({
 
     afterContext: createAfterContext(renderOpts),
     cacheComponentsEnabled: renderOpts.cacheComponents,
+    validationLevel: renderOpts.validationLevel,
     previouslyRevalidatedTags,
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
     runInCleanSnapshot: createSnapshot(),

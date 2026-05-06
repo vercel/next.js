@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { Suspense } from 'react'
 
 export const unstable_instant: Instant = {
-  samples: [
+  level: 'experimental-error',
+  unstable_samples: [
     {
       params: {
         slug: 'from-page',

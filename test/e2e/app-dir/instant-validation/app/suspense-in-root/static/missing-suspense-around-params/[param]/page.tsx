@@ -1,4 +1,7 @@
-export const unstable_instant = { samples: [{ params: { param: '123' } }] }
+export const unstable_instant = {
+  level: 'experimental-error',
+  unstable_samples: [{ params: { param: '123' } }],
+}
 
 export default async function Page({
   params,

@@ -3,7 +3,8 @@ import { Suspense } from 'react'
 import { PathnameReader } from './pathname-reader'
 
 export const unstable_instant: Instant = {
-  samples: [
+  level: 'experimental-error',
+  unstable_samples: [
     {
       params: {
         catchAll: ['aaa', 'bbb', 'ccc'],
