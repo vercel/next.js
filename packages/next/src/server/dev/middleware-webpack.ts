@@ -263,6 +263,11 @@ export async function createOriginalStackFrame({
     get originalCodeFrame() {
       if (originalCodeFrame === undefined) {
         originalCodeFrame = getOriginalCodeFrame(traced, sourceContent, {
+          // The overlay parses ANSI escapes to render colored tokens,
+          // independent of whether the dev server's stdout is a TTY
+          // (e.g. when run from Cursor's terminal, Docker without -t,
+          // `concurrently`, etc.).
+          colors: true,
           // The overlay renders in a browser with horizontal scrolling,
           // so don't truncate lines to the server's terminal width.
           maxWidth: DEVTOOLS_CODE_FRAME_MAX_WIDTH,
