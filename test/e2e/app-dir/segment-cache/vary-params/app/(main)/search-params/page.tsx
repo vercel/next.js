@@ -28,6 +28,11 @@ export default function SearchParamsIndexPage() {
       <h2>Target (accesses searchParams)</h2>
       <ul>
         <li>
+          <LinkAccordion href="/search-params/target-page">
+            Target with no search params
+          </LinkAccordion>
+        </li>
+        <li>
           <LinkAccordion href="/search-params/target-page?foo=1">
             Target with foo=1
           </LinkAccordion>
