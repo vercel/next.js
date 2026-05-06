@@ -12,14 +12,14 @@ use turbo_tasks_fs::{
 };
 use url::Url;
 
-use crate::SOURCE_URL_PROTOCOL;
+use crate::SOURCE_URL_PROTOCOL_STR;
 
 pub fn add_default_ignore_list(map: &mut swc_sourcemap::SourceMap) {
     let mut ignored_ids = HashSet::new();
 
     for (source_id, source) in map.sources().enumerate() {
-        if source.starts_with(concatcp!(SOURCE_URL_PROTOCOL, "///[next]"))
-            || source.starts_with(concatcp!(SOURCE_URL_PROTOCOL, "///[turbopack]"))
+        if source.starts_with(concatcp!(SOURCE_URL_PROTOCOL_STR, "///[next]"))
+            || source.starts_with(concatcp!(SOURCE_URL_PROTOCOL_STR, "///[turbopack]"))
             || source.contains("/node_modules/")
             || source.ends_with("__nextjs-internal-proxy.cjs")
             || source.ends_with("__nextjs-internal-proxy.mjs")
@@ -137,7 +137,7 @@ pub async fn resolve_source_map_sources(
                 // valid URLs. However, `project_trace_source_operation` (and `uri_from_file`) need
                 // to handle percent encoding correctly first.
                 let fs_path_str = &fs_path.path;
-                *source_url = format!("{SOURCE_URL_PROTOCOL}///{fs_str}/{fs_path_str}");
+                *source_url = format!("{SOURCE_URL_PROTOCOL_STR}///{fs_str}/{fs_path_str}");
 
                 if let Some(source_content) = source_content
                     && source_content.is_none()
@@ -166,7 +166,7 @@ pub async fn resolve_source_map_sources(
                     LazyLock::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
                 let source = INVALID_REGEX
                     .replace_all(source_url, |s: &regex::Captures<'_>| s[0].replace('.', "_"));
-                *source_url = format!("{SOURCE_URL_PROTOCOL}///{fs_str}/{origin_str}/{source}");
+                *source_url = format!("{SOURCE_URL_PROTOCOL_STR}///{fs_str}/{origin_str}/{source}");
             }
             anyhow::Ok(())
         };
@@ -251,7 +251,7 @@ where
         .context("Expected the chunking context to have a DiskFileSystem")?
         .await?;
 
-    let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL, context_fs.name());
+    let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL_STR, context_fs.name());
 
     let mut apply_transform = |src: &mut String| -> Result<()> {
         if let Some(src_rest) = src.strip_prefix(&prefix) {
@@ -438,7 +438,7 @@ mod tests {
                 .read_strongly_consistent()
                 .await?;
 
-            let prefix = format!("{SOURCE_URL_PROTOCOL}///[mock]");
+            let prefix = format!("{SOURCE_URL_PROTOCOL_STR}///[mock]");
             assert_eq!(
                 resolved_source_maps.resolved_sources,
                 vec![
