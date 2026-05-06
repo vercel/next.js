@@ -31,6 +31,23 @@ interface TreemapVisualizerProps {
   isModulePolyfillChunk?: (sourceIndex: number) => boolean
   isNoModulePolyfillChunk?: (sourceIndex: number) => boolean
   sizeMode?: SizeMode
+  /**
+   * Optional override for file tile colors. Returning `undefined` falls back
+   * to the default file-type-based color. Used by the compare view to color
+   * tiles by diff status (added/removed/grew/shrank) instead of by file type.
+   */
+  getFileColorOverride?: (node: LayoutNode) => string | undefined
+  /**
+   * Optional override for the size label shown on a tile. Returning `undefined`
+   * falls back to `formatBytes(node.size)`. Used by the compare view to show
+   * size deltas (e.g. "+1.2 KB") instead of absolute sizes.
+   */
+  getFileSizeLabel?: (node: LayoutNode) => string | undefined
+  /**
+   * Optional overlay rendered on top of the treemap canvas. Used by the
+   * compare view to render a red/green legend.
+   */
+  overlay?: React.ReactNode
 }
 
 function getFileColor(node: {
@@ -275,6 +292,8 @@ function drawTreemap(
   searchQuery: string,
   originalData: LayoutNode,
   immediateHoveredSourceIndex: number | undefined,
+  getFileColorOverride: ((node: LayoutNode) => string | undefined) | undefined,
+  getFileSizeLabel: ((node: LayoutNode) => string | undefined) | undefined,
   currentPath: string[] = [],
   parentFadedOut = false,
   insideActiveSubtree = false
@@ -332,6 +351,8 @@ function drawTreemap(
             searchQuery,
             originalData,
             immediateHoveredSourceIndex,
+            getFileColorOverride,
+            getFileSizeLabel,
             path,
             parentFadedOut,
             insideActiveSubtree
@@ -395,7 +416,7 @@ function drawTreemap(
     sourceIndex !== undefined && sourceIndex === immediateHoveredSourceIndex
 
   if (type === 'file') {
-    let color = getFileColor(node)
+    let color = getFileColorOverride?.(node) ?? getFileColor(node)
 
     // Apply brightness boost to immediately hovered node
     if (isImmediateHovered) {
@@ -418,7 +439,7 @@ function drawTreemap(
 
       const maxWidth = rect.width - 8
 
-      const sizeText = formatBytes(node.size)
+      const sizeText = getFileSizeLabel?.(node) ?? formatBytes(node.size)
       const fontSize = 12
       const sizeFontSize = 10
       const lineHeight = fontSize + 2
@@ -617,6 +638,8 @@ function drawTreemap(
           searchQuery,
           originalData,
           immediateHoveredSourceIndex,
+          getFileColorOverride,
+          getFileSizeLabel,
           path,
           childFadeOut,
           childInsideActiveSubtree
@@ -709,6 +732,9 @@ export function TreemapVisualizer({
   searchQuery = '',
   filterSource,
   sizeMode = SizeMode.Compressed,
+  getFileColorOverride,
+  getFileSizeLabel,
+  overlay,
 }: TreemapVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -872,7 +898,9 @@ export function TreemapVisualizer({
       focusedAncestorChain,
       searchQuery,
       layout,
-      hoveredNode?.sourceIndex
+      hoveredNode?.sourceIndex,
+      getFileColorOverride,
+      getFileSizeLabel
     )
   }, [
     layout,
@@ -884,6 +912,8 @@ export function TreemapVisualizer({
     focusedAncestorChain,
     searchQuery,
     hoveredNode,
+    getFileColorOverride,
+    getFileSizeLabel,
   ])
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1009,7 +1039,7 @@ export function TreemapVisualizer({
   return (
     <div
       ref={containerRef}
-      className="w-full h-full bg-background border border-border rounded-lg overflow-hidden"
+      className="relative w-full h-full bg-background border border-border rounded-lg overflow-hidden"
     >
       <canvas
         ref={canvasRef}
@@ -1021,6 +1051,7 @@ export function TreemapVisualizer({
         onDoubleClick={handleDoubleClick}
         className="block w-full h-full"
       />
+      {overlay}
     </div>
   )
 }
