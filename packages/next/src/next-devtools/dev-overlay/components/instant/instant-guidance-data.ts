@@ -459,7 +459,7 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'blocking-route':
     'This prevents the route from being prerendered, blocking navigation and leading to a slower user experience.',
   metadata:
-    "This route's metadata is generated on every request, but the rest of its content could be prerendered.",
+    "This route's metadata is blocked, but the rest of its content can be prerendered.",
   viewport:
     'This prevents the page from being prerendered, leading to a slower user experience.',
   'sync-io': '',

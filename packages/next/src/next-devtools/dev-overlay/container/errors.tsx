@@ -566,12 +566,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
             errorDetails.variant === 'runtime' ? (
               <>
                 Next.js encountered runtime data in{' '}
-                <code>generateMetadata()</code> on an otherwise static page.
+                <code>generateMetadata()</code>.
               </>
             ) : (
               <>
                 Next.js encountered uncached data in{' '}
-                <code>generateMetadata()</code> on an otherwise static page.
+                <code>generateMetadata()</code>.
               </>
             )
           }

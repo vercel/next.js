@@ -87,7 +87,7 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1231",
-             "description": "Next.js encountered uncached data in generateMetadata() on an otherwise static page.",
+             "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/dynamic-metadata-static-route/page.tsx (2:9) @ Module.generateMetadata
@@ -114,9 +114,9 @@ describe('Cache Components Errors', () => {
 
           if (isDebugPrerender) {
             expect(output).toMatchInlineSnapshot(`
-             "Route "/dynamic-metadata-static-route": Next.js encountered uncached or runtime data in \`generateMetadata()\` on an otherwise static page.
+             "Route "/dynamic-metadata-static-route": Next.js encountered uncached or runtime data in \`generateMetadata()\`.
 
-             This route's metadata is generated on every request, but the rest of its content could be prerendered.
+             This route's metadata is blocked, but the rest of its content can be prerendered.
 
              Ways to fix this:
                - Use a static metadata export instead of \`generateMetadata()\`
@@ -131,9 +131,9 @@ describe('Cache Components Errors', () => {
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-             "Route "/dynamic-metadata-static-route": Next.js encountered uncached or runtime data in \`generateMetadata()\` on an otherwise static page.
+             "Route "/dynamic-metadata-static-route": Next.js encountered uncached or runtime data in \`generateMetadata()\`.
 
-             This route's metadata is generated on every request, but the rest of its content could be prerendered.
+             This route's metadata is blocked, but the rest of its content can be prerendered.
 
              Ways to fix this:
                - Use a static metadata export instead of \`generateMetadata()\`
@@ -326,7 +326,7 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1231",
-             "description": "Next.js encountered uncached data in generateMetadata() on an otherwise static page.",
+             "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/dynamic-metadata-static-with-suspense/page.tsx (2:9) @ Module.generateMetadata
@@ -353,9 +353,9 @@ describe('Cache Components Errors', () => {
 
           if (isDebugPrerender) {
             expect(output).toMatchInlineSnapshot(`
-             "Route "/dynamic-metadata-static-with-suspense": Next.js encountered uncached or runtime data in \`generateMetadata()\` on an otherwise static page.
+             "Route "/dynamic-metadata-static-with-suspense": Next.js encountered uncached or runtime data in \`generateMetadata()\`.
 
-             This route's metadata is generated on every request, but the rest of its content could be prerendered.
+             This route's metadata is blocked, but the rest of its content can be prerendered.
 
              Ways to fix this:
                - Use a static metadata export instead of \`generateMetadata()\`
@@ -370,9 +370,9 @@ describe('Cache Components Errors', () => {
             `)
           } else {
             expect(output).toMatchInlineSnapshot(`
-             "Route "/dynamic-metadata-static-with-suspense": Next.js encountered uncached or runtime data in \`generateMetadata()\` on an otherwise static page.
+             "Route "/dynamic-metadata-static-with-suspense": Next.js encountered uncached or runtime data in \`generateMetadata()\`.
 
-             This route's metadata is generated on every request, but the rest of its content could be prerendered.
+             This route's metadata is blocked, but the rest of its content can be prerendered.
 
              Ways to fix this:
                - Use a static metadata export instead of \`generateMetadata()\`
