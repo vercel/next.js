@@ -45,6 +45,15 @@ const MAX_COUNT_BEFORE_YIELD: usize = 1000;
 /// of them per `process()` call before yielding.
 const FIND_AND_SCHEDULE_BATCH_SIZE: usize = 10000;
 const MAX_UPPERS_FOLLOWER_PRODUCT: usize = 31;
+/// Maximum number of `OptimizeJob`s held in the in-memory `optimize_queue` at one time.
+/// When this is reached, further pushes are dropped and the affected tasks have their
+/// `optimization_pending` flag set so the work is recovered later by
+/// `check_optimization_pending`.
+const MAX_OPTIMIZE_QUEUE_SIZE: usize = 10000;
+/// Maximum number of optimizations executed by a single `AggregationUpdateQueue` instance
+/// over its lifetime. Once exhausted, queued and newly pushed `OptimizeJob`s are dropped
+/// the same way as when `MAX_OPTIMIZE_QUEUE_SIZE` is reached.
+const MAX_OPTIMIZATIONS_PER_QUEUE: usize = 1000;
 #[cfg(not(feature = "trace_aggregation_update"))]
 const AGGREGATION_UPDATE_CATEGORY: TaskDataCategory = TaskDataCategory::Meta;
 #[cfg(feature = "trace_aggregation_update")]
@@ -85,6 +94,13 @@ fn get_followers(task: &impl TaskGuard) -> TaskIdVec {
 /// aggregating over the task.
 pub fn get_uppers(task: &impl TaskGuard) -> TaskIdVec {
     task.iter_upper().map(|(&id, _count)| id).collect()
+}
+
+/// Acquires a `Meta`-category guard for `task_id` and sets `optimization_pending`. Used in
+/// the optimize-queue drop paths when the caller doesn't already hold a guard for the task.
+fn lock_and_mark_optimization_pending(ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+    let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+    task.set_optimization_pending(true);
 }
 
 /// Returns the aggregation number of the task.
@@ -736,15 +752,36 @@ impl Eq for BalanceJob {}
 #[derive(Encode, Decode, Clone)]
 struct OptimizeJob {
     task_id: TaskId,
+    /// Whether the `optimization_pending` flag was known to already be set on the task at
+    /// the moment the job was enqueued. When this is true, dropping the job (because the
+    /// per-queue optimization budget got exhausted before processing it, or because the
+    /// in-memory queue was full at push time) does not require taking a task lock to mark
+    /// the task pending — the flag is already set.
+    ///
+    /// This is a best-effort snapshot taken at push time. It can become stale by the time
+    /// the job is processed, either through:
+    /// - concurrent updates (another thread sets or clears `optimization_pending`), or
+    /// - `RingSet` deduplication (a second push for the same `task_id` is a no-op even if it would
+    ///   record a different snapshot — the original entry's value is kept).
+    ///
+    /// A stale snapshot is still correct, just possibly suboptimal:
+    /// - If the snapshot is `false` but the flag is now `true`: at drop we acquire a guard and
+    ///   re-set the flag (a no-op write — slightly wasted work, but correct).
+    /// - If the snapshot is `true` but the flag is now `false`: at drop we skip the guard. The
+    ///   only way this can happen is that some other path ran `optimize_task` for this task and
+    ///   cleared the flag — i.e., the optimization we were about to drop has already been
+    ///   performed. Skipping the flag set is exactly what we want.
+    optimization_pending_flag_already_set: bool,
     #[cfg(feature = "trace_aggregation_update_queue")]
     #[bincode(skip)]
     span: Option<Span>,
 }
 
 impl OptimizeJob {
-    fn new(task: TaskId) -> Self {
+    fn new(task: TaskId, optimization_pending_flag_already_set: bool) -> Self {
         Self {
             task_id: task,
+            optimization_pending_flag_already_set,
             #[cfg(feature = "trace_aggregation_update_queue")]
             span: Some(Span::current()),
         }
@@ -890,6 +927,12 @@ pub struct AggregationUpdateQueue {
     balance_queue: FxRingSet<BalanceJob>,
     #[bincode(with = "turbo_bincode::ringset")]
     optimize_queue: FxRingSet<OptimizeJob>,
+    /// Number of optimizations executed by this queue so far. See
+    /// `MAX_OPTIMIZATIONS_PER_QUEUE`. Persisted with the queue so the budget is preserved
+    /// across suspend/resume — otherwise resuming a queue would reset the budget and a long
+    /// operation could perform arbitrarily many optimizations by going through several
+    /// suspend/resume cycles.
+    optimizations_executed: usize,
     #[bincode(skip, default = "FxHashMap::default")]
     scheduled_tasks: FxHashMap<TaskId, TaskPriority>,
     #[cfg(feature = "trace_aggregation_update_stats")]
@@ -906,6 +949,7 @@ impl AggregationUpdateQueue {
             find_and_schedule: FxRingSet::default(),
             balance_queue: FxRingSet::default(),
             optimize_queue: FxRingSet::default(),
+            optimizations_executed: 0,
             scheduled_tasks: FxHashMap::default(),
             #[cfg(feature = "trace_aggregation_update_stats")]
             stats: AggregationUpdateQueueStats::default(),
@@ -920,6 +964,7 @@ impl AggregationUpdateQueue {
             find_and_schedule,
             balance_queue,
             optimize_queue,
+            optimizations_executed: _,
             done_aggregation_number_updates: _,
             scheduled_tasks,
             #[cfg(feature = "trace_aggregation_update_stats")]
@@ -1011,9 +1056,82 @@ impl AggregationUpdateQueue {
             .extend(task_ids.into_iter().map(FindAndScheduleJob::new));
     }
 
-    /// Pushes a job to optimize a task.
-    fn push_optimize_task(&mut self, task_id: TaskId) {
-        self.optimize_queue.push_back(OptimizeJob::new(task_id));
+    /// Whether this queue has reached its lifetime budget for executed optimizations.
+    /// While exhausted, popped `OptimizeJob`s are dropped instead of run, and pushes don't
+    /// enqueue (see [`Self::try_enqueue_optimize_job`]).
+    fn is_optimization_budget_exhausted(&self) -> bool {
+        self.optimizations_executed >= MAX_OPTIMIZATIONS_PER_QUEUE
+    }
+
+    /// Tries to enqueue an `OptimizeJob`. Returns `false` if the in-memory queue is at its
+    /// `MAX_OPTIMIZE_QUEUE_SIZE` cap or this queue's lifetime budget is exhausted, in which
+    /// case the caller is responsible for setting `optimization_pending` on the task so the
+    /// dropped optimization can be recovered later via [`Self::check_optimization_pending`].
+    ///
+    /// Pass `optimization_pending_flag_already_set = true` when `optimization_pending` was just
+    /// observed as `true`. If this job is later dropped at process time (because the budget
+    /// runs out before it gets a turn), this lets us skip a task lock that would only be used
+    /// to re-write a flag that's already set.
+    #[must_use = "if false, the caller must set `optimization_pending` to recover the drop"]
+    fn try_enqueue_optimize_job(
+        &mut self,
+        task_id: TaskId,
+        optimization_pending_flag_already_set: bool,
+    ) -> bool {
+        if self.is_optimization_budget_exhausted()
+            || self.optimize_queue.len() >= MAX_OPTIMIZE_QUEUE_SIZE
+        {
+            return false;
+        }
+        self.optimize_queue.push_back(OptimizeJob::new(
+            task_id,
+            optimization_pending_flag_already_set,
+        ));
+        true
+    }
+
+    /// Schedules an optimization of `task`'s aggregation number.
+    ///
+    /// Records the current `optimization_pending` flag value on the enqueued job — reading
+    /// it is free since the caller already holds the guard, and the saved flag value lets
+    /// a later drop avoid an unnecessary flag write.
+    /// If the job can't be enqueued the flag is set on the task instead.
+    fn push_optimize_task(&mut self, task: &mut impl TaskGuard) {
+        let optimization_pending_flag_already_set = task.optimization_pending();
+        if !self.try_enqueue_optimize_job(task.id(), optimization_pending_flag_already_set) {
+            task.set_optimization_pending(true);
+        }
+    }
+
+    /// Like [`Self::push_optimize_task`], but takes a task id instead of a guard.
+    ///
+    /// Only called from `optimize_task`'s self re-enqueue, which has just cleared the flag at
+    /// entry, so the enqueued job carries `optimization_pending_flag_already_set = false`. The
+    /// `Meta`-category guard is acquired only when the push has to be dropped.
+    fn push_optimize_task_by_id(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+        if !self.try_enqueue_optimize_job(task_id, false) {
+            lock_and_mark_optimization_pending(ctx, task_id);
+        }
+    }
+
+    /// If the `optimization_pending` flag is set on `task`, enqueues an `OptimizeJob` so the
+    /// dropped optimization gets retried. Used as a lazy recovery hook from aggregation
+    /// update handlers that already hold a task guard. The flag itself is cleared later,
+    /// when `optimize_task` actually runs for this task.
+    ///
+    /// Intentionally not called from `find_and_schedule_dirty_internal`: that function
+    /// schedules dirty tasks but doesn't perform aggregation work that materially benefits
+    /// from up-to-date optimization, so we leave its tasks for one of the other recovery
+    /// hooks to pick up. There is currently no dedicated unit test for the drop/recovery
+    /// paths; coverage relies on integration tests that exercise the aggregation graph.
+    fn check_optimization_pending(&mut self, task: &impl TaskGuard) {
+        if !task.optimization_pending() {
+            // Common case: nothing pending, no work to do.
+            return;
+        }
+        // Flag is already set: even if this job ends up being dropped, no flag write is
+        // needed and we can let the return value go.
+        let _ = self.try_enqueue_optimize_job(task.id(), true);
     }
 
     /// Runs the job and all dependent jobs until it's done. It can persist the operation, so
@@ -1423,20 +1541,33 @@ impl AggregationUpdateQueue {
             false
         } else if let Some(OptimizeJob {
             task_id,
+            optimization_pending_flag_already_set,
             #[cfg(feature = "trace_aggregation_update_queue")]
             span,
         }) = self.optimize_queue.pop_front()
         {
-            // Note: We must process one optimization completely before starting with the next one.
-            // Otherwise this could lead to optimizing every node of a subgraph of inner nodes, as
-            // all have the same upper count. Optimizing the root first
+            if self.is_optimization_budget_exhausted() {
+                // Budget exhausted: drop this job and mark the task so the optimization is
+                // recovered later by a future aggregation update operation. We process one
+                // dropped job per `process()` call to spread the (cheap) flag-setting work
+                // and to keep yielding to other queues.
+                if !optimization_pending_flag_already_set {
+                    lock_and_mark_optimization_pending(ctx, task_id);
+                }
+                return false;
+            }
+            // Note: We must process one optimization completely before starting with the next
+            // one. Otherwise this could lead to optimizing every node of a subgraph of inner
+            // nodes, as all have the same upper count. Optimizing the root first lets the
+            // children become "doesn't need optimization".
             #[cfg(feature = "trace_aggregation_update_queue")]
             let _guard = span.map(|s| s.entered());
             #[cfg(feature = "trace_aggregation_update_stats")]
             {
                 self.stats.optimize_task += 1;
             }
-            self.optimize_task(ctx, task_id);
+            self.optimizations_executed += 1;
+            self.optimize_task(ctx, task_id, optimization_pending_flag_already_set);
             false
         } else if !self.find_and_schedule.is_empty() {
             let count = self
@@ -1487,6 +1618,8 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             AGGREGATION_UPDATE_CATEGORY,
         );
+        self.check_optimization_pending(&upper);
+        self.check_optimization_pending(&task);
         let upper_aggregation_number = get_aggregation_number(&upper);
         let task_aggregation_number = get_aggregation_number(&task);
 
@@ -1502,7 +1635,7 @@ impl AggregationUpdateQueue {
                 let _span = trace_span!("make inner").entered();
 
                 if upper.followers_len().is_power_of_two() {
-                    self.push_optimize_task(upper_id);
+                    self.push_optimize_task(&mut upper);
                 }
 
                 let upper_ids = get_uppers(&upper);
@@ -1510,7 +1643,7 @@ impl AggregationUpdateQueue {
                 // Add the same amount of upper edges
                 if task.update_upper_count(upper_id, count) {
                     if task.upper_len().is_power_of_two() {
-                        self.push_optimize_task(task_id);
+                        self.push_optimize_task(&mut task);
                     }
                     // When this is a new inner node, update aggregated data and
                     // followers
@@ -1574,7 +1707,7 @@ impl AggregationUpdateQueue {
                 if upper.update_followers_count(task_id, count) {
                     // May optimize the task
                     if upper.followers_len().is_power_of_two() {
-                        self.push_optimize_task(upper_id);
+                        self.push_optimize_task(&mut upper);
                     }
                     if ctx.should_track_activeness() {
                         // update active count
@@ -1717,6 +1850,7 @@ impl AggregationUpdateQueue {
             upper_ids.iter().copied(),
             "aggregated data update",
             |mut upper, ctx| {
+                self.check_optimization_pending(&upper);
                 let diff = update.apply(&mut upper, ctx.should_track_activeness(), self);
                 if !diff.is_empty() {
                     let upper_ids = get_uppers(&upper);
@@ -1752,6 +1886,7 @@ impl AggregationUpdateQueue {
                 // For performance reasons this should stay `Meta` and not `All`
                 AGGREGATION_UPDATE_CATEGORY,
             );
+            self.check_optimization_pending(&follower);
 
             // STEP 2
             let mut is_upper = true;
@@ -1844,7 +1979,7 @@ impl AggregationUpdateQueue {
                     // STEP 12
                     // May optimize the task
                     if upper.followers_len().is_power_of_two() {
-                        self.push_optimize_task(upper_id);
+                        self.push_optimize_task(&mut upper);
                     }
 
                     // STEP 13
@@ -1922,6 +2057,7 @@ impl AggregationUpdateQueue {
                 // For performance reasons this should stay `Meta` and not `All`
                 AGGREGATION_UPDATE_CATEGORY,
             );
+            self.check_optimization_pending(&follower);
 
             // STEP 2
             let mut removed_uppers = SmallVec::new();
@@ -1958,6 +2094,7 @@ impl AggregationUpdateQueue {
                         removed_uppers.iter().copied(),
                         "remove data from uppers",
                         |mut upper, ctx| {
+                            self.check_optimization_pending(&upper);
                             // STEP 6
                             let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                             if !diff.is_empty() {
@@ -2020,7 +2157,7 @@ impl AggregationUpdateQueue {
                     // STEP 12
                     // May optimize the task
                     if upper.followers_len().is_power_of_two() {
-                        self.push_optimize_task(upper_id);
+                        self.push_optimize_task(&mut upper);
                     }
 
                     // STEP 13
@@ -2112,6 +2249,7 @@ impl AggregationUpdateQueue {
                     // For performance reasons this should stay `Meta` and not `All`
                     AGGREGATION_UPDATE_CATEGORY,
                 );
+                self.check_optimization_pending(&follower);
 
                 // STEP 2
                 let mut remove_upper = false;
@@ -2208,7 +2346,7 @@ impl AggregationUpdateQueue {
                 if (followers_len + removed_followers.len()).next_power_of_two()
                     != followers_len.next_power_of_two()
                 {
-                    self.push_optimize_task(upper_id);
+                    self.push_optimize_task(&mut upper);
                 }
 
                 // STEP 13
@@ -2319,6 +2457,7 @@ impl AggregationUpdateQueue {
                     // For performance reasons this should stay `Meta` and not `All`
                     AGGREGATION_UPDATE_CATEGORY,
                 );
+                self.check_optimization_pending(&upper);
                 // decide if it should be an inner or follower
                 let upper_aggregation_number = get_aggregation_number(&upper);
 
@@ -2332,7 +2471,7 @@ impl AggregationUpdateQueue {
                         // STEP 3b
                         // May optimize the task
                         if upper.followers_len().is_power_of_two() {
-                            self.push_optimize_task(upper_id);
+                            self.push_optimize_task(&mut upper);
                         }
 
                         // STEP 3c
@@ -2428,7 +2567,7 @@ impl AggregationUpdateQueue {
                 // STEP 6b
                 let new_count = new_follower.upper_len();
                 if (new_count - added_uppers).next_power_of_two() != new_count.next_power_of_two() {
-                    self.push_optimize_task(new_follower_id);
+                    self.push_optimize_task(&mut new_follower);
                 }
 
                 // STEP 6c
@@ -2447,6 +2586,7 @@ impl AggregationUpdateQueue {
                             .map(|(entry, _)| entry.task_id()),
                         "add data to uppers",
                         |mut upper, ctx| {
+                            self.check_optimization_pending(&upper);
                             // STEP 6d
                             if has_data {
                                 let diff =
@@ -2571,6 +2711,7 @@ impl AggregationUpdateQueue {
                     // For performance reasons this should stay `Meta` and not `All`
                     AGGREGATION_UPDATE_CATEGORY,
                 );
+                self.check_optimization_pending(&upper);
 
                 // decide if it should be an inner or follower
                 upper_aggregation_number = get_aggregation_number(&upper);
@@ -2590,7 +2731,7 @@ impl AggregationUpdateQueue {
                                 // STEP 3b
                                 // May optimize the task
                                 if upper.followers_len().is_power_of_two() {
-                                    self.push_optimize_task(upper_id);
+                                    self.push_optimize_task(&mut upper);
                                 }
 
                                 // STEP 3d and 3e are enqueued with this vec
@@ -2683,7 +2824,7 @@ impl AggregationUpdateQueue {
                     if new_follower.update_upper_count(upper_id, count) {
                         // STEP 6b
                         if new_follower.upper_len().is_power_of_two() {
-                            self.push_optimize_task(new_follower_id);
+                            self.push_optimize_task(&mut new_follower);
                         }
 
                         // STEP 6c
@@ -2813,6 +2954,7 @@ impl AggregationUpdateQueue {
                 // For performance reasons this should stay `Meta` and not `All`
                 AGGREGATION_UPDATE_CATEGORY,
             );
+            self.check_optimization_pending(&upper);
             // decide if it should be an inner or follower
             let upper_aggregation_number = get_aggregation_number(&upper);
 
@@ -2829,7 +2971,7 @@ impl AggregationUpdateQueue {
                     // STEP 3b
                     // May optimize the task
                     if upper.followers_len().is_power_of_two() {
-                        self.push_optimize_task(upper_id);
+                        self.push_optimize_task(&mut upper);
                     }
 
                     // STEP 3c
@@ -2894,7 +3036,7 @@ impl AggregationUpdateQueue {
                 if new_follower.update_upper_count(upper_id, count) {
                     // STEP 6b
                     if new_follower.upper_len().is_power_of_two() {
-                        self.push_optimize_task(new_follower_id);
+                        self.push_optimize_task(&mut new_follower);
                     }
 
                     // STEP 6c
@@ -2965,6 +3107,7 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             AGGREGATION_UPDATE_CATEGORY,
         );
+        self.check_optimization_pending(&task);
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_zero = state.decrement_active_counter();
@@ -3010,6 +3153,7 @@ impl AggregationUpdateQueue {
             // persistent_task_type is now set eagerly in initialize_new_task.
             AGGREGATION_UPDATE_CATEGORY,
         );
+        self.check_optimization_pending(&task);
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();
@@ -3057,6 +3201,7 @@ impl AggregationUpdateQueue {
             // For performance reasons this should stay `Meta` and not `All`
             AGGREGATION_UPDATE_CATEGORY,
         );
+        self.check_optimization_pending(&task);
         let current = task.get_aggregation_number().copied().unwrap_or_default();
         let old = current.effective;
         // The base aggregation number can only increase
@@ -3134,15 +3279,31 @@ impl AggregationUpdateQueue {
     /// than the number of upper edges. Increasing the aggregation reduces the number of upper
     /// edges, as it places the task in a bigger aggregation group. We want to avoid having too many
     /// upper edges as this amplifies the updates needed when changes to that task occur.
-    fn optimize_task(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+    ///
+    /// `optimization_pending_flag_already_set` is the snapshot recorded on the `OptimizeJob`: when
+    /// `true`, we also need to clear `optimization_pending` here (this is the only path that
+    /// does so); when `false`, the flag is known to be unset already and we can skip the write.
+    fn optimize_task(
+        &mut self,
+        ctx: &mut impl ExecuteContext<'_>,
+        task_id: TaskId,
+        optimization_pending_flag_already_set: bool,
+    ) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("check optimize").entered();
 
-        let task = ctx.task(
+        let mut task = ctx.task(
             task_id,
             // For performance reasons this should stay `Meta` and not `All`
             TaskDataCategory::Meta,
         );
+        if optimization_pending_flag_already_set {
+            // Clear the pending flag — this is the only path that does so. We skip the
+            // write when our snapshot says the flag wasn't set (push path / self-re-enqueue
+            // path); the setter would just no-op in that case, but reading the snapshot is
+            // free and lets us elide the write entirely.
+            task.set_optimization_pending(false);
+        }
         let aggregation_number = task.get_aggregation_number().copied().unwrap_or_default();
         if is_root_node(aggregation_number.effective) {
             return;
@@ -3257,7 +3418,7 @@ impl AggregationUpdateQueue {
                 distance: None,
             });
             // We want to make sure to optimize again after this change has been applied
-            self.push_optimize_task(task_id);
+            self.push_optimize_task_by_id(ctx, task_id);
         }
     }
 

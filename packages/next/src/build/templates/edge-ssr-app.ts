@@ -96,7 +96,7 @@ async function requestHandler(
   const isPossibleServerAction = getIsPossibleServerAction(req)
   const botType = getBotType(req.headers.get('User-Agent') || '')
   const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
-    req,
+    req.headers,
     prerenderManifest.preview
   )
 

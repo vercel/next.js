@@ -15,7 +15,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
-    PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
+    PROJECT_FILESYSTEM_NAME_STR, SOURCE_URL_PROTOCOL_STR,
     source_map::{GenerateSourceMap, SourceMap},
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
@@ -236,9 +236,9 @@ async fn resolve_source_mapping(
         TraceResult::Found(frame) => {
             let lib_code = frame.file.contains("/node_modules/");
             if let Some(project_path) = frame.file.strip_prefix(concatcp!(
-                SOURCE_URL_PROTOCOL,
+                SOURCE_URL_PROTOCOL_STR,
                 "///[",
-                PROJECT_FILESYSTEM_NAME,
+                PROJECT_FILESYSTEM_NAME_STR,
                 "]/"
             )) {
                 let fs_path = project_dir.join(project_path)?;
