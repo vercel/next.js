@@ -1223,17 +1223,26 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_member_expr(&mut self, node: &MemberExpr) {
-        if let MemberProp::Ident(..) | MemberProp::PrivateName(..) = &node.prop
-            && node.obj.is_ident()
+        if matches!(
+            &node.prop,
+            MemberProp::Ident(..) | MemberProp::PrivateName(..)
+        ) && let Expr::Ident(ident) = &*node.obj
         {
-            // Skip traversing if obj is a Expr::Ident, so that it doesn't get added to
+            // Intentionally skipping over visit_expr(node.obj) here so that it doesn't get added to
             // full_star_imports below in visit_expr.
+            ident.visit_with(self);
+        } else {
+            node.visit_children_with(self);
+        }
+    }
 
-            // TODO this currently doesn't properly mark the import in self.program_decl_usage, see
-            // todo in
-            // turbopack/crates/turbopack-tests/tests/execution/turbopack/remove-unused-imports/
-            // import-star/input/index.js
-            return;
+    fn visit_expr(&mut self, node: &Expr) {
+        // Careful about adding anything here, visit_member_expr might skip over this method for
+        // some Expr::Ident-s.
+        if let Expr::Ident(i) = node
+            && let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id())
+        {
+            self.data.full_star_imports.insert(module_path.clone());
         }
         node.visit_children_with(self);
     }
@@ -1254,15 +1263,6 @@ impl Visit for Analyzer<'_> {
             if let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id()) {
                 self.data.full_star_imports.insert(module_path.clone());
             }
-        }
-        node.visit_children_with(self);
-    }
-
-    fn visit_expr(&mut self, node: &Expr) {
-        if let Expr::Ident(i) = node
-            && let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id())
-        {
-            self.data.full_star_imports.insert(module_path.clone());
         }
         node.visit_children_with(self);
     }

@@ -141,13 +141,13 @@ jobs:
         id: cache-pnpm-store
         with:
           path: ${{ steps.get-store-path.outputs.STORE_PATH }}
-          key: pnpm-store-v2-${{ hashFiles('pnpm-lock.yaml') }}
+          key: pnpm-store-root-v1-${{ hashFiles('pnpm-lock.yaml') }}
           # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       - run: pnpm install
 
       - name: Set preview version
-        if: ${{ contains(fromJSON('["automated-preview","force-preview"]'), needs.deploy-target.outputs.value) }}
+        if: ${{ contains(fromJSON('["automated-preview", "force-preview", "staging"]'), needs.deploy-target.outputs.value) }}
         run: |
           node scripts/set-preview-version.js "${{ github.sha }}"
           pnpm install --no-frozen-lockfile

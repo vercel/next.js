@@ -148,11 +148,33 @@ impl RawVc {
 
     /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
     /// resolution, because the returned `RawVc` can be a `TaskOutput`.
-    pub(crate) async fn to_non_local(self) -> Result<RawVc> {
+    pub async fn to_non_local(self) -> Result<RawVc> {
         Ok(match self {
             RawVc::LocalOutput(execution_id, local_task_id, ..) => {
                 let tt = turbo_tasks();
                 let local_output = read_local_output(&*tt, execution_id, local_task_id).await?;
+                debug_assert!(
+                    !matches!(local_output, RawVc::LocalOutput(_, _, _)),
+                    "a LocalOutput cannot point at other LocalOutputs"
+                );
+                local_output
+            }
+            non_local => non_local,
+        })
+    }
+
+    /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
+    /// resolution, because the returned `RawVc` can be a `TaskOutput`.
+    ///
+    /// 'unchecked' because the caller must have already confirmed that the local tasks were already
+    /// completed
+    pub(crate) fn to_non_local_unchecked_sync(self, tt: &dyn TurboTasksApi) -> Result<RawVc> {
+        Ok(match self {
+            RawVc::LocalOutput(execution_id, local_task_id, ..) => {
+                let local_output = match tt.try_read_local_output(execution_id, local_task_id)? {
+                    Ok(raw_vc) => raw_vc,
+                    Err(_event_listener) => unreachable!("local output is not ready yet"),
+                };
                 debug_assert!(
                     !matches!(local_output, RawVc::LocalOutput(_, _, _)),
                     "a LocalOutput cannot point at other LocalOutputs"
