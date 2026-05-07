@@ -4,6 +4,7 @@ use anyhow::Result;
 use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::ecma::ast::Id;
+use turbo_rcstr::rcstr;
 
 use super::{JsValue, graph::VarGraph};
 
@@ -40,7 +41,7 @@ const LIMIT_LINK_STEPS: u32 = 1500;
 
 #[derive(Debug, Hash, Clone, Eq, PartialEq)]
 enum Step {
-    /// Take all chlidren out of the value (replacing temporarily with unknown) and queue them
+    /// Take all children out of the value (replacing temporarily with unknown) and queue them
     /// for processing using individual `Enter`s.
     Enter(JsValue),
     /// Pop however many children there are from `done` and reinsert them into the value
@@ -112,7 +113,7 @@ where
                     done.push(JsValue::unknown(
                         JsValue::Variable(var.clone()),
                         false,
-                        "circular variable reference",
+                        rcstr!("circular variable reference"),
                     ));
                 } else {
                     total_nodes -= 1;
@@ -132,7 +133,7 @@ where
                         done.push(JsValue::unknown(
                             JsValue::Variable(var.clone()),
                             false,
-                            "no value of this variable analyzed",
+                            rcstr!("no value of this variable analyzed"),
                         ));
                     }
                 };
@@ -156,7 +157,7 @@ where
                         total_nodes += 1;
                         done.push(JsValue::unknown_empty(
                             false,
-                            "unknown function argument (out of bounds)",
+                            rcstr!("unknown function argument (out of bounds)"),
                         ));
                     }
                 } else {
@@ -164,18 +165,20 @@ where
                     done.push(JsValue::unknown(
                         JsValue::Argument(func_ident, index),
                         false,
-                        "function calls are not analyzed yet",
+                        rcstr!("function calls are not analyzed yet"),
                     ));
                 }
             }
             // Visit a function call
             // This need special handling, since we want to replace the function call and process
             // the function return value after that.
-            Step::Visit(JsValue::Call(
-                _,
-                box JsValue::Function(function_nodes, func_ident, return_value),
-                args,
-            )) => {
+            Step::Visit(JsValue::Call(_, call))
+                if matches!(call.callee(), JsValue::Function(..)) =>
+            {
+                let (callee, args) = call.into_parts();
+                let JsValue::Function(function_nodes, func_ident, return_value) = callee else {
+                    unreachable!()
+                };
                 total_nodes -= 2; // Call + Function
                 if let Entry::Vacant(entry) = fun_args_values.lock().entry(func_ident) {
                     // Return value will stay in total_nodes
@@ -192,12 +195,12 @@ where
                     }
                     total_nodes += 1;
                     done.push(JsValue::unknown(
-                        JsValue::call(
-                            Box::new(JsValue::Function(function_nodes, func_ident, return_value)),
+                        JsValue::call_from_parts(
+                            JsValue::Function(function_nodes, func_ident, return_value),
                             args,
                         ),
                         true,
-                        "recursive function call",
+                        rcstr!("recursive function call"),
                     ));
                 }
             }
@@ -260,7 +263,7 @@ where
                 total_nodes -= val.total_nodes();
                 if val.total_nodes() > LIMIT_NODE_SIZE {
                     total_nodes += 1;
-                    done.push(JsValue::unknown_empty(true, "node limit reached"));
+                    done.push(JsValue::unknown_empty(true, rcstr!("node limit reached")));
                     continue;
                 }
 
@@ -268,7 +271,7 @@ where
                 val.debug_assert_total_nodes_up_to_date();
                 if visit_modified && val.total_nodes() > LIMIT_NODE_SIZE {
                     total_nodes += 1;
-                    done.push(JsValue::unknown_empty(true, "node limit reached"));
+                    done.push(JsValue::unknown_empty(true, rcstr!("node limit reached")));
                     continue;
                 }
 
@@ -279,7 +282,7 @@ where
                     total_nodes += 1;
                     done.push(JsValue::unknown_empty(
                         true,
-                        "in progress nodes limit reached",
+                        rcstr!("in progress nodes limit reached"),
                     ));
                     continue;
                 }
@@ -312,7 +315,7 @@ where
 
                 if val.total_nodes() > LIMIT_NODE_SIZE {
                     total_nodes += 1;
-                    done.push(JsValue::unknown_empty(true, "node limit reached"));
+                    done.push(JsValue::unknown_empty(true, rcstr!("node limit reached")));
                     continue;
                 }
                 val.normalize_shallow();
@@ -335,7 +338,7 @@ where
 
                 if val.total_nodes() > LIMIT_NODE_SIZE {
                     total_nodes += 1;
-                    done.push(JsValue::unknown_empty(true, "node limit reached"));
+                    done.push(JsValue::unknown_empty(true, rcstr!("node limit reached")));
                     continue;
                 }
                 val.normalize_shallow();
@@ -369,7 +372,10 @@ where
                         if cycle_stack.is_empty() && fun_args_values.lock().is_empty() {
                             var_cache.lock().insert(
                                 var,
-                                JsValue::unknown_empty(true, "max number of linking steps reached"),
+                                JsValue::unknown_empty(
+                                    true,
+                                    rcstr!("max number of linking steps reached"),
+                                ),
                             );
                         }
                     }
@@ -382,7 +388,7 @@ where
 
             tracing::trace!("link limit hit {}", steps);
             return Ok((
-                JsValue::unknown_empty(true, "max number of linking steps reached"),
+                JsValue::unknown_empty(true, rcstr!("max number of linking steps reached")),
                 steps,
             ));
         }
@@ -416,7 +422,7 @@ where
         val.debug_assert_total_nodes_up_to_date();
         if val.total_nodes() > LIMIT_NODE_SIZE {
             *total_nodes += 1;
-            done.push(JsValue::unknown_empty(true, "node limit reached"));
+            done.push(JsValue::unknown_empty(true, rcstr!("node limit reached")));
             return Ok(());
         }
     }
@@ -428,7 +434,7 @@ where
         *total_nodes += 1;
         done.push(JsValue::unknown_empty(
             true,
-            "in progress nodes limit reached",
+            rcstr!("in progress nodes limit reached"),
         ));
         return Ok(());
     }

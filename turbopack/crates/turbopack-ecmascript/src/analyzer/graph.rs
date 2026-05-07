@@ -445,7 +445,7 @@ impl EvalContext {
                             }
                         }
                         // This is actually unreachable
-                        None => return JsValue::unknown_empty(true, ""),
+                        None => return JsValue::unknown_empty(true, rcstr!("")),
                     }
                 }
             } else {
@@ -626,7 +626,10 @@ impl EvalContext {
                 {
                     self.eval_tpl(tpl, true)
                 } else {
-                    JsValue::unknown_empty(true, "tagged template literal is not supported yet")
+                    JsValue::unknown_empty(
+                        true,
+                        rcstr!("tagged template literal is not supported yet"),
+                    )
                 }
             }
 
@@ -656,7 +659,7 @@ impl EvalContext {
                     last = e;
                 }
                 if side_effects {
-                    last.make_unknown(true, "sequence with side effects");
+                    last.make_unknown(true, rcstr!("sequence with side effects"));
                 }
                 last
             }
@@ -685,19 +688,19 @@ impl EvalContext {
                 args,
                 ..
             }) => {
+                let args = args.as_deref().unwrap_or(&[]);
                 // We currently do not handle spreads.
-                if args.iter().flatten().any(|arg| arg.spread.is_some()) {
-                    return JsValue::unknown_empty(true, "spread in new calls is not supported");
+                if args.iter().any(|arg| arg.spread.is_some()) {
+                    return JsValue::unknown_empty(
+                        true,
+                        rcstr!("spread in new calls is not supported"),
+                    );
                 }
 
-                let args: Vec<_> = args
-                    .iter()
-                    .flatten()
-                    .map(|arg| self.eval(&arg.expr))
-                    .collect();
-                let callee = Box::new(self.eval(callee));
-
-                JsValue::new(callee, args)
+                JsValue::new_from_iter(
+                    self.eval(callee),
+                    args.iter().map(|arg| self.eval(&arg.expr)),
+                )
             }
 
             Expr::Call(CallExpr {
@@ -709,28 +712,32 @@ impl EvalContext {
                 if args.iter().any(|arg| arg.spread.is_some()) {
                     return JsValue::unknown_empty(
                         true,
-                        "spread in function calls is not supported",
+                        rcstr!("spread in function calls is not supported"),
                     );
                 }
 
-                let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(callee) {
-                    let obj = Box::new(self.eval(obj));
-                    let prop = Box::new(match prop {
+                    let prop = match prop {
                         MemberProp::Ident(i) => i.sym.clone().into(),
                         MemberProp::PrivateName(_) => {
                             return JsValue::unknown_empty(
                                 false,
-                                "private names in function calls is not supported",
+                                rcstr!("private names in function calls is not supported"),
                             );
                         }
                         MemberProp::Computed(ComputedPropName { expr, .. }) => self.eval(expr),
-                    });
-                    JsValue::member_call(obj, prop, args)
+                    };
+                    let obj = self.eval(obj);
+                    JsValue::member_call_from_iter(
+                        obj,
+                        prop,
+                        args.iter().map(|arg| self.eval(&arg.expr)),
+                    )
                 } else {
-                    let callee = Box::new(self.eval(callee));
-
-                    JsValue::call(callee, args)
+                    JsValue::call_from_iter(
+                        self.eval(callee),
+                        args.iter().map(|arg| self.eval(&arg.expr)),
+                    )
                 }
             }
 
@@ -743,7 +750,7 @@ impl EvalContext {
                 if args.iter().any(|arg| arg.spread.is_some()) {
                     return JsValue::unknown_empty(
                         true,
-                        "spread in function calls is not supported",
+                        rcstr!("spread in function calls is not supported"),
                     );
                 }
 
@@ -759,18 +766,20 @@ impl EvalContext {
             }) => {
                 // We currently do not handle spreads.
                 if args.iter().any(|arg| arg.spread.is_some()) {
-                    return JsValue::unknown_empty(true, "spread in import() is not supported");
+                    return JsValue::unknown_empty(
+                        true,
+                        rcstr!("spread in import() is not supported"),
+                    );
                 }
-                let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
-
-                let callee = Box::new(JsValue::FreeVar(atom!("import")));
-
-                JsValue::call(callee, args)
+                JsValue::call_from_iter(
+                    JsValue::FreeVar(atom!("import")),
+                    args.iter().map(|arg| self.eval(&arg.expr)),
+                )
             }
 
             Expr::Array(arr) => {
                 if arr.elems.iter().flatten().any(|v| v.spread.is_some()) {
-                    return JsValue::unknown_empty(true, "spread is not supported");
+                    return JsValue::unknown_empty(true, rcstr!("spread is not supported"));
                 }
 
                 let arr = arr
@@ -800,7 +809,7 @@ impl EvalContext {
                         ),
                         _ => ObjectPart::Spread(JsValue::unknown_empty(
                             true,
-                            "unsupported object part",
+                            rcstr!("unsupported object part"),
                         )),
                     })
                     .collect(),
@@ -814,11 +823,11 @@ impl EvalContext {
             Expr::Assign(AssignExpr { op, .. }) => match op {
                 // TODO: `self.eval(right)` would be the value, but we need to handle the side
                 // effect of that expression
-                AssignOp::Assign => JsValue::unknown_empty(true, "assignment expression"),
-                _ => JsValue::unknown_empty(true, "compound assignment expression"),
+                AssignOp::Assign => JsValue::unknown_empty(true, rcstr!("assignment expression")),
+                _ => JsValue::unknown_empty(true, rcstr!("compound assignment expression")),
             },
 
-            _ => JsValue::unknown_empty(true, "unsupported expression"),
+            _ => JsValue::unknown_empty(true, rcstr!("unsupported expression")),
         }
     }
 
@@ -1786,7 +1795,7 @@ impl Analyzer<'_> {
                         MemberProp::Ident(i) => Box::new(i.sym.clone().into()),
                         MemberProp::PrivateName(_) => Box::new(JsValue::unknown_empty(
                             false,
-                            "private names in member expressions are not supported",
+                            rcstr!("private names in member expressions are not supported"),
                         )),
                         MemberProp::Computed(ComputedPropName { expr, .. }) => {
                             Box::new(self.eval_context.eval(expr))
@@ -1908,7 +1917,7 @@ impl VisitAstPath for Analyzer<'_> {
                     let right = self.eval_context.eval(&n.right);
                     JsValue::add(vec![left, right])
                 }
-                _ => JsValue::unknown_empty(true, "unsupported assign operation"),
+                _ => JsValue::unknown_empty(true, rcstr!("unsupported assign operation")),
             };
             self.with_pat_value(Some(pat_value), |this| {
                 n.left.visit_children_with_ast_path(this, &mut ast_path)
@@ -1931,7 +1940,7 @@ impl VisitAstPath for Analyzer<'_> {
         if let Some(key) = n.arg.as_ident() {
             self.add_value(
                 key.to_id(),
-                JsValue::unknown_empty(true, "updated with update expression"),
+                JsValue::unknown_empty(true, rcstr!("updated with update expression")),
             );
         }
 
@@ -1959,7 +1968,7 @@ impl VisitAstPath for Analyzer<'_> {
                         .ignore,
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                     true,
-                    "ignored require",
+                    rcstr!("ignored require"),
                 ),
             );
         }
@@ -2308,7 +2317,7 @@ impl VisitAstPath for Analyzer<'_> {
                 // `Some(JsValue::iteratedKeys(Box::new(self.eval_context.eval(&n.right))))`
                 Some(JsValue::unknown_empty(
                     false,
-                    "for-in variable currently not analyzed",
+                    rcstr!("for-in variable currently not analyzed"),
                 )),
                 |this| {
                     n.left.visit_with_ast_path(this, &mut ast_path);
@@ -2433,7 +2442,11 @@ impl VisitAstPath for Analyzer<'_> {
             self.add_value(
                 i.to_id(),
                 value.unwrap_or_else(|| {
-                    JsValue::unknown(JsValue::Variable(i.to_id()), false, "pattern without value")
+                    JsValue::unknown(
+                        JsValue::Variable(i.to_id()),
+                        false,
+                        rcstr!("pattern without value"),
+                    )
                 }),
             );
             return;
@@ -2449,7 +2462,7 @@ impl VisitAstPath for Analyzer<'_> {
     ) {
         let value = self
             .take_pat_value()
-            .unwrap_or_else(|| JsValue::unknown_empty(false, "pattern without value"));
+            .unwrap_or_else(|| JsValue::unknown_empty(false, rcstr!("pattern without value")));
         match pat {
             AssignTargetPat::Array(arr) => {
                 let mut ast_path = ast_path.with_guard(AstParentNodeRef::AssignTargetPat(
@@ -2483,7 +2496,7 @@ impl VisitAstPath for Analyzer<'_> {
                         JsValue::unknown(
                             JsValue::Variable(i.to_id()),
                             false,
-                            "pattern without value",
+                            rcstr!("pattern without value"),
                         )
                     }),
                 );
@@ -2491,16 +2504,18 @@ impl VisitAstPath for Analyzer<'_> {
 
             Pat::Array(arr) => {
                 let mut ast_path = ast_path.with_guard(AstParentNodeRef::Pat(pat, PatField::Array));
-                let value =
-                    value.unwrap_or_else(|| JsValue::unknown_empty(false, "pattern without value"));
+                let value = value.unwrap_or_else(|| {
+                    JsValue::unknown_empty(false, rcstr!("pattern without value"))
+                });
                 self.handle_array_pat_with_value(arr, value, &mut ast_path);
             }
 
             Pat::Object(obj) => {
                 let mut ast_path =
                     ast_path.with_guard(AstParentNodeRef::Pat(pat, PatField::Object));
-                let value =
-                    value.unwrap_or_else(|| JsValue::unknown_empty(false, "pattern without value"));
+                let value = value.unwrap_or_else(|| {
+                    JsValue::unknown_empty(false, rcstr!("pattern without value"))
+                });
                 self.handle_object_pat_with_value(obj, value, &mut ast_path);
             }
 
@@ -2873,7 +2888,7 @@ impl VisitAstPath for Analyzer<'_> {
         let effects = take(&mut self.effects);
 
         prev_effects.push(Effect::Conditional {
-            condition: Box::new(JsValue::unknown_empty(true, "labeled statement")),
+            condition: Box::new(JsValue::unknown_empty(true, rcstr!("labeled statement"))),
             kind: Box::new(ConditionalKind::Labeled {
                 body: Box::new(EffectsBlock {
                     effects,
