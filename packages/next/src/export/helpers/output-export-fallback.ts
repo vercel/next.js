@@ -1,6 +1,12 @@
 import { existsSync, promises as fs } from 'fs'
 import { dirname, join, relative, sep } from 'path'
+import {
+  RSC_SEGMENTS_DIR_SUFFIX,
+  RSC_SEGMENT_SUFFIX,
+  RSC_SUFFIX,
+} from '../../lib/constants'
 import { getPagePath } from '../../server/require'
+import { convertSegmentPathToStaticExportFilename } from '../../shared/lib/segment-cache/segment-value-encoding'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import {
   getOutputExportFallbackPath,
@@ -17,7 +23,7 @@ type OutputExportDynamicRouteInfo = {
     | undefined
 }
 
-type CopyExportedAppHtmlOptions = {
+type CopyExportedAppArtifactsOptions = {
   outDir: string
   orig: string
   routePath: string
@@ -59,37 +65,80 @@ function assertNoOutputExportPathCollision(
   )
 }
 
-export async function copyExportedAppHtml({
+export async function copyExportedAppArtifacts({
   outDir,
   orig,
   routePath,
   subFolders,
   checkRouteCollision = false,
-}: CopyExportedAppHtmlOptions): Promise<string> {
+}: CopyExportedAppArtifactsOptions): Promise<string> {
   const route = normalizePagePath(routePath)
   const flatHtmlDest = join(outDir, `${route}.html`)
+  const flatJsonDest = join(outDir, `${route}.txt`)
   const folderHtmlDest = join(
     outDir,
     `${route}${route !== '/index' ? `${sep}index` : ''}.html`
   )
+  const folderJsonDest = join(
+    outDir,
+    `${route}${route !== '/index' ? `${sep}index` : ''}.txt`
+  )
   const htmlDest =
     subFolders && route !== '/index' ? folderHtmlDest : flatHtmlDest
+  const jsonDest =
+    subFolders && route !== '/index' ? folderJsonDest : flatJsonDest
+
+  const segmentsDir = `${orig}${RSC_SEGMENTS_DIR_SUFFIX}`
+  const segmentCopies: Array<{
+    src: string
+    dest: string
+  }> = []
+
+  if (existsSync(segmentsDir)) {
+    const segmentsDirDest = join(outDir, routePath)
+    const segmentPaths = await collectSegmentPaths(segmentsDir)
+    for (const segmentFileSrc of segmentPaths) {
+      const segmentPath =
+        '/' + segmentFileSrc.slice(0, -RSC_SEGMENT_SUFFIX.length)
+      const segmentFilename =
+        convertSegmentPathToStaticExportFilename(segmentPath)
+      segmentCopies.push({
+        src: join(segmentsDir, segmentFileSrc),
+        dest: join(segmentsDirDest, segmentFilename),
+      })
+    }
+  }
 
   if (checkRouteCollision) {
     assertNoOutputExportPathCollision(
       outDir,
-      [flatHtmlDest, folderHtmlDest],
+      [
+        flatHtmlDest,
+        flatJsonDest,
+        folderHtmlDest,
+        folderJsonDest,
+        ...segmentCopies.map(({ dest }) => dest),
+      ],
       routePath
     )
   }
 
   await fs.mkdir(dirname(htmlDest), { recursive: true })
+  await fs.mkdir(dirname(jsonDest), { recursive: true })
   await fs.copyFile(`${orig}.html`, htmlDest)
+  await fs.copyFile(`${orig}${RSC_SUFFIX}`, jsonDest)
+
+  await Promise.all(
+    segmentCopies.map(async ({ src, dest }) => {
+      await fs.mkdir(dirname(dest), { recursive: true })
+      await fs.copyFile(src, dest)
+    })
+  )
 
   return htmlDest
 }
 
-export async function emitOutputExportFallbackHtmlFiles(
+export async function emitOutputExportFallbackArtifacts(
   dynamicRoutes: Readonly<Record<string, OutputExportDynamicRouteInfo>>,
   mapAppRouteToPage: Map<string, string>,
   distDir: string,
@@ -129,13 +178,13 @@ export async function emitOutputExportFallbackHtmlFiles(
 
     const sourceRoute = normalizePagePath(dynamicRoute)
     const orig = join(distPagesDir, sourceRoute)
-    if (!existsSync(`${orig}.html`)) {
+    if (!existsSync(`${orig}.html`) || !existsSync(`${orig}${RSC_SUFFIX}`)) {
       continue
     }
 
     const fallbackPath = getOutputExportFallbackPath(staticPrefix)
     fallbackHtmlPaths.push(
-      await copyExportedAppHtml({
+      await copyExportedAppArtifacts({
         outDir,
         orig,
         routePath: fallbackPath,
@@ -146,4 +195,38 @@ export async function emitOutputExportFallbackHtmlFiles(
   }
 
   return fallbackHtmlPaths
+}
+
+async function collectSegmentPaths(segmentsDirectory: string) {
+  const results: Array<string> = []
+  await collectSegmentPathsImpl(segmentsDirectory, segmentsDirectory, results)
+  return results
+}
+
+async function collectSegmentPathsImpl(
+  segmentsDirectory: string,
+  directory: string,
+  results: Array<string>
+) {
+  const segmentFiles = await fs.readdir(directory, {
+    withFileTypes: true,
+  })
+  await Promise.all(
+    segmentFiles.map(async (segmentFile) => {
+      if (segmentFile.isDirectory()) {
+        await collectSegmentPathsImpl(
+          segmentsDirectory,
+          join(directory, segmentFile.name),
+          results
+        )
+        return
+      }
+      if (!segmentFile.name.endsWith(RSC_SEGMENT_SUFFIX)) {
+        return
+      }
+      results.push(
+        relative(segmentsDirectory, join(directory, segmentFile.name))
+      )
+    })
+  )
 }
