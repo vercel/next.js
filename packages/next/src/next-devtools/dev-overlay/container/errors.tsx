@@ -25,13 +25,22 @@ import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './runtime-error/error-cause'
 import { useFrames } from '../utils/get-error-by-type'
-import { matchLinkType } from '../utils/match-link-type'
 
 interface ErrorsProps extends ErrorBaseProps {
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
   runtimeErrors: ReadyRuntimeError[]
   debugInfo: DebugInfo
   onClose: () => void
+}
+
+function matchLinkType(text: string): string | null {
+  if (text.startsWith('https://nextjs.org')) {
+    return 'nextjs-link'
+  }
+  if (text.startsWith('https://') || text.startsWith('http://')) {
+    return 'external-link'
+  }
+  return null
 }
 
 function HydrationErrorDescription({ message }: { message: string }) {

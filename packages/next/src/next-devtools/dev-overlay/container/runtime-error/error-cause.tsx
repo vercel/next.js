@@ -4,7 +4,6 @@ import { CodeFrame } from '../../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorAggregateErrors } from './error-aggregate-errors'
 import { HotlinkedText } from '../../components/hot-linked-text'
-import { matchLinkType } from '../../utils/match-link-type'
 import type { ReadyErrorCause } from '../../utils/get-error-by-type'
 
 type ErrorCauseProps = {
@@ -35,7 +34,7 @@ export function ErrorCause({ cause, dialogResizerRef }: ErrorCauseProps) {
       </div>
       {trimmedMessage ? (
         <p className="error-cause-message">
-          <HotlinkedText text={trimmedMessage} matcher={matchLinkType} />
+          <HotlinkedText text={trimmedMessage} />
         </p>
       ) : null}
 
@@ -102,5 +101,9 @@ export const styles = `
     line-height: var(--size-24);
     overflow-wrap: break-word;
     white-space: pre-wrap;
+  }
+
+  .error-cause-message a {
+    color: inherit;
   }
 `

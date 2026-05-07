@@ -4,7 +4,6 @@ import { CodeFrame } from '../../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './error-cause'
 import { HotlinkedText } from '../../components/hot-linked-text'
-import { matchLinkType } from '../../utils/match-link-type'
 import type { ReadyErrorCause } from '../../utils/get-error-by-type'
 
 interface ErrorAggregateErrorsProps {
@@ -67,7 +66,7 @@ function ErrorAggregateEntry({
       </div>
       {trimmedMessage ? (
         <p className="error-aggregate-error-message">
-          <HotlinkedText text={trimmedMessage} matcher={matchLinkType} />
+          <HotlinkedText text={trimmedMessage} />
         </p>
       ) : null}
 
@@ -134,5 +133,9 @@ export const styles = `
     line-height: var(--size-24);
     overflow-wrap: break-word;
     white-space: pre-wrap;
+  }
+
+  .error-aggregate-error-message a {
+    color: inherit;
   }
 `
