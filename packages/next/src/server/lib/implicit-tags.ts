@@ -1,6 +1,7 @@
 import { NEXT_CACHE_IMPLICIT_TAG_ID } from '../../lib/constants'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import { getCacheHandlerEntries } from '../use-cache/handlers'
+import { encodeCacheTag } from './encode-cache-tag'
 import { createLazyResult, type LazyResult } from './lazy-result'
 
 export interface ImplicitTags {
@@ -78,17 +79,19 @@ export async function getImplicitTags(
 ): Promise<ImplicitTags> {
   const tags = new Set<string>()
 
-  // Add the derived tags from the page.
+  // Add the derived tags from the page. Encode each tag so a non-ASCII
+  // pathname doesn't trip header validation when written to
+  // `x-next-cache-tags`. Idempotent on already-ASCII input.
   const derivedTags = getDerivedTags(page)
   for (let tag of derivedTags) {
-    tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${tag}`
+    tag = encodeCacheTag(`${NEXT_CACHE_IMPLICIT_TAG_ID}${tag}`)
     tags.add(tag)
   }
 
   // Add the tags from the pathname. If the route has unknown params, we don't
   // want to add the pathname as a tag, as it will be invalid.
   if (pathname && (!fallbackRouteParams || fallbackRouteParams.size === 0)) {
-    const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${pathname}`
+    const tag = encodeCacheTag(`${NEXT_CACHE_IMPLICIT_TAG_ID}${pathname}`)
     tags.add(tag)
   }
 

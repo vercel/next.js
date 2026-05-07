@@ -73,6 +73,34 @@ describe('getImplicitTags()', () => {
         '_N_T_/foo/bar/baz',
       ],
     },
+    {
+      // Non-ASCII pathname must be percent-encoded so it can be safely
+      // serialized into the `x-next-cache-tags` HTTP header. Surrogate-pair
+      // emoji exercises run-based replacement (a per-code-unit regex would
+      // throw `URIError`).
+      page: '/[slug]/page',
+      pathname: '/🎉',
+      fallbackRouteParams: null,
+      expectedTags: [
+        '_N_T_/layout',
+        '_N_T_/[slug]/layout',
+        '_N_T_/[slug]/page',
+        '_N_T_/%F0%9F%8E%89',
+      ],
+    },
+    {
+      // Already-encoded pathname must not be double-encoded. The encoder
+      // is idempotent on ASCII input including `%xx` sequences.
+      page: '/[slug]/page',
+      pathname: '/%F0%9F%8E%89',
+      fallbackRouteParams: null,
+      expectedTags: [
+        '_N_T_/layout',
+        '_N_T_/[slug]/layout',
+        '_N_T_/[slug]/page',
+        '_N_T_/%F0%9F%8E%89',
+      ],
+    },
   ])(
     'for page $page with pathname $pathname',
     async ({ page, pathname, fallbackRouteParams, expectedTags }) => {
