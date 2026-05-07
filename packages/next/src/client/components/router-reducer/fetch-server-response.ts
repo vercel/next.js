@@ -32,6 +32,7 @@ import {
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
 import {
+  fillInFallbackFlightData,
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
   type NormalizedFlightData,
@@ -167,18 +168,28 @@ export async function fetchServerResponse(
   const originalUrl = url
 
   try {
-    if (process.env.NODE_ENV === 'production') {
-      if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-        // In "output: export" mode, we can't rely on headers to distinguish
-        // between HTML and RSC requests. Instead, we append an extra prefix
-        // to the request.
-        url = new URL(url)
-        if (url.pathname.endsWith('/')) {
-          url.pathname += 'index.txt'
-        } else {
-          url.pathname += '.txt'
-        }
+    let usedCachedOutputExportFallback = false
+    if (
+      process.env.NODE_ENV === 'production' &&
+      process.env.__NEXT_CONFIG_OUTPUT === 'export'
+    ) {
+      const { getCachedOutputExportFallbackRequestUrl } =
+        require('../../output-export-fallback') as typeof import('../../output-export-fallback')
+      // In "output: export" mode, we can't rely on headers to distinguish
+      // between HTML and RSC requests. Instead, we append an extra prefix
+      // to the request.
+      url = new URL(url)
+      if (url.pathname.endsWith('/')) {
+        url.pathname += 'index.txt'
+      } else {
+        url.pathname += '.txt'
       }
+
+      if (getCachedOutputExportFallbackRequestUrl(url) !== null) {
+        usedCachedOutputExportFallback = true
+      }
+    } else {
+      // Static export fallback URL remapping is erased from non-export bundles.
     }
 
     // Typically, during a navigation, we decode the response using Flight's
@@ -186,8 +197,10 @@ export async function fetchServerResponse(
     // TODO: Remove this check once the old PPR flag is removed
     const isLegacyPPR =
       process.env.__NEXT_PPR && !process.env.__NEXT_CACHE_COMPONENTS
-    const shouldImmediatelyDecode = !isLegacyPPR
-    const res = await createFetch<NavigationFlightResponse>(
+    const shouldImmediatelyDecode =
+      !isLegacyPPR && process.env.__NEXT_CONFIG_OUTPUT !== 'export'
+    let usedOutputExportFallback = false
+    let res = await createFetch<NavigationFlightResponse>(
       url,
       headers,
       'auto',
@@ -202,20 +215,64 @@ export async function fetchServerResponse(
       notifyOnline()
     }
 
-    const responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
-    const canonicalUrl = res.redirected ? responseUrl : originalUrl
+    let responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
+    let canonicalUrl = res.redirected ? responseUrl : originalUrl
 
-    const contentType = res.headers.get('content-type') || ''
-    const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
-    const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
+    let contentType = res.headers.get('content-type') || ''
+    let interception = !!res.headers.get('vary')?.includes(NEXT_URL)
+    let postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
     let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
-    if (process.env.NODE_ENV === 'production') {
-      if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-        if (!isFlightResponse) {
-          isFlightResponse = contentType.startsWith('text/plain')
+    if (
+      process.env.NODE_ENV === 'production' &&
+      process.env.__NEXT_CONFIG_OUTPUT === 'export'
+    ) {
+      if (!isFlightResponse) {
+        isFlightResponse = contentType.startsWith('text/plain')
+      }
+
+      if (!isFlightResponse || !res.ok || !res.body) {
+        const { fetchOutputExportFallbackResponse } =
+          require('../../output-export-fallback') as typeof import('../../output-export-fallback')
+
+        const fallbackResult = await fetchOutputExportFallbackResponse(
+          originalUrl,
+          {
+            credentials: 'same-origin',
+            headers,
+          }
+        )
+
+        if (fallbackResult !== null) {
+          usedOutputExportFallback = true
+          const { response: processed, cacheData } = await processFetch(
+            fallbackResult.response
+          )
+
+          res = {
+            ok: processed.ok,
+            redirected: false,
+            headers: processed.headers,
+            body: processed.body,
+            status: processed.status,
+            url: originalUrl.href,
+            flightResponsePromise: null,
+            cacheData: Promise.resolve(cacheData),
+          }
+          responseUrl = originalUrl
+          canonicalUrl = originalUrl
+          contentType = res.headers.get('content-type') || ''
+          interception = !!res.headers.get('vary')?.includes(NEXT_URL)
+          // Static export fallback payloads are partial-by-construction, but
+          // static hosts cannot attach the normal postpone header. Treat them as
+          // partial so Flight decoding accepts the closed stream and the router
+          // keeps the fallback shell suspended until dynamic holes resolve.
+          postponed = true
+          isFlightResponse = true
         }
       }
+    } else {
+      // Static export fallback discovery is erased from non-export bundles.
     }
 
     // If fetch returns something different than flight response handle it like a mpa navigation
@@ -270,7 +327,18 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
-    const normalizedFlightData = normalizeFlightData(flightResponse.f)
+    const fallbackFlightData =
+      usedOutputExportFallback || usedCachedOutputExportFallback
+        ? fillInFallbackFlightData(
+            flightResponse.f,
+            originalUrl.pathname,
+            originalUrl.search as NormalizedSearch
+          )
+        : null
+
+    const normalizedFlightData = normalizeFlightData(
+      fallbackFlightData ?? flightResponse.f
+    )
     if (typeof normalizedFlightData === 'string') {
       return doMpaNavigation(normalizedFlightData)
     }
@@ -533,6 +601,16 @@ export async function createFetch<T>(
   // search param to it. This should not leak outside of this function, so we
   // track them separately.
   let fetchUrl = new URL(url)
+  if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+    const { getCachedOutputExportFallbackRequestUrl } =
+      require('../../output-export-fallback') as typeof import('../../output-export-fallback')
+    const fallbackRequestUrl = getCachedOutputExportFallbackRequestUrl(fetchUrl)
+    if (fallbackRequestUrl !== null) {
+      fetchUrl = fallbackRequestUrl
+    }
+  } else {
+    // Static export fallback URL remapping is erased from non-export bundles.
+  }
   await setCacheBustingSearchParam(fetchUrl, headers)
   let processed = fetch(fetchUrl, fetchOptions).then(processFetch)
   let fetchPromise = processed.then(({ response }) => response)
