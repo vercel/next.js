@@ -1,12 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
+import { createReadStream } from 'fs'
 import fs from 'fs-extra'
+import http from 'http'
 import { join } from 'path'
-import {
-  fetchViaHTTP,
-  findPort,
-  startStaticServer,
-  stopApp,
-} from 'next-test-utils'
+import express from 'express'
+import webdriver from 'next-webdriver'
+import { fetchViaHTTP, findPort, retry, stopApp } from 'next-test-utils'
 
 describe('output-export-dynamic-fallbacks', () => {
   const { next } = nextTestSetup({
@@ -37,7 +36,7 @@ describe('output-export-dynamic-fallbacks', () => {
     expect(await fs.pathExists(join(outDir, '_fallback.html'))).toBe(true)
 
     const port = await findPort()
-    const app = await startStaticServer(outDir, null, port)
+    const app = await startFallbackServer(outDir, port)
 
     try {
       const res = await fetchViaHTTP(port, '/another/__fallback.html')
@@ -51,8 +50,53 @@ describe('output-export-dynamic-fallbacks', () => {
 
       const rscRes = await fetchViaHTTP(port, '/another/__fallback.txt')
       expect(rscRes.status).toBe(200)
+
+      const hardLoad = await webdriver(port, '/another/alpha')
+      try {
+        await retry(async () => {
+          expect(await hardLoad.elementByCss('h1').text()).toBe('alpha')
+        })
+      } finally {
+        await hardLoad.close()
+      }
     } finally {
       await stopApp(app)
     }
   })
 })
+
+async function startFallbackServer(outDir: string, port: number) {
+  const app = express()
+  const server = http.createServer(app)
+  const fallbackHtml = join(outDir, '_fallback.html')
+
+  app.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      return next()
+    }
+
+    if (req.path.endsWith('/') || req.path.includes('.')) {
+      return next()
+    }
+
+    const htmlPath = join(outDir, `${req.path}.html`)
+    if (!fs.pathExistsSync(htmlPath)) {
+      return next()
+    }
+
+    res.sendFile(htmlPath)
+  })
+
+  app.use(
+    express.static(outDir, {
+      extensions: ['html'],
+      redirect: false,
+    })
+  )
+  app.use((_req, res) => {
+    createReadStream(fallbackHtml).pipe(res)
+  })
+
+  await new Promise<void>((resolve) => server.listen(port, resolve))
+  return server
+}
