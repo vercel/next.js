@@ -402,7 +402,7 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
     );
     let version_str = format!(
         "Turbopack version: `{}`\nNext.js version: `{}`",
-        env!("VERGEN_GIT_DESCRIBE"),
+        env!("VERGEN_GIT_SHA"),
         env!("NEXTJS_VERSION")
     );
     let bug_report_url = format!(
