@@ -6840,6 +6840,7 @@ async function validateInstantConfigInBuildWithSample(
     isStaticGeneration: false,
     page: outerWorkStore.page,
     route: outerWorkStore.route,
+    nextConfigOutput: outerWorkStore.nextConfigOutput,
     incrementalCache: outerWorkStore.incrementalCache,
     cacheLifeProfiles: outerWorkStore.cacheLifeProfiles,
     useCacheTimeout: outerWorkStore.useCacheTimeout,

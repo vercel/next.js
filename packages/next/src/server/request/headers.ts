@@ -25,8 +25,12 @@ import {
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
-import { isRequestAPICallableInsideAfter } from './utils'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
+import {
+  isRequestAPICallableInsideAfter,
+  shouldErrorForOutputExportServerRequestAPI,
+  throwForOutputExportServerRequestAPI,
+} from './utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { RenderStage } from '../app-render/staged-rendering'
 
@@ -60,6 +64,19 @@ export function headers(): Promise<ReadonlyHeaders> {
       // headers object without tracking
       const underlyingHeaders = HeadersAdapter.seal(new Headers({}))
       return makeUntrackedHeaders(underlyingHeaders)
+    }
+
+    if (
+      workStore.nextConfigOutput === 'export' &&
+      workUnitStore &&
+      shouldErrorForOutputExportServerRequestAPI(workUnitStore, 'request-data')
+    ) {
+      throwForOutputExportServerRequestAPI(
+        workStore,
+        '`headers()`',
+        headers,
+        'this API requires a runtime server request, which is not available when exporting to static HTML.'
+      )
     }
 
     if (workUnitStore) {
