@@ -373,7 +373,7 @@
       "test/production/app-dir/resume-data-cache/resume-data-cache.test.ts",
       "test/production/app-dir/unstable-cache-foreground-revalidate/unstable-cache-foreground-revalidate.test.ts",
       "test/e2e/app-dir/parallel-routes-root-param-dynamic-child/parallel-routes-root-param-dynamic-child.test.ts",
-      "test/e2e/app-dir/unstable-io/unstable-io.test.ts"
+      "test/e2e/app-dir/io/io.test.ts"
     ]
   }
 }
