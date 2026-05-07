@@ -119,8 +119,6 @@ The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-
 
 Validation runs automatically on every page load using the real request from your browser, so dynamic params like `[slug]` are checked against actual values as you navigate.
 
-When you opt into [runtime prefetching](/docs/app/guides/runtime-prefetching), validation also needs to know what request shape to simulate. Pass `samples` to provide that. See the [`unstable_instant` reference](/docs/app/api-reference/file-conventions/route-segment-config/instant#samples) for the sample shape.
-
 ## Visualize loading states with the Next.js DevTools
 
 As you develop a route, the Next.js DevTools let you see what your users see on page loads and client navigations before dynamic data streams in. Use it to verify your loading states look right, confirm the content you expect appears immediately, and iterate on where to place `<Suspense>` boundaries.
@@ -336,6 +334,27 @@ Come back later and push the boundary down. The best loading states keep as much
 
 Use the [DevTools](#visualize-loading-states-with-the-nextjs-devtools) to see what your users see, then move `<Suspense>` boundaries closer to the data that actually suspends.
 
+## Validating every page by default
+
+Once you're comfortable with the loop on a few routes, you can opt every Page and Default segment in at once with [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults):
+
+```ts filename="next.config.ts" highlight={5-9}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  experimental: {
+    instantInsights: {
+      validationLevel: 'warning',
+    },
+  },
+}
+
+export default nextConfig
+```
+
+With this set, `unstable_instant = true` is implied for every Page and Default segment. Use `unstable_instant = false` to exempt the segments that can't be instant.
+
 ## Opting out with `unstable_instant = false`
 
 Not every layout or page can be instant. A page whose content has to be fresh on every request, like a chat thread that updates in real time, has nothing meaningful to put in a static shell. Set `unstable_instant = false` on that segment to exempt it from validation:
@@ -391,7 +410,7 @@ For agents to see what their changes actually render, pair this with [agent-brow
 
 ## Next steps
 
-- [`unstable_instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for the full configuration and `samples` shape
+- [`unstable_instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for the full configuration
 - [Runtime prefetching](/docs/app/guides/runtime-prefetching) when parts of your route depend on cookies or headers and you want those in the shell
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering
 - [Revalidating](/docs/app/getting-started/revalidating) for how to expire cached data with `cacheLife` and `updateTag`

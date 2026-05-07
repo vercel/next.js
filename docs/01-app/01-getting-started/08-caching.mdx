@@ -457,9 +457,7 @@ For example, take a dashboard that reads the user's session cookie and opts into
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 
-export const unstable_instant = {
-  samples: [{ cookies: [{ name: 'session', value: 'abc123' }] }],
-}
+export const unstable_instant = true
 export const unstable_prefetch = 'force-runtime'
 
 export default function Dashboard() {
