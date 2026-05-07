@@ -126,17 +126,17 @@ type HydrationErrorDetails = {
 
 type BlockingRouteErrorDetails = {
   type: 'blocking-route'
-  variant: 'navigation' | 'runtime'
+  variant: GuidanceVariant
 }
 
 type DynamicMetadataErrorDetails = {
   type: 'dynamic-metadata'
-  variant: 'navigation' | 'runtime'
+  variant: 'runtime' | 'dynamic'
 }
 
 type DynamicViewportErrorDetails = {
   type: 'dynamic-viewport'
-  variant: 'navigation' | 'runtime'
+  variant: 'runtime' | 'dynamic'
 }
 
 type SyncIOErrorDetails = {
@@ -277,6 +277,27 @@ function isRuntimeVariant(message: string): boolean {
   )
 }
 
+function getBlockingRouteVariant(message: string): GuidanceVariant {
+  const isRuntime = isRuntimeVariant(message)
+  if (message.includes('during a navigation')) {
+    return isRuntime ? 'navigation-runtime' : 'navigation-dynamic'
+  }
+  return isRuntime ? 'runtime' : 'dynamic'
+}
+
+function blockingRouteHeadline(variant: GuidanceVariant): string {
+  switch (variant) {
+    case 'runtime':
+      return 'Next.js encountered runtime data during the initial render.'
+    case 'navigation-runtime':
+      return 'Next.js encountered runtime data during a navigation.'
+    case 'navigation-dynamic':
+      return 'Next.js encountered uncached data during a navigation.'
+    default:
+      return 'Next.js encountered uncached data during the initial render.'
+  }
+}
+
 const SYNC_IO_APIS = [
   // Math
   'Math.random()',
@@ -323,7 +344,7 @@ function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'navigation',
+      variant: getBlockingRouteVariant(message),
     }
   }
 
@@ -333,7 +354,7 @@ function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
   if (isDynamicMetadataError) {
     return {
       type: 'dynamic-metadata',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
     }
   }
 
@@ -343,7 +364,7 @@ function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
   if (isBlockingViewportError) {
     return {
       type: 'dynamic-viewport',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
     }
   }
 
@@ -532,11 +553,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
         <ErrorOverlayLayout
           errorCode={errorCode}
           errorType={errorType}
-          errorMessage={
-            errorDetails.variant === 'runtime'
-              ? 'Next.js encountered runtime data during the initial render.'
-              : 'Next.js encountered uncached data during the initial render.'
-          }
+          errorMessage={blockingRouteHeadline(errorDetails.variant)}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}

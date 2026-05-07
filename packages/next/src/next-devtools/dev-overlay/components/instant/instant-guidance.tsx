@@ -2,6 +2,7 @@ import { css } from '../../utils/css'
 import {
   DOCS_URLS,
   EXPLANATIONS,
+  NAVIGATION_EXPLANATION,
   SYNC_IO_DOCS,
   SYNC_IO_CLIENT_DOCS,
   getCards,
@@ -74,7 +75,13 @@ export function InstantGuidance({
   } else {
     docsUrl = DOCS_URLS[kind]
   }
-  const defaultExplanation = explanation || EXPLANATIONS[kind]
+  const isInNavigation =
+    variant === 'navigation-runtime' || variant === 'navigation-dynamic'
+  const defaultExplanation =
+    explanation ||
+    (kind === 'blocking-route' && isInNavigation
+      ? NAVIGATION_EXPLANATION
+      : EXPLANATIONS[kind])
 
   return (
     <div data-nextjs-instant-guidance>

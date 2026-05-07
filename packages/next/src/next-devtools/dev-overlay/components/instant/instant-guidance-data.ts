@@ -99,6 +99,60 @@ const dynamicCards: FixCard[] = [
   },
 ]
 
+const navigationRuntimeCards: FixCard[] = [
+  {
+    title: 'Allow runtime prefetch',
+    color: 'blue',
+    snippets: [
+      { text: "export const prefetch = 'force-runtime'", highlight: true },
+      { text: '' },
+      { text: 'export default async function Page() {' },
+    ],
+  },
+  {
+    title: 'Make route params static',
+    color: 'blue',
+    conditional: true,
+    snippets: [
+      { text: 'export async function' },
+      {
+        text: '  generateStaticParams() {',
+        parts: [
+          { text: '  ' },
+          { text: 'generateStaticParams()', highlight: true },
+          { text: ' {' },
+        ],
+      },
+      {
+        text: '  return [{ slug: "…" }]',
+        parts: [
+          { text: '  return ' },
+          { text: '[{ slug: "…" }]', highlight: true },
+        ],
+      },
+      { text: '}' },
+    ],
+  },
+  {
+    title: 'Provide a placeholder with Suspense',
+    color: 'purple',
+    snippets: [
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DataChild />' },
+      { text: '</Suspense>', highlight: true },
+    ],
+  },
+  {
+    title: 'Allow blocking route',
+    color: 'red',
+    snippets: [
+      { text: 'export const instant = false', highlight: true },
+      { text: '' },
+      { text: 'export default async function Page() {' },
+    ],
+  },
+]
+
 // ── Metadata cards ────────────────────────────────
 
 const metadataRuntimeCards: FixCard[] = [
@@ -391,7 +445,11 @@ export type GuidanceKind =
   | 'sync-io'
   | 'sync-io-client'
 
-export type GuidanceVariant = 'runtime' | 'navigation'
+export type GuidanceVariant =
+  | 'runtime'
+  | 'dynamic'
+  | 'navigation-runtime'
+  | 'navigation-dynamic'
 
 export const DOCS_URLS: Record<GuidanceKind, string> = {
   'blocking-route': 'https://nextjs.org/docs/messages/blocking-route',
@@ -467,6 +525,9 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
     'Without an upstream `<Suspense>` boundary, Next.js has no fallback to prerender in place of this Client Component.',
 }
 
+export const NAVIGATION_EXPLANATION =
+  'This blocks the navigation from being instant, leading to a slower user experience.'
+
 const syncCardsByCause: Record<string, FixCard[]> = {
   'Math.random()': syncMathCards,
   'Date.now()': syncDateCards,
@@ -506,7 +567,9 @@ export function getCards(
 ): FixCard[] {
   switch (kind) {
     case 'blocking-route':
-      return variant === 'navigation' ? dynamicCards : runtimeCards
+      if (variant === 'runtime') return runtimeCards
+      if (variant === 'navigation-runtime') return navigationRuntimeCards
+      return dynamicCards
     case 'metadata':
       return variant === 'runtime' ? metadataRuntimeCards : metadataDynamicCards
     case 'viewport':
