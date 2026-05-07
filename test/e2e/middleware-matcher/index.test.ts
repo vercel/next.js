@@ -159,19 +159,19 @@ describe('Middleware can set the matcher in its config', () => {
              "matchers": [
                {
                  "originalSource": "/",
-                 "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?(?:\\/(\\/?index|\\/?index\\.json))?[\\/#\\?]?$",
+                 "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?(?:\\/(\\/?index|\\/?index\\.json|\\/?index(?:\\.rsc|\\.segments\\/.+\\.segment\\.rsc)))?[\\/#\\?]?$",
                },
                {
                  "originalSource": "/with-middleware/:path*",
-                 "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/with-middleware(?:\\/((?:[^\\/#\\?]+?)(?:\\/(?:[^\\/#\\?]+?))*))?(\\.json)?[\\/#\\?]?$",
+                 "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/with-middleware(?:\\/((?:[^\\/#\\?]+?)(?:\\/(?:[^\\/#\\?]+?))*))?(\\.json|\\.rsc|\\.segments\\/.+\\.segment\\.rsc)?[\\/#\\?]?$",
                },
                {
                  "originalSource": "/another-middleware/:path*",
-                 "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/another-middleware(?:\\/((?:[^\\/#\\?]+?)(?:\\/(?:[^\\/#\\?]+?))*))?(\\.json)?[\\/#\\?]?$",
+                 "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/another-middleware(?:\\/((?:[^\\/#\\?]+?)(?:\\/(?:[^\\/#\\?]+?))*))?(\\.json|\\.rsc|\\.segments\\/.+\\.segment\\.rsc)?[\\/#\\?]?$",
                },
                {
                  "originalSource": "/_sites/:path((?![^/]*\\.json$)[^/]+$)",
-                 "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/_sites(?:\\/((?![^/]*\\.json$)[^/]+$))(\\.json)?[\\/#\\?]?$",
+                 "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/_sites(?:\\/((?![^/]*\\.json$)[^/]+$))(\\.json|\\.rsc|\\.segments\\/.+\\.segment\\.rsc)?[\\/#\\?]?$",
                },
              ],
              "name": "middleware",
