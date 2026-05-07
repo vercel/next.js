@@ -489,6 +489,16 @@ async fn process_content(
         ) {
             Ok(mut ss) => {
                 for err in warnings.read().unwrap().iter() {
+                    // Ignore valid modern CSS selector :target-current
+                    if let lightningcss::error::ParserError::SelectorError(
+                        lightningcss::error::SelectorError::UnsupportedPseudoClass(ref name),
+                    ) = err.kind
+                    {
+                        if name.as_ref() == "target-current" {
+                            continue;
+                        }
+                    }
+
                     // Unsupported pseudo-classes/elements are common in real-world CSS
                     // (vendor prefixes, custom frameworks) and do not prevent the
                     // stylesheet from being used — treat them as recoverable warnings.
