@@ -60,7 +60,7 @@ describe('instant validation - level error', () => {
         const browser = await next.browser('/bare')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1164",
+           "code": "E1220",
            "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -90,7 +90,7 @@ describe('instant validation - level error', () => {
                ],
              },
            ],
-           "code": "E1164",
+           "code": "E1220",
            "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -120,7 +120,7 @@ describe('instant validation - level error', () => {
                ],
              },
            ],
-           "code": "E1164",
+           "code": "E1220",
            "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -150,7 +150,7 @@ describe('instant validation - level error', () => {
                ],
              },
            ],
-           "code": "E1164",
+           "code": "E1220",
            "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -177,7 +177,7 @@ describe('instant validation - level error', () => {
         const browser = await next.browser('/layered')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1164",
+           "code": "E1220",
            "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
