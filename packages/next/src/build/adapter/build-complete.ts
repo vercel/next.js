@@ -2317,8 +2317,21 @@ async function loadNFT(
 }
 
 async function hashFile(filePath: string): Promise<string> {
-  return crypto
-    .createHash('sha256')
-    .update(await fs.readFile(filePath))
-    .digest('hex')
+  const hash = crypto.createHash('sha256')
+  try {
+    // Try symlink first, since readFile just transparently resolves those (or fails if it's a
+    // directory symlink).
+    const linkTarget = await fs.readlink(filePath)
+    hash.update('link')
+    hash.update(linkTarget)
+  } catch (e: any) {
+    if (e.code === 'EINVAL') {
+      // Not a symlink
+      hash.update('file:')
+      hash.update(await fs.readFile(filePath))
+    } else {
+      throw e
+    }
+  }
+  return hash.digest('hex')
 }
