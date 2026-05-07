@@ -1852,6 +1852,11 @@ export default async function build(
             appDir: dir,
             relativeAppDir: path.relative(outputFileTracingRoot, dir),
             files: [
+              // Marks distDir as commonjs so server output is loaded correctly
+              // when the user's project package.json is "type": "module".
+              // See `writeFileUtf8(path.join(distDir, 'package.json'), '{"type": "commonjs"}')`
+              // earlier in this file.
+              'package.json',
               ROUTES_MANIFEST,
               path.relative(distDir, pagesManifestPath),
               BUILD_MANIFEST,
