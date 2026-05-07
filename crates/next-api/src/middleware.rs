@@ -186,11 +186,11 @@ impl MiddlewareEndpoint {
                     if is_root {
                         source.push('(');
                         if has_i18n {
-                            source.push_str("|\\\\.json|");
+                            source.push_str("|\\.json|");
                         }
-                        source.push_str("/?index|/?index\\\\.json)?")
+                        source.push_str("/?index|/?index\\.json)?")
                     } else {
-                        source.push_str("{(\\\\.json)}?")
+                        source.push_str("{(\\.json)}?")
                     };
 
                     source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
