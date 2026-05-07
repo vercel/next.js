@@ -300,15 +300,11 @@ const SYNC_IO_APIS = [
 const SYNC_IO_DOCS_PATTERN =
   /https:\/\/nextjs\.org\/docs\/messages\/next-prerender-(?:runtime-)?(random|current-time|crypto)(-client)?/
 
-// Matches sync IO errors from `createSyncIOError`,
-// `createSyncIORuntimeError`, and `createSyncIOClientError`, plus the
-// "needs to bail out of prerendering" abort/throw reason from
-// `dynamic-rendering.ts`.
+// Discriminate sync IO errors via the docs URL embedded in the user-facing
+// message by `createSyncIOError`, `createSyncIORuntimeError`, and
+// `createSyncIOClientError`.
 function isSyncIOError(message: string): boolean {
-  return (
-    message.includes('needs to bail out of prerendering') ||
-    SYNC_IO_DOCS_PATTERN.test(message)
-  )
+  return SYNC_IO_DOCS_PATTERN.test(message)
 }
 
 function isSyncIOClientError(message: string): boolean {
