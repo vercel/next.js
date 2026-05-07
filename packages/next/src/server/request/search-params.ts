@@ -249,6 +249,7 @@ function createRuntimePrerenderSearchParams(
     varyParamsAccumulator !== null
       ? createVaryingSearchParams(varyParamsAccumulator, underlyingSearchParams)
       : underlyingSearchParams
+
   const result = makeUntrackedSearchParams(underlyingSearchParamsWithVarying)
   const { stagedRendering } = workUnitStore
   if (!stagedRendering) {

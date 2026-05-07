@@ -310,26 +310,6 @@ export function createVaryingSearchParams(
   return new Proxy(originalSearchParamsObject, {
     get(target, prop, receiver) {
       if (typeof prop === 'string') {
-        // `.then` reads are ambiguous: `Promise.resolve` (when constructing the
-        // wrapping promise) and React Flight serialization (when checking if a
-        // resolved value is itself a thenable) both probe `.then` as part of
-        // the thenable protocol, and we don't want those probes to register as
-        // user dependencies. But user code can also read a `then` query
-        // parameter as a normal key. We can't tell the two apart, so we use key
-        // presence as a proxy: if the URL has `?then=...`, treat the access as
-        // user code; otherwise skip tracking. Trade-off: a page that reads
-        // `searchParams.then` to compute its output and is prefetched without a
-        // `then` key won't register the access — a later navigation to the same
-        // path with `?then=...` can then fall back to the no-`then` cache entry
-        // through `Fallback` resolution and serve content rendered for the
-        // wrong URL. Accepted because `then` is reserved by the Promise
-        // protocol and essentially never used as a real query parameter name.
-        if (
-          prop === 'then' &&
-          !Object.prototype.hasOwnProperty.call(target, prop)
-        ) {
-          return Reflect.get(target, prop, receiver)
-        }
         accumulateVaryParam(accumulator, '?')
       }
       return Reflect.get(target, prop, receiver)
