@@ -32,6 +32,7 @@ import {
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
 import {
+  doesFilledFallbackFlightDataMatchRenderedPathname,
   fillInFallbackFlightData,
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
@@ -322,7 +323,7 @@ export async function fetchServerResponse(
         )
     }
 
-    const [flightResponse, cacheData] = await Promise.all([
+    let [flightResponse, cacheData] = await Promise.all([
       flightResponsePromise,
       res.cacheData,
     ])
@@ -335,14 +336,86 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
-    const fallbackFlightData =
-      usedOutputExportFallback || usedCachedOutputExportFallback
-        ? fillInFallbackFlightData(
-            flightResponse.f,
-            originalUrl.pathname,
-            originalUrl.search as NormalizedSearch
+    let fallbackFlightData: NavigationFlightResponse['f'] | null = null
+    if (usedOutputExportFallback || usedCachedOutputExportFallback) {
+      fallbackFlightData = fillInFallbackFlightData(
+        flightResponse.f,
+        originalUrl.pathname,
+        originalUrl.search as NormalizedSearch
+      )
+    }
+
+    if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+      if (
+        usedOutputExportFallback &&
+        fallbackFlightData !== null &&
+        !doesFilledFallbackFlightDataMatchRenderedPathname(
+          fallbackFlightData,
+          originalUrl.pathname
+        )
+      ) {
+        const {
+          addOutputExportDataSuffix,
+          fetchOutputExportNotFoundDataResponse,
+          fetchOutputExportNotFoundResponse,
+          getCachedOutputExportFallbackBasePath,
+          getConfiguredOutputExportNotFoundCandidate,
+        } =
+          require('../../output-export-fallback') as typeof import('../../output-export-fallback')
+
+        const notFoundResponse =
+          (await fetchOutputExportNotFoundDataResponse(originalUrl, {
+            credentials: 'same-origin',
+            headers,
+          })) ??
+          (await fetchOutputExportNotFoundResponse(originalUrl, {
+            credentials: 'same-origin',
+            headers,
+          }))
+        const { response: processed, cacheData: processedCacheData } =
+          await processFetch(notFoundResponse)
+
+        res = {
+          ok: processed.ok,
+          redirected: false,
+          headers: processed.headers,
+          body: processed.body,
+          status: processed.status,
+          url: originalUrl.href,
+          flightResponsePromise: null,
+          cacheData: Promise.resolve(processedCacheData),
+        }
+        responseUrl = originalUrl
+        canonicalUrl = originalUrl
+        contentType = res.headers.get('content-type') || ''
+        interception = !!res.headers.get('vary')?.includes(NEXT_URL)
+        postponed = true
+        isFlightResponse = true
+        flightResponsePromise =
+          createFromNextReadableStream<NavigationFlightResponse>(
+            res.body!,
+            headers,
+            { allowPartialStream: true }
           )
-        : null
+        ;[flightResponse, cacheData] = await Promise.all([
+          flightResponsePromise,
+          res.cacheData,
+        ])
+        fallbackFlightData = fillInFallbackFlightData(
+          flightResponse.f,
+          originalUrl.pathname,
+          originalUrl.search as NormalizedSearch
+        )
+        outputExportFallbackBasePath =
+          getCachedOutputExportFallbackBasePath(
+            addOutputExportDataSuffix(originalUrl)
+          ) ?? getConfiguredOutputExportNotFoundCandidate(originalUrl.pathname)
+        usedOutputExportFallback = false
+        usedCachedOutputExportFallback = true
+      }
+    } else {
+      // Static export fallback route-shape checks are erased from non-export bundles.
+    }
 
     const normalizedFlightData = normalizeFlightData(
       fallbackFlightData ?? flightResponse.f

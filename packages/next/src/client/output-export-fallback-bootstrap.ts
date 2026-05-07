@@ -2,8 +2,18 @@ import type { InitialRSCPayload } from '../shared/lib/app-router-types'
 import { callServer } from './app-call-server'
 import { findSourceMapURL } from './app-find-source-map-url'
 import { processFetch } from './components/router-reducer/fetch-server-response'
-import { createInitialRSCPayloadFromFallbackPrerender } from './flight-data-helpers'
-import { fetchOutputExportFallbackResponse } from './output-export-fallback'
+import {
+  createInitialRSCPayloadFromFallbackPrerender,
+  doesFilledFallbackFlightDataMatchRenderedPathname,
+} from './flight-data-helpers'
+import {
+  addOutputExportDataSuffix,
+  getCachedOutputExportFallbackBasePath,
+  fetchOutputExportFallbackResponse,
+  fetchOutputExportNotFoundDataResponse,
+  fetchOutputExportNotFoundResponse,
+  getConfiguredOutputExportNotFoundCandidate,
+} from './output-export-fallback'
 
 type DebugChannel =
   | { readable?: ReadableStream; writable?: WritableStream }
@@ -57,20 +67,46 @@ export async function createOutputExportFallbackInitialResponse({
     credentials: 'same-origin',
   })
 
-  if (fallbackResult === null) {
-    throw new Error(
-      `Could not find an output export fallback for "${renderedUrl.pathname}".`
-    )
-  }
-
-  return {
-    initialRSCPayload: await decodeFallbackPrerenderPayload(
+  if (fallbackResult !== null) {
+    const fallbackPayload = await decodeFallbackPrerenderPayload(
       Promise.resolve(fallbackResult.response),
       renderedUrl,
       createFromFetch,
       debugChannel
+    )
+
+    if (
+      doesFilledFallbackFlightDataMatchRenderedPathname(
+        fallbackPayload.f,
+        renderedUrl.pathname
+      )
+    ) {
+      return {
+        initialRSCPayload: fallbackPayload,
+        fallbackBasePath: fallbackResult.fallbackUrl.pathname,
+      }
+    }
+  }
+
+  const response =
+    (await fetchOutputExportNotFoundDataResponse(renderedUrl, {
+      credentials: 'same-origin',
+    })) ??
+    (await fetchOutputExportNotFoundResponse(renderedUrl, {
+      credentials: 'same-origin',
+    }))
+
+  return {
+    initialRSCPayload: await decodeFallbackPrerenderPayload(
+      Promise.resolve(response),
+      renderedUrl,
+      createFromFetch,
+      debugChannel
     ),
-    fallbackBasePath: fallbackResult.fallbackUrl.pathname,
+    fallbackBasePath:
+      getCachedOutputExportFallbackBasePath(
+        addOutputExportDataSuffix(renderedUrl)
+      ) ?? getConfiguredOutputExportNotFoundCandidate(renderedUrl.pathname),
   }
 }
 
