@@ -139,6 +139,21 @@ type KnownRoutePart =
  */
 type ResolvedParams = Map<string, string | string[]>
 
+type DiscoverKnownRouteOptions = {
+  outputExportFallbackBasePath?: string | null
+}
+
+function applyDiscoverKnownRouteOptions(
+  entry: FulfilledRouteCacheEntry,
+  options: DiscoverKnownRouteOptions | undefined
+): FulfilledRouteCacheEntry {
+  const outputExportFallbackBasePath = options?.outputExportFallbackBasePath
+  if (outputExportFallbackBasePath != null) {
+    entry.outputExportFallbackBasePath = outputExportFallbackBasePath
+  }
+  return entry
+}
+
 /**
  * Read the pattern from a KnownRoutePart, evicting it if expired.
  *
@@ -155,7 +170,10 @@ function readPattern(
   if (pattern === null) {
     return null
   }
-  if (isValueExpired(now, getCurrentRouteCacheVersion(), pattern)) {
+  if (
+    pattern.outputExportFallbackBasePath === null &&
+    isValueExpired(now, getCurrentRouteCacheVersion(), pattern)
+  ) {
     // The pattern is expired. Null it out so the slot can be repopulated.
     part.pattern = null
     return null
@@ -204,7 +222,8 @@ export function discoverKnownRoute(
   couldBeIntercepted: boolean,
   canonicalUrl: string,
   supportsPerSegmentPrefetching: boolean,
-  hasDynamicRewrite: boolean
+  hasDynamicRewrite: boolean,
+  options?: DiscoverKnownRouteOptions
 ): FulfilledRouteCacheEntry {
   const tree = routeTree
 
@@ -226,6 +245,7 @@ export function discoverKnownRoute(
     if (hasDynamicRewrite) {
       fulfilledEntry.hasDynamicRewrite = true
     }
+    applyDiscoverKnownRouteOptions(fulfilledEntry, options)
     // Populate the known route tree (handles rewrite detection internally).
     // The entry is already in the cache; this just stores it as a pattern
     // if the URL matches the route structure.
@@ -243,7 +263,8 @@ export function discoverKnownRoute(
       couldBeIntercepted,
       canonicalUrl,
       supportsPerSegmentPrefetching,
-      hasDynamicRewrite
+      hasDynamicRewrite,
+      options
     )
     return fulfilledEntry
   }
@@ -264,7 +285,8 @@ export function discoverKnownRoute(
     couldBeIntercepted,
     canonicalUrl,
     supportsPerSegmentPrefetching,
-    hasDynamicRewrite
+    hasDynamicRewrite,
+    options
   )
 }
 
@@ -320,7 +342,8 @@ function discoverKnownRoutePart(
   couldBeIntercepted: boolean,
   canonicalUrl: string,
   supportsPerSegmentPrefetching: boolean,
-  hasDynamicRewrite: boolean
+  hasDynamicRewrite: boolean,
+  options: DiscoverKnownRouteOptions | undefined
 ): FulfilledRouteCacheEntry {
   const segment = routeTree.segment
 
@@ -350,17 +373,20 @@ function discoverKnownRoutePart(
       // Don't populate the known route tree, just write the route into the
       // cache and return immediately.
       if (existingEntry !== null) {
-        return existingEntry
+        return applyDiscoverKnownRouteOptions(existingEntry, options)
       }
-      return writeRouteIntoCache(
-        now,
-        pathname as NormalizedPathname,
-        nextUrl,
-        fullTree,
-        metadataVaryPath,
-        couldBeIntercepted,
-        canonicalUrl,
-        supportsPerSegmentPrefetching
+      return applyDiscoverKnownRouteOptions(
+        writeRouteIntoCache(
+          now,
+          pathname as NormalizedPathname,
+          nextUrl,
+          fullTree,
+          metadataVaryPath,
+          couldBeIntercepted,
+          canonicalUrl,
+          supportsPerSegmentPrefetching
+        ),
+        options
       )
     }
 
@@ -379,14 +405,22 @@ function discoverKnownRoutePart(
       // - staticChildren: null = siblings unknown (can't safely match dynamic)
       // - staticChildren: Map = siblings known (even if empty)
       // This matters in dev mode where webpack may not know all siblings yet.
-      if (staticSiblings !== null) {
+      if (staticSiblings !== null || process.env.NODE_ENV === 'production') {
         // Siblings are known - ensure we have a Map (even if empty)
         if (parentKnownRoutePart.staticChildren === null) {
           parentKnownRoutePart.staticChildren = new Map()
         }
+      }
+      if (staticSiblings !== null) {
+        const staticChildren = parentKnownRoutePart.staticChildren
+        if (staticChildren === null) {
+          throw new Error(
+            'Expected staticChildren to be initialized for known dynamic siblings.'
+          )
+        }
         for (const sibling of staticSiblings) {
-          if (!parentKnownRoutePart.staticChildren.has(sibling)) {
-            parentKnownRoutePart.staticChildren.set(sibling, createEmptyPart())
+          if (!staticChildren.has(sibling)) {
+            staticChildren.set(sibling, createEmptyPart())
           }
         }
       }
@@ -440,7 +474,8 @@ function discoverKnownRoutePart(
         couldBeIntercepted,
         canonicalUrl,
         supportsPerSegmentPrefetching,
-        hasDynamicRewrite
+        hasDynamicRewrite,
+        options
       )
       // All parallel route branches share the same URL, so they should all
       // reach compatible leaf nodes. We capture any result.
@@ -452,17 +487,20 @@ function discoverKnownRoutePart(
     // Defensive fallback: no children returned a result. This shouldn't happen
     // for valid route trees, but handle it gracefully.
     if (existingEntry !== null) {
-      return existingEntry
+      return applyDiscoverKnownRouteOptions(existingEntry, options)
     }
-    return writeRouteIntoCache(
-      now,
-      pathname as NormalizedPathname,
-      nextUrl,
-      fullTree,
-      metadataVaryPath,
-      couldBeIntercepted,
-      canonicalUrl,
-      supportsPerSegmentPrefetching
+    return applyDiscoverKnownRouteOptions(
+      writeRouteIntoCache(
+        now,
+        pathname as NormalizedPathname,
+        nextUrl,
+        fullTree,
+        metadataVaryPath,
+        couldBeIntercepted,
+        canonicalUrl,
+        supportsPerSegmentPrefetching
+      ),
+      options
     )
   }
 
@@ -474,7 +512,7 @@ function discoverKnownRoutePart(
     if (hasDynamicRewrite) {
       existingPattern.hasDynamicRewrite = true
     }
-    return existingPattern
+    return applyDiscoverKnownRouteOptions(existingPattern, options)
   }
 
   // Get or create the entry
@@ -500,6 +538,7 @@ function discoverKnownRoutePart(
   if (hasDynamicRewrite) {
     entry.hasDynamicRewrite = true
   }
+  applyDiscoverKnownRouteOptions(entry, options)
 
   // Store as pattern
   knownRoutePart.pattern = entry
@@ -587,6 +626,8 @@ export function matchKnownRoute(
     metadata: reifiedMetadata,
     couldBeIntercepted: pattern.couldBeIntercepted,
     supportsPerSegmentPrefetching: pattern.supportsPerSegmentPrefetching,
+    hasInlinedSegments: pattern.hasInlinedSegments,
+    outputExportFallbackBasePath: pattern.outputExportFallbackBasePath,
     hasDynamicRewrite: false,
     renderedSearch: search,
     ref: null,

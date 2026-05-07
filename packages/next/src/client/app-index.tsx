@@ -250,6 +250,7 @@ if (
 }
 
 let initialServerResponse: Promise<InitialRSCPayload>
+let initialOutputExportFallbackBasePath: string | null = null
 if (instantTestStaticFetch) {
   const processedStaticFetch = Promise.resolve(instantTestStaticFetch)
     .then(processFetch)
@@ -282,10 +283,14 @@ if (instantTestStaticFetch) {
   // _fallback.html may be based on a PPR shell that also sets
   // __NEXT_CLIENT_RESUME. In export fallback mode, we always
   // fetch the correct route's RSC payload from the network.
-  initialServerResponse =
-    outputExportFallbackBootstrap.createOutputExportFallbackInitialResponse({
+  initialServerResponse = outputExportFallbackBootstrap
+    .createOutputExportFallbackInitialResponse({
       createFromFetch,
       debugChannel,
+    })
+    .then(({ initialRSCPayload, fallbackBasePath }) => {
+      initialOutputExportFallbackBasePath = fallbackBasePath
+      return initialRSCPayload
     })
 } else if (
   // @ts-expect-error
@@ -435,6 +440,7 @@ export async function hydrate(
       initialRSCPayload,
       initialFlightStreamForCache,
       location: window.location,
+      outputExportFallbackBasePath: initialOutputExportFallbackBasePath,
     }),
     instrumentationHooks
   )

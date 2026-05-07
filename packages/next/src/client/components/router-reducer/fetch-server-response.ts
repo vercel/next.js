@@ -83,6 +83,7 @@ type SpaFetchServerResponseResult = {
   flightData: NormalizedFlightData[]
   canonicalUrl: URL
   renderedSearch: NormalizedSearch
+  outputExportFallbackBasePath: string | null
   couldBeIntercepted: boolean
   supportsPerSegmentPrefetching: boolean
   postponed: boolean
@@ -169,11 +170,15 @@ export async function fetchServerResponse(
 
   try {
     let usedCachedOutputExportFallback = false
+    let outputExportFallbackBasePath: string | null = null
     if (
       process.env.NODE_ENV === 'production' &&
       process.env.__NEXT_CONFIG_OUTPUT === 'export'
     ) {
-      const { getCachedOutputExportFallbackRequestUrl } =
+      const {
+        getCachedOutputExportFallbackBasePath,
+        getCachedOutputExportFallbackRequestUrl,
+      } =
         require('../../output-export-fallback') as typeof import('../../output-export-fallback')
       // In "output: export" mode, we can't rely on headers to distinguish
       // between HTML and RSC requests. Instead, we append an extra prefix
@@ -187,6 +192,8 @@ export async function fetchServerResponse(
 
       if (getCachedOutputExportFallbackRequestUrl(url) !== null) {
         usedCachedOutputExportFallback = true
+        outputExportFallbackBasePath =
+          getCachedOutputExportFallbackBasePath(url)
       }
     } else {
       // Static export fallback URL remapping is erased from non-export bundles.
@@ -245,6 +252,7 @@ export async function fetchServerResponse(
 
         if (fallbackResult !== null) {
           usedOutputExportFallback = true
+          outputExportFallbackBasePath = fallbackResult.fallbackUrl.pathname
           const { response: processed, cacheData } = await processFetch(
             fallbackResult.response
           )
@@ -359,6 +367,7 @@ export async function fetchServerResponse(
       // header alone. So we need to investigate why the header is sometimes
       // wrong for interception routes.
       renderedSearch: flightResponse.q as NormalizedSearch,
+      outputExportFallbackBasePath,
       couldBeIntercepted: interception,
       supportsPerSegmentPrefetching: flightResponse.S,
       postponed,
