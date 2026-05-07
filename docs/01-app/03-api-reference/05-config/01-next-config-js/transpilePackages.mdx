@@ -1,20 +1,60 @@
 ---
 title: transpilePackages
-description: Automatically transpile and bundle dependencies from local packages (like monorepos) or from external dependencies (`node_modules`).
+description: Transpile and bundle dependencies from monorepo workspace packages or `node_modules` libraries that ship TypeScript, JSX, or modern syntax.
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-Next.js can automatically transpile and bundle dependencies from local packages (like monorepos) or from external dependencies (`node_modules`). This replaces the `next-transpile-modules` package.
+`transpilePackages` lets Next.js compile dependencies that resolve into `node_modules` and that would otherwise be skipped by the compiler or kept as a runtime external. Values are package names, including scoped names like `@scope/pkg`. Paths and glob patterns are not supported.
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['package-name'],
+  transpilePackages: ['package-name', '@scope/pkg'],
 }
 
 module.exports = nextConfig
 ```
+
+This replaces the `next-transpile-modules` package.
+
+## When you need it
+
+Add a package to `transpilePackages` when its source is resolved from `node_modules` and any of the following apply:
+
+- It ships TypeScript, JSX, or other syntax that is not valid JavaScript on its own.
+- It uses modern syntax that needs the configured browser targets applied.
+- It is a Pages Router server-side dependency you want bundled instead of loaded through Node.js `require` at runtime. App Router already bundles Server Components and Route Handler dependencies unless the package is listed in [`serverExternalPackages`](/docs/app/api-reference/config/next-config-js/serverExternalPackages).
+
+> **Good to know**: A package cannot appear in both `transpilePackages` and [`serverExternalPackages`](/docs/app/api-reference/config/next-config-js/serverExternalPackages). Next.js throws at build start if it does.
+
+## When you may not need it
+
+Some monorepo setups already work without listing the package, because the compiler decides what counts as third-party code by where the file resolves on disk, not by the package name.
+
+- **pnpm or Yarn workspaces with symlinked packages.** When a workspace package is symlinked into `node_modules`, the resolved file path lives in your monorepo, not under `node_modules`. Both Turbopack and the App Router pipeline under webpack treat that file as project code and run TypeScript/JSX transforms on it automatically. Pages Router under webpack is the exception: see [Bundler differences](#bundler-differences) below.
+- **Pre-compiled libraries.** Packages that publish plain JavaScript matching your browser targets do not need transpilation.
+
+A typical workspace shape that works without `transpilePackages` under Turbopack:
+
+```json filename="packages/ui/package.json"
+{
+  "name": "@acme/ui",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts"
+}
+```
+
+> **Good to know**: Packages listed in [`optimizePackageImports`](/docs/app/api-reference/config/next-config-js/optimizePackageImports) are added to `transpilePackages` automatically; you do not need to repeat them. The built-in default list lives in [`default-transpiled-packages.json`](https://github.com/vercel/next.js/blob/canary/packages/next/src/lib/default-transpiled-packages.json) and currently includes `geist`.
+
+## Bundler differences
+
+When `transpilePackages` is not set, the two bundlers apply different rules:
+
+- **Turbopack (default)**: Files inside `node_modules` are treated as foreign code with limited transforms. Files outside `node_modules`, including symlinked workspace packages whose real path lives in your monorepo, get the full project transform pipeline.
+- **Webpack** (`next build --webpack`): App Router files run through layer-specific loaders that do not enforce a project-root restriction, so workspace packages outside the next app's directory still compile. Pages Router files fall through to a catch-all loader that only compiles files inside the next app's directory; workspace packages whose real path lives outside that directory fail with a syntax error until they are listed in `transpilePackages`.
+
+If a Pages Router import of a workspace package works under Turbopack but fails under webpack with a syntax error from an untranspiled file, add the package to `transpilePackages`.
 
 ## Version History
 
