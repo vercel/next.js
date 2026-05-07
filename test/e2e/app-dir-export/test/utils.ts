@@ -4,20 +4,161 @@ import { join } from 'path'
 import { promisify } from 'util'
 import fs from 'fs-extra'
 import globOrig from 'glob'
+import express from 'express'
+import http from 'http'
+import { createReadStream } from 'fs'
 import {
   waitForRedbox,
   getRedboxHeader,
+  getRedboxDescription,
   getRedboxSource,
+  openRedbox,
   retry,
   findPort,
   startStaticServer,
   stopApp,
   fetchViaHTTP,
 } from 'next-test-utils'
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type NextInstance } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 
 const glob = promisify(globOrig)
+
+export async function buildAndStartOutputExportServer(
+  next: Pick<NextInstance, 'build' | 'testDir'>,
+  {
+    basePath,
+    useFallbackDocument,
+  }: {
+    basePath?: string
+    useFallbackDocument: boolean
+  }
+) {
+  await next.build()
+
+  const port = await findPort()
+  const outDir = join(next.testDir, 'out')
+  const requests: string[] = []
+
+  const getRequests = () => [...requests]
+  const clearRequests = () => {
+    requests.length = 0
+  }
+
+  if (!useFallbackDocument) {
+    const app = await startStaticServer(outDir, null, port)
+    return {
+      port,
+      getRequests,
+      clearRequests,
+      stopOrKill: () => stopApp(app),
+    }
+  }
+
+  const app = express()
+  const server = http.createServer(app)
+  const fallbackHtml = join(outDir, '_fallback.html')
+
+  app.use((req, _res, nextHandler) => {
+    requests.push(req.url || '/')
+    nextHandler()
+  })
+
+  if (basePath) {
+    app.use((req, _res, nextHandler) => {
+      if (req.url === basePath) {
+        req.url = '/'
+      } else if (req.url?.startsWith(`${basePath}/`)) {
+        req.url = req.url.slice(basePath.length)
+      }
+      nextHandler()
+    })
+  }
+
+  app.use(
+    express.static(outDir, {
+      extensions: ['html'],
+      redirect: false,
+    })
+  )
+  app.use((req, res) => {
+    createReadStream(fallbackHtml).pipe(res)
+  })
+
+  await new Promise<void>((resolve) => server.listen(port, resolve))
+
+  return {
+    port,
+    getRequests,
+    clearRequests,
+    stopOrKill: () => stopApp(server),
+  }
+}
+
+export async function startOutputExportDevServer(
+  next: Pick<NextInstance, 'start' | 'appPort'>
+) {
+  await next.start()
+  return Number(next.appPort)
+}
+
+export async function expectOutputExportDevRedbox({
+  port,
+  path,
+  expectedMessage,
+  expectedSource,
+}: {
+  port: number
+  path: string
+  expectedMessage: string
+  expectedSource?: string
+}) {
+  const browser = await webdriver(port, path)
+
+  try {
+    await waitForRedbox(browser)
+
+    const header = await getRedboxHeader(browser)
+    const source = await getRedboxSource(browser)
+
+    expect(header).toContain(expectedMessage)
+
+    if (expectedSource && source !== null) {
+      expect(source).toContain(expectedSource)
+    }
+  } finally {
+    await browser.close()
+  }
+}
+
+export async function expectOutputExportDevCollapsedRedbox({
+  port,
+  path,
+  expectedMessage,
+  expectedSource,
+}: {
+  port: number
+  path: string
+  expectedMessage: string
+  expectedSource?: string
+}) {
+  const browser = await webdriver(port, path)
+
+  try {
+    await openRedbox(browser)
+
+    const description = await getRedboxDescription(browser)
+    const source = await getRedboxSource(browser)
+
+    expect(description).toContain(expectedMessage)
+
+    if (expectedSource && source !== null) {
+      expect(source).toContain(expectedSource)
+    }
+  } finally {
+    await browser.close()
+  }
+}
 
 export const expectedWhenTrailingSlashTrue = [
   '404.html',
