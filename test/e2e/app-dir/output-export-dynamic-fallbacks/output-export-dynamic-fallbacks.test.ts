@@ -34,6 +34,7 @@ describe('output-export-dynamic-fallbacks', () => {
         '__next.another.$d$slug.__PAGE__.txt',
       ])
     )
+    expect(await fs.pathExists(join(outDir, '_fallback.html'))).toBe(true)
 
     const port = await findPort()
     const app = await startStaticServer(outDir, null, port)
@@ -41,7 +42,12 @@ describe('output-export-dynamic-fallbacks', () => {
     try {
       const res = await fetchViaHTTP(port, '/another/__fallback.html')
       expect(res.status).toBe(200)
-      expect(await res.text()).toContain('Dynamic fallback shell')
+
+      const globalFallbackRes = await fetchViaHTTP(port, '/_fallback.html')
+      expect(globalFallbackRes.status).toBe(200)
+      expect(await globalFallbackRes.text()).toContain(
+        '__NEXT_EXPORT_FALLBACK=1'
+      )
 
       const rscRes = await fetchViaHTTP(port, '/another/__fallback.txt')
       expect(rscRes.status).toBe(200)
