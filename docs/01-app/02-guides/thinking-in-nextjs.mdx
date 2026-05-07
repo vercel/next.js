@@ -707,7 +707,7 @@ Click into a project, then back to the list, then into a deployment. The sidebar
 
 The cache is set up, but the visible paint hasn't changed for sections waiting on a request. The missing piece is filling those entries before the click.
 
-### Cache reads that depend on the request
+### Prefetch runtime data
 
 Prefetching is what fills cache entries before the click. By default, [`<Link>`](/docs/app/api-reference/components/link) prefetches its destinations against build-time inputs only when they enter the viewport, which covers the static shell and any cached read keyed on build-time inputs.
 
