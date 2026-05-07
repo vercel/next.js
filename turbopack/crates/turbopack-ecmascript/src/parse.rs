@@ -604,7 +604,7 @@ async fn parse_file_content(
                 Some(&parsed_program),
                 unresolved_mark,
                 top_level_mark,
-                Arc::new(var_with_ts_declare),
+                triomphe::Arc::new(var_with_ts_declare),
                 Some(&comments),
             );
 

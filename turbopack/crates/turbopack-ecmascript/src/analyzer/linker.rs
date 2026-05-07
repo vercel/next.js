@@ -202,12 +202,10 @@ where
                         total_nodes -= arg.total_nodes();
                     }
                     total_nodes += 1;
-                    let args_owned: Vec<JsValue> =
-                        args.into_iter().map(Arc::unwrap_or_clone).collect();
                     done.push(JsValue::unknown(
                         JsValue::call_from_parts(
                             JsValue::Function(function_nodes, func_ident, return_value),
-                            args_owned,
+                            args,
                         ),
                         true,
                         rcstr!("recursive function call"),

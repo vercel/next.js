@@ -15,14 +15,14 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
         JsValue::Call(_, call) => {
             let (args, callee) = call.as_parts_mut();
             let args_have_side_effects = || args.iter().any(|arg| arg.has_side_effects());
-            match Arc::make_mut(callee) {
+            match &**callee {
                 // We don't know what the callee is, so we can early return
-                &mut JsValue::Unknown {
+                JsValue::Unknown {
                     original_value: _,
                     reason: _,
                     has_side_effects,
                 } => {
-                    let has_side_effects = has_side_effects || args_have_side_effects();
+                    let has_side_effects = *has_side_effects || args_have_side_effects();
                     value.make_unknown(has_side_effects, rcstr!("unknown callee"));
                     true
                 }
@@ -48,27 +48,27 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
         JsValue::MemberCall(_, call) => {
             let (args, prop, obj) = call.as_parts_mut();
             let args_have_side_effects = || args.iter().any(|arg| arg.has_side_effects());
-            match Arc::make_mut(obj) {
+            match &**obj {
                 // We don't know what the callee is, so we can early return
-                &mut JsValue::Unknown {
+                JsValue::Unknown {
                     original_value: _,
                     reason: _,
                     has_side_effects,
                 } => {
                     let side_effects =
-                        has_side_effects || prop.has_side_effects() || args_have_side_effects();
+                        *has_side_effects || prop.has_side_effects() || args_have_side_effects();
                     value.make_unknown(side_effects, rcstr!("unknown callee object"));
                     true
                 }
                 // otherwise we need to look at the property
-                _ => match Arc::make_mut(prop) {
+                _ => match &**prop {
                     // We don't know what the property is, so we can early return
-                    &mut JsValue::Unknown {
+                    JsValue::Unknown {
                         original_value: _,
                         reason: _,
                         has_side_effects,
                     } => {
-                        let side_effects = has_side_effects || args_have_side_effects();
+                        let side_effects = *has_side_effects || args_have_side_effects();
                         value.make_unknown(side_effects, rcstr!("unknown callee property"));
                         true
                     }
@@ -102,7 +102,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             // numeric addition
             let mut sum = 0f64;
             for arg in list {
-                let JsValue::Constant(ConstantValue::Num(num)) = Arc::make_mut(arg) else {
+                let JsValue::Constant(ConstantValue::Num(num)) = &**arg else {
                     return false;
                 };
                 sum += *num.0;
@@ -123,10 +123,10 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 values,
                 logical_property: _,
             } => {
-                *value = JsValue::alternatives_arc(
+                *value = JsValue::alternatives(
                     take(values)
                         .into_iter()
-                        .map(|alt| Arc::new(JsValue::member_arc(alt, prop.clone())))
+                        .map(|alt| Arc::new(JsValue::member(alt, prop.clone())))
                         .collect(),
                 );
                 true
@@ -139,19 +139,19 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             } => {
                 fn items_to_alternatives(
                     items: &mut Vec<Arc<JsValue>>,
-                    prop: &mut Arc<JsValue>,
+                    prop: &Arc<JsValue>,
                 ) -> JsValue {
                     items.push(Arc::new(JsValue::unknown(
-                        JsValue::member_arc(
+                        JsValue::member(
                             Arc::new(JsValue::array(Vec::new())),
-                            Arc::new(take(Arc::make_mut(prop))),
+                            prop.clone(),
                         ),
                         false,
                         rcstr!("unknown array prototype methods or values"),
                     )));
-                    JsValue::alternatives_arc(take(items))
+                    JsValue::alternatives(take(items))
                 }
-                match Arc::make_mut(prop) {
+                match &**prop {
                     // accessing a numeric property on an array like `[1,2,3][1]`
                     // We can replace this with the value at the index
                     JsValue::Constant(ConstantValue::Num(num @ ConstantNumber(_))) => {
@@ -164,7 +164,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 true
                             } else {
                                 *value = JsValue::unknown(
-                                    JsValue::member_arc(take(obj), take(prop)),
+                                    JsValue::member(obj.clone(), prop.clone()),
                                     false,
                                     rcstr!("invalid index"),
                                 );
@@ -189,10 +189,12 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         logical_property: _,
                     } => {
                         let obj_arc: Arc<JsValue> = obj.clone();
-                        *value = JsValue::alternatives_arc(
-                            take(values)
-                                .into_iter()
-                                .map(|alt| Arc::new(JsValue::member_arc(obj_arc.clone(), alt)))
+                        *value = JsValue::alternatives(
+                            values
+                                .iter()
+                                .map(|alt| {
+                                    Arc::new(JsValue::member(obj_arc.clone(), alt.clone()))
+                                })
                                 .collect(),
                         );
                         true
@@ -224,7 +226,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             }
                             ObjectPart::Spread(_) => {
                                 values.push(Arc::new(JsValue::unknown(
-                                    JsValue::member_arc(
+                                    JsValue::member(
                                         Arc::new(JsValue::object(vec![take(part)])),
                                         prop.clone(),
                                     ),
@@ -236,7 +238,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     }
                     if include_unknown {
                         values.push(Arc::new(JsValue::unknown(
-                            JsValue::member_arc(
+                            JsValue::member(
                                 Arc::new(JsValue::object(Vec::new())),
                                 take(prop),
                             ),
@@ -244,7 +246,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             rcstr!("unknown object prototype methods or values"),
                         )));
                     }
-                    JsValue::alternatives_arc(values)
+                    JsValue::alternatives(values)
                 }
 
                 /// Convert a list of potential values into
@@ -274,7 +276,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     parts_to_alternatives(&mut potential_values, prop, include_unknown)
                 }
 
-                match Arc::make_mut(prop) {
+                match &**prop {
                     // matching constant string property access on an object like `{a: 1, b:
                     // 2}["a"]`
                     JsValue::Constant(ConstantValue::Str(_)) => {
@@ -333,11 +335,12 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         values,
                         logical_property: _,
                     } => {
-                        let obj_arc: Arc<JsValue> = obj.clone();
-                        *value = JsValue::alternatives_arc(
-                            take(values)
-                                .into_iter()
-                                .map(|alt| Arc::new(JsValue::member_arc(obj_arc.clone(), alt)))
+                        *value = JsValue::alternatives(
+                            values
+                                .iter()
+                                .map(|alt| {
+                                    Arc::new(JsValue::member(obj.clone(), alt.clone()))
+                                })
                                 .collect(),
                         );
                         true
@@ -355,10 +358,13 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
         JsValue::MemberCall(_, list) => {
             // `into_parts` pops obj + prop off the tail of the underlying `Vec`, and the
             // remaining `Vec` (owned, not reallocated) becomes `args`.
-            let (mut obj, prop, args) = take(list).into_parts();
-            match Arc::make_mut(&mut obj) {
+            let (obj, prop, args) = take(list).into_parts();
+            // Cheap variant dispatch on the borrowed inner value — branches that need to
+            // move out of `obj` call `Arc::unwrap_or_clone` themselves so the fallthrough
+            // paths skip the refcount check.
+            match &*obj {
                 // matching calls on an array like `[1,2,3].concat([4,5,6])`
-                JsValue::Array { items, mutable, .. } => {
+                JsValue::Array { .. } => {
                     // matching cases where the property is a const string
                     if let Some(str) = prop.as_str() {
                         match str {
@@ -377,6 +383,13 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                             | JsValue::Function(..)
                                     )
                                 }) => {
+                                    let mut obj_inner = Arc::unwrap_or_clone(obj);
+                                    let JsValue::Array {
+                                        items, mutable, ..
+                                    } = &mut obj_inner
+                                    else {
+                                        unreachable!()
+                                    };
                                     for arg in args {
                                         match Arc::unwrap_or_clone(arg) {
                                             JsValue::Array {
@@ -401,27 +414,31 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                             }
                                         }
                                     }
-                                    Arc::make_mut(&mut obj).update_total_nodes();
-                                    *value = Arc::unwrap_or_clone(obj);
+                                    obj_inner.update_total_nodes();
+                                    *value = obj_inner;
                                     return true;
                                 }
                             // The Array.prototype.map method
                             "map" => {
                                 if let Some(func) = args.first() {
+                                    let JsValue::Array { items, .. } = Arc::unwrap_or_clone(obj)
+                                    else {
+                                        unreachable!()
+                                    };
                                     *value = JsValue::array(
-                                        take(items)
+                                        items
                                             .into_iter()
                                             .enumerate()
                                             .map(|(i, item)| {
-                                                JsValue::call_from_iter(
-                                                    func.clone(),
+                                                Arc::new(JsValue::call_from_iter(
+                                                    (**func).clone(),
                                                     [
                                                         item,
-                                                        JsValue::Constant(ConstantValue::Num(
-                                                            (i as f64).into(),
+                                                        Arc::new(JsValue::Constant(
+                                                            ConstantValue::Num((i as f64).into()),
                                                         )),
                                                     ],
-                                                )
+                                                ))
                                             })
                                             .collect(),
                                     );
@@ -434,20 +451,19 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 }
                 // matching calls on multiple alternative objects like `(obj1 | obj2).prop(arg1,
                 // arg2, ...)`
-                JsValue::Alternatives {
-                    total_nodes: _,
-                    values,
-                    logical_property: _,
-                } => {
+                JsValue::Alternatives { .. } => {
+                    let JsValue::Alternatives { values, .. } = Arc::unwrap_or_clone(obj) else {
+                        unreachable!()
+                    };
                     *value = JsValue::alternatives(
-                        take(values)
+                        values
                             .into_iter()
                             .map(|alt| {
-                                JsValue::member_call_from_iter(
-                                    alt,
-                                    prop.clone(),
+                                Arc::new(JsValue::member_call_from_iter(
+                                    Arc::unwrap_or_clone(alt),
+                                    (*prop).clone(),
                                     args.iter().cloned(),
-                                )
+                                ))
                             })
                             .collect(),
                     );
@@ -465,7 +481,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     let mut values = vec![obj];
                     values.extend(args);
 
-                    *value = JsValue::concat_arc(values);
+                    *value = JsValue::concat(values);
                     return true;
                 }
             }
@@ -478,10 +494,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             // into a `JsValue::Call` only needs `+1` slot, which fits in the existing slack —
             // no realloc. This is the original motivation for the `[args..., prop, obj]`
             // tail layout.
-            *value = JsValue::call_from_parts(
-                JsValue::member(Box::new(obj), Box::new(prop)),
-                args,
-            );
+            *value = JsValue::call_from_parts(JsValue::member(obj, prop), args);
             true
         }
         // match calls when the callee are multiple alternative functions like `(func1 |
@@ -494,10 +507,15 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             let JsValue::Alternatives { values, .. } = Arc::unwrap_or_clone(callee) else {
                 unreachable!()
             };
-            *value = JsValue::alternatives_arc(
+            *value = JsValue::alternatives(
                 values
                     .into_iter()
-                    .map(|alt| JsValue::call_from_iter(alt, args.iter().cloned()))
+                    .map(|alt| {
+                        Arc::new(JsValue::call_from_iter(
+                            Arc::unwrap_or_clone(alt),
+                            args.iter().cloned(),
+                        ))
+                    })
                     .collect(),
             );
             true
@@ -645,13 +663,13 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     }
                 };
                 if let Some(property) = property {
-                    *value = JsValue::alternatives_with_additional_property_arc(
+                    *value = JsValue::alternatives_with_additional_property(
                         take(parts),
                         property,
                     );
                     true
                 } else {
-                    *value = JsValue::alternatives_arc(take(parts));
+                    *value = JsValue::alternatives(take(parts));
                     true
                 }
             }
@@ -697,7 +715,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
 
         JsValue::Iterated(_, iterable) => {
             if let JsValue::Array { items, mutable, .. } = Arc::make_mut(iterable) {
-                let mut new_value = JsValue::alternatives_arc(take(items));
+                let mut new_value = JsValue::alternatives(take(items));
                 if *mutable {
                     new_value.add_unknown_mutations(true);
                 }

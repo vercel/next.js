@@ -12,6 +12,7 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
+use triomphe::Arc;
 use turbo_rcstr::rcstr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
@@ -227,8 +228,8 @@ pub async fn webpack_runtime(
 
                 if let (Some(chunk_filename), Some(prefix_path)) = (chunk_filename, prefix_path) {
                     let value = JsValue::concat(vec![
-                        JsValue::Constant(prefix_path.into()),
-                        chunk_filename,
+                        Arc::new(JsValue::Constant(prefix_path.into())),
+                        Arc::new(chunk_filename),
                     ]);
 
                     return Ok(WebpackRuntime::Webpack5 {
