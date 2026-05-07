@@ -71,7 +71,10 @@ import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference
 import { convertSegmentPathToStaticExportFilename } from '../shared/lib/segment-cache/segment-value-encoding'
 import { getNextBuildDebuggerPortOffset } from '../lib/worker'
 import { getParams } from './helpers/get-params'
-import { emitOutputExportFallbackArtifacts } from './helpers/output-export-fallback'
+import {
+  emitOutputExportFallbackArtifacts,
+  writeOutputExportFallbackHtml,
+} from './helpers/output-export-fallback'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
@@ -1021,13 +1024,14 @@ async function exportAppImpl(
     )
 
     if (isOutputExportDynamicFallbackEnabled(nextConfig)) {
-      await emitOutputExportFallbackArtifacts(
+      const fallbackHtmlPaths = await emitOutputExportFallbackArtifacts(
         prerenderManifest.dynamicRoutes,
         mapAppRouteToPage,
         distDir,
         outDir,
         subFolders
       )
+      await writeOutputExportFallbackHtml(outDir, fallbackHtmlPaths)
     }
   }
 
