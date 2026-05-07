@@ -1,15 +1,41 @@
 import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
+import { getParamProperties } from '../shared/lib/router/utils/get-segment-param'
 
 type OutputExportDynamicFallbackConfig = {
   output?: string
   cacheComponents?: boolean
   experimental?: {
+    optimisticRouting?: boolean
     outputExportDynamicFallbacks?: boolean
+    varyParams?: boolean
   }
+}
+
+type OutputExportFallbackConflict = {
+  fallbackPath: string
+  routes: string[]
+}
+
+export type OutputExportFallbackManifestEntry = {
+  route: string
+  fallbackPath: string
 }
 
 export function getOutputExportFallbackPath(staticPrefix: string): string {
   return staticPrefix.length > 0 ? `/${staticPrefix}/__fallback` : '/__fallback'
+}
+
+export function getOutputExportFallbackMetadataPath(
+  fallbackPath: string
+): string {
+  return `${fallbackPath}.meta.json`
+}
+
+export function getOutputExportFallbackVariantPath(
+  fallbackPath: string,
+  index: number
+): string {
+  return `${fallbackPath}/__route_${index}`
 }
 
 export function getOutputExportFallbackStaticPrefix(
@@ -30,6 +56,66 @@ export function getOutputExportFallbackStaticPrefix(
     .join('/')
 }
 
+export function needsOutputExportFallbackManifest(routePath: string): boolean {
+  const route = parseNormalizedAppRoute(routePath)
+  const firstDynamicIndex = route.segments.findIndex(
+    (segment) => segment.type === 'dynamic'
+  )
+
+  if (firstDynamicIndex === -1) {
+    return false
+  }
+
+  if (route.segments.length - firstDynamicIndex <= 1) {
+    return false
+  }
+
+  const firstDynamicSegment = route.segments[firstDynamicIndex]
+  return (
+    firstDynamicSegment.type === 'dynamic' &&
+    !getParamProperties(firstDynamicSegment.param.paramType).repeat
+  )
+}
+
+export function getOutputExportFallbackConflicts(
+  routePaths: Iterable<string>
+): OutputExportFallbackConflict[] {
+  const fallbackPathToRoutes = new Map<string, string[]>()
+
+  for (const routePath of routePaths) {
+    const staticPrefix = getOutputExportFallbackStaticPrefix(routePath)
+    if (staticPrefix === null) {
+      continue
+    }
+
+    const fallbackPath = getOutputExportFallbackPath(staticPrefix)
+    const routes = fallbackPathToRoutes.get(fallbackPath)
+    if (routes) {
+      routes.push(routePath)
+    } else {
+      fallbackPathToRoutes.set(fallbackPath, [routePath])
+    }
+  }
+
+  const conflicts: OutputExportFallbackConflict[] = []
+  for (const [fallbackPath, routes] of fallbackPathToRoutes) {
+    if (routes.length > 1) {
+      conflicts.push({
+        fallbackPath,
+        routes: routes.sort(),
+      })
+    }
+  }
+
+  return conflicts.sort((a, b) =>
+    a.fallbackPath < b.fallbackPath
+      ? -1
+      : a.fallbackPath > b.fallbackPath
+        ? 1
+        : 0
+  )
+}
+
 export function isOutputExportDynamicFallbackEnabled(
   config: OutputExportDynamicFallbackConfig
 ): boolean {
@@ -37,5 +123,23 @@ export function isOutputExportDynamicFallbackEnabled(
     config.output === 'export' &&
     config.cacheComponents === true &&
     config.experimental?.outputExportDynamicFallbacks === true
+  )
+}
+
+export function isOutputExportOptimisticRoutingEnabled(
+  config: OutputExportDynamicFallbackConfig
+): boolean {
+  return (
+    Boolean(config.experimental?.optimisticRouting) ||
+    isOutputExportDynamicFallbackEnabled(config)
+  )
+}
+
+export function isOutputExportVaryParamsEnabled(
+  config: OutputExportDynamicFallbackConfig
+): boolean {
+  return (
+    Boolean(config.experimental?.varyParams) ||
+    isOutputExportDynamicFallbackEnabled(config)
   )
 }

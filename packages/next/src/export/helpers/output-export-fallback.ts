@@ -5,34 +5,39 @@ import {
   RSC_SEGMENT_SUFFIX,
   RSC_SUFFIX,
 } from '../../lib/constants'
+import { getOutputExportFallbackMetadataPath } from '../../lib/output-export-dynamic-fallback'
+import {
+  planOutputExportFallbackRoutes,
+  type OutputExportDynamicRouteInfo,
+} from '../../lib/output-export-fallback-routes'
+import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../../server/require'
 import { convertSegmentPathToStaticExportFilename } from '../../shared/lib/segment-cache/segment-value-encoding'
-import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
-import {
-  getOutputExportFallbackPath,
-  getOutputExportFallbackStaticPrefix,
-} from '../../lib/output-export-dynamic-fallback'
 
-type OutputExportDynamicRouteInfo = {
-  fallbackSourceRoute: string | undefined
-  fallbackRouteParams:
-    | ReadonlyArray<{
-        paramName: string
-        paramType: string
-      }>
-    | undefined
+export type OutputExportFallbackArtifactVariant = {
+  route: string
+  fallbackPath: string
+  orig: string
+}
+
+export type OutputExportFallbackArtifactPlan = {
+  fallbackRoute: string
+  needsManifest: boolean
+  variants: OutputExportFallbackArtifactVariant[]
+}
+
+type OutputExportError = Error & {
+  code: 'NEXT_EXPORT_ERROR'
 }
 
 type CopyExportedAppArtifactsOptions = {
   outDir: string
   orig: string
   routePath: string
+  segmentsRoutePath: string
   subFolders: boolean
   checkRouteCollision?: boolean
-}
-
-type OutputExportError = Error & {
-  code: 'NEXT_EXPORT_ERROR'
+  routeCollisionPath?: string
 }
 
 function createOutputExportError(message: string): OutputExportError {
@@ -69,8 +74,10 @@ export async function copyExportedAppArtifacts({
   outDir,
   orig,
   routePath,
+  segmentsRoutePath,
   subFolders,
   checkRouteCollision = false,
+  routeCollisionPath,
 }: CopyExportedAppArtifactsOptions): Promise<string> {
   const route = normalizePagePath(routePath)
   const flatHtmlDest = join(outDir, `${route}.html`)
@@ -95,7 +102,7 @@ export async function copyExportedAppArtifacts({
   }> = []
 
   if (existsSync(segmentsDir)) {
-    const segmentsDirDest = join(outDir, routePath)
+    const segmentsDirDest = join(outDir, segmentsRoutePath)
     const segmentPaths = await collectSegmentPaths(segmentsDir)
     for (const segmentFileSrc of segmentPaths) {
       const segmentPath =
@@ -119,7 +126,7 @@ export async function copyExportedAppArtifacts({
         folderJsonDest,
         ...segmentCopies.map(({ dest }) => dest),
       ],
-      routePath
+      routeCollisionPath ?? routePath
     )
   }
 
@@ -138,14 +145,16 @@ export async function copyExportedAppArtifacts({
   return htmlDest
 }
 
-export async function emitOutputExportFallbackArtifacts(
+export function planOutputExportFallbackArtifacts(
   dynamicRoutes: Readonly<Record<string, OutputExportDynamicRouteInfo>>,
   mapAppRouteToPage: Map<string, string>,
-  distDir: string,
-  outDir: string,
-  subFolders: boolean
-): Promise<string[]> {
-  const fallbackHtmlPaths: string[] = []
+  distDir: string
+): OutputExportFallbackArtifactPlan[] {
+  const dynamicRoutesWithArtifacts: Record<
+    string,
+    OutputExportDynamicRouteInfo
+  > = {}
+  const origByRoute = new Map<string, string>()
 
   for (const [dynamicRoute, prerenderInfo] of Object.entries(dynamicRoutes)) {
     if (
@@ -153,11 +162,6 @@ export async function emitOutputExportFallbackArtifacts(
       !prerenderInfo.fallbackRouteParams ||
       prerenderInfo.fallbackRouteParams.length === 0
     ) {
-      continue
-    }
-
-    const staticPrefix = getOutputExportFallbackStaticPrefix(dynamicRoute)
-    if (staticPrefix === null) {
       continue
     }
 
@@ -182,25 +186,79 @@ export async function emitOutputExportFallbackArtifacts(
       continue
     }
 
-    const fallbackPath = getOutputExportFallbackPath(staticPrefix)
-    fallbackHtmlPaths.push(
-      await copyExportedAppArtifacts({
-        outDir,
-        orig,
-        routePath: fallbackPath,
-        subFolders,
-        checkRouteCollision: true,
-      })
-    )
+    dynamicRoutesWithArtifacts[dynamicRoute] = prerenderInfo
+    origByRoute.set(dynamicRoute, orig)
   }
 
-  return fallbackHtmlPaths
+  return planOutputExportFallbackRoutes(dynamicRoutesWithArtifacts).map(
+    ({ fallbackRoute, needsManifest, entries }) => ({
+      fallbackRoute,
+      needsManifest,
+      variants: entries.map(({ route, fallbackPath }) => ({
+        route,
+        fallbackPath,
+        orig: origByRoute.get(route)!,
+      })),
+    })
+  )
+}
+
+export async function emitOutputExportFallbackArtifacts(
+  plans: OutputExportFallbackArtifactPlan[],
+  outDir: string,
+  subFolders: boolean
+): Promise<string[]> {
+  const fallbackHtmlPathsByPlan = await Promise.all(
+    plans.map(async ({ fallbackRoute, needsManifest, variants }) => {
+      if (needsManifest) {
+        const manifestPath = join(
+          outDir,
+          getOutputExportFallbackMetadataPath(fallbackRoute)
+        )
+        assertNoOutputExportPathCollision(outDir, [manifestPath], fallbackRoute)
+        await fs.mkdir(dirname(manifestPath), { recursive: true })
+        await fs.writeFile(
+          manifestPath,
+          JSON.stringify(
+            {
+              version: 1,
+              routes: variants.map(({ route, fallbackPath }) => ({
+                route,
+                fallbackPath,
+              })),
+            },
+            null,
+            2
+          )
+        )
+      }
+
+      return Promise.all(
+        variants.map(async ({ fallbackPath, orig }) => {
+          return copyExportedAppArtifacts({
+            outDir,
+            orig,
+            routePath: fallbackPath,
+            segmentsRoutePath: fallbackPath,
+            subFolders,
+            checkRouteCollision: true,
+            routeCollisionPath: fallbackPath,
+          })
+        })
+      )
+    })
+  )
+
+  return fallbackHtmlPathsByPlan.flat()
 }
 
 export async function writeOutputExportFallbackHtml(
   outDir: string,
   fallbackHtmlPaths: string[]
 ): Promise<void> {
+  // Prefer a shallow __fallback shell for the global fallback entry point so
+  // the bootstrap document still carries the right root structure and assets.
+  // Fall back to a generic document only if no __fallback shell exists.
   const genericSource = [
     join(outDir, 'index.html'),
     join(outDir, '404.html'),
@@ -209,7 +267,8 @@ export async function writeOutputExportFallbackHtml(
   const sortedFallbackPaths = [...fallbackHtmlPaths].sort(
     (a, b) => a.length - b.length
   )
-  const fallbackSource = sortedFallbackPaths[0] ?? genericSource
+  const pprShellSource = sortedFallbackPaths[0]
+  const fallbackSource = pprShellSource ?? genericSource
   if (!fallbackSource) {
     return
   }
@@ -225,6 +284,9 @@ export async function writeOutputExportFallbackHtml(
 
   const fallbackHtml = await fs.readFile(fallbackSource, 'utf8')
   const exportFallbackScript = '<script>self.__NEXT_EXPORT_FALLBACK=1</script>'
+  // The global fallback document is only a bootstrap shell. Keep it hidden
+  // until the client resolves the actual route-specific fallback payload and
+  // React commits the real tree. Removed in app-index.tsx after hydration.
   const exportFallbackStyle =
     '<style id="__next-export-fallback-style">#__next{visibility:hidden}</style>'
   const injection = `${exportFallbackStyle}${exportFallbackScript}`
