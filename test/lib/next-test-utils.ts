@@ -1,11 +1,5 @@
 import express from 'express'
-import {
-  existsSync,
-  readFileSync,
-  unlinkSync,
-  writeFileSync,
-  createReadStream,
-} from 'fs'
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
 import { inspect, promisify } from 'util'
 import http from 'http'
 import path from 'path'
@@ -741,8 +735,17 @@ export async function startStaticServer(
   app.use(express.static(dir))
 
   if (notFoundFile) {
+    const notFoundContent = readFileSync(notFoundFile)
+    const notFoundExtension = path.extname(notFoundFile)
+
     app.use((req, res) => {
-      createReadStream(notFoundFile).pipe(res)
+      if (notFoundExtension === '.html') {
+        res.type('html')
+      } else if (notFoundExtension === '.txt') {
+        res.type('text/plain')
+      }
+
+      res.send(notFoundContent)
     })
   }
 

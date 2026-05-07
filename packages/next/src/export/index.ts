@@ -18,16 +18,14 @@ import { existsSync, promises as fs } from 'fs'
 
 import '../server/require-hook'
 
-import { dirname, join, resolve, sep, relative } from 'path'
+import { dirname, join, resolve, sep } from 'path'
 import * as Log from '../build/output/log'
-import {
-  RSC_SEGMENT_SUFFIX,
-  RSC_SEGMENTS_DIR_SUFFIX,
-  RSC_SUFFIX,
-  SSG_FALLBACK_EXPORT_ERROR,
-} from '../lib/constants'
+import { SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
-import { isOutputExportDynamicFallbackEnabled } from '../lib/output-export-dynamic-fallback'
+import {
+  isOutputExportDynamicFallbackEnabled,
+  isOutputExportOptimisticRoutingEnabled,
+} from '../lib/output-export-dynamic-fallback'
 import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
@@ -68,11 +66,12 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite'
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
-import { convertSegmentPathToStaticExportFilename } from '../shared/lib/segment-cache/segment-value-encoding'
 import { getNextBuildDebuggerPortOffset } from '../lib/worker'
 import { getParams } from './helpers/get-params'
 import {
+  copyExportedAppArtifacts,
   emitOutputExportFallbackArtifacts,
+  planOutputExportFallbackArtifacts,
   writeOutputExportFallbackHtml,
 } from './helpers/output-export-fallback'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
@@ -515,7 +514,7 @@ async function exportAppImpl(
       clientParamParsingOrigins:
         nextConfig.experimental.clientParamParsingOrigins,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
-      optimisticRouting: nextConfig.experimental.optimisticRouting ?? false,
+      optimisticRouting: isOutputExportOptimisticRoutingEnabled(nextConfig),
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
@@ -752,10 +751,6 @@ async function exportAppImpl(
         initialPhaseExportPaths.push(exportPath)
       }
 
-      // Always mark routes for potential build validation. The actual
-      // decision of whether to validate is made per-route by
-      // anySegmentNeedsInstantValidationInBuild, which checks both the
-      // default validation level and per-segment level overrides.
       const route = exportPath.page
       if (!routesWithInstantValidation.has(route)) {
         exportPath._runInstantValidation = true
@@ -967,70 +962,45 @@ async function exportAppImpl(
           return
         }
 
-        const htmlDest = join(
-          outDir,
-          `${route}${
-            subFolders && route !== '/index' ? `${sep}index` : ''
-          }.html`
-        )
-        const jsonDest = isAppPath
-          ? join(
-              outDir,
-              `${route}${
-                subFolders && route !== '/index' ? `${sep}index` : ''
-              }.txt`
-            )
-          : join(pagesDataDir, `${route}.json`)
-
-        await fs.mkdir(dirname(htmlDest), { recursive: true })
-        await fs.mkdir(dirname(jsonDest), { recursive: true })
-
-        const htmlSrc = `${orig}.html`
-        const jsonSrc = `${orig}${isAppPath ? RSC_SUFFIX : '.json'}`
-
-        await fs.copyFile(htmlSrc, htmlDest)
-        await fs.copyFile(jsonSrc, jsonDest)
-
-        const segmentsDir = `${orig}${RSC_SEGMENTS_DIR_SUFFIX}`
-
-        if (isAppPath && existsSync(segmentsDir)) {
-          // Output a data file for each of this page's segments
-          //
-          // These files are requested by the client router's internal
-          // prefetcher, not the user directly. So we don't need to account for
-          // things like trailing slash handling.
-          //
-          // To keep the protocol simple, we can use the non-normalized route
-          // path instead of the normalized one (which, among other things,
-          // rewrites `/` to `/index`).
-          const segmentsDirDest = join(outDir, unnormalizedRoute)
-          const segmentPaths = await collectSegmentPaths(segmentsDir)
-          await Promise.all(
-            segmentPaths.map(async (segmentFileSrc) => {
-              const segmentPath =
-                '/' + segmentFileSrc.slice(0, -RSC_SEGMENT_SUFFIX.length)
-              const segmentFilename =
-                convertSegmentPathToStaticExportFilename(segmentPath)
-              const segmentFileDest = join(segmentsDirDest, segmentFilename)
-              await fs.mkdir(dirname(segmentFileDest), { recursive: true })
-              await fs.copyFile(
-                join(segmentsDir, segmentFileSrc),
-                segmentFileDest
-              )
-            })
+        if (isAppPath) {
+          await copyExportedAppArtifacts({
+            outDir,
+            orig,
+            routePath: unnormalizedRoute,
+            segmentsRoutePath: unnormalizedRoute,
+            subFolders,
+          })
+        } else {
+          const htmlDest = join(
+            outDir,
+            `${route}${
+              subFolders && route !== '/index' ? `${sep}index` : ''
+            }.html`
           )
+          const jsonDest = join(pagesDataDir, `${route}.json`)
+
+          await fs.mkdir(dirname(htmlDest), { recursive: true })
+          await fs.mkdir(dirname(jsonDest), { recursive: true })
+          await fs.copyFile(`${orig}.html`, htmlDest)
+          await fs.copyFile(`${orig}.json`, jsonDest)
         }
       })
     )
 
-    if (isOutputExportDynamicFallbackEnabled(nextConfig)) {
-      const fallbackHtmlPaths = await emitOutputExportFallbackArtifacts(
-        prerenderManifest.dynamicRoutes,
-        mapAppRouteToPage,
-        distDir,
-        outDir,
-        subFolders
-      )
+    const fallbackArtifactPlans = planOutputExportFallbackArtifacts(
+      prerenderManifest.dynamicRoutes,
+      mapAppRouteToPage,
+      distDir
+    )
+    const fallbackHtmlPaths = await emitOutputExportFallbackArtifacts(
+      fallbackArtifactPlans,
+      outDir,
+      subFolders
+    )
+
+    if (
+      hasOutputExportDynamicFallbackRoutes(allExportPaths, prerenderManifest)
+    ) {
       await writeOutputExportFallbackHtml(outDir, fallbackHtmlPaths)
     }
   }
@@ -1071,37 +1041,17 @@ async function exportAppImpl(
   return collector
 }
 
-async function collectSegmentPaths(segmentsDirectory: string) {
-  const results: Array<string> = []
-  await collectSegmentPathsImpl(segmentsDirectory, segmentsDirectory, results)
-  return results
-}
-
-async function collectSegmentPathsImpl(
-  segmentsDirectory: string,
-  directory: string,
-  results: Array<string>
-) {
-  const segmentFiles = await fs.readdir(directory, {
-    withFileTypes: true,
-  })
-  await Promise.all(
-    segmentFiles.map(async (segmentFile) => {
-      if (segmentFile.isDirectory()) {
-        await collectSegmentPathsImpl(
-          segmentsDirectory,
-          join(directory, segmentFile.name),
-          results
-        )
-        return
-      }
-      if (!segmentFile.name.endsWith(RSC_SEGMENT_SUFFIX)) {
-        return
-      }
-      results.push(
-        relative(segmentsDirectory, join(directory, segmentFile.name))
-      )
-    })
+function hasOutputExportDynamicFallbackRoutes(
+  allExportPaths: ExportPathEntry[],
+  prerenderManifest: DeepReadonly<PrerenderManifest> | undefined
+): boolean {
+  return (
+    allExportPaths.some(
+      ({ _fallbackRouteParams = [] }) => _fallbackRouteParams.length > 0
+    ) ||
+    Object.values(prerenderManifest?.dynamicRoutes ?? {}).some(
+      (route) => (route.fallbackRouteParams?.length ?? 0) > 0
+    )
   )
 }
 

@@ -41,6 +41,7 @@ import { RenderStage } from '../app-render/staged-rendering'
 
 export type ParamValue = string | Array<string> | undefined
 export type Params = Record<string, ParamValue>
+type ParamsConsumer = 'server' | 'client'
 
 export function createParamsFromClient(
   underlyingParams: Params
@@ -65,7 +66,8 @@ export function createParamsFromClient(
           null,
           workStore,
           workUnitStore,
-          varyParamsAccumulator
+          varyParamsAccumulator,
+          'client'
         )
       case 'validation-client':
         return createClientParamsInInstantValidation(
@@ -100,7 +102,8 @@ export function createParamsFromClient(
             fallbackParams,
             workStore,
             workUnitStore,
-            isRuntimePrefetchable
+            isRuntimePrefetchable,
+            'client'
           )
         } else if (workUnitStore.validationSamples) {
           return createClientParamsInInstantValidation(
@@ -154,7 +157,8 @@ export function createServerParamsForRoute(
           null,
           workStore,
           workUnitStore,
-          varyParamsAccumulator
+          varyParamsAccumulator,
+          'server'
         )
       case 'prerender-client':
       case 'validation-client':
@@ -195,7 +199,8 @@ export function createServerParamsForRoute(
             fallbackParams,
             workStore,
             workUnitStore,
-            isRuntimePrefetchable
+            isRuntimePrefetchable,
+            'server'
           )
         } else {
           return createRenderParamsInProd(underlyingParams)
@@ -229,7 +234,8 @@ export function createServerParamsForServerSegment(
           optionalCatchAllParamName,
           workStore,
           workUnitStore,
-          varyParamsAccumulator
+          varyParamsAccumulator,
+          'server'
         )
       case 'validation-client':
         throw new InvariantError(
@@ -264,7 +270,8 @@ export function createServerParamsForServerSegment(
             fallbackParams,
             workStore,
             workUnitStore,
-            isRuntimePrefetchable
+            isRuntimePrefetchable,
+            'server'
           )
         } else if (
           workUnitStore.asyncApiPromises &&
@@ -363,7 +370,8 @@ function createStaticPrerenderParams(
   optionalCatchAllParamName: string | null,
   workStore: WorkStore,
   prerenderStore: StaticPrerenderStore,
-  varyParamsAccumulator: VaryParamsAccumulator | null
+  varyParamsAccumulator: VaryParamsAccumulator | null,
+  paramsConsumer: ParamsConsumer
 ): Promise<Params> {
   const underlyingParamsWithVarying =
     varyParamsAccumulator !== null
@@ -378,36 +386,38 @@ function createStaticPrerenderParams(
     case 'prerender':
     case 'prerender-client': {
       const fallbackParams = prerenderStore.fallbackRouteParams
-      if (fallbackParams) {
-        for (const key in underlyingParams) {
-          if (fallbackParams.has(key)) {
-            // This params object has one or more fallback params, so we need
-            // to consider the awaiting of this params object "dynamic". Since
-            // we are in cacheComponents mode we encode this as a promise that never
-            // resolves.
-            return makeHangingParams(
-              underlyingParamsWithVarying,
-              workStore,
-              prerenderStore
-            )
-          }
+      if (fallbackParams && fallbackParams.size > 0) {
+        if (
+          paramsConsumer === 'server' &&
+          workStore.nextConfigOutput === 'export'
+        ) {
+          return makeErroringExportFallbackParams(
+            underlyingParamsWithVarying,
+            fallbackParams,
+            workStore
+          )
         }
+        // This params object has one or more fallback params, so we need
+        // to consider the awaiting of this params object "dynamic". Since
+        // we are in cacheComponents mode we encode this as a promise that never
+        // resolves.
+        return makeHangingParams(
+          underlyingParamsWithVarying,
+          workStore,
+          prerenderStore
+        )
       }
       break
     }
     case 'prerender-ppr': {
       const fallbackParams = prerenderStore.fallbackRouteParams
-      if (fallbackParams) {
-        for (const key in underlyingParams) {
-          if (fallbackParams.has(key)) {
-            return makeErroringParams(
-              underlyingParamsWithVarying,
-              fallbackParams,
-              workStore,
-              prerenderStore
-            )
-          }
-        }
+      if (fallbackParams && fallbackParams.size > 0) {
+        return makeErroringParams(
+          underlyingParamsWithVarying,
+          fallbackParams,
+          workStore,
+          prerenderStore
+        )
       }
       break
     }
@@ -448,15 +458,11 @@ function createRuntimePrerenderParams(
 }
 
 function hasFallbackRouteParams(
-  underlyingParams: Params,
+  _underlyingParams: Params,
   fallbackParams: OpaqueFallbackRouteParams | null | undefined
 ): boolean {
-  if (fallbackParams) {
-    for (let key in underlyingParams) {
-      if (fallbackParams.has(key)) {
-        return true
-      }
-    }
+  if (fallbackParams && fallbackParams.size > 0) {
+    return true
   }
   return false
 }
@@ -508,11 +514,30 @@ function createRenderParamsInDev(
   fallbackParams: OpaqueFallbackRouteParams | null | undefined,
   workStore: WorkStore,
   requestStore: RequestStore,
-  isRuntimePrefetchable: boolean
+  isRuntimePrefetchable: boolean,
+  paramsConsumer: ParamsConsumer
 ): Promise<Params> {
+  const hasFallbackParams = hasFallbackRouteParams(
+    underlyingParams,
+    fallbackParams
+  )
+
+  if (
+    paramsConsumer === 'server' &&
+    workStore.nextConfigOutput === 'export' &&
+    fallbackParams &&
+    hasFallbackParams
+  ) {
+    return makeErroringExportFallbackParams(
+      underlyingParams,
+      fallbackParams,
+      workStore
+    )
+  }
+
   return makeDynamicallyTrackedParamsWithDevWarnings(
     underlyingParams,
-    hasFallbackRouteParams(underlyingParams, fallbackParams),
+    hasFallbackParams,
     workStore,
     requestStore,
     isRuntimePrefetchable
@@ -521,6 +546,10 @@ function createRenderParamsInDev(
 
 interface CacheLifetime {}
 const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
+const CachedErroringExportFallbackParams = new WeakMap<
+  CacheLifetime,
+  Promise<Params>
+>()
 
 const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
   get: function get(target, prop, receiver) {
@@ -571,6 +600,71 @@ function makeHangingParams(
   CachedParams.set(underlyingParams, promise)
 
   return promise
+}
+
+function makeErroringExportFallbackParams(
+  underlyingParams: Params,
+  fallbackParams: OpaqueFallbackRouteParams,
+  workStore: WorkStore
+): Promise<Params> {
+  const cachedParams = CachedErroringExportFallbackParams.get(underlyingParams)
+  if (cachedParams) {
+    return cachedParams
+  }
+
+  const augmentedUnderlying = { ...underlyingParams }
+  const error =
+    workStore.invalidDynamicUsageError ??
+    createExportFallbackServerParamsError(workStore)
+
+  const throwError = () => {
+    workStore.invalidDynamicUsageError ??= error
+    throw error
+  }
+
+  const promise = new Proxy(Promise.resolve(augmentedUnderlying), {
+    get(target, prop, receiver) {
+      if (prop === 'then' || prop === 'catch' || prop === 'finally') {
+        return () => throwError()
+      }
+
+      if (
+        typeof prop === 'string' &&
+        !wellKnownProperties.has(prop) &&
+        fallbackParams.has(prop)
+      ) {
+        return throwError()
+      }
+
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+  })
+  CachedErroringExportFallbackParams.set(underlyingParams, promise)
+
+  for (const prop of fallbackParams.keys()) {
+    if (wellKnownProperties.has(prop)) {
+      continue
+    }
+
+    Object.defineProperty(augmentedUnderlying, prop, {
+      get() {
+        return throwError()
+      },
+      enumerable: true,
+    })
+  }
+
+  return promise
+}
+
+function createExportFallbackServerParamsError(workStore: WorkStore): Error {
+  const error = new Error(
+    `Route "${workStore.route}" used unresolved dynamic params in a Server Component with "output: export". This is not supported because these fallback params are only available on the client. Move param-dependent content into a Client Component or add generateStaticParams() to prerender this route. See more info here: https://nextjs.org/docs/app/guides/static-exports`
+  )
+
+  Error.captureStackTrace(error, createExportFallbackServerParamsError)
+
+  return error
 }
 
 function makeErroringParams(

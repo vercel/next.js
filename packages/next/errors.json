@@ -1191,5 +1191,7 @@
   "1190": "Route \"%s\" accessed param \"%s\" which is not defined in the \\`unstable_samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`params\\` object.",
   "1191": "Route \"%s\" called %s but param%s %s %s not defined in the \\`unstable_samples\\` of \\`unstable_instant\\`. %s requires all route params to be provided.",
   "1192": "Route \"%s\" accessed root param \"%s\" which is not defined in the \\`unstable_samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`params\\` object.",
-  "1193": "Expected staticChildren to be initialized for known dynamic siblings."
+  "1193": "Expected staticChildren to be initialized for known dynamic siblings.",
+  "1194": "Route \"%s\" used %s in a Server Component with \"output: export\". This is not supported because %s See more info here: https://nextjs.org/docs/app/guides/static-exports",
+  "1195": "Route \"%s\" used unresolved dynamic params in a Server Component with \"output: export\". This is not supported because these fallback params are only available on the client. Move param-dependent content into a Client Component or add generateStaticParams() to prerender this route. See more info here: https://nextjs.org/docs/app/guides/static-exports"
 }

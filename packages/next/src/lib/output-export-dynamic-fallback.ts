@@ -11,6 +11,11 @@ type OutputExportDynamicFallbackConfig = {
   }
 }
 
+type OutputExportFallbackConflict = {
+  fallbackPath: string
+  routes: string[]
+}
+
 export type OutputExportFallbackManifestEntry = {
   route: string
   fallbackPath: string
@@ -51,16 +56,6 @@ export function getOutputExportFallbackStaticPrefix(
     .join('/')
 }
 
-export function isOutputExportDynamicFallbackEnabled(
-  config: OutputExportDynamicFallbackConfig
-): boolean {
-  return (
-    config.output === 'export' &&
-    config.cacheComponents === true &&
-    config.experimental?.outputExportDynamicFallbacks === true
-  )
-}
-
 export function needsOutputExportFallbackManifest(routePath: string): boolean {
   const route = parseNormalizedAppRoute(routePath)
   const firstDynamicIndex = route.segments.findIndex(
@@ -79,6 +74,55 @@ export function needsOutputExportFallbackManifest(routePath: string): boolean {
   return (
     firstDynamicSegment.type === 'dynamic' &&
     !getParamProperties(firstDynamicSegment.param.paramType).repeat
+  )
+}
+
+export function getOutputExportFallbackConflicts(
+  routePaths: Iterable<string>
+): OutputExportFallbackConflict[] {
+  const fallbackPathToRoutes = new Map<string, string[]>()
+
+  for (const routePath of routePaths) {
+    const staticPrefix = getOutputExportFallbackStaticPrefix(routePath)
+    if (staticPrefix === null) {
+      continue
+    }
+
+    const fallbackPath = getOutputExportFallbackPath(staticPrefix)
+    const routes = fallbackPathToRoutes.get(fallbackPath)
+    if (routes) {
+      routes.push(routePath)
+    } else {
+      fallbackPathToRoutes.set(fallbackPath, [routePath])
+    }
+  }
+
+  const conflicts: OutputExportFallbackConflict[] = []
+  for (const [fallbackPath, routes] of fallbackPathToRoutes) {
+    if (routes.length > 1) {
+      conflicts.push({
+        fallbackPath,
+        routes: routes.sort(),
+      })
+    }
+  }
+
+  return conflicts.sort((a, b) =>
+    a.fallbackPath < b.fallbackPath
+      ? -1
+      : a.fallbackPath > b.fallbackPath
+        ? 1
+        : 0
+  )
+}
+
+export function isOutputExportDynamicFallbackEnabled(
+  config: OutputExportDynamicFallbackConfig
+): boolean {
+  return (
+    config.output === 'export' &&
+    config.cacheComponents === true &&
+    config.experimental?.outputExportDynamicFallbacks === true
   )
 }
 

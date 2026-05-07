@@ -58,28 +58,22 @@ describe('getDynamicHTMLPostponedState', () => {
 
     const parsed = parsePostponedState(state, { slug: '123' }, undefined)
 
-    expect(parsed).toMatchInlineSnapshot(`
-     {
-       "data": [
-         1,
-         {
-           "123": "123",
-           "nested": {
-             "123": "123",
-           },
-         },
-       ],
-       "renderResumeDataCache": {
-         "cache": Map {
-           "1" => Promise {},
-         },
-         "decryptedBoundArgs": Map {},
-         "encryptedBoundArgs": Map {},
-         "fetch": Map {},
-       },
-       "type": 2,
-     }
-    `)
+    expect(parsed.type).toBe(2)
+    expect(parsed.data).toEqual([
+      1,
+      {
+        '123': '123',
+        nested: {
+          '123': '123',
+        },
+      },
+    ])
+    expect(parsed.renderResumeDataCache.cache.get('1')).toEqual(
+      expect.any(Promise)
+    )
+    expect(parsed.renderResumeDataCache.decryptedBoundArgs).toEqual(new Map())
+    expect(parsed.renderResumeDataCache.encryptedBoundArgs).toEqual(new Map())
+    expect(parsed.renderResumeDataCache.fetch).toEqual(new Map())
 
     const value = await parsed.renderResumeDataCache.cache.get('1')
 
