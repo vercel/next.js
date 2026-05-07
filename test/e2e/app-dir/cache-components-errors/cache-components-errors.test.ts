@@ -280,30 +280,9 @@ describe('Cache Components Errors', () => {
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at a (<next-dist-dir>)
-                   at b (<next-dist-dir>)
-                   at c (<next-dist-dir>)
-                   at d (<next-dist-dir>)
-                   at e (<next-dist-dir>)
-                   at f (<next-dist-dir>)
-                   at g (<next-dist-dir>)
-                   at h (<next-dist-dir>)
-                   at i (<next-dist-dir>)
-                   at j (<next-dist-dir>)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                   at k (<next-dist-dir>)
-                   at l (<next-dist-dir>)
-                   at m (<next-dist-dir>)
-                   at n (<next-dist-dir>)
-                   at o (<next-dist-dir>)
-                   at p (<next-dist-dir>)
-                   at q (<next-dist-dir>)
-                   at r (<next-dist-dir>)
-                   at s (<next-dist-dir>)
-                   at t (<next-dist-dir>)
-                   at u (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-metadata-error-route" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -798,31 +777,17 @@ describe('Cache Components Errors', () => {
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at a (<next-dist-dir>)
-                   at b (<next-dist-dir>)
-                   at c (<next-dist-dir>)
-                   at d (<next-dist-dir>)
-                   at e (<next-dist-dir>)
-                   at f (<next-dist-dir>)
-                   at g (<next-dist-dir>)
-                   at h (<next-dist-dir>)
-                   at i (<next-dist-dir>)
-                   at j (<next-dist-dir>)
-                   at k (<next-dist-dir>)
+                   at <unknown> (app/dynamic-root/indirection.tsx:7:34)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                   at l (<next-dist-dir>)
-                   at m (<next-dist-dir>)
-                   at n (<next-dist-dir>)
-                   at o (<next-dist-dir>)
-                   at p (<next-dist-dir>)
-                   at q (<next-dist-dir>)
-                   at r (<next-dist-dir>)
-                   at s (<next-dist-dir>)
-                   at t (<next-dist-dir>)
-                   at u (<next-dist-dir>)
-                   at v (<next-dist-dir>)
+                  5 | }
+                  6 |
+               >  7 | export function IndirectionTwo({ children }) {
+                    |                                  ^
+                  8 |   return children
+                  9 | }
+                 10 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -837,30 +802,9 @@ describe('Cache Components Errors', () => {
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at w (<next-dist-dir>)
-                   at x (<next-dist-dir>)
-                   at y (<next-dist-dir>)
-                   at z (<next-dist-dir>)
-                   at a (<next-dist-dir>)
-                   at b (<next-dist-dir>)
-                   at c (<next-dist-dir>)
-                   at d (<next-dist-dir>)
-                   at e (<next-dist-dir>)
-                   at f (<next-dist-dir>)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                   at g (<next-dist-dir>)
-                   at h (<next-dist-dir>)
-                   at i (<next-dist-dir>)
-                   at j (<next-dist-dir>)
-                   at k (<next-dist-dir>)
-                   at l (<next-dist-dir>)
-                   at m (<next-dist-dir>)
-                   at n (<next-dist-dir>)
-                   at o (<next-dist-dir>)
-                   at p (<next-dist-dir>)
-                   at q (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1033,7 +977,14 @@ describe('Cache Components Errors', () => {
                    - Render the value on the client with \`"use client"\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                     at a (<next-dist-dir>)
+                     at a (app/sync-random-with-fallback/page.tsx:37:23)
+                   35 |     use(new Promise((r) => process.nextTick(r)))
+                   36 |   }
+                 > 37 |   const random = Math.random()
+                      |                       ^
+                   38 |   return (
+                   39 |     <div>
+                   40 |       <span id="rand">{random}</span>
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-random-with-fallback" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1184,7 +1135,14 @@ describe('Cache Components Errors', () => {
                    - Render the value on the client with \`"use client"\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                     at a (<next-dist-dir>)
+                     at a (app/sync-random-without-fallback/page.tsx:32:15)
+                   30 |
+                   31 | function getRandomNumber() {
+                 > 32 |   return Math.random()
+                      |               ^
+                   33 | }
+                   34 |
+                   35 | function RandomReadingComponent() {
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1444,8 +1402,15 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at a (<next-dist-dir>)
-                     at b (<anonymous>) {
+                     at a (app/sync-cookies/page.tsx:18:36)
+                     at b (<anonymous>)
+                   16 | async function CookiesReadingComponent() {
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
+                 > 18 |   const token = (cookies() as any).get('token')
+                      |                                    ^
+                   19 |
+                   20 |   return (
+                   21 |     <div> {
                    digest: '<error-digest>'
                  }
                  Export encountered an error on /sync-cookies/page: /sync-cookies, exiting the build."
@@ -1778,8 +1743,15 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at a (<next-dist-dir>)
-                     at b (<anonymous>) {
+                     at a (app/sync-headers/page.tsx:18:40)
+                     at b (<anonymous>)
+                   16 | async function HeadersReadingComponent() {
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
+                 > 18 |   const userAgent = (headers() as any).get('user-agent')
+                      |                                        ^
+                   19 |   return (
+                   20 |     <div>
+                   21 |       this component reads the \`user-agent\` header synchronously: {userAgent} {
                    digest: '<error-digest>'
                  }
                  Export encountered an error on /sync-headers/page: /sync-headers, exiting the build."
@@ -2117,7 +2089,14 @@ describe('Cache Components Errors', () => {
                    - Move the read into a \`useEffect\` or event handler
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at a (<next-dist-dir>)
+                     at <unknown> (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                   3 | export function SyncIO() {
+                   4 |   // This is a sync IO access that should not cause an error
+                 > 5 |   const data = new Date().toISOString()
+                     |                ^
+                   6 |
+                   7 |   return (
+                   8 |     <main>
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/guarded-async-unguarded-clientsync" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2399,7 +2378,14 @@ describe('Cache Components Errors', () => {
                    - Move the read into a \`useEffect\` or event handler
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at a (<next-dist-dir>)
+                     at <unknown> (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                   3 | export function SyncIO() {
+                   4 |   // This is a sync IO access that should not cause an error
+                 > 5 |   const data = new Date().toISOString()
+                     |                ^
+                   6 |
+                   7 |   return (
+                   8 |     <main>
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-unguarded-clientsync" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2509,8 +2495,14 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
+                     at a (app/use-cache-cookies/page.tsx:22:11)
+                   20 |   // in userland.
+                   21 |   try {
+                 > 22 |     await cookies()
+                      |           ^
+                   23 |   } catch {}
+                   24 |
+                   25 |   return null
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-cookies" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2618,7 +2610,14 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (<next-dist-dir>)
+                     at a (app/use-cache-draft-mode/page.tsx:20:26)
+                   18 |   // here to ensure that this error is shown even when it's caught in userland.
+                   19 |   try {
+                 > 20 |     ;(await draftMode()).enable()
+                      |                          ^
+                   21 |   } catch {}
+                   22 |
+                   23 |   return null
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2726,8 +2725,14 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
+                     at a (app/use-cache-headers/page.tsx:21:11)
+                   19 |   // to ensure that this error is shown even when it's caught in userland.
+                   20 |   try {
+                 > 21 |     await headers()
+                      |           ^
+                   22 |   } catch {}
+                   23 |
+                   24 |   return null
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-headers" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2833,8 +2838,14 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-connection used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
+                     at a (app/use-cache-connection/page.tsx:21:11)
+                   19 |   // here to ensure that this error is shown even when it's caught in userland.
+                   20 |   try {
+                 > 21 |     await connection()
+                      |           ^
+                   22 |   } catch {}
+                   23 |
+                   24 |   return null
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-connection" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2963,40 +2974,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at a (<next-dist-dir>)
-                       at b (<next-dist-dir>)
-                       at c (<next-dist-dir>)
-                       at d (<next-dist-dir>)
-                       at e (<next-dist-dir>)
-                       at f (<next-dist-dir>)
-                       at g (<next-dist-dir>)
-                       at h (<next-dist-dir>)
-                       at i (<next-dist-dir>)
-                       at j (<next-dist-dir>)
-                       at k (<next-dist-dir>)
-                       at l (<next-dist-dir>)
-                       at m (<next-dist-dir>)
-                       at n (<next-dist-dir>)
-                       at o (<next-dist-dir>)
-                       at p (<next-dist-dir>)
-                       at q (<next-dist-dir>)
-                       at r (<next-dist-dir>)
-                       at s (<next-dist-dir>)
-                       at t (<next-dist-dir>)
                        at main (<anonymous>)
                        at body (<anonymous>)
                        at html (<anonymous>)
-                       at u (<next-dist-dir>)
-                       at v (<next-dist-dir>)
-                       at w (<next-dist-dir>)
-                       at x (<next-dist-dir>)
-                       at y (<next-dist-dir>)
-                       at z (<next-dist-dir>)
-                       at a (<next-dist-dir>)
-                       at b (<next-dist-dir>)
-                       at c (<next-dist-dir>)
-                       at d (<next-dist-dir>)
-                       at e (<next-dist-dir>)
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/fast" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -3124,40 +3104,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at a (<next-dist-dir>)
-                       at b (<next-dist-dir>)
-                       at c (<next-dist-dir>)
-                       at d (<next-dist-dir>)
-                       at e (<next-dist-dir>)
-                       at f (<next-dist-dir>)
-                       at g (<next-dist-dir>)
-                       at h (<next-dist-dir>)
-                       at i (<next-dist-dir>)
-                       at j (<next-dist-dir>)
-                       at k (<next-dist-dir>)
-                       at l (<next-dist-dir>)
-                       at m (<next-dist-dir>)
-                       at n (<next-dist-dir>)
-                       at o (<next-dist-dir>)
-                       at p (<next-dist-dir>)
-                       at q (<next-dist-dir>)
-                       at r (<next-dist-dir>)
-                       at s (<next-dist-dir>)
-                       at t (<next-dist-dir>)
                        at main (<anonymous>)
                        at body (<anonymous>)
                        at html (<anonymous>)
-                       at u (<next-dist-dir>)
-                       at v (<next-dist-dir>)
-                       at w (<next-dist-dir>)
-                       at x (<next-dist-dir>)
-                       at y (<next-dist-dir>)
-                       at z (<next-dist-dir>)
-                       at a (<next-dist-dir>)
-                       at b (<next-dist-dir>)
-                       at c (<next-dist-dir>)
-                       at d (<next-dist-dir>)
-                       at e (<next-dist-dir>)
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/slow" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -3260,7 +3209,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at a (<next-dist-dir>)
+                       at async k (app/use-cache-low-expire/nested/page.tsx:20:14)
+                     18 |   let result: number | undefined
+                     19 |   try {
+                   > 20 |     result = await outerCache()
+                        |              ^
+                     21 |   } catch {}
+                     22 |
+                     23 |   return (
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -3390,40 +3346,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at a (<next-dist-dir>)
-                       at b (<next-dist-dir>)
-                       at c (<next-dist-dir>)
-                       at d (<next-dist-dir>)
-                       at e (<next-dist-dir>)
-                       at f (<next-dist-dir>)
-                       at g (<next-dist-dir>)
-                       at h (<next-dist-dir>)
-                       at i (<next-dist-dir>)
-                       at j (<next-dist-dir>)
-                       at k (<next-dist-dir>)
-                       at l (<next-dist-dir>)
-                       at m (<next-dist-dir>)
-                       at n (<next-dist-dir>)
-                       at o (<next-dist-dir>)
-                       at p (<next-dist-dir>)
-                       at q (<next-dist-dir>)
-                       at r (<next-dist-dir>)
-                       at s (<next-dist-dir>)
-                       at t (<next-dist-dir>)
                        at main (<anonymous>)
                        at body (<anonymous>)
                        at html (<anonymous>)
-                       at u (<next-dist-dir>)
-                       at v (<next-dist-dir>)
-                       at w (<next-dist-dir>)
-                       at x (<next-dist-dir>)
-                       at y (<next-dist-dir>)
-                       at z (<next-dist-dir>)
-                       at a (<next-dist-dir>)
-                       at b (<next-dist-dir>)
-                       at c (<next-dist-dir>)
-                       at d (<next-dist-dir>)
-                       at e (<next-dist-dir>)
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/fast" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -3551,40 +3476,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at a (<next-dist-dir>)
-                       at b (<next-dist-dir>)
-                       at c (<next-dist-dir>)
-                       at d (<next-dist-dir>)
-                       at e (<next-dist-dir>)
-                       at f (<next-dist-dir>)
-                       at g (<next-dist-dir>)
-                       at h (<next-dist-dir>)
-                       at i (<next-dist-dir>)
-                       at j (<next-dist-dir>)
-                       at k (<next-dist-dir>)
-                       at l (<next-dist-dir>)
-                       at m (<next-dist-dir>)
-                       at n (<next-dist-dir>)
-                       at o (<next-dist-dir>)
-                       at p (<next-dist-dir>)
-                       at q (<next-dist-dir>)
-                       at r (<next-dist-dir>)
-                       at s (<next-dist-dir>)
-                       at t (<next-dist-dir>)
                        at main (<anonymous>)
                        at body (<anonymous>)
                        at html (<anonymous>)
-                       at u (<next-dist-dir>)
-                       at v (<next-dist-dir>)
-                       at w (<next-dist-dir>)
-                       at x (<next-dist-dir>)
-                       at y (<next-dist-dir>)
-                       at z (<next-dist-dir>)
-                       at a (<next-dist-dir>)
-                       at b (<next-dist-dir>)
-                       at c (<next-dist-dir>)
-                       at d (<next-dist-dir>)
-                       at e (<next-dist-dir>)
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -3689,7 +3583,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at a (<next-dist-dir>)
+                       at async k (app/use-cache-revalidate-0/nested/page.tsx:20:14)
+                     18 |   let result: number | undefined
+                     19 |   try {
+                   > 20 |     result = await outerCache()
+                        |              ^
+                     21 |   } catch {}
+                     22 |
+                     23 |   return (
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -3804,40 +3705,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-params/[slug]" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -4077,8 +3947,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route /use-cache-cookies-third-party used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at a (<next-dist-dir>)
-                       at b (<next-dist-dir>)
+                       at ignore-listed frames
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-cookies-third-party" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -4176,7 +4045,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route /use-cache-draft-mode-third-party used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at a (<next-dist-dir>)
+                       at ignore-listed frames
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode-third-party" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -4274,8 +4143,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route /use-cache-headers-third-party used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at a (<next-dist-dir>)
-                       at b (<next-dist-dir>)
+                       at ignore-listed frames
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-headers-third-party" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -4373,8 +4241,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route /use-cache-connection-third-party used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at a (<next-dist-dir>)
-                       at b (<next-dist-dir>)
+                       at ignore-listed frames
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-connection-third-party" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -4504,9 +4371,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
+                     at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                     at async g (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
+                   19 | }
+                   20 |
+                 > 21 | const getCachedData = unstable_cache(async () => {
+                      |                                      ^
+                   22 |   'use cache: private'
+                   23 |
+                   24 |   return fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -4631,13 +4504,27 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "⨯ Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at a (<next-dist-dir>)
-                     at b (<anonymous>) {
+                     at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at a (<anonymous>)
+                   13 | }
+                   14 |
+                 > 15 | async function Private() {
+                      | ^
+                   16 |   'use cache: private'
+                   17 |
+                   18 |   return <p>Private</p> {
                    digest: '<error-digest>'
                  }
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at c (<next-dist-dir>)
-                     at d (<anonymous>) {
+                     at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at b (<anonymous>)
+                   13 | }
+                   14 |
+                 > 15 | async function Private() {
+                      | ^
+                   16 |   'use cache: private'
+                   17 |
+                   18 |   return <p>Private</p> {
                    digest: '<error-digest>'
                  }
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -4771,30 +4658,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -4987,7 +4853,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
-                   at a (<next-dist-dir>)
+                   at a (app/sync-io-current-time/date/page.tsx:19:16)
+                 17 | async function DateReadingComponent() {
+                 18 |   await new Promise((r) => process.nextTick(r))
+               > 19 |   return <div>{Date()}</div>
+                    |                ^
+                 20 | }
+                 21 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -5132,7 +5004,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
-                   at a (<next-dist-dir>)
+                   at a (app/sync-io-current-time/date-now/page.tsx:19:21)
+                 17 | async function DateReadingComponent() {
+                 18 |   await new Promise((r) => process.nextTick(r))
+               > 19 |   return <div>{Date.now()}</div>
+                    |                     ^
+                 20 | }
+                 21 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -5277,7 +5155,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
-                   at a (<next-dist-dir>)
+                   at a (app/sync-io-current-time/new-date/page.tsx:19:16)
+                 17 | async function DateReadingComponent() {
+                 18 |   await new Promise((r) => process.nextTick(r))
+               > 19 |   return <div>{new Date().toString()}</div>
+                    |                ^
+                 20 | }
+                 21 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -5418,7 +5302,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (<next-dist-dir>)
+                   at a (app/sync-io-random/math-random/page.tsx:19:21)
+                 17 | async function SyncIOComponent() {
+                 18 |   await new Promise((r) => process.nextTick(r))
+               > 19 |   return <div>{Math.random()}</div>
+                    |                     ^
+                 20 | }
+                 21 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -5562,7 +5452,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
-                   at a (<next-dist-dir>)
+                   at a (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
+                 18 |   await new Promise((r) => process.nextTick(r))
+                 19 |   const buffer = new Uint8Array(8)
+               > 20 |   crypto.getRandomValues(buffer)
+                    |          ^
+                 21 |   return <div>{buffer.toString()}</div>
+                 22 | }
+                 23 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -5703,7 +5600,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
-                   at a (<next-dist-dir>)
+                   at a (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
+                 17 | async function SyncIOComponent() {
+                 18 |   await new Promise((r) => process.nextTick(r))
+               > 19 |   return <div>{crypto.randomUUID()}</div>
+                    |                       ^
+                 20 | }
+                 21 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -5838,12 +5741,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:17)
+                   at SyncIOComponent (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
                    at Page (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
-                    |                 ^
+                    |                        ^
                  21 |   return <div>{first.publicKey}</div>
                  22 | }
                  23 |
@@ -5865,7 +5768,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (<next-dist-dir>)
+                   at a (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
+                 18 | async function SyncIOComponent() {
+                 19 |   await new Promise((r) => process.nextTick(r))
+               > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
+                    |                        ^
+                 21 |   return <div>{first.publicKey}</div>
+                 22 | }
+                 23 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-pair-sync" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -6000,15 +5910,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-node-crypto/generate-key-sync/page.tsx:20:17)
+                   at SyncIOComponent (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
                    at Page (app/sync-io-node-crypto/generate-key-sync/page.tsx:12:9)
-                 18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
-               > 20 |   const first = crypto
-                    |                 ^
-                 21 |     .generateKeySync('hmac', {
+                 20 |   const first = crypto
+               > 21 |     .generateKeySync('hmac', {
+                    |      ^
                  22 |       length: 512,
                  23 |     })
+                 24 |     .export()
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-sync" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/generate-key-sync". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -6027,7 +5937,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (<next-dist-dir>)
+                   at a (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
+                 19 |   await new Promise((r) => process.nextTick(r))
+                 20 |   const first = crypto
+               > 21 |     .generateKeySync('hmac', {
+                    |      ^
+                 22 |       length: 512,
+                 23 |     })
+                 24 |     .export()
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-sync" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -6162,12 +6079,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:32)
+                   at SyncIOComponent (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
                    at Page (app/sync-io-node-crypto/generate-prime-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
-                    |                                ^
+                    |                                       ^
                  21 |   return <div>{first.toString()}</div>
                  22 | }
                  23 |
@@ -6189,7 +6106,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (<next-dist-dir>)
+                   at a (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
+                 18 | async function SyncIOComponent() {
+                 19 |   await new Promise((r) => process.nextTick(r))
+               > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
+                    |                                       ^
+                 21 |   return <div>{first.toString()}</div>
+                 22 | }
+                 23 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-prime-sync" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -6324,12 +6248,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
-                   at SyncIOComponent (app/sync-io-node-crypto/get-random-values/page.tsx:21:3)
+                   at SyncIOComponent (app/sync-io-node-crypto/get-random-values/page.tsx:21:10)
                    at Page (app/sync-io-node-crypto/get-random-values/page.tsx:12:9)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = new Uint8Array(8)
                > 21 |   crypto.getRandomValues(first)
-                    |   ^
+                    |          ^
                  22 |   return <div>{first.toString()}</div>
                  23 | }
                  24 |
@@ -6351,7 +6275,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
-                   at a (<next-dist-dir>)
+                   at a (app/sync-io-node-crypto/get-random-values/page.tsx:21:10)
+                 19 |   await new Promise((r) => process.nextTick(r))
+                 20 |   const first = new Uint8Array(8)
+               > 21 |   crypto.getRandomValues(first)
+                    |          ^
+                 22 |   return <div>{first.toString()}</div>
+                 23 | }
+                 24 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/get-random-values" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -6486,12 +6417,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-node-crypto/random-bytes/page.tsx:20:17)
+                   at SyncIOComponent (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
                    at Page (app/sync-io-node-crypto/random-bytes/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomBytes(8)
-                    |                 ^
+                    |                        ^
                  21 |   return <div>{first.toString()}</div>
                  22 | }
                  23 |
@@ -6513,7 +6444,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (<next-dist-dir>)
+                   at a (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
+                 18 | async function SyncIOComponent() {
+                 19 |   await new Promise((r) => process.nextTick(r))
+               > 20 |   const first = crypto.randomBytes(8)
+                    |                        ^
+                 21 |   return <div>{first.toString()}</div>
+                 22 | }
+                 23 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-bytes" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -6648,12 +6586,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:3)
+                   at SyncIOComponent (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
                    at Page (app/sync-io-node-crypto/random-fill-sync/page.tsx:12:9)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = new Uint8Array(16)
                > 21 |   crypto.randomFillSync(first, 4, 8)
-                    |   ^
+                    |          ^
                  22 |   return <div>{first.toString()}</div>
                  23 | }
                  24 |
@@ -6675,7 +6613,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (<next-dist-dir>)
+                   at a (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
+                 19 |   await new Promise((r) => process.nextTick(r))
+                 20 |   const first = new Uint8Array(16)
+               > 21 |   crypto.randomFillSync(first, 4, 8)
+                    |          ^
+                 22 |   return <div>{first.toString()}</div>
+                 23 | }
+                 24 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-fill-sync" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -6810,12 +6755,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-node-crypto/random-int-between/page.tsx:20:17)
+                   at SyncIOComponent (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
                    at Page (app/sync-io-node-crypto/random-int-between/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomInt(128, 256)
-                    |                 ^
+                    |                        ^
                  21 |   return <div>{first}</div>
                  22 | }
                  23 |
@@ -6837,7 +6782,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (<next-dist-dir>)
+                   at a (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
+                 18 | async function SyncIOComponent() {
+                 19 |   await new Promise((r) => process.nextTick(r))
+               > 20 |   const first = crypto.randomInt(128, 256)
+                    |                        ^
+                 21 |   return <div>{first}</div>
+                 22 | }
+                 23 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-between" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -6972,12 +6924,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:17)
+                   at SyncIOComponent (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
                    at Page (app/sync-io-node-crypto/random-int-up-to/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomInt(128)
-                    |                 ^
+                    |                        ^
                  21 |   return <div>{first}</div>
                  22 | }
                  23 |
@@ -6999,7 +6951,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (<next-dist-dir>)
+                   at a (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
+                 18 | async function SyncIOComponent() {
+                 19 |   await new Promise((r) => process.nextTick(r))
+               > 20 |   const first = crypto.randomInt(128)
+                    |                        ^
+                 21 |   return <div>{first}</div>
+                 22 | }
+                 23 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-up-to" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -7134,12 +7093,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-node-crypto/random-uuid/page.tsx:20:17)
+                   at SyncIOComponent (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
                    at Page (app/sync-io-node-crypto/random-uuid/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomUUID()
-                    |                 ^
+                    |                        ^
                  21 |   return <div>{first}</div>
                  22 | }
                  23 |
@@ -7161,7 +7120,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (<next-dist-dir>)
+                   at a (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
+                 18 | async function SyncIOComponent() {
+                 19 |   await new Promise((r) => process.nextTick(r))
+               > 20 |   const first = crypto.randomUUID()
+                    |                        ^
+                 21 |   return <div>{first}</div>
+                 22 | }
+                 23 |
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-uuid" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -7311,30 +7277,16 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at a (<next-dist-dir>)
-                   at b (<next-dist-dir>)
-                   at c (<next-dist-dir>)
-                   at d (<next-dist-dir>)
-                   at e (<next-dist-dir>)
-                   at f (<next-dist-dir>)
-                   at g (<next-dist-dir>)
-                   at h (<next-dist-dir>)
-                   at i (<next-dist-dir>)
-                   at j (<next-dist-dir>)
-                   at k (<next-dist-dir>)
+                   at <unknown> (app/client-awaited-io/client.tsx:5:26)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                   at l (<next-dist-dir>)
-                   at m (<next-dist-dir>)
-                   at n (<next-dist-dir>)
-                   at o (<next-dist-dir>)
-                   at p (<next-dist-dir>)
-                   at q (<next-dist-dir>)
-                   at r (<next-dist-dir>)
-                   at s (<next-dist-dir>)
-                   at t (<next-dist-dir>)
-                   at u (<next-dist-dir>)
-                   at v (<next-dist-dir>)
+                 3 | import { use } from 'react'
+                 4 |
+               > 5 | export function Client({ io }: { io: Promise<string> }) {
+                   |                          ^
+                 6 |   const data = use(io)
+                 7 |   return <div>Data: {data}</div>
+                 8 | }
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
