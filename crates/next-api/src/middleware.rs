@@ -183,14 +183,20 @@ impl MiddlewareEndpoint {
                         source.insert_str(0, "/:nextInternalLocale((?!_next/)[^/.]{1,})");
                     }
 
+                    // Match transport-specific route forms that resolve to the
+                    // same page:
+                    // - Pages Router data routes: /_next/data/<build-id>/...
+                    // - App Router transport routes: .rsc, ...segments/...segment.rsc
                     if is_root {
                         source.push('(');
                         if has_i18n {
                             source.push_str("|\\.json|");
                         }
-                        source.push_str("/?index|/?index\\.json)?")
+                        source.push_str("/?index|/?index\\.json|");
+                        source.push_str("/?index(?:\\.rsc|\\.segments/.+\\.segment\\.rsc)");
+                        source.push_str(")?");
                     } else {
-                        source.push_str("{(\\.json)}?")
+                        source.push_str("{(\\.json|\\.rsc|\\.segments/.+\\.segment\\.rsc)}?");
                     };
 
                     source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
