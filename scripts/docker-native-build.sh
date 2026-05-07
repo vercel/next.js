@@ -16,6 +16,12 @@
 
 set -xeo pipefail
 
+# The workspace is bind-mounted from the host, so its .git is owned by the
+# host runner UID while this container runs as root. Without this, git 2.35.2+
+# refuses to operate ("dubious ownership"), which breaks vergen-gitcl in
+# crates/next-napi-bindings/build.rs.
+git config --global --add safe.directory /build
+
 BUILD_TASK="${BUILD_TASK:-build-native-release}"
 
 # Node.js (installed via nodesource) is used only as a build tool (runs
