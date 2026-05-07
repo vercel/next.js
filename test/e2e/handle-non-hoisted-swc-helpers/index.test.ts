@@ -1,4 +1,4 @@
-import { createNext } from 'e2e-utils'
+import { createNext, isNextDev } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
@@ -24,8 +24,18 @@ describe('handle-non-hoisted-swc-helpers', () => {
           }
         `,
       },
+      packageJson: {
+        packageManager: 'npm@10.9.2',
+        scripts: {
+          build: 'next build',
+          dev: 'next dev',
+          start: 'next start',
+        },
+      },
       installCommand:
         'npm install; mkdir -p node_modules/next/node_modules/@swc; mv node_modules/@swc/helpers node_modules/next/node_modules/@swc/',
+      buildCommand: 'npm run build',
+      startCommand: isNextDev ? 'npm run dev' : 'npm run start',
       dependencies: {},
     })
   })

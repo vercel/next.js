@@ -45,6 +45,11 @@ export function runTests(
           },
           {} as { [key: string]: FileRef }
         ),
+        packageJson: {
+          // Bootstrap with classic yarn; the install command below runs
+          // `yarn set version berry` which rewrites this to the berry version.
+          packageManager: 'yarn@1.22.22',
+        },
         dependencies: {
           ...packageJson.dependencies,
           ...packageJson.devDependencies,

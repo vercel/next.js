@@ -48,6 +48,7 @@ for (const cacheEnabled of [false, true]) {
       files: __dirname,
       skipDeployment: true,
       packageJson: {
+        packageManager: 'npm@10.9.2',
         scripts: {
           build: `${envVars} next build`,
           dev: `${envVars} next dev`,
