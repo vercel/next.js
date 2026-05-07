@@ -44,7 +44,7 @@ export function InstantNavsPanel() {
     if (typeof cookieStore !== 'undefined') {
       cookieStore.set({
         name: COOKIE_NAME,
-        value: JSON.stringify([0, `p${Math.random()}`]),
+        value: JSON.stringify([0, `p${Math.random()}`, null]),
         path: '/',
       })
     }

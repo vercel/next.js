@@ -37,6 +37,14 @@ describe('instant-nav-panel', () => {
     await browser.elementByCss('[data-instant-nav]').click()
   }
 
+  async function clickViewPageLoad(browser: Playwright) {
+    await browser
+      // TODO: Monitor if we need to increase timeouts for all *instant calls
+      .elementByCss('[data-instant-nav-refresh]', { timeout: 50 })
+      .click()
+    await waitForInstantModeCookie(browser)
+  }
+
   async function clickStartClientNav(browser: Playwright) {
     await browser
       // TODO: Monitor if we need to increase timeouts for all *instant calls
@@ -92,6 +100,22 @@ describe('instant-nav-panel', () => {
 
     // Clean up
     await clearInstantModeCookie(browser)
+  })
+
+  it('should show page load state after clicking Reload', async () => {
+    const browser = await next.browser('/target-page/my-post?search=foo')
+    await clearInstantModeCookie(browser)
+
+    await openInstantNavPanel(browser)
+
+    await clickViewPageLoad(browser)
+
+    await retry(async () => {
+      const text = await getInstantNavPanelText(browser)
+      expect(text).toContain('Page load')
+      expect(text).toContain('pre-rendered static UI')
+      expect(text).toContain('Continue rendering')
+    })
   })
 
   it('should show client nav state after clicking Start and navigating', async () => {

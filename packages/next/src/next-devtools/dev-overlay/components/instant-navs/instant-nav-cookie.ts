@@ -2,9 +2,9 @@
  * Cookie reading and subscription for the instant navigation devtools panel.
  *
  * The cookie value is a JSON array:
- *   [0]        — pending (waiting to capture)
- *   [1, null]  — captured MPA page load
- *   [1, { from, to }] — captured SPA navigation (from/to route trees)
+ *   [0, id]        — pending (waiting to capture)
+ *   [1, id, null]  — captured MPA page load
+ *   [1, id, { from, to }] — captured SPA navigation (from/to route trees)
  *
  * The "to" tree may be null initially and updated after the prefetch resolves.
  */
