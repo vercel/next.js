@@ -16,6 +16,7 @@ import {
   ActionDidRevalidateStaticAndDynamic as ActionDidRevalidate,
 } from '../../../shared/lib/action-revalidation-kind'
 import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
+import { createRevalidateDuringUseCacheError } from '../../use-cache/use-cache-messages'
 
 type CacheLifeConfig = {
   expire?: number
@@ -144,9 +145,7 @@ function revalidate(
     switch (workUnitStore.type) {
       case 'cache':
       case 'private-cache':
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside a "use cache" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
-        )
+        throw createRevalidateDuringUseCacheError(expression)
       case 'unstable-cache':
         throw new Error(
           `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`

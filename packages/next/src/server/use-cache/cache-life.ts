@@ -1,6 +1,7 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import { createCacheLifeOutsideUseCacheError } from './use-cache-messages'
 
 export type CacheLife = {
   // How long the client can cache a value without checking with the server.
@@ -94,9 +95,7 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
     case 'unstable-cache':
     case 'generate-static-params':
     case undefined:
-      throw new Error(
-        '`cacheLife()` can only be called inside a "use cache" function.'
-      )
+      throw createCacheLifeOutsideUseCacheError()
     case 'cache':
     case 'private-cache':
       break

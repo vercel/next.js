@@ -28,6 +28,7 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
 import { isRequestAPICallableInsideAfter } from './utils'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { createHeadersInUseCacheError } from '../use-cache/use-cache-messages'
 import { RenderStage } from '../app-render/staged-rendering'
 
 /**
@@ -65,9 +66,7 @@ export function headers(): Promise<ReadonlyHeaders> {
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'cache': {
-          const error = new Error(
-            `Route ${workStore.route} used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-          )
+          const error = createHeadersInUseCacheError()
           Error.captureStackTrace(error, headers)
           applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
