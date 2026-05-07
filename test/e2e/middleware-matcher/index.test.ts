@@ -111,6 +111,83 @@ describe('Middleware can set the matcher in its config', () => {
     }, 'success')
   })
 
+  if ((global as any).isNextStart) {
+    it('produces the expected middleware manifest', async () => {
+      const manifest = JSON.parse(
+        await next.readFile('.next/server/middleware-manifest.json')
+      )
+
+      // Redact volatile fields so the snapshot is stable across builds:
+      // - `env` values are randomly generated per build (encryption keys,
+      //   preview mode ids, build id).
+      // - `files` and `entrypoint` paths contain content hashes and may
+      //   differ between webpack and Turbopack.
+      const normalize = (value: unknown, key?: string): unknown => {
+        if (key === 'env' && value && typeof value === 'object') {
+          return Object.fromEntries(
+            Object.keys(value)
+              .sort()
+              .map((k) => [k, '<redacted>'])
+          )
+        }
+        if (key === 'files') return '<files>'
+        if (key === 'entrypoint') return '<entrypoint>'
+        if (Array.isArray(value)) return value.map((v) => normalize(v))
+        if (value && typeof value === 'object') {
+          return Object.fromEntries(
+            Object.entries(value).map(([k, v]) => [k, normalize(v, k)])
+          )
+        }
+        return value
+      }
+
+      expect(normalize(manifest)).toMatchInlineSnapshot(`
+       {
+         "functions": {},
+         "middleware": {
+           "/": {
+             "assets": [],
+             "entrypoint": "<entrypoint>",
+             "env": {
+               "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "<redacted>",
+               "__NEXT_BUILD_ID": "<redacted>",
+               "__NEXT_PREVIEW_MODE_ENCRYPTION_KEY": "<redacted>",
+               "__NEXT_PREVIEW_MODE_ID": "<redacted>",
+               "__NEXT_PREVIEW_MODE_SIGNING_KEY": "<redacted>",
+             },
+             "files": "<files>",
+             "matchers": [
+               {
+                 "originalSource": "/",
+                 "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?(?:\\/(\\/?index|\\/?index\\.json))?[\\/#\\?]?$",
+               },
+               {
+                 "originalSource": "/with-middleware/:path*",
+                 "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/with-middleware(?:\\/((?:[^\\/#\\?]+?)(?:\\/(?:[^\\/#\\?]+?))*))?(\\.json)?[\\/#\\?]?$",
+               },
+               {
+                 "originalSource": "/another-middleware/:path*",
+                 "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/another-middleware(?:\\/((?:[^\\/#\\?]+?)(?:\\/(?:[^\\/#\\?]+?))*))?(\\.json)?[\\/#\\?]?$",
+               },
+               {
+                 "originalSource": "/_sites/:path((?![^/]*\\.json$)[^/]+$)",
+                 "regexp": "^(?:\\/(_next\\/data\\/[^/]{1,}))?\\/_sites(?:\\/((?![^/]*\\.json$)[^/]+$))(\\.json)?[\\/#\\?]?$",
+               },
+             ],
+             "name": "middleware",
+             "page": "/",
+             "wasm": [],
+           },
+         },
+         "sortedMiddleware": [
+           "/",
+         ],
+         "version": 3,
+       }
+      `)
+    })
+  }
+
   it('should navigate correctly with matchers', async () => {
     const browser = await webdriver(next.url, '/')
     await browser.eval('window.beforeNav = 1')
