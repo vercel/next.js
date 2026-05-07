@@ -146,6 +146,7 @@ export async function exportAppPage(
         fallbackRouteParams != null && fallbackRouteParams.size > 0
       const shouldWriteRsc =
         !renderOpts.experimental.isRoutePPREnabled ||
+        hasFallbackParams ||
         (!postponed && !hasFallbackParams)
       hasStaticRsc = shouldWriteRsc
 
