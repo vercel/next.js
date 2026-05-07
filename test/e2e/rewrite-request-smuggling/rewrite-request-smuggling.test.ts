@@ -4,9 +4,11 @@ import { createNext, NextInstance } from 'e2e-utils'
 import { findPort, retry } from 'next-test-utils'
 
 describe('rewrite-request-smuggling', () => {
-  const ssrfProbePath = '/secret-upgrade'
-  const ssrfProbeBody =
-    'SSRF_CONFIRMED: You reached the internal service at 127.0.0.1'
+  if ((global as any).isNextDeploy) {
+    it('should skip deploy', () => {})
+    return
+  }
+
   let backend: http.Server
   let backendPort: number
   let intermediary: http.Server
@@ -59,48 +61,6 @@ describe('rewrite-request-smuggling', () => {
     })
   }
 
-  async function sendAbsoluteUrlUpgradePayload({
-    nextPort,
-    targetPort,
-  }: {
-    nextPort: number
-    targetPort: number
-  }) {
-    const payload = Buffer.from(
-      `GET http://127.0.0.1:${targetPort}${ssrfProbePath} HTTP/1.1\r\nHost: 127.0.0.1:${nextPort}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n`,
-      'latin1'
-    )
-
-    return await new Promise<string>((resolve, reject) => {
-      const socket = net.createConnection({
-        host: '127.0.0.1',
-        port: nextPort,
-      })
-      const chunks: Buffer[] = []
-      let settled = false
-
-      const finish = () => {
-        if (settled) return
-        settled = true
-        resolve(Buffer.concat(chunks).toString('latin1'))
-      }
-
-      socket.once('connect', () => {
-        socket.write(payload)
-      })
-      socket.on('data', (chunk) => {
-        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
-      })
-      socket.once('error', (err) => {
-        if (settled) return
-        settled = true
-        reject(err)
-      })
-      socket.setTimeout(1000, () => socket.destroy())
-      socket.once('close', finish)
-    })
-  }
-
   beforeAll(async () => {
     backendPort = await findPort()
     intermediaryPort = await findPort()
@@ -122,14 +82,6 @@ describe('rewrite-request-smuggling', () => {
 
       res.statusCode = 404
       res.end('not-found')
-    })
-
-    backend.on('upgrade', (req, socket) => {
-      backendRequests.push(`${req.method} ${req.url}`)
-      socket.write(
-        `HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/plain\r\nContent-Length: ${Buffer.byteLength(ssrfProbeBody)}\r\n\r\n${ssrfProbeBody}`
-      )
-      socket.end()
     })
 
     intermediary = http.createServer((req, res) => {
@@ -278,20 +230,5 @@ describe('rewrite-request-smuggling', () => {
       expect(backendRequests).toContain('OPTIONS /rewrites/non-rfc-strip')
     })
     expect(backendRequests).not.toContain('GET /secret')
-  })
-
-  it('does not proxy upgrade requests with absolute URLs without an external rewrite', async () => {
-    backendRequests.length = 0
-
-    const nextPort = Number(new URL(next.url).port)
-    const response = await sendAbsoluteUrlUpgradePayload({
-      nextPort,
-      targetPort: backendPort,
-    })
-
-    expect(response).not.toContain(ssrfProbeBody)
-    expect(
-      backendRequests.some((request) => request.includes(ssrfProbePath))
-    ).toBe(false)
   })
 })

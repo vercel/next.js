@@ -867,7 +867,13 @@ export abstract class RouteModule<
     }
 
     serverUtils.normalizeCdnUrl(req, combinedParamKeys)
-    serverUtils.normalizeQueryParams(query, routeParamKeys)
+    // When Next is not hosted in a single process, upstream proxies will add query values for route params that were used to match the route.
+    // Outside of that environment, there is no reason to do any normalization to honor those query values.
+    if (!routerServerContext?.isWrappedByNextServer) {
+      serverUtils.normalizeQueryParams(query, routeParamKeys)
+    } else {
+      serverUtils.filterInternalQuery(query, [])
+    }
     serverUtils.filterInternalQuery(originalQuery, combinedParamKeys)
 
     if (pageIsDynamic) {

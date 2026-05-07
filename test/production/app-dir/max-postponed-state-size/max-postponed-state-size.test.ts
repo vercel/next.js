@@ -3,6 +3,9 @@ import { nextTestSetup } from 'e2e-utils'
 describe('app-dir - max postponed state size', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    env: {
+      NEXT_PRIVATE_TEST_HEADERS: '1',
+    },
   })
 
   it('should return 413 when next-resume request exceeds max postponed state size', async () => {

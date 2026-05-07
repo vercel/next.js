@@ -31,7 +31,10 @@ import {
 import { indexOfUint8Array } from '../stream-utils/uint8array-helpers'
 import { ENCODED_TAGS } from '../stream-utils/encoded-tags'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
-import { htmlEscapeJsonString } from '../htmlescape'
+import {
+  htmlEscapeAttributeString,
+  htmlEscapeJsonString,
+} from '../../shared/lib/htmlescape'
 import { createInlinedDataReadableStream } from './use-flight-response'
 import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
 import { DetachedPromise } from '../../lib/detached-promise'
@@ -937,7 +940,7 @@ export function createNodeInlinedDataStream(
   formState: unknown | null
 ): AnyStream {
   const startScriptTag = nonce
-    ? `<script nonce=${JSON.stringify(nonce)}>`
+    ? `<script nonce="${htmlEscapeAttributeString(nonce)}">`
     : '<script>'
 
   const dataStream = webToReadable(source)
