@@ -579,6 +579,6 @@ export function getCards(
     case 'sync-io-client':
       return (cause && syncClientCardsByCause[cause]) || syncClientMathCards
     default:
-      return runtimeCards
+      return kind satisfies never
   }
 }

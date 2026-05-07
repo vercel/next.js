@@ -199,11 +199,11 @@ describe('instant validation - level error', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/bare": Next.js encountered uncached data during the initial render.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
-           - Move the data access into a child component within a <Suspense> boundary
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -225,11 +225,11 @@ describe('instant validation - level error', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/explicit-error": Next.js encountered uncached data during the initial render.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
-           - Move the data access into a child component within a <Suspense> boundary
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -251,11 +251,11 @@ describe('instant validation - level error', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/explicit-true": Next.js encountered uncached data during the initial render.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
-           - Move the data access into a child component within a <Suspense> boundary
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -290,11 +290,11 @@ describe('instant validation - level error', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/layered": Next.js encountered uncached data during the initial render.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
-           - Move the data access into a child component within a <Suspense> boundary
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
