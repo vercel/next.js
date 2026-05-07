@@ -64,6 +64,9 @@ const nextjsReactPeerVersion = "19.1.0";
 const latestSupportedTypeScriptVersion = '5.8.2'
 const latestSupportedNodeTypesVersion = '20.17.6'
 
+const ROOT_PACKAGE_MANAGER: string =
+  require('../../../package.json').packageManager
+
 export class NextInstance {
   protected files: ResolvedFileConfig
   protected overrideFiles: ResolvedFileConfig
@@ -228,6 +231,10 @@ export class NextInstance {
             path.join(this.testDir, 'package.json'),
             JSON.stringify(
               {
+                // Pin packageManager so corepack doesn't auto-inject a reference
+                // to the latest version (and rewrite this file mid-test).
+                // Callers can override via packageJson.packageManager.
+                packageManager: ROOT_PACKAGE_MANAGER,
                 ...this.packageJson,
                 dependencies: {
                   ...finalDependencies,
