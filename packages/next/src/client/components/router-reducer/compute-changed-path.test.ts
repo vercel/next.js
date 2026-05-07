@@ -1,4 +1,4 @@
-import { computeChangedPath } from './compute-changed-path'
+import { computeChangedPath, getSelectedParams } from './compute-changed-path'
 import { PrefetchHint } from '../../../shared/lib/app-router-types'
 
 describe('computeChangedPath', () => {
@@ -57,5 +57,64 @@ describe('computeChangedPath', () => {
         ]
       )
     ).toBe('/')
+  })
+})
+
+describe('getSelectedParams', () => {
+  const originalOutput = process.env.__NEXT_CONFIG_OUTPUT
+  const originalBasePath = process.env.__NEXT_ROUTER_BASEPATH
+  const originalWindow = global.window
+
+  afterEach(() => {
+    process.env.__NEXT_CONFIG_OUTPUT = originalOutput
+    process.env.__NEXT_ROUTER_BASEPATH = originalBasePath
+    global.window = originalWindow
+  })
+
+  it('resolves deferred export fallback params from the current pathname', () => {
+    process.env.__NEXT_CONFIG_OUTPUT = 'export'
+    global.window = {
+      location: {
+        pathname: '/another/third',
+      },
+    } as Window & typeof globalThis
+
+    expect(
+      getSelectedParams([
+        '',
+        {
+          children: [
+            'another',
+            {
+              children: [['slug', '%%drp:slug:abc123%%', 'd', null], {}],
+            },
+          ],
+        },
+      ])
+    ).toEqual({ slug: 'third' })
+  })
+
+  it('resolves deferred export fallback params after removing basePath', () => {
+    process.env.__NEXT_CONFIG_OUTPUT = 'export'
+    process.env.__NEXT_ROUTER_BASEPATH = '/base'
+    global.window = {
+      location: {
+        pathname: '/base/another/third',
+      },
+    } as Window & typeof globalThis
+
+    expect(
+      getSelectedParams([
+        '',
+        {
+          children: [
+            'another',
+            {
+              children: [['slug', '%%drp:slug:abc123%%', 'd', null], {}],
+            },
+          ],
+        },
+      ])
+    ).toEqual({ slug: 'third' })
   })
 })
