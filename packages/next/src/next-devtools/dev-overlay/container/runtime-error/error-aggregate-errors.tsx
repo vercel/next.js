@@ -134,8 +134,4 @@ export const styles = `
     overflow-wrap: break-word;
     white-space: pre-wrap;
   }
-
-  .error-aggregate-error-message a {
-    color: inherit;
-  }
 `

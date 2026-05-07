@@ -102,8 +102,4 @@ export const styles = `
     overflow-wrap: break-word;
     white-space: pre-wrap;
   }
-
-  .error-cause-message a {
-    color: inherit;
-  }
 `
