@@ -242,7 +242,7 @@ export interface TurbopackOptions {
   }>
 
   /**
-   * (`next --turbopack` only) Override the global variable name used for
+   * Override the global variable name used for
    * chunk loading. Useful when multiple Turbopack-built apps run on the same
    * page (e.g. horizontal micro-frontends) to avoid `globalThis.TURBOPACK`
    * conflicts.
