@@ -233,6 +233,10 @@ import {
   createOfflineNavigationFallbackDocument,
   getOfflineNavigationFallbackFilePath,
 } from './offline-navigation-fallback'
+import {
+  createOfflineNavigationManifest,
+  getOfflineNavigationManifestFilePath,
+} from './offline-navigation-manifest'
 
 type Fallback = null | boolean | string
 
@@ -4097,7 +4101,7 @@ export default async function build(
 
       if (config.experimental.offlineNavigations && appDir) {
         await nextBuildSpan
-          .traceChild('write-offline-navigation-fallback')
+          .traceChild('write-offline-navigation-artifacts')
           .traceAsyncFn(async () => {
             const fallbackDocument = createOfflineNavigationFallbackDocument({
               assetPrefix: config.assetPrefix,
@@ -4116,6 +4120,17 @@ export default async function build(
             )
             await mkdir(path.dirname(fallbackPath), { recursive: true })
             await writeFileUtf8(fallbackPath, fallbackDocument)
+
+            await writeManifest(
+              path.join(distDir, getOfflineNavigationManifestFilePath(buildId)),
+              createOfflineNavigationManifest({
+                assetPrefix: config.assetPrefix,
+                basePath: config.basePath,
+                buildId,
+                output: config.output,
+                trailingSlash: config.trailingSlash,
+              })
+            )
           })
       }
 
