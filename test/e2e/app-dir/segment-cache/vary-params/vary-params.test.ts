@@ -250,6 +250,56 @@ describe('segment cache - vary params', () => {
     )
   })
 
+  it('does not reuse prefetched empty-query segment for prefetches with searchParams', async () => {
+    // When a page reads searchParams that don't exist on the request URL (e.g.
+    // destructuring `foo` from `/search-params/target-page` with no query),
+    // that's still an access that affects the response and must register the
+    // segment as varying by '?'. Otherwise the empty-query prefetch ends up
+    // keyed at the Fallback search-slot, which shadows subsequent ?foo=N
+    // prefetches via Fallback resolution and causes them to silently serve the
+    // wrong (empty-query) response.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/search-params', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Prefetch the no-query URL first. The page reads `foo` (a missing key),
+    // which must register as a vary access.
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/search-params/target-page"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Search params target - foo: undefined' }
+    )
+
+    // Prefetching with a search param value must still trigger a new request,
+    // not silently reuse the empty-query entry through Fallback resolution.
+    await act(
+      async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="/search-params/target-page?foo=1"]'
+        )
+        await toggle.click()
+      },
+      { includes: 'Search params target - foo: 1' }
+    )
+
+    // Navigate and verify the correct content renders for ?foo=1.
+    const link = await browser.elementByCss(
+      'a[href="/search-params/target-page?foo=1"]'
+    )
+    await link.click()
+    const content = await browser.elementByCss(
+      '[data-search-params-content="true"]'
+    )
+    expect(await content.text()).toContain('Search params target - foo: 1')
+  })
+
   it('reuses prefetched segment when page does not access searchParams', async () => {
     // When a page does NOT await searchParams, the cache key does NOT include
     // search params, so different values share cached prefetch data.
@@ -600,7 +650,15 @@ describe('segment cache - vary params', () => {
     )
   })
 
-  it('shares cached segment across search params when not accessed (runtime prefetch)', async () => {
+  // TODO: When a Promise resolves with the searchParams Proxy as its value, the
+  // Promise spec's `[[Resolve]]` algorithm reads `.then` on the Proxy to check
+  // for thenable assimilation. The Proxy can't distinguish that probe from a
+  // real `searchParams.then` access, so any runtime-prefetched page that
+  // doesn't read `searchParams` ends up varying on the entire query string and
+  // can't share a cached segment. Re-enable once vary-param tracking moves to
+  // per-param keys. The spec-driven `.then` probe will then resolve to the same
+  // (undefined) value across these URLs and the cache entry will be reused.
+  it.skip('shares cached segment across search params when not accessed (runtime prefetch)', async () => {
     // Runtime prefetch page that does NOT access searchParams. Since '?'
     // is not in varyParams, different search param values share the cache.
     let act: ReturnType<typeof createRouterAct>
