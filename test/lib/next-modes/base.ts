@@ -71,6 +71,8 @@ type OmitFirstArgument<F> = F extends (
 // prettier-ignore
 const nextjsReactPeerVersion = "19.2.4";
 
+const ROOT_PACKAGE_MANAGER: string = require('../../../package.json').packageManager
+
 export class NextInstance {
   protected files: ResolvedFileConfig
   protected overrideFiles: ResolvedFileConfig
@@ -272,6 +274,10 @@ export class NextInstance {
             path.join(this.testDir, 'package.json'),
             JSON.stringify(
               {
+                // Pin packageManager so corepack doesn't auto-inject a reference
+                // to the latest version (and rewrite this file mid-test).
+                // Callers can override via packageJson.packageManager.
+                packageManager: ROOT_PACKAGE_MANAGER,
                 ...this.packageJson,
                 dependencies: {
                   ...finalDependencies,

@@ -24,6 +24,9 @@ describe('handle-non-hoisted-swc-helpers', () => {
           }
         `,
       },
+      packageJson: {
+        packageManager: 'npm@10.9.2',
+      },
       installCommand:
         'npm install; mkdir -p node_modules/next/node_modules/@swc; mv node_modules/@swc/helpers node_modules/next/node_modules/@swc/',
       dependencies: {},
