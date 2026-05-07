@@ -83,6 +83,7 @@ type SpaFetchServerResponseResult = {
   flightData: NormalizedFlightData[]
   canonicalUrl: URL
   renderedSearch: NormalizedSearch
+  outputExportFallbackBasePath: string | null
   couldBeIntercepted: boolean
   supportsPerSegmentPrefetching: boolean
   postponed: boolean
@@ -169,6 +170,7 @@ export async function fetchServerResponse(
 
   try {
     let usedCachedOutputExportFallback = false
+    let outputExportFallbackBasePath: string | null = null
     if (
       process.env.NODE_ENV === 'production' &&
       process.env.__NEXT_CONFIG_OUTPUT === 'export'
@@ -184,11 +186,16 @@ export async function fetchServerResponse(
       }
 
       if (process.env.__NEXT_OUTPUT_EXPORT_DYNAMIC_FALLBACKS) {
-        const { getCachedOutputExportFallbackRequestUrl } =
+        const {
+          getCachedOutputExportFallbackBasePath,
+          getCachedOutputExportFallbackRequestUrl,
+        } =
           require('../../output-export-fallback') as typeof import('../../output-export-fallback')
         const fallbackRequestUrl = getCachedOutputExportFallbackRequestUrl(url)
         if (fallbackRequestUrl !== null) {
           usedCachedOutputExportFallback = true
+          outputExportFallbackBasePath =
+            getCachedOutputExportFallbackBasePath(url)
           url = fallbackRequestUrl
         }
       } else {
@@ -252,6 +259,7 @@ export async function fetchServerResponse(
 
           if (fallbackResult !== null) {
             usedOutputExportFallback = true
+            outputExportFallbackBasePath = fallbackResult.fallbackUrl.pathname
             const { response: processed, cacheData } = await processFetch(
               fallbackResult.response
             )
@@ -369,6 +377,7 @@ export async function fetchServerResponse(
       // header alone. So we need to investigate why the header is sometimes
       // wrong for interception routes.
       renderedSearch: flightResponse.q as NormalizedSearch,
+      outputExportFallbackBasePath,
       couldBeIntercepted: interception,
       supportsPerSegmentPrefetching: flightResponse.S,
       postponed,

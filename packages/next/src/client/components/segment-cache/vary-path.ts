@@ -244,7 +244,8 @@ export function finalizeMetadataVaryPath(
 
 export function getSegmentVaryPathForRequest(
   fetchStrategy: FetchStrategy,
-  tree: RouteTree
+  tree: RouteTree,
+  outputExportFallbackBasePath: string | null = null
 ): SegmentVaryPath {
   // This is used for storing pending requests in the cache. We want to choose
   // the most generic vary path based on the strategy used to fetch it, i.e.
@@ -272,6 +273,15 @@ export function getSegmentVaryPathForRequest(
   // Only page segments (and the special "metadata" segment, which is treated
   // like a page segment for the purposes of caching) may contain search
   // params. There's no reason to include them in the vary path otherwise.
+  const originalPathParamsVaryPath = tree.isPage
+    ? getPartialPageVaryPath(originalVaryPath as PageVaryPath)
+    : getPartialLayoutVaryPath(originalVaryPath as LayoutVaryPath)
+
+  const pathParamsVaryPath =
+    outputExportFallbackBasePath !== null
+      ? clonePathParamsVaryPathWithFallback(originalPathParamsVaryPath)
+      : originalPathParamsVaryPath
+
   if (tree.isPage) {
     // Only a runtime prefetch will include search params in the vary path.
     // Static prefetches never include search params, so they can be reused
@@ -287,8 +297,6 @@ export function getSegmentVaryPathForRequest(
       //
       // requestKey -> searchParams -> pathParams
       //               ^ This part gets replaced with Fallback
-      const searchParamsVaryPath = (originalVaryPath as PageVaryPath).parent
-      const pathParamsVaryPath = searchParamsVaryPath.parent
       const patchedVaryPath: VaryPath = {
         id: null,
         value: originalVaryPath.value,
@@ -300,10 +308,51 @@ export function getSegmentVaryPathForRequest(
       }
       return patchedVaryPath as SegmentVaryPath
     }
+
+    if (pathParamsVaryPath !== originalPathParamsVaryPath) {
+      const searchParamsVaryPath = (originalVaryPath as PageVaryPath).parent
+      const patchedVaryPath: VaryPath = {
+        id: null,
+        value: originalVaryPath.value,
+        parent: {
+          id: '?',
+          value: searchParamsVaryPath.value,
+          parent: pathParamsVaryPath,
+        },
+      }
+      return patchedVaryPath as SegmentVaryPath
+    }
+  }
+
+  if (pathParamsVaryPath !== originalPathParamsVaryPath) {
+    const patchedVaryPath: VaryPath = {
+      id: null,
+      value: originalVaryPath.value,
+      parent: pathParamsVaryPath,
+    }
+    return patchedVaryPath as SegmentVaryPath
   }
 
   // The request does vary on search params. We don't need to modify anything.
   return originalVaryPath as SegmentVaryPath
+}
+
+function clonePathParamsVaryPathWithFallback(
+  originalVaryPath: PartialSegmentVaryPath | null
+): PartialSegmentVaryPath | null {
+  if (originalVaryPath === null) {
+    return null
+  }
+
+  const clonedParent = clonePathParamsVaryPathWithFallback(
+    originalVaryPath.parent as PartialSegmentVaryPath | null
+  )
+  const clonedVaryPath: VaryPath = {
+    id: originalVaryPath.id,
+    value: originalVaryPath.id === null ? originalVaryPath.value : Fallback,
+    parent: clonedParent,
+  }
+  return clonedVaryPath as PartialSegmentVaryPath
 }
 
 export function clonePageVaryPathWithNewSearchParams(
@@ -336,7 +385,8 @@ export function getRenderedSearchFromVaryPath(
 
 export function getFulfilledSegmentVaryPath(
   original: VaryPath,
-  varyParams: Set<string>
+  varyParams: Set<string>,
+  forceFallbackPathParams: boolean = false
 ): SegmentVaryPath {
   // Re-keys a segment's vary path based on which params the segment actually
   // depends on. Params that are NOT in the varyParams set are replaced with
@@ -348,17 +398,26 @@ export function getFulfilledSegmentVaryPath(
   // accessed during rendering.
   const clone: VaryPath = {
     id: original.id,
-    // If the id is null, this node is not a param (e.g., it's a request key).
-    // If the id is in the varyParams set, keep the original value.
-    // Otherwise, replace with Fallback to make it reusable.
+    // If the id is null, this node is not a param (e.g., it's a request key),
+    // so always preserve it. For output export fallback routes, path params
+    // are always generic even if the server reports them as accessed, because
+    // the emitted fallback artifacts are shared across all param values.
     value:
-      original.id === null || varyParams.has(original.id)
+      original.id === null
         ? original.value
-        : Fallback,
+        : forceFallbackPathParams && original.id !== '?'
+          ? Fallback
+          : varyParams.has(original.id)
+            ? original.value
+            : Fallback,
     parent:
       original.parent === null
         ? null
-        : getFulfilledSegmentVaryPath(original.parent, varyParams),
+        : getFulfilledSegmentVaryPath(
+            original.parent,
+            varyParams,
+            forceFallbackPathParams
+          ),
   }
   return clone as SegmentVaryPath
 }
