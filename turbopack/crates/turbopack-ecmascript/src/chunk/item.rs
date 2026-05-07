@@ -316,7 +316,7 @@ async fn module_factory_with_code_generation_issue(
             let js_error_message = serde_json::to_string(&error_message)?;
             CodeGenerationIssue {
                 severity: IssueSeverity::Error,
-                path: chunk_item.asset_ident().path().owned().await?,
+                path: chunk_item.asset_ident().await?.path.clone(),
                 title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
                     .resolved_cell(),
                 message: StyledString::Text(error_message).resolved_cell(),

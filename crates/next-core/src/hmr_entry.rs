@@ -35,7 +35,8 @@ async fn hmr_entry_point_base_ident() -> Result<Vc<AssetIdent>> {
             .root()
             .await?
             .join("hmr-entry.js")?,
-    ))
+    )
+    .into_vc())
 }
 
 #[turbo_tasks::value(shared)]
@@ -58,8 +59,12 @@ impl HmrEntryModule {
 #[turbo_tasks::value_impl]
 impl Module for HmrEntryModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        hmr_entry_point_base_ident().with_asset(rcstr!("ENTRY"), *self.ident)
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(hmr_entry_point_base_ident()
+            .owned()
+            .await?
+            .with_asset(rcstr!("ENTRY"), self.ident)
+            .into_vc())
     }
 
     #[turbo_tasks::function]

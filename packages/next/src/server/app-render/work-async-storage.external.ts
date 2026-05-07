@@ -6,6 +6,7 @@ import type { AppSegmentConfig } from '../../build/segment-config/app/app-segmen
 import type { AfterContext } from '../after/after-context'
 import type { CacheLife } from '../use-cache/cache-life'
 import type { SharedCacheResult } from '../use-cache/use-cache-wrapper'
+import type { ValidationLevel } from '../config-shared'
 
 // Share the instance module in the next-shared layer
 import { workAsyncStorageInstance } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
@@ -132,6 +133,7 @@ export interface WorkStore {
   readonly nonce?: string
 
   cacheComponentsEnabled: boolean
+  validationLevel: ValidationLevel
 
   /**
    * Run the given function inside a clean AsyncLocalStorage snapshot. This is

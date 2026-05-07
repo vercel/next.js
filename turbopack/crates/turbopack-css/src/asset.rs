@@ -137,12 +137,14 @@ impl Module for CssModule {
         let mut ident = self
             .source
             .ident()
+            .owned()
+            .await?
             .with_modifier(rcstr!("css"))
             .with_layer(self.asset_context.into_trait_ref().await?.layer());
         if let Some(import_context) = self.import_context {
             ident = ident.with_modifier(import_context.modifier().owned().await?)
         }
-        Ok(ident)
+        Ok(ident.into_vc())
     }
 
     #[turbo_tasks::function]
@@ -201,8 +203,8 @@ impl CssChunkPlaceable for CssModule {}
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for CssModule {
     #[turbo_tasks::function]
-    fn origin_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
+    async fn origin_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self.source.ident().await?.path.clone().cell())
     }
 
     #[turbo_tasks::function]

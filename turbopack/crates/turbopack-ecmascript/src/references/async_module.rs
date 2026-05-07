@@ -7,7 +7,7 @@ use swc_core::{
 };
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     trace::TraceRawVcs,
 };
 use turbopack_core::{
@@ -87,7 +87,7 @@ struct AsyncModuleIdents(
 
 async fn get_inherit_async_referenced_asset(
     r: ResolvedVc<Box<dyn ModuleReference>>,
-) -> Result<Option<ReadRef<ReferencedAsset>>> {
+) -> Result<Option<ReferencedAsset>> {
     let trait_ref = r.into_trait_ref().await?;
     let Some(ty) = &trait_ref.chunking_type() else {
         return Ok(None);
@@ -101,7 +101,7 @@ async fn get_inherit_async_referenced_asset(
     ) {
         return Ok(None);
     };
-    let referenced_asset: turbo_tasks::ReadRef<ReferencedAsset> =
+    let referenced_asset: ReferencedAsset =
         ReferencedAsset::from_resolve_result(r.resolve_reference()).await?;
     Ok(Some(referenced_asset))
 }
@@ -124,7 +124,7 @@ impl AsyncModule {
                 let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await? else {
                     return Ok(None);
                 };
-                Ok(match &*referenced_asset {
+                Ok(match &referenced_asset {
                     ReferencedAsset::External(_, ExternalType::EcmaScriptModule) => {
                         if self.import_externals {
                             referenced_asset
@@ -177,7 +177,7 @@ impl AsyncModule {
                             return Ok(false);
                         };
                         Ok(matches!(
-                            &*referenced_asset,
+                            &referenced_asset,
                             ReferencedAsset::External(_, ExternalType::EcmaScriptModule)
                         ))
                     })
