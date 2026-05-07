@@ -197,11 +197,6 @@ fn get_args<T: DynTaskInputs + Clone>(arg: &dyn DynTaskInputs) -> Result<T> {
     return anyhow::Context::context(value, "Invalid argument type");
 }
 
-// Helper function for `task_fn_impl!()`
-async fn output_try_into_non_local_raw_vc(output: impl TaskOutput) -> Result<RawVc> {
-    output.try_into_raw_vc()?.to_non_local().await
-}
-
 macro_rules! task_fn_impl {
     ( $async_fn_trait:ident $arg_len:literal $( $arg:ident )* ) => {
         impl<F, Output, $($arg,)*> TaskFnInputFunction<FunctionMode, ($($arg,)*)> for F
@@ -215,8 +210,7 @@ macro_rules! task_fn_impl {
                 let task_fn = self.clone();
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
-                    let output = (task_fn)($($arg,)*);
-                    output_try_into_non_local_raw_vc(output).await
+                    (task_fn)($($arg,)*).try_into_raw_vc()
                 }))
             }
         }
@@ -233,8 +227,7 @@ macro_rules! task_fn_impl {
                 let task_fn = self.clone();
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
-                    let output = (task_fn)($($arg,)*).await;
-                    output_try_into_non_local_raw_vc(output).await
+                    (task_fn)($($arg,)*).await.try_into_raw_vc()
                 }))
             }
         }
@@ -254,8 +247,7 @@ macro_rules! task_fn_impl {
                 Ok(Box::pin(async move {
                     let recv = recv.await?;
                     let recv = <Recv::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
-                    let output = (task_fn)(recv, $($arg,)*);
-                    output_try_into_non_local_raw_vc(output).await
+                    (task_fn)(recv, $($arg,)*).try_into_raw_vc()
                 }))
             }
         }
@@ -273,8 +265,7 @@ macro_rules! task_fn_impl {
                 let recv = Vc::<Recv>::from(this);
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
-                    let output = (task_fn)(recv, $($arg,)*);
-                    output_try_into_non_local_raw_vc(output).await
+                    (task_fn)(recv, $($arg,)*).try_into_raw_vc()
                 }))
             }
         }
@@ -308,8 +299,7 @@ macro_rules! task_fn_impl {
                 Ok(Box::pin(async move {
                     let recv = recv.await?;
                     let recv = <Recv::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
-                    let output = (task_fn)(recv, $($arg,)*).await;
-                    output_try_into_non_local_raw_vc(output).await
+                    (task_fn)(recv, $($arg,)*).await.try_into_raw_vc()
                 }))
             }
         }
@@ -326,8 +316,7 @@ macro_rules! task_fn_impl {
                 let recv = Vc::<Recv>::from(this);
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
-                    let output = (task_fn)(recv, $($arg,)*).await;
-                    output_try_into_non_local_raw_vc(output).await
+                    (task_fn)(recv, $($arg,)*).await.try_into_raw_vc()
                 }))
             }
         }

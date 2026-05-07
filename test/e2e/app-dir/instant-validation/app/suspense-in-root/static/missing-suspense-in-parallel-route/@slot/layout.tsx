@@ -1,4 +1,4 @@
-export const unstable_instant = true
+export const unstable_instant = { level: 'experimental-error' }
 export default function SlotLayout({ children }) {
   return (
     <div>

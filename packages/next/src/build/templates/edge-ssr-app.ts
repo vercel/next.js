@@ -96,7 +96,7 @@ async function requestHandler(
   const isPossibleServerAction = getIsPossibleServerAction(req)
   const botType = getBotType(req.headers.get('User-Agent') || '')
   const { isOnDemandRevalidate } = checkIsOnDemandRevalidate(
-    req,
+    req.headers,
     prerenderManifest.preview
   )
 
@@ -159,6 +159,7 @@ async function requestHandler(
         typeof nextConfig.logging === 'object' &&
         Boolean(nextConfig.logging.serverFunctions),
       cacheComponents: Boolean(nextConfig.cacheComponents),
+      validationLevel: nextConfig.experimental.instantInsights.validationLevel,
       experimental: {
         isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,

@@ -15,7 +15,7 @@ The `outputs` object contains arrays of build output types:
 
 > **Note:** When `config.output` is set to `'export'`, only `outputs.staticFiles` is populated. All other arrays (`pages`, `appPages`, `pagesApi`, `appRoutes`, `prerenders`) will be empty since the entire application is exported as static files.
 
-For any route output with `runtime: 'edge'`, `edgeRuntime` is included and contains the canonical entry metadata for invoking that output in your edge runtime.
+For any route output with `runtime: 'edge'`, `edgeRuntime` is included and contains the canonical entry metadata for invoking that output in your edge runtime. Note that the Edge Runtime is [deprecated](/docs/messages/edge-runtime-deprecated).
 
 ## Pages (`outputs.pages`)
 
@@ -38,7 +38,7 @@ React pages from the `pages/` directory:
   }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
-    preferredRegion?: string | string[]  // Preferred deployment region
+    preferredRegion?: string | string[]  // Preferred deployment region (deprecated)
     env?: Record<string, string>  // Environment variables (edge runtime only)
   }
 }
@@ -65,7 +65,7 @@ API routes from `pages/api/`:
   }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
-    preferredRegion?: string | string[]  // Preferred deployment region
+    preferredRegion?: string | string[]  // Preferred deployment region (deprecated)
     env?: Record<string, string>  // Environment variables (edge runtime only)
   }
 }
@@ -92,7 +92,7 @@ React pages from the `app/` directory:
   }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
-    preferredRegion?: string | string[]  // Preferred deployment region
+    preferredRegion?: string | string[]  // Preferred deployment region (deprecated)
     env?: Record<string, string>  // Environment variables (edge runtime only)
   }
 }
@@ -119,7 +119,7 @@ API and metadata routes from the `app/` directory:
   }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
-    preferredRegion?: string | string[]  // Preferred deployment region
+    preferredRegion?: string | string[]  // Preferred deployment region (deprecated)
     env?: Record<string, string>  // Environment variables (edge runtime only)
   }
 }
@@ -194,7 +194,7 @@ Static assets and auto-statically optimized pages:
   }
   config: {
     maxDuration?: number  // Maximum duration of the route in seconds
-    preferredRegion?: string | string[]  // Preferred deployment region
+    preferredRegion?: string | string[]  // Preferred deployment region (deprecated)
     env?: Record<string, string>  // Environment variables (edge runtime only)
     matchers?: Array<{
       source: string  // Source pattern

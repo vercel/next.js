@@ -8,7 +8,9 @@ async function main() {
   const [
     githubHeadSha,
     tarballDirectory = path.join(os.tmpdir(), 'vercel-nextjs-preview-tarballs'),
+    baseUrlArg,
   ] = process.argv.slice(2)
+  const baseUrl = baseUrlArg || 'https://vercel-packages.vercel.app/next'
   const repoRoot = path.resolve(__dirname, '..')
 
   await fs.mkdir(tarballDirectory, { recursive: true })
@@ -87,13 +89,13 @@ async function main() {
   for (const packageInfo of packages) {
     packagesByVersion.set(
       packageInfo.name,
-      `https://vercel-packages.vercel.app/next/commits/${githubHeadSha}/${packageInfo.name}`
+      `${baseUrl}/commits/${githubHeadSha}/${packageInfo.name}`
     )
   }
   for (const nextSwcPackageName of nextSwcPackageNames) {
     packagesByVersion.set(
       nextSwcPackageName,
-      `https://vercel-packages.vercel.app/next/commits/${githubHeadSha}/${nextSwcPackageName}`
+      `${baseUrl}/commits/${githubHeadSha}/${nextSwcPackageName}`
     )
   }
 
@@ -156,7 +158,7 @@ async function main() {
   }
 
   console.info(
-    `When this job is completed, a Next.js preview build will be available under ${packagesByVersion.get('next')}`
+    `A upload_preview_tarballs (https://github.com/vercel/next.js/actions/workflows/upload_preview_tarballs.yml) will be started once this workflow completes which will make the Next.js preview build available under ${packagesByVersion.get('next')}`
   )
 }
 

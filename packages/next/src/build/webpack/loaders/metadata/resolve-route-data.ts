@@ -25,6 +25,16 @@ export function resolveRobots(data: MetadataRoute.Robots): string {
     if (rule.crawlDelay) {
       content += `Crawl-delay: ${rule.crawlDelay}\n`
     }
+    if (rule.other) {
+      for (const key of Object.keys(rule.other)) {
+        const value = rule.other[key]
+        if (value == null) continue
+        const values = Array.isArray(value) ? value : [value]
+        for (const v of values) {
+          content += `${key}: ${v}\n`
+        }
+      }
+    }
     content += '\n'
   }
   if (data.host) {

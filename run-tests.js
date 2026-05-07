@@ -174,7 +174,7 @@ class TestProfile {
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.5";
+const nextjsReactPeerVersion = "19.2.6";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -825,10 +825,9 @@ ${ENDGROUP}`)
           return reject(err)
         }
 
-        // If environment is CI and if this test execution is failed after retry, preserve test traces
-        // to upload into github actions artifacts for debugging purpose
+        // preserve test traces to upload into github actions artifacts for debugging purposes
         const shouldPreserveTracesOutput =
-          (process.env.CI && isRetry && isChildExitWithNonZero) ||
+          (process.env.CI && isChildExitWithNonZero) ||
           process.env.PRESERVE_TRACES_OUTPUT
         if (!shouldPreserveTracesOutput) {
           await fsp

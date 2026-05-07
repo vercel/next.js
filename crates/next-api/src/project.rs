@@ -1065,7 +1065,7 @@ impl Project {
         };
 
         Ok(DiskFileSystem::new_with_denied_paths(
-            rcstr!(PROJECT_FILESYSTEM_NAME),
+            PROJECT_FILESYSTEM_NAME,
             *self.root_path,
             vec![denied_path],
         ))
@@ -1589,6 +1589,7 @@ impl Project {
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), true),
             debug_ids: self.next_config().turbopack_debug_ids(),
+            worker_asset_prefix: self.next_config().turbopack_worker_asset_prefix(),
             should_use_absolute_url_references: self.next_config().inline_css(),
             css_url_suffix,
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
@@ -2482,7 +2483,7 @@ async fn scale_down_node_pool(project: ResolvedVc<Project>) -> Result<()> {
 async fn whole_app_module_graph_operation(
     project: ResolvedVc<Project>,
 ) -> Result<Vc<BaseAndFullModuleGraph>> {
-    let span = tracing::info_span!("whole app module graph", modules = Empty);
+    let span = tracing::info_span!("whole app module graph", modules = Empty, edges = Empty);
     let span_clone = span.clone();
     async move {
         let next_mode = project.next_mode();
@@ -2529,15 +2530,24 @@ async fn whole_app_module_graph_operation(
                 .connect()
                 .module_count()
                 .untracked()
-                .owned()
                 .await?;
             let additional_module_count = additional_module_graph
                 .connect()
                 .module_count()
                 .untracked()
-                .owned()
                 .await?;
-            span.record("modules", base_module_count + additional_module_count);
+            span.record("modules", *base_module_count + *additional_module_count);
+            let base_edge_count = base_single_module_graph
+                .connect()
+                .edge_count()
+                .untracked()
+                .await?;
+            let additional_edge_count = additional_module_graph
+                .connect()
+                .edge_count()
+                .untracked()
+                .await?;
+            span.record("edges", *base_edge_count + *additional_edge_count);
         }
 
         let graphs = vec![base_single_module_graph, additional_module_graph];

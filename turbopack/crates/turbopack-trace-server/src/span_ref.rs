@@ -13,7 +13,10 @@ use turbo_rcstr::{RcStr, rcstr};
 use crate::{
     FxIndexMap,
     bottom_up::build_bottom_up_graph,
-    span::{Span, SpanEvent, SpanExtra, SpanGraphEvent, SpanIndex, SpanNames, SpanTimeData},
+    span::{
+        Span, SpanEvent, SpanEventSelfTime, SpanExtra, SpanGraphEvent, SpanIndex, SpanName,
+        SpanNames, SpanTimeData, SpanTotals,
+    },
     span_bottom_up_ref::SpanBottomUpRef,
     span_graph_ref::{SpanGraphEventRef, SpanGraphRef, event_map_to_list},
     store::{SpanId, Store},
@@ -52,7 +55,7 @@ impl<'a> SpanRef<'a> {
     }
 
     pub fn time_data(&self) -> &'a SpanTimeData {
-        self.span.time_data()
+        &self.span.time_data
     }
 
     pub fn extra(&self) -> &'a SpanExtra {
@@ -85,64 +88,12 @@ impl<'a> SpanRef<'a> {
     }
 
     pub fn nice_name(&self) -> (&'a str, &'a str) {
-        let (category, title) = self.names().nice_name.get_or_init(|| {
-            if let Some(name) = self
-                .span
-                .args
-                .iter()
-                .find(|&(k, _)| k == "name")
-                .map(|(_, v)| v)
-            {
-                if matches!(self.span.name.as_str(), "turbo_tasks::function") {
-                    (self.span.name.clone(), name.clone())
-                } else if matches!(
-                    self.span.name.as_str(),
-                    "turbo_tasks::resolve_call" | "turbo_tasks::resolve_trait_call"
-                ) {
-                    (self.span.name.clone(), format!("*{name}").into())
-                } else {
-                    (
-                        self.span.category.clone(),
-                        format!("{} {name}", self.span.name).into(),
-                    )
-                }
-            } else {
-                (self.span.category.clone(), self.span.name.clone())
-            }
-        });
+        let SpanName { category, title } = &self.names().nice_name;
         (category.as_str(), title.as_str())
     }
 
     pub fn group_name(&self) -> (&'a str, &'a str) {
-        let (category, title) = self.names().group_name.get_or_init(|| {
-            if matches!(self.span.name.as_str(), "turbo_tasks::function") {
-                let name = self
-                    .span
-                    .args
-                    .iter()
-                    .find(|&(k, _)| k == "name")
-                    .map(|(_, v)| v.clone())
-                    .unwrap_or_else(|| self.span.name.clone());
-                (self.span.name.clone(), name)
-            } else if matches!(
-                self.span.name.as_str(),
-                "turbo_tasks::resolve_call" | "turbo_tasks::resolve_trait_call"
-            ) {
-                let name = self
-                    .span
-                    .args
-                    .iter()
-                    .find(|&(k, _)| k == "name")
-                    .map(|(_, v)| RcStr::from(format!("*{v}")))
-                    .unwrap_or_else(|| self.span.name.clone());
-                (
-                    self.span.category.clone(),
-                    format!("{} {name}", self.span.name).into(),
-                )
-            } else {
-                (self.span.category.clone(), self.span.name.clone())
-            }
-        });
+        let SpanName { category, title } = &self.names().group_name;
         (category.as_str(), title.as_str())
     }
 
@@ -177,29 +128,33 @@ impl<'a> SpanRef<'a> {
         1
     }
 
-    // TODO(sokra) use events instead of children for visualizing span graphs
-    #[allow(dead_code)]
+    /// Events sorted by start time, including self time and children.
     pub fn events(&self) -> impl DoubleEndedIterator<Item = SpanEventRef<'a>> {
-        self.span.events.iter().map(|event| match event {
-            &SpanEvent::SelfTime { start, end } => SpanEventRef::SelfTime {
-                store: self.store,
-                start,
-                end,
-            },
-            SpanEvent::Child { index } => SpanEventRef::Child {
-                span: SpanRef {
-                    span: &self.store.spans[index.get()],
-                    store: self.store,
-                    index: index.get(),
+        self.span
+            .events
+            .iter()
+            .map(|event: &'a SpanEvent| match event {
+                SpanEvent::SelfTime(self_time) => SpanEventRef::SelfTime {
+                    self_time: SpanEventSelfTimeRef {
+                        store: self.store,
+                        self_time,
+                    },
                 },
-            },
-        })
+                SpanEvent::Child { index, .. } => SpanEventRef::Child {
+                    span: SpanRef {
+                        span: &self.store.spans[index.get()],
+                        store: self.store,
+                        index: index.get(),
+                    },
+                },
+            })
     }
 
+    /// Children sorted by start time, excluding self time.
     pub fn children(&self) -> impl DoubleEndedIterator<Item = SpanRef<'a>> + 'a + use<'a> {
         self.span.events.iter().filter_map(|event| match event {
             SpanEvent::SelfTime { .. } => None,
-            SpanEvent::Child { index } => Some(SpanRef {
+            SpanEvent::Child { index, .. } => Some(SpanRef {
                 span: &self.store.spans[index.get()],
                 store: self.store,
                 index: index.get(),
@@ -207,10 +162,11 @@ impl<'a> SpanRef<'a> {
         })
     }
 
+    /// Children sorted by start time, excluding self time, in parallel.
     pub fn children_par(&self) -> impl ParallelIterator<Item = SpanRef<'a>> + 'a {
         self.span.events.par_iter().filter_map(|event| match event {
             SpanEvent::SelfTime { .. } => None,
-            SpanEvent::Child { index } => Some(SpanRef {
+            SpanEvent::Child { index, .. } => Some(SpanRef {
                 span: &self.store.spans[index.get()],
                 store: self.store,
                 index: index.get(),
@@ -228,54 +184,52 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    pub fn total_allocations(&self) -> u64 {
-        *self.span.total_allocations.get_or_init(|| {
-            self.children()
-                .map(|child| child.total_allocations())
-                .reduce(|a, b| a + b)
-                .unwrap_or_default()
-                + self.self_allocations()
+    /// Compute (or fetch) the bundled subtree totals. All six totals share a
+    /// single `OnceLock`, so the first call walks the subtree once and fills
+    /// every field; subsequent calls return cached values. Children's bundles
+    /// are computed recursively, so depth-many calls happen once per subtree
+    /// regardless of which field is queried first.
+    fn totals(&self) -> &'a SpanTotals {
+        self.span.totals.get_or_init(|| {
+            let mut t = SpanTotals {
+                max_depth: 0,
+                allocations: self.self_allocations(),
+                deallocations: self.self_deallocations(),
+                persistent_allocations: self.self_persistent_allocations(),
+                allocation_count: self.self_allocation_count(),
+                span_count: 1,
+            };
+            for child in self.children() {
+                let c = child.totals();
+                t.max_depth = max(t.max_depth, c.max_depth + 1);
+                t.allocations += c.allocations;
+                t.deallocations += c.deallocations;
+                t.persistent_allocations += c.persistent_allocations;
+                t.allocation_count += c.allocation_count;
+                t.span_count += c.span_count;
+            }
+            t
         })
+    }
+
+    pub fn total_allocations(&self) -> u64 {
+        self.totals().allocations
     }
 
     pub fn total_deallocations(&self) -> u64 {
-        *self.span.total_deallocations.get_or_init(|| {
-            self.children()
-                .map(|child| child.total_deallocations())
-                .reduce(|a, b| a + b)
-                .unwrap_or_default()
-                + self.self_deallocations()
-        })
+        self.totals().deallocations
     }
 
     pub fn total_persistent_allocations(&self) -> u64 {
-        *self.span.total_persistent_allocations.get_or_init(|| {
-            self.children()
-                .map(|child| child.total_persistent_allocations())
-                .reduce(|a, b| a + b)
-                .unwrap_or_default()
-                + self.self_persistent_allocations()
-        })
+        self.totals().persistent_allocations
     }
 
     pub fn total_allocation_count(&self) -> u64 {
-        *self.span.total_allocation_count.get_or_init(|| {
-            self.children()
-                .map(|child| child.total_allocation_count())
-                .reduce(|a, b| a + b)
-                .unwrap_or_default()
-                + self.self_allocation_count()
-        })
+        self.totals().allocation_count
     }
 
     pub fn total_span_count(&self) -> u64 {
-        *self.span.total_span_count.get_or_init(|| {
-            self.children()
-                .map(|child| child.total_span_count())
-                .reduce(|a, b| a + b)
-                .unwrap_or_default()
-                + 1
-        })
+        self.totals().span_count
     }
 
     pub fn corrected_self_time(&self) -> Timestamp {
@@ -285,17 +239,11 @@ impl<'a> SpanRef<'a> {
                 .span
                 .events
                 .par_iter()
-                .filter_map(|event| {
-                    if let SpanEvent::SelfTime { start, end } = event {
-                        let duration = *end - *start;
-                        if !duration.is_zero() {
-                            store.set_max_self_time_lookup(*end);
-                            let corrected_time =
-                                store.self_time_tree.as_ref().map_or(duration, |tree| {
-                                    tree.lookup_range_corrected_time(*start, *end)
-                                });
-                            return Some(corrected_time);
-                        }
+                .filter_map(|event: &'a SpanEvent| {
+                    if let SpanEvent::SelfTime(self_time) = event {
+                        return Some(
+                            SpanEventSelfTimeRef { store, self_time }.corrected_self_time(),
+                        );
                     }
                     None
                 })
@@ -317,12 +265,7 @@ impl<'a> SpanRef<'a> {
     }
 
     pub fn max_depth(&self) -> u32 {
-        *self.span.max_depth.get_or_init(|| {
-            self.children()
-                .map(|child| child.max_depth() + 1)
-                .max()
-                .unwrap_or_default()
-        })
+        self.totals().max_depth
     }
 
     pub fn graph(&self) -> impl Iterator<Item = SpanGraphEventRef<'a>> + '_ {
@@ -558,48 +501,165 @@ impl Debug for SpanRef<'_> {
     }
 }
 
-#[allow(dead_code)]
-#[derive(Copy, Clone)]
+pub struct SpanEventSelfTimeRef<'a> {
+    store: &'a Store,
+    self_time: &'a SpanEventSelfTime,
+}
+
+impl<'a> SpanEventSelfTimeRef<'a> {
+    pub fn start(&self) -> Timestamp {
+        self.self_time.start
+    }
+
+    pub fn end(&self) -> Timestamp {
+        self.self_time.end()
+    }
+
+    pub fn corrected_self_time(&self) -> Timestamp {
+        *self.self_time.corrected_self_time.get_or_init(|| {
+            // `duration` is `NonZeroU64`, so zero-duration events are filtered
+            // at construction time (see `SpanEvent::self_time`).
+            let end = self.self_time.end();
+            let duration = Timestamp::from_value(self.self_time.duration.get());
+            self.store.set_max_self_time_lookup(end);
+            self.store.self_time_tree.as_ref().map_or(duration, |tree| {
+                tree.lookup_range_corrected_time(self.self_time.start, end)
+            })
+        })
+    }
+}
+
 pub enum SpanEventRef<'a> {
-    SelfTime {
-        store: &'a Store,
-        start: Timestamp,
-        end: Timestamp,
-    },
-    Child {
-        span: SpanRef<'a>,
-    },
+    SelfTime { self_time: SpanEventSelfTimeRef<'a> },
+    Child { span: SpanRef<'a> },
 }
 
 impl SpanEventRef<'_> {
-    pub fn start(&self) -> Timestamp {
-        match self {
-            SpanEventRef::SelfTime { start, .. } => *start,
-            SpanEventRef::Child { span } => span.start(),
-        }
-    }
-
     pub fn total_time(&self) -> Timestamp {
         match self {
-            SpanEventRef::SelfTime { start, end, .. } => end.saturating_sub(*start),
+            SpanEventRef::SelfTime {
+                self_time: event, ..
+            } => event.end().saturating_sub(event.start()),
             SpanEventRef::Child { span } => span.total_time(),
         }
     }
 
     pub fn corrected_self_time(&self) -> Timestamp {
         match self {
-            SpanEventRef::SelfTime { store, start, end } => {
-                let duration = *end - *start;
-                if !duration.is_zero() {
-                    store.set_max_self_time_lookup(*end);
-                    store.self_time_tree.as_ref().map_or(duration, |tree| {
-                        tree.lookup_range_corrected_time(*start, *end)
-                    })
-                } else {
-                    Timestamp::ZERO
-                }
-            }
+            SpanEventRef::SelfTime { self_time: event } => event.corrected_self_time(),
             SpanEventRef::Child { span } => span.corrected_self_time(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rustc_hash::FxHashSet;
+    use turbo_rcstr::RcStr;
+
+    use crate::{span::SpanArgs, span_ref::SpanRef, store::Store, timestamp::Timestamp};
+
+    fn span_ref<'a>(store: &'a Store, idx: crate::span::SpanIndex) -> SpanRef<'a> {
+        SpanRef {
+            span: &store.spans[idx.get()],
+            store,
+            index: idx.get(),
+        }
+    }
+
+    #[test]
+    fn totals_aggregate_subtree() {
+        let mut store = Store::new();
+        let mut outdated = FxHashSet::default();
+
+        // root → a → b
+        // root → c
+        let a = store.add_span(
+            None,
+            Timestamp::from_micros(0),
+            RcStr::default(),
+            RcStr::from("a"),
+            SpanArgs::new(),
+            &mut outdated,
+        );
+        let b = store.add_span(
+            Some(a),
+            Timestamp::from_micros(1),
+            RcStr::default(),
+            RcStr::from("b"),
+            SpanArgs::new(),
+            &mut outdated,
+        );
+        let c = store.add_span(
+            None,
+            Timestamp::from_micros(2),
+            RcStr::default(),
+            RcStr::from("c"),
+            SpanArgs::new(),
+            &mut outdated,
+        );
+
+        // Use values large enough that the 32-byte/4-allocation tracing
+        // overhead subtraction in `self_allocations()` / `self_allocation_count()`
+        // doesn't dominate.
+        store.add_allocation(a, 1000, 10, &mut outdated);
+        store.add_allocation(b, 500, 5, &mut outdated);
+        store.add_allocation(c, 200, 2, &mut outdated);
+
+        let a_ref = span_ref(&store, a);
+        let b_ref = span_ref(&store, b);
+        let c_ref = span_ref(&store, c);
+
+        // Sanity: per-span self_* values reflect the saturating overhead subtraction.
+        assert_eq!(a_ref.self_allocations(), 1000 - 32);
+        assert_eq!(b_ref.self_allocations(), 500 - 32);
+        assert_eq!(c_ref.self_allocations(), 200 - 32);
+
+        // Totals are the recursive subtree sum of self_*.
+        assert_eq!(
+            a_ref.total_allocations(),
+            a_ref.self_allocations() + b_ref.self_allocations()
+        );
+        assert_eq!(b_ref.total_allocations(), b_ref.self_allocations());
+        assert_eq!(c_ref.total_allocations(), c_ref.self_allocations());
+
+        // span_count is 1 + child count.
+        assert_eq!(a_ref.total_span_count(), 2);
+        assert_eq!(b_ref.total_span_count(), 1);
+        assert_eq!(c_ref.total_span_count(), 1);
+
+        // total_allocation_count similarly.
+        assert_eq!(
+            a_ref.total_allocation_count(),
+            a_ref.self_allocation_count() + b_ref.self_allocation_count()
+        );
+    }
+
+    #[test]
+    fn totals_invalidate_and_recompute() {
+        let mut store = Store::new();
+        let mut outdated = FxHashSet::default();
+        let s = store.add_span(
+            None,
+            Timestamp::from_micros(0),
+            RcStr::default(),
+            RcStr::from("s"),
+            SpanArgs::new(),
+            &mut outdated,
+        );
+        store.add_allocation(s, 1000, 10, &mut outdated);
+
+        // Cache the totals.
+        let before = span_ref(&store, s).total_allocations();
+        assert_eq!(before, 1000 - 32);
+
+        // Add more allocations and invalidate.
+        let mut outdated = FxHashSet::default();
+        store.add_allocation(s, 200, 2, &mut outdated);
+        store.invalidate_outdated_spans(&outdated);
+
+        // After invalidation, the cached totals must be recomputed from new self_*.
+        let after = span_ref(&store, s).total_allocations();
+        assert_eq!(after, 1200 - 32);
     }
 }
