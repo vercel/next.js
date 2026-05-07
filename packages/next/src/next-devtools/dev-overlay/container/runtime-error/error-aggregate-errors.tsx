@@ -3,6 +3,8 @@ import React from 'react'
 import { CodeFrame } from '../../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './error-cause'
+import { HotlinkedText } from '../../components/hot-linked-text'
+import { matchLinkType } from '../../utils/match-link-type'
 import type { ReadyErrorCause } from '../../utils/get-error-by-type'
 
 interface ErrorAggregateErrorsProps {
@@ -64,7 +66,9 @@ function ErrorAggregateEntry({
         </span>
       </div>
       {trimmedMessage ? (
-        <p className="error-aggregate-error-message">{trimmedMessage}</p>
+        <p className="error-aggregate-error-message">
+          <HotlinkedText text={trimmedMessage} matcher={matchLinkType} />
+        </p>
       ) : null}
 
       {firstFrame && (
