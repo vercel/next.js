@@ -3,6 +3,8 @@ import { connection } from 'next/server'
 import Link from 'next/link'
 import { ClientFeatures } from './client'
 
+export const unstable_prefetch = 'force-runtime'
+
 function Box({
   label,
   children,

@@ -1,5 +1,5 @@
-import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { FallbackRouteParam } from '../static-paths/types'
 
 import {
@@ -9,67 +9,15 @@ import {
 
 import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition': 'next-server-utility' }
 
-import { getRevalidateReason } from '../../server/instrumentation/utils' with { 'turbopack-transition': 'next-server-utility' }
 import {
-  getTracer,
-  SpanKind,
-  type Span,
-} from '../../server/lib/trace/tracer' with { 'turbopack-transition': 'next-server-utility' }
-import type { RequestMeta } from '../../server/request-meta'
-import {
-  addRequestMeta,
-  getRequestMeta,
-  setRequestMeta,
-} from '../../server/request-meta' with { 'turbopack-transition': 'next-server-utility' }
-import { BaseServerSpan } from '../../server/lib/trace/constants' with { 'turbopack-transition': 'next-server-utility' }
-import { interopDefault } from '../../server/app-render/interop-default' with { 'turbopack-transition': 'next-server-utility' }
-import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers' with { 'turbopack-transition': 'next-server-utility' }
-import {
-  NodeNextRequest,
-  NodeNextResponse,
-} from '../../server/base-http/node' with { 'turbopack-transition': 'next-server-utility' }
-import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr' with { 'turbopack-transition': 'next-server-utility' }
-import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
-import {
-  getFallbackRouteParams,
-  getPlaceholderFallbackRouteParams,
-  buildDynamicSegmentPlaceholder,
-  createOpaqueFallbackRouteParams,
-  type OpaqueFallbackRouteParams,
-} from '../../server/request/fallback-params' with { 'turbopack-transition': 'next-server-utility' }
-import { setManifestsSingleton } from '../../server/app-render/manifests-singleton' with { 'turbopack-transition': 'next-server-utility' }
-import {
-  isHtmlBotRequest,
-  shouldServeStreamingMetadata,
-} from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
-import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths' with { 'turbopack-transition': 'next-server-utility' }
-import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
-import {
-  RSC_HEADER,
-  NEXT_ROUTER_PREFETCH_HEADER,
-  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  NEXT_DID_POSTPONE_HEADER,
   NEXT_INSTANT_TEST_COOKIE,
   NEXT_IS_PRERENDER_HEADER,
-  NEXT_DID_POSTPONE_HEADER,
+  NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   RSC_CONTENT_TYPE_HEADER,
+  RSC_HEADER,
 } from '../../client/components/app-router-headers' with { 'turbopack-transition': 'next-server-utility' }
-import {
-  getBotType,
-  isBot,
-} from '../../shared/lib/router/utils/is-bot' with { 'turbopack-transition': 'next-server-utility' }
-import {
-  CachedRouteKind,
-  IncrementalCacheKind,
-  type CachedAppPageValue,
-  type CachedPageValue,
-  type ResponseCacheEntry,
-  type ResponseGenerator,
-} from '../../server/response-cache' with { 'turbopack-transition': 'next-server-utility' }
-import {
-  FallbackMode,
-  parseFallbackField,
-} from '../../lib/fallback' with { 'turbopack-transition': 'next-server-utility' }
-import RenderResult from '../../server/render-result' with { 'turbopack-transition': 'next-server-utility' }
 import {
   CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
@@ -78,18 +26,70 @@ import {
   NEXT_RESUME_HEADER,
   NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  FallbackMode,
+  parseFallbackField,
+} from '../../lib/fallback' with { 'turbopack-transition': 'next-server-utility' }
+import { parseUrl } from '../../lib/url' with { 'turbopack-transition': 'next-server-utility' }
+import { interopDefault } from '../../server/app-render/interop-default' with { 'turbopack-transition': 'next-server-utility' }
+import { setManifestsSingleton } from '../../server/app-render/manifests-singleton' with { 'turbopack-transition': 'next-server-utility' }
+import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  NodeNextRequest,
+  NodeNextResponse,
+} from '../../server/base-http/node' with { 'turbopack-transition': 'next-server-utility' }
+import { getRevalidateReason } from '../../server/instrumentation/utils' with { 'turbopack-transition': 'next-server-utility' }
 import type { CacheControl } from '../../server/lib/cache-control'
-import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
-import { createInstantTestScriptInsertionTransformStream } from '../../server/stream-utils/node-web-streams-helper' with { 'turbopack-transition': 'next-server-utility' }
-import { sendRenderResult } from '../../server/send-payload' with { 'turbopack-transition': 'next-server-utility' }
-import { NoFallbackError } from '../../shared/lib/no-fallback-error.external' with { 'turbopack-transition': 'next-server-utility' }
-import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit' with { 'turbopack-transition': 'next-server-utility' }
+import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr' with { 'turbopack-transition': 'next-server-utility' }
+import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getMaxPostponedStateSize,
   getPostponedStateExceededErrorMessage,
   readBodyWithSizeLimit,
 } from '../../server/lib/postponed-request-body' with { 'turbopack-transition': 'next-server-utility' }
-import { parseUrl } from '../../lib/url' with { 'turbopack-transition': 'next-server-utility' }
+import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  isHtmlBotRequest,
+  shouldServeStreamingMetadata,
+} from '../../server/lib/streaming-metadata' with { 'turbopack-transition': 'next-server-utility' }
+import { BaseServerSpan } from '../../server/lib/trace/constants' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  getTracer,
+  SpanKind,
+  type Span,
+} from '../../server/lib/trace/tracer' with { 'turbopack-transition': 'next-server-utility' }
+import RenderResult from '../../server/render-result' with { 'turbopack-transition': 'next-server-utility' }
+import type { RequestMeta } from '../../server/request-meta'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  setRequestMeta,
+} from '../../server/request-meta' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  buildDynamicSegmentPlaceholder,
+  createOpaqueFallbackRouteParams,
+  getFallbackRouteParams,
+  getPlaceholderFallbackRouteParams,
+  type OpaqueFallbackRouteParams,
+} from '../../server/request/fallback-params' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  CachedRouteKind,
+  IncrementalCacheKind,
+  type CachedAppPageValue,
+  type CachedPageValue,
+  type ResponseCacheEntry,
+  type ResponseGenerator,
+} from '../../server/response-cache' with { 'turbopack-transition': 'next-server-utility' }
+import { sendRenderResult } from '../../server/send-payload' with { 'turbopack-transition': 'next-server-utility' }
+import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
+import { createInstantTestScriptInsertionTransformStream } from '../../server/stream-utils/node-web-streams-helper' with { 'turbopack-transition': 'next-server-utility' }
+import { NoFallbackError } from '../../shared/lib/no-fallback-error.external' with { 'turbopack-transition': 'next-server-utility' }
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  getBotType,
+  isBot,
+} from '../../shared/lib/router/utils/is-bot' with { 'turbopack-transition': 'next-server-utility' }
+import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit' with { 'turbopack-transition': 'next-server-utility' }
 
 // These are injected by the loader afterwards.
 
@@ -114,12 +114,12 @@ export const __next_app__ = {
   loadChunk: __next_app_load_chunk__,
 }
 
-import * as entryBase from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 import { RedirectStatusCode } from '../../client/components/redirect-status-code' with { 'turbopack-transition': 'next-server-utility' }
-import { InvariantError } from '../../shared/lib/invariant-error' with { 'turbopack-transition': 'next-server-utility' }
 import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-transition': 'next-server-utility' }
-import { isInterceptionRouteAppPath } from '../../shared/lib/router/utils/interception-routes' with { 'turbopack-transition': 'next-server-utility' }
+import * as entryBase from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
+import { InvariantError } from '../../shared/lib/invariant-error' with { 'turbopack-transition': 'next-server-utility' }
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
+import { isInterceptionRouteAppPath } from '../../shared/lib/router/utils/interception-routes' with { 'turbopack-transition': 'next-server-utility' }
 
 export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 

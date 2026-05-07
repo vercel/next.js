@@ -43,6 +43,20 @@ export default function Page() {
         >
           Go to target page &rarr;
         </Link>
+        {/* <Link
+          href="/blocking-page?foo=bar"
+          id="link-to-target"
+          style={{
+            display: 'inline-block',
+            padding: '0.5rem 1rem',
+            background: '#0070f3',
+            color: '#fff',
+            borderRadius: 6,
+            textDecoration: 'none',
+          }}
+        >
+          Go to blocking page
+        </Link> */}
       </nav>
     </div>
   )

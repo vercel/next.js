@@ -37,10 +37,9 @@ describe('instant-nav-panel', () => {
     await browser.elementByCss('[data-instant-nav]').click()
   }
 
-  async function clickStartClientNav(browser: Playwright) {
+  async function clickStartCapturing(browser: Playwright) {
     await browser
-      // TODO: Monitor if we need to increase timeouts for all *instant calls
-      .elementByCss('[data-instant-nav-client]', { timeout: 50 })
+      .locator('.instant-nav-capture-button', { hasText: 'Start Capturing' })
       .click()
     await waitForInstantModeCookie(browser)
   }
@@ -79,19 +78,39 @@ describe('instant-nav-panel', () => {
 
     await openInstantNavPanel(browser)
 
-    // Panel should show waiting state with Page load and Client navigation sections
+    // Panel should show the idle helper copy and capture controls.
     await retry(async () => {
       const text = await getInstantNavPanelText(browser)
-      expect(text).toContain('Page load')
-      expect(text).toContain('Client navigation')
+      expect(text).toContain('Awaiting navigation')
+      expect(text).toContain('Start Capturing')
+      expect(text).toContain('Continue Rendering')
     })
 
-    // Cookie should NOT be set yet (only set when user clicks Reload or Start)
+    // Cookie should NOT be set yet (only set when user starts capturing)
     const cookie = await browser.eval(() => document.cookie)
     expect(cookie).not.toContain('next-instant-navigation-testing=')
 
     // Clean up
     await clearInstantModeCookie(browser)
+  })
+
+  it('should show page load state after clicking Start and refreshing', async () => {
+    const browser = await next.browser('/target-page/my-post?search=foo')
+    await clearInstantModeCookie(browser)
+
+    await openInstantNavPanel(browser)
+
+    await clickStartCapturing(browser)
+    await browser.refresh()
+    await hasInstantNavPanelOpen(browser)
+
+    await retry(async () => {
+      const text = await getInstantNavPanelText(browser)
+      expect(text).toContain('Page load')
+      expect(text).toContain('prerendered UI')
+      expect(text).toContain('Stop Capturing')
+      expect(text).toContain('Continue Rendering')
+    })
   })
 
   it('should show client nav state after clicking Start and navigating', async () => {
@@ -108,17 +127,18 @@ describe('instant-nav-panel', () => {
 
     await openInstantNavPanel(browser)
 
-    // Click Start to enter client-nav-waiting state
-    await clickStartClientNav(browser)
+    // Click Start to enter the awaiting navigation state
+    await clickStartCapturing(browser)
 
     // Cookie should now be set
     await waitForInstantModeCookie(browser)
 
-    // Panel should show client-nav-waiting state
+    // Panel should show the awaiting navigation state
     await retry(async () => {
       const text = await getInstantNavPanelText(browser)
-      expect(text).toContain('Client navigation')
-      expect(text).toContain('Click any link')
+      expect(text).toContain('Awaiting navigation')
+      expect(text).toContain('Stop Capturing')
+      expect(text).toContain('Continue Rendering')
     })
 
     // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
@@ -126,19 +146,20 @@ describe('instant-nav-panel', () => {
       document.querySelector<HTMLAnchorElement>(`[href="${page}"]`)!.click()
     }, targetPage)
 
-    // Panel should transition to client-nav state
+    // Panel should transition to client navigation capture state
     await retry(async () => {
       const text = await getInstantNavPanelText(browser)
-      expect(text).toContain('Client navigation')
+      expect(text).toContain('Navigation')
       expect(text).toContain('prefetched UI')
-      expect(text).toContain('Continue rendering')
+      expect(text).toContain('Stop Capturing')
+      expect(text).toContain('Continue Rendering')
     })
 
     // Clean up
     await clearInstantModeCookie(browser)
   })
 
-  it('should show loading skeletons during SPA navigation after clicking Start', async () => {
+  it('should show loading skeleton during SPA navigation after clicking Start', async () => {
     const targetPage = '/target-page/my-post?search=foo'
     const [browser] = await Promise.all([
       next.browser('/'),
@@ -153,27 +174,21 @@ describe('instant-nav-panel', () => {
     await openInstantNavPanel(browser)
 
     // Click Start to activate the navigation lock
-    await clickStartClientNav(browser)
+    await clickStartCapturing(browser)
 
     // Navigate to target page via SPA (use eval to bypass overlay pointer interception)
     await browser.eval((page) => {
       document.querySelector<HTMLAnchorElement>(`[href="${page}"]`)!.click()
     }, targetPage)
 
-    // Every runtime-dependent segment should be suspended under the lock:
-    // data-fetching (dynamic content), `await params`, and `await searchParams`.
+    // Dynamic data should be suspended under the lock.
     // Use a longer timeout because dev mode needs to compile the target page.
     await browser
       .locator('[data-testid="dynamic-skeleton"]')
       .waitFor({ state: 'visible', timeout: 30000 })
-    await browser
-      .locator('[data-testid="param-skeleton"]')
-      .waitFor({ state: 'visible' })
-    await browser
-      .locator('[data-testid="search-param-skeleton"]')
-      .waitFor({ state: 'visible' })
-    // The resolved param value must not have leaked through the lock.
-    expect(await browser.locator('[data-testid="param-value"]').count()).toBe(0)
+    expect(
+      await browser.locator('[data-testid="dynamic-content"]').count()
+    ).toBe(0)
 
     // Clean up
     await clearInstantModeCookie(browser)
@@ -186,7 +201,7 @@ describe('instant-nav-panel', () => {
 
     // Open the panel and click Start to set the cookie
     await openInstantNavPanel(browser)
-    await clickStartClientNav(browser)
+    await clickStartCapturing(browser)
 
     // Reload — the cookie persists, so the panel should auto-open
     await browser.refresh()
@@ -194,6 +209,9 @@ describe('instant-nav-panel', () => {
 
     await retry(async () => {
       await hasInstantNavPanelOpen(browser)
+      const text = await getInstantNavPanelText(browser)
+      expect(text).toContain('Page load')
+      expect(text).toContain('prerendered UI')
     })
 
     // Clean up
