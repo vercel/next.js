@@ -363,6 +363,35 @@ describe('use-cache', () => {
     expect(finalValueB).toBe(finalValueB)
   })
 
+  it('should reach a "use cache" rendered after a stale unstable_cache', async () => {
+    // Regression test: when an `unstable_cache` lookup hits a stale entry and
+    // foreground-awaits its recompute, a downstream `'use cache'` invocation
+    // rendered after it must still be reached during the prospective prerender
+    // phase so its RDC entry is populated. Otherwise the final phase throws
+    // "Unexpected cache miss after cache warming phase during prerendering" and
+    // the response cache fails to write a fresh APP_PAGE entry.
+    const browser = await next.browser('/blocked-by-unstable-cache')
+    const initialUnstable = await browser.elementByCss('#unstable-time').text()
+    const initialCached = await browser.elementByCss('#cached-time').text()
+    expect(initialUnstable).toBeDateString()
+    expect(initialCached).toBeDateString()
+
+    // Revalidate the unstable_cache entry so the next render foreground-awaits
+    // the recompute.
+    await browser.elementByCss('#revalidate').click()
+
+    // After revalidation, the next render must succeed and produce a fresh
+    // unstable-time. If the prospective prerender's `cacheSignal` resolves
+    // `cacheReady` before `<Cached />` is reached, the final phase throws and
+    // the background revalidation never writes a new APP_PAGE entry, so the
+    // unstable-time stays at its initial value forever.
+    await retry(async () => {
+      await browser.refresh()
+      const after = await browser.elementByCss('#unstable-time').text()
+      expect(after).not.toBe(initialUnstable)
+    })
+  })
+
   it('should revalidate caches nested in unstable_cache', async () => {
     const browser = await next.browser('/nested-in-unstable-cache')
     const initial = await browser.elementByCss('p').text()
@@ -495,6 +524,7 @@ describe('use-cache', () => {
           expect.stringMatching(/\/api\/\d/),
           // [id] route, second entry in generateStaticParams
           expect.stringMatching(/\/b\d/),
+          '/blocked-by-unstable-cache',
           '/cache-fetch',
           '/cache-fetch-no-store',
           '/cache-life',
