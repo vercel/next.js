@@ -7,11 +7,13 @@ export default function OrgIndexPage() {
       <ul>
         <li>
           <Link href="/org/acme/chat/thread-123">
-            Visit org chat thread 123
+            Visit known org chat thread
           </Link>
         </li>
         <li>
-          <Link href="/org/acme/missing-one">Visit missing org route</Link>
+          <Link href="/org/acme/chat/thread-789">
+            Visit fallback org chat thread
+          </Link>
         </li>
       </ul>
     </main>
