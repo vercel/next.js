@@ -38,7 +38,10 @@ const nextPostBuild = async (
   }
 
   const bindings = await loadBindings(config.experimental?.useWasmBinary)
-  await bindings.turbo.databaseCompact(cachePath)
+  await bindings.turbo.databaseCompact(
+    cachePath,
+    process.env.__NEXT_VERSION as string
+  )
   console.log('Turbopack database compaction complete.')
 }
 

@@ -55,6 +55,7 @@ fn main() -> anyhow::Result<()> {
             /* dirty */ !is_ci, // suppress the dirty suffix in CI
             /* matches */ Some("v[0-9]*"), // find the last version tag
         )
+        .sha(/* short */ true)
         .build()?;
     vergen_gitcl::Emitter::default()
         .add_instructions(&cargo)?
