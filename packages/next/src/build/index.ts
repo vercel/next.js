@@ -230,8 +230,6 @@ import {
 import { generateRoutesManifest } from './generate-routes-manifest'
 import { validateAppPaths } from './validate-app-paths'
 
-// trigger CI
-
 type Fallback = null | boolean | string
 
 export interface PrerenderManifestRoute {
