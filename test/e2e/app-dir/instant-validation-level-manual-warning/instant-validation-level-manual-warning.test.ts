@@ -93,8 +93,8 @@ describe('instant validation - level manual-warning', () => {
                  ],
                },
              ],
-             "code": "E1220",
-             "description": "Next.js encountered uncached data during the initial render.",
+             "code": "E1247",
+             "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/with-root-suspense/explicit-error/page.tsx (11:19) @ Page
@@ -125,8 +125,8 @@ describe('instant validation - level manual-warning', () => {
                  ],
                },
              ],
-             "code": "E1220",
-             "description": "Next.js encountered uncached data during the initial render.",
+             "code": "E1247",
+             "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/with-root-suspense/explicit-true/page.tsx (10:19) @ Page
@@ -157,8 +157,8 @@ describe('instant validation - level manual-warning', () => {
                  ],
                },
              ],
-             "code": "E1220",
-             "description": "Next.js encountered uncached data during the initial render.",
+             "code": "E1247",
+             "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/with-root-suspense/explicit-warning/page.tsx (9:19) @ Page
@@ -229,8 +229,8 @@ describe('instant validation - level manual-warning', () => {
           // did not run under 'manual-warning'.
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1220",
-             "description": "Next.js encountered uncached data during the initial render.",
+             "code": "E1247",
+             "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/without-root-suspense/bare/page.tsx (10:19) @ Page
@@ -249,8 +249,8 @@ describe('instant validation - level manual-warning', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1220",
-             "description": "Next.js encountered uncached data during the initial render.",
+             "code": "E1247",
+             "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/without-root-suspense/explicit-error/page.tsx (11:19) @ Page
@@ -269,8 +269,8 @@ describe('instant validation - level manual-warning', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1220",
-             "description": "Next.js encountered uncached data during the initial render.",
+             "code": "E1247",
+             "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/without-root-suspense/explicit-true/page.tsx (11:19) @ Page
@@ -289,8 +289,8 @@ describe('instant validation - level manual-warning', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1220",
-             "description": "Next.js encountered uncached data during the initial render.",
+             "code": "E1247",
+             "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/without-root-suspense/explicit-warning/page.tsx (10:19) @ Page
