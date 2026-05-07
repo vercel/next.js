@@ -3061,7 +3061,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               await expect(browser).toDisplayRedbox(`
                {
                  "code": "E1009",
-                 "description": "A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
+                 "description": "Nested "use cache" with short \`expire\` (under 5 minutes) cannot be used inside an outer "use cache" without an explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" with longer \`expire\` to prerender it, or short \`expire\` to keep it dynamic. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                  "environmentLabel": null,
                  "label": "Runtime Error",
                  "source": "app/use-cache-low-expire/nested/page.tsx (20:14) @ async Page
@@ -3089,7 +3089,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: Nested "use cache" with short \`expire\` (under 5 minutes) cannot be used inside an outer "use cache" without an explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" with longer \`expire\` to prerender it, or short \`expire\` to keep it dynamic. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async Page (app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3106,7 +3106,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: Nested "use cache" with short \`expire\` (under 5 minutes) cannot be used inside an outer "use cache" without an explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" with longer \`expire\` to prerender it, or short \`expire\` to keep it dynamic. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async k (app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3125,7 +3125,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               } else {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: Nested "use cache" with short \`expire\` (under 5 minutes) cannot be used inside an outer "use cache" without an explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" with longer \`expire\` to prerender it, or short \`expire\` to keep it dynamic. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async Page (webpack:///app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3142,7 +3142,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: Nested "use cache" with short \`expire\` (under 5 minutes) cannot be used inside an outer "use cache" without an explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" with longer \`expire\` to prerender it, or short \`expire\` to keep it dynamic. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at a (<next-dist-dir>)
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
@@ -3490,7 +3490,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               await expect(browser).toDisplayRedbox(`
                {
                  "code": "E1000",
-                 "description": "A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
+                 "description": "Nested "use cache" with \`revalidate: 0\` cannot be used inside an outer "use cache" without an explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" with non-zero \`revalidate\` to prerender it, or zero \`revalidate\` to keep it dynamic. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                  "environmentLabel": null,
                  "label": "Runtime Error",
                  "source": "app/use-cache-revalidate-0/nested/page.tsx (20:14) @ async Page
@@ -3518,7 +3518,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: Nested "use cache" with \`revalidate: 0\` cannot be used inside an outer "use cache" without an explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" with non-zero \`revalidate\` to prerender it, or zero \`revalidate\` to keep it dynamic. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async Page (app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3535,7 +3535,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: Nested "use cache" with \`revalidate: 0\` cannot be used inside an outer "use cache" without an explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" with non-zero \`revalidate\` to prerender it, or zero \`revalidate\` to keep it dynamic. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async k (app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3554,7 +3554,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               } else {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: Nested "use cache" with \`revalidate: 0\` cannot be used inside an outer "use cache" without an explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" with non-zero \`revalidate\` to prerender it, or zero \`revalidate\` to keep it dynamic. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async Page (webpack:///app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3571,7 +3571,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: Nested "use cache" with \`revalidate: 0\` cannot be used inside an outer "use cache" without an explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" with non-zero \`revalidate\` to prerender it, or zero \`revalidate\` to keep it dynamic. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at a (<next-dist-dir>)
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
@@ -4284,7 +4284,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               await expect(browser).toDisplayRedbox(`
                {
                  "code": "E1236",
-                 "description": ""use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "description": ""use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                  "environmentLabel": null,
                  "label": "Runtime Error",
                  "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <unknown>
@@ -4300,7 +4300,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               await expect(browser).toDisplayRedbox(`
                {
                  "code": "E1236",
-                 "description": ""use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "description": ""use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                  "environmentLabel": null,
                  "label": "Runtime Error",
                  "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ eval
@@ -4330,7 +4330,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: "use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private
                      at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
                      at async ComponentWithCachedData (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
@@ -4348,7 +4348,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: "use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private
                      at <unknown> (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
                      at async ComponentWithCachedData (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
@@ -4368,7 +4368,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: "use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private
                      at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
                      at async g (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
@@ -4386,7 +4386,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: "use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -4412,7 +4412,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             await expect(browser).toDisplayRedbox(`
              {
                "code": "E1233",
-               "description": ""use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+               "description": ""use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                "environmentLabel": null,
                "label": "Runtime Error",
                "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ Private
@@ -4442,7 +4442,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private
                      at Private (app/use-cache-private-in-use-cache/page.tsx:15:1)
                    13 | }
                    14 |
@@ -4461,7 +4461,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 `)
               } else
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private
                      at Private (webpack:///app/use-cache-private-in-use-cache/page.tsx:15:1)
                    13 | }
                    14 |
@@ -4481,7 +4481,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "⨯ Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "⨯ Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private
                      at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
                      at a (<anonymous>)
                    13 | }
@@ -4493,7 +4493,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    18 |   return <p>Private</p> {
                    digest: '<error-digest>'
                  }
-                 Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private
                      at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
                      at b (<anonymous>)
                    13 | }
@@ -4513,12 +4513,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "⨯ Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "⨯ Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private
                      at a (<next-dist-dir>)
                      at b (<anonymous>) {
                    digest: '<error-digest>'
                  }
-                 Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private
                      at c (<next-dist-dir>)
                      at d (<anonymous>) {
                    digest: '<error-digest>'

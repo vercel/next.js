@@ -4,14 +4,17 @@ export const NEXT_REQUEST_IN_USE_CACHE =
 export const NESTED_USE_CACHE_NO_EXPLICIT_CACHELIFE =
   'https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife'
 
-export const STATIC_AND_DYNAMIC_REVALIDATION =
-  'https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering'
+export const REVALIDATING_GUIDE_DOCS =
+  'https://nextjs.org/docs/app/getting-started/revalidating'
 
 export const CACHE_TAG_API_DOCS =
   'https://nextjs.org/docs/app/api-reference/functions/cacheTag'
 
 export const CACHE_LIFE_API_DOCS =
   'https://nextjs.org/docs/app/api-reference/functions/cacheLife'
+
+export const USE_CACHE_PRIVATE_DIRECTIVE_DOCS =
+  'https://nextjs.org/docs/app/api-reference/directives/use-cache-private'
 
 export function createCookiesInUseCacheError(): Error {
   return new Error(
@@ -54,7 +57,7 @@ export function createDraftModeMutationInUseCacheError(
 // Only reachable via Server Action -> "use cache" -> revalidate.
 export function createRevalidateDuringUseCacheError(expression: string): Error {
   return new Error(
-    `\`${expression}\` cannot be called inside "use cache". Revalidation must run outside renders and cached functions so caches stay consistent. Learn more: ${STATIC_AND_DYNAMIC_REVALIDATION}`
+    `\`${expression}\` cannot be called inside "use cache". Revalidation must run outside renders and cached functions so caches stay consistent. Learn more: ${REVALIDATING_GUIDE_DOCS}`
   )
 }
 
@@ -78,13 +81,13 @@ export function createCacheLifeOutsideUseCacheError(): Error {
 
 export function createNestedUseCacheZeroRevalidateWithoutOuterCacheLifeError(): Error {
   return new Error(
-    `A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Learn more: ${NESTED_USE_CACHE_NO_EXPLICIT_CACHELIFE}`
+    `Nested "use cache" with \`revalidate: 0\` cannot be used inside an outer "use cache" without an explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" with non-zero \`revalidate\` to prerender it, or zero \`revalidate\` to keep it dynamic. Learn more: ${NESTED_USE_CACHE_NO_EXPLICIT_CACHELIFE}`
   )
 }
 
 export function createNestedUseCacheShortExpireWithoutOuterCacheLifeError(): Error {
   return new Error(
-    `A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Learn more: ${NESTED_USE_CACHE_NO_EXPLICIT_CACHELIFE}`
+    `Nested "use cache" with short \`expire\` (under 5 minutes) cannot be used inside an outer "use cache" without an explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" with longer \`expire\` to prerender it, or short \`expire\` to keep it dynamic. Learn more: ${NESTED_USE_CACHE_NO_EXPLICIT_CACHELIFE}`
   )
 }
 
@@ -92,7 +95,7 @@ export function createUseCachePrivateInsideUnstableCacheError(
   expression: string
 ): Error {
   return new Error(
-    `${expression} cannot be used inside \`unstable_cache()\`. Learn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+    `${expression} cannot be used inside \`unstable_cache()\`. Learn more: ${USE_CACHE_PRIVATE_DIRECTIVE_DOCS}`
   )
 }
 
@@ -100,7 +103,7 @@ export function createUseCachePrivateInsideSharedUseCacheError(
   expression: string
 ): Error {
   return new Error(
-    `${expression} cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+    `${expression} cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: ${USE_CACHE_PRIVATE_DIRECTIVE_DOCS}`
   )
 }
 
@@ -108,6 +111,6 @@ export function createUseCachePrivateOutsideRequestContextError(
   expression: string
 ): Error {
   return new Error(
-    `${expression} requires an active request and cannot be used during \`generateStaticParams\` or other build-time contexts. Learn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+    `${expression} requires an active request and cannot be used during \`generateStaticParams\` or other build-time contexts. Learn more: ${USE_CACHE_PRIVATE_DIRECTIVE_DOCS}`
   )
 }
