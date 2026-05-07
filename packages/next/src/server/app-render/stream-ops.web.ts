@@ -57,6 +57,11 @@ export type ContinueStaticPrerenderOptions = ContinueStreamSharedOptions & {
   inlinedDataStream: AnyStream
 }
 
+export type ContinueStaticFallbackPrerenderOptions =
+  ContinueStaticPrerenderOptions & {
+    isOutputExportFallback?: boolean
+  }
+
 export type ContinueDynamicHTMLResumeOptions = ContinueStreamSharedOptions & {
   inlinedDataStream: AnyStream
   delayDataUntilFirstHtmlChunk: boolean
@@ -130,7 +135,7 @@ export async function continueDynamicPrerender(
 
 export async function continueStaticFallbackPrerender(
   prerenderStream: AnyStream,
-  opts: ContinueStaticPrerenderOptions
+  opts: ContinueStaticFallbackPrerenderOptions
 ): Promise<AnyStream> {
   return webContinueStaticFallbackPrerender(
     prerenderStream as ReadableStream<Uint8Array>,

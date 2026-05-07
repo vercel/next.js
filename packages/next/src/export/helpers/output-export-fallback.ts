@@ -197,6 +197,47 @@ export async function emitOutputExportFallbackArtifacts(
   return fallbackHtmlPaths
 }
 
+export async function writeOutputExportFallbackHtml(
+  outDir: string,
+  fallbackHtmlPaths: string[]
+): Promise<void> {
+  const genericSource = [
+    join(outDir, 'index.html'),
+    join(outDir, '404.html'),
+  ].find((candidate) => existsSync(candidate))
+
+  const sortedFallbackPaths = [...fallbackHtmlPaths].sort(
+    (a, b) => a.length - b.length
+  )
+  const fallbackSource = sortedFallbackPaths[0] ?? genericSource
+  if (!fallbackSource) {
+    return
+  }
+
+  const globalFallbackPath = join(outDir, '_fallback.html')
+  if (existsSync(globalFallbackPath)) {
+    throw createOutputExportError(
+      `The route "/_fallback" conflicts with the global "_fallback.html" path used by dynamic route fallbacks in static export mode. ` +
+        `Please remove or rename this route or public file.\n\n` +
+        `Learn more: https://nextjs.org/docs/app/guides/static-exports`
+    )
+  }
+
+  const fallbackHtml = await fs.readFile(fallbackSource, 'utf8')
+  const exportFallbackScript = '<script>self.__NEXT_EXPORT_FALLBACK=1</script>'
+  const exportFallbackStyle =
+    '<style id="__next-export-fallback-style">#__next{visibility:hidden}</style>'
+  const injection = `${exportFallbackStyle}${exportFallbackScript}`
+
+  const patchedFallbackHtml = fallbackHtml.includes('<head>')
+    ? fallbackHtml.replace('<head>', `<head>${injection}`)
+    : fallbackHtml.includes('</head>')
+      ? fallbackHtml.replace('</head>', `${injection}</head>`)
+      : injection + fallbackHtml
+
+  await fs.writeFile(globalFallbackPath, patchedFallbackHtml)
+}
+
 async function collectSegmentPaths(segmentsDirectory: string) {
   const results: Array<string> = []
   await collectSegmentPathsImpl(segmentsDirectory, segmentsDirectory, results)

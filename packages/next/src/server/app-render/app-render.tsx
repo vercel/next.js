@@ -7989,6 +7989,8 @@ async function prerenderToStream(
             getServerInsertedHTML,
             getServerInsertedMetadata,
             deploymentId: ctx.sharedContext.deploymentId,
+            isOutputExportFallback:
+              ctx.renderOpts.nextConfigOutput === 'export',
           })
         } else {
           // Normal static prerender case, no fallback param handling needed
