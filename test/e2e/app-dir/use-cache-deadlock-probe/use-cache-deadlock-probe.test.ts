@@ -3,7 +3,7 @@ import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 const expectedTimeoutErrorMessage =
-  'Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".'
+  'Filling a "use cache" entry exceeded `experimental.useCacheTimeout` during prerender. This usually means a request-scoped value (e.g. `cookies()`, `searchParams`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
 
 const expectedDeadlockMessage =
   'Filling a "use cache" entry appears to be stuck on shared state from the outer render scope. The same function completed when run in isolation, which usually means a module-scoped value (for example a top-level Map used to dedupe fetches) is joining a promise created outside the cache. "use cache" already dedupes calls with the same arguments — within a request and across requests on the same server instance — so the surrounding dedupe layer is both unnecessary and the likely cause. Remove it and rely on "use cache" alone for deduping.'
@@ -173,7 +173,7 @@ describe('use-cache-deadlock-probe', () => {
       await expect(browser).toDisplayRedbox(`
        {
          "code": "E236",
-         "description": "Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".",
+         "description": "Filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means a request-scoped value (e.g. \`cookies()\`, \`searchParams\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/also-hangs/page.tsx (5:1) @ getCachedData

@@ -234,7 +234,7 @@
   "233": "The revalidate option must be a number of seconds.",
   "234": "Cannot prefetch '%s' because it cannot be converted to a URL.",
   "235": "Invariant: expected routes to have been loaded before match",
-  "236": "Filling `\"use cache\"` exceeded `experimental.useCacheTimeout` during prerender. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+  "236": "Filling a \"use cache\" entry exceeded \\`experimental.useCacheTimeout\\` during prerender. This usually means a request-scoped value (e.g. \\`cookies()\\`, \\`searchParams\\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
   "237": "Invalid OpenGraph type: %s",
   "238": "invariant expected app router to be mounted",
   "239": "Invariant: page wasn't built",

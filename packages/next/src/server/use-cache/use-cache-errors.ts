@@ -1,5 +1,3 @@
-import { createUseCacheTimeoutErrorMessage } from './use-cache-messages'
-
 const USE_CACHE_TIMEOUT_ERROR_CODE = 'USE_CACHE_TIMEOUT'
 const USE_CACHE_DEADLOCK_ERROR_CODE = 'USE_CACHE_DEADLOCK'
 
@@ -7,7 +5,9 @@ export class UseCacheTimeoutError extends Error {
   digest: typeof USE_CACHE_TIMEOUT_ERROR_CODE = USE_CACHE_TIMEOUT_ERROR_CODE
 
   constructor() {
-    super(createUseCacheTimeoutErrorMessage())
+    super(
+      `Filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means a request-scoped value (e.g. \`cookies()\`, \`searchParams\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache`
+    )
   }
 }
 
