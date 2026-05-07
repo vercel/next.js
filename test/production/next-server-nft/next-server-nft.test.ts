@@ -315,6 +315,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/needs-experimental-react.js",
            "/node_modules/next/dist/lib/non-nullable.js",
            "/node_modules/next/dist/lib/normalize-path.js",
+           "/node_modules/next/dist/lib/output-export-dynamic-fallback.js",
            "/node_modules/next/dist/lib/oxford-comma-list.js",
            "/node_modules/next/dist/lib/page-types.js",
            "/node_modules/next/dist/lib/patch-incorrect-lockfile.js",

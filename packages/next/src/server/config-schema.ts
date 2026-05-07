@@ -221,6 +221,7 @@ export const experimentalSchema = {
   clientParamParsingOrigins: z.array(z.string()).optional(),
   cachedNavigations: z.boolean().optional(),
   partialFallbacks: z.boolean().optional(),
+  outputExportDynamicFallbacks: z.boolean().optional(),
   dynamicOnHover: z.boolean().optional(),
   useOffline: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),

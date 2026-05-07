@@ -428,6 +428,11 @@ export interface ExperimentalConfig {
    * feature stabilizes.
    */
   partialFallbacks?: boolean
+  /**
+   * Enables static export fallbacks for dynamic app routes when Cache
+   * Components is enabled.
+   */
+  outputExportDynamicFallbacks?: boolean
   dynamicOnHover?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
@@ -1912,6 +1917,7 @@ export const defaultConfig = Object.freeze({
     clientParamParsingOrigins: undefined,
     cachedNavigations: false,
     partialFallbacks: true,
+    outputExportDynamicFallbacks: false,
     dynamicOnHover: false,
     useOffline: false,
     varyParams: false,
@@ -2094,6 +2100,7 @@ export interface NextConfigRuntime {
     | 'maxPostponedStateSize'
     | 'cachedNavigations'
     | 'partialFallbacks'
+    | 'outputExportDynamicFallbacks'
     | 'exposeTestingApiInProductionBuild'
     | 'supportsImmutableAssets'
     | 'useNodeStreams'
@@ -2163,6 +2170,7 @@ export function getNextConfigRuntime(
     maxPostponedStateSize: ex.maxPostponedStateSize,
     cachedNavigations: ex.cachedNavigations,
     partialFallbacks: ex.partialFallbacks,
+    outputExportDynamicFallbacks: ex.outputExportDynamicFallbacks,
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     supportsImmutableAssets: ex.supportsImmutableAssets,
     useNodeStreams: ex.useNodeStreams,
