@@ -59,6 +59,16 @@ describe('output-export-dynamic-fallbacks', () => {
       } finally {
         await hardLoad.close()
       }
+
+      const softNav = await webdriver(port, '/another')
+      try {
+        await softNav.elementByCss('a[href^="/another/alpha"]').click()
+        await retry(async () => {
+          expect(await softNav.elementByCss('h1').text()).toBe('alpha')
+        })
+      } finally {
+        await softNav.close()
+      }
     } finally {
       await stopApp(app)
     }

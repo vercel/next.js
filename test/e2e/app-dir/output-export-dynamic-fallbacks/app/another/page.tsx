@@ -4,7 +4,9 @@ export default function Page() {
   return (
     <main>
       <h1>Another</h1>
-      <Link href="/another/alpha">Alpha</Link>
+      <Link href="/another/alpha" prefetch={false}>
+        Alpha
+      </Link>
     </main>
   )
 }
