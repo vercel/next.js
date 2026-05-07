@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
 const expectedTimeoutErrorMessage =
-  'Filling a "use cache" entry exceeded `experimental.useCacheTimeout` during prerender. This usually means a request-scoped value (e.g. `cookies()`, `searchParams`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
+  'Filling a "use cache" entry exceeded `experimental.useCacheTimeout` during prerender. This usually means a request-scoped value (e.g. `params`, `searchParams`, `cookies()`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
 
 describe('use-cache-configured-timeout', () => {
   const { next, isNextDev, skipped } = nextTestSetup({

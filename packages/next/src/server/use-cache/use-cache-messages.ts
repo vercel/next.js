@@ -78,13 +78,13 @@ export function createCacheLifeOutsideUseCacheError(): Error {
 
 export function createNestedUseCacheZeroRevalidateWithoutOuterCacheLifeError(): Error {
   return new Error(
-    `A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to make its lifetime explicit. Learn more: ${NESTED_USE_CACHE_NO_EXPLICIT_CACHELIFE}`
+    `A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Learn more: ${NESTED_USE_CACHE_NO_EXPLICIT_CACHELIFE}`
   )
 }
 
 export function createNestedUseCacheShortExpireWithoutOuterCacheLifeError(): Error {
   return new Error(
-    `A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to make its lifetime explicit. Learn more: ${NESTED_USE_CACHE_NO_EXPLICIT_CACHELIFE}`
+    `A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Learn more: ${NESTED_USE_CACHE_NO_EXPLICIT_CACHELIFE}`
   )
 }
 

@@ -3061,7 +3061,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               await expect(browser).toDisplayRedbox(`
                {
                  "code": "E1009",
-                 "description": "A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to make its lifetime explicit. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
+                 "description": "A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                  "environmentLabel": null,
                  "label": "Runtime Error",
                  "source": "app/use-cache-low-expire/nested/page.tsx (20:14) @ async Page
@@ -3089,7 +3089,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to make its lifetime explicit. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async Page (app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3106,7 +3106,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to make its lifetime explicit. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async k (app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3125,7 +3125,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               } else {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to make its lifetime explicit. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async Page (webpack:///app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3142,7 +3142,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to make its lifetime explicit. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A nested "use cache" with \`expire\` under 5 minutes is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at a (<next-dist-dir>)
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
@@ -3490,7 +3490,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               await expect(browser).toDisplayRedbox(`
                {
                  "code": "E1000",
-                 "description": "A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to make its lifetime explicit. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
+                 "description": "A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                  "environmentLabel": null,
                  "label": "Runtime Error",
                  "source": "app/use-cache-revalidate-0/nested/page.tsx (20:14) @ async Page
@@ -3518,7 +3518,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to make its lifetime explicit. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async Page (app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3535,7 +3535,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to make its lifetime explicit. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async k (app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3554,7 +3554,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               } else {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to make its lifetime explicit. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async Page (webpack:///app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3571,7 +3571,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to make its lifetime explicit. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A nested "use cache" with \`revalidate: 0\` is not allowed during prerendering when the outer "use cache" has no explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at a (<next-dist-dir>)
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.

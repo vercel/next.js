@@ -1234,5 +1234,8 @@
   "1233": "%s cannot be nested inside \"use cache\". It can only be nested inside another \"use cache: private\". Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
   "1234": "\\`cacheLife()\\` can only be called inside a \"use cache\" function. Learn more: https://nextjs.org/docs/app/api-reference/functions/cacheLife",
   "1235": "\\`cacheTag()\\` can only be called inside a \"use cache\" function. Learn more: https://nextjs.org/docs/app/api-reference/functions/cacheTag",
-  "1236": "%s cannot be used inside \\`unstable_cache()\\`. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache"
+  "1236": "%s cannot be used inside \\`unstable_cache()\\`. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+  "1237": "A nested \"use cache\" with \\`revalidate: 0\\` is not allowed during prerendering when the outer \"use cache\" has no explicit \\`cacheLife()\\`. Add \\`cacheLife()\\` to the outer \"use cache\" to choose whether it should be prerendered (with non-zero \\`revalidate\\`) or remain dynamic (with zero \\`revalidate\\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
+  "1238": "A nested \"use cache\" with \\`expire\\` under 5 minutes is not allowed during prerendering when the outer \"use cache\" has no explicit \\`cacheLife()\\`. Add \\`cacheLife()\\` to the outer \"use cache\" to choose whether it should be prerendered (with longer \\`expire\\`) or remain dynamic (with short \\`expire\\`). Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
+  "1239": "Filling a \"use cache\" entry exceeded \\`experimental.useCacheTimeout\\` during prerender. This usually means a request-scoped value (e.g. \\`params\\`, \\`searchParams\\`, \\`cookies()\\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache"
 }
