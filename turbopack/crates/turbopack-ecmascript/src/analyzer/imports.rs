@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     collections::{BTreeMap, hash_map::Entry},
     fmt::Display,
-    sync::{Arc, LazyLock},
+    sync::LazyLock,
 };
 
 use anyhow::{Context, Result};
@@ -18,6 +18,7 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
+use triomphe::Arc;
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
@@ -528,11 +529,11 @@ impl ImportMap {
         if let Some((i, i_sym)) = self.imports.get(id) {
             let r = &self.references[*i];
             return Some(JsValue::member(
-                JsValue::Module(ModuleValue {
+                Arc::new(JsValue::Module(ModuleValue {
                     module: r.module_path.clone(),
                     annotations: r.annotations.clone(),
-                }),
-                i_sym.clone().into(),
+                })),
+                Arc::new(i_sym.clone().into()),
             ));
         }
         if let Some(i) = self.namespace_imports.get(id) {

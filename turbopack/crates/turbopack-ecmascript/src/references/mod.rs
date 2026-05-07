@@ -1099,7 +1099,7 @@ async fn analyze_ecmascript_module_internal(
                 } => {
                     let func = analysis_state
                         .link_value(
-                            JsValue::member((*obj).clone(), *prop),
+                            JsValue::member(Arc::new((*obj).clone()), Arc::new(*prop)),
                             eval_context.imports.get_attributes(span),
                         )
                         .await?;
@@ -1126,7 +1126,7 @@ async fn analyze_ecmascript_module_internal(
                             .link_value(take(value), ImportAttributes::empty_ref())
                             .await?;
                         if let JsValue::Function(_, func_ident, _) = value {
-                            let mut closure_arg = JsValue::alternatives_arc(take(values));
+                            let mut closure_arg = JsValue::alternatives(take(values));
                             if mutable {
                                 closure_arg.add_unknown_mutations(true);
                             }
@@ -2339,11 +2339,11 @@ where
 
             let linked_func_call = state
                 .link_value(
-                    JsValue::call_from_parts(
+                    JsValue::call_from_iter(
                         JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(Box::new(
                             parent_path.path.as_str().into(),
                         ))),
-                        args.clone(),
+                        args.iter().cloned().map(Arc::new),
                     ),
                     ImportAttributes::empty_ref(),
                 )
@@ -2388,9 +2388,9 @@ where
             let args = linked_args().await?;
             let linked_func_call = state
                 .link_value(
-                    JsValue::call_from_parts(
+                    JsValue::call_from_iter(
                         JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
-                        args.clone(),
+                        args.iter().cloned().map(Arc::new),
                     ),
                     ImportAttributes::empty_ref(),
                 )
@@ -2434,7 +2434,8 @@ where
                 let mut show_dynamic_warning = false;
                 let pat = js_value_to_pattern(&args[0]);
                 if pat.is_match_ignore_dynamic("node") && args.len() >= 2 {
-                    let first_arg = JsValue::member(args[1].clone(), 0_f64.into());
+                    let first_arg =
+                        JsValue::member(Arc::new(args[1].clone()), Arc::new(0_f64.into()));
                     let first_arg = state
                         .link_value(first_arg, ImportAttributes::empty_ref())
                         .await?;
@@ -2685,13 +2686,13 @@ where
                             } else {
                                 let linked_func_call = state
                                     .link_value(
-                                        JsValue::call_from_parts(
+                                        JsValue::call_from_iter(
                                             JsValue::WellKnownFunction(
                                                 WellKnownFunctionKind::PathJoin,
                                             ),
-                                            vec![
-                                                JsValue::FreeVar(atom!("__dirname")),
-                                                pkg_or_dir.clone(),
+                                            [
+                                                Arc::new(JsValue::FreeVar(atom!("__dirname"))),
+                                                Arc::new(pkg_or_dir.clone()),
                                             ],
                                         ),
                                         ImportAttributes::empty_ref(),
@@ -2756,12 +2757,12 @@ where
                 } else {
                     let linked_func_call = state
                         .link_value(
-                            JsValue::call_from_parts(
+                            JsValue::call_from_iter(
                                 JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
-                                vec![
-                                    JsValue::FreeVar(atom!("__dirname")),
-                                    p.into(),
-                                    atom!("intl").into(),
+                                [
+                                    Arc::new(JsValue::FreeVar(atom!("__dirname"))),
+                                    Arc::new(p.into()),
+                                    Arc::new(atom!("intl").into()),
                                 ],
                             ),
                             ImportAttributes::empty_ref(),
@@ -3467,7 +3468,6 @@ async fn value_visitor_inner(
             ) =>
         {
             let (_, args) = call.into_parts();
-            let args: Vec<JsValue> = args.into_iter().map(Arc::unwrap_or_clone).collect();
             require_context_visitor(origin, args).await?
         }
         JsValue::Call(_, ref call)
@@ -3623,16 +3623,17 @@ async fn require_resolve_visitor(
         )
         .to_resolved()
         .await?;
-        let mut values =
-            resolved
-                .primary_sources()
-                .await?
-                .iter()
-                .map(|&source| async move {
-                    Ok(require_resolve(source.ident().await?.path.clone()).into())
-                })
-                .try_join()
-                .await?;
+        let mut values: Vec<Arc<JsValue>> = resolved
+            .primary_sources()
+            .await?
+            .iter()
+            .map(|&source| async move {
+                Ok(Arc::new(
+                    require_resolve(source.ident().await?.path.clone()).into(),
+                ))
+            })
+            .try_join()
+            .await?;
 
         match values.len() {
             0 => JsValue::unknown(
@@ -3643,7 +3644,7 @@ async fn require_resolve_visitor(
                 false,
                 rcstr!("unresolvable request"),
             ),
-            1 => values.pop().unwrap(),
+            1 => Arc::unwrap_or_clone(values.pop().unwrap()),
             _ => JsValue::alternatives(values),
         }
     } else {
@@ -3660,15 +3661,13 @@ async fn require_resolve_visitor(
 
 async fn require_context_visitor(
     origin: Vc<Box<dyn ResolveOrigin>>,
-    args: Vec<JsValue>,
+    args: Vec<Arc<JsValue>>,
 ) -> Result<JsValue> {
-    // parse_require_context expects `&[Arc<JsValue>]`; rewrap inline.
-    let args_arc: Vec<Arc<JsValue>> = args.iter().cloned().map(Arc::new).collect();
-    let options = match parse_require_context(&args_arc) {
+    let options = match parse_require_context(&args) {
         Ok(options) => options,
         Err(err) => {
             return Ok(JsValue::unknown(
-                JsValue::call_from_parts(
+                JsValue::call_from_iter(
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
                     args,
                 ),

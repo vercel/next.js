@@ -383,8 +383,6 @@ impl Display for LogicalProperty {
     }
 }
 
-/// TODO: Use `Arc`
-///
 /// There are 4 kinds of values: Leaves, Nested, Operations, and Placeholders
 /// (see `JsValueMetaKind` for details). Values are processed in two phases:
 /// - Analyze phase: We convert AST into `JsValue`s. We don't have contextual information so we need
@@ -546,24 +544,24 @@ impl fmt::Debug for MemberCallList {
 }
 
 impl MemberCallList {
-    fn from_parts(obj: JsValue, prop: JsValue, args: Vec<JsValue>) -> Self {
+    fn from_parts(obj: JsValue, prop: JsValue, args: Vec<Arc<JsValue>>) -> Self {
         let mut list = args;
         list.reserve_exact(2);
-        list.push(prop);
-        list.push(obj);
+        list.push(Arc::new(prop));
+        list.push(Arc::new(obj));
         Self(list)
     }
 
     fn from_iter<I>(obj: JsValue, prop: JsValue, args: I) -> Self
     where
-        I: IntoIterator<Item = JsValue>,
+        I: IntoIterator<Item = Arc<JsValue>>,
         I::IntoIter: ExactSizeIterator,
     {
         let args = args.into_iter();
         let mut list = Vec::with_capacity(args.len() + 2);
         list.extend(args);
-        list.push(prop);
-        list.push(obj);
+        list.push(Arc::new(prop));
+        list.push(Arc::new(obj));
         Self(list)
     }
 
@@ -638,12 +636,12 @@ impl MemberCallList {
     }
 
     fn for_each_children(&self, visitor: &mut impl FnMut(&JsValue)) {
-        self.0.iter().for_each(visitor)
+        self.0.iter().for_each(|child| visitor(child))
     }
     fn for_each_children_mut(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) -> bool {
         let mut modified = false;
         for child in self.0.iter_mut() {
-            if visitor(child) {
+            if visitor(Arc::make_mut(child)) {
                 modified = true;
             }
         }
@@ -687,22 +685,22 @@ impl fmt::Debug for CallList {
 }
 
 impl CallList {
-    fn from_parts(callee: JsValue, args: Vec<JsValue>) -> Self {
+    fn from_parts(callee: JsValue, args: Vec<Arc<JsValue>>) -> Self {
         let mut list = args;
         list.reserve_exact(1);
-        list.push(callee);
+        list.push(Arc::new(callee));
         Self(list)
     }
 
     fn from_iter<I>(callee: JsValue, args: I) -> Self
     where
-        I: IntoIterator<Item = JsValue>,
+        I: IntoIterator<Item = Arc<JsValue>>,
         I::IntoIter: ExactSizeIterator,
     {
         let args = args.into_iter();
         let mut list = Vec::with_capacity(args.len() + 1);
         list.extend(args);
-        list.push(callee);
+        list.push(Arc::new(callee));
         Self(list)
     }
 
@@ -760,12 +758,12 @@ impl CallList {
     }
 
     fn for_each_children(&self, visitor: &mut impl FnMut(&JsValue)) {
-        self.0.iter().for_each(visitor)
+        self.0.iter().for_each(|child| visitor(child))
     }
     fn for_each_children_mut(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) -> bool {
         let mut modified = false;
         for child in self.0.iter_mut() {
-            if visitor(child) {
+            if visitor(Arc::make_mut(child)) {
                 modified = true;
             }
         }
@@ -1189,22 +1187,11 @@ impl JsValue {
 
 // Constructors
 //
-// Each list-shaped constructor has two flavors: the owned-`JsValue` form (e.g. `concat`)
-// for callers that build values from scratch, and an `_arc` variant (e.g. `concat_arc`) for
-// callers that already have `Arc<JsValue>` elements and want to avoid the per-element
-// re-wrap. Single-child constructors (`logical_not`, `tenary`, …) likewise take owned
-// `JsValue`s and wrap internally. Use the `_arc` variants in hot paths that thread
-// `Arc<JsValue>`s through.
+// All constructors that store children take `Arc<JsValue>` (or `Vec<Arc<JsValue>>`)
+// directly so that every heap allocation is visible at the call site. Callers building
+// from owned `JsValue` should wrap each child explicitly via `Arc::new(...)`.
 impl JsValue {
-    fn into_arc_vec(list: Vec<JsValue>) -> Vec<Arc<JsValue>> {
-        list.into_iter().map(Arc::new).collect()
-    }
-
-    pub fn alternatives(list: Vec<JsValue>) -> Self {
-        Self::alternatives_arc(Self::into_arc_vec(list))
-    }
-
-    pub fn alternatives_arc(list: Vec<Arc<JsValue>>) -> Self {
+    pub fn alternatives(list: Vec<Arc<JsValue>>) -> Self {
         Self::Alternatives {
             total_nodes: 1 + total_nodes(&list),
             values: list,
@@ -1213,13 +1200,6 @@ impl JsValue {
     }
 
     pub fn alternatives_with_additional_property(
-        list: Vec<JsValue>,
-        logical_property: LogicalProperty,
-    ) -> Self {
-        Self::alternatives_with_additional_property_arc(Self::into_arc_vec(list), logical_property)
-    }
-
-    pub fn alternatives_with_additional_property_arc(
         list: Vec<Arc<JsValue>>,
         logical_property: LogicalProperty,
     ) -> Self {
@@ -1230,34 +1210,23 @@ impl JsValue {
         }
     }
 
-    pub fn concat(list: Vec<JsValue>) -> Self {
-        Self::concat_arc(Self::into_arc_vec(list))
-    }
-
-    pub fn concat_arc(list: Vec<Arc<JsValue>>) -> Self {
+    pub fn concat(list: Vec<Arc<JsValue>>) -> Self {
         Self::Concat(1 + total_nodes(&list), list)
     }
 
-    pub fn add(list: Vec<JsValue>) -> Self {
-        Self::add_arc(Self::into_arc_vec(list))
-    }
-
-    pub fn add_arc(list: Vec<Arc<JsValue>>) -> Self {
+    pub fn add(list: Vec<Arc<JsValue>>) -> Self {
         Self::Add(1 + total_nodes(&list), list)
     }
 
-    pub fn logical_and(list: Vec<JsValue>) -> Self {
-        let list = Self::into_arc_vec(list);
+    pub fn logical_and(list: Vec<Arc<JsValue>>) -> Self {
         Self::Logical(1 + total_nodes(&list), LogicalOperator::And, list)
     }
 
-    pub fn logical_or(list: Vec<JsValue>) -> Self {
-        let list = Self::into_arc_vec(list);
+    pub fn logical_or(list: Vec<Arc<JsValue>>) -> Self {
         Self::Logical(1 + total_nodes(&list), LogicalOperator::Or, list)
     }
 
-    pub fn nullish_coalescing(list: Vec<JsValue>) -> Self {
-        let list = Self::into_arc_vec(list);
+    pub fn nullish_coalescing(list: Vec<Arc<JsValue>>) -> Self {
         Self::Logical(
             1 + total_nodes(&list),
             LogicalOperator::NullishCoalescing,
@@ -1265,65 +1234,64 @@ impl JsValue {
         )
     }
 
-    pub fn tenary(test: JsValue, cons: JsValue, alt: JsValue) -> Self {
+    pub fn tenary(test: Arc<JsValue>, cons: Arc<JsValue>, alt: Arc<JsValue>) -> Self {
         Self::Tenary(
             1 + test.total_nodes() + cons.total_nodes() + alt.total_nodes(),
-            Arc::new(test),
-            Arc::new(cons),
-            Arc::new(alt),
+            test,
+            cons,
+            alt,
         )
     }
 
-    pub fn iterated(iterable: JsValue) -> Self {
-        Self::Iterated(1 + iterable.total_nodes(), Arc::new(iterable))
+    pub fn iterated(iterable: Arc<JsValue>) -> Self {
+        Self::Iterated(1 + iterable.total_nodes(), iterable)
     }
 
-    pub fn equal(a: JsValue, b: JsValue) -> Self {
+    pub fn equal(a: Arc<JsValue>, b: Arc<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Arc::new(a),
+            a,
             BinaryOperator::Equal,
-            Arc::new(b),
+            b,
         )
     }
 
-    pub fn not_equal(a: JsValue, b: JsValue) -> Self {
+    pub fn not_equal(a: Arc<JsValue>, b: Arc<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Arc::new(a),
+            a,
             BinaryOperator::NotEqual,
-            Arc::new(b),
+            b,
         )
     }
 
-    pub fn strict_equal(a: JsValue, b: JsValue) -> Self {
+    pub fn strict_equal(a: Arc<JsValue>, b: Arc<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Arc::new(a),
+            a,
             BinaryOperator::StrictEqual,
-            Arc::new(b),
+            b,
         )
     }
 
-    pub fn strict_not_equal(a: JsValue, b: JsValue) -> Self {
+    pub fn strict_not_equal(a: Arc<JsValue>, b: Arc<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Arc::new(a),
+            a,
             BinaryOperator::StrictNotEqual,
-            Arc::new(b),
+            b,
         )
     }
 
-    pub fn logical_not(inner: JsValue) -> Self {
-        Self::Not(1 + inner.total_nodes(), Arc::new(inner))
+    pub fn logical_not(inner: Arc<JsValue>) -> Self {
+        Self::Not(1 + inner.total_nodes(), inner)
     }
 
-    pub fn type_of(operand: JsValue) -> Self {
-        Self::TypeOf(1 + operand.total_nodes(), Arc::new(operand))
+    pub fn type_of(operand: Arc<JsValue>) -> Self {
+        Self::TypeOf(1 + operand.total_nodes(), operand)
     }
 
-    pub fn array(items: Vec<JsValue>) -> Self {
-        let items = Self::into_arc_vec(items);
+    pub fn array(items: Vec<Arc<JsValue>>) -> Self {
         Self::Array {
             total_nodes: 1 + total_nodes(&items),
             items,
@@ -1331,8 +1299,7 @@ impl JsValue {
         }
     }
 
-    pub fn frozen_array(items: Vec<JsValue>) -> Self {
-        let items = Self::into_arc_vec(items);
+    pub fn frozen_array(items: Vec<Arc<JsValue>>) -> Self {
         Self::Array {
             total_nodes: 1 + total_nodes(&items),
             items,
@@ -1344,21 +1311,17 @@ impl JsValue {
         func_ident: u32,
         is_async: bool,
         is_generator: bool,
-        return_value: JsValue,
+        return_value: Arc<JsValue>,
     ) -> Self {
         // Check generator first to handle async generators
         let return_value = if is_generator {
-            JsValue::WellKnownObject(WellKnownObjectKind::Generator)
+            Arc::new(JsValue::WellKnownObject(WellKnownObjectKind::Generator))
         } else if is_async {
-            JsValue::promise(return_value)
+            Arc::new(JsValue::promise(return_value))
         } else {
             return_value
         };
-        Self::Function(
-            1 + return_value.total_nodes(),
-            func_ident,
-            Arc::new(return_value),
-        )
+        Self::Function(1 + return_value.total_nodes(), func_ident, return_value)
     }
 
     pub fn object(list: Vec<ObjectPart>) -> Self {
@@ -1397,7 +1360,7 @@ impl JsValue {
     /// slot (e.g. an `args` Vec returned from [`CallList::into_parts`] or
     /// [`MemberCallList::into_parts`]). For from-scratch construction use
     /// [`JsValue::new_from_iter`], which pre-sizes the underlying allocation exactly.
-    pub fn new_from_parts(f: JsValue, args: Vec<JsValue>) -> Self {
+    pub fn new_from_parts(f: JsValue, args: Vec<Arc<JsValue>>) -> Self {
         let total = 1 + f.total_nodes() + total_nodes(&args);
         Self::New(total, CallList::from_parts(f, args))
     }
@@ -1408,7 +1371,7 @@ impl JsValue {
     /// occurs.
     pub fn new_from_iter<I>(f: JsValue, args: I) -> Self
     where
-        I: IntoIterator<Item = JsValue>,
+        I: IntoIterator<Item = Arc<JsValue>>,
         I::IntoIter: ExactSizeIterator,
     {
         let list = CallList::from_iter(f, args);
@@ -1422,7 +1385,7 @@ impl JsValue {
     /// caller already has a `Vec` that is likely to be correctly sized (typically one
     /// obtained from [`CallList::into_parts`] / [`MemberCallList::into_parts`]). For
     /// from-scratch construction use [`JsValue::call_from_iter`].
-    pub fn call_from_parts(f: JsValue, args: Vec<JsValue>) -> Self {
+    pub fn call_from_parts(f: JsValue, args: Vec<Arc<JsValue>>) -> Self {
         let total = 1 + f.total_nodes() + total_nodes(&args);
         Self::Call(total, CallList::from_parts(f, args))
     }
@@ -1433,7 +1396,7 @@ impl JsValue {
     /// occurs.
     pub fn call_from_iter<I>(f: JsValue, args: I) -> Self
     where
-        I: IntoIterator<Item = JsValue>,
+        I: IntoIterator<Item = Arc<JsValue>>,
         I::IntoIter: ExactSizeIterator,
     {
         let list = CallList::from_iter(f, args);
@@ -1441,12 +1404,7 @@ impl JsValue {
         Self::Call(total, list)
     }
 
-    pub fn super_call(args: Vec<JsValue>) -> Self {
-        let args = Self::into_arc_vec(args);
-        Self::SuperCall(1 + total_nodes(&args), args)
-    }
-
-    pub fn super_call_arc(args: Vec<Arc<JsValue>>) -> Self {
+    pub fn super_call(args: Vec<Arc<JsValue>>) -> Self {
         Self::SuperCall(1 + total_nodes(&args), args)
     }
 
@@ -1456,7 +1414,7 @@ impl JsValue {
     /// caller already has a `Vec` that is likely to be correctly sized (typically one
     /// obtained from [`MemberCallList::into_parts`]). For from-scratch construction use
     /// [`JsValue::member_call_from_iter`].
-    pub fn member_call_from_parts(o: JsValue, p: JsValue, args: Vec<JsValue>) -> Self {
+    pub fn member_call_from_parts(o: JsValue, p: JsValue, args: Vec<Arc<JsValue>>) -> Self {
         let total = 1 + o.total_nodes() + p.total_nodes() + total_nodes(&args);
         Self::MemberCall(total, MemberCallList::from_parts(o, p, args))
     }
@@ -1468,7 +1426,7 @@ impl JsValue {
     /// occurs.
     pub fn member_call_from_iter<I>(o: JsValue, p: JsValue, args: I) -> Self
     where
-        I: IntoIterator<Item = JsValue>,
+        I: IntoIterator<Item = Arc<JsValue>>,
         I::IntoIter: ExactSizeIterator,
     {
         let list = MemberCallList::from_iter(o, p, args);
@@ -1476,24 +1434,20 @@ impl JsValue {
         Self::MemberCall(total, list)
     }
 
-    pub fn member(o: JsValue, p: JsValue) -> Self {
-        Self::member_arc(Arc::new(o), Arc::new(p))
-    }
-
-    pub fn member_arc(o: Arc<JsValue>, p: Arc<JsValue>) -> Self {
+    pub fn member(o: Arc<JsValue>, p: Arc<JsValue>) -> Self {
         Self::Member(1 + o.total_nodes() + p.total_nodes(), o, p)
     }
 
-    pub fn promise(operand: JsValue) -> Self {
+    pub fn promise(operand: Arc<JsValue>) -> Self {
         // In ecmascript Promise<Promise<T>> is equivalent to Promise<T>
-        if let JsValue::Promise(_, _) = operand {
-            return operand;
+        if matches!(&*operand, JsValue::Promise(_, _)) {
+            return Arc::unwrap_or_clone(operand);
         }
-        Self::Promise(1 + operand.total_nodes(), Arc::new(operand))
+        Self::Promise(1 + operand.total_nodes(), operand)
     }
 
-    pub fn awaited(operand: JsValue) -> Self {
-        Self::Awaited(1 + operand.total_nodes(), Arc::new(operand))
+    pub fn awaited(operand: Arc<JsValue>) -> Self {
+        Self::Awaited(1 + operand.total_nodes(), operand)
     }
 
     pub fn unknown(value: impl Into<Arc<JsValue>>, side_effects: bool, reason: RcStr) -> Self {
@@ -2942,9 +2896,10 @@ impl JsValue {
         &mut self,
         visitor: &mut impl FnMut(&mut JsValue) -> bool,
     ) -> bool {
-        // Helper: visit an `Arc<JsValue>` slot, calling `Arc::make_mut` only if the
-        // visitor actually modifies the value. The clone-on-write happens inside
-        // `make_mut`; siblings that aren't mutated keep their shared `Arc`.
+        // Helper: visit an `Arc<JsValue>` slot. The `&mut JsValue` visitor signature
+        // forces an `Arc::make_mut` here — clone-on-write happens inside `make_mut`, so
+        // shared `Arc`s are deep-cloned even if the visitor never mutates. Callers that
+        // only need read access should use `for_each_children` instead.
         fn visit_arc(
             slot: &mut Arc<JsValue>,
             visitor: &mut impl FnMut(&mut JsValue) -> bool,
@@ -3494,7 +3449,7 @@ impl JsValue {
 // Similarity
 // Like equality, but with depth limit
 impl JsValue {
-    fn all_similar(a: &[JsValue], b: &[JsValue], depth: usize) -> bool {
+    fn all_similar(a: &[Arc<JsValue>], b: &[Arc<JsValue>], depth: usize) -> bool {
         if a.len() != b.len() {
             return false;
         }
@@ -3975,6 +3930,7 @@ fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
 #[doc(hidden)]
 pub mod test_utils {
     use anyhow::Result;
+    use triomphe::Arc;
     use turbo_rcstr::rcstr;
     use turbo_tasks::{FxIndexMap, PrettyPrintError, Vc};
     use turbopack_core::compile_time_info::CompileTimeInfo;
@@ -4013,10 +3969,10 @@ pub mod test_utils {
             {
                 match &*call.args()[0] {
                     JsValue::Constant(ConstantValue::Str(v)) => {
-                        JsValue::promise(JsValue::Module(ModuleValue {
+                        JsValue::promise(Arc::new(JsValue::Module(ModuleValue {
                             module: v.as_atom().into_owned().into(),
                             annotations: None,
-                        }))
+                        })))
                     }
                     _ => v.into_unknown(true, rcstr!("import() non constant")),
                 }
@@ -4173,6 +4129,7 @@ mod tests {
         },
         testing::{NormalizedOutput, fixture, run_test},
     };
+    use triomphe::Arc;
     use turbo_rcstr::rcstr;
     use turbo_tasks::{ResolvedVc, util::FormatDuration};
     use turbopack_core::{
@@ -4377,12 +4334,12 @@ mod tests {
                             var_graph: &VarGraph,
                             var_cache: &Mutex<FxHashMap<Id, JsValue>>,
                             i: usize,
-                        ) -> Vec<JsValue> {
+                        ) -> Vec<Arc<JsValue>> {
                             let mut new_args = Vec::with_capacity(args.len());
                             for arg in args {
                                 match arg {
                                     EffectArg::Value(v) => {
-                                        new_args.push(
+                                        new_args.push(Arc::new(
                                             resolve(
                                                 var_graph,
                                                 v,
@@ -4391,10 +4348,10 @@ mod tests {
                                             )
                                             .await
                                             .0,
-                                        );
+                                        ));
                                     }
                                     EffectArg::Closure(v, effects) => {
-                                        new_args.push(
+                                        new_args.push(Arc::new(
                                             resolve(
                                                 var_graph,
                                                 v,
@@ -4403,14 +4360,16 @@ mod tests {
                                             )
                                             .await
                                             .0,
-                                        );
+                                        ));
                                         queue.extend(
                                             effects.effects.into_iter().rev().map(|e| (i, e)),
                                         );
                                     }
                                     EffectArg::Spread => {
-                                        new_args
-                                            .push(JsValue::unknown_empty(true, rcstr!("spread")));
+                                        new_args.push(Arc::new(JsValue::unknown_empty(
+                                            true,
+                                            rcstr!("spread"),
+                                        )));
                                     }
                                 }
                             }
@@ -4511,7 +4470,7 @@ mod tests {
                                 .await;
                                 resolved.push((
                                     format!("{parent} -> {i} typeof"),
-                                    JsValue::type_of(arg),
+                                    JsValue::type_of(Arc::new(arg)),
                                 ));
                                 steps
                             }
