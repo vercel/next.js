@@ -3,7 +3,10 @@ use std::mem::take;
 use triomphe::Arc;
 use turbo_rcstr::rcstr;
 
-use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty, ObjectPart};
+use super::{
+    ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty, ObjectPart,
+    take_arc_slot,
+};
 use crate::analyzer::JsValueUrlKind;
 
 /// Replaces some builtin values with their resulting values. Called early
@@ -222,7 +225,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     for part in parts {
                         match part {
                             ObjectPart::KeyValue(_, value) => {
-                                values.push(take(value));
+                                values.push(take_arc_slot(value));
                             }
                             ObjectPart::Spread(_) => {
                                 values.push(Arc::new(JsValue::unknown(
@@ -240,7 +243,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         values.push(Arc::new(JsValue::unknown(
                             JsValue::member(
                                 Arc::new(JsValue::object(Vec::new())),
-                                take(prop),
+                                take_arc_slot(prop),
                             ),
                             true,
                             rcstr!("unknown object prototype methods or values"),
@@ -288,7 +291,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                     if let Some(key) = key.as_str() {
                                         if key == prop_str {
                                             if potential_values.is_empty() {
-                                                *value = Arc::unwrap_or_clone(take(val));
+                                                *value = Arc::unwrap_or_clone(take_arc_slot(val));
                                             } else {
                                                 potential_values.push(i);
                                                 *value = potential_values_to_alternatives(

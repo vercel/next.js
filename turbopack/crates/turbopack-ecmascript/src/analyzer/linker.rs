@@ -1,4 +1,4 @@
-use std::{collections::hash_map::Entry, fmt::Display, future::Future, mem::take};
+use std::{collections::hash_map::Entry, fmt::Display, future::Future};
 
 use anyhow::Result;
 use parking_lot::Mutex;
@@ -7,7 +7,7 @@ use swc_core::ecma::ast::Id;
 use triomphe::Arc;
 use turbo_rcstr::rcstr;
 
-use super::{JsValue, graph::VarGraph};
+use super::{JsValue, graph::VarGraph, take_arc_slot};
 
 pub async fn link<'a, B, RB, F, RF>(
     graph: &VarGraph,
@@ -243,14 +243,16 @@ where
                     let mut has_early_children = false;
                     val.for_each_early_children_mut(&mut |child| {
                         has_early_children = true;
-                        work_queue_stack.push(Step::Enter(take(child)));
+                        work_queue_stack
+                            .push(Step::Enter(Arc::unwrap_or_clone(take_arc_slot(child))));
                         false
                     });
                     if has_early_children {
                         work_queue_stack[i] = Step::EarlyVisit(val);
                     } else {
                         val.for_each_children_mut(&mut |child| {
-                            work_queue_stack.push(Step::Enter(take(child)));
+                            work_queue_stack
+                                .push(Step::Enter(Arc::unwrap_or_clone(take_arc_slot(child))));
                             false
                         });
                         work_queue_stack[i] = Step::Leave(val);
@@ -264,7 +266,7 @@ where
             Step::EarlyVisit(mut val) => {
                 val.for_each_early_children_mut(&mut |child| {
                     let val = done.pop().unwrap();
-                    *child = val;
+                    *child = Arc::new(val);
                     true
                 });
                 val.debug_assert_total_nodes_up_to_date();
@@ -304,7 +306,8 @@ where
                     let i = work_queue_stack.len();
                     work_queue_stack.push(Step::TemporarySlot);
                     val.for_each_late_children_mut(&mut |child| {
-                        work_queue_stack.push(Step::Enter(take(child)));
+                        work_queue_stack
+                            .push(Step::Enter(Arc::unwrap_or_clone(take_arc_slot(child))));
                         false
                     });
                     work_queue_stack[i] = Step::LeaveLate(val);
@@ -314,7 +317,7 @@ where
             Step::Leave(mut val) => {
                 val.for_each_children_mut(&mut |child| {
                     let val = done.pop().unwrap();
-                    *child = val;
+                    *child = Arc::new(val);
                     true
                 });
                 val.debug_assert_total_nodes_up_to_date();
@@ -337,7 +340,7 @@ where
             Step::LeaveLate(mut val) => {
                 val.for_each_late_children_mut(&mut |child| {
                     let val = done.pop().unwrap();
-                    *child = val;
+                    *child = Arc::new(val);
                     true
                 });
                 val.debug_assert_total_nodes_up_to_date();

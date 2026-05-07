@@ -638,10 +638,13 @@ impl MemberCallList {
     fn for_each_children(&self, visitor: &mut impl FnMut(&JsValue)) {
         self.0.iter().for_each(|child| visitor(child))
     }
-    fn for_each_children_mut(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) -> bool {
+    fn for_each_children_mut(
+        &mut self,
+        visitor: &mut impl FnMut(&mut Arc<JsValue>) -> bool,
+    ) -> bool {
         let mut modified = false;
         for child in self.0.iter_mut() {
-            if visitor(Arc::make_mut(child)) {
+            if visitor(child) {
                 modified = true;
             }
         }
@@ -760,10 +763,13 @@ impl CallList {
     fn for_each_children(&self, visitor: &mut impl FnMut(&JsValue)) {
         self.0.iter().for_each(|child| visitor(child))
     }
-    fn for_each_children_mut(&mut self, visitor: &mut impl FnMut(&mut JsValue) -> bool) -> bool {
+    fn for_each_children_mut(
+        &mut self,
+        visitor: &mut impl FnMut(&mut Arc<JsValue>) -> bool,
+    ) -> bool {
         let mut modified = false;
         for child in self.0.iter_mut() {
-            if visitor(Arc::make_mut(child)) {
+            if visitor(child) {
                 modified = true;
             }
         }
@@ -1147,6 +1153,20 @@ fn pretty_join(
 
 fn total_nodes(vec: &[Arc<JsValue>]) -> u32 {
     vec.iter().map(|v| v.total_nodes()).sum::<u32>()
+}
+
+/// Replace the slot with a shared placeholder and return the original `Arc<JsValue>`.
+///
+/// Use this in place of `mem::take` (or `mem::replace(slot, Arc::default())`) on
+/// `&mut Arc<JsValue>` slots that you are about to overwrite. The placeholder is a
+/// single shared `Arc` (cloning it is just an atomic refcount bump), so the take is
+/// allocation-free.
+///
+/// The slot must be overwritten before any code reads it, since the placeholder
+/// carries no useful information.
+pub fn take_arc_slot(slot: &mut Arc<JsValue>) -> Arc<JsValue> {
+    static PLACEHOLDER: LazyLock<Arc<JsValue>> = LazyLock::new(|| Arc::new(JsValue::default()));
+    std::mem::replace(slot, PLACEHOLDER.clone())
 }
 
 // Private meta methods
@@ -2300,12 +2320,21 @@ impl JsValue {
 
     /// Make all nested operations unknown when the value is an operation.
     pub fn make_nested_operations_unknown(&mut self) -> bool {
-        fn inner(this: &mut JsValue) -> bool {
+        fn inner(this: &mut Arc<JsValue>) -> bool {
             if matches!(this.meta_type(), JsValueMetaKind::Operation) {
-                this.make_unknown(false, rcstr!("nested operation"));
+                let original = take_arc_slot(this);
+                // Match the existing `make_unknown` behavior: side_effects is `false`
+                // here. (`make_unknown` reads `self.has_side_effects()` after `take(self)`
+                // has reset `self` to a default `Unknown` with `has_side_effects=false`,
+                // so that branch was always `false || false` in practice.)
+                *this = Arc::new(JsValue::unknown(
+                    original,
+                    false,
+                    rcstr!("nested operation"),
+                ));
                 true
             } else {
-                this.for_each_children_mut(&mut inner)
+                Arc::make_mut(this).for_each_children_mut(&mut inner)
             }
         }
         if matches!(self.meta_type(), JsValueMetaKind::Operation) {
@@ -2890,23 +2919,12 @@ fn shortcircuit_if_known<T: Copy>(
 
 // Visiting
 impl JsValue {
-    /// Calls a function for each child of the node. Allows mutating the node.
-    /// Updates the total nodes count after mutation.
+    /// Calls a function for each child of the node. Allows mutating the node by
+    /// replacing the child `Arc` slot. Updates the total nodes count after mutation.
     pub fn for_each_children_mut(
         &mut self,
-        visitor: &mut impl FnMut(&mut JsValue) -> bool,
+        visitor: &mut impl FnMut(&mut Arc<JsValue>) -> bool,
     ) -> bool {
-        // Helper: visit an `Arc<JsValue>` slot. The `&mut JsValue` visitor signature
-        // forces an `Arc::make_mut` here — clone-on-write happens inside `make_mut`, so
-        // shared `Arc`s are deep-cloned even if the visitor never mutates. Callers that
-        // only need read access should use `for_each_children` instead.
-        fn visit_arc(
-            slot: &mut Arc<JsValue>,
-            visitor: &mut impl FnMut(&mut JsValue) -> bool,
-        ) -> bool {
-            visitor(Arc::make_mut(slot))
-        }
-
         match self {
             JsValue::Alternatives {
                 total_nodes: _,
@@ -2919,7 +2937,7 @@ impl JsValue {
             | JsValue::Array { items: list, .. } => {
                 let mut modified = false;
                 for item in list.iter_mut() {
-                    if visit_arc(item, visitor) {
+                    if visitor(item) {
                         modified = true
                     }
                 }
@@ -2929,7 +2947,7 @@ impl JsValue {
                 modified
             }
             JsValue::Not(_, value) => {
-                let modified = visit_arc(value, visitor);
+                let modified = visitor(value);
                 if modified {
                     self.update_total_nodes();
                 }
@@ -2940,15 +2958,15 @@ impl JsValue {
                 for item in parts.iter_mut() {
                     match item {
                         ObjectPart::KeyValue(key, value) => {
-                            if visit_arc(key, visitor) {
+                            if visitor(key) {
                                 modified = true
                             }
-                            if visit_arc(value, visitor) {
+                            if visitor(value) {
                                 modified = true
                             }
                         }
                         ObjectPart::Spread(value) => {
-                            if visit_arc(value, visitor) {
+                            if visitor(value) {
                                 modified = true
                             }
                         }
@@ -2976,7 +2994,7 @@ impl JsValue {
             JsValue::SuperCall(_, args) => {
                 let mut modified = false;
                 for item in args.iter_mut() {
-                    if visit_arc(item, visitor) {
+                    if visitor(item) {
                         modified = true
                     }
                 }
@@ -2994,7 +3012,7 @@ impl JsValue {
                 modified
             }
             JsValue::Function(_, _, return_value) => {
-                let modified = visit_arc(return_value, visitor);
+                let modified = visitor(return_value);
 
                 if modified {
                     self.update_total_nodes();
@@ -3002,8 +3020,8 @@ impl JsValue {
                 modified
             }
             JsValue::Binary(_, a, _, b) => {
-                let m1 = visit_arc(a, visitor);
-                let m2 = visit_arc(b, visitor);
+                let m1 = visitor(a);
+                let m2 = visitor(b);
                 let modified = m1 || m2;
                 if modified {
                     self.update_total_nodes();
@@ -3011,9 +3029,9 @@ impl JsValue {
                 modified
             }
             JsValue::Tenary(_, test, cons, alt) => {
-                let m1 = visit_arc(test, visitor);
-                let m2 = visit_arc(cons, visitor);
-                let m3 = visit_arc(alt, visitor);
+                let m1 = visitor(test);
+                let m2 = visitor(cons);
+                let m3 = visitor(alt);
                 let modified = m1 || m2 || m3;
                 if modified {
                     self.update_total_nodes();
@@ -3021,8 +3039,8 @@ impl JsValue {
                 modified
             }
             JsValue::Member(_, obj, prop) => {
-                let m1 = visit_arc(obj, visitor);
-                let m2 = visit_arc(prop, visitor);
+                let m1 = visitor(obj);
+                let m2 = visitor(prop);
                 let modified = m1 || m2;
                 if modified {
                     self.update_total_nodes();
@@ -3034,7 +3052,7 @@ impl JsValue {
             | JsValue::TypeOf(_, operand)
             | JsValue::Promise(_, operand)
             | JsValue::Awaited(_, operand) => {
-                let modified = visit_arc(operand, visitor);
+                let modified = visitor(operand);
                 if modified {
                     self.update_total_nodes();
                 }
@@ -3054,29 +3072,30 @@ impl JsValue {
     }
 
     /// Calls a function for only early children. Allows mutating the
-    /// node. Updates the total nodes count after mutation.
+    /// node by replacing the child `Arc` slot. Updates the total nodes count after mutation.
     pub fn for_each_early_children_mut(
         &mut self,
-        visitor: &mut impl FnMut(&mut JsValue) -> bool,
+        visitor: &mut impl FnMut(&mut Arc<JsValue>) -> bool,
     ) -> bool {
         match self {
             JsValue::New(_, call) if !call.args().is_empty() => {
-                let m = visitor(call.callee_mut());
+                let m = visitor(call.callee_arc_mut());
                 if m {
                     self.update_total_nodes();
                 }
                 m
             }
             JsValue::Call(_, call) if !call.args().is_empty() => {
-                let m = visitor(call.callee_mut());
+                let m = visitor(call.callee_arc_mut());
                 if m {
                     self.update_total_nodes();
                 }
                 m
             }
             JsValue::MemberCall(_, call) if !call.args().is_empty() => {
-                let m1 = visitor(call.prop_mut());
-                let m2 = visitor(call.obj_mut());
+                let (_, prop_slot, obj_slot) = call.as_parts_mut();
+                let m1 = visitor(prop_slot);
+                let m2 = visitor(obj_slot);
                 let modified = m1 || m2;
                 if modified {
                     self.update_total_nodes();
@@ -3084,7 +3103,7 @@ impl JsValue {
                 modified
             }
             JsValue::Member(_, obj, _) => {
-                let m = visitor(Arc::make_mut(obj));
+                let m = visitor(obj);
                 if m {
                     self.update_total_nodes();
                 }
@@ -3095,16 +3114,16 @@ impl JsValue {
     }
 
     /// Calls a function for only late children. Allows mutating the
-    /// node. Updates the total nodes count after mutation.
+    /// node by replacing the child `Arc` slot. Updates the total nodes count after mutation.
     pub fn for_each_late_children_mut(
         &mut self,
-        visitor: &mut impl FnMut(&mut JsValue) -> bool,
+        visitor: &mut impl FnMut(&mut Arc<JsValue>) -> bool,
     ) -> bool {
         match self {
             JsValue::New(_, call) if !call.args().is_empty() => {
                 let mut modified = false;
                 for item in call.args_mut().iter_mut() {
-                    if visitor(Arc::make_mut(item)) {
+                    if visitor(item) {
                         modified = true
                     }
                 }
@@ -3116,7 +3135,7 @@ impl JsValue {
             JsValue::Call(_, call) if !call.args().is_empty() => {
                 let mut modified = false;
                 for item in call.args_mut().iter_mut() {
-                    if visitor(Arc::make_mut(item)) {
+                    if visitor(item) {
                         modified = true
                     }
                 }
@@ -3128,7 +3147,7 @@ impl JsValue {
             JsValue::MemberCall(_, call) if !call.args().is_empty() => {
                 let mut modified = false;
                 for item in call.args_mut().iter_mut() {
-                    if visitor(Arc::make_mut(item)) {
+                    if visitor(item) {
                         modified = true
                     }
                 }
@@ -3138,7 +3157,7 @@ impl JsValue {
                 modified
             }
             JsValue::Member(_, _, prop) => {
-                let m = visitor(Arc::make_mut(prop));
+                let m = visitor(prop);
                 if m {
                     self.update_total_nodes();
                 }
@@ -3439,7 +3458,7 @@ impl JsValue {
     /// Normalizes the current node and all nested nodes.
     pub fn normalize(&mut self) {
         self.for_each_children_mut(&mut |child| {
-            child.normalize();
+            Arc::make_mut(child).normalize();
             true
         });
         self.normalize_shallow();
