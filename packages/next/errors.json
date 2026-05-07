@@ -1229,5 +1229,10 @@
   "1228": "\\`%s\\` cannot be called inside \"use cache\". Revalidation must run outside renders and cached functions so caches stay consistent. Learn more: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
   "1229": "%s requires an active request and cannot be used during \\`generateStaticParams\\` or other build-time contexts.",
   "1230": "\\`%s\\` cannot be called inside \"use cache\". The status of \\`draftMode()\\` can be read in a cache, but it must not be enabled or disabled there. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
-  "1231": "A nested \"use cache\" with \\`revalidate: 0\\` is not allowed during prerendering when the outer \"use cache\" has no explicit \\`cacheLife()\\`. Add \\`cacheLife()\\` to the outer \"use cache\" to make its lifetime explicit. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife"
+  "1231": "A nested \"use cache\" with \\`revalidate: 0\\` is not allowed during prerendering when the outer \"use cache\" has no explicit \\`cacheLife()\\`. Add \\`cacheLife()\\` to the outer \"use cache\" to make its lifetime explicit. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
+  "1232": "%s requires an active request and cannot be used during \\`generateStaticParams\\` or other build-time contexts. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+  "1233": "%s cannot be nested inside \"use cache\". It can only be nested inside another \"use cache: private\". Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+  "1234": "\\`cacheLife()\\` can only be called inside a \"use cache\" function. Learn more: https://nextjs.org/docs/app/api-reference/functions/cacheLife",
+  "1235": "\\`cacheTag()\\` can only be called inside a \"use cache\" function. Learn more: https://nextjs.org/docs/app/api-reference/functions/cacheTag",
+  "1236": "%s cannot be used inside \\`unstable_cache()\\`. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache"
 }

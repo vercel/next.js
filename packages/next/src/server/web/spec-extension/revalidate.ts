@@ -145,6 +145,7 @@ function revalidate(
     switch (workUnitStore.type) {
       case 'cache':
       case 'private-cache':
+        // Only reachable from a Server Action calling a cached fn.
         throw createRevalidateDuringUseCacheError(expression)
       case 'unstable-cache':
         throw new Error(

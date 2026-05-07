@@ -4283,8 +4283,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             if (isTurbopack) {
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1016",
-                 "description": ""use cache: private" cannot be used inside \`unstable_cache()\`.",
+                 "code": "E1236",
+                 "description": ""use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
                  "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <unknown>
@@ -4299,8 +4299,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             } else {
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1016",
-                 "description": ""use cache: private" cannot be used inside \`unstable_cache()\`.",
+                 "code": "E1236",
+                 "description": ""use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
                  "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ eval
@@ -4330,7 +4330,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" cannot be used inside \`unstable_cache()\`.
+                 "Error: "use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
                      at async ComponentWithCachedData (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
@@ -4348,7 +4348,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" cannot be used inside \`unstable_cache()\`.
+                 "Error: "use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at <unknown> (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
                      at async ComponentWithCachedData (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
@@ -4368,7 +4368,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" cannot be used inside \`unstable_cache()\`.
+                 "Error: "use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
                      at async g (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
@@ -4386,7 +4386,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" cannot be used inside \`unstable_cache()\`.
+                 "Error: "use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -4411,8 +4411,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E1001",
-               "description": ""use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private".",
+               "code": "E1233",
+               "description": ""use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": null,
                "label": "Runtime Error",
                "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ Private
@@ -4442,7 +4442,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private".
+                 "Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at Private (app/use-cache-private-in-use-cache/page.tsx:15:1)
                    13 | }
                    14 |
@@ -4461,7 +4461,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 `)
               } else
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private".
+                 "Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at Private (webpack:///app/use-cache-private-in-use-cache/page.tsx:15:1)
                    13 | }
                    14 |
@@ -4481,7 +4481,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "⨯ Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private".
+                 "⨯ Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
                      at a (<anonymous>)
                    13 | }
@@ -4493,7 +4493,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    18 |   return <p>Private</p> {
                    digest: '<error-digest>'
                  }
-                 Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private".
+                 Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
                      at b (<anonymous>)
                    13 | }
@@ -4513,12 +4513,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "⨯ Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private".
+                 "⨯ Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at a (<next-dist-dir>)
                      at b (<anonymous>) {
                    digest: '<error-digest>'
                  }
-                 Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private".
+                 Error: "use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at c (<next-dist-dir>)
                      at d (<anonymous>) {
                    digest: '<error-digest>'

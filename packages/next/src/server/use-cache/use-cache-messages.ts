@@ -7,6 +7,12 @@ export const NESTED_USE_CACHE_NO_EXPLICIT_CACHELIFE =
 export const STATIC_AND_DYNAMIC_REVALIDATION =
   'https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering'
 
+export const CACHE_TAG_API_DOCS =
+  'https://nextjs.org/docs/app/api-reference/functions/cacheTag'
+
+export const CACHE_LIFE_API_DOCS =
+  'https://nextjs.org/docs/app/api-reference/functions/cacheLife'
+
 export function createCookiesInUseCacheError(): Error {
   return new Error(
     `\`cookies()\` cannot be called inside "use cache". Read \`cookies()\` outside the cached function and pass the values you need as arguments. Learn more: ${NEXT_REQUEST_IN_USE_CACHE}`
@@ -45,6 +51,7 @@ export function createDraftModeMutationInUseCacheError(
   )
 }
 
+// Only reachable via Server Action -> "use cache" -> revalidate.
 export function createRevalidateDuringUseCacheError(expression: string): Error {
   return new Error(
     `\`${expression}\` cannot be called inside "use cache". Revalidation must run outside renders and cached functions so caches stay consistent. Learn more: ${STATIC_AND_DYNAMIC_REVALIDATION}`
@@ -59,13 +66,13 @@ export function createRequestIoInUseCacheError(expression: string): Error {
 
 export function createCacheTagOutsideUseCacheError(): Error {
   return new Error(
-    `\`cacheTag()\` can only be called inside a "use cache" function.`
+    `\`cacheTag()\` can only be called inside a "use cache" function. Learn more: ${CACHE_TAG_API_DOCS}`
   )
 }
 
 export function createCacheLifeOutsideUseCacheError(): Error {
   return new Error(
-    `\`cacheLife()\` can only be called inside a "use cache" function.`
+    `\`cacheLife()\` can only be called inside a "use cache" function. Learn more: ${CACHE_LIFE_API_DOCS}`
   )
 }
 
@@ -84,14 +91,16 @@ export function createNestedUseCacheShortExpireWithoutOuterCacheLifeError(): Err
 export function createUseCachePrivateInsideUnstableCacheError(
   expression: string
 ): Error {
-  return new Error(`${expression} cannot be used inside \`unstable_cache()\`.`)
+  return new Error(
+    `${expression} cannot be used inside \`unstable_cache()\`. Learn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+  )
 }
 
 export function createUseCachePrivateInsideSharedUseCacheError(
   expression: string
 ): Error {
   return new Error(
-    `${expression} cannot be nested inside "use cache". It can only be nested inside another "use cache: private".`
+    `${expression} cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: ${NEXT_REQUEST_IN_USE_CACHE}`
   )
 }
 
@@ -99,7 +108,7 @@ export function createUseCachePrivateOutsideRequestContextError(
   expression: string
 ): Error {
   return new Error(
-    `${expression} requires an active request and cannot be used during \`generateStaticParams\` or other build-time contexts.`
+    `${expression} requires an active request and cannot be used during \`generateStaticParams\` or other build-time contexts. Learn more: ${NEXT_REQUEST_IN_USE_CACHE}`
   )
 }
 
