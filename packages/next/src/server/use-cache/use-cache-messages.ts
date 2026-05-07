@@ -111,7 +111,3 @@ export function createUseCachePrivateOutsideRequestContextError(
     `${expression} requires an active request and cannot be used during \`generateStaticParams\` or other build-time contexts. Learn more: ${NEXT_REQUEST_IN_USE_CACHE}`
   )
 }
-
-export function createUseCacheTimeoutErrorMessage(): string {
-  return `Filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means a request-scoped value (e.g. \`cookies()\`, \`searchParams\`) or an unresolved promise was awaited inside the cached function. Learn more: ${NEXT_REQUEST_IN_USE_CACHE}`
-}

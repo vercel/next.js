@@ -180,10 +180,6 @@ describe('use-cache-search-params', () => {
 
       expect(cliOutput).toInclude(getExpectedErrorMessage())
 
-      expect(cliOutput).toInclude(getExpectedErrorMessage())
-
-      expect(cliOutput).not.toInclude(getExpectedErrorMessage())
-
       expect(cliOutput).toInclude(
         'Error occurred prerendering page "/search-params-used"'
       )
