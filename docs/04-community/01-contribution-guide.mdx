@@ -243,17 +243,17 @@ Most examples in the docs are written in `tsx` and `jsx`, and a few in `bash`. H
 
 When writing JavaScript code blocks, we use the following language and extension combinations.
 
-|                                | Language | Extension |
-| ------------------------------ | -------- | --------- |
-| JavaScript files with JSX code | ```jsx   | .js       |
-| JavaScript files without JSX   | ```js    | .js       |
-| TypeScript files with JSX      | ```tsx   | .tsx      |
-| TypeScript files without JSX   | ```ts    | .ts       |
+|                                | Language   | Extension |
+| ------------------------------ | ---------- | --------- |
+| JavaScript files with JSX code | ` ```jsx ` | .js       |
+| JavaScript files without JSX   | ` ```js `  | .js       |
+| TypeScript files with JSX      | ` ```tsx ` | .tsx      |
+| TypeScript files without JSX   | ` ```ts `  | .ts       |
 
 > **Good to know**:
 >
 > - Make sure to use **`.js`** extension for JavaScript files with **JSX** code.
-> - For example, ```jsx filename="app/layout.js"
+> - For example, ` ```jsx filename="app/layout.js" `
 
 ### TS and JS Switcher
 

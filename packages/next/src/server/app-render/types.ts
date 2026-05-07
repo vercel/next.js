@@ -4,6 +4,7 @@ import type {
   ExperimentalConfig,
   NextConfigComplete,
   PrefetchInliningConfig,
+  ValidationLevel,
 } from '../../server/config-shared'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
@@ -96,6 +97,7 @@ export interface RenderOptsPartial {
   err?: Error | null
   basePath: string
   cacheComponents: boolean
+  validationLevel: ValidationLevel
   trailingSlash: boolean
   images: ImageConfigComplete
   supportsDynamicResponse: boolean
@@ -223,7 +225,7 @@ export interface RenderOptsPartial {
   /**
    * When true, attempt to run build-time instant validation for this prerender.
    * Only the first prerender per page sets this, since validation uses
-   * unstable_instant.samples and is independent of actual route params.
+   * unstable_instant.unstable_samples and is independent of actual route params.
    */
   runInstantValidation?: boolean
 }

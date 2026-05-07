@@ -5,7 +5,9 @@ use byteorder::{BE, WriteBytesExt};
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
+};
 use turbo_tasks_fs::{
     File, FileContent, FileSystemPath,
     rope::{Rope, RopeBuilder},
@@ -471,7 +473,7 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
         .copied()
         .map(async |module| {
             let ident = module.ident().to_string().owned().await?;
-            let path = module.ident().path().to_string().owned().await?;
+            let path = module.ident().await?.path.to_string_ref().await?;
             Ok((ident, path))
         })
         .try_join()

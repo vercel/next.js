@@ -4,7 +4,8 @@ import { lang } from 'next/root-params'
 import assert from 'node:assert/strict'
 
 export const unstable_instant: Instant = {
-  samples: [{ params: { lang: 'en-from-samples' } }],
+  level: 'experimental-error',
+  unstable_samples: [{ params: { lang: 'en-from-samples' } }],
 }
 export const unstable_prefetch = 'force-runtime'
 

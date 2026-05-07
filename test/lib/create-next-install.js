@@ -9,6 +9,7 @@ const { linkPackages } =
 
 const PREFER_OFFLINE = process.env.NEXT_TEST_PREFER_OFFLINE === '1'
 const useRspack = process.env.NEXT_TEST_USE_RSPACK === '1'
+const ROOT_PACKAGE_MANAGER = require('../../package.json').packageManager
 
 async function installDependencies(cwd, tmpDir) {
   const args = [
@@ -175,6 +176,10 @@ async function createNextInstall({
         path.join(installDir, 'package.json'),
         JSON.stringify(
           {
+            // Pin packageManager so corepack doesn't auto-inject a reference
+            // to the latest version (and rewrite this file mid-test).
+            // Callers can override via packageJson.packageManager.
+            packageManager: ROOT_PACKAGE_MANAGER,
             ...packageJson,
             scripts,
             dependencies: combinedDependencies,

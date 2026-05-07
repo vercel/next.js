@@ -662,12 +662,17 @@ async function generateDynamicRSCPayload(
 
   if (!options?.skipPageRendering) {
     const preloadCallbacks: PreloadCallbacks = []
+    const requestStore = workUnitAsyncStorage.getStore()
 
     // If we're performing instant validation, we need to render the whole tree,
     // without skipping shared layouts.
     const needsFullTree =
       process.env.__NEXT_DEV_SERVER &&
       ctx.renderOpts.cacheComponents &&
+      !(
+        requestStore?.type === 'request' &&
+        isBypassingCachesInDev(requestStore, workStore)
+      ) &&
       !options?.actionResult && // Only for navigations
       (await anySegmentNeedsInstantValidationInDev(loaderTree))
 
@@ -1482,7 +1487,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   // instant configs exist, since we render all the layouts necessary to perform
   // the validation in those cases.
   const shouldValidate =
-    !isBypassingCachesInDev(initialRequestStore) &&
+    !isBypassingCachesInDev(initialRequestStore, workStore) &&
     (initialRequestStore.isHmrRefresh === true ||
       (await anySegmentNeedsInstantValidationInDev(loaderTree)))
 
@@ -1496,7 +1501,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       undefined
     )
 
-    if (isBypassingCachesInDev(requestStore)) {
+    if (isBypassingCachesInDev(requestStore, workStore)) {
       // Mark the RSC payload to indicate that caches were bypassed in dev.
       // This lets the client know not to cache anything based on this render.
       payload._bypassCachesInDev = createElement(WarnForBypassCachesInDev, {
@@ -1519,8 +1524,9 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     // (which is not the case for renders after an action)
     createRequestStore &&
     // We only do this flow if we're not bypassing caches in dev using
-    // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
-    !isBypassingCachesInDev(initialRequestStore)
+    // "disable cache" in devtools, a hard refresh (cache-control: "no-cache"),
+    // or draft mode.
+    !isBypassingCachesInDev(initialRequestStore, workStore)
   ) {
     // Before we kick off the render, we set the cache status back to it's initial state
     // in case a previous render bypassed the cache.
@@ -3165,6 +3171,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     // @TODO move to workUnitStore of type Request
     isPrefetchRequest,
     buildId: sharedContext.buildId,
+    deploymentId: sharedContext.deploymentId,
     previouslyRevalidatedTags,
     nonce,
   })
@@ -3438,7 +3445,7 @@ async function renderToStream(
                 { is404: res.statusCode === 404 }
               )
 
-            if (isBypassingCachesInDev(requestStore)) {
+            if (isBypassingCachesInDev(requestStore, workStore)) {
               // Mark the RSC payload to indicate that caches were bypassed in dev.
               // This lets the client know not to cache anything based on this render.
               if (renderOpts.setCacheStatus) {
@@ -3461,8 +3468,9 @@ async function renderToStream(
             // (which is not the case for renders after an action)
             createRequestStore &&
             // We only do this flow if we're not bypassing caches in dev using
-            // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
-            !isBypassingCachesInDev(requestStore)
+            // "disable cache" in devtools, a hard refresh (cache-control: "no-cache"),
+            // or draft mode.
+            !isBypassingCachesInDev(requestStore, workStore)
           ) {
             const {
               stream: serverStream,
@@ -3556,7 +3564,7 @@ async function renderToStream(
                 { is404: res.statusCode === 404 }
               )
 
-            if (isBypassingCachesInDev(requestStore)) {
+            if (isBypassingCachesInDev(requestStore, workStore)) {
               // Mark the RSC payload to indicate that caches were bypassed in dev.
               // This lets the client know not to cache anything based on this render.
               if (renderOpts.setCacheStatus) {
@@ -3579,8 +3587,9 @@ async function renderToStream(
             // (which is not the case for renders after an action)
             createRequestStore &&
             // We only do this flow if we're not bypassing caches in dev using
-            // "disable cache" in devtools or a hard refresh (cache-control: "no-store")
-            !isBypassingCachesInDev(requestStore)
+            // "disable cache" in devtools, a hard refresh (cache-control: "no-cache"),
+            // or draft mode.
+            !isBypassingCachesInDev(requestStore, workStore)
           ) {
             const {
               stream: serverStream,
@@ -4127,7 +4136,8 @@ async function renderToStream(
           requestStore,
           renderToNodeFizzStream,
           appElement,
-          fizzOptions
+          fizzOptions,
+          { waitForAllReady: generateStaticHTML }
         )
 
         // End the render span only after React completed rendering (including anything inside Suspense boundaries)
@@ -4413,7 +4423,8 @@ async function renderToStream(
                 bootstrapScriptContent,
                 bootstrapScripts: [errorBootstrapScript],
                 formState,
-              }
+              },
+              { waitForAllReady: generateStaticHTML }
             )
 
           errorAllReady.finally(() => {
@@ -6841,6 +6852,7 @@ async function validateInstantConfigInBuildWithSample(
 
     isPrefetchRequest: false,
     buildId: outerWorkStore.buildId,
+    deploymentId: outerWorkStore.deploymentId,
     reactLoadableManifest: outerWorkStore.reactLoadableManifest,
     assetPrefix: outerWorkStore.assetPrefix,
     nonce: outerWorkStore.nonce,
@@ -6855,6 +6867,7 @@ async function validateInstantConfigInBuildWithSample(
     }),
 
     cacheComponentsEnabled: outerWorkStore.cacheComponentsEnabled,
+    validationLevel: outerWorkStore.validationLevel,
     previouslyRevalidatedTags: [],
     refreshTagsByCacheKind: new Map(),
     runInCleanSnapshot: outerWorkStore.runInCleanSnapshot,
@@ -7103,6 +7116,16 @@ async function prerenderToStream(
   } = renderOpts
 
   const { cachedNavigations } = renderOpts.experimental
+
+  const renderFlightStream = process.env.__NEXT_USE_NODE_STREAMS
+    ? renderToNodeFlightStream
+    : renderToWebFlightStream
+  const renderFizzStream = process.env.__NEXT_USE_NODE_STREAMS
+    ? renderToNodeFizzStream
+    : renderToWebFizzStream
+  const createInlinedDataStream = process.env.__NEXT_USE_NODE_STREAMS
+    ? createNodeInlinedDataStream
+    : createWebInlinedDataStream
 
   const allowEmptyStaticShell =
     (renderOpts.allowEmptyStaticShell ?? false) ||
@@ -7952,13 +7975,13 @@ async function prerenderToStream(
           // segments, since those are the only ones whose data is not complete.
           const emptyReactServerResult =
             await createReactServerPrerenderResultFromRender(
-              renderToWebFlightStream(ComponentMod, [], clientModules, {
+              renderFlightStream(ComponentMod, [], clientModules, {
                 filterStackFrame,
                 onError: serverComponentsErrorHandler,
               })
             )
           finalStream = await continueStaticFallbackPrerender(htmlStream, {
-            inlinedDataStream: createWebInlinedDataStream(
+            inlinedDataStream: createInlinedDataStream(
               emptyReactServerResult.consumeAsStream(),
               nonce,
               formState
@@ -7970,7 +7993,7 @@ async function prerenderToStream(
         } else {
           // Normal static prerender case, no fallback param handling needed
           finalStream = await continueStaticPrerender(htmlStream, {
-            inlinedDataStream: createWebInlinedDataStream(
+            inlinedDataStream: createInlinedDataStream(
               reactServerResult.consumeAsStream(),
               nonce,
               formState
@@ -8029,7 +8052,7 @@ async function prerenderToStream(
         await createReactServerPrerenderResultFromRender(
           workUnitAsyncStorage.run(
             reactServerPrerenderStore,
-            renderToWebFlightStream,
+            renderFlightStream,
             ComponentMod,
             RSCPayload,
             clientModules,
@@ -8224,7 +8247,7 @@ async function prerenderToStream(
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,
           stream: await continueStaticPrerender(htmlStream, {
-            inlinedDataStream: createWebInlinedDataStream(
+            inlinedDataStream: createInlinedDataStream(
               reactServerResult.consumeAsStream(),
               nonce,
               formState
@@ -8267,7 +8290,7 @@ async function prerenderToStream(
         await createReactServerPrerenderResultFromRender(
           workUnitAsyncStorage.run(
             prerenderLegacyStore,
-            renderToWebFlightStream,
+            renderFlightStream,
             ComponentMod,
             RSCPayload,
             clientModules,
@@ -8280,7 +8303,7 @@ async function prerenderToStream(
 
       const { stream: htmlStream } = await workUnitAsyncStorage.run(
         prerenderLegacyStore,
-        renderToWebFizzStream,
+        renderFizzStream,
         // eslint-disable-next-line @next/internal/no-ambiguous-jsx
         <App
           reactServerStream={reactServerResult.asUnclosingStream()}
@@ -8295,7 +8318,8 @@ async function prerenderToStream(
           onError: htmlRendererErrorHandler,
           nonce,
           bootstrapScripts: [bootstrapScript],
-        }
+        },
+        { waitForAllReady: true }
       )
 
       if (shouldGenerateStaticFlightData(workStore)) {
@@ -8322,7 +8346,7 @@ async function prerenderToStream(
         digestErrorsMap: reactServerErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(htmlStream, {
-          inlinedDataStream: createWebInlinedDataStream(
+          inlinedDataStream: createInlinedDataStream(
             reactServerResult.consumeAsStream(),
             nonce,
             formState
@@ -8467,7 +8491,7 @@ async function prerenderToStream(
 
     const errorServerStreamRaw = workUnitAsyncStorage.run(
       prerenderLegacyStore,
-      renderToWebFlightStream,
+      renderFlightStream,
       ComponentMod,
       errorRSCPayload,
       clientModules,
@@ -8493,7 +8517,7 @@ async function prerenderToStream(
     try {
       const { stream: errorHtmlStream } = await workUnitAsyncStorage.run(
         prerenderLegacyStore,
-        renderToWebFizzStream,
+        renderFizzStream,
         // eslint-disable-next-line @next/internal/no-ambiguous-jsx
         <ErrorApp
           reactServerStream={errorServerStream}
@@ -8506,7 +8530,8 @@ async function prerenderToStream(
           nonce,
           bootstrapScripts: [errorBootstrapScript],
           formState,
-        }
+        },
+        { waitForAllReady: true }
       )
 
       const resolvedFlightResult = errorFlightResultPromise
@@ -8535,7 +8560,7 @@ async function prerenderToStream(
         digestErrorsMap: reactServerErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(errorHtmlStream, {
-          inlinedDataStream: createWebInlinedDataStream(
+          inlinedDataStream: createInlinedDataStream(
             flightStream,
             nonce,
             formState
@@ -8744,10 +8769,15 @@ async function collectSegmentData(
   )
 }
 
-function isBypassingCachesInDev(requestStore: RequestStore): boolean {
+function isBypassingCachesInDev(
+  requestStore: RequestStore,
+  workStore: WorkStore
+): boolean {
   return (
     !!process.env.__NEXT_DEV_SERVER &&
-    requestStore.headers.get('cache-control') === 'no-cache'
+    (requestStore.headers.get('cache-control') === 'no-cache' ||
+      requestStore.draftMode.isEnabled ||
+      workStore.isDraftMode === true)
   )
 }
 

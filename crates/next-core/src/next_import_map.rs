@@ -1077,7 +1077,7 @@ async fn insert_next_shared_aliases(
     );
 
     import_map.insert_alias(
-        AliasPattern::exact(rcstr!(GOOGLE_FONTS_INTERNAL_PREFIX)),
+        AliasPattern::exact(GOOGLE_FONTS_INTERNAL_PREFIX),
         ImportMapping::Dynamic(ResolvedVc::upcast(
             NextFontGoogleFontFileReplacer::new(project_path.clone(), fetch_client)
                 .to_resolved()
@@ -1270,7 +1270,7 @@ pub async fn try_get_next_package(
         node_cjs_resolve_options(root.clone()),
     );
     if let Some(source) = &*result.first_source().await? {
-        Ok(Vc::cell(Some(source.ident().path().await?.parent())))
+        Ok(Vc::cell(Some(source.ident().await?.path.parent())))
     } else {
         MissingNextFolderIssue {
             path: context_directory,

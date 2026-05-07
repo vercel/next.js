@@ -142,6 +142,7 @@ export async function handler(
 
   const {
     buildId,
+    deploymentId,
     params,
     nextConfig,
     parsedUrl,
@@ -247,6 +248,7 @@ export async function handler(
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
       },
       cacheComponents: Boolean(nextConfig.cacheComponents),
+      validationLevel: nextConfig.experimental.instantInsights.validationLevel,
       supportsDynamicResponse,
       incrementalCache,
       cacheLifeProfiles: nextConfig.cacheLife,
@@ -272,6 +274,7 @@ export async function handler(
     },
     sharedContext: {
       buildId,
+      deploymentId,
     },
   }
   const nodeNextReq = new NodeNextRequest(req)

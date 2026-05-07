@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 
-export const unstable_instant = true
+export const unstable_instant = { level: 'experimental-error' }
 
 export default function GroupLayout({ children }: { children: ReactNode }) {
   return (

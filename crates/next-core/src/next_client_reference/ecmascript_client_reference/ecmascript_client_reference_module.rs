@@ -152,7 +152,7 @@ impl EcmascriptClientReferenceModule {
             AssetContent::file(FileContent::Content(File::from(code.source_code().clone())).cell());
 
         let proxy_source = VirtualSource::new(
-            self.server_ident.path().await?.join(
+            self.server_ident.await?.path.join(
                 // We choose the extension based on the original file because we're placing the
                 // virtual module next to the original code, so its parsing will be
                 // affected by `type` fields in package.json -- a bare `proxy.js`
@@ -194,8 +194,11 @@ impl Module for EcmascriptClientReferenceModule {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(self
             .server_ident
+            .owned()
+            .await?
             .with_modifier(rcstr!("client reference proxy"))
-            .with_layer(self.server_asset_context.into_trait_ref().await?.layer()))
+            .with_layer(self.server_asset_context.into_trait_ref().await?.layer())
+            .into_vc())
     }
 
     #[turbo_tasks::function]
