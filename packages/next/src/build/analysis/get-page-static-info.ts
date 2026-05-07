@@ -11,6 +11,9 @@ import {
   SERVER_RUNTIME,
   MIDDLEWARE_FILENAME,
   PROXY_FILENAME,
+  RSC_SUFFIX,
+  RSC_SEGMENT_SUFFIX,
+  RSC_SEGMENTS_DIR_SUFFIX,
 } from '../../lib/constants'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import { isAPIRoute } from '../../lib/is-api-route'
@@ -20,6 +23,7 @@ import {
   warnAboutPreferredRegion,
 } from '../warn-about-edge-runtime'
 import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
+import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
 import { PAGE_TYPES } from '../../lib/page-types'
 import {
@@ -110,6 +114,13 @@ export interface PagesPageStaticInfo {
 }
 
 export type PageStaticInfo = AppPageStaticInfo | PagesPageStaticInfo
+
+const APP_ROUTE_RSC_SUFFIX_MATCHER = escapeStringRegexp(RSC_SUFFIX)
+const APP_ROUTE_SEGMENT_PREFETCH_SUFFIX_MATCHER = `${escapeStringRegexp(RSC_SEGMENTS_DIR_SUFFIX)}/.+${escapeStringRegexp(RSC_SEGMENT_SUFFIX)}`
+const APP_ROUTE_TRANSPORT_SUFFIX_MATCHER = `${APP_ROUTE_RSC_SUFFIX_MATCHER}|${APP_ROUTE_SEGMENT_PREFETCH_SUFFIX_MATCHER}`
+const ROOT_APP_ROUTE_TRANSPORT_MATCHER = `/?index(?:${APP_ROUTE_TRANSPORT_SUFFIX_MATCHER})`
+const MIDDLEWARE_DATA_SUFFIX_MATCHER = `\\.json|${APP_ROUTE_TRANSPORT_SUFFIX_MATCHER}`
+const OPTIONAL_MIDDLEWARE_NEXT_DATA_PREFIX = '/:nextData(_next/data/[^/]{1,})?'
 
 const CLIENT_MODULE_LABEL =
   /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) (cjs|auto) \*\//
@@ -469,11 +480,17 @@ export function getMiddlewareMatchers(
       }`
     }
 
-    source = `/:nextData(_next/data/[^/]{1,})?${source}${
+    // Match transport-specific route forms that resolve to the same page.
+    // - Pages Router data routes: /_next/data/<build-id>/...
+    // - App Router transport routes: .rsc, ...segments/...segment.rsc
+    const sourceSuffix = `${
       isRoot
-        ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
-        : '{(\\.json)}?'
+        ? `(${
+            nextConfig.i18n ? '|\\.json|' : ''
+          }/?index|/?index\\.json|${ROOT_APP_ROUTE_TRANSPORT_MATCHER})?`
+        : `{(${MIDDLEWARE_DATA_SUFFIX_MATCHER})}?`
     }`
+    source = `${OPTIONAL_MIDDLEWARE_NEXT_DATA_PREFIX}${source}${sourceSuffix}`
 
     if (nextConfig.basePath) {
       source = `${nextConfig.basePath}${source}`
