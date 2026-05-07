@@ -74,6 +74,7 @@ import {
   getRenderedSearch,
   parseDynamicParamFromURLPart,
 } from '../../route-params'
+import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import {
   createCacheMap,
   getFromCacheMap,
@@ -97,7 +98,7 @@ import type {
   NavigationFlightResponse,
 } from '../../../shared/lib/app-router-types'
 import {
-  fillInFallbackFlightData,
+  fillInAndValidateFallbackFlightData,
   type NormalizedFlightData,
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
@@ -1249,8 +1250,13 @@ function convertRootTreePrefetchToRouteTree(
   renderedSearch: NormalizedSearch,
   acc: RouteTreeAccumulator
 ) {
+  const basePath = process.env.__NEXT_ROUTER_BASEPATH || ''
+  const pathname =
+    basePath === ''
+      ? renderedPathname
+      : removePathPrefix(renderedPathname, basePath)
   // Remove trailing and leading slashes
-  const pathnameParts = renderedPathname.split('/').filter((p) => p !== '')
+  const pathnameParts = pathname.split('/').filter((p) => p !== '')
   const index = 0
   const rootSegment = ROOT_SEGMENT_REQUEST_KEY
   return convertTreePrefetchToRouteTree(
@@ -1995,11 +2001,15 @@ async function fetchOutputExportFallbackNavigationData(
     headVaryParamsThenable !== null
       ? readVaryParams(headVaryParamsThenable)
       : null
-  const patchedFlightData = fillInFallbackFlightData(
+  const patchedFlightData = fillInAndValidateFallbackFlightData(
     serverData.f,
     renderedUrl.pathname,
     renderedSearch
   )
+  if (patchedFlightData === null) {
+    return null
+  }
+
   const flightDatas = normalizeFlightData(patchedFlightData)
 
   if (typeof flightDatas === 'string') {
