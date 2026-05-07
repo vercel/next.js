@@ -73,6 +73,37 @@ describe('loadConfig', () => {
     })
   })
 
+  describe('experimental.offlineNavigations', () => {
+    it('implies experimental.useOffline', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          cacheComponents: true,
+          experimental: {
+            offlineNavigations: true,
+            useOffline: false,
+          },
+        },
+      })
+
+      expect(result.experimental.offlineNavigations).toBe(true)
+      expect(result.experimental.useOffline).toBe(true)
+    })
+
+    it('requires cacheComponents', async () => {
+      await expect(
+        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            experimental: {
+              offlineNavigations: true,
+            },
+          },
+        })
+      ).rejects.toThrow(
+        /`experimental\.offlineNavigations` requires `cacheComponents`/
+      )
+    })
+  })
+
   describe('canary-only features', () => {
     beforeAll(() => {
       process.env.__NEXT_VERSION = '14.2.0'
