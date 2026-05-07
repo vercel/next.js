@@ -1886,6 +1886,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         Some(TaskExecutionSpec { future, span })
     }
 
+    /// Returns `Some(priority)` if the task became stale during execution and needs to be
+    /// re-scheduled at the given priority. The caller (turbo-tasks manager) hands it to the
+    /// priority runner so re-execution doesn't inherit the original schedule priority.
     fn task_execution_completed(
         &self,
         task_id: TaskId,
@@ -1895,9 +1898,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Option<TaskPriority> {
-        // Returns `Some(priority)` if the task became stale during execution and needs to be
-        // re-scheduled at the given priority. The caller (turbo-tasks manager) hands it to the
-        // priority runner so re-execution doesn't inherit the original schedule priority.
         // Task completion is a 4 step process:
         // 1. Remove old edges (dependencies, collectibles, children, cells) and update the
         //    aggregation number of the task and the new children.
