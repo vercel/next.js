@@ -11,7 +11,7 @@ related:
     - app/api-reference/file-conventions/dynamic-routes
 ---
 
-The `next/root-params` module provides getter functions for accessing root-level [parameters](/docs/app/api-reference/file-conventions/dynamic-routes) in [**Server Components**](/docs/app/glossary#server-component) and [**Route Handlers**](/docs/app/api-reference/file-conventions/route). Each root parameter is exported as an async function that resolves to the parameter value for the current route.
+The `next/root-params` module provides getter functions for accessing root-level [parameters](/docs/app/api-reference/file-conventions/dynamic-routes) in [**Server Components**](/docs/app/glossary#server-component). Each root parameter is exported as an async function that resolves to the parameter value for the current route.
 
 The export names are generated from your dynamic segment folder names. For example, if your root layout is inside `app/[locale]`, you import `locale` from `next/root-params`.
 
@@ -46,7 +46,7 @@ Root parameters are the [dynamic segments](/docs/app/api-reference/file-conventi
 > **Good to know:**
 >
 > - Root parameter names must be valid JavaScript function identifiers. Kebab-cased segment names (e.g. `[post-slug]`) are not supported and will cause an error at dev time or during build.
-> - `next/root-params` can be used in Server Components and [Route Handlers](/docs/app/api-reference/file-conventions/route). It cannot be used in Client Components or Server Actions.
+> - `next/root-params` can be used in Server Components. It cannot be used in Client Components, Server Actions, or [Route Handlers](/docs/app/api-reference/file-conventions/route). Support for Route Handlers is planned for a future release.
 > - The examples on this page use [`PageProps`](/docs/app/api-reference/file-conventions/page#page-props-helper) and [`LayoutProps`](/docs/app/api-reference/file-conventions/layout#layout-props-helper), which are auto-generated type helpers based on your route structure.
 
 ## Configuration
@@ -295,33 +295,11 @@ Each root parameter getter returns a `Promise` that resolves to one of the follo
 
 If the parameter does not exist in the current route's root layout (see [Multiple root layouts](#multiple-root-layouts)), the return type includes `undefined`.
 
-## Route Handlers
-
-Root parameter getters can be used in [Route Handlers](/docs/app/api-reference/file-conventions/route):
-
-```tsx filename="app/[lang]/api/route.ts" highlight={1,5} switcher
-import { lang } from 'next/root-params'
-
-export async function GET() {
-  const language = await lang()
-  return Response.json({ lang: language })
-}
-```
-
-```jsx filename="app/[lang]/api/route.js" highlight={1,5} switcher
-import { lang } from 'next/root-params'
-
-export async function GET() {
-  const language = await lang()
-  return Response.json({ lang: language })
-}
-```
-
 ## Restrictions
 
-### Server Components and Route Handlers only
+### Server Components only
 
-Root parameter getters can only be used in Server Components and [Route Handlers](/docs/app/api-reference/file-conventions/route):
+Root parameter getters can only be used in Server Components:
 
 ```tsx
 // This will cause a build error
@@ -374,7 +352,7 @@ app/
 
 In this example, `lang` is the only root parameter. The `page.tsx` directly under the root layout has no `slug` at all. The blog and store branches both define `slug`, but with different segment types (`[slug]` vs `[...slug]`). Each route only knows about its own route parameters. The same name can have different types, different meanings, or not exist at all depending on the route. This is why route parameters below the root layout are accessed through the `params` prop rather than as global getters.
 
-The exception is [multiple root layouts](#multiple-root-layouts). When different root layouts define different route parameters, the getter functions include `undefined` in their return type to account for routes where a given parameter may not exist.
+The exception is [multiple root layouts](#multiple-root-layouts). When different root layouts define different route parameters, the getter functions include `undefined` in their return type to account for routes where a given parameter may not exist. Navigating between routes in different root layouts is a full-page (MPA) navigation, so the root parameters resolve once per root layout and remain stable for every route rendered underneath it.
 
 ## Version History
 
