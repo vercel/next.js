@@ -145,6 +145,31 @@ export function parseDynamicParamFromURLPart(
   }
 }
 
+export function getNextPathnamePartsIndexForParam(
+  paramType: DynamicParamTypesShort,
+  pathnameParts: Array<string>,
+  partIndex: number
+): number {
+  switch (paramType) {
+    case 'c':
+    case 'ci(..)(..)':
+    case 'ci(.)':
+    case 'ci(..)':
+    case 'ci(...)':
+    case 'oc':
+      return pathnameParts.length
+    case 'd':
+    case 'di(..)(..)':
+    case 'di(.)':
+    case 'di(..)':
+    case 'di(...)':
+      return partIndex + 1
+    default:
+      paramType satisfies never
+      return partIndex
+  }
+}
+
 export function doesStaticSegmentAppearInURL(segment: string): boolean {
   // This is not a parameterized segment; however, we need to determine
   // whether or not this segment appears in the URL. For example, this route

@@ -534,6 +534,32 @@ async function createClientResumeScriptInsertionTransformStream(): Promise<
   const searchStr = `${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}`
   const NEXT_CLIENT_RESUME_SCRIPT = `<script>__NEXT_CLIENT_RESUME=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}})</script>`
 
+  return createClientResumeScriptInsertionTransformStreamForScript(
+    NEXT_CLIENT_RESUME_SCRIPT
+  )
+}
+
+async function createOutputExportClientResumeScriptInsertionTransformStream(): Promise<
+  TransformStream<Uint8Array, Uint8Array>
+> {
+  const segmentPath = '/_full'
+  const cacheBustingHeader = await computeCacheBustingSearchParam(
+    '1', //            headers[NEXT_ROUTER_PREFETCH_HEADER]
+    '/_full', //       headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]
+    undefined, //      headers[NEXT_ROUTER_STATE_TREE_HEADER]
+    undefined //       headers[NEXT_URL]
+  )
+  const searchStr = `${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}`
+  const NEXT_CLIENT_RESUME_SCRIPT = `<script>if(!self.__NEXT_EXPORT_FALLBACK){__NEXT_CLIENT_RESUME=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}})}</script>`
+
+  return createClientResumeScriptInsertionTransformStreamForScript(
+    NEXT_CLIENT_RESUME_SCRIPT
+  )
+}
+
+function createClientResumeScriptInsertionTransformStreamForScript(
+  resumeScript: string
+): TransformStream<Uint8Array, Uint8Array> {
   let didAlreadyInsert = false
   return new TransformStream({
     transform(chunk, controller) {
@@ -555,7 +581,7 @@ async function createClientResumeScriptInsertionTransformStream(): Promise<
         return
       }
 
-      const encodedInsertion = encoder.encode(NEXT_CLIENT_RESUME_SCRIPT)
+      const encodedInsertion = encoder.encode(resumeScript)
       // Get the total count of the bytes in the chunk and the insertion
       // e.g.
       // chunk = <head><meta charset="utf-8"></head>
@@ -1092,6 +1118,10 @@ type ContinueStaticPrerenderOptions = {
   deploymentId: string | undefined
 }
 
+type ContinueStaticFallbackPrerenderOptions = ContinueStaticPrerenderOptions & {
+  isOutputExportFallback?: boolean
+}
+
 export async function continueStaticPrerender(
   prerenderStream: ReadableStream<Uint8Array>,
   {
@@ -1125,7 +1155,8 @@ export async function continueStaticFallbackPrerender(
     getServerInsertedHTML,
     getServerInsertedMetadata,
     deploymentId,
-  }: ContinueStaticPrerenderOptions
+    isOutputExportFallback,
+  }: ContinueStaticFallbackPrerenderOptions
 ) {
   // Same as `continueStaticPrerender`, but also inserts an additional script
   // to instruct the client to start fetching the hydration data as early
@@ -1138,7 +1169,9 @@ export async function continueStaticFallbackPrerender(
     // Insert generated tags to head
     createHeadInsertionTransformStream(getServerInsertedHTML),
     // Insert the client resume script into the head
-    await createClientResumeScriptInsertionTransformStream(),
+    isOutputExportFallback
+      ? await createOutputExportClientResumeScriptInsertionTransformStream()
+      : await createClientResumeScriptInsertionTransformStream(),
     // Transform metadata
     createMetadataTransformStream(getServerInsertedMetadata),
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
