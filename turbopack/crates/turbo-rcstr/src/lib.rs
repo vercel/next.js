@@ -570,7 +570,6 @@ static STATIC_TABLE: LazyLock<
 });
 
 /// Create an rcstr from a string literal.
-
 /// Allocates the RcStr inline when possible, otherwise uses a static `PrehashedString`.  In
 /// either case this is a compile time constant
 pub use turbo_rcstr_macros::rcstr;
