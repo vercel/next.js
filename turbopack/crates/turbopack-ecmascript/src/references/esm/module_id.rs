@@ -81,7 +81,7 @@ impl EsmModuleIdAssetReferenceCodeGen {
         let mut visitors = Vec::new();
 
         if let ReferencedAsset::Some(asset) =
-            &*self.reference.await?.inner.get_referenced_asset().await?
+            self.reference.await?.inner.get_referenced_asset().await?
         {
             let id = asset.chunk_item_id(chunking_context).await?;
             let id = module_id_to_lit(&id);

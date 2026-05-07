@@ -9807,9 +9807,14 @@ dependencies = [
  "smallvec",
  "triomphe 0.1.12",
  "turbo-bincode",
+ "turbo-rcstr-macros",
  "turbo-tasks-hash",
  "unty",
 ]
+
+[[package]]
+name = "turbo-rcstr-macros"
+version = "0.1.0"
 
 [[package]]
 name = "turbo-tasks"
@@ -9838,6 +9843,7 @@ dependencies = [
  "serde_json",
  "shrink-to-fit",
  "smallvec",
+ "thiserror 1.0.69",
  "tokio",
  "tokio-util",
  "tracing",

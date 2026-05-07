@@ -988,7 +988,7 @@ export abstract class RouteModule<
     }
 
     const { isOnDemandRevalidate, revalidateOnlyGenerated } =
-      checkIsOnDemandRevalidate(req, prerenderManifest.preview)
+      checkIsOnDemandRevalidate(req.headers, prerenderManifest.preview)
 
     let isDraftMode = false
     let previewData: PreviewData
