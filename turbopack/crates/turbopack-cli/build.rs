@@ -28,8 +28,8 @@ fn main() -> anyhow::Result<()> {
         )
         .build()?;
     vergen_gitcl::Emitter::default()
-        .add_instructions(&git)?
         .fail_on_error()
+        .add_instructions(&git)?
         .emit()?;
 
     Ok(())

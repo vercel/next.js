@@ -16,6 +16,10 @@
 
 set -xeo pipefail
 
+# /build is bind-mounted from the host with a uid that differs from the
+# container's root user; mark it safe so vergen's `git rev-parse` works.
+git config --global --add safe.directory /build
+
 BUILD_TASK="${BUILD_TASK:-build-native-release}"
 
 # Node.js (installed via nodesource) is used only as a build tool (runs
