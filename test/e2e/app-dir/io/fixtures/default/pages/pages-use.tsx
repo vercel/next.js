@@ -1,13 +1,13 @@
 import React from 'react'
-import { unstable_io } from 'next/cache'
+import { io } from 'next/cache'
 
 export default function PagesUse() {
   if (typeof React.use === 'function') {
-    React.use(unstable_io())
+    React.use(io())
   }
   return (
     <>
-      <p>This page calls React.use(unstable_io()) in the component body.</p>
+      <p>This page calls React.use(io()) in the component body.</p>
       <div id="pages-content">ok</div>
     </>
   )

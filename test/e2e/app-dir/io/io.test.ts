@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('unstable_io with cache components', () => {
+describe('io with cache components', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/cache-components',
     skipDeployment: true,
@@ -10,7 +10,7 @@ describe('unstable_io with cache components', () => {
     return
   }
 
-  it('should make content after unstable_io() dynamic during prerender', async () => {
+  it('should make content after io() dynamic during prerender', async () => {
     const $ = await next.render$('/io-boundary')
     if (isNextDev) {
       // In dev mode everything renders at runtime
@@ -18,9 +18,9 @@ describe('unstable_io with cache components', () => {
       expect($('#after-io').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
     } else {
-      // In production with cache components, unstable_io() creates a dynamic
+      // In production with cache components, io() creates a dynamic
       // boundary. Content in the static shell is rendered at buildtime.
-      // Content after unstable_io() is rendered at request time because the
+      // Content after io() is rendered at request time because the
       // hanging promise prevented it from executing during the build prerender.
       expect($('#before').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at buildtime')
@@ -34,7 +34,7 @@ describe('unstable_io with cache components', () => {
       expect($('#cached-value').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
     } else {
-      // unstable_io() inside "use cache" is a no-op so the cached value is
+      // io() inside "use cache" is a no-op so the cached value is
       // computed at cache-fill time during the build
       expect($('#cached-value').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at buildtime')
@@ -57,7 +57,7 @@ describe('unstable_io with cache components', () => {
   })
 })
 
-describe('unstable_io without cache components', () => {
+describe('io without cache components', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/default',
     skipDeployment: true,
@@ -74,7 +74,7 @@ describe('unstable_io without cache components', () => {
       expect($('#after-io').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
     } else {
-      // Without cache components, unstable_io() resolves immediately during
+      // Without cache components, io() resolves immediately during
       // prerendering so the entire page is fully static
       expect($('#before').text()).toBe('at buildtime')
       expect($('#after-io').text()).toBe('at buildtime')
