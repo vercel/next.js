@@ -67,7 +67,12 @@ fn main() -> anyhow::Result<()> {
             "cargo:warning=git HEAD: {}",
             str::from_utf8(&out.stdout).unwrap()
         ),
-        _ => println!("cargo:warning=`git rev-parse HEAD` failed"),
+        Ok(out) => println!(
+            "cargo:warning=`git rev-parse HEAD` failed with status {}: {}",
+            out.status,
+            str::from_utf8(&out.stderr).unwrap()
+        ),
+        Err(e) => println!("cargo:warning=`git rev-parse HEAD` could not be spawned: {e}"),
     }
 
     if !is_macos_target {
