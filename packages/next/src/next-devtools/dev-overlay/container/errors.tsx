@@ -289,12 +289,14 @@ function blockingRouteHeadline(variant: GuidanceVariant): string {
   switch (variant) {
     case 'runtime':
       return 'Next.js encountered runtime data during the initial render.'
+    case 'dynamic':
+      return 'Next.js encountered uncached data during the initial render.'
     case 'navigation-runtime':
       return 'Next.js encountered runtime data during a navigation.'
     case 'navigation-dynamic':
       return 'Next.js encountered uncached data during a navigation.'
     default:
-      return 'Next.js encountered uncached data during the initial render.'
+      return variant satisfies never
   }
 }
 
