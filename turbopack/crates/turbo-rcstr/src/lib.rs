@@ -1,3 +1,7 @@
+// Allow the `rcstr!` proc macro's emitted `::turbo_rcstr::...` paths to
+// resolve when used inside this crate's own source (e.g. tests, doctests).
+extern crate self as turbo_rcstr;
+
 use std::{
     borrow::{Borrow, Cow},
     collections::HashMap,
@@ -53,7 +57,7 @@ mod tagged_value;
 /// `RcStr::from(...)`, or the `rcstr!` macro.
 ///
 /// ```
-/// # use turbo_rcstr::RcStr;
+/// # use turbo_rcstr::{RcStr, rcstr};
 /// #
 /// let s = "foo";
 /// let rc_s1: RcStr = s.into();
@@ -517,6 +521,20 @@ pub struct StaticRcStr(pub &'static PrehashedString);
 
 inventory::collect!(StaticRcStr);
 
+/// Forwarder around [`inventory::submit!`] that lets the `rcstr!` proc macro
+/// emit a single path it can rely on, without depending on whether
+/// `turbo_rcstr::inventory` is reachable as a macro path in the call site
+/// crate. Macros emitted from a proc macro lose access to the proc macro
+/// crate's deps, so the submission has to bounce through this declarative
+/// macro defined where `inventory::submit!` is in scope.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __rcstr_inventory_submit {
+    ($value:expr) => {
+        $crate::inventory::submit!($value);
+    };
+}
+
 /// Read-only lookup table mapping precomputed hash -> static PrehashedString.
 /// Built once on first access from all `rcstr!` constants collected by `inventory`.
 ///
@@ -529,6 +547,13 @@ static STATIC_TABLE: LazyLock<
     let mut map: HashMap<u64, SmallVec<[&'static PrehashedString; 1]>, FxBuildHasher> =
         HashMap::with_hasher(FxBuildHasher);
     for StaticRcStr(phs) in inventory::iter::<StaticRcStr> {
+        if phs.value.as_str().len() <= MAX_INLINE_LEN {
+            // This is rare, but possible if our macro cannot determine the length of the string at
+            // macro time we may end up with a wasted PrehashedString submitted to inventory.
+
+            // Just skip it
+            continue;
+        }
         let entries = map.entry(phs.hash).or_default();
         // Deduplicate: skip if an entry with the same string content exists
         // Mostly linkers will merge static strings but this isn't guaranteed so we cannot just rely
@@ -545,30 +570,9 @@ static STATIC_TABLE: LazyLock<
 });
 
 /// Create an rcstr from a string literal.
-/// Allocates the RcStr inline when possible, otherwise uses a static `PrehashedString`.  In either
-/// case this is a compile time constant
-#[macro_export]
-macro_rules! rcstr {
-    ($s:expr) => {{
-        let text = $s;
-        // This condition can be compile time evaluated and inlined.
-        if $crate::is_atom_inlineable(text) {
-            $crate::inline_atom(text).unwrap()
-        } else {
-            const fn get_rcstr() -> $crate::RcStr {
-                // Allocate static storage for the PrehashedString
-                static RCSTR_STORAGE: $crate::PrehashedString =
-                    $crate::make_const_prehashed_string($s);
-                // Register with inventory so deserialization can find this static
-                $crate::inventory::submit!($crate::StaticRcStr(&RCSTR_STORAGE));
-                // This basically just tags a bit onto the raw pointer and wraps it in an RcStr
-                // should be fast enough to do every time.
-                $crate::from_static(&RCSTR_STORAGE)
-            }
-            get_rcstr()
-        }
-    }};
-}
+/// Allocates the RcStr inline when possible, otherwise uses a static `PrehashedString`.  In
+/// either case this is a compile time constant
+pub use turbo_rcstr_macros::rcstr;
 
 /// noop
 impl ShrinkToFit for RcStr {
