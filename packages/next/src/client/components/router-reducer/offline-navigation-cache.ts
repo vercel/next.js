@@ -201,6 +201,7 @@ export type OfflineNavigationCacheStorage = {
   getRoute(
     key: OfflineNavigationRouterCacheKey
   ): Promise<OfflineNavigationRouteRecord | undefined>
+  getRoutes(buildId: string): Promise<OfflineNavigationRouteRecord[]>
   putRoute(entry: OfflineNavigationRouteRecord): Promise<void>
   deleteRoute(key: OfflineNavigationRouterCacheKey): Promise<void>
   getRouteCacheEpoch(): Promise<number>
@@ -208,6 +209,7 @@ export type OfflineNavigationCacheStorage = {
   getSegment(
     key: OfflineNavigationRouterCacheKey
   ): Promise<OfflineNavigationSegmentRecord | undefined>
+  getSegments(buildId: string): Promise<OfflineNavigationSegmentRecord[]>
   putSegment(entry: OfflineNavigationSegmentRecord): Promise<void>
   deleteSegment(key: OfflineNavigationRouterCacheKey): Promise<void>
   getSegmentCacheEpoch(): Promise<number>
@@ -233,6 +235,9 @@ export type OfflineNavigationRouterCache = {
     key: string,
     options?: OfflineNavigationCacheReadOptions
   ) => Promise<OfflineNavigationRouteRecord | null>
+  readRoutes: (
+    options?: OfflineNavigationCacheReadOptions
+  ) => Promise<OfflineNavigationRouteRecord[]>
   writeRoute: (entry: OfflineNavigationRouteRecordWrite) => Promise<boolean>
   deleteRoute: (
     key: string,
@@ -243,6 +248,9 @@ export type OfflineNavigationRouterCache = {
     key: string,
     options?: OfflineNavigationCacheReadOptions
   ) => Promise<OfflineNavigationSegmentRecord | null>
+  readSegments: (
+    options?: OfflineNavigationCacheReadOptions
+  ) => Promise<OfflineNavigationSegmentRecord[]>
   writeSegment: (entry: OfflineNavigationSegmentRecordWrite) => Promise<boolean>
   deleteSegment: (
     key: string,
@@ -408,24 +416,50 @@ export function createOfflineNavigationRouterCache(
           return null
         }
 
-        if (
-          entry.version !== ROUTE_RECORD_VERSION ||
-          entry.kind !== 'route' ||
-          entry.buildId !== buildId ||
-          entry.key !== key ||
-          entry.cacheEpoch !== cacheEpoch
-        ) {
-          await storage.deleteRoute(cacheKey)
-          return null
-        }
-
-        if (entry.expiresAt <= (options?.now ?? Date.now())) {
+        if (!isUsableRouteRecord(entry, buildId, key, cacheEpoch, options)) {
           await storage.deleteRoute(cacheKey)
           return null
         }
 
         return entry
       }, null)
+    },
+    readRoutes: async (options) => {
+      return runOfflineNavigationCacheOperation(async () => {
+        const buildId = getCacheBuildId(options?.buildId)
+        if (buildId === null) {
+          return []
+        }
+
+        const [entries, cacheEpoch] = await Promise.all([
+          storage.getRoutes(buildId),
+          storage.getRouteCacheEpoch(),
+        ])
+        const usableEntries: OfflineNavigationRouteRecord[] = []
+        await Promise.all(
+          entries.map(async (entry) => {
+            if (
+              isUsableRouteRecord(
+                entry,
+                buildId,
+                entry.key,
+                cacheEpoch,
+                options
+              )
+            ) {
+              usableEntries.push(entry)
+            } else {
+              if (
+                typeof entry.buildId === 'string' &&
+                typeof entry.key === 'string'
+              ) {
+                await storage.deleteRoute([entry.buildId, entry.key])
+              }
+            }
+          })
+        )
+        return usableEntries
+      }, [])
     },
     writeRoute: async (entry) => {
       return runOfflineNavigationCacheOperation(async () => {
@@ -484,24 +518,50 @@ export function createOfflineNavigationRouterCache(
           return null
         }
 
-        if (
-          entry.version !== SEGMENT_RECORD_VERSION ||
-          entry.kind !== 'segment' ||
-          entry.buildId !== buildId ||
-          entry.key !== key ||
-          entry.cacheEpoch !== cacheEpoch
-        ) {
-          await storage.deleteSegment(cacheKey)
-          return null
-        }
-
-        if (entry.expiresAt <= (options?.now ?? Date.now())) {
+        if (!isUsableSegmentRecord(entry, buildId, key, cacheEpoch, options)) {
           await storage.deleteSegment(cacheKey)
           return null
         }
 
         return entry
       }, null)
+    },
+    readSegments: async (options) => {
+      return runOfflineNavigationCacheOperation(async () => {
+        const buildId = getCacheBuildId(options?.buildId)
+        if (buildId === null) {
+          return []
+        }
+
+        const [entries, cacheEpoch] = await Promise.all([
+          storage.getSegments(buildId),
+          storage.getSegmentCacheEpoch(),
+        ])
+        const usableEntries: OfflineNavigationSegmentRecord[] = []
+        await Promise.all(
+          entries.map(async (entry) => {
+            if (
+              isUsableSegmentRecord(
+                entry,
+                buildId,
+                entry.key,
+                cacheEpoch,
+                options
+              )
+            ) {
+              usableEntries.push(entry)
+            } else {
+              if (
+                typeof entry.buildId === 'string' &&
+                typeof entry.key === 'string'
+              ) {
+                await storage.deleteSegment([entry.buildId, entry.key])
+              }
+            }
+          })
+        )
+        return usableEntries
+      }, [])
     },
     writeSegment: async (entry) => {
       return runOfflineNavigationCacheOperation(async () => {
@@ -544,6 +604,42 @@ export function createOfflineNavigationRouterCache(
       }, false)
     },
   }
+}
+
+function isUsableRouteRecord(
+  entry: OfflineNavigationRouteRecord,
+  buildId: string,
+  key: string,
+  cacheEpoch: number,
+  options: OfflineNavigationCacheReadOptions | undefined
+): boolean {
+  return (
+    entry.version === ROUTE_RECORD_VERSION &&
+    entry.kind === 'route' &&
+    entry.buildId === buildId &&
+    typeof entry.key === 'string' &&
+    entry.key === key &&
+    entry.cacheEpoch === cacheEpoch &&
+    entry.expiresAt > (options?.now ?? Date.now())
+  )
+}
+
+function isUsableSegmentRecord(
+  entry: OfflineNavigationSegmentRecord,
+  buildId: string,
+  key: string,
+  cacheEpoch: number,
+  options: OfflineNavigationCacheReadOptions | undefined
+): boolean {
+  return (
+    entry.version === SEGMENT_RECORD_VERSION &&
+    entry.kind === 'segment' &&
+    entry.buildId === buildId &&
+    typeof entry.key === 'string' &&
+    entry.key === key &&
+    entry.cacheEpoch === cacheEpoch &&
+    entry.expiresAt > (options?.now ?? Date.now())
+  )
 }
 
 export async function createOfflineNavigationRSCResponsePayload(
@@ -802,6 +898,10 @@ class IndexedDBOfflineNavigationCacheStorage
     return this.getFromStore(ROUTE_STORE_NAME, key)
   }
 
+  async getRoutes(buildId: string): Promise<OfflineNavigationRouteRecord[]> {
+    return this.getBuildEntriesFromStore(ROUTE_STORE_NAME, buildId)
+  }
+
   async putRoute(entry: OfflineNavigationRouteRecord): Promise<void> {
     await this.putIntoStore(ROUTE_STORE_NAME, entry)
   }
@@ -822,6 +922,12 @@ class IndexedDBOfflineNavigationCacheStorage
     key: OfflineNavigationRouterCacheKey
   ): Promise<OfflineNavigationSegmentRecord | undefined> {
     return this.getFromStore(SEGMENT_STORE_NAME, key)
+  }
+
+  async getSegments(
+    buildId: string
+  ): Promise<OfflineNavigationSegmentRecord[]> {
+    return this.getBuildEntriesFromStore(SEGMENT_STORE_NAME, buildId)
   }
 
   async putSegment(entry: OfflineNavigationSegmentRecord): Promise<void> {
@@ -855,6 +961,39 @@ class IndexedDBOfflineNavigationCacheStorage
         .objectStore(storeName)
         .get(key)
     )
+  }
+
+  private async getBuildEntriesFromStore<T extends { buildId: string }>(
+    storeName: string,
+    buildId: string
+  ): Promise<T[]> {
+    const database = await this.getDatabase()
+    if (database === null) {
+      return []
+    }
+
+    const transaction = database.transaction(storeName, 'readonly')
+    const store = transaction.objectStore(storeName)
+    const cursorRequest = store.openCursor()
+    const entries: T[] = []
+    await new Promise<void>((resolve, reject) => {
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result
+        if (cursor === null) {
+          resolve()
+          return
+        }
+
+        const entry = cursor.value as T
+        if (entry.buildId === buildId) {
+          entries.push(entry)
+        }
+        cursor.continue()
+      }
+      cursorRequest.onerror = () => reject(cursorRequest.error ?? new Error())
+    })
+    await waitForTransaction(transaction)
+    return entries
   }
 
   private async putIntoStore(storeName: string, entry: unknown): Promise<void> {
@@ -966,6 +1105,8 @@ export const invalidateOfflineNavigationCacheEntries =
   offlineNavigationCache.invalidate
 export const readOfflineNavigationRouteRecord =
   offlineNavigationRouterCache.readRoute
+export const readOfflineNavigationRouteRecords =
+  offlineNavigationRouterCache.readRoutes
 export const writeOfflineNavigationRouteRecord =
   offlineNavigationRouterCache.writeRoute
 export const deleteOfflineNavigationRouteRecord =
@@ -974,6 +1115,8 @@ export const invalidateOfflineNavigationRouteRecords =
   offlineNavigationRouterCache.invalidateRoutes
 export const readOfflineNavigationSegmentRecord =
   offlineNavigationRouterCache.readSegment
+export const readOfflineNavigationSegmentRecords =
+  offlineNavigationRouterCache.readSegments
 export const writeOfflineNavigationSegmentRecord =
   offlineNavigationRouterCache.writeSegment
 export const deleteOfflineNavigationSegmentRecord =

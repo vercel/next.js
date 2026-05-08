@@ -453,9 +453,13 @@ describe('offlineNavigations build artifacts', () => {
       expect(
         await browser.eval(() => {
           const win = window as typeof window & {
-            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<unknown>
+            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<{
+              type?: string
+            }>
           }
-          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?.at(-1)
+          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?.find(
+            (diagnostic) => diagnostic.type === 'cache-hit'
+          )
         })
       ).toMatchObject({
         type: 'cache-hit',
@@ -623,14 +627,47 @@ describe('offlineNavigations build artifacts', () => {
       expect(
         await browser.eval(() => {
           const win = window as typeof window & {
-            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<unknown>
+            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<{
+              type?: string
+            }>
           }
-          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?.at(-1)
+          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?.find(
+            (diagnostic) => diagnostic.type === 'cache-hit'
+          )
         })
       ).toMatchObject({
         type: 'cache-hit',
         requestKind: 'client-resume',
         url: `${next.url}/docs/prefetched`,
+      })
+      await retry(async () => {
+        const hydrationDiagnostic = await browser.eval(() => {
+          const win = window as typeof window & {
+            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<{
+              type?: string
+              routes?: { hydrated: number; skipped: number }
+              segments?: { hydrated: number; skipped: number }
+            }>
+          }
+          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__
+            ?.filter(
+              (diagnostic) => diagnostic.type === 'router-cache-hydration'
+            )
+            .at(-1)
+        })
+        expect(hydrationDiagnostic).toMatchObject({
+          type: 'router-cache-hydration',
+          routes: {
+            hydrated: expect.any(Number),
+            skipped: 0,
+          },
+          segments: {
+            hydrated: expect.any(Number),
+            skipped: 0,
+          },
+        })
+        expect(hydrationDiagnostic!.routes!.hydrated).toBeGreaterThan(0)
+        expect(hydrationDiagnostic!.segments!.hydrated).toBeGreaterThan(0)
       })
       const cachedServiceWorkerMessage = await browser.eval(() => {
         const message = localStorage.getItem('__nextOfflineNavigationMessage')

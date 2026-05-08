@@ -39,6 +39,7 @@ import {
   type PrefetchSubtaskResult,
 } from './scheduler'
 import {
+  type VaryPath,
   type RouteVaryPath,
   type SegmentVaryPath,
   type PartialSegmentVaryPath,
@@ -58,7 +59,12 @@ import {
   getRenderedSearchFromVaryPath,
 } from './vary-path'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
-import type { OfflineNavigationRSCResponsePayload } from '../router-reducer/offline-navigation-cache'
+import type {
+  OfflineNavigationRouteRecord,
+  OfflineNavigationRSCResponsePayload,
+  OfflineNavigationSegmentRecord,
+  OfflineNavigationSerializedVaryPath,
+} from '../router-reducer/offline-navigation-cache'
 import type {
   NormalizedPathname,
   NormalizedSearch,
@@ -79,6 +85,7 @@ import {
   setInCacheMap,
   setSizeInCacheMap,
   deleteFromCacheMap,
+  Fallback,
   isValueExpired,
   type CacheMap,
   type UnknownMapEntry,
@@ -301,6 +308,17 @@ export type SegmentCacheEntry =
   | PendingSegmentCacheEntry
   | RejectedSegmentCacheEntry
   | FulfilledSegmentCacheEntry
+
+export type OfflineNavigationRouterCacheHydrationResult = {
+  routes: {
+    hydrated: number
+    skipped: number
+  }
+  segments: {
+    hydrated: number
+    skipped: number
+  }
+}
 
 export type NonEmptySegmentCacheEntry = Exclude<
   SegmentCacheEntry,
@@ -1196,6 +1214,230 @@ export function markRouteEntryAsDynamicRewrite(
   // Note: The caller is responsible for also calling invalidateRouteCacheEntries
   // to invalidate other entries that may have been derived from this template
   // before we knew it had a dynamic rewrite.
+}
+
+export async function hydrateOfflineNavigationRouterCache(): Promise<OfflineNavigationRouterCacheHydrationResult> {
+  // Bring persisted route and segment records back into the in-memory router
+  // cache before trying to reconstruct an offline document navigation.
+  const offlineNavigationCache = getOfflineNavigationCacheModule()
+  if (offlineNavigationCache === null) {
+    return {
+      routes: {
+        hydrated: 0,
+        skipped: 0,
+      },
+      segments: {
+        hydrated: 0,
+        skipped: 0,
+      },
+    }
+  }
+
+  const now = Date.now()
+  const [routeRecords, segmentRecords] = await Promise.all([
+    offlineNavigationCache.readOfflineNavigationRouteRecords({ now }),
+    offlineNavigationCache.readOfflineNavigationSegmentRecords({ now }),
+  ])
+
+  return hydrateOfflineNavigationRouterCacheFromRecords(
+    now,
+    routeRecords,
+    segmentRecords
+  )
+}
+
+export async function hydrateOfflineNavigationRouterCacheFromRecords(
+  now: number,
+  routeRecords: OfflineNavigationRouteRecord[],
+  segmentRecords: OfflineNavigationSegmentRecord[]
+): Promise<OfflineNavigationRouterCacheHydrationResult> {
+  const result: OfflineNavigationRouterCacheHydrationResult = {
+    routes: {
+      hydrated: 0,
+      skipped: 0,
+    },
+    segments: {
+      hydrated: 0,
+      skipped: 0,
+    },
+  }
+
+  for (const record of routeRecords) {
+    if (writeOfflineNavigationRouteRecordIntoCache(now, record)) {
+      result.routes.hydrated++
+    } else {
+      result.routes.skipped++
+    }
+  }
+
+  for (const record of segmentRecords) {
+    if (await writeOfflineNavigationSegmentRecordIntoCache(now, record)) {
+      result.segments.hydrated++
+    } else {
+      result.segments.skipped++
+    }
+  }
+
+  return result
+}
+
+export function writeOfflineNavigationRouteRecordIntoCache(
+  now: number,
+  record: OfflineNavigationRouteRecord
+): boolean {
+  const route = record.route
+  if (
+    record.staleAt <= now ||
+    route === null ||
+    typeof route !== 'object' ||
+    record.tree === null ||
+    record.metadata === null ||
+    typeof route.canonicalUrl !== 'string' ||
+    typeof route.renderedSearch !== 'string' ||
+    typeof route.couldBeIntercepted !== 'boolean' ||
+    typeof route.supportsPerSegmentPrefetching !== 'boolean' ||
+    typeof route.hasDynamicRewrite !== 'boolean'
+  ) {
+    return false
+  }
+
+  const varyPath = deserializeOfflineNavigationVaryPath(record.routeVaryPath)
+  if (varyPath === null) {
+    return false
+  }
+
+  const fulfilledEntry: FulfilledRouteCacheEntry = {
+    status: EntryStatus.Fulfilled,
+    blockedTasks: null,
+    canonicalUrl: route.canonicalUrl,
+    renderedSearch: route.renderedSearch as NormalizedSearch,
+    tree: record.tree as RouteTree,
+    metadata: record.metadata as RouteTree,
+    couldBeIntercepted: route.couldBeIntercepted,
+    supportsPerSegmentPrefetching: route.supportsPerSegmentPrefetching,
+    hasDynamicRewrite: route.hasDynamicRewrite,
+    ref: null,
+    size: 0,
+    staleAt: record.staleAt,
+    version: getCurrentRouteCacheVersion(),
+  }
+  const isRevalidation = false
+  setInCacheMap(
+    routeCacheMap,
+    varyPath as RouteVaryPath,
+    fulfilledEntry,
+    isRevalidation
+  )
+  return true
+}
+
+export async function writeOfflineNavigationSegmentRecordIntoCache(
+  now: number,
+  record: OfflineNavigationSegmentRecord
+): Promise<boolean> {
+  const offlineNavigationCache = getOfflineNavigationCacheModule()
+  if (offlineNavigationCache === null) {
+    return false
+  }
+
+  const segment = record.segment
+  if (
+    record.staleAt <= now ||
+    segment === null ||
+    typeof segment !== 'object' ||
+    !offlineNavigationCache.isOfflineNavigationRSCResponsePayload(
+      record.payload
+    ) ||
+    record.payload.requestKind !== 'segment-prefetch' ||
+    !isOfflineNavigationFetchStrategy(segment.fetchStrategy) ||
+    typeof segment.isPartial !== 'boolean' ||
+    typeof segment.payloadIndex !== 'number' ||
+    segment.payloadIndex < 0
+  ) {
+    return false
+  }
+
+  const response = offlineNavigationCache.createOfflineNavigationRSCResponse(
+    record.payload
+  )
+  if (response.body === null) {
+    return false
+  }
+
+  const varyPath = deserializeOfflineNavigationVaryPath(record.segmentVaryPath)
+  if (varyPath === null) {
+    return false
+  }
+
+  let serverResponse: SegmentPrefetchResponse
+  try {
+    serverResponse =
+      await createFromNextReadableStream<SegmentPrefetchResponse>(
+        response.body,
+        undefined,
+        { allowPartialStream: true }
+      )
+  } catch {
+    return false
+  }
+
+  const segmentData = serverResponse.data[segment.payloadIndex]
+  if (segmentData === undefined || segmentData === null) {
+    return false
+  }
+
+  const pendingEntry = upgradeToPendingSegment(
+    createDetachedSegmentCacheEntry(now),
+    segment.fetchStrategy
+  )
+  const fulfilledEntry = fulfillSegmentCacheEntry(
+    pendingEntry,
+    segmentData.rsc,
+    record.staleAt,
+    segment.isPartial
+  )
+  const isRevalidation = false
+  setInCacheMap(
+    segmentCacheMap,
+    varyPath as SegmentVaryPath,
+    fulfilledEntry,
+    isRevalidation
+  )
+  return true
+}
+
+function isOfflineNavigationFetchStrategy(
+  fetchStrategy: number
+): fetchStrategy is FetchStrategy {
+  return (
+    fetchStrategy === FetchStrategy.LoadingBoundary ||
+    fetchStrategy === FetchStrategy.PPR ||
+    fetchStrategy === FetchStrategy.PPRRuntime ||
+    fetchStrategy === FetchStrategy.Full
+  )
+}
+
+function deserializeOfflineNavigationVaryPath(
+  serialized: OfflineNavigationSerializedVaryPath
+): VaryPath | null {
+  if (!Array.isArray(serialized) || serialized.length === 0) {
+    return null
+  }
+
+  let parent: VaryPath | null = null
+  for (let i = serialized.length - 1; i >= 0; i--) {
+    const part = serialized[i]
+    if (part.value.kind !== 'value' && part.value.kind !== 'fallback') {
+      return null
+    }
+
+    parent = {
+      id: part.id,
+      value: part.value.kind === 'fallback' ? Fallback : part.value.value,
+      parent,
+    }
+  }
+  return parent
 }
 
 function fulfillSegmentCacheEntry(
