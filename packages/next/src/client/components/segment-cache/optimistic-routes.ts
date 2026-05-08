@@ -55,15 +55,25 @@ import {
 } from './cache'
 import { isValueExpired } from './cache-map'
 import { doesStaticSegmentAppearInURL } from '../../route-params'
-import type { NormalizedPathname, NormalizedSearch } from './cache-key'
+import type {
+  NormalizedNextUrl,
+  NormalizedPathname,
+  NormalizedSearch,
+} from './cache-key'
 import {
   appendLayoutVaryPath,
   finalizeLayoutVaryPath,
   finalizePageVaryPath,
   finalizeMetadataVaryPath,
+  getFulfilledRouteVaryPath,
   type PartialSegmentVaryPath,
   type PageVaryPath,
 } from './vary-path'
+import {
+  createOfflineNavigationVaryPathKey,
+  serializeOfflineNavigationVaryPath,
+  writeOfflineNavigationRouteRecord,
+} from '../router-reducer/offline-navigation-cache'
 
 /**
  * The known route tree is analogous to a route table. A different routing
@@ -211,10 +221,11 @@ export function discoverKnownRoute(
   const pathnameParts = pathname.split('/').filter((p) => p !== '')
   const firstPart = pathnameParts.length > 0 ? pathnameParts[0] : null
   const remainingParts = pathnameParts.length > 0 ? pathnameParts.slice(1) : []
+  let fulfilledEntry: FulfilledRouteCacheEntry
 
   if (pendingEntry !== null) {
     // Fulfill the pending entry first
-    const fulfilledEntry = fulfillRouteCacheEntry(
+    fulfilledEntry = fulfillRouteCacheEntry(
       now,
       pendingEntry,
       tree,
@@ -245,27 +256,73 @@ export function discoverKnownRoute(
       supportsPerSegmentPrefetching,
       hasDynamicRewrite
     )
-    return fulfilledEntry
+  } else {
+    // No pending entry - discoverKnownRoutePart will create one and insert it
+    // into the cache, or return an existing pattern if one exists.
+    fulfilledEntry = discoverKnownRoutePart(
+      knownRouteTreeRoot,
+      tree,
+      firstPart,
+      remainingParts,
+      null,
+      now,
+      pathname,
+      nextUrl,
+      tree,
+      metadataVaryPath,
+      couldBeIntercepted,
+      canonicalUrl,
+      supportsPerSegmentPrefetching,
+      hasDynamicRewrite
+    )
   }
 
-  // No pending entry - discoverKnownRoutePart will create one and insert it
-  // into the cache, or return an existing pattern if one exists.
-  return discoverKnownRoutePart(
-    knownRouteTreeRoot,
-    tree,
-    firstPart,
-    remainingParts,
-    null,
-    now,
-    pathname,
-    nextUrl,
-    tree,
-    metadataVaryPath,
-    couldBeIntercepted,
-    canonicalUrl,
-    supportsPerSegmentPrefetching,
-    hasDynamicRewrite
+  persistOfflineNavigationRouteRecord(now, pathname, nextUrl, fulfilledEntry)
+  return fulfilledEntry
+}
+
+function persistOfflineNavigationRouteRecord(
+  now: number,
+  pathname: string,
+  nextUrl: string | null,
+  entry: FulfilledRouteCacheEntry
+): void {
+  if (
+    !process.env.__NEXT_OFFLINE_NAVIGATIONS ||
+    process.env.__NEXT_DEV_SERVER ||
+    process.env.NODE_ENV !== 'production' ||
+    process.env.__NEXT_CONFIG_OUTPUT === 'export' ||
+    entry.staleAt <= now
+  ) {
+    return
+  }
+
+  const routeVaryPath = getFulfilledRouteVaryPath(
+    pathname as NormalizedPathname,
+    entry.renderedSearch,
+    nextUrl as NormalizedNextUrl | null,
+    entry.couldBeIntercepted
   )
+
+  void writeOfflineNavigationRouteRecord({
+    key: createOfflineNavigationVaryPathKey(routeVaryPath),
+    now,
+    staleAt: entry.staleAt,
+    expiresAt: entry.staleAt,
+    route: {
+      pathname,
+      search: entry.renderedSearch,
+      nextUrl,
+      canonicalUrl: entry.canonicalUrl,
+      renderedSearch: entry.renderedSearch,
+      couldBeIntercepted: entry.couldBeIntercepted,
+      supportsPerSegmentPrefetching: entry.supportsPerSegmentPrefetching,
+      hasDynamicRewrite: entry.hasDynamicRewrite,
+    },
+    routeVaryPath: serializeOfflineNavigationVaryPath(routeVaryPath),
+    tree: entry.tree,
+    metadata: entry.metadata,
+  })
 }
 
 /**
