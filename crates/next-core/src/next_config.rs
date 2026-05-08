@@ -592,6 +592,7 @@ pub struct TurbopackConfig {
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub debug_ids: Option<bool>,
+    pub chunk_loading_global: Option<RcStr>,
     /// Issue patterns to ignore (suppress) from Turbopack output.
     #[serde(default)]
     pub ignore_issue: Option<Vec<TurbopackIgnoreIssueRule>>,
@@ -2293,6 +2294,15 @@ impl NextConfig {
                 .turbopack_worker_asset_prefix
                 .as_ref()
                 .map(|prefix| format!("{}/_next/", prefix.trim_end_matches('/')).into()),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_chunk_loading_global(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(
+            self.turbopack
+                .as_ref()
+                .and_then(|t| t.chunk_loading_global.clone()),
         )
     }
 

@@ -482,6 +482,7 @@ pub struct ClientChunkingContextOptions {
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
     pub cross_origin: Vc<CrossOrigin>,
+    pub chunk_loading_global: Vc<Option<RcStr>>,
 }
 
 #[turbo_tasks::function]
@@ -510,6 +511,7 @@ pub async fn get_client_chunking_context(
         css_url_suffix,
         hash_salt,
         cross_origin,
+        chunk_loading_global,
     } = options;
 
     let next_mode = mode.await?;
@@ -555,6 +557,10 @@ pub async fn get_client_chunking_context(
         suffix: AssetSuffix::Inferred,
         static_suffix: css_url_suffix.to_resolved().await?,
     });
+
+    if let Some(g) = &*chunk_loading_global.await? {
+        builder = builder.chunk_loading_global(g.clone());
+    }
 
     if next_mode.is_development() {
         builder = builder
