@@ -3,10 +3,13 @@ import {
   createOfflineNavigationRSCResponse,
   createOfflineNavigationRSCResponsePayload,
   deleteOfflineNavigationCacheEntry,
+  getOfflineNavigationRSCResponseCacheSkipReason,
   isOfflineNavigationRSCResponsePayload,
   normalizeOfflineNavigationCacheUrl,
   readOfflineNavigationCacheEntry,
   writeOfflineNavigationCacheEntry,
+  type OfflineNavigationRSCResponseCacheEligibility,
+  type OfflineNavigationRSCResponseCacheSkipReason,
   type OfflineNavigationCacheEntry,
   type OfflineNavigationCacheStorage,
 } from './offline-navigation-cache'
@@ -61,6 +64,78 @@ class FailingOfflineNavigationCacheStorage
   async deleteBuild(): Promise<void> {
     throw new Error('delete build failed')
   }
+}
+
+type OfflineNavigationEnvKey =
+  | '__NEXT_CONFIG_OUTPUT'
+  | '__NEXT_DEV_SERVER'
+  | '__NEXT_OFFLINE_NAVIGATIONS'
+  | 'NODE_ENV'
+
+const offlineNavigationEnvKeys: Array<OfflineNavigationEnvKey> = [
+  '__NEXT_CONFIG_OUTPUT',
+  '__NEXT_DEV_SERVER',
+  '__NEXT_OFFLINE_NAVIGATIONS',
+  'NODE_ENV',
+]
+
+function withOfflineNavigationCacheEnv<T>(
+  env: Partial<Record<OfflineNavigationEnvKey, string | undefined>>,
+  test: () => T
+): T {
+  const originalEnv: Partial<
+    Record<OfflineNavigationEnvKey, string | undefined>
+  > = {}
+
+  for (const key of offlineNavigationEnvKeys) {
+    originalEnv[key] = process.env[key]
+  }
+
+  const writableEnv = process.env as Record<string, string | undefined>
+
+  for (const key of offlineNavigationEnvKeys) {
+    const value = env[key]
+    if (value === undefined) {
+      delete writableEnv[key]
+    } else {
+      writableEnv[key] = value
+    }
+  }
+
+  try {
+    return test()
+  } finally {
+    for (const key of offlineNavigationEnvKeys) {
+      const value = originalEnv[key]
+      if (value === undefined) {
+        delete writableEnv[key]
+      } else {
+        writableEnv[key] = value
+      }
+    }
+  }
+}
+
+function getCacheSkipReason(
+  eligibility: Partial<OfflineNavigationRSCResponseCacheEligibility> = {},
+  env: Partial<Record<OfflineNavigationEnvKey, string | undefined>> = {}
+) {
+  return withOfflineNavigationCacheEnv(
+    {
+      __NEXT_CONFIG_OUTPUT: undefined,
+      __NEXT_DEV_SERVER: undefined,
+      __NEXT_OFFLINE_NAVIGATIONS: 'true',
+      NODE_ENV: 'production',
+      ...env,
+    },
+    () =>
+      getOfflineNavigationRSCResponseCacheSkipReason({
+        origin: 'https://example.com',
+        requestKind: 'navigation',
+        url: 'https://example.com/dashboard',
+        ...eligibility,
+      })
+  )
 }
 
 describe('offline navigation cache', () => {
@@ -214,6 +289,52 @@ describe('offline navigation cache', () => {
       kind: 'rsc-response',
       requestKind: 'initial-load',
     })
+  })
+
+  it('returns cache eligibility skip reasons for unsupported RSC responses', () => {
+    const cases: Array<{
+      expected: OfflineNavigationRSCResponseCacheSkipReason
+      eligibility?: Partial<OfflineNavigationRSCResponseCacheEligibility>
+      env?: Partial<Record<OfflineNavigationEnvKey, string | undefined>>
+    }> = [
+      {
+        expected: 'disabled',
+        env: { __NEXT_OFFLINE_NAVIGATIONS: undefined },
+      },
+      { expected: 'dev-server', env: { __NEXT_DEV_SERVER: 'true' } },
+      { expected: 'not-production', env: { NODE_ENV: 'development' } },
+      { expected: 'output-export', env: { __NEXT_CONFIG_OUTPUT: 'export' } },
+      { expected: 'unsupported-request', eligibility: { requestKind: null } },
+      { expected: 'missing-payload', eligibility: { hasCachePayload: false } },
+      {
+        expected: 'cross-origin',
+        eligibility: { url: 'https://external.example/dashboard' },
+      },
+      {
+        expected: 'unsupported-segment-prefetching',
+        eligibility: { supportsPerSegmentPrefetching: false },
+      },
+      {
+        expected: 'runtime-prefetch',
+        eligibility: { hasRuntimePrefetch: true },
+      },
+      {
+        expected: 'partial-response',
+        eligibility: { hasPartialResponse: true },
+      },
+      { expected: 'hmr-refresh', eligibility: { isHmrRefresh: true } },
+      { expected: 'interception', eligibility: { isInterception: true } },
+      { expected: 'postponed', eligibility: { isPostponed: true } },
+      { expected: 'redirected', eligibility: { isRedirected: true } },
+    ]
+
+    for (const { expected, eligibility, env } of cases) {
+      expect(getCacheSkipReason(eligibility, env)).toBe(expected)
+    }
+  })
+
+  it('allows eligible same-origin RSC responses in production', () => {
+    expect(getCacheSkipReason()).toBe(null)
   })
 
   it('deletes exact URL entries', async () => {

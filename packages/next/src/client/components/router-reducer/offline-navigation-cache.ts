@@ -8,11 +8,41 @@ const ENTRY_VERSION = 1
 const RSC_RESPONSE_PAYLOAD_VERSION = 1
 
 type OfflineNavigationCacheKey = [buildId: string, url: string]
-type OfflineNavigationRSCResponseRequestKind =
+export type OfflineNavigationRSCResponseRequestKind =
   | 'navigation'
   | 'route-prefetch'
   | 'client-resume'
   | 'initial-load'
+
+export type OfflineNavigationRSCResponseCacheSkipReason =
+  | 'disabled'
+  | 'dev-server'
+  | 'not-production'
+  | 'output-export'
+  | 'unsupported-request'
+  | 'missing-payload'
+  | 'cross-origin'
+  | 'unsupported-segment-prefetching'
+  | 'runtime-prefetch'
+  | 'partial-response'
+  | 'hmr-refresh'
+  | 'interception'
+  | 'postponed'
+  | 'redirected'
+
+export type OfflineNavigationRSCResponseCacheEligibility = {
+  requestKind: OfflineNavigationRSCResponseRequestKind | null
+  url: string | URL
+  origin?: string
+  hasCachePayload?: boolean
+  supportsPerSegmentPrefetching?: boolean
+  hasRuntimePrefetch?: boolean
+  hasPartialResponse?: boolean
+  isHmrRefresh?: boolean
+  isInterception?: boolean
+  isPostponed?: boolean
+  isRedirected?: boolean
+}
 
 export type OfflineNavigationCacheEntry = {
   version: typeof ENTRY_VERSION
@@ -203,6 +233,83 @@ export function createOfflineNavigationRSCResponse(
   })
   Object.defineProperty(response, 'url', { value: payload.url })
   return response
+}
+
+export function getOfflineNavigationRSCResponseCacheSkipReason({
+  requestKind,
+  url,
+  origin,
+  hasCachePayload = true,
+  supportsPerSegmentPrefetching = true,
+  hasRuntimePrefetch = false,
+  hasPartialResponse = false,
+  isHmrRefresh = false,
+  isInterception = false,
+  isPostponed = false,
+  isRedirected = false,
+}: OfflineNavigationRSCResponseCacheEligibility): OfflineNavigationRSCResponseCacheSkipReason | null {
+  if (!process.env.__NEXT_OFFLINE_NAVIGATIONS) {
+    return 'disabled'
+  }
+
+  if (process.env.__NEXT_DEV_SERVER) {
+    return 'dev-server'
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return 'not-production'
+  }
+
+  if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+    return 'output-export'
+  }
+
+  if (requestKind === null) {
+    return 'unsupported-request'
+  }
+
+  if (!hasCachePayload) {
+    return 'missing-payload'
+  }
+
+  const currentOrigin =
+    origin ?? (typeof location === 'undefined' ? null : location.origin)
+  if (
+    currentOrigin !== null &&
+    new URL(url, currentOrigin).origin !== currentOrigin
+  ) {
+    return 'cross-origin'
+  }
+
+  if (!supportsPerSegmentPrefetching) {
+    return 'unsupported-segment-prefetching'
+  }
+
+  if (hasRuntimePrefetch) {
+    return 'runtime-prefetch'
+  }
+
+  if (hasPartialResponse) {
+    return 'partial-response'
+  }
+
+  if (isHmrRefresh) {
+    return 'hmr-refresh'
+  }
+
+  if (isInterception) {
+    return 'interception'
+  }
+
+  if (isPostponed) {
+    return 'postponed'
+  }
+
+  if (isRedirected) {
+    return 'redirected'
+  }
+
+  return null
 }
 
 export function isOfflineNavigationRSCResponsePayload(

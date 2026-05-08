@@ -50,8 +50,10 @@ import {
 import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
 import {
   createOfflineNavigationRSCResponsePayload,
+  getOfflineNavigationRSCResponseCacheSkipReason,
   writeOfflineNavigationRSCResponseCacheEntry,
   type OfflineNavigationRSCResponsePayload,
+  type OfflineNavigationRSCResponseRequestKind,
 } from './offline-navigation-cache'
 
 const createFromReadableStream =
@@ -371,6 +373,7 @@ export type RSCResponse<T> = {
   url: string
   flightResponsePromise: (Promise<T> & { _debugInfo?: Array<any> }) | null
   cacheData: Promise<FetchResponseCacheData | null>
+  offlineNavigationCacheRequestKind: OfflineNavigationRSCResponseRequestKind | null
   offlineNavigationCachePayload: Promise<OfflineNavigationRSCResponsePayload | null> | null
 }
 
@@ -552,8 +555,13 @@ export async function createFetch<T>(
   let fetchUrl = new URL(url)
   await setCacheBustingSearchParam(fetchUrl, headers)
   let processed = fetch(fetchUrl, fetchOptions).then(processFetch)
+  const offlineNavigationCacheRequestKind =
+    getOfflineNavigationCacheRequestKind(headers)
   let offlineNavigationCachePayload =
-    createOfflineNavigationCachePayloadFromProcessedResponse(processed, headers)
+    createOfflineNavigationCachePayloadFromProcessedResponse(
+      processed,
+      offlineNavigationCacheRequestKind
+    )
   let fetchPromise = processed.then(({ response }) => response)
 
   // Immediately pass the fetch promise to the Flight client so that the debug
@@ -627,7 +635,7 @@ export async function createFetch<T>(
       offlineNavigationCachePayload =
         createOfflineNavigationCachePayloadFromProcessedResponse(
           processed,
-          headers
+          offlineNavigationCacheRequestKind
         )
       fetchPromise = processed.then(({ response }) => response)
       flightResponsePromise = shouldImmediatelyDecode
@@ -668,6 +676,7 @@ export async function createFetch<T>(
 
     cacheData: processed.then(({ cacheData }) => cacheData),
 
+    offlineNavigationCacheRequestKind,
     offlineNavigationCachePayload,
   }
 
@@ -717,9 +726,8 @@ function createOfflineNavigationCachePayloadFromProcessedResponse(
     response: Response
     cacheData: FetchResponseCacheData | null
   }>,
-  headers: RequestHeaders
+  requestKind: OfflineNavigationRSCResponseRequestKind | null
 ): Promise<OfflineNavigationRSCResponsePayload | null> | null {
-  const requestKind = getOfflineNavigationCacheRequestKind(headers)
   if (requestKind === null) {
     return null
   }
@@ -752,17 +760,18 @@ function persistOfflineNavigationResponse({
   postponed: boolean
   response: RSCResponse<NavigationFlightResponse>
 }): void {
-  if (
-    response.offlineNavigationCachePayload === null ||
-    !flightResponse.S ||
-    flightResponse.d !== undefined ||
-    flightResponse.p !== undefined ||
-    interception ||
-    isHmrRefresh ||
-    postponed ||
-    response.redirected ||
-    canonicalUrl.origin !== location.origin
-  ) {
+  const skipReason = getOfflineNavigationRSCResponseCacheSkipReason({
+    requestKind: response.offlineNavigationCacheRequestKind,
+    hasCachePayload: response.offlineNavigationCachePayload !== null,
+    supportsPerSegmentPrefetching: flightResponse.S,
+    hasRuntimePrefetch: flightResponse.p !== undefined,
+    isHmrRefresh: isHmrRefresh === true,
+    isInterception: interception,
+    isPostponed: postponed,
+    isRedirected: response.redirected,
+    url: canonicalUrl,
+  })
+  if (skipReason !== null) {
     return
   }
 

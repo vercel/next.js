@@ -227,7 +227,6 @@ export function createInitialRouterState({
 
   persistInitialOfflineNavigationResponse({
     initialCouldBeIntercepted,
-    initialDynamicStaleTimeSeconds,
     initialFlightStreamForOfflineNavigationCache,
     initialRuntimePrefetchStream,
     initialStaleAt,
@@ -283,7 +282,6 @@ export function createInitialRouterState({
 
 function persistInitialOfflineNavigationResponse({
   initialCouldBeIntercepted,
-  initialDynamicStaleTimeSeconds,
   initialFlightStreamForOfflineNavigationCache,
   initialRuntimePrefetchStream,
   initialStaleAt,
@@ -293,7 +291,6 @@ function persistInitialOfflineNavigationResponse({
   navigatedAt,
 }: {
   initialCouldBeIntercepted: boolean
-  initialDynamicStaleTimeSeconds: number | undefined
   initialFlightStreamForOfflineNavigationCache:
     | ReadableStream<Uint8Array>
     | null
@@ -309,19 +306,29 @@ function persistInitialOfflineNavigationResponse({
     return
   }
 
-  if (
-    !process.env.__NEXT_OFFLINE_NAVIGATIONS ||
-    process.env.__NEXT_DEV_SERVER ||
-    process.env.NODE_ENV !== 'production' ||
-    process.env.__NEXT_CONFIG_OUTPUT === 'export' ||
-    location === null ||
-    !initialSupportsPerSegmentPrefetching ||
-    initialCouldBeIntercepted ||
-    initialDynamicStaleTimeSeconds !== undefined ||
-    initialRuntimePrefetchStream !== undefined ||
-    initialStaleAt === null ||
-    initialStaticStageByteLength !== undefined
-  ) {
+  if (location === null || initialStaleAt === null) {
+    initialFlightStreamForOfflineNavigationCache.cancel()
+    return
+  }
+
+  const url = createHrefFromUrl(location)
+
+  const {
+    createOfflineNavigationRSCResponsePayload,
+    getOfflineNavigationRSCResponseCacheSkipReason,
+    writeOfflineNavigationRSCResponseCacheEntry,
+  } =
+    require('./offline-navigation-cache') as typeof import('./offline-navigation-cache')
+
+  const skipReason = getOfflineNavigationRSCResponseCacheSkipReason({
+    requestKind: 'initial-load',
+    hasPartialResponse: initialStaticStageByteLength !== undefined,
+    hasRuntimePrefetch: initialRuntimePrefetchStream !== undefined,
+    isInterception: initialCouldBeIntercepted,
+    supportsPerSegmentPrefetching: initialSupportsPerSegmentPrefetching,
+    url,
+  })
+  if (skipReason !== null) {
     initialFlightStreamForOfflineNavigationCache.cancel()
     return
   }
@@ -332,14 +339,8 @@ function persistInitialOfflineNavigationResponse({
     statusText: 'OK',
   })
   Object.defineProperty(response, 'url', {
-    value: createHrefFromUrl(location),
+    value: url,
   })
-
-  const {
-    createOfflineNavigationRSCResponsePayload,
-    writeOfflineNavigationRSCResponseCacheEntry,
-  } =
-    require('./offline-navigation-cache') as typeof import('./offline-navigation-cache')
 
   const payload = createOfflineNavigationRSCResponsePayload(
     response,
@@ -352,7 +353,7 @@ function persistInitialOfflineNavigationResponse({
       expiresAt: staleAt,
       payload,
       staleAt,
-      url: createHrefFromUrl(location),
+      url,
       now: navigatedAt,
     })
   })().catch(() => {
