@@ -2,26 +2,33 @@ import path from 'node:path'
 
 import { CLIENT_STATIC_FILES_PATH } from '../shared/lib/constants'
 import { OFFLINE_NAVIGATION_SERVICE_WORKER } from '../shared/lib/offline-navigation'
+import { OFFLINE_NAVIGATION_FALLBACK_SERVED } from '../shared/lib/offline-navigation-constants'
 
 export function getOfflineNavigationServiceWorkerFilePath(): string {
   return path.join(CLIENT_STATIC_FILES_PATH, OFFLINE_NAVIGATION_SERVICE_WORKER)
 }
 
-// Offline navigations use a generated, app-local service worker. It caches the
-// bootstrap manifest and fallback document during installation; document
-// navigations still go to the network until fallback handling is enabled.
+// Offline navigations use a generated, app-local service worker as a document
+// fallback only. It is network-first for regular loads and only serves the
+// fallback document after the network request fails.
 export function createOfflineNavigationServiceWorker({
   cacheNamespace,
+  fallbackDocumentHref,
   manifestHref,
 }: {
   cacheNamespace: string
+  fallbackDocumentHref: string
   manifestHref: string
 }): string {
   const metadata = JSON.stringify({
     cacheNamespace,
+    fallbackDocumentHref,
     manifestHref,
     source: 'offline-navigation-service-worker',
   })
+  const fallbackServedMessageType = JSON.stringify(
+    OFFLINE_NAVIGATION_FALLBACK_SERVED
+  )
 
   return `self.__NEXT_OFFLINE_NAVIGATION_SW=${metadata};
 const CACHE_PREFIX='next-offline-navigation-v1:';
@@ -51,6 +58,33 @@ async function cacheOfflineNavigationResources(){
   const fallbackResponse=await fetchRequiredResource(manifest.fallbackDocument.href);
   await cache.put(manifest.fallbackDocument.href,fallbackResponse);
 }
+function isDocumentNavigationRequest(request){
+  if(request.method!=='GET'||request.mode!=='navigate'||request.destination!=='document'){
+    return false;
+  }
+  const url=new URL(request.url);
+  return url.origin===self.location.origin;
+}
+async function fetchDocumentNavigation(request){
+  try{
+    return await fetch(request);
+  }catch(err){
+    const metadata=self.__NEXT_OFFLINE_NAVIGATION_SW;
+    const cache=await caches.open(metadata.cacheNamespace);
+    const fallbackResponse=await cache.match(metadata.fallbackDocumentHref);
+    if(fallbackResponse){
+      await notifyClients({
+        type:${fallbackServedMessageType}
+      });
+      return fallbackResponse;
+    }
+    throw err;
+  }
+}
+async function notifyClients(message){
+  const clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+  await Promise.all(clients.map((client)=>client.postMessage(message)));
+}
 self.addEventListener('install',(event)=>{
   event.waitUntil((async()=>{
     await cacheOfflineNavigationResources();
@@ -68,6 +102,11 @@ self.addEventListener('activate',(event)=>{
     }));
     await self.clients.claim();
   })());
+});
+self.addEventListener('fetch',(event)=>{
+  if(isDocumentNavigationRequest(event.request)){
+    event.respondWith(fetchDocumentNavigation(event.request));
+  }
 });
 `
 }
