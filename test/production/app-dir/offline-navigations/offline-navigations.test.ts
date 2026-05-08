@@ -3042,6 +3042,164 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('ignores persisted offline navigation data from another build', async () => {
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    const { buildId } = await getOfflineNavigationArtifactPaths()
+    const navigationBuildId = next.deploymentId ?? buildId
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await retry(async () => {
+        const initialLoadEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/'
+        )
+        expect(initialLoadEntry).toEqual(
+          expect.objectContaining({
+            buildId: navigationBuildId,
+            kind: 'exact-url',
+            payload: expect.objectContaining({
+              kind: 'rsc-response',
+              requestKind: 'initial-load',
+            }),
+          })
+        )
+      })
+
+      const staleEntry = await browser.eval(
+        async ({ currentBuildId, staleUrl }) => {
+          const database = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open('next-offline-navigation-cache', 3)
+            request.onsuccess = () => resolve(request.result)
+            request.onerror = () => reject(request.error)
+          })
+
+          try {
+            const readTransaction = database.transaction(
+              'navigation-data',
+              'readonly'
+            )
+            const entries = await new Promise<any[]>((resolve, reject) => {
+              const request = readTransaction
+                .objectStore('navigation-data')
+                .getAll()
+              request.onsuccess = () => resolve(request.result)
+              request.onerror = () => reject(request.error)
+            })
+            const sourceEntry = entries.find((entry) =>
+              entry.url.endsWith('/docs/')
+            )
+            if (!sourceEntry) {
+              return null
+            }
+
+            const staleBuildId = `${currentBuildId}:stale`
+            const writeTransaction = database.transaction(
+              'navigation-data',
+              'readwrite'
+            )
+            writeTransaction.objectStore('navigation-data').put({
+              ...sourceEntry,
+              buildId: staleBuildId,
+              url: staleUrl,
+            })
+            await new Promise<void>((resolve, reject) => {
+              writeTransaction.oncomplete = () => resolve()
+              writeTransaction.onerror = () => reject(writeTransaction.error)
+              writeTransaction.onabort = () => reject(writeTransaction.error)
+            })
+
+            return {
+              buildId: staleBuildId,
+              url: staleUrl,
+            }
+          } finally {
+            database.close()
+          }
+        },
+        {
+          currentBuildId: navigationBuildId,
+          staleUrl: `${next.url}/docs/stale-build/`,
+        }
+      )
+      expect(staleEntry).toEqual({
+        buildId: `${navigationBuildId}:stale`,
+        url: `${next.url}/docs/stale-build/`,
+      })
+
+      await next.stop()
+      await page!.context().setOffline(true)
+      const response = await page!.goto(`${next.url}/docs/stale-build/`, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(response?.status()).toBe(200)
+
+      await retry(async () => {
+        expect(
+          await browser.eval(() => {
+            const cacheMiss = document.getElementById(
+              '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
+            )
+            return cacheMiss === null
+              ? null
+              : {
+                  hidden: cacheMiss.hidden,
+                  reason: cacheMiss.getAttribute(
+                    'data-next-offline-navigation-cache-reason'
+                  ),
+                  text: cacheMiss.textContent,
+                }
+          })
+        ).toEqual({
+          hidden: false,
+          reason: 'missing-entry',
+          text: 'This page is not available offline.',
+        })
+      })
+
+      expect(
+        await browser.eval(() => ({
+          cache: document.documentElement.getAttribute(
+            'data-next-offline-navigation-cache'
+          ),
+          reason: document.documentElement.getAttribute(
+            'data-next-offline-navigation-cache-reason'
+          ),
+          diagnostic:
+            (
+              window as typeof window & {
+                __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<unknown>
+              }
+            ).__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?.at(-1) ?? null,
+        }))
+      ).toMatchObject({
+        cache: 'miss',
+        reason: 'missing-entry',
+        diagnostic: {
+          type: 'cache-miss',
+          buildId: navigationBuildId,
+          reason: 'missing-entry',
+          url: `${next.url}/docs/stale-build/`,
+        },
+      })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('does not emit offline navigation artifacts when disabled', async () => {
     await next.patchFile('next.config.js', (content) =>
       content.replace('offlineNavigations: true', 'offlineNavigations: false')
