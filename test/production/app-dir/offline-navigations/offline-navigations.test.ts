@@ -4638,6 +4638,168 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('replays stale-but-not-expired exact-URL data during fallback boot', async () => {
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    const { buildId } = await getOfflineNavigationArtifactPaths()
+    const navigationBuildId = next.deploymentId ?? buildId
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await retry(async () => {
+        const initialLoadEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/'
+        )
+        expect(initialLoadEntry).toEqual(
+          expect.objectContaining({
+            buildId: navigationBuildId,
+            kind: 'exact-url',
+            payload: expect.objectContaining({
+              kind: 'rsc-response',
+              requestKind: 'initial-load',
+            }),
+          })
+        )
+      })
+
+      const staleUrl = `${next.url}/docs/stale-but-replayable-offline-entry/`
+      const staleEntry = await browser.eval(
+        async ({ currentBuildId, url }) => {
+          const database = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open('next-offline-navigation-cache', 3)
+            request.onsuccess = () => resolve(request.result)
+            request.onerror = () => reject(request.error)
+          })
+
+          try {
+            const readTransaction = database.transaction(
+              'navigation-data',
+              'readonly'
+            )
+            const entries = await new Promise<any[]>((resolve, reject) => {
+              const request = readTransaction
+                .objectStore('navigation-data')
+                .getAll()
+              request.onsuccess = () => resolve(request.result)
+              request.onerror = () => reject(request.error)
+            })
+            const sourceEntry = entries.find(
+              (entry) =>
+                entry.buildId === currentBuildId && entry.url.endsWith('/docs/')
+            )
+            if (!sourceEntry) {
+              return null
+            }
+
+            const staleAt = Date.now() - 1_000
+            const expiresAt = Date.now() + 60_000
+            const writeTransaction = database.transaction(
+              'navigation-data',
+              'readwrite'
+            )
+            writeTransaction.objectStore('navigation-data').put({
+              ...sourceEntry,
+              url,
+              staleAt,
+              expiresAt,
+              payload: {
+                ...sourceEntry.payload,
+                url,
+              },
+            })
+            await new Promise<void>((resolve, reject) => {
+              writeTransaction.oncomplete = () => resolve()
+              writeTransaction.onerror = () => reject(writeTransaction.error)
+              writeTransaction.onabort = () => reject(writeTransaction.error)
+            })
+
+            return {
+              buildId: currentBuildId,
+              expiresAt,
+              staleAt,
+              url,
+            }
+          } finally {
+            database.close()
+          }
+        },
+        {
+          currentBuildId: navigationBuildId,
+          url: staleUrl,
+        }
+      )
+      expect(staleEntry).toEqual({
+        buildId: navigationBuildId,
+        expiresAt: expect.any(Number),
+        staleAt: expect.any(Number),
+        url: staleUrl,
+      })
+      expect(staleEntry!.staleAt).toBeLessThan(Date.now())
+      expect(staleEntry!.expiresAt).toBeGreaterThan(Date.now())
+
+      const awayResponse = await page!.goto(`${next.url}/docs/prefetched`, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(awayResponse?.status()).toBe(200)
+      await retry(async () => {
+        expect(await browser.elementById('prefetched-page').text()).toBe(
+          'prefetched page'
+        )
+      })
+
+      await next.stop()
+      await page!.context().setOffline(true)
+      const response = await page!.goto(staleUrl, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(response?.status()).toBe(200)
+
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe(
+          'offline navigations page'
+        )
+      })
+      await retry(async () => {
+        expect(await browser.elementById('offline-status').text()).toBe(
+          'offline'
+        )
+      })
+
+      expect(
+        await browser.eval(() => {
+          const win = window as typeof window & {
+            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<{
+              type?: string
+            }>
+          }
+          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?.find(
+            (diagnostic) => diagnostic.type === 'cache-hit'
+          )
+        })
+      ).toMatchObject({
+        type: 'cache-hit',
+        buildId: navigationBuildId,
+        requestKind: 'initial-load',
+        url: staleUrl,
+      })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('misses and deletes expired persisted exact-URL data during fallback boot', async () => {
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
