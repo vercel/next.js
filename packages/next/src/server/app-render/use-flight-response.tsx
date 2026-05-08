@@ -5,16 +5,16 @@ import {
   htmlEscapeAttributeString,
   htmlEscapeJsonString,
 } from '../../shared/lib/htmlescape'
+import {
+  createInitialInlinedFlightDataScriptContent,
+  INLINE_FLIGHT_PAYLOAD_BINARY,
+  INLINE_FLIGHT_PAYLOAD_DATA,
+} from '../../shared/lib/inlined-flight-data'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { getClientReferenceManifest } from './manifests-singleton'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
-
-const INLINE_FLIGHT_PAYLOAD_BOOTSTRAP = 0
-const INLINE_FLIGHT_PAYLOAD_DATA = 1
-const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
-const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 
 const flightResponses = new WeakMap<
   Readable | BinaryStreamOf<any>,
@@ -224,16 +224,7 @@ function writeInitialInstructions(
   scriptStart: string,
   formState: unknown | null
 ) {
-  let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-    JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-  )})`
-
-  if (formState != null) {
-    scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
-      JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-    )})`
-  }
-
+  const scriptContents = createInitialInlinedFlightDataScriptContent(formState)
   controller.enqueue(encoder.encode(`${scriptStart}${scriptContents}</script>`))
 }
 

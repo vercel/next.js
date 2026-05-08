@@ -35,6 +35,11 @@ import {
   htmlEscapeAttributeString,
   htmlEscapeJsonString,
 } from '../../shared/lib/htmlescape'
+import {
+  createInitialInlinedFlightDataScriptContent,
+  INLINE_FLIGHT_PAYLOAD_BINARY,
+  INLINE_FLIGHT_PAYLOAD_DATA,
+} from '../../shared/lib/inlined-flight-data'
 import { createInlinedDataReadableStream } from './use-flight-response'
 import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
 import { DetachedPromise } from '../../lib/detached-promise'
@@ -947,14 +952,7 @@ export function createNodeInlinedDataStream(
   const pt = new PassThrough()
 
   // Write initial bootstrap instructions
-  let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-    JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-  )})`
-  if (formState != null) {
-    scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
-      JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-    )})`
-  }
+  const scriptContents = createInitialInlinedFlightDataScriptContent(formState)
   pt.push(Buffer.from(`${startScriptTag}${scriptContents}</script>`))
 
   // Pull from the flight data stream and wrap each chunk in a <script> tag
@@ -962,11 +960,6 @@ export function createNodeInlinedDataStream(
 
   return pt
 }
-
-const INLINE_FLIGHT_PAYLOAD_BOOTSTRAP = 0
-const INLINE_FLIGHT_PAYLOAD_DATA = 1
-const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
-const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 
 async function pullFlightData(
   dataStream: Readable,

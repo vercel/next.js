@@ -4115,7 +4115,7 @@ export default async function build(
               getOfflineNavigationFallbackFilePath(buildId)
             )
             await mkdir(path.dirname(fallbackPath), { recursive: true })
-            await writeFileUtf8(fallbackPath, fallbackDocument)
+            await writeFileUtf8(fallbackPath, fallbackDocument.html)
           })
       }
 
