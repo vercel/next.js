@@ -47,9 +47,10 @@ function getScope(basePath: string): string {
   return basePath ? `${basePath}/` : '/'
 }
 
-// Describe the build-scoped offline navigation artifacts with URLs that honor
-// the app basePath. Later slices use this manifest as the service worker's
-// source of truth for what bootstrap artifacts to cache.
+// The generated service worker reads this manifest to cache only the
+// build-scoped bootstrap artifacts. RSC navigation data is persisted by the
+// client router in IndexedDB, so it can follow router cache invalidation
+// instead of being managed by CacheStorage.
 export function createOfflineNavigationManifest({
   assetPrefix,
   basePath,

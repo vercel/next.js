@@ -58,6 +58,7 @@ import {
   getRenderedSearchFromVaryPath,
 } from './vary-path'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
+import type { OfflineNavigationRSCResponsePayload } from '../router-reducer/offline-navigation-cache'
 import type {
   NormalizedPathname,
   NormalizedSearch,
@@ -2176,7 +2177,27 @@ export async function fetchSegmentsOnCacheMiss(
       }
 
       // Set the fulfilled entry into the canonical cache slot.
-      upsertSegmentEntry(now, canonicalVaryPath, fulfilled)
+      const upserted = upsertSegmentEntry(now, canonicalVaryPath, fulfilled)
+      // Cached Navigations can already have a more complete root segment in
+      // memory, causing the upsert to decline the network candidate. Persist
+      // the candidate anyway so an empty offline fallback document can restore
+      // the root layout after a hard reload.
+      const persistedEntry =
+        upserted !== null && upserted.status === EntryStatus.Fulfilled
+          ? upserted
+          : node.tree.requestKey === ROOT_SEGMENT_REQUEST_KEY
+            ? fulfilled
+            : null
+      if (persistedEntry !== null) {
+        persistOfflineNavigationSegmentRecord(
+          now,
+          node.tree,
+          canonicalVaryPath,
+          persistedEntry,
+          dataIndex,
+          response.offlineNavigationCachePayload
+        )
+      }
 
       node = node.parent
       dataIndex++
@@ -2993,6 +3014,60 @@ export function canNewFetchStrategyProvideMoreContent(
   newStrategy: FetchStrategy
 ): boolean {
   return currentStrategy < newStrategy
+}
+
+function persistOfflineNavigationSegmentRecord(
+  now: number,
+  tree: RouteTree,
+  varyPath: SegmentVaryPath,
+  entry: FulfilledSegmentCacheEntry,
+  payloadIndex: number,
+  payload: Promise<OfflineNavigationRSCResponsePayload | null> | null
+): void {
+  // Segment prefetch responses can bundle parent segment data. Store the
+  // response once per fulfilled segment with the payload index needed to read
+  // that segment back during router-cache hydration. The first persisted format
+  // intentionally duplicates bundled payloads across segment records to keep
+  // replay independent per entry; a later schema can split shared payload blobs
+  // once the cache shape is proven.
+  if (
+    !process.env.__NEXT_OFFLINE_NAVIGATIONS ||
+    process.env.__NEXT_DEV_SERVER ||
+    process.env.NODE_ENV !== 'production' ||
+    process.env.__NEXT_CONFIG_OUTPUT === 'export' ||
+    entry.staleAt <= now ||
+    payload === null
+  ) {
+    return
+  }
+
+  const offlineNavigationCache = getOfflineNavigationCacheModule()
+  if (offlineNavigationCache === null) {
+    return
+  }
+
+  void (async () => {
+    const resolvedPayload = await payload
+    if (resolvedPayload === null) {
+      return
+    }
+
+    await offlineNavigationCache.writeOfflineNavigationSegmentRecord({
+      key: offlineNavigationCache.createOfflineNavigationVaryPathKey(varyPath),
+      now,
+      staleAt: entry.staleAt,
+      expiresAt: entry.staleAt,
+      segment: {
+        requestKey: tree.requestKey,
+        fetchStrategy: entry.fetchStrategy,
+        isPartial: entry.isPartial,
+        payloadIndex,
+      },
+      segmentVaryPath:
+        offlineNavigationCache.serializeOfflineNavigationVaryPath(varyPath),
+      payload: resolvedPayload,
+    })
+  })()
 }
 
 /**

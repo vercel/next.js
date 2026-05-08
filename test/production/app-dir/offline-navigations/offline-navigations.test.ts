@@ -56,12 +56,22 @@ describe('offlineNavigations build artifacts', () => {
   ) {
     return browser.eval(async (substring) => {
       const database = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open('next-offline-navigation-cache', 2)
+        const request = indexedDB.open('next-offline-navigation-cache', 3)
         request.onupgradeneeded = () => {
           const database = request.result
           if (!database.objectStoreNames.contains('navigation-data')) {
             database.createObjectStore('navigation-data', {
               keyPath: ['buildId', 'url'],
+            })
+          }
+          if (!database.objectStoreNames.contains('route-data')) {
+            database.createObjectStore('route-data', {
+              keyPath: ['buildId', 'key'],
+            })
+          }
+          if (!database.objectStoreNames.contains('segment-data')) {
+            database.createObjectStore('segment-data', {
+              keyPath: ['buildId', 'key'],
             })
           }
           if (!database.objectStoreNames.contains('metadata')) {
@@ -106,6 +116,84 @@ describe('offlineNavigations build artifacts', () => {
         database.close()
       }
     }, urlSubstring)
+  }
+
+  async function readPersistedOfflineNavigationRouteRecords(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
+    return browser.eval(async () => {
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('next-offline-navigation-cache', 3)
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+
+      try {
+        const entries = await new Promise<any[]>((resolve, reject) => {
+          const transaction = database.transaction('route-data', 'readonly')
+          const request = transaction.objectStore('route-data').getAll()
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })
+
+        return entries.map((entry) => ({
+          buildId: entry.buildId,
+          cacheEpoch: entry.cacheEpoch,
+          expiresAt: entry.expiresAt,
+          hasMetadata: entry.metadata !== null,
+          hasTree: entry.tree !== null,
+          key: entry.key,
+          kind: entry.kind,
+          route: entry.route,
+          routeVaryPath: entry.routeVaryPath,
+          staleAt: entry.staleAt,
+          version: entry.version,
+        }))
+      } finally {
+        database.close()
+      }
+    })
+  }
+
+  async function readPersistedOfflineNavigationSegmentRecords(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
+    return browser.eval(async () => {
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('next-offline-navigation-cache', 3)
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+
+      try {
+        const entries = await new Promise<any[]>((resolve, reject) => {
+          const transaction = database.transaction('segment-data', 'readonly')
+          const request = transaction.objectStore('segment-data').getAll()
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })
+
+        return entries.map((entry) => ({
+          buildId: entry.buildId,
+          cacheEpoch: entry.cacheEpoch,
+          expiresAt: entry.expiresAt,
+          key: entry.key,
+          kind: entry.kind,
+          payload: {
+            bodyLength: entry.payload?.body?.byteLength,
+            kind: entry.payload?.kind,
+            requestKind: entry.payload?.requestKind,
+            status: entry.payload?.status,
+          },
+          segment: entry.segment,
+          segmentVaryPath: entry.segmentVaryPath,
+          staleAt: entry.staleAt,
+          version: entry.version,
+        }))
+      } finally {
+        database.close()
+      }
+    })
   }
 
   async function cleanupOfflineNavigationState(
@@ -443,6 +531,82 @@ describe('offlineNavigations build artifacts', () => {
         })
         expect(persistedEntry!.payload.bodyLength).toBeGreaterThan(0)
       })
+      await retry(async () => {
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        const prefetchedRouteRecord = routeRecords.find((record) =>
+          record.route.pathname.includes('/prefetched')
+        )
+        expect(prefetchedRouteRecord).toEqual(
+          expect.objectContaining({
+            buildId: navigationBuildId,
+            cacheEpoch: 0,
+            hasMetadata: true,
+            hasTree: true,
+            kind: 'route',
+            route: expect.objectContaining({
+              supportsPerSegmentPrefetching: true,
+            }),
+            routeVaryPath: expect.any(Array),
+            version: 1,
+          })
+        )
+      })
+      await retry(async () => {
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        const headRecord = segmentRecords.find(
+          (record) => record.segment.requestKey === '/_head'
+        )
+        const pageRecord = segmentRecords.find(
+          (record) =>
+            record.segment.requestKey !== '/_head' &&
+            record.payload.requestKind === 'segment-prefetch'
+        )
+
+        expect(headRecord).toEqual(
+          expect.objectContaining({
+            buildId: navigationBuildId,
+            cacheEpoch: 0,
+            kind: 'segment',
+            payload: {
+              bodyLength: expect.any(Number),
+              kind: 'rsc-response',
+              requestKind: 'segment-prefetch',
+              status: 200,
+            },
+            segment: expect.objectContaining({
+              fetchStrategy: expect.any(Number),
+              isPartial: expect.any(Boolean),
+              payloadIndex: expect.any(Number),
+              requestKey: '/_head',
+            }),
+            segmentVaryPath: expect.any(Array),
+            version: 1,
+          })
+        )
+        expect(headRecord!.payload.bodyLength).toBeGreaterThan(0)
+
+        expect(pageRecord).toEqual(
+          expect.objectContaining({
+            buildId: navigationBuildId,
+            cacheEpoch: 0,
+            kind: 'segment',
+            payload: {
+              bodyLength: expect.any(Number),
+              kind: 'rsc-response',
+              requestKind: 'segment-prefetch',
+              status: 200,
+            },
+            segment: expect.objectContaining({
+              payloadIndex: expect.any(Number),
+            }),
+            segmentVaryPath: expect.any(Array),
+            version: 1,
+          })
+        )
+        expect(pageRecord!.payload.bodyLength).toBeGreaterThan(0)
+      })
 
       await page!.context().setOffline(true)
       const cachedOfflineResponse = await page!.goto(
@@ -494,7 +658,7 @@ describe('offlineNavigations build artifacts', () => {
       await browser.eval(
         async ({ buildId: entryBuildId, url }) => {
           const database = await new Promise<IDBDatabase>((resolve, reject) => {
-            const request = indexedDB.open('next-offline-navigation-cache', 2)
+            const request = indexedDB.open('next-offline-navigation-cache', 3)
             request.onsuccess = () => resolve(request.result)
             request.onerror = () => reject(request.error)
           })
@@ -533,7 +697,7 @@ describe('offlineNavigations build artifacts', () => {
       await browser.eval(
         async ({ buildId: entryBuildId, url }) => {
           const database = await new Promise<IDBDatabase>((resolve, reject) => {
-            const request = indexedDB.open('next-offline-navigation-cache', 2)
+            const request = indexedDB.open('next-offline-navigation-cache', 3)
             request.onsuccess = () => resolve(request.result)
             request.onerror = () => reject(request.error)
           })

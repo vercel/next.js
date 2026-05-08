@@ -300,15 +300,17 @@ export async function fetchServerResponse(
       return doMpaNavigation(normalizedFlightData)
     }
 
-    persistOfflineNavigationResponse({
-      canonicalUrl,
-      flightResponse,
-      interception,
-      isHmrRefresh: options.isHmrRefresh,
-      originalUrl,
-      postponed,
-      response: res,
-    })
+    if (process.env.__NEXT_OFFLINE_NAVIGATIONS) {
+      persistOfflineNavigationResponse({
+        canonicalUrl,
+        flightResponse,
+        interception,
+        isHmrRefresh: options.isHmrRefresh,
+        originalUrl,
+        postponed,
+        response: res,
+      })
+    }
 
     const staticStageData =
       cacheData !== null
@@ -390,8 +392,12 @@ export type RSCResponse<T> = {
   url: string
   flightResponsePromise: (Promise<T> & { _debugInfo?: Array<any> }) | null
   cacheData: Promise<FetchResponseCacheData | null>
-  offlineNavigationCacheRequestKind: OfflineNavigationRSCResponseRequestKind | null
-  offlineNavigationCachePayload: Promise<OfflineNavigationRSCResponsePayload | null> | null
+  offlineNavigationCache?: OfflineNavigationRSCResponseCache
+}
+
+type OfflineNavigationRSCResponseCache = {
+  requestKind: OfflineNavigationRSCResponseRequestKind | null
+  payload: Promise<OfflineNavigationRSCResponsePayload | null> | null
 }
 
 type FetchResponseCacheData = {
@@ -572,13 +578,19 @@ export async function createFetch<T>(
   let fetchUrl = new URL(url)
   await setCacheBustingSearchParam(fetchUrl, headers)
   let processed = fetch(fetchUrl, fetchOptions).then(processFetch)
-  const offlineNavigationCacheRequestKind =
-    getOfflineNavigationCacheRequestKind(headers)
-  let offlineNavigationCachePayload =
-    createOfflineNavigationCachePayloadFromProcessedResponse(
-      processed,
-      offlineNavigationCacheRequestKind
-    )
+  let offlineNavigationCache: OfflineNavigationRSCResponseCache | undefined
+  if (process.env.__NEXT_OFFLINE_NAVIGATIONS) {
+    const requestKind = getOfflineNavigationCacheRequestKind(headers)
+    offlineNavigationCache = {
+      requestKind,
+      payload: createOfflineNavigationCachePayloadFromProcessedResponse(
+        processed,
+        requestKind
+      ),
+    }
+  } else {
+    offlineNavigationCache = undefined
+  }
   let fetchPromise = processed.then(({ response }) => response)
 
   // Immediately pass the fetch promise to the Flight client so that the debug
@@ -649,11 +661,13 @@ export async function createFetch<T>(
       fetchUrl = new URL(responseUrl)
       await setCacheBustingSearchParam(fetchUrl, headers)
       processed = fetch(fetchUrl, fetchOptions).then(processFetch)
-      offlineNavigationCachePayload =
-        createOfflineNavigationCachePayloadFromProcessedResponse(
-          processed,
-          offlineNavigationCacheRequestKind
-        )
+      if (offlineNavigationCache !== undefined) {
+        offlineNavigationCache.payload =
+          createOfflineNavigationCachePayloadFromProcessedResponse(
+            processed,
+            offlineNavigationCache.requestKind
+          )
+      }
       fetchPromise = processed.then(({ response }) => response)
       flightResponsePromise = shouldImmediatelyDecode
         ? createFromNextFetch<T>(fetchPromise, headers)
@@ -692,9 +706,13 @@ export async function createFetch<T>(
     flightResponsePromise: flightResponsePromise,
 
     cacheData: processed.then(({ cacheData }) => cacheData),
+  }
 
-    offlineNavigationCacheRequestKind,
-    offlineNavigationCachePayload,
+  if (
+    process.env.__NEXT_OFFLINE_NAVIGATIONS &&
+    offlineNavigationCache !== undefined
+  ) {
+    rscResponse.offlineNavigationCache = offlineNavigationCache
   }
 
   return rscResponse
@@ -702,7 +720,10 @@ export async function createFetch<T>(
 
 function getOfflineNavigationCacheRequestKind(
   headers: RequestHeaders
-): 'navigation' | 'route-prefetch' | 'client-resume' | null {
+): OfflineNavigationRSCResponseRequestKind | null {
+  // Classify the RSC response by the router protocol that produced it. The
+  // fallback bootstrap replays exact-URL responses, while segment prefetches
+  // are persisted separately as router-cache records.
   if (
     !process.env.__NEXT_OFFLINE_NAVIGATIONS ||
     process.env.__NEXT_DEV_SERVER ||
@@ -722,8 +743,12 @@ function getOfflineNavigationCacheRequestKind(
 
   if (
     headers[NEXT_ROUTER_PREFETCH_HEADER] !== undefined &&
-    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] === undefined
+    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] !== undefined
   ) {
+    return 'segment-prefetch'
+  }
+
+  if (headers[NEXT_ROUTER_PREFETCH_HEADER] !== undefined) {
     return 'route-prefetch'
   }
 
@@ -785,17 +810,19 @@ function persistOfflineNavigationResponse({
   // so normal navigation remains the source of truth and offline persistence is
   // only a best-effort side effect.
   //
-  // The shared helper deliberately treats unsupported or incomplete responses
-  // as cache misses. It must not change the already-accepted navigation.
+  // The offline cache module owns both exact-URL payloads and router records.
+  // Keeping this behind the module getter preserves the flag boundary while
+  // still letting the shared skip-reason helper define cache misses uniformly.
   const offlineNavigationCache = getOfflineNavigationCacheModule()
-  if (offlineNavigationCache === null) {
+  const responseCache = response.offlineNavigationCache
+  if (offlineNavigationCache === null || responseCache === undefined) {
     return
   }
 
   const skipReason =
     offlineNavigationCache.getOfflineNavigationRSCResponseCacheSkipReason({
-      requestKind: response.offlineNavigationCacheRequestKind,
-      hasCachePayload: response.offlineNavigationCachePayload !== null,
+      requestKind: responseCache.requestKind,
+      hasCachePayload: responseCache.payload !== null,
       supportsPerSegmentPrefetching: flightResponse.S,
       hasRuntimePrefetch: flightResponse.p !== undefined,
       isHmrRefresh: isHmrRefresh === true,
@@ -815,7 +842,7 @@ function persistOfflineNavigationResponse({
       buildId:
         response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? flightResponse.b,
       expiresAt: staleAt,
-      payload: response.offlineNavigationCachePayload!,
+      payload: responseCache.payload!,
       staleAt,
       url: originalUrl,
       now,

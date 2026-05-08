@@ -2,26 +2,36 @@ import {
   createOfflineNavigationCache,
   createOfflineNavigationRSCResponse,
   createOfflineNavigationRSCResponsePayload,
+  createOfflineNavigationRouterCache,
+  createOfflineNavigationVaryPathKey,
   deleteOfflineNavigationCacheEntry,
   getOfflineNavigationRSCResponseCacheSkipReason,
   invalidateOfflineNavigationCacheEntries,
   isOfflineNavigationRSCResponsePayload,
   normalizeOfflineNavigationCacheUrl,
   readOfflineNavigationCacheEntry,
+  serializeOfflineNavigationVaryPath,
   writeOfflineNavigationCacheEntry,
   type OfflineNavigationRSCResponseCacheEligibility,
   type OfflineNavigationRSCResponseCacheSkipReason,
   type OfflineNavigationCacheEntry,
   type OfflineNavigationCacheStorage,
+  type OfflineNavigationRouteRecord,
+  type OfflineNavigationSegmentRecord,
 } from './offline-navigation-cache'
 
 type CacheKey = [buildId: string, url: string]
+type RouterCacheKey = [buildId: string, key: string]
 
 class MemoryOfflineNavigationCacheStorage
   implements OfflineNavigationCacheStorage
 {
   entries = new Map<string, OfflineNavigationCacheEntry>()
+  routeEntries = new Map<string, OfflineNavigationRouteRecord>()
+  segmentEntries = new Map<string, OfflineNavigationSegmentRecord>()
   cacheEpoch = 0
+  routeCacheEpoch = 0
+  segmentCacheEpoch = 0
 
   async get(key: CacheKey): Promise<OfflineNavigationCacheEntry | undefined> {
     return this.entries.get(this.getKey(key))
@@ -50,6 +60,52 @@ class MemoryOfflineNavigationCacheStorage
   async incrementCacheEpoch(): Promise<number> {
     this.cacheEpoch++
     return this.cacheEpoch
+  }
+
+  async getRoute(
+    key: RouterCacheKey
+  ): Promise<OfflineNavigationRouteRecord | undefined> {
+    return this.routeEntries.get(this.getKey(key))
+  }
+
+  async putRoute(entry: OfflineNavigationRouteRecord): Promise<void> {
+    this.routeEntries.set(this.getKey([entry.buildId, entry.key]), entry)
+  }
+
+  async deleteRoute(key: RouterCacheKey): Promise<void> {
+    this.routeEntries.delete(this.getKey(key))
+  }
+
+  async getRouteCacheEpoch(): Promise<number> {
+    return this.routeCacheEpoch
+  }
+
+  async incrementRouteCacheEpoch(): Promise<number> {
+    this.routeCacheEpoch++
+    return this.routeCacheEpoch
+  }
+
+  async getSegment(
+    key: RouterCacheKey
+  ): Promise<OfflineNavigationSegmentRecord | undefined> {
+    return this.segmentEntries.get(this.getKey(key))
+  }
+
+  async putSegment(entry: OfflineNavigationSegmentRecord): Promise<void> {
+    this.segmentEntries.set(this.getKey([entry.buildId, entry.key]), entry)
+  }
+
+  async deleteSegment(key: RouterCacheKey): Promise<void> {
+    this.segmentEntries.delete(this.getKey(key))
+  }
+
+  async getSegmentCacheEpoch(): Promise<number> {
+    return this.segmentCacheEpoch
+  }
+
+  async incrementSegmentCacheEpoch(): Promise<number> {
+    this.segmentCacheEpoch++
+    return this.segmentCacheEpoch
   }
 
   private getKey(key: CacheKey): string {
@@ -82,6 +138,46 @@ class FailingOfflineNavigationCacheStorage
 
   async incrementCacheEpoch(): Promise<number> {
     throw new Error('increment epoch failed')
+  }
+
+  async getRoute(): Promise<OfflineNavigationRouteRecord | undefined> {
+    throw new Error('get route failed')
+  }
+
+  async putRoute(): Promise<void> {
+    throw new Error('put route failed')
+  }
+
+  async deleteRoute(): Promise<void> {
+    throw new Error('delete route failed')
+  }
+
+  async getRouteCacheEpoch(): Promise<number> {
+    throw new Error('get route epoch failed')
+  }
+
+  async incrementRouteCacheEpoch(): Promise<number> {
+    throw new Error('increment route epoch failed')
+  }
+
+  async getSegment(): Promise<OfflineNavigationSegmentRecord | undefined> {
+    throw new Error('get segment failed')
+  }
+
+  async putSegment(): Promise<void> {
+    throw new Error('put segment failed')
+  }
+
+  async deleteSegment(): Promise<void> {
+    throw new Error('delete segment failed')
+  }
+
+  async getSegmentCacheEpoch(): Promise<number> {
+    throw new Error('get segment epoch failed')
+  }
+
+  async incrementSegmentCacheEpoch(): Promise<number> {
+    throw new Error('increment segment epoch failed')
   }
 }
 
@@ -183,6 +279,49 @@ describe('offline navigation cache', () => {
     expect(first).not.toBe(reordered)
   })
 
+  it('serializes vary paths into stable router record keys', () => {
+    const fallback = {}
+    const varyPath = {
+      id: null,
+      value: 'children/page',
+      parent: {
+        id: '?',
+        value: fallback,
+        parent: {
+          id: 'slug',
+          value: 'hello',
+          parent: null,
+        },
+      },
+    }
+
+    expect(serializeOfflineNavigationVaryPath(varyPath)).toEqual([
+      {
+        id: null,
+        value: {
+          kind: 'value',
+          value: 'children/page',
+        },
+      },
+      {
+        id: '?',
+        value: {
+          kind: 'fallback',
+        },
+      },
+      {
+        id: 'slug',
+        value: {
+          kind: 'value',
+          value: 'hello',
+        },
+      },
+    ])
+    expect(createOfflineNavigationVaryPathKey(varyPath)).toBe(
+      '[{"id":null,"value":{"kind":"value","value":"children/page"}},{"id":"?","value":{"kind":"fallback"}},{"id":"slug","value":{"kind":"value","value":"hello"}}]'
+    )
+  })
+
   it('normalizes exact URL keys with the configured trailing slash', () => {
     const originalTrailingSlash = process.env.__NEXT_TRAILING_SLASH
     process.env.__NEXT_TRAILING_SLASH = 'true'
@@ -272,6 +411,12 @@ describe('offline navigation cache', () => {
     expect(
       isOfflineNavigationRSCResponsePayload({ ...payload, body: null })
     ).toBe(false)
+    expect(
+      isOfflineNavigationRSCResponsePayload({
+        ...payload,
+        requestKind: 'segment-prefetch',
+      })
+    ).toBe(true)
   })
 
   it('writes RSC response payloads through the exact URL cache', async () => {
@@ -443,6 +588,128 @@ describe('offline navigation cache', () => {
     })
   })
 
+  it('stores route and segment records with independent durable epochs', async () => {
+    const storage = new MemoryOfflineNavigationCacheStorage()
+    const cache = createOfflineNavigationRouterCache(storage)
+    const routeVaryPath = serializeOfflineNavigationVaryPath({
+      id: null,
+      value: '/dashboard',
+      parent: {
+        id: '?',
+        value: '',
+        parent: {
+          id: null,
+          value: null,
+          parent: null,
+        },
+      },
+    })
+    const segmentVaryPath = serializeOfflineNavigationVaryPath({
+      id: null,
+      value: 'children/page',
+      parent: null,
+    })
+
+    await expect(
+      cache.writeRoute({
+        buildId: 'build-a',
+        key: 'route:/dashboard',
+        now: 100,
+        staleAt: 200,
+        expiresAt: 300,
+        route: {
+          pathname: '/dashboard',
+          search: '',
+          nextUrl: null,
+          canonicalUrl: '/dashboard',
+          renderedSearch: '',
+          couldBeIntercepted: false,
+          supportsPerSegmentPrefetching: true,
+          hasDynamicRewrite: false,
+        },
+        routeVaryPath,
+        tree: { segment: 'dashboard' },
+        metadata: { segment: 'metadata' },
+      })
+    ).resolves.toBe(true)
+    await expect(
+      cache.writeSegment({
+        buildId: 'build-a',
+        key: 'segment:/dashboard:children/page',
+        now: 100,
+        staleAt: 200,
+        expiresAt: 300,
+        segment: {
+          requestKey: 'children/page',
+          fetchStrategy: 1,
+          isPartial: false,
+          payloadIndex: 0,
+        },
+        segmentVaryPath,
+        payload: { kind: 'segment-payload' },
+      })
+    ).resolves.toBe(true)
+
+    await expect(
+      cache.readRoute('route:/dashboard', {
+        buildId: 'build-a',
+        now: 150,
+      })
+    ).resolves.toMatchObject({
+      buildId: 'build-a',
+      cacheEpoch: 0,
+      key: 'route:/dashboard',
+      kind: 'route',
+      route: {
+        pathname: '/dashboard',
+      },
+      routeVaryPath,
+      version: 1,
+    })
+    await expect(
+      cache.readSegment('segment:/dashboard:children/page', {
+        buildId: 'build-a',
+        now: 150,
+      })
+    ).resolves.toMatchObject({
+      buildId: 'build-a',
+      cacheEpoch: 0,
+      key: 'segment:/dashboard:children/page',
+      kind: 'segment',
+      segment: {
+        requestKey: 'children/page',
+        payloadIndex: 0,
+      },
+      segmentVaryPath,
+      version: 1,
+    })
+
+    await expect(cache.invalidateRoutes()).resolves.toBe(true)
+    await expect(
+      cache.readRoute('route:/dashboard', {
+        buildId: 'build-a',
+        now: 150,
+      })
+    ).resolves.toBe(null)
+    await expect(
+      cache.readSegment('segment:/dashboard:children/page', {
+        buildId: 'build-a',
+        now: 150,
+      })
+    ).resolves.toMatchObject({
+      cacheEpoch: 0,
+      key: 'segment:/dashboard:children/page',
+    })
+
+    await expect(cache.invalidateSegments()).resolves.toBe(true)
+    await expect(
+      cache.readSegment('segment:/dashboard:children/page', {
+        buildId: 'build-a',
+        now: 150,
+      })
+    ).resolves.toBe(null)
+  })
+
   it('ignores and deletes entries whose stored build id does not match', async () => {
     const storage = new MemoryOfflineNavigationCacheStorage()
     const cache = createOfflineNavigationCache(storage)
@@ -549,6 +816,9 @@ describe('offline navigation cache', () => {
     const cache = createOfflineNavigationCache(
       new FailingOfflineNavigationCacheStorage()
     )
+    const routerCache = createOfflineNavigationRouterCache(
+      new FailingOfflineNavigationCacheStorage()
+    )
 
     await expect(
       cache.write({
@@ -567,6 +837,57 @@ describe('offline navigation cache', () => {
     ).resolves.toBe(false)
     await expect(cache.deleteBuild('build-a')).resolves.toBe(false)
     await expect(cache.invalidate()).resolves.toBe(false)
+    await expect(
+      routerCache.writeRoute({
+        buildId: 'build-a',
+        key: 'route:/dashboard',
+        staleAt: 200,
+        expiresAt: 300,
+        route: {
+          pathname: '/dashboard',
+          search: '',
+          nextUrl: null,
+          canonicalUrl: '/dashboard',
+          renderedSearch: '',
+          couldBeIntercepted: false,
+          supportsPerSegmentPrefetching: true,
+          hasDynamicRewrite: false,
+        },
+        routeVaryPath: [],
+        tree: null,
+        metadata: null,
+      })
+    ).resolves.toBe(false)
+    await expect(
+      routerCache.readRoute('route:/dashboard', { buildId: 'build-a' })
+    ).resolves.toBe(null)
+    await expect(
+      routerCache.deleteRoute('route:/dashboard', { buildId: 'build-a' })
+    ).resolves.toBe(false)
+    await expect(routerCache.invalidateRoutes()).resolves.toBe(false)
+    await expect(
+      routerCache.writeSegment({
+        buildId: 'build-a',
+        key: 'segment:/dashboard',
+        staleAt: 200,
+        expiresAt: 300,
+        segment: {
+          requestKey: 'children/page',
+          fetchStrategy: 1,
+          isPartial: false,
+          payloadIndex: 0,
+        },
+        segmentVaryPath: [],
+        payload: null,
+      })
+    ).resolves.toBe(false)
+    await expect(
+      routerCache.readSegment('segment:/dashboard', { buildId: 'build-a' })
+    ).resolves.toBe(null)
+    await expect(
+      routerCache.deleteSegment('segment:/dashboard', { buildId: 'build-a' })
+    ).resolves.toBe(false)
+    await expect(routerCache.invalidateSegments()).resolves.toBe(false)
   })
 
   it('is a no-op when IndexedDB is unavailable', async () => {
