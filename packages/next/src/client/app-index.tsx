@@ -62,6 +62,7 @@ type OfflineNavigationCacheMissReason =
   | 'missing-entry'
   | 'invalid-payload'
   | 'unsupported-request-kind'
+  | 'runtime-error'
   | 'read-error'
 
 type OfflineNavigationFallbackRequestKind =
@@ -107,6 +108,18 @@ declare global {
     __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?:
       | OfflineNavigationFallbackDiagnostic[]
       | undefined
+    __NEXT_OFFLINE_NAVIGATION_FALLBACK_WATCHDOG_CANCEL__?:
+      | (() => void)
+      | undefined
+  }
+}
+
+function cancelOfflineNavigationFallbackRuntimeWatchdog(): void {
+  const cancelRuntimeWatchdog =
+    window.__NEXT_OFFLINE_NAVIGATION_FALLBACK_WATCHDOG_CANCEL__
+  if (typeof cancelRuntimeWatchdog === 'function') {
+    cancelRuntimeWatchdog()
+    window.__NEXT_OFFLINE_NAVIGATION_FALLBACK_WATCHDOG_CANCEL__ = undefined
   }
 }
 
@@ -304,6 +317,10 @@ function createOfflineNavigationFallbackBootstrap():
 
 const offlineNavigationFallbackBootstrap =
   createOfflineNavigationFallbackBootstrap()
+
+if (offlineNavigationFallbackBootstrap) {
+  cancelOfflineNavigationFallbackRuntimeWatchdog()
+}
 
 if (process.env.__NEXT_USE_OFFLINE && offlineNavigationFallbackBootstrap) {
   const { notifyOffline } =

@@ -648,6 +648,10 @@ describe('offlineNavigations build artifacts', () => {
     expect(html).toContain('data-next-offline-navigation-fallback')
     expect(html).toContain('id="__NEXT_OFFLINE_NAVIGATION_FALLBACK"')
     expect(html).toContain('id="__NEXT_OFFLINE_NAVIGATION_CACHE_MISS"')
+    expect(html).toContain(
+      '__NEXT_OFFLINE_NAVIGATION_FALLBACK_WATCHDOG_CANCEL__'
+    )
+    expect(html).toContain('runtime-error')
     expect(html).toContain(`"buildId":"${buildId}"`)
     if (next.deploymentId) {
       expect(html).toContain(`data-dpl-id="${next.deploymentId}"`)
@@ -5724,6 +5728,187 @@ describe('offlineNavigations build artifacts', () => {
         /ERR_FAILED|ERR_INTERNET_DISCONNECTED|NS_ERROR_OFFLINE|offline/i
       )
       expect(fallbackMessages).toEqual([])
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
+  it('shows cache miss when fallback runtime scripts fail to load', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    const { buildId } = await getOfflineNavigationArtifactPaths()
+    const diagnosticBuildId = next.deploymentId ?? buildId
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe(
+          'offline navigations page'
+        )
+      })
+
+      const fallbackMessageStorageKey =
+        '__nextOfflineNavigationRuntimeFailureMessages'
+      await browser.eval(
+        ({ messageType, storageKey }) => {
+          localStorage.removeItem(storageKey)
+          navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data?.type === messageType) {
+              const messages = JSON.parse(
+                localStorage.getItem(storageKey) ?? '[]'
+              )
+              messages.push(event.data)
+              localStorage.setItem(storageKey, JSON.stringify(messages))
+            }
+          })
+        },
+        {
+          messageType: OFFLINE_NAVIGATION_FALLBACK_SERVED,
+          storageKey: fallbackMessageStorageKey,
+        }
+      )
+
+      const runtimeDamageState = await browser.eval(async (currentBuildId) => {
+        const cacheName = `next-offline-navigation-v1:${currentBuildId}:/docs`
+        const fallbackPath = `/docs/_next/static/${currentBuildId}/_offline-navigation-fallback.html`
+        const cache = await caches.open(cacheName)
+        const originalFallback = await cache.match(fallbackPath)
+        const originalFallbackHtml = await originalFallback?.text()
+        if (!originalFallbackHtml) {
+          return {
+            damagedRuntimeScriptCount: 0,
+            hasBuildId: false,
+            hasFallback: false,
+            hasFallbackMarker: false,
+          }
+        }
+
+        const damagedFallbackHtml = originalFallbackHtml.replace(
+          /src="[^"]*\/_next\/static\/[^"]+\.js"/g,
+          'src="/app-assets/_next/static/chunks/missing-offline-runtime.js"'
+        )
+        await cache.put(
+          fallbackPath,
+          new Response(damagedFallbackHtml, {
+            headers: {
+              'content-type': 'text/html; charset=utf-8',
+            },
+          })
+        )
+
+        return {
+          damagedRuntimeScriptCount:
+            damagedFallbackHtml.match(/missing-offline-runtime\.js/g)?.length ??
+            0,
+          hasBuildId: damagedFallbackHtml.includes(
+            `"buildId":"${currentBuildId}"`
+          ),
+          hasFallback: true,
+          hasFallbackMarker: damagedFallbackHtml.includes(
+            'data-next-offline-navigation-fallback'
+          ),
+        }
+      }, buildId)
+      expect(runtimeDamageState).toMatchObject({
+        hasBuildId: true,
+        hasFallback: true,
+        hasFallbackMarker: true,
+      })
+      expect(runtimeDamageState.damagedRuntimeScriptCount).toBeGreaterThan(0)
+
+      await page!.context().setOffline(true)
+      const targetUrl = `${next.url}/docs/prefetched?missing-runtime-script=1`
+      const offlineResponse = await page!.goto(targetUrl, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(offlineResponse?.status()).toBe(200)
+
+      await retry(async () => {
+        expect(
+          await browser.eval(() =>
+            document.documentElement.getAttribute(
+              'data-next-offline-navigation-cache'
+            )
+          )
+        ).toBe('miss')
+      })
+
+      expect(
+        await browser.eval((storageKey) => {
+          const cacheMiss = document.getElementById(
+            '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
+          )
+          const win = window as typeof window & {
+            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<unknown>
+          }
+
+          return {
+            cache: document.documentElement.getAttribute(
+              'data-next-offline-navigation-cache'
+            ),
+            diagnostic:
+              win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?.at(-1) ?? null,
+            fallback: document.documentElement.hasAttribute(
+              'data-next-offline-navigation-fallback'
+            ),
+            fallbackMessages: JSON.parse(
+              localStorage.getItem(storageKey) ?? '[]'
+            ),
+            miss:
+              cacheMiss === null
+                ? null
+                : {
+                    hidden: cacheMiss.hidden,
+                    reason: cacheMiss.getAttribute(
+                      'data-next-offline-navigation-cache-reason'
+                    ),
+                    text: cacheMiss.textContent,
+                  },
+            reason: document.documentElement.getAttribute(
+              'data-next-offline-navigation-cache-reason'
+            ),
+          }
+        }, fallbackMessageStorageKey)
+      ).toMatchObject({
+        cache: 'miss',
+        diagnostic: {
+          buildId: diagnosticBuildId,
+          reason: 'runtime-error',
+          type: 'cache-miss',
+          url: targetUrl,
+        },
+        fallback: true,
+        fallbackMessages: [
+          {
+            buildId,
+            reason: 'network-error',
+            type: OFFLINE_NAVIGATION_FALLBACK_SERVED,
+            url: targetUrl,
+          },
+        ],
+        miss: {
+          hidden: false,
+          reason: 'runtime-error',
+          text: 'This page is not available offline.',
+        },
+        reason: 'runtime-error',
+      })
     } finally {
       if (page) {
         await page.context().setOffline(false)
