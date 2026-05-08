@@ -1,6 +1,7 @@
 import { cacheLife, cacheTag, updateTag } from 'next/cache'
 import { OfflineStatus } from './offline-status'
 import {
+  ClearOfflineNavigationCacheButton,
   DynamicPatternSourcePrefetchButton,
   DynamicPatternTargetPrefetchButton,
   PrefetchButton,
@@ -35,6 +36,7 @@ export default function Page() {
       <DynamicPatternSourcePrefetchButton />
       <DynamicPatternTargetPrefetchButton />
       <RefreshButton />
+      <ClearOfflineNavigationCacheButton />
     </>
   )
 }

@@ -55,3 +55,32 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
 export function useOffline(): boolean {
   return useContext(OfflineContext)
 }
+
+export async function clearOfflineNavigationCache(): Promise<boolean> {
+  if (process.env.__NEXT_OFFLINE_NAVIGATIONS) {
+    const {
+      invalidateOfflineNavigationCacheEntries,
+      invalidateOfflineNavigationRouteRecords,
+      invalidateOfflineNavigationSegmentRecords,
+    } =
+      require('./router-reducer/offline-navigation-cache') as typeof import('./router-reducer/offline-navigation-cache')
+
+    const [
+      exactUrlCacheInvalidated,
+      routeCacheInvalidated,
+      segmentCacheInvalidated,
+    ] = await Promise.all([
+      invalidateOfflineNavigationCacheEntries(),
+      invalidateOfflineNavigationRouteRecords(),
+      invalidateOfflineNavigationSegmentRecords(),
+    ])
+
+    return (
+      exactUrlCacheInvalidated &&
+      routeCacheInvalidated &&
+      segmentCacheInvalidated
+    )
+  } else {
+    return false
+  }
+}
