@@ -4150,6 +4150,183 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('misses and deletes exact-URL data with an incompatible entry version during fallback boot', async () => {
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    const { buildId } = await getOfflineNavigationArtifactPaths()
+    const navigationBuildId = next.deploymentId ?? buildId
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await retry(async () => {
+        const initialLoadEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/'
+        )
+        expect(initialLoadEntry).toEqual(
+          expect.objectContaining({
+            buildId: navigationBuildId,
+            kind: 'exact-url',
+            payload: expect.objectContaining({
+              kind: 'rsc-response',
+              requestKind: 'initial-load',
+            }),
+          })
+        )
+      })
+
+      const incompatibleEntryUrl = `${next.url}/docs/incompatible-entry-version-offline-entry/`
+      const incompatibleEntry = await browser.eval(
+        async ({ currentBuildId, url }) => {
+          const database = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open('next-offline-navigation-cache', 3)
+            request.onsuccess = () => resolve(request.result)
+            request.onerror = () => reject(request.error)
+          })
+
+          try {
+            const readTransaction = database.transaction(
+              'navigation-data',
+              'readonly'
+            )
+            const entries = await new Promise<any[]>((resolve, reject) => {
+              const request = readTransaction
+                .objectStore('navigation-data')
+                .getAll()
+              request.onsuccess = () => resolve(request.result)
+              request.onerror = () => reject(request.error)
+            })
+            const sourceEntry = entries.find((entry) =>
+              entry.url.endsWith('/docs/')
+            )
+            if (!sourceEntry) {
+              return null
+            }
+
+            const entryVersion = 999
+            const writeTransaction = database.transaction(
+              'navigation-data',
+              'readwrite'
+            )
+            writeTransaction.objectStore('navigation-data').put({
+              ...sourceEntry,
+              version: entryVersion,
+              buildId: currentBuildId,
+              url,
+              payload: {
+                ...sourceEntry.payload,
+                url,
+              },
+            })
+            await new Promise<void>((resolve, reject) => {
+              writeTransaction.oncomplete = () => resolve()
+              writeTransaction.onerror = () => reject(writeTransaction.error)
+              writeTransaction.onabort = () => reject(writeTransaction.error)
+            })
+
+            return {
+              buildId: currentBuildId,
+              entryVersion,
+              payloadKind: sourceEntry.payload.kind,
+              url,
+            }
+          } finally {
+            database.close()
+          }
+        },
+        {
+          currentBuildId: navigationBuildId,
+          url: incompatibleEntryUrl,
+        }
+      )
+      expect(incompatibleEntry).toEqual({
+        buildId: navigationBuildId,
+        entryVersion: 999,
+        payloadKind: 'rsc-response',
+        url: incompatibleEntryUrl,
+      })
+
+      await next.stop()
+      await page!.context().setOffline(true)
+      const response = await page!.goto(incompatibleEntryUrl, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(response?.status()).toBe(200)
+
+      await retry(async () => {
+        expect(
+          await browser.eval(() => {
+            const cacheMiss = document.getElementById(
+              '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
+            )
+            return cacheMiss === null
+              ? null
+              : {
+                  hidden: cacheMiss.hidden,
+                  reason: cacheMiss.getAttribute(
+                    'data-next-offline-navigation-cache-reason'
+                  ),
+                  text: cacheMiss.textContent,
+                }
+          })
+        ).toEqual({
+          hidden: false,
+          reason: 'missing-entry',
+          text: 'This page is not available offline.',
+        })
+      })
+
+      expect(
+        await browser.eval(() => ({
+          cache: document.documentElement.getAttribute(
+            'data-next-offline-navigation-cache'
+          ),
+          reason: document.documentElement.getAttribute(
+            'data-next-offline-navigation-cache-reason'
+          ),
+          diagnostic:
+            (
+              window as typeof window & {
+                __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<unknown>
+              }
+            ).__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?.at(-1) ?? null,
+        }))
+      ).toMatchObject({
+        cache: 'miss',
+        reason: 'missing-entry',
+        diagnostic: {
+          type: 'cache-miss',
+          buildId: navigationBuildId,
+          reason: 'missing-entry',
+          url: incompatibleEntryUrl,
+        },
+      })
+
+      await retry(async () => {
+        expect(
+          await readPersistedOfflineNavigationEntry(
+            browser,
+            '/docs/incompatible-entry-version-offline-entry/'
+          )
+        ).toBe(null)
+      })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('misses and deletes expired persisted exact-URL data during fallback boot', async () => {
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
