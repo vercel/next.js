@@ -406,6 +406,18 @@ function assignDefaultsAndValidate(
     }
   }
 
+  if (result.experimental.offlineNavigations) {
+    if (!result.cacheComponents) {
+      throw new Error(
+        `\`experimental.offlineNavigations\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
+      )
+    }
+
+    result.experimental.useOffline = true
+    result.experimental.optimisticRouting = true
+    result.experimental.cachedNavigations = true
+  }
+
   // ensure correct default is set for api-resolver revalidate handling
   if (!result.experimental.trustHostHeader && ciEnvironment.hasNextSupport) {
     result.experimental.trustHostHeader = true

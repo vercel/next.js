@@ -246,7 +246,12 @@ export function getDefineEnv({
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
     ),
-    'process.env.__NEXT_USE_OFFLINE': Boolean(config.experimental.useOffline),
+    'process.env.__NEXT_OFFLINE_NAVIGATIONS': Boolean(
+      config.experimental.offlineNavigations
+    ),
+    'process.env.__NEXT_USE_OFFLINE': Boolean(
+      config.experimental.useOffline || config.experimental.offlineNavigations
+    ),
     'process.env.__NEXT_PREFETCH_INLINING': Boolean(
       config.experimental.prefetchInlining
     ),
