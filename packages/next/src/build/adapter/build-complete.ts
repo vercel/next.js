@@ -1021,7 +1021,8 @@ export async function handleBuildComplete({
               existingOutput.assets,
               existingOutput.assetsHashes,
               path.relative(tracingRoot, pageFile),
-              pageFile
+              pageFile,
+              bundler
             )
             continue
           }
@@ -2164,14 +2165,16 @@ async function getSharedNodeAssets({
           pagesSharedNodeAssets,
           pagesSharedNodeAssetsHashes,
           rootRelativeFilePath,
-          path.join(tracingRoot, rootRelativeFilePath)
+          path.join(tracingRoot, rootRelativeFilePath),
+          bundler
         )
       } else {
         await pushAsset(
           appPagesSharedNodeAssets,
           appPagesSharedNodeAssetsHashes,
           rootRelativeFilePath,
-          path.join(tracingRoot, rootRelativeFilePath)
+          path.join(tracingRoot, rootRelativeFilePath),
+          bundler
         )
       }
     }
@@ -2187,7 +2190,8 @@ async function getSharedNodeAssets({
     sharedNodeAssets,
     sharedNodeAssetsHashes,
     path.relative(tracingRoot, setupNodeStubPath),
-    require.resolve('next/dist/build/adapter/setup-node-env.external')
+    require.resolve('next/dist/build/adapter/setup-node-env.external'),
+    bundler
   )
 
   if (bundler !== Bundler.Turbopack) {
@@ -2236,7 +2240,8 @@ async function getSharedNodeAssets({
         sharedNodeAssets,
         sharedNodeAssetsHashes,
         rootRelativeFilePath,
-        path.join(tracingRoot, rootRelativeFilePath)
+        path.join(tracingRoot, rootRelativeFilePath),
+        bundler
       )
     }
   }
@@ -2258,6 +2263,7 @@ async function getSharedNodeAssets({
       sharedNodeAssetsHashes,
       fileOutputPath,
       path.join(distDir, 'server', 'instrumentation.js'),
+      bundler,
       instrumentationEntryHash
     )
   }
@@ -2271,7 +2277,8 @@ async function getSharedNodeAssets({
       sharedNodeAssets,
       sharedNodeAssetsHashes,
       fileOutputPath,
-      filePath
+      filePath,
+      bundler
     )
   }
 
@@ -2290,11 +2297,15 @@ async function pushAsset(
   assetsHashes: Record<string, string>,
   targetFilePath: string,
   sourceFilePath: string,
-  hash?: string
+  bundler: Bundler,
+  hashOverride?: string
 ) {
   if (!(targetFilePath in assets)) {
     assets[targetFilePath] = sourceFilePath
-    assetsHashes[targetFilePath] = hash ?? (await hashFile(sourceFilePath))
+    if (bundler === Bundler.Turbopack) {
+      assetsHashes[targetFilePath] =
+        hashOverride ?? (await hashFile(sourceFilePath))
+    }
   }
 }
 
