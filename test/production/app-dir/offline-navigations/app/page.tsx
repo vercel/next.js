@@ -1,4 +1,4 @@
-import { cacheLife, cacheTag, updateTag } from 'next/cache'
+import { cacheLife, cacheTag, revalidatePath, updateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { OfflineStatus } from './offline-status'
 import {
@@ -27,6 +27,11 @@ async function redirectAfterOfflineNavigationInvalidationAction() {
   redirect('/?offline-navigation-redirect=1')
 }
 
+async function revalidateOfflineNavigationPathAction() {
+  'use server'
+  revalidatePath('/prefetched')
+}
+
 export default function Page() {
   return (
     <>
@@ -44,6 +49,11 @@ export default function Page() {
           type="submit"
         >
           Redirect after offline navigation invalidation
+        </button>
+      </form>
+      <form action={revalidateOfflineNavigationPathAction}>
+        <button id="revalidate-offline-navigation-path" type="submit">
+          Revalidate offline navigation path
         </button>
       </form>
       <PrefetchButton />
