@@ -172,7 +172,7 @@ jobs:
 
       - name: Cache pnpm store
         if: ${{ runner.environment == 'github-hosted' }}
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         timeout-minutes: 5
         id: cache-pnpm-store
         with:
