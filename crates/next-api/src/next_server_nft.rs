@@ -118,9 +118,6 @@ impl Asset for ServerNftJsonAsset {
                 .try_join()
                 .await?;
 
-        // A few hardcoded files (not recursive)
-        server_output_assets.push("./package.json".into());
-
         let next_dir = get_next_package(this.project.project_path().owned().await?).await?;
         for ty in ["app-page", "pages"] {
             let dir = next_dir.join(&format!("dist/server/route-modules/{ty}"))?;
