@@ -229,6 +229,10 @@ import {
 } from '../server/lib/router-utils/build-prefetch-segment-data-route'
 import { generateRoutesManifest } from './generate-routes-manifest'
 import { validateAppPaths } from './validate-app-paths'
+import {
+  createOfflineNavigationFallbackDocument,
+  getOfflineNavigationFallbackFilePath,
+} from './offline-navigation-fallback'
 
 type Fallback = null | boolean | string
 
@@ -4090,6 +4094,30 @@ export default async function build(
       }
 
       // #endregion
+
+      if (config.experimental.offlineNavigations && appDir) {
+        await nextBuildSpan
+          .traceChild('write-offline-navigation-fallback')
+          .traceAsyncFn(async () => {
+            const fallbackDocument = createOfflineNavigationFallbackDocument({
+              assetPrefix: config.assetPrefix,
+              buildId,
+              buildManifest,
+              crossOrigin: config.crossOrigin,
+            })
+
+            if (fallbackDocument === null) {
+              return
+            }
+
+            const fallbackPath = path.join(
+              distDir,
+              getOfflineNavigationFallbackFilePath(buildId)
+            )
+            await mkdir(path.dirname(fallbackPath), { recursive: true })
+            await writeFileUtf8(fallbackPath, fallbackDocument)
+          })
+      }
 
       await writeImagesManifest(distDir, config)
       await writeManifest(path.join(distDir, EXPORT_MARKER), {
