@@ -107,6 +107,9 @@ pub enum ModuleResolveResultItem {
     /// A duplicate of an item that appeared earlier in the primary array.
     /// The usize is the index of the first occurrence. Most callers should skip
     /// this variant.
+    ///
+    /// Bakes duplicate detection into the datastructure to make filtering for uniques trivial which
+    /// is required by primary_modules.
     Duplicate(usize),
 }
 
@@ -284,6 +287,9 @@ impl ModuleResolveResult {
     /// Preserves ordering; the first occurrence stays, subsequent occurrences
     /// of the same module/output asset become `Duplicate`.
     fn mark_duplicates(primary: &mut [(RequestKey, ModuleResolveResultItem)]) {
+        if primary.len() <= 1 {
+            return;
+        }
         // Map from module identity to the index of first occurrence
         let mut seen_modules = FxHashMap::default();
         for (i, (_, item)) in primary.iter_mut().enumerate() {

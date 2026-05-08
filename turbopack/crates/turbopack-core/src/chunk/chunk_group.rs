@@ -136,7 +136,7 @@ pub async fn make_chunk_group(
                 .ty()
                 .to_resolved()
                 .await?;
-            Ok::<_, anyhow::Error>(ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
+            Ok(ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
                 ChunkItemWithAsyncModuleInfo {
                     chunk_item,
                     chunk_type,

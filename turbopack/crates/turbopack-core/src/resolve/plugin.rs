@@ -11,12 +11,17 @@ use crate::{
 /// A condition which determines if the hooks of a resolve plugin gets called.
 ///
 /// The glob is read at construction time and stored as a `ReadRef`, so `matches` is a pure
-/// sync function. `serialization = "none"` because `ReadRef` cannot be persisted across builds
-/// — plugin construction is cheap enough that re-deriving this on restore is preferable.
+/// sync function. `serialization = "skip"` because serializing a `ReadRef` is wasteful and
+/// recomputing this is very cheap.
 #[turbo_tasks::value(serialization = "skip")]
-pub struct AfterResolvePluginCondition {
-    root: FileSystemPath,
-    glob: ReadRef<Glob>,
+pub enum AfterResolvePluginCondition {
+    Glob {
+        root: FileSystemPath,
+        glob: ReadRef<Glob>,
+    },
+    // these variants are used by utoo
+    Always,
+    Never,
 }
 
 #[turbo_tasks::value_impl]
@@ -24,16 +29,20 @@ impl AfterResolvePluginCondition {
     #[turbo_tasks::function]
     pub async fn new_with_glob(root: FileSystemPath, glob: ResolvedVc<Glob>) -> Result<Vc<Self>> {
         let glob = glob.await?;
-        Ok(AfterResolvePluginCondition { root, glob }.cell())
+        Ok(AfterResolvePluginCondition::Glob { root, glob }.cell())
     }
 }
 
 impl AfterResolvePluginCondition {
     /// Test whether `fs_path` matches this condition.
     pub fn matches(&self, fs_path: &FileSystemPath) -> bool {
-        self.root
-            .get_path_to(fs_path)
-            .is_some_and(|p| self.glob.matches(p))
+        match self {
+            AfterResolvePluginCondition::Glob { root, glob } => {
+                root.get_path_to(fs_path).is_some_and(|p| glob.matches(p))
+            }
+            AfterResolvePluginCondition::Always => true,
+            AfterResolvePluginCondition::Never => false,
+        }
     }
 }
 
@@ -42,6 +51,9 @@ impl AfterResolvePluginCondition {
 pub enum BeforeResolvePluginCondition {
     Request(ReadRef<Glob>),
     Modules(ReadRef<Vec<RcStr>>),
+    // These are used by utoo
+    Always,
+    Never,
 }
 
 #[turbo_tasks::value_impl]
@@ -72,6 +84,8 @@ impl BeforeResolvePluginCondition {
                     false
                 }
             }
+            BeforeResolvePluginCondition::Always => true,
+            BeforeResolvePluginCondition::Never => false,
         }
     }
 }
