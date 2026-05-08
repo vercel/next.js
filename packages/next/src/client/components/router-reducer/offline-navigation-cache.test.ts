@@ -3,6 +3,7 @@ import {
   createOfflineNavigationRSCResponse,
   createOfflineNavigationRSCResponsePayload,
   deleteOfflineNavigationCacheEntry,
+  isOfflineNavigationRSCResponsePayload,
   normalizeOfflineNavigationCacheUrl,
   readOfflineNavigationCacheEntry,
   writeOfflineNavigationCacheEntry,
@@ -71,6 +72,26 @@ describe('offline navigation cache', () => {
     ).toBe('https://example.com/dashboard?tab=activity')
   })
 
+  it('normalizes exact URL keys with the configured trailing slash', () => {
+    const originalTrailingSlash = process.env.__NEXT_TRAILING_SLASH
+    process.env.__NEXT_TRAILING_SLASH = 'true'
+
+    try {
+      expect(
+        normalizeOfflineNavigationCacheUrl('https://example.com/dashboard')
+      ).toBe('https://example.com/dashboard/')
+      expect(
+        normalizeOfflineNavigationCacheUrl('https://example.com/feed.xml')
+      ).toBe('https://example.com/feed.xml')
+    } finally {
+      if (originalTrailingSlash === undefined) {
+        delete process.env.__NEXT_TRAILING_SLASH
+      } else {
+        process.env.__NEXT_TRAILING_SLASH = originalTrailingSlash
+      }
+    }
+  })
+
   it('writes and reads exact URL entries for the current build', async () => {
     const storage = new MemoryOfflineNavigationCacheStorage()
     const cache = createOfflineNavigationCache(storage)
@@ -132,9 +153,13 @@ describe('offline navigation cache', () => {
       ]),
     })
 
-    await expect(
-      createOfflineNavigationRSCResponse(payload).text()
-    ).resolves.toBe('0:["$","payload"]')
+    const restoredResponse = createOfflineNavigationRSCResponse(payload)
+    expect(restoredResponse.url).toBe('https://example.com/dashboard?_rsc=abc')
+    await expect(restoredResponse.text()).resolves.toBe('0:["$","payload"]')
+    expect(isOfflineNavigationRSCResponsePayload(payload)).toBe(true)
+    expect(
+      isOfflineNavigationRSCResponsePayload({ ...payload, body: null })
+    ).toBe(false)
   })
 
   it('writes RSC response payloads through the exact URL cache', async () => {

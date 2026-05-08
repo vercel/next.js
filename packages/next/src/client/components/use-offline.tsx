@@ -15,12 +15,14 @@ const OfflineContext = createContext<boolean>(false)
 // (via dispatchOfflineChange) to update the React tree.
 let setOptimistic: ((value: boolean) => void) | null = null
 let setCanonical: ((value: boolean) => void) | null = null
+let offlineSnapshot = false
 
 /**
  * Called by the offline module when the offline state changes.
  * Dispatches into React via startTransition + useOptimistic.
  */
 export function dispatchOfflineChange(isOffline: boolean): void {
+  offlineSnapshot = isOffline
   const canonical = setCanonical
   const optimistic = setOptimistic
   if (canonical === null || optimistic === null) {
@@ -33,7 +35,7 @@ export function dispatchOfflineChange(isOffline: boolean): void {
 }
 
 export function OfflineProvider({ children }: { children: React.ReactNode }) {
-  const [canonicalOffline, setCanonicalOffline] = useState(false)
+  const [canonicalOffline, setCanonicalOffline] = useState(offlineSnapshot)
   const [isOffline, setOptimisticOffline] = useOptimistic(canonicalOffline)
 
   setOptimistic = setOptimisticOffline
