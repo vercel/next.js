@@ -2870,30 +2870,75 @@ describe('offlineNavigations build artifacts', () => {
         url: `${next.url}/docs/url-stress/space%20value/?tag=one&tag=two&token=a%2Bb#section-3`,
       })
 
-      const passThroughResults = await browser.eval(async () => {
-        const results: Record<string, string> = {}
+      const passThroughResults = await browser.eval(
+        async ({ buildId: currentBuildId, messageType }) => {
+          localStorage.removeItem('__nextOfflineNavigationPassThroughMessages')
+          navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data?.type === messageType) {
+              const messages = JSON.parse(
+                localStorage.getItem(
+                  '__nextOfflineNavigationPassThroughMessages'
+                ) ?? '[]'
+              )
+              messages.push(event.data)
+              localStorage.setItem(
+                '__nextOfflineNavigationPassThroughMessages',
+                JSON.stringify(messages)
+              )
+            }
+          })
 
-        for (const [key, input, init] of [
-          ['rsc', '/docs?__next_offline_probe=1', { headers: { rsc: '1' } }],
-          [
-            'post',
-            '/docs/api/server-error',
-            { method: 'POST', body: 'offline navigation post' },
-          ],
-        ] as const) {
-          try {
-            await fetch(input, init)
-            results[key] = 'resolved'
-          } catch {
-            results[key] = 'rejected'
+          const requests: Array<[string, string, RequestInit]> = [
+            ['rsc', '/docs?__next_offline_probe=1', { headers: { rsc: '1' } }],
+            [
+              'api-get',
+              '/docs/api/server-error?offline-pass-through=1',
+              { cache: 'no-store' },
+            ],
+            [
+              'post',
+              '/docs/api/server-error',
+              { method: 'POST', body: 'offline navigation post' },
+            ],
+            [
+              'static',
+              `/docs/_next/static/${currentBuildId}/_offline-navigation-manifest.json?offline-pass-through=1`,
+              { cache: 'no-store' },
+            ],
+          ]
+          const results: Record<string, string> = {}
+
+          for (const [key, input, init] of requests) {
+            try {
+              await fetch(input, init)
+              results[key] = 'resolved'
+            } catch {
+              results[key] = 'rejected'
+            }
           }
-        }
 
-        return results
-      })
+          return {
+            fallbackMessages: JSON.parse(
+              localStorage.getItem(
+                '__nextOfflineNavigationPassThroughMessages'
+              ) ?? '[]'
+            ),
+            results,
+          }
+        },
+        {
+          buildId,
+          messageType: OFFLINE_NAVIGATION_FALLBACK_SERVED,
+        }
+      )
       expect(passThroughResults).toEqual({
-        post: 'rejected',
-        rsc: 'rejected',
+        fallbackMessages: [],
+        results: {
+          'api-get': 'rejected',
+          post: 'rejected',
+          rsc: 'rejected',
+          static: 'rejected',
+        },
       })
 
       await page!.context().setOffline(false)
