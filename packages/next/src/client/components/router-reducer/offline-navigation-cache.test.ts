@@ -4,6 +4,7 @@ import {
   createOfflineNavigationRSCResponsePayload,
   deleteOfflineNavigationCacheEntry,
   getOfflineNavigationRSCResponseCacheSkipReason,
+  invalidateOfflineNavigationCacheEntries,
   isOfflineNavigationRSCResponsePayload,
   normalizeOfflineNavigationCacheUrl,
   readOfflineNavigationCacheEntry,
@@ -20,6 +21,7 @@ class MemoryOfflineNavigationCacheStorage
   implements OfflineNavigationCacheStorage
 {
   entries = new Map<string, OfflineNavigationCacheEntry>()
+  cacheEpoch = 0
 
   async get(key: CacheKey): Promise<OfflineNavigationCacheEntry | undefined> {
     return this.entries.get(this.getKey(key))
@@ -39,6 +41,15 @@ class MemoryOfflineNavigationCacheStorage
         this.entries.delete(key)
       }
     }
+  }
+
+  async getCacheEpoch(): Promise<number> {
+    return this.cacheEpoch
+  }
+
+  async incrementCacheEpoch(): Promise<number> {
+    this.cacheEpoch++
+    return this.cacheEpoch
   }
 
   private getKey(key: CacheKey): string {
@@ -63,6 +74,14 @@ class FailingOfflineNavigationCacheStorage
 
   async deleteBuild(): Promise<void> {
     throw new Error('delete build failed')
+  }
+
+  async getCacheEpoch(): Promise<number> {
+    throw new Error('get epoch failed')
+  }
+
+  async incrementCacheEpoch(): Promise<number> {
+    throw new Error('increment epoch failed')
   }
 }
 
@@ -188,10 +207,11 @@ describe('offline navigation cache', () => {
         now: 150,
       })
     ).resolves.toEqual({
-      version: 1,
+      version: 2,
       kind: 'exact-url',
       buildId: 'build-a',
       url: 'https://example.com/dashboard?tab=activity',
+      cacheEpoch: 0,
       createdAt: 100,
       staleAt: 200,
       expiresAt: 300,
@@ -267,6 +287,7 @@ describe('offline navigation cache', () => {
       })
     ).resolves.toMatchObject({
       buildId: 'build-a',
+      cacheEpoch: 0,
       createdAt: 100,
       payload: {
         kind: 'rsc-response',
@@ -363,16 +384,59 @@ describe('offline navigation cache', () => {
     await expect(cache.read(url, { buildId: 'build-a' })).resolves.toBe(null)
   })
 
+  it('invalidates exact URL entries with a durable cache epoch', async () => {
+    const storage = new MemoryOfflineNavigationCacheStorage()
+    const cache = createOfflineNavigationCache(storage)
+    const url = 'https://example.com/dashboard'
+
+    await cache.write({
+      buildId: 'build-a',
+      url,
+      now: 100,
+      staleAt: 200,
+      expiresAt: 300,
+      payload: 'stale payload',
+    })
+    await expect(
+      cache.read(url, { buildId: 'build-a', now: 150 })
+    ).resolves.toMatchObject({
+      cacheEpoch: 0,
+      payload: 'stale payload',
+    })
+
+    await expect(cache.invalidate()).resolves.toBe(true)
+    await expect(
+      cache.read(url, { buildId: 'build-a', now: 150 })
+    ).resolves.toBe(null)
+    expect(storage.entries.size).toBe(0)
+
+    await cache.write({
+      buildId: 'build-a',
+      url,
+      now: 175,
+      staleAt: 250,
+      expiresAt: 350,
+      payload: 'fresh payload',
+    })
+    await expect(
+      cache.read(url, { buildId: 'build-a', now: 200 })
+    ).resolves.toMatchObject({
+      cacheEpoch: 1,
+      payload: 'fresh payload',
+    })
+  })
+
   it('ignores and deletes entries whose stored build id does not match', async () => {
     const storage = new MemoryOfflineNavigationCacheStorage()
     const cache = createOfflineNavigationCache(storage)
     const url = 'https://example.com/dashboard'
 
     await storage.put({
-      version: 1,
+      version: 2,
       kind: 'exact-url',
       buildId: 'build-b',
       url,
+      cacheEpoch: 0,
       createdAt: 100,
       staleAt: 200,
       expiresAt: 300,
@@ -485,6 +549,7 @@ describe('offline navigation cache', () => {
       cache.delete('https://example.com/dashboard', { buildId: 'build-a' })
     ).resolves.toBe(false)
     await expect(cache.deleteBuild('build-a')).resolves.toBe(false)
+    await expect(cache.invalidate()).resolves.toBe(false)
   })
 
   it('is a no-op when IndexedDB is unavailable', async () => {
@@ -517,6 +582,9 @@ describe('offline navigation cache', () => {
           buildId: 'build-a',
         })
       ).resolves.toBe(false)
+      await expect(invalidateOfflineNavigationCacheEntries()).resolves.toBe(
+        false
+      )
     } finally {
       if (originalIndexedDB) {
         Object.defineProperty(globalThis, 'indexedDB', originalIndexedDB)

@@ -13,3 +13,12 @@ export function PrefetchButton() {
     </button>
   )
 }
+
+export function RefreshButton() {
+  const router = useRouter()
+  return (
+    <button id="refresh-offline-navigation" onClick={() => router.refresh()}>
+      Refresh offline navigation
+    </button>
+  )
+}
