@@ -1,5 +1,10 @@
 import { OfflineStatus } from './offline-status'
-import { PrefetchButton, RefreshButton } from './prefetch-button'
+import {
+  DynamicPatternSourcePrefetchButton,
+  DynamicPatternTargetPrefetchButton,
+  PrefetchButton,
+  RefreshButton,
+} from './prefetch-button'
 
 export default function Page() {
   return (
@@ -7,6 +12,8 @@ export default function Page() {
       <p>offline navigations page</p>
       <OfflineStatus />
       <PrefetchButton />
+      <DynamicPatternSourcePrefetchButton />
+      <DynamicPatternTargetPrefetchButton />
       <RefreshButton />
     </>
   )

@@ -1054,6 +1054,114 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('replays a dynamic route from persisted known route patterns', async () => {
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await retry(async () => {
+        expect(
+          await browser.eval(() => Boolean(navigator.serviceWorker.controller))
+        ).toBe(true)
+      })
+
+      await browser.elementById('prefetch-dynamic-pattern-source').click()
+      await retry(async () => {
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        expect(
+          routeRecords.some((record) =>
+            record.route.pathname.includes('/dynamic-prefetch/learned')
+          )
+        ).toBe(true)
+      })
+
+      await browser.elementById('prefetch-dynamic-pattern-target').click()
+      await retry(async () => {
+        const exactEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/dynamic-prefetch/replayed'
+        )
+        expect(exactEntry).toBe(null)
+
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        expect(
+          routeRecords.some((record) =>
+            record.route.pathname.includes('/dynamic-prefetch/replayed')
+          )
+        ).toBe(false)
+
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        const replayedSegmentRecords = segmentRecords.filter((record) =>
+          record.key.includes('replayed')
+        )
+        expect(
+          segmentRecords.some(
+            (record) => record.payload.requestKind === 'segment-prefetch'
+          )
+        ).toBe(true)
+        expect(
+          replayedSegmentRecords.some((record) =>
+            record.segment.requestKey.endsWith('/__PAGE__')
+          )
+        ).toBe(true)
+        expect(
+          replayedSegmentRecords.some(
+            (record) => record.segment.requestKey === '/_head'
+          )
+        ).toBe(true)
+      })
+
+      await next.stop()
+      await page!.context().setOffline(true)
+      const dynamicReplayResponse = await page!.goto(
+        `${next.url}/docs/dynamic-prefetch/replayed#restored`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(dynamicReplayResponse?.status()).toBe(200)
+      await retry(async () => {
+        const routerCacheDiagnostics = await browser.eval(() => {
+          const win = window as typeof window & {
+            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<{
+              type?: string
+              requestKind?: string
+              url?: string
+              reason?: string
+            }>
+          }
+          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__ ?? []
+        })
+        expect(routerCacheDiagnostics).toContainEqual(
+          expect.objectContaining({
+            type: 'cache-hit',
+            requestKind: 'router-cache',
+            url: `${next.url}/docs/dynamic-prefetch/replayed#restored`,
+          })
+        )
+      })
+      await retry(async () => {
+        expect(await browser.elementById('dynamic-prefetch-page').text()).toBe(
+          'dynamic prefetch path: replayed'
+        )
+      })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('replays request-sensitive exact URLs from browser-private storage', async () => {
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)

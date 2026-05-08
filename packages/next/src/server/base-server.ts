@@ -578,7 +578,9 @@ export default abstract class Server<
           this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
         optimisticRouting:
-          this.nextConfig.experimental.optimisticRouting ?? false,
+          this.nextConfig.experimental.optimisticRouting ||
+          this.nextConfig.experimental.offlineNavigations ||
+          false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         prefetchInlining:
           this.nextConfig.experimental.prefetchInlining ?? false,

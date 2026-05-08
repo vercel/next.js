@@ -125,7 +125,11 @@ import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { FetchStrategy } from './types'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 import { readFromBFCache, UnknownDynamicStaleTime } from './bfcache'
-import { discoverKnownRoute, matchKnownRoute } from './optimistic-routes'
+import {
+  discoverKnownRoute,
+  matchKnownRoute,
+  restoreKnownRouteFromCacheEntry,
+} from './optimistic-routes'
 import { convertServerPatchToFullTree, type NavigationSeed } from './navigation'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
@@ -1442,7 +1446,14 @@ export async function hydrateOfflineNavigationRouterCacheFromRecords(
   }
 
   for (const record of routeRecords) {
-    if (writeOfflineNavigationRouteRecordIntoCache(now, record)) {
+    const entry = writeOfflineNavigationRouteRecordIntoCache(now, record)
+    if (entry !== null) {
+      restoreKnownRouteFromCacheEntry(
+        now,
+        record.route.pathname,
+        record.route.nextUrl,
+        entry
+      )
       result.routes.hydrated++
     } else {
       result.routes.skipped++
@@ -1463,7 +1474,7 @@ export async function hydrateOfflineNavigationRouterCacheFromRecords(
 export function writeOfflineNavigationRouteRecordIntoCache(
   now: number,
   record: OfflineNavigationRouteRecord
-): boolean {
+): FulfilledRouteCacheEntry | null {
   const route = record.route
   if (
     record.staleAt <= now ||
@@ -1473,16 +1484,19 @@ export function writeOfflineNavigationRouteRecordIntoCache(
     record.metadata === null ||
     typeof route.canonicalUrl !== 'string' ||
     typeof route.renderedSearch !== 'string' ||
+    typeof route.pathname !== 'string' ||
+    typeof route.search !== 'string' ||
+    (route.nextUrl !== null && typeof route.nextUrl !== 'string') ||
     typeof route.couldBeIntercepted !== 'boolean' ||
     typeof route.supportsPerSegmentPrefetching !== 'boolean' ||
     typeof route.hasDynamicRewrite !== 'boolean'
   ) {
-    return false
+    return null
   }
 
   const varyPath = deserializeOfflineNavigationVaryPath(record.routeVaryPath)
   if (varyPath === null) {
-    return false
+    return null
   }
 
   const fulfilledEntry: FulfilledRouteCacheEntry = {
@@ -1507,7 +1521,7 @@ export function writeOfflineNavigationRouteRecordIntoCache(
     fulfilledEntry,
     isRevalidation
   )
-  return true
+  return fulfilledEntry
 }
 
 export async function writeOfflineNavigationSegmentRecordIntoCache(

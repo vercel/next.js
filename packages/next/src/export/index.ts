@@ -510,7 +510,10 @@ async function exportAppImpl(
       clientParamParsingOrigins:
         nextConfig.experimental.clientParamParsingOrigins,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
-      optimisticRouting: nextConfig.experimental.optimisticRouting ?? false,
+      optimisticRouting:
+        nextConfig.experimental.optimisticRouting ||
+        nextConfig.experimental.offlineNavigations ||
+        false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
