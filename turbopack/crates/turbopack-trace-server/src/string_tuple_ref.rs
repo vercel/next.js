@@ -20,7 +20,7 @@ mod string_tuple_ref_tests {
 
     #[test]
     fn test_string_tuple_ref_hash() {
-        let s = FxBuildHasher::default();
+        let s = FxBuildHasher;
         assert_eq!(
             s.hash_one(StringTupleRef("abc", "def")),
             s.hash_one(&(RcStr::from("abc"), RcStr::from("def")))
