@@ -12,6 +12,7 @@ type OfflineNavigationRSCResponseRequestKind =
   | 'navigation'
   | 'route-prefetch'
   | 'client-resume'
+  | 'initial-load'
 
 export type OfflineNavigationCacheEntry = {
   version: typeof ENTRY_VERSION
@@ -217,7 +218,8 @@ export function isOfflineNavigationRSCResponsePayload(
     candidate.kind === 'rsc-response' &&
     (candidate.requestKind === 'navigation' ||
       candidate.requestKind === 'route-prefetch' ||
-      candidate.requestKind === 'client-resume') &&
+      candidate.requestKind === 'client-resume' ||
+      candidate.requestKind === 'initial-load') &&
     typeof candidate.url === 'string' &&
     typeof candidate.status === 'number' &&
     typeof candidate.statusText === 'string' &&

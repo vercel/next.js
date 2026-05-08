@@ -203,6 +203,19 @@ describe('offline navigation cache', () => {
     })
   })
 
+  it('accepts initial load RSC responses for offline document boot', async () => {
+    const payload = await createOfflineNavigationRSCResponsePayload(
+      new Response('0:["$","payload"]'),
+      'initial-load'
+    )
+
+    expect(isOfflineNavigationRSCResponsePayload(payload)).toBe(true)
+    expect(payload).toMatchObject({
+      kind: 'rsc-response',
+      requestKind: 'initial-load',
+    })
+  })
+
   it('deletes exact URL entries', async () => {
     const storage = new MemoryOfflineNavigationCacheStorage()
     const cache = createOfflineNavigationCache(storage)
