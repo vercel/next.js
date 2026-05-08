@@ -411,6 +411,12 @@ describe('offline navigation cache', () => {
     expect(
       isOfflineNavigationRSCResponsePayload({ ...payload, body: null })
     ).toBe(false)
+    expect(
+      isOfflineNavigationRSCResponsePayload({
+        ...payload,
+        requestKind: 'segment-prefetch',
+      })
+    ).toBe(true)
   })
 
   it('writes RSC response payloads through the exact URL cache', async () => {
@@ -637,6 +643,7 @@ describe('offline navigation cache', () => {
           requestKey: 'children/page',
           fetchStrategy: 1,
           isPartial: false,
+          payloadIndex: 0,
         },
         segmentVaryPath,
         payload: { kind: 'segment-payload' },
@@ -671,6 +678,7 @@ describe('offline navigation cache', () => {
       kind: 'segment',
       segment: {
         requestKey: 'children/page',
+        payloadIndex: 0,
       },
       segmentVaryPath,
       version: 1,
@@ -867,6 +875,7 @@ describe('offline navigation cache', () => {
           requestKey: 'children/page',
           fetchStrategy: 1,
           isPartial: false,
+          payloadIndex: 0,
         },
         segmentVaryPath: [],
         payload: null,

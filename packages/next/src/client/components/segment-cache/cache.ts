@@ -59,9 +59,13 @@ import {
 } from './vary-path'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import {
+  createOfflineNavigationVaryPathKey,
   invalidateOfflineNavigationCacheEntries,
   getOfflineNavigationRSCResponseCacheSkipReason,
+  serializeOfflineNavigationVaryPath,
   writeOfflineNavigationRSCResponseCacheEntry,
+  writeOfflineNavigationSegmentRecord,
+  type OfflineNavigationRSCResponsePayload,
 } from '../router-reducer/offline-navigation-cache'
 import type {
   NormalizedPathname,
@@ -2150,7 +2154,17 @@ export async function fetchSegmentsOnCacheMiss(
       }
 
       // Set the fulfilled entry into the canonical cache slot.
-      upsertSegmentEntry(now, canonicalVaryPath, fulfilled)
+      const upserted = upsertSegmentEntry(now, canonicalVaryPath, fulfilled)
+      if (upserted !== null && upserted.status === EntryStatus.Fulfilled) {
+        persistOfflineNavigationSegmentRecord(
+          now,
+          node.tree,
+          canonicalVaryPath,
+          upserted,
+          dataIndex,
+          response.offlineNavigationCachePayload
+        )
+      }
 
       node = node.parent
       dataIndex++
@@ -2967,6 +2981,48 @@ export function canNewFetchStrategyProvideMoreContent(
   newStrategy: FetchStrategy
 ): boolean {
   return currentStrategy < newStrategy
+}
+
+function persistOfflineNavigationSegmentRecord(
+  now: number,
+  tree: RouteTree,
+  varyPath: SegmentVaryPath,
+  entry: FulfilledSegmentCacheEntry,
+  payloadIndex: number,
+  payload: Promise<OfflineNavigationRSCResponsePayload | null> | null
+): void {
+  if (
+    !process.env.__NEXT_OFFLINE_NAVIGATIONS ||
+    process.env.__NEXT_DEV_SERVER ||
+    process.env.NODE_ENV !== 'production' ||
+    process.env.__NEXT_CONFIG_OUTPUT === 'export' ||
+    entry.staleAt <= now ||
+    payload === null
+  ) {
+    return
+  }
+
+  void (async () => {
+    const resolvedPayload = await payload
+    if (resolvedPayload === null) {
+      return
+    }
+
+    await writeOfflineNavigationSegmentRecord({
+      key: createOfflineNavigationVaryPathKey(varyPath),
+      now,
+      staleAt: entry.staleAt,
+      expiresAt: entry.staleAt,
+      segment: {
+        requestKey: tree.requestKey,
+        fetchStrategy: entry.fetchStrategy,
+        isPartial: entry.isPartial,
+        payloadIndex,
+      },
+      segmentVaryPath: serializeOfflineNavigationVaryPath(varyPath),
+      payload: resolvedPayload,
+    })
+  })()
 }
 
 /**

@@ -20,6 +20,7 @@ type OfflineNavigationRouterCacheKey = [buildId: string, key: string]
 export type OfflineNavigationRSCResponseRequestKind =
   | 'navigation'
   | 'route-prefetch'
+  | 'segment-prefetch'
   | 'client-resume'
   | 'initial-load'
 
@@ -125,6 +126,7 @@ export type OfflineNavigationSegmentRecord = {
     requestKey: string
     fetchStrategy: number
     isPartial: boolean
+    payloadIndex: number
   }
   segmentVaryPath: OfflineNavigationSerializedVaryPath
   payload: unknown
@@ -656,6 +658,7 @@ export function isOfflineNavigationRSCResponsePayload(
     candidate.kind === 'rsc-response' &&
     (candidate.requestKind === 'navigation' ||
       candidate.requestKind === 'route-prefetch' ||
+      candidate.requestKind === 'segment-prefetch' ||
       candidate.requestKind === 'client-resume' ||
       candidate.requestKind === 'initial-load') &&
     typeof candidate.url === 'string' &&
