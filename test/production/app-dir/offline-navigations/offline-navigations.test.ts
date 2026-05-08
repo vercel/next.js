@@ -6231,6 +6231,151 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('does not serve stale fallback HTML when a later manifest refresh is corrupted', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    const initialBuildResult = await next.build()
+    expect(initialBuildResult.exitCode).toBe(0)
+
+    const initialArtifacts = await getOfflineNavigationArtifactPaths()
+    await next.start({ skipBuild: true })
+
+    const previousForcedPort = next.forcedPort
+    let isStarted = true
+    let page: Playwright.Page | undefined
+    const fallbackMessages: Array<unknown> = []
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      const initialState = await browser.eval(async (currentBuildId) => {
+        const cacheNames = await caches.keys()
+        return {
+          cacheNames: cacheNames.filter((cacheName) =>
+            cacheName.startsWith('next-offline-navigation-v1:')
+          ),
+          controlled: Boolean(navigator.serviceWorker.controller),
+          expectedCacheName: `next-offline-navigation-v1:${currentBuildId}:/docs`,
+        }
+      }, initialArtifacts.buildId)
+      expect(initialState).toEqual({
+        cacheNames: [initialState.expectedCacheName],
+        controlled: true,
+        expectedCacheName: `next-offline-navigation-v1:${initialArtifacts.buildId}:/docs`,
+      })
+
+      next.forcedPort = next.appPort
+      await next.stop()
+      isStarted = false
+
+      const updateBuildResult = await next.build()
+      expect(updateBuildResult.exitCode).toBe(0)
+
+      const updatedArtifacts = await getOfflineNavigationArtifactPaths()
+      writeFileSync(
+        updatedArtifacts.manifest.absolutePath,
+        'not updated offline navigation manifest'
+      )
+
+      await next.start({ skipBuild: true })
+      isStarted = true
+
+      try {
+        const updatedManifestResponse = await next.fetch(
+          `/docs/_next/static/${updatedArtifacts.buildId}/_offline-navigation-manifest.json${next.getDeploymentIdQuery()}`
+        )
+        expect(updatedManifestResponse.status).toBe(200)
+        expect(await updatedManifestResponse.text()).toBe(
+          'not updated offline navigation manifest'
+        )
+
+        await page!.goto(
+          `${next.url}/docs?offline-navigation-update-failed=1`,
+          {
+            waitUntil: 'domcontentloaded',
+          }
+        )
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe(
+            'offline navigations page'
+          )
+        })
+
+        await page!.exposeFunction(
+          '__nextRecordOfflineNavigationUpdateDamageMessage',
+          (message: unknown) => {
+            fallbackMessages.push(message)
+          }
+        )
+        await browser.eval((messageType) => {
+          const win = window as typeof window & {
+            __nextRecordOfflineNavigationUpdateDamageMessage?: (
+              message: unknown
+            ) => void
+          }
+          navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data?.type === messageType) {
+              win.__nextRecordOfflineNavigationUpdateDamageMessage?.(event.data)
+            }
+          })
+        }, OFFLINE_NAVIGATION_FALLBACK_SERVED)
+
+        await retry(
+          async () => {
+            const cleanupState = await browser.eval(async () => {
+              const cacheNames = await caches.keys()
+              return {
+                cacheNames: cacheNames.filter((cacheName) =>
+                  cacheName.startsWith('next-offline-navigation-v1:')
+                ),
+              }
+            })
+
+            expect(cleanupState.cacheNames).toEqual([])
+          },
+          10000,
+          500
+        )
+
+        await page!.context().setOffline(true)
+        let navigationError: string | null = null
+        try {
+          await page!.goto(
+            `${next.url}/docs/prefetched?update-manifest-failure=1`,
+            { waitUntil: 'domcontentloaded' }
+          )
+        } catch (error) {
+          navigationError = String(error)
+        }
+
+        expect(navigationError).toMatch(
+          /ERR_FAILED|ERR_INTERNET_DISCONNECTED|NS_ERROR_OFFLINE|offline/i
+        )
+        expect(fallbackMessages).toEqual([])
+      } finally {
+        if (page) {
+          await page.context().setOffline(false)
+        }
+        await next.stop()
+        isStarted = false
+      }
+    } finally {
+      next.forcedPort = previousForcedPort
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      if (isStarted) {
+        await next.stop()
+      }
+    }
+  })
+
   it('does not serve fallback HTML to offline server action submissions', async () => {
     if (shouldSkipReplayWithCachedNavigations) {
       return
