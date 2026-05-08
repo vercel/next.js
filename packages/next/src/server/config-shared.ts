@@ -429,6 +429,7 @@ export interface ExperimentalConfig {
    */
   partialFallbacks?: boolean
   dynamicOnHover?: boolean
+  offlineNavigations?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
   varyParams?: boolean
@@ -1913,6 +1914,7 @@ export const defaultConfig = Object.freeze({
     cachedNavigations: false,
     partialFallbacks: true,
     dynamicOnHover: false,
+    offlineNavigations: false,
     useOffline: false,
     varyParams: false,
     prefetchInlining: true,
@@ -2059,6 +2061,7 @@ export interface NextConfigRuntime {
     | 'serverActions'
     | 'staleTimes'
     | 'dynamicOnHover'
+    | 'offlineNavigations'
     | 'useOffline'
     | 'optimisticRouting'
     | 'inlineCss'
@@ -2127,6 +2130,7 @@ export function getNextConfigRuntime(
     serverActions: ex.serverActions,
     staleTimes: ex.staleTimes,
     dynamicOnHover: ex.dynamicOnHover,
+    offlineNavigations: ex.offlineNavigations,
     useOffline: ex.useOffline,
     optimisticRouting: ex.optimisticRouting,
     inlineCss: ex.inlineCss,
