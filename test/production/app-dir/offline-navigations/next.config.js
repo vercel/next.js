@@ -3,7 +3,7 @@
  */
 const nextConfig = {
   cacheComponents: true,
-  assetPrefix: 'https://cdn.example.com/app-assets',
+  assetPrefix: '/app-assets',
   basePath: '/docs',
   experimental: {
     offlineNavigations: true,
