@@ -14,6 +14,7 @@ import {
   DynamicPatternTargetPrefetchButton,
   PrefetchButton,
   RefreshButton,
+  ResetOfflineNavigationSessionButton,
   WorkspaceShellPrefetchButton,
 } from './prefetch-button'
 
@@ -95,6 +96,7 @@ export default function Page() {
       <WorkspaceShellPrefetchButton />
       <RefreshButton />
       <ClearOfflineNavigationCacheButton />
+      <ResetOfflineNavigationSessionButton />
     </>
   )
 }

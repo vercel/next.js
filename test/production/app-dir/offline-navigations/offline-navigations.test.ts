@@ -4778,6 +4778,196 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('misses request-sensitive exact URLs after an app-owned session reset', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    const { buildId } = await getOfflineNavigationArtifactPaths()
+    const navigationBuildId = next.deploymentId ?? buildId
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await browser.eval(() => {
+        document.cookie = 'offline-session=alpha; path=/; SameSite=Lax'
+      })
+      const onlineResponse = await page!.goto(
+        `${next.url}/docs/request-sensitive/`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(onlineResponse?.status()).toBe(200)
+      await retry(async () => {
+        expect(await browser.elementById('request-sensitive-page').text()).toBe(
+          'request sensitive session: alpha'
+        )
+      })
+
+      let cachedEntryEpoch = -1
+      await retry(async () => {
+        const entry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/request-sensitive'
+        )
+        expect(entry).toEqual(
+          expect.objectContaining({
+            buildId: navigationBuildId,
+            cacheEpoch: expect.any(Number),
+            kind: 'exact-url',
+            payload: expect.objectContaining({
+              kind: 'rsc-response',
+              requestKind: 'initial-load',
+              status: 200,
+            }),
+            url: expect.stringContaining('/docs/request-sensitive'),
+          })
+        )
+        expect(entry!.payload.bodyLength).toBeGreaterThan(0)
+        cachedEntryEpoch = entry!.cacheEpoch
+      })
+
+      await page!.context().setOffline(true)
+      const sameSessionOfflineResponse = await page!.goto(
+        `${next.url}/docs/request-sensitive/`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(sameSessionOfflineResponse?.status()).toBe(200)
+      await retry(async () => {
+        expect(await browser.elementById('request-sensitive-page').text()).toBe(
+          'request sensitive session: alpha'
+        )
+        expect(await browser.elementById('offline-status').text()).toBe(
+          'offline'
+        )
+      })
+
+      await page!.context().setOffline(false)
+      await browser.eval(() => {
+        window.dispatchEvent(new Event('online'))
+      })
+      const onlineRootResponse = await page!.goto(`${next.url}/docs`, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(onlineRootResponse?.status()).toBe(200)
+      await retry(async () => {
+        expect(
+          await browser.elementById('reset-offline-navigation-session').text()
+        ).toBe('Reset offline navigation session')
+      })
+
+      await browser.elementById('reset-offline-navigation-session').click()
+      await retry(async () => {
+        expect(
+          await browser
+            .elementById('reset-offline-navigation-session-result')
+            .text()
+        ).toBe('cleared')
+        expect(
+          await browser.eval(() => document.cookie.includes('offline-session='))
+        ).toBe(false)
+        expect(
+          await readPersistedOfflineNavigationMetadata(
+            browser,
+            'exact-url-cache-epoch'
+          )
+        ).toBeGreaterThan(cachedEntryEpoch)
+        expect(
+          await readPersistedOfflineNavigationMetadata(
+            browser,
+            'route-cache-epoch'
+          )
+        ).toBeGreaterThan(0)
+        expect(
+          await readPersistedOfflineNavigationMetadata(
+            browser,
+            'segment-cache-epoch'
+          )
+        ).toBeGreaterThan(0)
+      })
+
+      await retry(async () => {
+        const oldEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/request-sensitive'
+        )
+        expect(oldEntry).toEqual(
+          expect.objectContaining({
+            cacheEpoch: cachedEntryEpoch,
+            url: expect.stringContaining('/docs/request-sensitive'),
+          })
+        )
+      })
+
+      await page!.context().setOffline(true)
+      const resetOfflineResponse = await page!.goto(
+        `${next.url}/docs/request-sensitive/`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(resetOfflineResponse?.status()).toBe(200)
+      await retry(async () => {
+        const diagnostics = await browser.eval(() => {
+          const win = window as typeof window & {
+            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<{
+              reason?: string
+              type?: string
+              url?: string
+            }>
+          }
+          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__ ?? []
+        })
+        expect(diagnostics).toContainEqual(
+          expect.objectContaining({
+            reason: 'missing-entry',
+            type: 'cache-miss',
+            url: `${next.url}/docs/request-sensitive/`,
+          })
+        )
+      })
+      await retry(async () => {
+        expect(
+          await browser.eval(() => {
+            const cacheMiss = document.getElementById(
+              '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
+            )
+            return cacheMiss === null
+              ? null
+              : {
+                  hidden: cacheMiss.hidden,
+                  reason: cacheMiss.getAttribute(
+                    'data-next-offline-navigation-cache-reason'
+                  ),
+                  text: cacheMiss.textContent,
+                }
+          })
+        ).toEqual({
+          hidden: false,
+          reason: 'missing-entry',
+          text: 'This page is not available offline.',
+        })
+      })
+      expect(
+        await browser.eval(() =>
+          Boolean(document.getElementById('request-sensitive-page'))
+        )
+      ).toBe(false)
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('covers exact URL shape and pass-through stress cases', async () => {
     if (shouldSkipReplayWithCachedNavigations) {
       return

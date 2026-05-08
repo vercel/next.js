@@ -81,3 +81,23 @@ export function ClearOfflineNavigationCacheButton() {
     </>
   )
 }
+
+export function ResetOfflineNavigationSessionButton() {
+  const [result, setResult] = useState('idle')
+  return (
+    <>
+      <button
+        id="reset-offline-navigation-session"
+        onClick={async () => {
+          document.cookie = 'offline-session=; Max-Age=0; path=/; SameSite=Lax'
+          setResult(
+            (await clearOfflineNavigationCache()) ? 'cleared' : 'not-cleared'
+          )
+        }}
+      >
+        Reset offline navigation session
+      </button>
+      <p id="reset-offline-navigation-session-result">{result}</p>
+    </>
+  )
+}
