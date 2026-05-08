@@ -376,6 +376,15 @@ export async function hydrate(
     setNavigationBuildId(getDeploymentId()!)
   }
 
+  if (
+    process.env.__NEXT_OFFLINE_NAVIGATIONS &&
+    !process.env.__NEXT_DEV_SERVER
+  ) {
+    const { registerOfflineNavigationServiceWorker } =
+      require('./offline-navigation-service-worker') as typeof import('./offline-navigation-service-worker')
+    registerOfflineNavigationServiceWorker()
+  }
+
   const initialTimestamp = Date.now()
   const actionQueue: AppRouterActionQueue = createMutableActionQueue(
     createInitialRouterState({

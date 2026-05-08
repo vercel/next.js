@@ -237,6 +237,10 @@ import {
   createOfflineNavigationManifest,
   getOfflineNavigationManifestFilePath,
 } from './offline-navigation-manifest'
+import {
+  createOfflineNavigationServiceWorker,
+  getOfflineNavigationServiceWorkerFilePath,
+} from './offline-navigation-service-worker'
 
 type Fallback = null | boolean | string
 
@@ -4118,17 +4122,30 @@ export default async function build(
               distDir,
               getOfflineNavigationFallbackFilePath(buildId)
             )
+            const manifestPath = path.join(
+              distDir,
+              getOfflineNavigationManifestFilePath(buildId)
+            )
+            const serviceWorkerPath = path.join(
+              distDir,
+              getOfflineNavigationServiceWorkerFilePath()
+            )
+            const manifest = createOfflineNavigationManifest({
+              assetPrefix: config.assetPrefix,
+              basePath: config.basePath,
+              buildId,
+              output: config.output,
+              trailingSlash: config.trailingSlash,
+            })
+
             await mkdir(path.dirname(fallbackPath), { recursive: true })
             await writeFileUtf8(fallbackPath, fallbackDocument)
-
-            await writeManifest(
-              path.join(distDir, getOfflineNavigationManifestFilePath(buildId)),
-              createOfflineNavigationManifest({
-                assetPrefix: config.assetPrefix,
-                basePath: config.basePath,
+            await writeManifest(manifestPath, manifest)
+            await writeFileUtf8(
+              serviceWorkerPath,
+              createOfflineNavigationServiceWorker({
                 buildId,
-                output: config.output,
-                trailingSlash: config.trailingSlash,
+                manifestHref: manifest.manifest.href,
               })
             )
           })
