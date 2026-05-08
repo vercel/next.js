@@ -20,6 +20,7 @@ import {
   createMutableActionQueue,
 } from './components/app-router-instance'
 import AppRouter from './components/app-router'
+import DefaultGlobalError from './components/builtin/global-error'
 import type { InitialRSCPayload } from '../shared/lib/app-router-types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
@@ -63,12 +64,17 @@ type OfflineNavigationCacheMissReason =
   | 'unsupported-request-kind'
   | 'read-error'
 
+type OfflineNavigationFallbackRequestKind =
+  | 'client-resume'
+  | 'initial-load'
+  | 'router-cache'
+
 type OfflineNavigationFallbackDiagnostic =
   | {
       type: 'cache-hit'
       url: string
       buildId: string | undefined
-      requestKind: OfflineNavigationFallbackResponse['requestKind']
+      requestKind: OfflineNavigationFallbackRequestKind
     }
   | {
       type: 'cache-miss'
@@ -88,6 +94,12 @@ type OfflineNavigationFallbackDiagnostic =
         hydrated: number
         skipped: number
       }
+    }
+  | {
+      type: 'router-cache-reconstruction-miss'
+      url: string
+      buildId: string | undefined
+      reason: string
     }
 
 declare global {
@@ -109,7 +121,7 @@ function reportOfflineNavigationFallbackDiagnostic(
 }
 
 function showOfflineNavigationCacheHit(
-  requestKind: OfflineNavigationFallbackResponse['requestKind'],
+  requestKind: OfflineNavigationFallbackRequestKind,
   buildId: string | undefined
 ): void {
   document.documentElement.setAttribute(
@@ -157,8 +169,8 @@ function showOfflineNavigationCacheMiss(
   })
 }
 
-function neverResolveOfflineNavigationResponse(): Promise<Response> {
-  return new Promise<Response>(() => {})
+function neverResolveInitialRSCPayload(): Promise<InitialRSCPayload> {
+  return new Promise<InitialRSCPayload>(() => {})
 }
 
 type OfflineNavigationFallbackResponse = {
@@ -166,15 +178,34 @@ type OfflineNavigationFallbackResponse = {
   response: Response
 }
 
-function createOfflineNavigationFallbackResponse():
-  | Promise<OfflineNavigationFallbackResponse>
+type OfflineNavigationFallbackBootstrap =
+  | {
+      kind: 'rsc-response'
+      response: OfflineNavigationFallbackResponse
+      buildId: string | undefined
+    }
+  | {
+      kind: 'router-cache'
+      initialRSCPayload: InitialRSCPayload
+      buildId: string | undefined
+    }
+  | {
+      kind: 'cache-miss'
+      buildId: string | undefined
+    }
+
+// The generated fallback document has no inline Flight data for the current
+// URL. Bootstrap from a durable exact-URL RSC response first, then fall back to
+// reconstructing the route from persisted segment-cache records.
+function createOfflineNavigationFallbackBootstrap():
+  | Promise<OfflineNavigationFallbackBootstrap>
   | undefined {
   if (process.env.__NEXT_OFFLINE_NAVIGATIONS) {
     if (!isOfflineNavigationFallbackDocument()) {
       return undefined
     }
 
-    return (async (): Promise<OfflineNavigationFallbackResponse> => {
+    return (async (): Promise<OfflineNavigationFallbackBootstrap> => {
       const {
         createOfflineNavigationRSCResponse,
         isOfflineNavigationRSCResponsePayload,
@@ -192,13 +223,54 @@ function createOfflineNavigationFallbackResponse():
       const payload = entry?.payload
 
       if (!isOfflineNavigationRSCResponsePayload(payload)) {
+        if (payload === undefined) {
+          const {
+            createOfflineNavigationInitialRSCPayloadFromRouterCache,
+            hydrateOfflineNavigationRouterCache,
+          } =
+            require('./components/segment-cache/cache') as typeof import('./components/segment-cache/cache')
+
+          const hydrationResult = await hydrateOfflineNavigationRouterCache({
+            buildId,
+          })
+          reportOfflineNavigationFallbackDiagnostic({
+            type: 'router-cache-hydration',
+            url: location.href,
+            buildId,
+            routes: hydrationResult.routes,
+            segments: hydrationResult.segments,
+          })
+
+          const reconstruction =
+            createOfflineNavigationInitialRSCPayloadFromRouterCache({
+              buildId,
+              globalErrorState: [DefaultGlobalError, undefined],
+              now: Date.now(),
+              url: location.href,
+            })
+          if (reconstruction.status === 'fulfilled') {
+            showOfflineNavigationCacheHit('router-cache', buildId)
+            return {
+              kind: 'router-cache',
+              initialRSCPayload: reconstruction.initialRSCPayload,
+              buildId,
+            }
+          }
+          reportOfflineNavigationFallbackDiagnostic({
+            type: 'router-cache-reconstruction-miss',
+            url: location.href,
+            buildId,
+            reason: reconstruction.reason,
+          })
+        }
+
         showOfflineNavigationCacheMiss(
           payload === undefined ? 'missing-entry' : 'invalid-payload',
           buildId
         )
         return {
-          requestKind: 'client-resume',
-          response: await neverResolveOfflineNavigationResponse(),
+          kind: 'cache-miss',
+          buildId,
         }
       }
 
@@ -208,8 +280,8 @@ function createOfflineNavigationFallbackResponse():
       ) {
         showOfflineNavigationCacheMiss('unsupported-request-kind', buildId)
         return {
-          requestKind: 'client-resume',
-          response: await neverResolveOfflineNavigationResponse(),
+          kind: 'cache-miss',
+          buildId,
         }
       }
 
@@ -220,14 +292,18 @@ function createOfflineNavigationFallbackResponse():
 
       showOfflineNavigationCacheHit(requestKind, buildId)
       return {
-        requestKind,
-        response: createOfflineNavigationRSCResponse(payload),
+        kind: 'rsc-response',
+        buildId,
+        response: {
+          requestKind,
+          response: createOfflineNavigationRSCResponse(payload),
+        },
       }
-    })().catch(async (): Promise<OfflineNavigationFallbackResponse> => {
+    })().catch((): OfflineNavigationFallbackBootstrap => {
       showOfflineNavigationCacheMiss('read-error', undefined)
       return {
-        requestKind: 'client-resume',
-        response: await neverResolveOfflineNavigationResponse(),
+        kind: 'cache-miss',
+        buildId: undefined,
       }
     })
   } else {
@@ -235,15 +311,23 @@ function createOfflineNavigationFallbackResponse():
   }
 }
 
-const offlineNavigationFallbackResponse =
-  createOfflineNavigationFallbackResponse()
-const offlineNavigationClientResumeFetch =
-  offlineNavigationFallbackResponse?.then(({ response }) => response)
+const offlineNavigationFallbackBootstrap =
+  createOfflineNavigationFallbackBootstrap()
+
+if (process.env.__NEXT_USE_OFFLINE) {
+  if (offlineNavigationFallbackBootstrap) {
+    const { notifyOffline } =
+      require('./components/offline') as typeof import('./components/offline')
+    notifyOffline()
+  }
+} else {
+  // Keep the offline event module out of disabled client bundles.
+}
 
 const hasClientResumeShell = Boolean(window.__NEXT_CLIENT_RESUME)
 const hasLockedStaticShell =
   Boolean(instantTestStaticFetch) ||
-  Boolean(offlineNavigationClientResumeFetch) ||
+  Boolean(offlineNavigationFallbackBootstrap) ||
   hasClientResumeShell
 
 const encoder = new TextEncoder()
@@ -417,7 +501,7 @@ if (
 if (
   process.env.__NEXT_CACHE_COMPONENTS &&
   process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS &&
-  !offlineNavigationClientResumeFetch
+  !offlineNavigationFallbackBootstrap
 ) {
   const [forReact, forCache] = readable.tee()
   readable = forReact
@@ -461,25 +545,39 @@ if (instantTestStaticFetch) {
       initialRSCPayload
     )
   })
-} else if (offlineNavigationClientResumeFetch) {
-  initialServerResponse = Promise.resolve(
-    createFromFetch<InitialRSCPayload>(offlineNavigationClientResumeFetch, {
-      callServer,
-      findSourceMapURL,
-      debugChannel,
-      unstable_allowPartialStream: true,
-    })
-  ).then(async (fallbackInitialRSCPayload) => {
-    const fallbackResponse = await offlineNavigationFallbackResponse!
-    if (fallbackResponse.requestKind === 'initial-load') {
-      return fallbackInitialRSCPayload
-    }
+} else if (offlineNavigationFallbackBootstrap) {
+  initialServerResponse = offlineNavigationFallbackBootstrap.then(
+    async (bootstrap) => {
+      if (bootstrap.kind === 'cache-miss') {
+        return await neverResolveInitialRSCPayload()
+      }
 
-    return createInitialRSCPayloadFromFallbackPrerender(
-      fallbackResponse.response,
-      fallbackInitialRSCPayload
-    )
-  })
+      if (bootstrap.kind === 'router-cache') {
+        return bootstrap.initialRSCPayload
+      }
+
+      const fallbackResponse = bootstrap.response
+      const fallbackInitialRSCPayload =
+        await createFromFetch<InitialRSCPayload>(
+          Promise.resolve(fallbackResponse.response),
+          {
+            callServer,
+            findSourceMapURL,
+            debugChannel,
+            unstable_allowPartialStream: true,
+          }
+        )
+
+      if (fallbackResponse.requestKind === 'initial-load') {
+        return fallbackInitialRSCPayload
+      }
+
+      return createInitialRSCPayloadFromFallbackPrerender(
+        fallbackResponse.response,
+        fallbackInitialRSCPayload
+      )
+    }
+  )
 } else if (window.__NEXT_CLIENT_RESUME) {
   const clientResumeFetch: Promise<Response> = window.__NEXT_CLIENT_RESUME
   initialServerResponse = Promise.resolve(
@@ -600,7 +698,7 @@ export async function hydrate(
   if (process.env.__NEXT_USE_OFFLINE) {
     const { notifyOffline } =
       require('./components/offline') as typeof import('./components/offline')
-    if (offlineNavigationClientResumeFetch) {
+    if (offlineNavigationFallbackBootstrap) {
       notifyOffline()
     }
   }
@@ -625,25 +723,28 @@ export async function hydrate(
   }
 
   if (process.env.__NEXT_OFFLINE_NAVIGATIONS) {
-    if (!process.env.__NEXT_DEV_SERVER && offlineNavigationClientResumeFetch) {
+    if (!process.env.__NEXT_DEV_SERVER && offlineNavigationFallbackBootstrap) {
       try {
-        const { hydrateOfflineNavigationRouterCache } =
-          require('./components/segment-cache/cache') as typeof import('./components/segment-cache/cache')
-        const result = await hydrateOfflineNavigationRouterCache()
-        reportOfflineNavigationFallbackDiagnostic({
-          type: 'router-cache-hydration',
-          url: location.href,
-          buildId,
-          routes: result.routes,
-          segments: result.segments,
-        })
+        const bootstrap = await offlineNavigationFallbackBootstrap
+        if (bootstrap.kind === 'rsc-response') {
+          const { hydrateOfflineNavigationRouterCache } =
+            require('./components/segment-cache/cache') as typeof import('./components/segment-cache/cache')
+          const result = await hydrateOfflineNavigationRouterCache({ buildId })
+          reportOfflineNavigationFallbackDiagnostic({
+            type: 'router-cache-hydration',
+            url: location.href,
+            buildId,
+            routes: result.routes,
+            segments: result.segments,
+          })
+        }
       } catch {
         // The exact URL fallback already booted. Router cache hydration should
         // only improve later navigations, never block the current render.
       }
     }
   } else {
-    // Keep router-cache hydration helpers out of disabled client bundles.
+    // Keep router-cache reconstruction helpers out of disabled client bundles.
   }
 
   const initialTimestamp = Date.now()

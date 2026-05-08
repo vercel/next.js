@@ -35,7 +35,8 @@ function getScriptAttributes(
 
 // Generate the build-scoped HTML entrypoint used by offline document fallback
 // handling. It intentionally contains only the app bootstrap, not route HTML;
-// exact-URL route data is restored by the client after this document loads.
+// route data is restored by the client from exact-URL RSC responses or
+// persisted router-cache records after this document loads.
 export function createOfflineNavigationFallbackDocument({
   assetPrefix,
   buildId,
