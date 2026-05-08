@@ -5426,6 +5426,135 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('does not serve fallback HTML to offline form POST navigations', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe(
+          'offline navigations page'
+        )
+      })
+
+      await browser.eval(
+        ({ action, messageType }) => {
+          localStorage.removeItem('__nextOfflineNavigationFormMessages')
+          navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data?.type === messageType) {
+              const messages = JSON.parse(
+                localStorage.getItem('__nextOfflineNavigationFormMessages') ??
+                  '[]'
+              )
+              messages.push(event.data)
+              localStorage.setItem(
+                '__nextOfflineNavigationFormMessages',
+                JSON.stringify(messages)
+              )
+            }
+          })
+
+          const iframe = document.createElement('iframe')
+          iframe.hidden = true
+          iframe.id = 'offline-navigation-form-target'
+          iframe.name = 'offline-navigation-form-target'
+          document.body.appendChild(iframe)
+
+          const form = document.createElement('form')
+          form.action = action
+          form.id = 'offline-navigation-form-post'
+          form.method = 'post'
+          form.target = iframe.name
+
+          const input = document.createElement('input')
+          input.name = 'offline-navigation-form-value'
+          input.value = 'offline navigation form post'
+          form.appendChild(input)
+
+          const button = document.createElement('button')
+          button.id = 'offline-navigation-form-submit'
+          button.type = 'submit'
+          button.textContent = 'Submit offline navigation form'
+          form.appendChild(button)
+
+          document.body.appendChild(form)
+        },
+        {
+          action: `${next.url}/docs/api/server-error`,
+          messageType: OFFLINE_NAVIGATION_FALLBACK_SERVED,
+        }
+      )
+
+      const formPostUrl = `${next.url}/docs/api/server-error`
+      const formPostRequest = page!.waitForEvent('request', {
+        predicate(request) {
+          return (
+            request.method() === 'POST' && request.url().startsWith(formPostUrl)
+          )
+        },
+      })
+
+      await page!.context().setOffline(true)
+      await browser.eval(() => {
+        const form = document.getElementById(
+          'offline-navigation-form-post'
+        ) as HTMLFormElement
+        form.requestSubmit()
+      })
+
+      const postedRequest = await formPostRequest
+      expect(postedRequest.method()).toBe('POST')
+      expect(postedRequest.url()).toContain('/docs/api/server-error')
+
+      expect(
+        await browser.eval((targetUrl) => {
+          const iframe = document.getElementById(
+            'offline-navigation-form-target'
+          ) as HTMLIFrameElement | null
+          let iframeUrl: string | null = null
+
+          try {
+            iframeUrl = iframe?.contentWindow?.location.href ?? null
+          } catch {
+            iframeUrl = 'inaccessible'
+          }
+
+          return {
+            fallbackMessages: JSON.parse(
+              localStorage.getItem('__nextOfflineNavigationFormMessages') ??
+                '[]'
+            ),
+            iframeReachedTarget: iframeUrl === targetUrl,
+            pageText: document.querySelector('p')?.textContent ?? null,
+          }
+        }, formPostUrl)
+      ).toEqual({
+        fallbackMessages: [],
+        iframeReachedTarget: false,
+        pageText: 'offline navigations page',
+      })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('misses exact-URL replay for query identity collision variants', async () => {
     if (shouldSkipReplayWithCachedNavigations) {
       return
