@@ -1722,6 +1722,164 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('misses persisted router records when a required head record is missing during fallback boot', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await browser.elementById('prefetch-offline-navigation').click()
+      await retry(async () => {
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        expect(
+          routeRecords.some((record) =>
+            record.route.pathname.includes('/prefetched')
+          )
+        ).toBe(true)
+
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        expect(
+          segmentRecords.some(
+            (record) =>
+              record.key.includes('prefetched') &&
+              record.segment.requestKey.endsWith('/__PAGE__')
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) => record.segment.requestKey === '/_head'
+          )
+        ).toBe(true)
+      })
+
+      const deletedExactEntries = await deletePersistedOfflineNavigationEntries(
+        browser,
+        '/docs/prefetched'
+      )
+      expect(deletedExactEntries).toBeGreaterThan(0)
+      await retry(async () => {
+        const deletedEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/prefetched'
+        )
+        expect(deletedEntry).toBe(null)
+      })
+
+      const deletedHeadRecords =
+        await deletePersistedOfflineNavigationSegmentRecords(browser, {
+          keySubstring: '',
+          requestKeySuffix: '/_head',
+        })
+      expect(deletedHeadRecords).toBeGreaterThan(0)
+      await retry(async () => {
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        expect(
+          routeRecords.some((record) =>
+            record.route.pathname.includes('/prefetched')
+          )
+        ).toBe(true)
+
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        expect(
+          segmentRecords.some(
+            (record) =>
+              record.key.includes('prefetched') &&
+              record.segment.requestKey.endsWith('/__PAGE__')
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) => record.segment.requestKey === '/_head'
+          )
+        ).toBe(false)
+      })
+
+      await next.stop()
+      await page!.context().setOffline(true)
+      const missingHeadResponse = await page!.goto(
+        `${next.url}/docs/prefetched`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(missingHeadResponse?.status()).toBe(200)
+
+      await retry(async () => {
+        const diagnostics = await browser.eval(() => {
+          const win = window as typeof window & {
+            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<{
+              reason?: string
+              type?: string
+              url?: string
+            }>
+          }
+          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__ ?? []
+        })
+        expect(diagnostics).toContainEqual(
+          expect.objectContaining({
+            reason: 'missing-head',
+            type: 'router-cache-reconstruction-miss',
+            url: `${next.url}/docs/prefetched`,
+          })
+        )
+        expect(diagnostics).toContainEqual(
+          expect.objectContaining({
+            reason: 'missing-entry',
+            type: 'cache-miss',
+            url: `${next.url}/docs/prefetched`,
+          })
+        )
+      })
+      await retry(async () => {
+        expect(
+          await browser.eval(() => {
+            const cacheMiss = document.getElementById(
+              '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
+            )
+            return cacheMiss === null
+              ? null
+              : {
+                  hidden: cacheMiss.hidden,
+                  reason: cacheMiss.getAttribute(
+                    'data-next-offline-navigation-cache-reason'
+                  ),
+                  text: cacheMiss.textContent,
+                }
+          })
+        ).toEqual({
+          hidden: false,
+          reason: 'missing-entry',
+          text: 'This page is not available offline.',
+        })
+      })
+      expect(
+        await browser.eval(() =>
+          Boolean(document.getElementById('prefetched-page'))
+        )
+      ).toBe(false)
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('misses and deletes expired persisted segment records during fallback boot', async () => {
     if (shouldSkipReplayWithCachedNavigations) {
       return
