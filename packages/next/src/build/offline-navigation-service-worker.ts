@@ -10,15 +10,18 @@ export function getOfflineNavigationServiceWorkerFilePath(): string {
 export function createOfflineNavigationServiceWorker({
   buildId,
   cacheNamespace,
+  fallbackDocumentHref,
   manifestHref,
 }: {
   buildId: string
   cacheNamespace: string
+  fallbackDocumentHref: string
   manifestHref: string
 }): string {
   const metadata = JSON.stringify({
     buildId,
     cacheNamespace,
+    fallbackDocumentHref,
     manifestHref,
     source: 'offline-navigation-service-worker',
   })
@@ -51,6 +54,26 @@ async function cacheOfflineNavigationResources(){
   const fallbackResponse=await fetchRequiredResource(manifest.fallbackDocument.href);
   await cache.put(manifest.fallbackDocument.href,fallbackResponse);
 }
+function isDocumentNavigationRequest(request){
+  if(request.method!=='GET'||request.mode!=='navigate'||request.destination!=='document'){
+    return false;
+  }
+  const url=new URL(request.url);
+  return url.origin===self.location.origin;
+}
+async function fetchDocumentNavigation(request){
+  try{
+    return await fetch(request);
+  }catch(err){
+    const metadata=self.__NEXT_OFFLINE_NAVIGATION_SW;
+    const cache=await caches.open(metadata.cacheNamespace);
+    const fallbackResponse=await cache.match(metadata.fallbackDocumentHref);
+    if(fallbackResponse){
+      return fallbackResponse;
+    }
+    throw err;
+  }
+}
 self.addEventListener('install',(event)=>{
   event.waitUntil((async()=>{
     await cacheOfflineNavigationResources();
@@ -68,6 +91,11 @@ self.addEventListener('activate',(event)=>{
     }));
     await self.clients.claim();
   })());
+});
+self.addEventListener('fetch',(event)=>{
+  if(isDocumentNavigationRequest(event.request)){
+    event.respondWith(fetchDocumentNavigation(event.request));
+  }
 });
 `
 }
