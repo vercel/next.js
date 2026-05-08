@@ -242,6 +242,16 @@ export interface TurbopackOptions {
     title?: string | RegExp
     description?: string | RegExp
   }>
+
+  /**
+   * Override the global variable name used for
+   * chunk loading. Useful when multiple Turbopack-built apps run on the same
+   * page (e.g. horizontal micro-frontends) to avoid `globalThis.TURBOPACK`
+   * conflicts.
+   *
+   * @see https://webpack.js.org/configuration/output/#outputchunkloadingglobal
+   */
+  chunkLoadingGlobal?: string
 }
 
 export interface WebpackConfigContext {
