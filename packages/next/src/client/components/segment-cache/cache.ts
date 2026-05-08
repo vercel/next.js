@@ -59,6 +59,7 @@ import {
 } from './vary-path'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import {
+  invalidateOfflineNavigationCacheEntries,
   getOfflineNavigationRSCResponseCacheSkipReason,
   writeOfflineNavigationRSCResponseCacheEntry,
 } from '../router-reducer/offline-navigation-cache'
@@ -355,6 +356,7 @@ export function invalidateEntirePrefetchCache(
 ): void {
   currentRouteCacheVersion++
   currentSegmentCacheVersion++
+  invalidatePersistentOfflineNavigationCache()
 
   pingVisibleLinks(nextUrl, tree)
   pingInvalidationListeners(nextUrl, tree)
@@ -372,6 +374,7 @@ export function invalidateRouteCacheEntries(
   tree: FlightRouterState
 ): void {
   currentRouteCacheVersion++
+  invalidatePersistentOfflineNavigationCache()
 
   pingVisibleLinks(nextUrl, tree)
   pingInvalidationListeners(nextUrl, tree)
@@ -389,9 +392,23 @@ export function invalidateSegmentCacheEntries(
   tree: FlightRouterState
 ): void {
   currentSegmentCacheVersion++
+  invalidatePersistentOfflineNavigationCache()
 
   pingVisibleLinks(nextUrl, tree)
   pingInvalidationListeners(nextUrl, tree)
+}
+
+function invalidatePersistentOfflineNavigationCache(): void {
+  if (
+    !process.env.__NEXT_OFFLINE_NAVIGATIONS ||
+    process.env.__NEXT_DEV_SERVER ||
+    process.env.NODE_ENV !== 'production' ||
+    process.env.__NEXT_CONFIG_OUTPUT === 'export'
+  ) {
+    return
+  }
+
+  void invalidateOfflineNavigationCacheEntries()
 }
 
 function attachInvalidationListener(task: PrefetchTask): void {

@@ -1,5 +1,5 @@
 import { OfflineStatus } from './offline-status'
-import { PrefetchButton } from './prefetch-button'
+import { PrefetchButton, RefreshButton } from './prefetch-button'
 
 export default function Page() {
   return (
@@ -7,6 +7,7 @@ export default function Page() {
       <p>offline navigations page</p>
       <OfflineStatus />
       <PrefetchButton />
+      <RefreshButton />
     </>
   )
 }

@@ -56,13 +56,16 @@ describe('offlineNavigations build artifacts', () => {
   ) {
     return browser.eval(async (substring) => {
       const database = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open('next-offline-navigation-cache', 1)
+        const request = indexedDB.open('next-offline-navigation-cache', 2)
         request.onupgradeneeded = () => {
           const database = request.result
           if (!database.objectStoreNames.contains('navigation-data')) {
             database.createObjectStore('navigation-data', {
               keyPath: ['buildId', 'url'],
             })
+          }
+          if (!database.objectStoreNames.contains('metadata')) {
+            database.createObjectStore('metadata')
           }
         }
         request.onsuccess = () => resolve(request.result)
@@ -86,6 +89,7 @@ describe('offlineNavigations build artifacts', () => {
 
         return {
           buildId: entry.buildId,
+          cacheEpoch: entry.cacheEpoch,
           expiresAt: entry.expiresAt,
           kind: entry.kind,
           payload: {
@@ -307,6 +311,7 @@ describe('offlineNavigations build artifacts', () => {
         )
         expect(initialLoadEntry).toEqual({
           buildId: navigationBuildId,
+          cacheEpoch: 0,
           expiresAt: expect.any(Number),
           kind: 'exact-url',
           payload: {
@@ -317,7 +322,7 @@ describe('offlineNavigations build artifacts', () => {
           },
           staleAt: expect.any(Number),
           url: expect.stringContaining('/docs/'),
-          version: 1,
+          version: 2,
         })
         expect(initialLoadEntry!.payload.bodyLength).toBeGreaterThan(0)
       })
@@ -343,6 +348,30 @@ describe('offlineNavigations build artifacts', () => {
         )
       })
 
+      await browser.elementById('refresh-offline-navigation').click()
+      await retry(async () => {
+        const refreshedEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/'
+        )
+        expect(refreshedEntry).toEqual({
+          buildId: navigationBuildId,
+          cacheEpoch: 1,
+          expiresAt: expect.any(Number),
+          kind: 'exact-url',
+          payload: {
+            bodyLength: expect.any(Number),
+            kind: 'rsc-response',
+            requestKind: 'navigation',
+            status: 200,
+          },
+          staleAt: expect.any(Number),
+          url: expect.stringContaining('/docs/'),
+          version: 2,
+        })
+        expect(refreshedEntry!.payload.bodyLength).toBeGreaterThan(0)
+      })
+
       await browser.eval((messageType) => {
         localStorage.removeItem('__nextOfflineNavigationMessage')
         navigator.serviceWorker.addEventListener('message', (event) => {
@@ -363,6 +392,7 @@ describe('offlineNavigations build artifacts', () => {
         )
         expect(persistedEntry).toEqual({
           buildId: navigationBuildId,
+          cacheEpoch: 1,
           expiresAt: expect.any(Number),
           kind: 'exact-url',
           payload: {
@@ -373,7 +403,7 @@ describe('offlineNavigations build artifacts', () => {
           },
           staleAt: expect.any(Number),
           url: expect.stringContaining('/docs/prefetched'),
-          version: 1,
+          version: 2,
         })
         expect(persistedEntry!.payload.bodyLength).toBeGreaterThan(0)
       })
@@ -515,6 +545,7 @@ describe('offlineNavigations build artifacts', () => {
         )
         expect(entry).toEqual({
           buildId: navigationBuildId,
+          cacheEpoch: expect.any(Number),
           expiresAt: expect.any(Number),
           kind: 'exact-url',
           payload: {
@@ -525,7 +556,7 @@ describe('offlineNavigations build artifacts', () => {
           },
           staleAt: expect.any(Number),
           url: expect.stringContaining('/docs/request-sensitive'),
-          version: 1,
+          version: 2,
         })
         expect(entry!.payload.bodyLength).toBeGreaterThan(0)
       })

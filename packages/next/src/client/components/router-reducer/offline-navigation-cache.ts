@@ -2,9 +2,11 @@ import { getNavigationBuildId } from '../../navigation-build-id'
 import { normalizePathTrailingSlash } from '../../normalize-trailing-slash'
 
 const DATABASE_NAME = 'next-offline-navigation-cache'
-const DATABASE_VERSION = 1
+const DATABASE_VERSION = 2
 const STORE_NAME = 'navigation-data'
-const ENTRY_VERSION = 1
+const METADATA_STORE_NAME = 'metadata'
+const EXACT_URL_CACHE_EPOCH_KEY = 'exact-url-cache-epoch'
+const ENTRY_VERSION = 2
 const RSC_RESPONSE_PAYLOAD_VERSION = 1
 
 type OfflineNavigationCacheKey = [buildId: string, url: string]
@@ -49,6 +51,7 @@ export type OfflineNavigationCacheEntry = {
   kind: 'exact-url'
   buildId: string
   url: string
+  cacheEpoch: number
   createdAt: number
   staleAt: number
   expiresAt: number
@@ -96,6 +99,8 @@ export type OfflineNavigationCacheStorage = {
   put(entry: OfflineNavigationCacheEntry): Promise<void>
   delete(key: OfflineNavigationCacheKey): Promise<void>
   deleteBuild(buildId: string): Promise<void>
+  getCacheEpoch(): Promise<number>
+  incrementCacheEpoch(): Promise<number>
 }
 
 export type OfflineNavigationCache = {
@@ -109,6 +114,7 @@ export type OfflineNavigationCache = {
     options?: OfflineNavigationCacheReadOptions
   ) => Promise<boolean>
   deleteBuild: (buildId?: string) => Promise<boolean>
+  invalidate: () => Promise<boolean>
 }
 
 export function normalizeOfflineNavigationCacheUrl(url: string | URL): string {
@@ -138,7 +144,10 @@ export function createOfflineNavigationCache(
 
         const cacheUrl = normalizeOfflineNavigationCacheUrl(url)
         const key: OfflineNavigationCacheKey = [buildId, cacheUrl]
-        const entry = await storage.get(key)
+        const [entry, cacheEpoch] = await Promise.all([
+          storage.get(key),
+          storage.getCacheEpoch(),
+        ])
         if (!entry) {
           return null
         }
@@ -147,7 +156,8 @@ export function createOfflineNavigationCache(
           entry.version !== ENTRY_VERSION ||
           entry.kind !== 'exact-url' ||
           entry.buildId !== buildId ||
-          entry.url !== cacheUrl
+          entry.url !== cacheUrl ||
+          entry.cacheEpoch !== cacheEpoch
         ) {
           await storage.delete(key)
           return null
@@ -173,6 +183,7 @@ export function createOfflineNavigationCache(
           kind: 'exact-url',
           buildId,
           url: normalizeOfflineNavigationCacheUrl(entry.url),
+          cacheEpoch: await storage.getCacheEpoch(),
           createdAt: entry.now ?? Date.now(),
           staleAt: entry.staleAt,
           expiresAt: entry.expiresAt,
@@ -200,6 +211,12 @@ export function createOfflineNavigationCache(
         }
 
         await storage.deleteBuild(cacheBuildId)
+        return true
+      }, false)
+    },
+    invalidate: async () => {
+      return runOfflineNavigationCacheOperation(async () => {
+        await storage.incrementCacheEpoch()
         return true
       }, false)
     },
@@ -455,6 +472,36 @@ class IndexedDBOfflineNavigationCacheStorage
     await waitForTransaction(transaction)
   }
 
+  async getCacheEpoch(): Promise<number> {
+    const database = await this.getDatabase()
+    if (database === null) {
+      return 0
+    }
+
+    const epoch = await requestToPromise(
+      database
+        .transaction(METADATA_STORE_NAME, 'readonly')
+        .objectStore(METADATA_STORE_NAME)
+        .get(EXACT_URL_CACHE_EPOCH_KEY)
+    )
+    return typeof epoch === 'number' ? epoch : 0
+  }
+
+  async incrementCacheEpoch(): Promise<number> {
+    const database = await this.getDatabase()
+    if (database === null) {
+      throw new Error()
+    }
+
+    const transaction = database.transaction(METADATA_STORE_NAME, 'readwrite')
+    const store = transaction.objectStore(METADATA_STORE_NAME)
+    const epoch = await requestToPromise(store.get(EXACT_URL_CACHE_EPOCH_KEY))
+    const nextEpoch = (typeof epoch === 'number' ? epoch : 0) + 1
+    store.put(nextEpoch, EXACT_URL_CACHE_EPOCH_KEY)
+    await waitForTransaction(transaction)
+    return nextEpoch
+  }
+
   private async getDatabase(): Promise<IDBDatabase | null> {
     if (this.databasePromise === null) {
       this.databasePromise = this.openDatabase().catch((error) => {
@@ -479,6 +526,9 @@ class IndexedDBOfflineNavigationCacheStorage
           keyPath: ['buildId', 'url'],
         })
       }
+      if (!database.objectStoreNames.contains(METADATA_STORE_NAME)) {
+        database.createObjectStore(METADATA_STORE_NAME)
+      }
     }
 
     const database = await requestToPromise(request)
@@ -499,3 +549,5 @@ export const writeOfflineNavigationCacheEntry = offlineNavigationCache.write
 export const deleteOfflineNavigationCacheEntry = offlineNavigationCache.delete
 export const deleteOfflineNavigationCacheEntriesForBuild =
   offlineNavigationCache.deleteBuild
+export const invalidateOfflineNavigationCacheEntries =
+  offlineNavigationCache.invalidate
