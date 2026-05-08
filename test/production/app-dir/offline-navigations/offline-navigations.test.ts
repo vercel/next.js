@@ -5326,6 +5326,213 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('does not serve fallback HTML to offline non-document request shapes', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    const { buildId } = await getOfflineNavigationArtifactPaths()
+    await next.start({ skipBuild: true })
+
+    const requestShapes: Array<{
+      expected: {
+        accept?: string
+        key: string
+        method: string
+        range?: string
+        url: string
+      }
+      init: RequestInit
+      input: string
+      key: string
+    }> = [
+      {
+        expected: {
+          key: 'head',
+          method: 'HEAD',
+          url: '/docs/api/server-error?offline-request-shape=head',
+        },
+        init: { cache: 'no-store', method: 'HEAD' },
+        input: '/docs/api/server-error?offline-request-shape=head',
+        key: 'head',
+      },
+      {
+        expected: {
+          key: 'options',
+          method: 'OPTIONS',
+          url: '/docs/api/server-error?offline-request-shape=options',
+        },
+        init: { cache: 'no-store', method: 'OPTIONS' },
+        input: '/docs/api/server-error?offline-request-shape=options',
+        key: 'options',
+      },
+      {
+        expected: {
+          accept: 'text/html',
+          key: 'accept-html-fetch',
+          method: 'GET',
+          url: '/docs/api/server-error?offline-request-shape=accept-html-fetch',
+        },
+        init: { cache: 'no-store', headers: { accept: 'text/html' } },
+        input: '/docs/api/server-error?offline-request-shape=accept-html-fetch',
+        key: 'accept-html-fetch',
+      },
+      {
+        expected: {
+          key: 'range',
+          method: 'GET',
+          range: 'bytes=0-16',
+          url: `/docs/_next/static/${buildId}/_offline-navigation-manifest.json?offline-request-shape=range`,
+        },
+        init: { cache: 'no-store', headers: { range: 'bytes=0-16' } },
+        input: `/docs/_next/static/${buildId}/_offline-navigation-manifest.json?offline-request-shape=range`,
+        key: 'range',
+      },
+      {
+        expected: {
+          key: 'delete',
+          method: 'DELETE',
+          url: '/docs/api/server-error?offline-request-shape=delete',
+        },
+        init: { cache: 'no-store', method: 'DELETE' },
+        input: '/docs/api/server-error?offline-request-shape=delete',
+        key: 'delete',
+      },
+      {
+        expected: {
+          key: 'post-custom-header',
+          method: 'POST',
+          url: '/docs/api/server-error?offline-request-shape=post-custom-header',
+        },
+        init: {
+          body: 'offline navigation request shape',
+          cache: 'no-store',
+          headers: {
+            'content-type': 'text/plain',
+            'x-offline-navigation-request-shape': '1',
+          },
+          method: 'POST',
+        },
+        input:
+          '/docs/api/server-error?offline-request-shape=post-custom-header',
+        key: 'post-custom-header',
+      },
+    ]
+    let page: Playwright.Page | undefined
+    const observedRequests: Array<{
+      accept?: string
+      key: string
+      method: string
+      range?: string
+      url: string
+    }> = []
+    const requestShapeParam = 'offline-request-shape'
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      const onRequest = (request: Playwright.Request) => {
+        const url = new URL(request.url())
+        const key = url.searchParams.get(requestShapeParam)
+        if (!key) {
+          return
+        }
+
+        const headers = request.headers()
+        const observedRequest: {
+          accept?: string
+          key: string
+          method: string
+          range?: string
+          url: string
+        } = {
+          key,
+          method: request.method(),
+          url: `${url.pathname}?${url.searchParams.toString()}`,
+        }
+        if (headers.accept) {
+          observedRequest.accept = headers.accept
+        }
+        if (headers.range) {
+          observedRequest.range = headers.range
+        }
+        observedRequests.push(observedRequest)
+      }
+      page!.on('request', onRequest)
+
+      await page!.context().setOffline(true)
+      const passThroughResults = await browser.eval(
+        async ({ messageType, requests }) => {
+          localStorage.removeItem('__nextOfflineNavigationRequestShapeMessages')
+          navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data?.type === messageType) {
+              const messages = JSON.parse(
+                localStorage.getItem(
+                  '__nextOfflineNavigationRequestShapeMessages'
+                ) ?? '[]'
+              )
+              messages.push(event.data)
+              localStorage.setItem(
+                '__nextOfflineNavigationRequestShapeMessages',
+                JSON.stringify(messages)
+              )
+            }
+          })
+
+          const results: Record<string, string> = {}
+
+          for (const { key, input, init } of requests) {
+            try {
+              await fetch(input, init)
+              results[key] = 'resolved'
+            } catch {
+              results[key] = 'rejected'
+            }
+          }
+
+          return {
+            fallbackMessages: JSON.parse(
+              localStorage.getItem(
+                '__nextOfflineNavigationRequestShapeMessages'
+              ) ?? '[]'
+            ),
+            results,
+          }
+        },
+        {
+          messageType: OFFLINE_NAVIGATION_FALLBACK_SERVED,
+          requests: requestShapes,
+        }
+      )
+
+      page!.off('request', onRequest)
+
+      await retry(async () => {
+        expect(observedRequests).toEqual(
+          requestShapes.map(({ expected }) => expected)
+        )
+      })
+      expect(passThroughResults).toEqual({
+        fallbackMessages: [],
+        results: Object.fromEntries(
+          requestShapes.map(({ key }) => [key, 'rejected'])
+        ),
+      })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('does not serve fallback HTML to offline server action submissions', async () => {
     if (shouldSkipReplayWithCachedNavigations) {
       return
