@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import fs from 'fs-extra'
+import cheerio from 'cheerio'
 import {
   fetchViaHTTP,
   findPort,
@@ -51,7 +52,8 @@ describe('type-module', () => {
     // the distDir commonjs boundary is in place.
     const dynamicRes = await fetchViaHTTP(appPort, '/dynamic')
     expect(dynamicRes.status).toBe(200)
-    expect(await dynamicRes.text()).toContain('dynamic-rendered-at-runtime')
+    const $ = cheerio.load(await dynamicRes.text())
+    expect($('#content').text()).toBe('dynamic-rendered-at-runtime')
 
     await killApp(server)
   })
