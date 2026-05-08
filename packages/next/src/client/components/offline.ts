@@ -77,7 +77,7 @@ export function getOffline(): OfflineState | null {
  * Enters the offline state if not already in it, and starts the
  * connectivity polling loop.
  */
-function notifyOffline(): OfflineState {
+export function notifyOffline(): OfflineState {
   if (offlineState !== null) {
     return offlineState
   }
