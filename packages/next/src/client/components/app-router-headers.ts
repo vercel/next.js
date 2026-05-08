@@ -16,17 +16,9 @@ export const NEXT_HMR_REFRESH_HASH_COOKIE = '__next_hmr_refresh_hash__' as const
 export const NEXT_URL = 'next-url' as const
 export const RSC_CONTENT_TYPE_HEADER = 'text/x-component' as const
 
-// Header for the Instant Navigation Testing API. In development and testing
-// builds, static pre-renders normally don't happen. This header tells the
-// server to perform a static pre-render anyway, allowing tests to assert on
-// the prefetched UI. Not exposed in production builds by default.
-export const NEXT_INSTANT_PREFETCH_HEADER =
-  'next-instant-navigation-testing-prefetch' as const
-
-// Cookie for the Instant Navigation Testing API. Used for MPA navigations
-// (page reload, full page load) where we can't set request headers. When set,
-// the server renders only the static shell. Not exposed in production builds
-// by default.
+// Cookie for the Instant Navigation Testing API. Sent automatically with all
+// requests while a navigation lock is held; the server uses its presence to
+// render only the static shell. Not exposed in production builds by default.
 export const NEXT_INSTANT_TEST_COOKIE =
   'next-instant-navigation-testing' as const
 
