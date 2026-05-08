@@ -16,8 +16,8 @@ import type {
 } from '../../../shared/lib/app-router-types'
 
 import {
-  type NEXT_ROUTER_PREFETCH_HEADER,
-  type NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   type NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_RSC_UNION_QUERY,
@@ -45,13 +45,35 @@ import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 import {
   stripIsPartialByte,
   createNonTaskyPrefetchResponseStream,
+  getStaleAt,
 } from '../segment-cache/cache'
 import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
+import type { OfflineNavigationRSCResponsePayload } from './offline-navigation-cache'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
+
+let offlineNavigationCacheModule:
+  | typeof import('./offline-navigation-cache')
+  | undefined
+
+// Keep the runtime require inside a compile-time flag branch so disabled builds
+// do not pull the offline cache module into client chunks.
+function getOfflineNavigationCacheModule():
+  | typeof import('./offline-navigation-cache')
+  | null {
+  if (process.env.__NEXT_OFFLINE_NAVIGATIONS) {
+    if (offlineNavigationCacheModule === undefined) {
+      offlineNavigationCacheModule =
+        require('./offline-navigation-cache') as typeof import('./offline-navigation-cache')
+    }
+    return offlineNavigationCacheModule
+  } else {
+    return null
+  }
+}
 
 let createDebugChannel:
   | typeof import('../../dev/debug-channel').createDebugChannel
@@ -275,6 +297,16 @@ export async function fetchServerResponse(
       return doMpaNavigation(normalizedFlightData)
     }
 
+    persistOfflineNavigationResponse({
+      canonicalUrl,
+      flightResponse,
+      interception,
+      isHmrRefresh: options.isHmrRefresh,
+      originalUrl,
+      postponed,
+      response: res,
+    })
+
     const staticStageData =
       cacheData !== null
         ? await resolveStaticStageData(cacheData, flightResponse, headers)
@@ -355,6 +387,7 @@ export type RSCResponse<T> = {
   url: string
   flightResponsePromise: (Promise<T> & { _debugInfo?: Array<any> }) | null
   cacheData: Promise<FetchResponseCacheData | null>
+  offlineNavigationCachePayload: Promise<OfflineNavigationRSCResponsePayload | null> | null
 }
 
 type FetchResponseCacheData = {
@@ -535,6 +568,8 @@ export async function createFetch<T>(
   let fetchUrl = new URL(url)
   await setCacheBustingSearchParam(fetchUrl, headers)
   let processed = fetch(fetchUrl, fetchOptions).then(processFetch)
+  let offlineNavigationCachePayload =
+    createOfflineNavigationCachePayloadFromProcessedResponse(processed, headers)
   let fetchPromise = processed.then(({ response }) => response)
 
   // Immediately pass the fetch promise to the Flight client so that the debug
@@ -605,6 +640,11 @@ export async function createFetch<T>(
       fetchUrl = new URL(responseUrl)
       await setCacheBustingSearchParam(fetchUrl, headers)
       processed = fetch(fetchUrl, fetchOptions).then(processFetch)
+      offlineNavigationCachePayload =
+        createOfflineNavigationCachePayloadFromProcessedResponse(
+          processed,
+          headers
+        )
       fetchPromise = processed.then(({ response }) => response)
       flightResponsePromise = shouldImmediatelyDecode
         ? createFromNextFetch<T>(fetchPromise, headers)
@@ -643,9 +683,130 @@ export async function createFetch<T>(
     flightResponsePromise: flightResponsePromise,
 
     cacheData: processed.then(({ cacheData }) => cacheData),
+
+    offlineNavigationCachePayload,
   }
 
   return rscResponse
+}
+
+function getOfflineNavigationCacheRequestKind(
+  headers: RequestHeaders
+): 'navigation' | 'route-prefetch' | 'client-resume' | null {
+  if (
+    !process.env.__NEXT_OFFLINE_NAVIGATIONS ||
+    process.env.__NEXT_DEV_SERVER ||
+    process.env.NODE_ENV !== 'production' ||
+    process.env.__NEXT_CONFIG_OUTPUT === 'export' ||
+    headers[NEXT_HMR_REFRESH_HEADER]
+  ) {
+    return null
+  }
+
+  if (
+    headers[NEXT_ROUTER_PREFETCH_HEADER] !== undefined &&
+    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] === '/_full'
+  ) {
+    return 'client-resume'
+  }
+
+  if (
+    headers[NEXT_ROUTER_PREFETCH_HEADER] !== undefined &&
+    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] === undefined
+  ) {
+    return 'route-prefetch'
+  }
+
+  if (
+    headers[NEXT_ROUTER_STATE_TREE_HEADER] !== undefined &&
+    headers[NEXT_ROUTER_PREFETCH_HEADER] === undefined &&
+    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] === undefined
+  ) {
+    return 'navigation'
+  }
+
+  return null
+}
+
+function createOfflineNavigationCachePayloadFromProcessedResponse(
+  processed: Promise<{
+    response: Response
+    cacheData: FetchResponseCacheData | null
+  }>,
+  headers: RequestHeaders
+): Promise<OfflineNavigationRSCResponsePayload | null> | null {
+  const offlineNavigationCache = getOfflineNavigationCacheModule()
+  const requestKind = getOfflineNavigationCacheRequestKind(headers)
+  if (requestKind === null || offlineNavigationCache === null) {
+    return null
+  }
+
+  return processed
+    .then(({ response }) => {
+      if (!response.ok || !response.body) {
+        return null
+      }
+
+      return offlineNavigationCache.createOfflineNavigationRSCResponsePayload(
+        response,
+        requestKind
+      )
+    })
+    .catch(() => null)
+}
+
+function persistOfflineNavigationResponse({
+  canonicalUrl,
+  flightResponse,
+  interception,
+  isHmrRefresh,
+  originalUrl,
+  postponed,
+  response,
+}: {
+  canonicalUrl: URL
+  flightResponse: NavigationFlightResponse
+  interception: boolean
+  isHmrRefresh: boolean | undefined
+  originalUrl: URL
+  postponed: boolean
+  response: RSCResponse<NavigationFlightResponse>
+}): void {
+  // Soft navigations are persisted after the router has accepted the response,
+  // so normal navigation remains the source of truth and offline persistence is
+  // only a best-effort side effect.
+  const offlineNavigationCache = getOfflineNavigationCacheModule()
+  if (offlineNavigationCache === null) {
+    return
+  }
+
+  if (
+    response.offlineNavigationCachePayload === null ||
+    !flightResponse.S ||
+    flightResponse.d !== undefined ||
+    flightResponse.p !== undefined ||
+    interception ||
+    isHmrRefresh ||
+    postponed ||
+    response.redirected ||
+    canonicalUrl.origin !== location.origin
+  ) {
+    return
+  }
+
+  void (async () => {
+    const now = Date.now()
+    const staleAt = await getStaleAt(now, flightResponse.s, response)
+    await offlineNavigationCache.writeOfflineNavigationRSCResponseCacheEntry({
+      buildId:
+        response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? flightResponse.b,
+      expiresAt: staleAt,
+      payload: response.offlineNavigationCachePayload!,
+      staleAt,
+      url: originalUrl,
+      now,
+    })
+  })()
 }
 
 export function createFromNextReadableStream<T>(

@@ -110,6 +110,26 @@ import { convertServerPatchToFullTree, type NavigationSeed } from './navigation'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 
+let offlineNavigationCacheModule:
+  | typeof import('../router-reducer/offline-navigation-cache')
+  | undefined
+
+// Keep the runtime require inside a compile-time flag branch so disabled builds
+// do not pull the offline cache module into client chunks.
+function getOfflineNavigationCacheModule():
+  | typeof import('../router-reducer/offline-navigation-cache')
+  | null {
+  if (process.env.__NEXT_OFFLINE_NAVIGATIONS) {
+    if (offlineNavigationCacheModule === undefined) {
+      offlineNavigationCacheModule =
+        require('../router-reducer/offline-navigation-cache') as typeof import('../router-reducer/offline-navigation-cache')
+    }
+    return offlineNavigationCacheModule
+  } else {
+    return null
+  }
+}
+
 /**
  * Ensures a minimum stale time of 30s to avoid issues where the server sends a too
  * short-lived stale time, which would prevent anything from being prefetched.
@@ -1577,6 +1597,62 @@ export function convertRouteTreeToFlightRouterState(
   return flightRouterState
 }
 
+function persistOfflineNavigationClientResumePrefetchResponse({
+  buildId,
+  couldBeIntercepted,
+  url,
+}: {
+  buildId: string | undefined
+  couldBeIntercepted: boolean
+  url: URL
+}): void {
+  if (
+    !process.env.__NEXT_OFFLINE_NAVIGATIONS ||
+    process.env.__NEXT_DEV_SERVER ||
+    process.env.NODE_ENV !== 'production' ||
+    process.env.__NEXT_CONFIG_OUTPUT === 'export' ||
+    couldBeIntercepted ||
+    url.origin !== location.origin
+  ) {
+    return
+  }
+
+  const offlineNavigationCache = getOfflineNavigationCacheModule()
+  if (offlineNavigationCache === null) {
+    return
+  }
+
+  void (async () => {
+    try {
+      const headers: RequestHeaders = {
+        [RSC_HEADER]: '1',
+        [NEXT_ROUTER_PREFETCH_HEADER]: '1',
+        [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: '/_full',
+      }
+      addInstantPrefetchHeaderIfLocked(headers)
+
+      const response = await fetchPrefetchResponse(url, headers)
+      if (
+        response === null ||
+        response.offlineNavigationCachePayload === null ||
+        response.redirected ||
+        response.headers.get('vary')?.includes(NEXT_URL)
+      ) {
+        return
+      }
+
+      const staleAt = getStaleAtFromHeader(Date.now(), response)
+      await offlineNavigationCache.writeOfflineNavigationRSCResponseCacheEntry({
+        buildId: response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? buildId,
+        expiresAt: staleAt,
+        payload: response.offlineNavigationCachePayload,
+        staleAt,
+        url,
+      })
+    } catch {}
+  })()
+}
+
 export async function fetchRouteOnCacheMiss(
   entry: PendingRouteCacheEntry,
   key: RouteCacheKey
@@ -1777,6 +1853,14 @@ export async function fetchRouteOnCacheMiss(
         routeIsPPREnabled,
         false // hasDynamicRewrite
       )
+
+      persistOfflineNavigationClientResumePrefetchResponse({
+        buildId:
+          response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
+          serverData.buildId,
+        couldBeIntercepted,
+        url: urlAfterRedirects,
+      })
     } else {
       // PPR is not enabled for this route. The server responds with a
       // different format (FlightRouterState) that we need to convert.
@@ -1827,6 +1911,13 @@ export async function fetchRouteOnCacheMiss(
         pathname,
         nextUrl
       )
+
+      persistOfflineNavigationClientResumePrefetchResponse({
+        buildId:
+          response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b,
+        couldBeIntercepted,
+        url: urlAfterRedirects,
+      })
     }
 
     if (!couldBeIntercepted) {

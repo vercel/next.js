@@ -1,4 +1,5 @@
 import { getNavigationBuildId } from '../../navigation-build-id'
+import { normalizePathTrailingSlash } from '../../normalize-trailing-slash'
 
 // Durable exact-URL RSC response storage for offline navigations. IndexedDB is
 // used instead of the service worker CacheStorage because the router needs
@@ -7,8 +8,14 @@ const DATABASE_NAME = 'next-offline-navigation-cache'
 const DATABASE_VERSION = 1
 const STORE_NAME = 'navigation-data'
 const ENTRY_VERSION = 1
+const RSC_RESPONSE_PAYLOAD_VERSION = 1
 
 type OfflineNavigationCacheKey = [buildId: string, url: string]
+type OfflineNavigationRSCResponseRequestKind =
+  | 'navigation'
+  | 'route-prefetch'
+  | 'client-resume'
+  | 'initial-load'
 
 export type OfflineNavigationCacheEntry = {
   version: typeof ENTRY_VERSION
@@ -19,6 +26,17 @@ export type OfflineNavigationCacheEntry = {
   staleAt: number
   expiresAt: number
   payload: unknown
+}
+
+export type OfflineNavigationRSCResponsePayload = {
+  version: typeof RSC_RESPONSE_PAYLOAD_VERSION
+  kind: 'rsc-response'
+  requestKind: OfflineNavigationRSCResponseRequestKind
+  url: string
+  status: number
+  statusText: string
+  headers: Array<[string, string]>
+  body: ArrayBuffer
 }
 
 export type OfflineNavigationCacheWrite = {
@@ -33,6 +51,15 @@ export type OfflineNavigationCacheWrite = {
 export type OfflineNavigationCacheReadOptions = {
   buildId?: string
   now?: number
+}
+
+export type OfflineNavigationRSCResponseCacheWrite = {
+  url: string | URL
+  staleAt: number
+  expiresAt: number
+  buildId?: string
+  now?: number
+  payload: Promise<OfflineNavigationRSCResponsePayload | null>
 }
 
 export type OfflineNavigationCacheStorage = {
@@ -67,6 +94,7 @@ export function normalizeOfflineNavigationCacheUrl(url: string | URL): string {
       : new URL(url.href)
 
   normalized.hash = ''
+  normalized.pathname = normalizePathTrailingSlash(normalized.pathname)
   return normalized.href
 }
 
@@ -149,6 +177,73 @@ export function createOfflineNavigationCache(
       }, false)
     },
   }
+}
+
+export async function createOfflineNavigationRSCResponsePayload(
+  response: Response,
+  requestKind: OfflineNavigationRSCResponseRequestKind
+): Promise<OfflineNavigationRSCResponsePayload> {
+  const clone = response.clone()
+  return {
+    version: RSC_RESPONSE_PAYLOAD_VERSION,
+    kind: 'rsc-response',
+    requestKind,
+    url: response.url,
+    status: clone.status,
+    statusText: clone.statusText,
+    headers: Array.from(clone.headers.entries()),
+    body: await clone.arrayBuffer(),
+  }
+}
+
+export function createOfflineNavigationRSCResponse(
+  payload: OfflineNavigationRSCResponsePayload
+): Response {
+  const response = new Response(payload.body.slice(0), {
+    status: payload.status,
+    statusText: payload.statusText,
+    headers: payload.headers,
+  })
+  Object.defineProperty(response, 'url', { value: payload.url })
+  return response
+}
+
+export function isOfflineNavigationRSCResponsePayload(
+  payload: unknown
+): payload is OfflineNavigationRSCResponsePayload {
+  if (payload === null || typeof payload !== 'object') {
+    return false
+  }
+
+  const candidate = payload as Partial<OfflineNavigationRSCResponsePayload>
+  return (
+    candidate.version === RSC_RESPONSE_PAYLOAD_VERSION &&
+    candidate.kind === 'rsc-response' &&
+    (candidate.requestKind === 'navigation' ||
+      candidate.requestKind === 'route-prefetch' ||
+      candidate.requestKind === 'client-resume' ||
+      candidate.requestKind === 'initial-load') &&
+    typeof candidate.url === 'string' &&
+    typeof candidate.status === 'number' &&
+    typeof candidate.statusText === 'string' &&
+    Array.isArray(candidate.headers) &&
+    candidate.body instanceof ArrayBuffer
+  )
+}
+
+export async function writeOfflineNavigationRSCResponseCacheEntry({
+  payload,
+  ...entry
+}: OfflineNavigationRSCResponseCacheWrite): Promise<boolean> {
+  const resolvedPayload = await payload
+  if (resolvedPayload === null) {
+    return false
+  }
+
+  return writeOfflineNavigationCacheEntry({
+    ...entry,
+    payload: resolvedPayload,
+  })
 }
 
 function getCacheBuildId(buildId: string | undefined): string | null {

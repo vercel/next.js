@@ -50,6 +50,60 @@ describe('offlineNavigations build artifacts', () => {
     }
   }
 
+  async function readPersistedOfflineNavigationEntry(
+    browser: Awaited<ReturnType<typeof next.browser>>,
+    urlSubstring: string
+  ) {
+    return browser.eval(async (substring) => {
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('next-offline-navigation-cache', 1)
+        request.onupgradeneeded = () => {
+          const database = request.result
+          if (!database.objectStoreNames.contains('navigation-data')) {
+            database.createObjectStore('navigation-data', {
+              keyPath: ['buildId', 'url'],
+            })
+          }
+        }
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+
+      try {
+        const entries = await new Promise<any[]>((resolve, reject) => {
+          const transaction = database.transaction(
+            'navigation-data',
+            'readonly'
+          )
+          const request = transaction.objectStore('navigation-data').getAll()
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })
+        const entry = entries.find((entry) => entry.url.includes(substring))
+        if (!entry) {
+          return null
+        }
+
+        return {
+          buildId: entry.buildId,
+          expiresAt: entry.expiresAt,
+          kind: entry.kind,
+          payload: {
+            bodyLength: entry.payload.body.byteLength,
+            kind: entry.payload.kind,
+            requestKind: entry.payload.requestKind,
+            status: entry.payload.status,
+          },
+          staleAt: entry.staleAt,
+          url: entry.url,
+          version: entry.version,
+        }
+      } finally {
+        database.close()
+      }
+    }, urlSubstring)
+  }
+
   it('emits request-invariant offline navigation artifacts when enabled', async () => {
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
@@ -62,7 +116,11 @@ describe('offlineNavigations build artifacts', () => {
 
     expect(html).toContain('data-next-offline-navigation-fallback')
     expect(html).toContain('id="__NEXT_OFFLINE_NAVIGATION_FALLBACK"')
+    expect(html).toContain('id="__NEXT_OFFLINE_NAVIGATION_CACHE_MISS"')
     expect(html).toContain(`"buildId":"${buildId}"`)
+    if (next.deploymentId) {
+      expect(html).toContain(`data-dpl-id="${next.deploymentId}"`)
+    }
     expect(html).toContain('self.__next_f')
     expect(html).toContain('/app-assets/_next/static/')
     expect(html).not.toContain('offline navigations page')
@@ -114,6 +172,7 @@ describe('offlineNavigations build artifacts', () => {
     expect(buildResult.exitCode).toBe(0)
 
     const { buildId } = await getOfflineNavigationArtifactPaths()
+    const navigationBuildId = next.deploymentId ?? buildId
     await next.start({ skipBuild: true })
 
     let page: Playwright.Page | undefined
@@ -205,18 +264,6 @@ describe('offlineNavigations build artifacts', () => {
         )
       })
 
-      await browser.eval((messageType) => {
-        localStorage.removeItem('__nextOfflineNavigationMessage')
-        navigator.serviceWorker.addEventListener('message', (event) => {
-          if (event.data?.type === messageType) {
-            localStorage.setItem(
-              '__nextOfflineNavigationMessage',
-              JSON.stringify(event.data)
-            )
-          }
-        })
-      }, OFFLINE_NAVIGATION_FALLBACK_SERVED)
-
       const cacheState = await browser.eval(async () => {
         const cacheNames = (await caches.keys()).filter((cacheName) =>
           cacheName.startsWith('next-offline-navigation-v1:')
@@ -253,7 +300,107 @@ describe('offlineNavigations build artifacts', () => {
         ])
       )
 
+      await retry(async () => {
+        const initialLoadEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/'
+        )
+        expect(initialLoadEntry).toEqual({
+          buildId: navigationBuildId,
+          expiresAt: expect.any(Number),
+          kind: 'exact-url',
+          payload: {
+            bodyLength: expect.any(Number),
+            kind: 'rsc-response',
+            requestKind: 'initial-load',
+            status: 200,
+          },
+          staleAt: expect.any(Number),
+          url: expect.stringContaining('/docs/'),
+          version: 1,
+        })
+        expect(initialLoadEntry!.payload.bodyLength).toBeGreaterThan(0)
+      })
+
       await page!.context().setOffline(true)
+      const initialLoadOfflineResponse = await page!.goto(`${next.url}/docs/`, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(initialLoadOfflineResponse?.status()).toBe(200)
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe(
+          'offline navigations page'
+        )
+      })
+      expect(await browser.elementById('offline-status').text()).toBe('offline')
+      await page!.context().setOffline(false)
+      await browser.eval(() => {
+        window.dispatchEvent(new Event('online'))
+      })
+      await retry(async () => {
+        expect(await browser.elementById('offline-status').text()).toBe(
+          'online'
+        )
+      })
+
+      await browser.eval((messageType) => {
+        localStorage.removeItem('__nextOfflineNavigationMessage')
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data?.type === messageType) {
+            localStorage.setItem(
+              '__nextOfflineNavigationMessage',
+              JSON.stringify(event.data)
+            )
+          }
+        })
+      }, OFFLINE_NAVIGATION_FALLBACK_SERVED)
+
+      await browser.elementById('prefetch-offline-navigation').click()
+      await retry(async () => {
+        const persistedEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/prefetched'
+        )
+        expect(persistedEntry).toEqual({
+          buildId: navigationBuildId,
+          expiresAt: expect.any(Number),
+          kind: 'exact-url',
+          payload: {
+            bodyLength: expect.any(Number),
+            kind: 'rsc-response',
+            requestKind: 'client-resume',
+            status: 200,
+          },
+          staleAt: expect.any(Number),
+          url: expect.stringContaining('/docs/prefetched'),
+          version: 1,
+        })
+        expect(persistedEntry!.payload.bodyLength).toBeGreaterThan(0)
+      })
+
+      await page!.context().setOffline(true)
+      const cachedOfflineResponse = await page!.goto(
+        `${next.url}/docs/prefetched`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(cachedOfflineResponse?.status()).toBe(200)
+      await retry(async () => {
+        expect(await browser.elementById('prefetched-page').text()).toBe(
+          'prefetched page'
+        )
+      })
+      expect(await browser.elementById('offline-status').text()).toBe('offline')
+      const cachedServiceWorkerMessage = await browser.eval(() => {
+        const message = localStorage.getItem('__nextOfflineNavigationMessage')
+        return message === null ? null : JSON.parse(message)
+      })
+      expect(cachedServiceWorkerMessage).toMatchObject({
+        type: OFFLINE_NAVIGATION_FALLBACK_SERVED,
+        buildId,
+        reason: 'network-error',
+        url: `${next.url}/docs/prefetched`,
+      })
+
       const nonNavigationResult = await browser.eval(async () => {
         try {
           await fetch('/docs?__next_offline_probe=1', {
@@ -266,6 +413,7 @@ describe('offlineNavigations build artifacts', () => {
       })
       expect(nonNavigationResult).toBe('rejected')
 
+      await next.stop()
       const offlineResponse = await page!.goto(
         `${next.url}/docs/offline-navigation-cache-miss`,
         { waitUntil: 'domcontentloaded' }
@@ -278,15 +426,23 @@ describe('offlineNavigations build artifacts', () => {
           )
         )
       ).toBe(true)
-      const serviceWorkerMessage = await browser.eval(() => {
-        const message = localStorage.getItem('__nextOfflineNavigationMessage')
-        return message === null ? null : JSON.parse(message)
-      })
-      expect(serviceWorkerMessage).toMatchObject({
-        type: OFFLINE_NAVIGATION_FALLBACK_SERVED,
-        buildId,
-        reason: 'network-error',
-        url: `${next.url}/docs/offline-navigation-cache-miss`,
+      await retry(async () => {
+        expect(
+          await browser.eval(() => {
+            const cacheMiss = document.getElementById(
+              '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
+            )
+            return cacheMiss === null
+              ? null
+              : {
+                  hidden: cacheMiss.hidden,
+                  text: cacheMiss.textContent,
+                }
+          })
+        ).toEqual({
+          hidden: false,
+          text: 'This page is not available offline.',
+        })
       })
       await page!.context().setOffline(false)
 

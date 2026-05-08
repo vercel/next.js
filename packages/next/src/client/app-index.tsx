@@ -45,6 +45,103 @@ const instantTestStaticFetch: Promise<Response> | undefined =
     ? (self.__next_instant_test as unknown as Promise<Response>)
     : undefined
 
+function isOfflineNavigationFallbackDocument(): boolean {
+  return Boolean(
+    process.env.__NEXT_OFFLINE_NAVIGATIONS &&
+      !process.env.__NEXT_DEV_SERVER &&
+      document.documentElement.hasAttribute(
+        'data-next-offline-navigation-fallback'
+      )
+  )
+}
+
+function showOfflineNavigationCacheMiss(): void {
+  const cacheMissElement = document.getElementById(
+    '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
+  )
+  if (cacheMissElement !== null) {
+    cacheMissElement.hidden = false
+  }
+}
+
+function neverResolveOfflineNavigationResponse(): Promise<Response> {
+  return new Promise<Response>(() => {})
+}
+
+type OfflineNavigationFallbackResponse = {
+  requestKind: 'client-resume' | 'initial-load'
+  response: Response
+}
+
+function createOfflineNavigationFallbackResponse():
+  | Promise<OfflineNavigationFallbackResponse>
+  | undefined {
+  if (process.env.__NEXT_OFFLINE_NAVIGATIONS) {
+    if (!isOfflineNavigationFallbackDocument()) {
+      return undefined
+    }
+
+    return (async (): Promise<OfflineNavigationFallbackResponse> => {
+      const {
+        createOfflineNavigationRSCResponse,
+        isOfflineNavigationRSCResponsePayload,
+        readOfflineNavigationCacheEntry,
+      } =
+        require('./components/router-reducer/offline-navigation-cache') as typeof import('./components/router-reducer/offline-navigation-cache')
+
+      const buildId =
+        getDeploymentId() ??
+        document.documentElement.getAttribute('data-build-id') ??
+        undefined
+      const entry = await readOfflineNavigationCacheEntry(location.href, {
+        buildId,
+      })
+      const payload = entry?.payload
+
+      if (
+        !isOfflineNavigationRSCResponsePayload(payload) ||
+        (payload.requestKind !== 'client-resume' &&
+          payload.requestKind !== 'initial-load')
+      ) {
+        showOfflineNavigationCacheMiss()
+        return {
+          requestKind: 'client-resume',
+          response: await neverResolveOfflineNavigationResponse(),
+        }
+      }
+
+      const requestKind: OfflineNavigationFallbackResponse['requestKind'] =
+        payload.requestKind === 'initial-load'
+          ? 'initial-load'
+          : 'client-resume'
+
+      return {
+        requestKind,
+        response: createOfflineNavigationRSCResponse(payload),
+      }
+    })().catch(async (): Promise<OfflineNavigationFallbackResponse> => {
+      showOfflineNavigationCacheMiss()
+      return {
+        requestKind: 'client-resume',
+        response: await neverResolveOfflineNavigationResponse(),
+      }
+    })
+  } else {
+    return undefined
+  }
+}
+
+const offlineNavigationFallbackResponse =
+  createOfflineNavigationFallbackResponse()
+const offlineNavigationClientResumeFetch =
+  offlineNavigationFallbackResponse?.then(({ response }) => response)
+
+const hasClientResumeShell = Boolean(window.__NEXT_CLIENT_RESUME)
+const hasLockedStaticShell =
+  Boolean(instantTestStaticFetch) ||
+  Boolean(offlineNavigationClientResumeFetch) ||
+  hasClientResumeShell
+
 const encoder = new TextEncoder()
 
 let initialServerDataBuffer: (string | Uint8Array)[] | undefined = undefined
@@ -73,6 +170,7 @@ declare global {
      */
     __next_r?: string
     __next_f: NextFlight
+    __NEXT_CLIENT_RESUME?: Promise<Response>
   }
 }
 
@@ -128,14 +226,11 @@ function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
       ctr.enqueue(typeof val === 'string' ? encoder.encode(val) : val)
     })
     if (initialServerDataLoaded && !initialServerDataFlushed) {
-      // Instant Navigation Testing API: don't close or error the inline
-      // Flight stream. The static shell has no inline Flight data, so the
-      // stream is empty. Closing it would cause React to log an error about
-      // missing data. Leaving it open lets React treat any holes as
-      // "still suspended." Hydration uses the separately fetched RSC payload
-      // (self.__next_instant_test), not this stream.
+      // Locked static shells do not have a real inline Flight stream. Closing
+      // or erroring this stream causes React to report a missing-data failure,
+      // but the actual hydration data arrives through a separate response.
       if (isStreamErrorOrUnfinished(ctr)) {
-        if (!instantTestStaticFetch) {
+        if (!hasLockedStaticShell) {
           ctr.error(
             new Error(
               'The connection to the page was unexpectedly closed, possibly due to the stop button being clicked, loss of Wi-Fi, or an unstable internet connection.'
@@ -155,7 +250,11 @@ function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
 
 // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
 const DOMContentLoaded = function () {
-  if (initialServerDataWriter && !initialServerDataFlushed) {
+  if (
+    initialServerDataWriter &&
+    !initialServerDataFlushed &&
+    !hasLockedStaticShell
+  ) {
     initialServerDataWriter.close()
     initialServerDataFlushed = true
     initialServerDataBuffer = undefined
@@ -187,7 +286,7 @@ let readable: ReadableStream<Uint8Array> = new ReadableStream({
   },
 })
 if (process.env.NODE_ENV !== 'production') {
-  // @ts-expect-error
+  // @ts-expect-error name is a dev-only debugging affordance.
   readable.name = 'hydration'
 }
 
@@ -196,9 +295,25 @@ if (process.env.NODE_ENV !== 'production') {
 // know if `l` is present until React decodes the payload, so always tee and
 // cancel the clone if not needed.
 let initialFlightStreamForCache: ReadableStream<Uint8Array> | null = null
+let initialFlightStreamForOfflineNavigationCache: ReadableStream<Uint8Array> | null =
+  null
+if (
+  process.env.__NEXT_OFFLINE_NAVIGATIONS &&
+  process.env.NODE_ENV === 'production' &&
+  process.env.__NEXT_CONFIG_OUTPUT !== 'export' &&
+  !process.env.__NEXT_DEV_SERVER &&
+  !hasLockedStaticShell
+) {
+  // Normal online loads should hydrate from the original stream while a tee
+  // persists the same RSC payload for future offline reloads.
+  const [forApp, forOfflineNavigationCache] = readable.tee()
+  readable = forApp
+  initialFlightStreamForOfflineNavigationCache = forOfflineNavigationCache
+}
 if (
   process.env.__NEXT_CACHE_COMPONENTS &&
-  process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS
+  process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS &&
+  !offlineNavigationClientResumeFetch
 ) {
   const [forReact, forCache] = readable.tee()
   readable = forReact
@@ -242,13 +357,27 @@ if (instantTestStaticFetch) {
       initialRSCPayload
     )
   })
-} else if (
-  // @ts-expect-error
-  window.__NEXT_CLIENT_RESUME
-) {
-  const clientResumeFetch: Promise<Response> =
-    // @ts-expect-error
-    window.__NEXT_CLIENT_RESUME
+} else if (offlineNavigationClientResumeFetch) {
+  initialServerResponse = Promise.resolve(
+    createFromFetch<InitialRSCPayload>(offlineNavigationClientResumeFetch, {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+      unstable_allowPartialStream: true,
+    })
+  ).then(async (fallbackInitialRSCPayload) => {
+    const fallbackResponse = await offlineNavigationFallbackResponse!
+    if (fallbackResponse.requestKind === 'initial-load') {
+      return fallbackInitialRSCPayload
+    }
+
+    return createInitialRSCPayloadFromFallbackPrerender(
+      fallbackResponse.response,
+      fallbackInitialRSCPayload
+    )
+  })
+} else if (window.__NEXT_CLIENT_RESUME) {
+  const clientResumeFetch: Promise<Response> = window.__NEXT_CLIENT_RESUME
   initialServerResponse = Promise.resolve(
     createFromFetch<InitialRSCPayload>(clientResumeFetch, {
       callServer,
@@ -365,7 +494,11 @@ export async function hydrate(
   // Initialize the offline module to register browser event listeners
   // (offline/online) before any components hydrate.
   if (process.env.__NEXT_USE_OFFLINE) {
-    require('./components/offline') as typeof import('./components/offline')
+    const { notifyOffline } =
+      require('./components/offline') as typeof import('./components/offline')
+    if (offlineNavigationClientResumeFetch) {
+      notifyOffline()
+    }
   }
 
   // setNavigationBuildId should be called only once, during JS initialization
@@ -392,6 +525,7 @@ export async function hydrate(
       navigatedAt: initialTimestamp,
       initialRSCPayload,
       initialFlightStreamForCache,
+      initialFlightStreamForOfflineNavigationCache,
       location: window.location,
     }),
     instrumentationHooks
@@ -412,9 +546,13 @@ export async function hydrate(
     </StrictModeIfEnabled>
   )
 
-  if (document.documentElement.id === '__next_error__') {
+  if (
+    document.documentElement.id === '__next_error__' ||
+    isOfflineNavigationFallbackDocument()
+  ) {
     let element = reactEl
-    // Server rendering failed, fall back to client-side rendering
+    // Error documents and generated offline navigation fallback documents do
+    // not contain route HTML that can be hydrated.
     if (process.env.NODE_ENV !== 'production') {
       const { RootLevelDevOverlayElement } =
         require('../next-devtools/userspace/app/client-entry') as typeof import('../next-devtools/userspace/app/client-entry')

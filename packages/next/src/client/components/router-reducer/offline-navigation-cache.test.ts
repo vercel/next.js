@@ -1,6 +1,9 @@
 import {
   createOfflineNavigationCache,
+  createOfflineNavigationRSCResponse,
+  createOfflineNavigationRSCResponsePayload,
   deleteOfflineNavigationCacheEntry,
+  isOfflineNavigationRSCResponsePayload,
   normalizeOfflineNavigationCacheUrl,
   readOfflineNavigationCacheEntry,
   writeOfflineNavigationCacheEntry,
@@ -69,6 +72,26 @@ describe('offline navigation cache', () => {
     ).toBe('https://example.com/dashboard?tab=activity')
   })
 
+  it('normalizes exact URL keys with the configured trailing slash', () => {
+    const originalTrailingSlash = process.env.__NEXT_TRAILING_SLASH
+    process.env.__NEXT_TRAILING_SLASH = 'true'
+
+    try {
+      expect(
+        normalizeOfflineNavigationCacheUrl('https://example.com/dashboard')
+      ).toBe('https://example.com/dashboard/')
+      expect(
+        normalizeOfflineNavigationCacheUrl('https://example.com/feed.xml')
+      ).toBe('https://example.com/feed.xml')
+    } finally {
+      if (originalTrailingSlash === undefined) {
+        delete process.env.__NEXT_TRAILING_SLASH
+      } else {
+        process.env.__NEXT_TRAILING_SLASH = originalTrailingSlash
+      }
+    }
+  })
+
   it('writes and reads exact URL entries for the current build', async () => {
     const storage = new MemoryOfflineNavigationCacheStorage()
     const cache = createOfflineNavigationCache(storage)
@@ -98,6 +121,98 @@ describe('offline navigation cache', () => {
       staleAt: 200,
       expiresAt: 300,
       payload: { tree: 'payload' },
+    })
+  })
+
+  it('serializes RSC response payloads for persisted navigation entries', async () => {
+    const response = new Response('0:["$","payload"]', {
+      headers: {
+        'content-type': 'text/x-component',
+        'x-nextjs-stale-time': '60',
+      },
+      status: 200,
+      statusText: 'OK',
+    })
+    Object.defineProperty(response, 'url', {
+      value: 'https://example.com/dashboard?_rsc=abc',
+    })
+
+    const payload = await createOfflineNavigationRSCResponsePayload(
+      response,
+      'route-prefetch'
+    )
+    expect(payload).toMatchObject({
+      version: 1,
+      kind: 'rsc-response',
+      requestKind: 'route-prefetch',
+      status: 200,
+      statusText: 'OK',
+      headers: expect.arrayContaining([
+        ['content-type', 'text/x-component'],
+        ['x-nextjs-stale-time', '60'],
+      ]),
+    })
+
+    const restoredResponse = createOfflineNavigationRSCResponse(payload)
+    expect(restoredResponse.url).toBe('https://example.com/dashboard?_rsc=abc')
+    await expect(restoredResponse.text()).resolves.toBe('0:["$","payload"]')
+    expect(isOfflineNavigationRSCResponsePayload(payload)).toBe(true)
+    expect(
+      isOfflineNavigationRSCResponsePayload({ ...payload, body: null })
+    ).toBe(false)
+  })
+
+  it('writes RSC response payloads through the exact URL cache', async () => {
+    const storage = new MemoryOfflineNavigationCacheStorage()
+    const cache = createOfflineNavigationCache(storage)
+    const payload = createOfflineNavigationRSCResponsePayload(
+      new Response('0:["$","payload"]'),
+      'navigation'
+    )
+
+    await expect(payload).resolves.toMatchObject({
+      kind: 'rsc-response',
+      requestKind: 'navigation',
+    })
+    await expect(
+      cache.write({
+        buildId: 'build-a',
+        expiresAt: 300,
+        payload: await payload,
+        staleAt: 200,
+        url: 'https://example.com/dashboard#section',
+        now: 100,
+      })
+    ).resolves.toBe(true)
+
+    await expect(
+      cache.read('https://example.com/dashboard', {
+        buildId: 'build-a',
+        now: 150,
+      })
+    ).resolves.toMatchObject({
+      buildId: 'build-a',
+      createdAt: 100,
+      payload: {
+        kind: 'rsc-response',
+        requestKind: 'navigation',
+      },
+      staleAt: 200,
+      expiresAt: 300,
+      url: 'https://example.com/dashboard',
+    })
+  })
+
+  it('accepts initial load RSC responses for offline document boot', async () => {
+    const payload = await createOfflineNavigationRSCResponsePayload(
+      new Response('0:["$","payload"]'),
+      'initial-load'
+    )
+
+    expect(isOfflineNavigationRSCResponsePayload(payload)).toBe(true)
+    expect(payload).toMatchObject({
+      kind: 'rsc-response',
+      requestKind: 'initial-load',
     })
   })
 

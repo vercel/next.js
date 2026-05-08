@@ -21,11 +21,13 @@ import {
 import { decodeStaticStage } from './fetch-server-response'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
+import { RSC_CONTENT_TYPE_HEADER } from '../app-router-headers'
 
 export interface InitialRouterStateParameters {
   navigatedAt: number
   initialRSCPayload: InitialRSCPayload
   initialFlightStreamForCache?: ReadableStream<Uint8Array> | null
+  initialFlightStreamForOfflineNavigationCache?: ReadableStream<Uint8Array> | null
   location: Location | null
 }
 
@@ -33,6 +35,7 @@ export function createInitialRouterState({
   navigatedAt,
   initialRSCPayload,
   initialFlightStreamForCache,
+  initialFlightStreamForOfflineNavigationCache,
   location,
 }: InitialRouterStateParameters): AppRouterState {
   const {
@@ -88,6 +91,12 @@ export function createInitialRouterState({
     acc
   )
   const metadataVaryPath = acc.metadataVaryPath
+  const initialStaleAt =
+    location === null ||
+    initialSeedData === null ||
+    initialStaticStageByteLength !== undefined
+      ? null
+      : getStaleAt(navigatedAt, initialStaleTime)
   const initialTask = createInitialCacheNodeForHydration(
     navigatedAt,
     initialRouteTree,
@@ -157,7 +166,7 @@ export function createInitialRouterState({
         // hydration and write it into the cache directly.
         const now = Date.now()
 
-        getStaleAt(now, initialStaleTime)
+        initialStaleAt!
           .then((staleAt) => {
             writeStaticStageResponseIntoCache(
               now,
@@ -216,6 +225,18 @@ export function createInitialRouterState({
     }
   }
 
+  persistInitialOfflineNavigationResponse({
+    initialCouldBeIntercepted,
+    initialDynamicStaleTimeSeconds,
+    initialFlightStreamForOfflineNavigationCache,
+    initialRuntimePrefetchStream,
+    initialStaleAt,
+    initialStaticStageByteLength,
+    initialSupportsPerSegmentPrefetching,
+    location,
+    navigatedAt,
+  })
+
   // NOTE: We intentionally don't check if any data needs to be fetched from the
   // server. We assume the initial hydration payload is sufficient to render
   // the page.
@@ -258,4 +279,93 @@ export function createInitialRouterState({
   }
 
   return initialState
+}
+
+function persistInitialOfflineNavigationResponse({
+  initialCouldBeIntercepted,
+  initialDynamicStaleTimeSeconds,
+  initialFlightStreamForOfflineNavigationCache,
+  initialRuntimePrefetchStream,
+  initialStaleAt,
+  initialStaticStageByteLength,
+  initialSupportsPerSegmentPrefetching,
+  location,
+  navigatedAt,
+}: {
+  initialCouldBeIntercepted: boolean
+  initialDynamicStaleTimeSeconds: number | undefined
+  initialFlightStreamForOfflineNavigationCache:
+    | ReadableStream<Uint8Array>
+    | null
+    | undefined
+  initialRuntimePrefetchStream: ReadableStream<Uint8Array> | undefined
+  initialStaleAt: Promise<number> | null
+  initialStaticStageByteLength: Promise<number> | undefined
+  initialSupportsPerSegmentPrefetching: boolean
+  location: Location | null
+  navigatedAt: number
+}): void {
+  // Online document loads can seed the exact-URL offline cache by teeing the
+  // inline RSC stream. This gives the generated fallback document something
+  // to replay later even if the user never performed a soft navigation.
+  if (process.env.__NEXT_OFFLINE_NAVIGATIONS) {
+    if (initialFlightStreamForOfflineNavigationCache == null) {
+      return
+    }
+
+    if (
+      process.env.__NEXT_DEV_SERVER ||
+      process.env.NODE_ENV !== 'production' ||
+      process.env.__NEXT_CONFIG_OUTPUT === 'export' ||
+      location === null ||
+      !initialSupportsPerSegmentPrefetching ||
+      initialCouldBeIntercepted ||
+      initialDynamicStaleTimeSeconds !== undefined ||
+      initialRuntimePrefetchStream !== undefined ||
+      initialStaleAt === null ||
+      initialStaticStageByteLength !== undefined
+    ) {
+      initialFlightStreamForOfflineNavigationCache.cancel()
+      return
+    }
+
+    const response = new Response(
+      initialFlightStreamForOfflineNavigationCache,
+      {
+        headers: { 'content-type': RSC_CONTENT_TYPE_HEADER },
+        status: 200,
+        statusText: 'OK',
+      }
+    )
+    Object.defineProperty(response, 'url', {
+      value: createHrefFromUrl(location),
+    })
+
+    const {
+      createOfflineNavigationRSCResponsePayload,
+      writeOfflineNavigationRSCResponseCacheEntry,
+    } =
+      require('./offline-navigation-cache') as typeof import('./offline-navigation-cache')
+
+    const payload = createOfflineNavigationRSCResponsePayload(
+      response,
+      'initial-load'
+    ).catch(() => null)
+
+    void (async () => {
+      const staleAt = await initialStaleAt
+      await writeOfflineNavigationRSCResponseCacheEntry({
+        expiresAt: staleAt,
+        payload,
+        staleAt,
+        url: createHrefFromUrl(location),
+        now: navigatedAt,
+      })
+    })().catch(() => {
+      // The page already rendered. Offline persistence must not affect boot.
+    })
+  } else {
+    initialFlightStreamForOfflineNavigationCache?.cancel()
+    return
+  }
 }
