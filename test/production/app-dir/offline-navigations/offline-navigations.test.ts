@@ -50,6 +50,60 @@ describe('offlineNavigations build artifacts', () => {
     }
   }
 
+  async function readPersistedOfflineNavigationEntry(
+    browser: Awaited<ReturnType<typeof next.browser>>,
+    urlSubstring: string
+  ) {
+    return browser.eval(async (substring) => {
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('next-offline-navigation-cache', 1)
+        request.onupgradeneeded = () => {
+          const database = request.result
+          if (!database.objectStoreNames.contains('navigation-data')) {
+            database.createObjectStore('navigation-data', {
+              keyPath: ['buildId', 'url'],
+            })
+          }
+        }
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+
+      try {
+        const entries = await new Promise<any[]>((resolve, reject) => {
+          const transaction = database.transaction(
+            'navigation-data',
+            'readonly'
+          )
+          const request = transaction.objectStore('navigation-data').getAll()
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })
+        const entry = entries.find((entry) => entry.url.includes(substring))
+        if (!entry) {
+          return null
+        }
+
+        return {
+          buildId: entry.buildId,
+          expiresAt: entry.expiresAt,
+          kind: entry.kind,
+          payload: {
+            bodyLength: entry.payload.body.byteLength,
+            kind: entry.payload.kind,
+            requestKind: entry.payload.requestKind,
+            status: entry.payload.status,
+          },
+          staleAt: entry.staleAt,
+          url: entry.url,
+          version: entry.version,
+        }
+      } finally {
+        database.close()
+      }
+    }, urlSubstring)
+  }
+
   it('emits request-invariant offline navigation artifacts when enabled', async () => {
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
@@ -210,18 +264,6 @@ describe('offlineNavigations build artifacts', () => {
         )
       })
 
-      await browser.eval((messageType) => {
-        localStorage.removeItem('__nextOfflineNavigationMessage')
-        navigator.serviceWorker.addEventListener('message', (event) => {
-          if (event.data?.type === messageType) {
-            localStorage.setItem(
-              '__nextOfflineNavigationMessage',
-              JSON.stringify(event.data)
-            )
-          }
-        })
-      }, OFFLINE_NAVIGATION_FALLBACK_SERVED)
-
       const cacheState = await browser.eval(async () => {
         const cacheNames = (await caches.keys()).filter((cacheName) =>
           cacheName.startsWith('next-offline-navigation-v1:')
@@ -258,60 +300,67 @@ describe('offlineNavigations build artifacts', () => {
         ])
       )
 
-      await browser.elementById('prefetch-offline-navigation').click()
       await retry(async () => {
-        const persistedEntry = await browser.eval(async () => {
-          const database = await new Promise<IDBDatabase>((resolve, reject) => {
-            const request = indexedDB.open('next-offline-navigation-cache', 1)
-            request.onupgradeneeded = () => {
-              const database = request.result
-              if (!database.objectStoreNames.contains('navigation-data')) {
-                database.createObjectStore('navigation-data', {
-                  keyPath: ['buildId', 'url'],
-                })
-              }
-            }
-            request.onsuccess = () => resolve(request.result)
-            request.onerror = () => reject(request.error)
-          })
+        const initialLoadEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/'
+        )
+        expect(initialLoadEntry).toEqual({
+          buildId: navigationBuildId,
+          expiresAt: expect.any(Number),
+          kind: 'exact-url',
+          payload: {
+            bodyLength: expect.any(Number),
+            kind: 'rsc-response',
+            requestKind: 'initial-load',
+            status: 200,
+          },
+          staleAt: expect.any(Number),
+          url: expect.stringContaining('/docs/'),
+          version: 1,
+        })
+        expect(initialLoadEntry!.payload.bodyLength).toBeGreaterThan(0)
+      })
 
-          try {
-            const entries = await new Promise<any[]>((resolve, reject) => {
-              const transaction = database.transaction(
-                'navigation-data',
-                'readonly'
-              )
-              const request = transaction
-                .objectStore('navigation-data')
-                .getAll()
-              request.onsuccess = () => resolve(request.result)
-              request.onerror = () => reject(request.error)
-            })
-            const entry = entries.find((entry) =>
-              entry.url.includes('/docs/prefetched')
+      await page!.context().setOffline(true)
+      const initialLoadOfflineResponse = await page!.goto(`${next.url}/docs/`, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(initialLoadOfflineResponse?.status()).toBe(200)
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe(
+          'offline navigations page'
+        )
+      })
+      expect(await browser.elementById('offline-status').text()).toBe('offline')
+      await page!.context().setOffline(false)
+      await browser.eval(() => {
+        window.dispatchEvent(new Event('online'))
+      })
+      await retry(async () => {
+        expect(await browser.elementById('offline-status').text()).toBe(
+          'online'
+        )
+      })
+
+      await browser.eval((messageType) => {
+        localStorage.removeItem('__nextOfflineNavigationMessage')
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data?.type === messageType) {
+            localStorage.setItem(
+              '__nextOfflineNavigationMessage',
+              JSON.stringify(event.data)
             )
-            if (!entry) {
-              return null
-            }
-
-            return {
-              buildId: entry.buildId,
-              expiresAt: entry.expiresAt,
-              kind: entry.kind,
-              payload: {
-                bodyLength: entry.payload.body.byteLength,
-                kind: entry.payload.kind,
-                requestKind: entry.payload.requestKind,
-                status: entry.payload.status,
-              },
-              staleAt: entry.staleAt,
-              url: entry.url,
-              version: entry.version,
-            }
-          } finally {
-            database.close()
           }
         })
+      }, OFFLINE_NAVIGATION_FALLBACK_SERVED)
+
+      await browser.elementById('prefetch-offline-navigation').click()
+      await retry(async () => {
+        const persistedEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/prefetched'
+        )
         expect(persistedEntry).toEqual({
           buildId: navigationBuildId,
           expiresAt: expect.any(Number),
