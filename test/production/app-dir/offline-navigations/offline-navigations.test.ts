@@ -5338,6 +5338,101 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('does not serve fallback HTML for online app error responses', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      const fallbackMessageStorageKey =
+        '__nextOfflineNavigationOnlineErrorMessages'
+      await browser.eval(
+        ({ messageType, storageKey }) => {
+          localStorage.removeItem(storageKey)
+          navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data?.type === messageType) {
+              const messages = JSON.parse(
+                localStorage.getItem(storageKey) ?? '[]'
+              )
+              messages.push(event.data)
+              localStorage.setItem(storageKey, JSON.stringify(messages))
+            }
+          })
+        },
+        {
+          messageType: OFFLINE_NAVIGATION_FALLBACK_SERVED,
+          storageKey: fallbackMessageStorageKey,
+        }
+      )
+
+      for (const errorRoute of [
+        {
+          expectedBody: '404',
+          statuses: [200, 404],
+          url: `${next.url}/docs/app-not-found/`,
+        },
+        {
+          expectedBody: null,
+          statuses: [200, 500],
+          url: `${next.url}/docs/throws-error/`,
+        },
+      ]) {
+        const response = await page!.goto(errorRoute.url, {
+          waitUntil: 'domcontentloaded',
+        })
+        expect(errorRoute.statuses).toContain(response?.status())
+
+        expect(
+          await browser.eval((storageKey) => {
+            return {
+              body: document.body.textContent,
+              cache: document.documentElement.getAttribute(
+                'data-next-offline-navigation-cache'
+              ),
+              fallback: document.documentElement.hasAttribute(
+                'data-next-offline-navigation-fallback'
+              ),
+              fallbackMessages: JSON.parse(
+                localStorage.getItem(storageKey) ?? '[]'
+              ),
+              missVisible:
+                document.getElementById('__NEXT_OFFLINE_NAVIGATION_CACHE_MISS')
+                  ?.hidden === false,
+            }
+          }, fallbackMessageStorageKey)
+        ).toMatchObject({
+          cache: null,
+          fallback: false,
+          fallbackMessages: [],
+          missVisible: false,
+        })
+        if (errorRoute.expectedBody !== null) {
+          expect(await browser.eval(() => document.body.textContent)).toContain(
+            errorRoute.expectedBody
+          )
+        }
+      }
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('does not serve fallback HTML to offline non-document request shapes', async () => {
     if (shouldSkipReplayWithCachedNavigations) {
       return
