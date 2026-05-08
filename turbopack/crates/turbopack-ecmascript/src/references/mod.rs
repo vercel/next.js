@@ -3622,10 +3622,9 @@ async fn require_resolve_visitor(
         .await?;
         let mut values =
             resolved
-                .primary_sources()
                 .await?
-                .iter()
-                .map(|&source| async move {
+                .primary_sources()
+                .map(|source| async move {
                     Ok(require_resolve(source.ident().await?.path.clone()).into())
                 })
                 .try_join()

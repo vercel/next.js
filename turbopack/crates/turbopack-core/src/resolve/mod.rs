@@ -17,8 +17,8 @@ use tracing::{Instrument, Level};
 use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
+    ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 use turbo_unix_path::normalize_request;
@@ -31,7 +31,7 @@ use crate::{
         Issue, IssueExt, IssueSource, module::emit_unknown_module_type_error,
         resolve::ResolvingIssue,
     },
-    module::{Module, Modules, OptionModule},
+    module::Module,
     package_json::{PackageJsonIssue, read_package_json},
     raw_module::RawModule,
     reference_type::ReferenceType,
@@ -49,7 +49,7 @@ use crate::{
         plugin::{AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin},
         remap::{ExportsField, ImportsField, ReplacedSubpathValueResult},
     },
-    source::{OptionSource, Source, Sources},
+    source::Source,
 };
 
 mod alias_map;
@@ -83,7 +83,7 @@ pub enum ResolveErrorMode {
 /// Type alias for a resolved after-resolve plugin paired with its condition.
 type AfterResolvePluginWithCondition = (
     ResolvedVc<Box<dyn AfterResolvePlugin>>,
-    ResolvedVc<AfterResolvePluginCondition>,
+    ReadRef<AfterResolvePluginCondition>,
 );
 
 #[turbo_tasks::value(shared)]
@@ -104,9 +104,19 @@ pub enum ModuleResolveResultItem {
     /// Resolve the reference to an empty module.
     Empty,
     Custom(u8),
+    /// A duplicate of an item that appeared earlier in the primary array.
+    /// The usize is the index of the first occurrence. Most callers should skip
+    /// this variant.
+    ///
+    /// Bakes duplicate detection into the datastructure to make filtering for uniques trivial which
+    /// is required by primary_modules.
+    Duplicate(usize),
 }
 
 impl ModuleResolveResultItem {
+    // Returns the module for this item if it is one
+    // NOTE: if this is a `ModuleResolveResultItem::Duplicate` we return `None`, it is expected that
+    // callers will have already found the module earlier.
     async fn as_module(&self) -> Result<Option<ResolvedVc<Box<dyn Module>>>> {
         Ok(match *self {
             ModuleResolveResultItem::Module(module) => Some(module),
@@ -243,11 +253,13 @@ impl ModuleResolveResult {
     pub fn modules(
         modules: impl IntoIterator<Item = (RequestKey, ResolvedVc<Box<dyn Module>>)>,
     ) -> ResolvedVc<Self> {
+        let mut primary: Vec<_> = modules
+            .into_iter()
+            .map(|(k, v)| (k, ModuleResolveResultItem::Module(v)))
+            .collect();
+        Self::mark_duplicates(&mut primary);
         ModuleResolveResult {
-            primary: modules
-                .into_iter()
-                .map(|(k, v)| (k, ModuleResolveResultItem::Module(v)))
-                .collect(),
+            primary: primary.into_boxed_slice(),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -257,11 +269,13 @@ impl ModuleResolveResult {
         modules: impl IntoIterator<Item = (RequestKey, ResolvedVc<Box<dyn Module>>)>,
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ResolvedVc<Self> {
+        let mut primary: Vec<_> = modules
+            .into_iter()
+            .map(|(k, v)| (k, ModuleResolveResultItem::Module(v)))
+            .collect();
+        Self::mark_duplicates(&mut primary);
         ModuleResolveResult {
-            primary: modules
-                .into_iter()
-                .map(|(k, v)| (k, ModuleResolveResultItem::Module(v)))
-                .collect(),
+            primary: primary.into_boxed_slice(),
             affecting_sources: affecting_sources.into_boxed_slice(),
         }
         .resolved_cell()
@@ -269,6 +283,26 @@ impl ModuleResolveResult {
 }
 
 impl ModuleResolveResult {
+    /// Marks duplicate items as `Duplicate(first_index)` in place.
+    /// Preserves ordering; the first occurrence stays, subsequent occurrences
+    /// of the same module/output asset become `Duplicate`.
+    fn mark_duplicates(primary: &mut [(RequestKey, ModuleResolveResultItem)]) {
+        if primary.len() <= 1 {
+            return;
+        }
+        // Map from module identity to the index of first occurrence
+        let mut seen_modules = FxHashMap::default();
+        for (i, (_, item)) in primary.iter_mut().enumerate() {
+            if let ModuleResolveResultItem::Module(m) = *item {
+                if let Some(&first) = seen_modules.get(&m) {
+                    *item = ModuleResolveResultItem::Duplicate(first);
+                } else {
+                    seen_modules.insert(m, i);
+                }
+            }
+        }
+    }
+
     /// Returns all module results (but ignoring any errors).
     pub fn primary_modules_raw_iter(
         &self,
@@ -279,22 +313,32 @@ impl ModuleResolveResult {
         })
     }
 
-    /// Returns a set (no duplicates) of primary modules in the result.
-    pub async fn primary_modules_ref(&self) -> Result<Vec<ResolvedVc<Box<dyn Module>>>> {
-        let mut set = FxIndexSet::default();
+    /// Returns primary modules (no duplicates). Emits errors for Unknown items.
+    /// Duplicates are already marked at construction time so no extra dedup is
+    /// needed here.
+    pub async fn primary_modules(&self) -> Result<Vec<ResolvedVc<Box<dyn Module>>>> {
+        self.primary
+            .iter()
+            .map(async |(_, item)| item.as_module().await)
+            .try_flat_join()
+            .await
+    }
+
+    /// Returns the first module in the result, or None.
+    pub async fn first_module(&self) -> Result<Option<ResolvedVc<Box<dyn Module>>>> {
         for (_, item) in self.primary.iter() {
             if let Some(module) = item.as_module().await? {
-                set.insert(module);
+                return Ok(Some(module));
             }
         }
-        Ok(set.into_iter().collect())
+        Ok(None)
     }
 
     pub fn affecting_sources_iter(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Source>>> + '_ {
         self.affecting_sources.iter().copied()
     }
 
-    pub fn is_unresolvable_ref(&self) -> bool {
+    pub fn is_unresolvable(&self) -> bool {
         self.primary.is_empty()
     }
 
@@ -313,25 +357,56 @@ pub struct ModuleResolveResultBuilder {
 
 impl From<ModuleResolveResultBuilder> for ModuleResolveResult {
     fn from(v: ModuleResolveResultBuilder) -> Self {
+        let mut primary: Vec<_> = v.primary.into_iter().collect();
+        Self::mark_duplicates(&mut primary);
         ModuleResolveResult {
-            primary: v.primary.into_iter().collect(),
+            primary: primary.into_boxed_slice(),
             affecting_sources: v.affecting_sources.into_boxed_slice(),
         }
     }
 }
+
+/// Resolves a `Duplicate(i)` marker by looking up the underlying item in `source`.
+/// `mark_duplicates` only ever produces backwards-pointing `Duplicate` indices into
+/// `Module(_)` entries, so a single lookup is enough.
+fn expand_duplicate<'a>(
+    source: &'a [(RequestKey, ModuleResolveResultItem)],
+    item: &'a ModuleResolveResultItem,
+) -> &'a ModuleResolveResultItem {
+    if let ModuleResolveResultItem::Duplicate(i) = *item {
+        &source[i].1
+    } else {
+        item
+    }
+}
+
 impl From<ModuleResolveResult> for ModuleResolveResultBuilder {
     fn from(v: ModuleResolveResult) -> Self {
+        // Expand `Duplicate(i)` markers as we copy into the builder. The indices are valid
+        // for `v.primary`, but the builder's `FxIndexMap` may be re-keyed and merged with
+        // other results, so the indices wouldn't survive. The final
+        // `From<Builder> for ModuleResolveResult` re-runs `mark_duplicates` on the merged
+        // primary array.
+        let primary = v
+            .primary
+            .iter()
+            .map(|(k, item)| (k.clone(), expand_duplicate(&v.primary, item).clone()))
+            .collect();
         ModuleResolveResultBuilder {
-            primary: IntoIterator::into_iter(v.primary).collect(),
+            primary,
             affecting_sources: v.affecting_sources.into_vec(),
         }
     }
 }
 impl ModuleResolveResultBuilder {
     pub fn merge_alternatives(&mut self, other: &ModuleResolveResult) {
+        // Expand `Duplicate(i)` markers from `other` against `other.primary` before
+        // inserting — the indices only make sense within `other`, not within the merged
+        // result. The final `mark_duplicates` pass on conversion will re-derive markers.
         for (k, v) in other.primary.iter() {
             if !self.primary.contains_key(k) {
-                self.primary.insert(k.clone(), v.clone());
+                self.primary
+                    .insert(k.clone(), expand_duplicate(&other.primary, v).clone());
             }
         }
         let set = self
@@ -368,34 +443,6 @@ impl ModuleResolveResult {
         } else {
             Ok(*ModuleResolveResult::unresolvable())
         }
-    }
-
-    #[turbo_tasks::function]
-    pub fn is_unresolvable(&self) -> Vc<bool> {
-        Vc::cell(self.is_unresolvable_ref())
-    }
-
-    #[turbo_tasks::function]
-    pub async fn first_module(&self) -> Result<Vc<OptionModule>> {
-        for (_, item) in self.primary.iter() {
-            if let Some(module) = item.as_module().await? {
-                return Ok(Vc::cell(Some(module)));
-            }
-        }
-        Ok(Vc::cell(None))
-    }
-
-    /// Returns a set (no duplicates) of primary modules in the result. All
-    /// modules are already resolved Vc.
-    #[turbo_tasks::function]
-    pub async fn primary_modules(&self) -> Result<Vc<Modules>> {
-        let mut set = FxIndexSet::default();
-        for (_, item) in self.primary.iter() {
-            if let Some(module) = item.as_module().await? {
-                set.insert(module);
-            }
-        }
-        Ok(Vc::cell(set.into_iter().collect()))
     }
 }
 
@@ -542,7 +589,7 @@ impl ValueToString for ResolveResult {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         let mut result = String::new();
-        if self.is_unresolvable_ref() {
+        if self.is_unresolvable() {
             result.push_str("unresolvable");
         }
         for (i, (request, item)) in self.primary.iter().enumerate() {
@@ -677,8 +724,28 @@ impl ResolveResult {
         self.affecting_sources.iter().copied()
     }
 
-    pub fn is_unresolvable_ref(&self) -> bool {
+    pub fn is_unresolvable(&self) -> bool {
         self.primary.is_empty()
+    }
+
+    pub fn first_source(&self) -> Option<ResolvedVc<Box<dyn Source>>> {
+        self.primary.iter().find_map(|(_, item)| {
+            if let &ResolveResultItem::Source(a) = item {
+                Some(a)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn primary_sources(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Source>>> {
+        self.primary.iter().filter_map(|(_, item)| {
+            if let &ResolveResultItem::Source(a) = item {
+                Some(a)
+            } else {
+                None
+            }
+        })
     }
 
     pub async fn map_module<A, AF>(&self, source_fn: A) -> Result<ModuleResolveResult>
@@ -919,38 +986,6 @@ impl ResolveResult {
         } else {
             Ok(ResolveResult::unresolvable_with_affecting_sources(affecting_sources).cell())
         }
-    }
-
-    #[turbo_tasks::function]
-    pub fn is_unresolvable(&self) -> Vc<bool> {
-        Vc::cell(self.is_unresolvable_ref())
-    }
-
-    #[turbo_tasks::function]
-    pub fn first_source(&self) -> Vc<OptionSource> {
-        Vc::cell(self.primary.iter().find_map(|(_, item)| {
-            if let &ResolveResultItem::Source(a) = item {
-                Some(a)
-            } else {
-                None
-            }
-        }))
-    }
-
-    #[turbo_tasks::function]
-    pub fn primary_sources(&self) -> Vc<Sources> {
-        Vc::cell(
-            self.primary
-                .iter()
-                .filter_map(|(_, item)| {
-                    if let &ResolveResultItem::Source(a) = item {
-                        Some(a)
-                    } else {
-                        None
-                    }
-                })
-                .collect(),
-        )
     }
 
     /// Returns a new [ResolveResult] where all [RequestKey]s are updated. The `old_request_key`
@@ -1648,7 +1683,7 @@ pub async fn resolve_inline(
 #[turbo_tasks::function]
 pub async fn url_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
-    request: Vc<Request>,
+    request: ResolvedVc<Request>,
     reference_type: ReferenceType,
     issue_source: Option<IssueSource>,
     error_mode: ResolveErrorMode,
@@ -1663,11 +1698,11 @@ pub async fn url_resolve(
         resolve_options,
     );
     let result =
-        if *rel_result.is_unresolvable().await? && *rel_request.to_resolved().await? != request {
+        if rel_result.await?.is_unresolvable() && rel_request.to_resolved().await? != request {
             let result = resolve(
                 origin_path_parent,
                 reference_type.clone(),
-                request,
+                *request,
                 resolve_options,
             );
             if resolve_options.await?.collect_affecting_sources {
@@ -1691,7 +1726,7 @@ pub async fn url_resolve(
         result,
         reference_type,
         origin,
-        request,
+        *request,
         resolve_options,
         error_mode,
         issue_source,
@@ -1707,13 +1742,28 @@ async fn get_matching_before_resolve_plugins(
     options: Vc<ResolveOptions>,
     request: Vc<Request>,
 ) -> Result<Vc<MatchingBeforeResolvePlugins>> {
-    let mut matching_plugins = Vec::new();
-    for &plugin in &options.await?.before_resolve_plugins {
-        let condition = plugin.before_resolve_condition().to_resolved().await?;
-        if *condition.matches(request).await? {
-            matching_plugins.push(plugin);
-        }
-    }
+    let request_ref = request.await?;
+    let matching_plugins = options
+        .await?
+        .before_resolve_plugins
+        .iter()
+        .map(async |plugin| {
+            Ok(
+                if plugin
+                    .into_trait_ref()
+                    .await?
+                    .before_resolve_condition()
+                    .await?
+                    .matches(&request_ref)
+                {
+                    Some(*plugin)
+                } else {
+                    None
+                },
+            )
+        })
+        .try_flat_join()
+        .await?;
     Ok(Vc::cell(matching_plugins))
 }
 
@@ -1750,7 +1800,10 @@ async fn handle_after_resolve_plugins(
     let resolved_conditions = options_value
         .after_resolve_plugins
         .iter()
-        .map(async |p| Ok((*p, p.after_resolve_condition().to_resolved().await?)))
+        .map(async |p| {
+            let condition = p.into_trait_ref().await?.after_resolve_condition().await?;
+            Ok((*p, condition))
+        })
         .try_join()
         .await?;
 
@@ -1762,7 +1815,7 @@ async fn handle_after_resolve_plugins(
         plugins_with_conditions: &[AfterResolvePluginWithCondition],
     ) -> Result<Option<Vc<ResolveResult>>> {
         for (plugin, after_resolve_condition) in plugins_with_conditions {
-            if *after_resolve_condition.matches(path.clone()).await?
+            if after_resolve_condition.matches(&path)
                 && let Some(result) = *plugin
                     .after_resolve(
                         path.clone(),
@@ -2144,7 +2197,7 @@ async fn resolve_internal_inline(
         if !matches!(*request_value, Request::Alternatives { .. }) {
             // Apply fallback import mappings if provided
             if let Some(import_map) = &options_value.fallback_import_map
-                && *result.is_unresolvable().await?
+                && result.await?.is_unresolvable()
             {
                 let result = import_map
                     .await?
@@ -2221,7 +2274,7 @@ async fn resolve_into_folder(
                                 .await?;
                         // we are not that strict when a main field fails to resolve
                         // we continue to try other alternatives
-                        if !result.is_unresolvable_ref() {
+                        if !result.is_unresolvable() {
                             let mut result: ResolveResultBuilder =
                                 result.with_request_ref(rcstr!(".")).into();
                             if options_value.collect_affecting_sources {
@@ -2762,7 +2815,7 @@ async fn resolve_module_request(
             fragment.clone(),
             options,
         );
-        if !(*result.is_unresolvable().await?) {
+        if !result.await?.is_unresolvable() {
             return Ok(result);
         }
     }
@@ -2997,7 +3050,7 @@ async fn resolve_import_map_result(
                     },
                 )
                 .await?
-                .is_unresolvable_ref();
+                .is_unresolvable();
                 if is_external_resolvable {
                     Some(ResolveResultOrCell::Value(ResolveResult::primary(
                         ResolveResultItem::External {
@@ -3061,12 +3114,12 @@ impl ResolveResultOrCell {
     async fn into_cell_if_resolvable(self) -> Result<Option<Vc<ResolveResult>>> {
         match self {
             ResolveResultOrCell::Cell(resolved_result) => {
-                if !*resolved_result.is_unresolvable().await? {
+                if !resolved_result.await?.is_unresolvable() {
                     return Ok(Some(resolved_result));
                 }
             }
             ResolveResultOrCell::Value(resolve_result) => {
-                if !resolve_result.is_unresolvable_ref() {
+                if !resolve_result.is_unresolvable() {
                     return Ok(Some(resolve_result.cell()));
                 }
             }
@@ -3411,17 +3464,23 @@ mod tests {
         io::Write,
     };
 
+    use anyhow::Result;
     use turbo_rcstr::{RcStr, rcstr};
     use turbo_tasks::{TryJoinIterExt, Vc};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-    use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
+    use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath};
 
     use crate::{
+        asset::AssetContent,
+        module::Module,
+        raw_module::RawModule,
         resolve::{
+            ModuleResolveResult, ModuleResolveResultBuilder, ModuleResolveResultItem, RequestKey,
             ResolveResult, ResolveResultItem, node::node_esm_resolve_options, parse::Request,
             pattern::Pattern,
         },
         source::Source,
+        virtual_source::VirtualSource,
     };
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -3709,7 +3768,7 @@ mod tests {
                 enable_typescript_with_output_extension: bool,
                 fully_specified: bool,
                 custom_extensions: Option<Vec<RcStr>>,
-            ) -> anyhow::Result<Vc<ResolveRelativeRequestOutput>> {
+            ) -> Result<Vc<ResolveRelativeRequestOutput>> {
                 let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
                 let lookup_path = fs.root().owned().await?;
 
@@ -3766,7 +3825,7 @@ mod tests {
         enable_typescript_with_output_extension: bool,
         fully_specified: bool,
         custom_extensions: Option<Vec<RcStr>>,
-    ) -> anyhow::Result<Vc<ResolveResult>> {
+    ) -> Result<Vc<ResolveResult>> {
         let request = Request::parse(pattern.clone());
 
         let extensions = custom_extensions
@@ -3800,5 +3859,222 @@ mod tests {
             }
             r => panic!("request should be relative, got {r:?}"),
         }
+    }
+
+    /// Snapshot of a `ModuleResolveResult::primary` array, encoded as `Vec<String>` so it
+    /// can cross the strongly-consistent read boundary (operation outputs need to be
+    /// `Encode`/`Decode`). One string per entry:
+    ///   - `module:<path>`  for `Module(_)`
+    ///   - `dup:<i>`        for `Duplicate(i)`
+    ///   - `other`          for everything else
+    #[turbo_tasks::value(transparent)]
+    pub struct DupCheckResult(Vec<String>);
+
+    async fn snapshot_primary(result: &ModuleResolveResult) -> Result<Vec<String>> {
+        let mut out = Vec::with_capacity(result.primary.len());
+        for (_, item) in result.primary.iter() {
+            out.push(match *item {
+                ModuleResolveResultItem::Module(m) => {
+                    let ident = m.ident().await?;
+                    format!("module:{}", ident.path.path)
+                }
+                ModuleResolveResultItem::Duplicate(i) => format!("dup:{i}"),
+                _ => "other".to_string(),
+            });
+        }
+        Ok(out)
+    }
+
+    #[turbo_tasks::function]
+    fn fs() -> Vc<Box<dyn FileSystem>> {
+        Vc::upcast(DiskFileSystem::new(rcstr!("temp"), Vc::cell(fs_path())))
+    }
+
+    #[turbo_tasks::function]
+    async fn make_module(name: RcStr) -> Result<Vc<Box<dyn Module>>> {
+        let path = fs().root().await?.join(&name)?;
+        let file_content =
+            FileContent::Content(turbo_tasks_fs::File::from(format!("// {name}"))).resolved_cell();
+        let content = AssetContent::file(*file_content).to_resolved().await?;
+        let source = VirtualSource::new(path, *content);
+        let module = RawModule::new(Vc::upcast(source)).to_resolved().await?;
+        Ok(Vc::upcast(*module))
+    }
+
+    fn fs_path() -> RcStr {
+        rcstr!("/tmp/_mdt")
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn modules_constructor_marks_module_duplicates() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        #[turbo_tasks::function(operation)]
+        async fn run_test() -> Result<Vc<DupCheckResult>> {
+            let m_a = make_module(rcstr!("a.js")).to_resolved().await?;
+            let m_b = make_module(rcstr!("b.js")).to_resolved().await?;
+
+            let result = ModuleResolveResult::modules([
+                (RequestKey::new(rcstr!("a")), m_a),
+                (RequestKey::new(rcstr!("b")), m_b),
+                (RequestKey::new(rcstr!("a-again")), m_a),
+                (RequestKey::new(rcstr!("b-again")), m_b),
+            ])
+            .await?;
+
+            // primary_modules() yields each module exactly once, in first-seen order.
+            let modules = result.primary_modules().await?;
+            assert_eq!(modules, vec![m_a, m_b]);
+
+            Ok(Vc::cell(snapshot_primary(&result).await?))
+        }
+        tt.run_once(async move {
+            let snap = run_test().read_strongly_consistent().await?;
+            assert_eq!(
+                snap.iter().map(String::as_str).collect::<Vec<_>>(),
+                vec!["module:a.js", "module:b.js", "dup:0", "dup:1"]
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn first_module_returns_first_when_duplicates_follow() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        #[turbo_tasks::function(operation)]
+        async fn run_test() -> Result<Vc<DupCheckResult>> {
+            let m = make_module(rcstr!("a.js")).to_resolved().await?;
+
+            let result = ModuleResolveResult::modules([
+                (RequestKey::default(), m),
+                (RequestKey::new(rcstr!("again")), m),
+                (RequestKey::new(rcstr!("once-more")), m),
+            ])
+            .await?;
+
+            assert_eq!(result.first_module().await?, Some(m));
+            assert_eq!(result.primary_modules().await?, vec![m]);
+            Ok(Vc::cell(snapshot_primary(&result).await?))
+        }
+        tt.run_once(async move {
+            let snap = run_test().read_strongly_consistent().await?;
+            assert_eq!(
+                snap.iter().map(String::as_str).collect::<Vec<_>>(),
+                vec!["module:a.js", "dup:0", "dup:0"]
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn builder_marks_module_duplicates_skipping_non_dedup_items() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        #[turbo_tasks::function(operation)]
+        async fn run_test() -> Result<Vc<DupCheckResult>> {
+            let m = make_module(rcstr!("a.js")).to_resolved().await?;
+
+            let mut builder = ModuleResolveResultBuilder {
+                primary: Default::default(),
+                affecting_sources: Vec::new(),
+            };
+            builder.primary.insert(
+                RequestKey::new(rcstr!("k0")),
+                ModuleResolveResultItem::Module(m),
+            );
+            builder.primary.insert(
+                RequestKey::new(rcstr!("k1")),
+                ModuleResolveResultItem::Empty,
+            );
+            builder.primary.insert(
+                RequestKey::new(rcstr!("k2")),
+                ModuleResolveResultItem::Module(m),
+            );
+            let result: ModuleResolveResult = builder.into();
+            assert_eq!(result.primary_modules().await?, vec![m]);
+            Ok(Vc::cell(snapshot_primary(&result).await?))
+        }
+        tt.run_once(async move {
+            let snap = run_test().read_strongly_consistent().await?;
+
+            assert_eq!(
+                snap.iter().map(String::as_str).collect::<Vec<_>>(),
+                vec!["module:a.js", "other", "dup:0"]
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn alternatives_preserves_unique_module_set() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        #[turbo_tasks::function(operation)]
+        async fn run_test() -> Result<Vc<DupCheckResult>> {
+            let m_a = make_module(rcstr!("a.js")).to_resolved().await?;
+            let m_b = make_module(rcstr!("b.js")).to_resolved().await?;
+
+            // r1 has m_a twice → Module(m_a), Duplicate(0).
+            let r1 = *ModuleResolveResult::modules([
+                (RequestKey::new(rcstr!("k1")), m_a),
+                (RequestKey::new(rcstr!("k2")), m_a),
+            ]);
+            // r2 prepended with m_b so the ordering inside r2 puts m_b at index 0 — a "stale"
+            // 0 from r1 would now incorrectly point at m_b after a naive concatenation.
+            let r2 = *ModuleResolveResult::module(m_b);
+
+            let merged = ModuleResolveResult::alternatives(vec![r1, r2]).await?;
+            assert_eq!(merged.primary_modules().await?, vec![m_a, m_b]);
+
+            // Verify every Duplicate(i) is well-formed
+            for (i, (_, item)) in merged.primary.iter().enumerate() {
+                if let ModuleResolveResultItem::Duplicate(first) = *item {
+                    assert!(
+                        first < i,
+                        "Duplicate index {first} at position {i} must point backwards"
+                    );
+                    let pointed = &merged.primary[first].1;
+                    let ModuleResolveResultItem::Module(pointed_module) = *pointed else {
+                        panic!(
+                            "Duplicate({first}) at {i} points at {pointed:?}, expected a concrete \
+                             Module"
+                        );
+                    };
+                    // The pointed-at module must be m_a — proves the index was re-derived
+                    // against the merged array, not carried stale from r1.
+                    assert_eq!(
+                        pointed_module, m_a,
+                        "Duplicate({first}) at position {i} points at the wrong module"
+                    );
+                }
+            }
+            Ok(Vc::cell(snapshot_primary(&merged).await?))
+        }
+        tt.run_once(async move {
+            let snap = run_test().read_strongly_consistent().await?;
+
+            assert_eq!(
+                snap.iter().map(String::as_str).collect::<Vec<_>>(),
+                vec!["module:a.js", "dup:0", "module:b.js"]
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
     }
 }

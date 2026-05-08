@@ -127,13 +127,26 @@ pub async fn make_chunk_group(
         })
         .try_join()
         .await?;
-    let async_loader_chunk_items = async_loaders.iter().map(|&chunk_item| {
-        ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(ChunkItemWithAsyncModuleInfo {
-            chunk_item,
-            module: None,
-            async_info: None,
+    let async_loader_chunk_items = async_loaders
+        .iter()
+        .map(async |&chunk_item| {
+            let chunk_type = chunk_item
+                .into_trait_ref()
+                .await?
+                .ty()
+                .to_resolved()
+                .await?;
+            Ok(ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
+                ChunkItemWithAsyncModuleInfo {
+                    chunk_item,
+                    chunk_type,
+                    module: None,
+                    async_info: None,
+                },
+            ))
         })
-    });
+        .try_join()
+        .await?;
 
     let referenced_output_assets = traced_modules
         .into_iter()

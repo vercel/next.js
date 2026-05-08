@@ -86,7 +86,6 @@ pub async fn children_from_module_references(
 
         for &module in reference
             .resolve_reference()
-            .to_resolved()
             .await?
             .primary_modules()
             .await?

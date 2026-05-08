@@ -135,8 +135,10 @@ pub async fn get_swc_ecma_transform_rule_impl(
                 )
                 .await?;
 
-                let Some(plugin_module) =
-                    &*plugin_wasm_module_resolve_result.first_module().await?
+                let Some(plugin_module) = plugin_wasm_module_resolve_result
+                    .await?
+                    .first_module()
+                    .await?
                 else {
                     // Ignore unresolvable plugin modules, handle_resolve_error has already emitted
                     // an issue.

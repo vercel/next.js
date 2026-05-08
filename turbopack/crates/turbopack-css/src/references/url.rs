@@ -58,7 +58,7 @@ impl UrlAssetReference {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<ReferencedAsset>> {
-        if let Some(module) = *self.resolve_reference().first_module().await?
+        if let Some(module) = self.resolve_reference().await?.first_module().await?
             && let Some(embeddable) = ResolvedVc::try_downcast::<Box<dyn CssEmbed>>(module)
         {
             return Ok(ReferencedAsset::Some(
