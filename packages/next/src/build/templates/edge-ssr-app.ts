@@ -165,7 +165,10 @@ async function requestHandler(
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
-        optimisticRouting: Boolean(nextConfig.experimental.optimisticRouting),
+        optimisticRouting: Boolean(
+          nextConfig.experimental.optimisticRouting ||
+            nextConfig.experimental.offlineNavigations
+        ),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),

@@ -54,6 +54,8 @@ import {
   createMetadataRouteTree,
 } from './cache'
 import { isValueExpired } from './cache-map'
+import { hasBasePath } from '../../has-base-path'
+import { removeBasePath } from '../../remove-base-path'
 import { doesStaticSegmentAppearInURL } from '../../route-params'
 import type {
   NormalizedNextUrl,
@@ -186,6 +188,10 @@ function createEmptyPart(): KnownRoutePart {
 // The root of the known route tree.
 let knownRouteTreeRoot: KnownRoutePart = createEmptyPart()
 
+function removeBasePathIfPresent(pathname: string): string {
+  return hasBasePath(pathname) ? removeBasePath(pathname) : pathname
+}
+
 /**
  * Learns a route pattern from a server response and inserts it into the cache.
  *
@@ -218,7 +224,8 @@ export function discoverKnownRoute(
 ): FulfilledRouteCacheEntry {
   const tree = routeTree
 
-  const pathnameParts = pathname.split('/').filter((p) => p !== '')
+  const routePathname = removeBasePathIfPresent(pathname)
+  const pathnameParts = routePathname.split('/').filter((p) => p !== '')
   const firstPart = pathnameParts.length > 0 ? pathnameParts[0] : null
   const remainingParts = pathnameParts.length > 0 ? pathnameParts.slice(1) : []
   let fulfilledEntry: FulfilledRouteCacheEntry
@@ -323,6 +330,36 @@ function persistOfflineNavigationRouteRecord(
     tree: entry.tree,
     metadata: entry.metadata,
   })
+}
+
+export function restoreKnownRouteFromCacheEntry(
+  now: number,
+  pathname: string,
+  nextUrl: string | null,
+  entry: FulfilledRouteCacheEntry
+): void {
+  const routePathname = removeBasePathIfPresent(pathname)
+  const pathnameParts = routePathname.split('/').filter((p) => p !== '')
+  const firstPart = pathnameParts.length > 0 ? pathnameParts[0] : null
+  const remainingParts = pathnameParts.length > 0 ? pathnameParts.slice(1) : []
+  const metadataVaryPath = entry.metadata.varyPath as PageVaryPath
+
+  discoverKnownRoutePart(
+    knownRouteTreeRoot,
+    entry.tree,
+    firstPart,
+    remainingParts,
+    entry,
+    now,
+    pathname,
+    nextUrl,
+    entry.tree,
+    metadataVaryPath,
+    entry.couldBeIntercepted,
+    entry.canonicalUrl,
+    entry.supportsPerSegmentPrefetching,
+    entry.hasDynamicRewrite
+  )
 }
 
 /**
@@ -574,7 +611,8 @@ export function matchKnownRoute(
   pathname: string,
   search: NormalizedSearch
 ): FulfilledRouteCacheEntry | null {
-  const pathnameParts = pathname.split('/').filter((p) => p !== '')
+  const routePathname = removeBasePathIfPresent(pathname)
+  const pathnameParts = routePathname.split('/').filter((p) => p !== '')
   const resolvedParams: ResolvedParams = new Map()
   const match = matchKnownRoutePart(
     now,
