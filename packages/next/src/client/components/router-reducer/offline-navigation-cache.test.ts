@@ -337,6 +337,15 @@ describe('offline navigation cache', () => {
     expect(getCacheSkipReason()).toBe(null)
   })
 
+  it('allows initial-load RSC responses without per-segment prefetch support', () => {
+    expect(
+      getCacheSkipReason({
+        requestKind: 'initial-load',
+        supportsPerSegmentPrefetching: false,
+      })
+    ).toBe(null)
+  })
+
   it('deletes exact URL entries', async () => {
     const storage = new MemoryOfflineNavigationCacheStorage()
     const cache = createOfflineNavigationCache(storage)

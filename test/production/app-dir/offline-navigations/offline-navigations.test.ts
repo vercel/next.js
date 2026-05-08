@@ -473,6 +473,102 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('replays request-sensitive exact URLs from browser-private storage', async () => {
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    const { buildId } = await getOfflineNavigationArtifactPaths()
+    const navigationBuildId = next.deploymentId ?? buildId
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await retry(async () => {
+        expect(
+          await browser.eval(() => Boolean(navigator.serviceWorker.controller))
+        ).toBe(true)
+      })
+
+      await browser.eval(() => {
+        document.cookie = 'offline-session=alpha; path=/; SameSite=Lax'
+      })
+      const onlineResponse = await page!.goto(
+        `${next.url}/docs/request-sensitive/`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(onlineResponse?.status()).toBe(200)
+      await retry(async () => {
+        expect(await browser.elementById('request-sensitive-page').text()).toBe(
+          'request sensitive session: alpha'
+        )
+      })
+
+      await retry(async () => {
+        const entry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/request-sensitive'
+        )
+        expect(entry).toEqual({
+          buildId: navigationBuildId,
+          expiresAt: expect.any(Number),
+          kind: 'exact-url',
+          payload: {
+            bodyLength: expect.any(Number),
+            kind: 'rsc-response',
+            requestKind: 'initial-load',
+            status: 200,
+          },
+          staleAt: expect.any(Number),
+          url: expect.stringContaining('/docs/request-sensitive'),
+          version: 1,
+        })
+        expect(entry!.payload.bodyLength).toBeGreaterThan(0)
+      })
+
+      await page!.context().setOffline(true)
+      const offlineResponse = await page!.goto(
+        `${next.url}/docs/request-sensitive/`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(offlineResponse?.status()).toBe(200)
+      await retry(async () => {
+        expect(await browser.elementById('request-sensitive-page').text()).toBe(
+          'request sensitive session: alpha'
+        )
+      })
+      expect(await browser.elementById('offline-status').text()).toBe('offline')
+
+      await page!.context().setOffline(false)
+      await browser.eval(async () => {
+        window.dispatchEvent(new Event('online'))
+
+        const cacheNames = await caches.keys()
+        await Promise.all(
+          cacheNames
+            .filter((cacheName) =>
+              cacheName.startsWith('next-offline-navigation-v1:')
+            )
+            .map((cacheName) => caches.delete(cacheName))
+        )
+
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(
+          registrations.map((registration) => registration.unregister())
+        )
+      })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('does not emit offline navigation artifacts when disabled', async () => {
     await next.patchFile('next.config.js', (content) =>
       content.replace('offlineNavigations: true', 'offlineNavigations: false')
