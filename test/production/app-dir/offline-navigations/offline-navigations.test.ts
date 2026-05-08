@@ -338,6 +338,18 @@ describe('offlineNavigations build artifacts', () => {
         )
       })
       expect(await browser.elementById('offline-status').text()).toBe('offline')
+      expect(
+        await browser.eval(() => {
+          const win = window as typeof window & {
+            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<unknown>
+          }
+          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?.at(-1)
+        })
+      ).toMatchObject({
+        type: 'cache-hit',
+        requestKind: 'initial-load',
+        url: `${next.url}/docs/`,
+      })
       await page!.context().setOffline(false)
       await browser.eval(() => {
         window.dispatchEvent(new Event('online'))
@@ -420,6 +432,18 @@ describe('offlineNavigations build artifacts', () => {
         )
       })
       expect(await browser.elementById('offline-status').text()).toBe('offline')
+      expect(
+        await browser.eval(() => {
+          const win = window as typeof window & {
+            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<unknown>
+          }
+          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?.at(-1)
+        })
+      ).toMatchObject({
+        type: 'cache-hit',
+        requestKind: 'client-resume',
+        url: `${next.url}/docs/prefetched`,
+      })
       const cachedServiceWorkerMessage = await browser.eval(() => {
         const message = localStorage.getItem('__nextOfflineNavigationMessage')
         return message === null ? null : JSON.parse(message)
@@ -443,7 +467,61 @@ describe('offlineNavigations build artifacts', () => {
       })
       expect(nonNavigationResult).toBe('rejected')
 
+      await browser.eval(
+        async ({ buildId: entryBuildId, url }) => {
+          const database = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open('next-offline-navigation-cache', 2)
+            request.onsuccess = () => resolve(request.result)
+            request.onerror = () => reject(request.error)
+          })
+
+          try {
+            const transaction = database.transaction(
+              'navigation-data',
+              'readwrite'
+            )
+            transaction.objectStore('navigation-data').put({
+              version: 2,
+              kind: 'exact-url',
+              buildId: entryBuildId,
+              url,
+              cacheEpoch: 1,
+              createdAt: Date.now(),
+              staleAt: Date.now() + 60_000,
+              expiresAt: Date.now() + 60_000,
+              payload: { kind: 'not-rsc-response' },
+            })
+            await new Promise<void>((resolve, reject) => {
+              transaction.oncomplete = () => resolve()
+              transaction.onerror = () => reject(transaction.error)
+              transaction.onabort = () => reject(transaction.error)
+            })
+          } finally {
+            database.close()
+          }
+        },
+        {
+          buildId: navigationBuildId,
+          url: `${next.url}/docs/malformed-offline-entry/`,
+        }
+      )
+
       await next.stop()
+      const malformedResponse = await page!.goto(
+        `${next.url}/docs/malformed-offline-entry/`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(malformedResponse?.status()).toBe(200)
+      await retry(async () => {
+        expect(
+          await browser.eval(() =>
+            document.documentElement.getAttribute(
+              'data-next-offline-navigation-cache-reason'
+            )
+          )
+        ).toBe('invalid-payload')
+      })
+
       const offlineResponse = await page!.goto(
         `${next.url}/docs/offline-navigation-cache-miss`,
         { waitUntil: 'domcontentloaded' }
@@ -466,13 +544,41 @@ describe('offlineNavigations build artifacts', () => {
               ? null
               : {
                   hidden: cacheMiss.hidden,
+                  reason: cacheMiss.getAttribute(
+                    'data-next-offline-navigation-cache-reason'
+                  ),
                   text: cacheMiss.textContent,
                 }
           })
         ).toEqual({
           hidden: false,
+          reason: 'missing-entry',
           text: 'This page is not available offline.',
         })
+      })
+      expect(
+        await browser.eval(() => ({
+          cache: document.documentElement.getAttribute(
+            'data-next-offline-navigation-cache'
+          ),
+          reason: document.documentElement.getAttribute(
+            'data-next-offline-navigation-cache-reason'
+          ),
+          diagnostic:
+            (
+              window as typeof window & {
+                __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<unknown>
+              }
+            ).__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?.at(-1) ?? null,
+        }))
+      ).toMatchObject({
+        cache: 'miss',
+        reason: 'missing-entry',
+        diagnostic: {
+          type: 'cache-miss',
+          reason: 'missing-entry',
+          url: `${next.url}/docs/offline-navigation-cache-miss`,
+        },
       })
       await page!.context().setOffline(false)
 
