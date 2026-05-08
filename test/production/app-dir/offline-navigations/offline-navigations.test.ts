@@ -118,6 +118,43 @@ describe('offlineNavigations build artifacts', () => {
     }, urlSubstring)
   }
 
+  async function readPersistedOfflineNavigationRouteRecords(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
+    return browser.eval(async () => {
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('next-offline-navigation-cache', 3)
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+
+      try {
+        const entries = await new Promise<any[]>((resolve, reject) => {
+          const transaction = database.transaction('route-data', 'readonly')
+          const request = transaction.objectStore('route-data').getAll()
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })
+
+        return entries.map((entry) => ({
+          buildId: entry.buildId,
+          cacheEpoch: entry.cacheEpoch,
+          expiresAt: entry.expiresAt,
+          hasMetadata: entry.metadata !== null,
+          hasTree: entry.tree !== null,
+          key: entry.key,
+          kind: entry.kind,
+          route: entry.route,
+          routeVaryPath: entry.routeVaryPath,
+          staleAt: entry.staleAt,
+          version: entry.version,
+        }))
+      } finally {
+        database.close()
+      }
+    })
+  }
+
   async function cleanupOfflineNavigationState(
     browser: Awaited<ReturnType<typeof next.browser>>
   ) {
@@ -452,6 +489,27 @@ describe('offlineNavigations build artifacts', () => {
           version: 2,
         })
         expect(persistedEntry!.payload.bodyLength).toBeGreaterThan(0)
+      })
+      await retry(async () => {
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        const prefetchedRouteRecord = routeRecords.find((record) =>
+          record.route.pathname.includes('/prefetched')
+        )
+        expect(prefetchedRouteRecord).toEqual(
+          expect.objectContaining({
+            buildId: navigationBuildId,
+            cacheEpoch: 0,
+            hasMetadata: true,
+            hasTree: true,
+            kind: 'route',
+            route: expect.objectContaining({
+              supportsPerSegmentPrefetching: true,
+            }),
+            routeVaryPath: expect.any(Array),
+            version: 1,
+          })
+        )
       })
 
       await page!.context().setOffline(true)
