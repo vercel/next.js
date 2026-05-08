@@ -1852,10 +1852,18 @@ export default async function build(
             appDir: dir,
             relativeAppDir: path.relative(outputFileTracingRoot, dir),
             files: [
-              // Marks distDir as commonjs so server output is loaded correctly
+              // Marks distDir as commonjs so server output is loaded as CJS
               // when the user's project package.json is "type": "module".
-              // See `writeFileUtf8(path.join(distDir, 'package.json'), '{"type": "commonjs"}')`
-              // earlier in this file.
+              // See `writeFileUtf8(path.join(distDir, 'package.json'),
+              // '{"type": "commonjs"}')` earlier in this file.
+              //
+              // Standalone already picks this up via `next-server.js.nft.json`
+              // (nft traces it as `./package.json`), but per-page nft files do
+              // not include it. The adapter codepath (`handleBuildComplete`)
+              // builds each page's `assets` from `requiredServerFiles` plus
+              // the per-page trace, so without listing it here the boundary
+              // is missing from adapter outputs and Node walks up to the
+              // user's `"type": "module"` package.json at runtime.
               'package.json',
               ROUTES_MANIFEST,
               path.relative(distDir, pagesManifestPath),
