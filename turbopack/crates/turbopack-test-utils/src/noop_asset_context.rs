@@ -31,7 +31,7 @@ impl AssetContext for NoopAssetContext {
     #[turbo_tasks::function]
     async fn resolve_options(
         self: Vc<Self>,
-        _origin_path: FileSystemPath,
+        _origin_path: &FileSystemPath,
     ) -> Result<Vc<ResolveOptions>> {
         Ok(ResolveOptions::default().cell())
     }
@@ -39,7 +39,7 @@ impl AssetContext for NoopAssetContext {
     #[turbo_tasks::function]
     async fn resolve_asset(
         self: Vc<Self>,
-        _origin_path: FileSystemPath,
+        _origin_path: &FileSystemPath,
         _request: Vc<Request>,
         _resolve_options: Vc<ResolveOptions>,
         _reference_type: ReferenceType,
@@ -68,7 +68,7 @@ impl AssetContext for NoopAssetContext {
     #[turbo_tasks::function]
     async fn with_transition(
         self: Vc<Self>,
-        _transition: RcStr,
+        _transition: &RcStr,
     ) -> Result<Vc<Box<dyn AssetContext>>> {
         Ok(Vc::upcast(self))
     }

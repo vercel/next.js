@@ -62,7 +62,7 @@ pub async fn get_client_chunking_context(
 
 #[turbo_tasks::function]
 pub async fn get_client_runtime_entries(
-    project_path: FileSystemPath,
+    project_path: &FileSystemPath,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<RuntimeEntries>> {
     let resolve_options_context =
@@ -102,9 +102,9 @@ pub async fn get_client_runtime_entries(
 
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
-    root_path: FileSystemPath,
+    root_path: &FileSystemPath,
     execution_context: Vc<ExecutionContext>,
-    entry_requests: Vec<Vc<Request>>,
+    entry_requests: &Vec<Vc<Request>>,
     server_root: FileSystemPath,
     server_root_to_root_path: RcStr,
     _env: Vc<Box<dyn ProcessEnv>>,
@@ -135,11 +135,11 @@ pub async fn create_web_entry_source(
 
     let origin = PlainResolveOrigin::new(asset_context, root_path.join("_")?);
     let entries = entry_requests
-        .into_iter()
+        .iter()
         .map(|request| async move {
             let ty = ReferenceType::Entry(EntryReferenceSubType::Web);
             Ok(origin
-                .resolve_asset(request, origin.resolve_options(), ty)
+                .resolve_asset(*request, origin.resolve_options(), ty)
                 .await?
                 .to_resolved()
                 .await?

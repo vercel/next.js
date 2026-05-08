@@ -215,12 +215,11 @@ pub enum PathType {
 /// Converts a filename within the server root into a next pathname.
 #[turbo_tasks::function]
 pub async fn pathname_for_path(
-    server_root: FileSystemPath,
-    server_path: FileSystemPath,
+    server_root: &FileSystemPath,
+    server_path: &FileSystemPath,
     path_ty: PathType,
 ) -> Result<Vc<RcStr>> {
-    let server_path_value = server_path.clone();
-    let path = if let Some(path) = server_root.get_path_to(&server_path_value) {
+    let path = if let Some(path) = server_root.get_path_to(server_path) {
         path
     } else {
         turbobail!("server_path ({server_path}) is not in server_root ({server_root})");

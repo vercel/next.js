@@ -426,7 +426,7 @@ pub enum ImportMapResult {
 
 async fn import_mapping_to_result(
     mapping: Vc<ReplacedImportMapping>,
-    lookup_path: FileSystemPath,
+    lookup_path: &FileSystemPath,
     request: Vc<Request>,
 ) -> Result<ImportMapResult> {
     Ok(match &*mapping.await? {
@@ -483,18 +483,15 @@ async fn import_mapping_to_result(
         }
         ReplacedImportMapping::Alternatives(list) => ImportMapResult::Alternatives(
             list.iter()
-                .map(|mapping| {
-                    Box::pin(import_mapping_to_result(
-                        **mapping,
-                        lookup_path.clone(),
-                        request,
-                    ))
-                })
+                .map(|mapping| Box::pin(import_mapping_to_result(**mapping, lookup_path, request)))
                 .try_join()
                 .await?,
         ),
         ReplacedImportMapping::Dynamic(replacement) => {
-            replacement.result(lookup_path, request).owned().await?
+            replacement
+                .result(lookup_path.clone(), request)
+                .owned()
+                .await?
         }
         ReplacedImportMapping::Error(issue) => ImportMapResult::Error(*issue),
     })
@@ -553,7 +550,7 @@ impl ImportMap {
     // lookup
     pub async fn lookup(
         &self,
-        lookup_path: FileSystemPath,
+        lookup_path: &FileSystemPath,
         request: Vc<Request>,
     ) -> Result<ImportMapResult> {
         // relative requests must not match global wildcard aliases.
@@ -588,7 +585,7 @@ impl ImportMap {
             .chain(lookup_rel_parent)
             .chain(lookup)
             .map(async |result| {
-                import_mapping_to_result(*result?.output.await?, lookup_path.clone(), request).await
+                import_mapping_to_result(*result?.output.await?, lookup_path, request).await
             })
             .try_join()
             .await?;
@@ -606,12 +603,12 @@ impl ResolvedMap {
     #[turbo_tasks::function]
     pub async fn lookup(
         &self,
-        resolved: FileSystemPath,
-        lookup_path: FileSystemPath,
+        resolved: &FileSystemPath,
+        lookup_path: &FileSystemPath,
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
         for (root, glob, mapping) in self.by_glob.iter() {
-            if let Some(path) = root.get_path_to(&resolved)
+            if let Some(path) = root.get_path_to(resolved)
                 && glob.await?.matches(path)
             {
                 return Ok(import_mapping_to_result(

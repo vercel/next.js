@@ -263,7 +263,7 @@ impl RouteTree {
     // TODO(WEB-1252) It's unnecessary to compute all [`GetContentSourceContent`]s at once, we could
     // return some lazy iterator to make it more efficient.
     #[turbo_tasks::function]
-    pub async fn get(self: Vc<Self>, path: RcStr) -> Result<Vc<GetContentSourceContents>> {
+    pub async fn get(self: Vc<Self>, path: &RcStr) -> Result<Vc<GetContentSourceContents>> {
         let RouteTree {
             base,
             sources,

@@ -133,7 +133,7 @@ pub async fn find_pages_structure(
 /// Handles the root pages directory.
 #[turbo_tasks::function]
 async fn get_pages_structure_for_root_directory(
-    project_root: FileSystemPath,
+    project_root: &FileSystemPath,
     project_path: Vc<FileSystemPathOption>,
     next_router_path: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
@@ -321,7 +321,7 @@ async fn get_pages_structure_for_root_directory(
 /// Calls itself recursively for sub directories.
 #[turbo_tasks::function]
 async fn get_pages_structure_for_directory(
-    project_path: FileSystemPath,
+    project_path: &FileSystemPath,
     next_router_path: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesDirectoryStructure>> {

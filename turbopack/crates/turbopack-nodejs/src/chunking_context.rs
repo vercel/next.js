@@ -400,7 +400,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn asset_url(&self, ident: FileSystemPath, tag: Option<RcStr>) -> Result<Vc<RcStr>> {
+    async fn asset_url(&self, ident: &FileSystemPath, tag: &Option<RcStr>) -> Result<Vc<RcStr>> {
         let asset_path = ident.to_string();
 
         let client_root = tag
@@ -440,12 +440,11 @@ impl ChunkingContext for NodeJsChunkingContext {
         prefix: Option<RcStr>,
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
-        let root_path = self.chunk_root_path.clone();
         let name = ident
             .output_name(self.root_path.clone(), prefix, extension)
             .owned()
             .await?;
-        Ok(root_path.join(&name)?.cell())
+        Ok(self.chunk_root_path.join(&name)?.cell())
     }
 
     #[turbo_tasks::function]
@@ -571,7 +570,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     pub async fn entry_chunk_group(
         self: ResolvedVc<Self>,
         path: FileSystemPath,
-        chunk_group: ChunkGroup,
+        chunk_group: &ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,

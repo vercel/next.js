@@ -58,7 +58,7 @@ async fn emit(
 #[turbo_tasks::function]
 async fn internal_assets(
     intermediate_asset: ResolvedVc<Box<dyn OutputAsset>>,
-    intermediate_output_path: FileSystemPath,
+    intermediate_output_path: &FileSystemPath,
 ) -> Result<Vc<OutputAssets>> {
     let all_assets = expand_output_assets(
         std::iter::once(ExpandOutputAssetsInput::Asset(intermediate_asset)),
@@ -69,7 +69,7 @@ async fn internal_assets(
         .into_iter()
         .map(async |asset| {
             let path = asset.path().await?;
-            if path.is_inside_ref(&intermediate_output_path) {
+            if path.is_inside_ref(intermediate_output_path) {
                 Ok(Some(asset))
             } else {
                 Ok(None)
@@ -88,11 +88,10 @@ pub struct AssetsForSourceMapping(FxHashMap<String, ResolvedVc<Box<dyn GenerateS
 #[turbo_tasks::function]
 async fn internal_assets_for_source_mapping(
     intermediate_asset: Vc<Box<dyn OutputAsset>>,
-    intermediate_output_path: FileSystemPath,
+    intermediate_output_path: &FileSystemPath,
 ) -> Result<Vc<AssetsForSourceMapping>> {
     let internal_assets =
         internal_assets(intermediate_asset, intermediate_output_path.clone()).await?;
-    let intermediate_output_path = intermediate_output_path.clone();
     let mut internal_assets_for_source_mapping = FxHashMap::default();
     for asset in internal_assets.iter() {
         if let Some(generate_source_map) =

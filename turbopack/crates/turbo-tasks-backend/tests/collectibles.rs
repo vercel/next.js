@@ -232,7 +232,7 @@ async fn my_transitive_emitting_function_with_child_scope(
 }
 
 #[turbo_tasks::function]
-async fn my_emitting_function(key: RcStr) -> Result<()> {
+async fn my_emitting_function(key: &RcStr) -> Result<()> {
     let _ = key;
     sleep(Duration::from_millis(100)).await;
     emit(ResolvedVc::upcast::<Box<dyn ValueToString>>(Thing::new(

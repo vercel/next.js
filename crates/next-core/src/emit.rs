@@ -47,9 +47,9 @@ pub async fn emit_all_assets(
 #[turbo_tasks::function]
 pub async fn emit_assets(
     assets: Vc<ExpandedOutputAssets>,
-    node_root: FileSystemPath,
-    client_relative_path: FileSystemPath,
-    client_output_path: FileSystemPath,
+    node_root: &FileSystemPath,
+    client_relative_path: &FileSystemPath,
+    client_output_path: &FileSystemPath,
 ) -> Result<()> {
     enum Location {
         Node,
@@ -61,9 +61,9 @@ pub async fn emit_assets(
         .copied()
         .map(async |asset| {
             let path = asset.path().owned().await?;
-            let location = if path.is_inside_ref(&node_root) {
+            let location = if path.is_inside_ref(node_root) {
                 Location::Node
-            } else if path.is_inside_ref(&client_relative_path) {
+            } else if path.is_inside_ref(client_relative_path) {
                 Location::Client
             } else {
                 return Ok(None);
@@ -210,8 +210,8 @@ async fn emit_rebase(
 async fn assets_diff(
     asset1: Vc<Box<dyn OutputAsset>>,
     asset2: Vc<Box<dyn OutputAsset>>,
-    extension: RcStr,
-    node_root: FileSystemPath,
+    extension: &RcStr,
+    node_root: &FileSystemPath,
 ) -> Result<Vc<Option<RcStr>>> {
     let content1 = asset1.content().await?;
     let content2 = asset2.content().await?;
@@ -229,18 +229,18 @@ async fn assets_diff(
                     } else {
                         // Write both versions under node_root as <hash>.<ext> so the
                         // user can diff them.
-                        let ext = &*extension;
+
                         let hash1 = encode_hex(hash_xxh3_hash64(file1.content().content_hash()));
                         let hash2 = encode_hex(hash_xxh3_hash64(file2.content().content_hash()));
-                        let name1 = if ext.is_empty() {
+                        let name1 = if extension.is_empty() {
                             hash1
                         } else {
-                            format!("{hash1}.{ext}")
+                            format!("{hash1}.{extension}")
                         };
-                        let name2 = if ext.is_empty() {
+                        let name2 = if extension.is_empty() {
                             hash2
                         } else {
-                            format!("{hash2}.{ext}")
+                            format!("{hash2}.{extension}")
                         };
                         let path1 = node_root.join(&name1)?;
                         let path2 = node_root.join(&name2)?;

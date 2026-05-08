@@ -59,7 +59,7 @@ impl ChunkData {
 
     #[turbo_tasks::function]
     pub async fn from_asset(
-        output_root: FileSystemPath,
+        output_root: &FileSystemPath,
         chunk: Vc<Box<dyn OutputAsset>>,
     ) -> Result<Vc<ChunkDataOption>> {
         let path = chunk.path().await?;
@@ -138,7 +138,7 @@ impl ChunkData {
 
     #[turbo_tasks::function]
     pub async fn from_assets(
-        output_root: FileSystemPath,
+        output_root: &FileSystemPath,
         chunks: Vc<OutputAssets>,
     ) -> Result<Vc<ChunksData>> {
         Ok(Vc::cell(

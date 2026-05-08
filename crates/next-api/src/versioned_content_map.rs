@@ -187,7 +187,7 @@ impl VersionedContentMap {
     #[turbo_tasks::function]
     pub async fn get_source_map(
         self: Vc<Self>,
-        path: FileSystemPath,
+        path: &FileSystemPath,
         section: Option<RcStr>,
     ) -> Result<Vc<FileContent>> {
         let Some(asset) = &*self.get_asset(path.clone()).await? else {
@@ -208,13 +208,13 @@ impl VersionedContentMap {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_asset(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<OptionOutputAsset>> {
+    pub async fn get_asset(self: Vc<Self>, path: &FileSystemPath) -> Result<Vc<OptionOutputAsset>> {
         let result = self.raw_get(path.clone()).await?;
         if let Some(MapEntry {
             assets_operation: _,
             path_to_asset,
         }) = &*result
-            && let Some(&asset) = path_to_asset.get(&path)
+            && let Some(&asset) = path_to_asset.get(path)
         {
             return Ok(Vc::cell(Some(asset)));
         }
@@ -223,7 +223,7 @@ impl VersionedContentMap {
     }
 
     #[turbo_tasks::function]
-    pub async fn keys_in_path(&self, root: FileSystemPath) -> Result<Vc<Vec<RcStr>>> {
+    pub async fn keys_in_path(&self, root: &FileSystemPath) -> Result<Vc<Vec<RcStr>>> {
         let keys = {
             let map = &self.map_path_to_op.get().0;
             map.keys().cloned().collect::<Vec<_>>()
@@ -240,10 +240,10 @@ impl VersionedContentMap {
     }
 
     #[turbo_tasks::function]
-    fn raw_get(&self, path: FileSystemPath) -> Vc<OptionMapEntry> {
+    fn raw_get(&self, path: &FileSystemPath) -> Vc<OptionMapEntry> {
         let assets = {
             let map = &self.map_path_to_op.get().0;
-            map.get(&path).and_then(|m| m.0.iter().next().copied())
+            map.get(path).and_then(|m| m.0.iter().next().copied())
         };
         let Some(assets) = assets else {
             return Vc::cell(None);

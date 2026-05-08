@@ -173,10 +173,10 @@ impl GenerateSourceMap for EcmascriptBrowserChunkContent {
     }
 
     #[turbo_tasks::function]
-    async fn by_section(self: Vc<Self>, section: RcStr) -> Result<Vc<FileContent>> {
+    async fn by_section(self: Vc<Self>, section: &RcStr) -> Result<Vc<FileContent>> {
         // Weirdly, the ContentSource will have already URL decoded the ModuleId, and we
         // can't reparse that via serde.
-        if let Ok(id) = ModuleId::parse(&section) {
+        if let Ok(id) = ModuleId::parse(section) {
             let entries = self.entries().await?;
             for (entry_id, entry) in entries.iter() {
                 if id == *entry_id {

@@ -44,7 +44,7 @@ impl StaticAssetsContentSource {
 
 // TODO(WEB-1251) It would be better to lazily enumerate the directory
 #[turbo_tasks::function]
-async fn get_routes_from_directory(dir: FileSystemPath) -> Result<Vc<RouteTree>> {
+async fn get_routes_from_directory(dir: &FileSystemPath) -> Result<Vc<RouteTree>> {
     let dir = dir.read_dir().await?;
     let DirectoryContent::Entries(entries) = &*dir else {
         return Ok(RouteTree::empty());
@@ -98,7 +98,7 @@ impl StaticAssetsContentSourceItem {
 #[turbo_tasks::value_impl]
 impl GetContentSourceContent for StaticAssetsContentSourceItem {
     #[turbo_tasks::function]
-    fn get(&self, _path: RcStr, _data: ContentSourceData) -> Vc<ContentSourceContent> {
+    fn get(&self, _path: &RcStr, _data: ContentSourceData) -> Vc<ContentSourceContent> {
         let content = Vc::upcast::<Box<dyn Asset>>(FileSource::new(self.path.clone())).content();
         ContentSourceContent::static_content(content.versioned())
     }

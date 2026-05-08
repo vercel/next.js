@@ -20,23 +20,23 @@ pub struct ReadGlobResult {
 /// DETERMINISM: Result is in random order. Either sort result or do not depend
 /// on the order.
 #[turbo_tasks::function(fs)]
-pub async fn read_glob(directory: FileSystemPath, glob: Vc<Glob>) -> Result<Vc<ReadGlobResult>> {
+pub async fn read_glob(directory: &FileSystemPath, glob: Vc<Glob>) -> Result<Vc<ReadGlobResult>> {
     read_glob_internal("", directory, glob).await
 }
 
 #[turbo_tasks::function(fs)]
 async fn read_glob_inner(
-    prefix: RcStr,
-    directory: FileSystemPath,
+    prefix: &RcStr,
+    directory: &FileSystemPath,
     glob: Vc<Glob>,
 ) -> Result<Vc<ReadGlobResult>> {
-    read_glob_internal(&prefix, directory, glob).await
+    read_glob_internal(prefix, directory, glob).await
 }
 
 // The `prefix` represents the relative directory path where symlinks are not resolve.
 async fn read_glob_internal(
     prefix: &str,
-    directory: FileSystemPath,
+    directory: &FileSystemPath,
     glob: Vc<Glob>,
 ) -> Result<Vc<ReadGlobResult>> {
     let dir = directory.read_dir().await?;
@@ -135,7 +135,7 @@ async fn resolve_symlink_safely(entry: DirectoryEntry) -> Result<DirectoryEntry>
 ///  but unlike read_glob doesn't accumulate data.
 #[turbo_tasks::function(fs)]
 pub async fn track_glob(
-    directory: FileSystemPath,
+    directory: &FileSystemPath,
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {
@@ -144,17 +144,17 @@ pub async fn track_glob(
 
 #[turbo_tasks::function(fs)]
 async fn track_glob_inner(
-    prefix: RcStr,
-    directory: FileSystemPath,
+    prefix: &RcStr,
+    directory: &FileSystemPath,
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {
-    track_glob_internal(&prefix, directory, glob, include_dot_files).await
+    track_glob_internal(prefix, directory, glob, include_dot_files).await
 }
 
 async fn track_glob_internal(
     prefix: &str,
-    directory: FileSystemPath,
+    directory: &FileSystemPath,
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {
@@ -461,13 +461,13 @@ pub mod tests {
     }
 
     #[turbo_tasks::function(operation)]
-    pub async fn delete(path: FileSystemPath) -> anyhow::Result<()> {
+    pub async fn delete(path: &FileSystemPath) -> anyhow::Result<()> {
         path.write(FileContent::NotFound.cell()).await?;
         Ok(())
     }
 
     #[turbo_tasks::function(operation)]
-    pub async fn write(path: FileSystemPath, contents: RcStr) -> anyhow::Result<()> {
+    pub async fn write(path: &FileSystemPath, contents: RcStr) -> anyhow::Result<()> {
         path.write(
             FileContent::Content(crate::File::from_bytes(contents.to_string().into_bytes())).cell(),
         )
@@ -476,7 +476,7 @@ pub mod tests {
     }
 
     #[turbo_tasks::function(operation)]
-    pub fn track_star_star_glob(path: FileSystemPath) -> Vc<Completion> {
+    pub fn track_star_star_glob(path: &FileSystemPath) -> Vc<Completion> {
         path.track_glob(Glob::new(rcstr!("**"), GlobOptions::default()), false)
     }
 

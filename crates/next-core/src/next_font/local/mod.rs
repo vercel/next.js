@@ -75,7 +75,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
     #[turbo_tasks::function]
     async fn before_resolve(
         self: Vc<Self>,
-        lookup_path: FileSystemPath,
+        lookup_path: &FileSystemPath,
         _reference_type: ReferenceType,
         request_vc: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
@@ -282,7 +282,7 @@ async fn get_font_css_properties(
 }
 
 #[turbo_tasks::function]
-fn font_options_from_query_map(query: RcStr) -> Result<Vc<NextFontLocalOptions>> {
+fn font_options_from_query_map(query: &RcStr) -> Result<Vc<NextFontLocalOptions>> {
     let query_map = qstring::QString::from(query.as_str());
 
     if query_map.len() != 1 {

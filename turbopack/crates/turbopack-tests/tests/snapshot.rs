@@ -263,8 +263,8 @@ async fn run(resource: PathBuf) -> Result<()> {
 }
 
 #[turbo_tasks::function(operation)]
-async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
-    let test_path = canonicalize(&resource)?;
+async fn run_test_operation(resource: &RcStr) -> Result<Vc<FileSystemPath>> {
+    let test_path = canonicalize(resource)?;
     assert!(test_path.exists(), "{resource} does not exist");
     assert!(
         test_path.is_dir(),

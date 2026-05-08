@@ -28,7 +28,7 @@ impl BootstrapConfig {
 pub async fn bootstrap(
     asset: ResolvedVc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
-    base_path: FileSystemPath,
+    base_path: &FileSystemPath,
     bootstrap_asset: Vc<Box<dyn Source>>,
     inner_assets: Vc<InnerAssets>,
     config: Vc<BootstrapConfig>,

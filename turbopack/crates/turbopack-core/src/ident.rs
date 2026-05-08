@@ -179,9 +179,9 @@ impl AssetIdent {
     #[turbo_tasks::function]
     pub async fn output_name(
         &self,
-        context_path: FileSystemPath,
-        prefix: Option<RcStr>,
-        expected_extension: RcStr,
+        context_path: &FileSystemPath,
+        prefix: &Option<RcStr>,
+        expected_extension: &RcStr,
     ) -> Result<Vc<RcStr>> {
         debug_assert!(
             expected_extension.starts_with("."),
@@ -197,7 +197,7 @@ impl AssetIdent {
         } else {
             escape_file_path(&self.path.to_string_ref().await?)
         };
-        let removed_extension = name.ends_with(&*expected_extension);
+        let removed_extension = name.ends_with(&**expected_extension);
         if removed_extension {
             name.truncate(name.len() - expected_extension.len());
         }
@@ -338,7 +338,7 @@ impl AssetIdent {
         if !removed_extension {
             name += "._";
         }
-        name += &expected_extension;
+        name += expected_extension;
         Ok(Vc::cell(name.into()))
     }
 }

@@ -1767,7 +1767,7 @@ impl AppEndpoint {
         self: Vc<Self>,
         client_references: Vc<ClientReferenceGraphResult>,
         server_action_manifest_loader: ResolvedVc<Box<dyn EvaluatableAsset>>,
-        server_path: FileSystemPath,
+        server_path: &FileSystemPath,
         process_client_assets: bool,
         module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {

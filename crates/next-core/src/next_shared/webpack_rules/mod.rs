@@ -139,16 +139,16 @@ pub struct OptionWebpackLoadersOptions(Option<ResolvedVc<WebpackLoadersOptions>>
 
 #[turbo_tasks::function]
 pub async fn webpack_loader_options(
-    project_path: FileSystemPath,
+    project_path: &FileSystemPath,
     next_config: Vc<NextConfig>,
     builtin_conditions: BTreeSet<WebpackLoaderBuiltinCondition>,
 ) -> Result<Vc<OptionWebpackLoadersOptions>> {
     let user_rules = next_config.webpack_rules(project_path.clone()).await?;
     let mut rules = (*user_rules).clone();
 
-    rules.append(&mut get_sass_loader_rules(&project_path, next_config, &user_rules).await?);
+    rules.append(&mut get_sass_loader_rules(project_path, next_config, &user_rules).await?);
     rules.append(
-        &mut get_babel_loader_rules(&project_path, next_config, &builtin_conditions, &user_rules)
+        &mut get_babel_loader_rules(project_path, next_config, &builtin_conditions, &user_rules)
             .await?,
     );
 

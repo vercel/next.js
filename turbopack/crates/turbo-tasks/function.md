@@ -27,8 +27,26 @@ The `#[turbo_tasks::function]` macro **rewrites the arguments and return values*
 
 - Method arguments of **`&self`** are **rewritten to `self: Vc<Self>`**.
 
+- Function arguments declared with **`&T`** keep an external signature taking `T` by value, but the **body sees `&T`** and skips a per-execution clone of the cached argument.
+  - The cache key is still composed from owned values, so callers pass owned values regardless of how the body declared the parameter. The macro inserts a clone shadow (`let arg = arg.clone();`) for any parameter the user declared by value, so existing bodies keep compiling unchanged.
+  - Mixed signatures are supported: a body can declare some parameters by value and others by reference. Each by-value parameter gets its own clone shadow.
+  - **Carve-outs:** explicit lifetimes (`&'a T`, `&'static T`), `&mut T`, `&dyn Trait`, `&[T]`, `&str` are **not** valid task input shapes and the macro will reject them. Use the owned form (`String`, `RcStr`, `Vec<T>`, …) instead.
+
+#### When to take `&T`
+
+Prefer by-reference for any **non-`Copy`** task input where the body only borrows the value:
+
+- Collections: `Vec<T>`, `HashMap<…>`, `IndexMap<…>`, `BTreeMap<…>`, `BTreeSet<…>`, `FxHashMap<…>`, … — including `Vec<Vc<T>>` and friends. The vec/map _itself_ is the storage we'd otherwise clone.
+- Owned strings / paths: `String`, `PathBuf`, `OsString`, `FileSystemPath`, `RcStr`.
+- Custom struct/enum types that contain any of the above.
+
+Stick with by-value for `Copy` types — `Vc<T>`, `ResolvedVc<T>`, `OperationVc<T>`, primitives — and for `TransientInstance<T>` / `TransientValue<T>`. Their clone is already a pointer copy or smaller, and the wrap-and-shadow churn is not worth it.
+
+The carve-out for [`#[turbo_tasks::function(operation)]`][operation-fns] still applies: operations don't run user arguments through [`FromTaskInput`], but they do get the same by-reference wrapping, so e.g. `&Vec<OperationVc<T>>` works on an operation function the same way it does elsewhere.
+
 [`ResolvedVc<T>`]: crate::ResolvedVc
 [`FromTaskInput`]: crate::task::FromTaskInput
+[operation-fns]: crate::OperationVc
 
 ### Return Type Rewrite Rules
 
@@ -54,8 +72,10 @@ async fn foo(
     b: Vc<i32>,
     c: ResolvedVc<i32>,
     d: Option<Vec<ResolvedVc<i32>>>,
+    e: &FileSystemPath,
 ) -> Result<Vc<i32>> {
-    // ...
+    // body sees `e: &FileSystemPath` directly — no clone of the cached
+    // argument before the body runs.
 }
 ```
 
@@ -68,6 +88,7 @@ fn foo(
     b: Vc<i32>,
     c: Vc<i32>,               // was: ResolvedVc<i32>
     d: Option<Vec<Vc<i32>>>,  // was: Option<Vec<ResolvedVc<i32>>>
+    e: FileSystemPath,        // was: &FileSystemPath  (caller still passes owned)
 ) -> Vc<i32>;                 // was: impl Future<Output = Result<Vc<i32>>>
 ```
 

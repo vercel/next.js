@@ -82,7 +82,7 @@ pub struct OutputAssetsWithPaths(Vec<(ResolvedVc<Box<dyn OutputAsset>>, RcStr)>)
 #[turbo_tasks::function]
 pub async fn expand_outputs(
     project: Vc<Project>,
-    root: FileSystemPath,
+    root: &FileSystemPath,
 ) -> Result<Vc<OutputAssetsWithPaths>> {
     let entrypoint_groups = project.get_all_endpoint_groups(false).await?;
 

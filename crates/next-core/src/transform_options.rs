@@ -21,10 +21,11 @@ async fn get_typescript_options(
     tsconfig_path: Option<FileSystemPath>,
 ) -> Result<Option<Vec<(Vc<FileJsonContent>, ResolvedVc<Box<dyn Source>>)>>> {
     if let Some(tsconfig_path) = tsconfig_path {
+        let options = node_cjs_resolve_options(tsconfig_path.root().owned().await?);
         let tsconfigs = read_tsconfigs(
             tsconfig_path.read(),
-            ResolvedVc::upcast(FileSource::new(tsconfig_path.clone()).to_resolved().await?),
-            node_cjs_resolve_options(tsconfig_path.root().owned().await?),
+            ResolvedVc::upcast(FileSource::new(tsconfig_path).to_resolved().await?),
+            options,
         )
         .await
         .ok();
@@ -164,7 +165,7 @@ pub async fn get_decorators_transform_options(
 
 #[turbo_tasks::function]
 pub async fn get_jsx_transform_options(
-    project_path: FileSystemPath,
+    project_path: &FileSystemPath,
     mode: Vc<NextMode>,
     resolve_options_context: Option<Vc<ResolveOptionsContext>>,
     is_rsc_context: bool,

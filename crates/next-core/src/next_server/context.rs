@@ -124,7 +124,7 @@ impl ServerContextType {
 
 #[turbo_tasks::function]
 pub async fn get_server_resolve_options_context(
-    project_path: FileSystemPath,
+    project_path: &FileSystemPath,
     ty: ServerContextType,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
@@ -1004,7 +1004,7 @@ fn client_directive_transform_plugin(transition_name: RcStr) -> Vc<TransformPlug
 }
 
 #[turbo_tasks::function]
-fn client_disallowed_directive_transform_plugin(error_proxy_module: RcStr) -> Vc<TransformPlugin> {
+fn client_disallowed_directive_transform_plugin(error_proxy_module: &RcStr) -> Vc<TransformPlugin> {
     Vc::cell(Box::new(ClientDisallowedDirectiveTransformer::new(
         error_proxy_module.to_string(),
     )) as Box<dyn CustomTransformer + Send + Sync>)

@@ -131,7 +131,7 @@ pub async fn get_app_route_entry(
 #[turbo_tasks::function]
 async fn wrap_edge_route(
     asset_context: Vc<Box<dyn AssetContext>>,
-    project_root: FileSystemPath,
+    project_root: &FileSystemPath,
     entry: ResolvedVc<Box<dyn Module>>,
     page: AppPage,
     next_config: Vc<NextConfig>,

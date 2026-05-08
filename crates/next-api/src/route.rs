@@ -157,7 +157,7 @@ impl EndpointGroup {
 }
 
 #[turbo_tasks::function]
-async fn output_of_endpoints(endpoints: Vec<Vc<Box<dyn Endpoint>>>) -> Result<Vc<OutputAssets>> {
+async fn output_of_endpoints(endpoints: &Vec<Vc<Box<dyn Endpoint>>>) -> Result<Vc<OutputAssets>> {
     let assets = endpoints
         .iter()
         .map(async |endpoint| Ok(*endpoint.output().await?.output_assets))
@@ -168,7 +168,7 @@ async fn output_of_endpoints(endpoints: Vec<Vc<Box<dyn Endpoint>>>) -> Result<Vc
 
 #[turbo_tasks::function]
 async fn module_graphs_of_endpoints(
-    endpoints: Vec<Vc<Box<dyn Endpoint>>>,
+    endpoints: &Vec<Vc<Box<dyn Endpoint>>>,
 ) -> Result<Vc<ModuleGraphs>> {
     let module_graphs = endpoints
         .iter()

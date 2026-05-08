@@ -530,7 +530,7 @@ impl ChunkType for CssChunkType {
     async fn chunk(
         &self,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        chunk_items_or_batches: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
+        chunk_items_or_batches: &Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
         _batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
     ) -> Result<Vc<Box<dyn Chunk>>> {
         let mut chunk_items = Vec::new();
@@ -538,7 +538,7 @@ impl ChunkType for CssChunkType {
         for item in chunk_items_or_batches {
             match item {
                 ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(chunk_item) => {
-                    chunk_items.push(chunk_item);
+                    chunk_items.push(*chunk_item);
                 }
                 ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch) => {
                     let batch = batch.await?;

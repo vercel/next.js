@@ -130,7 +130,7 @@ async fn get_base64_file_content(path: FileSystemPath) -> Result<String> {
 }
 
 #[turbo_tasks::function]
-async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<Box<dyn Source>>> {
+async fn static_route_source(mode: NextMode, path: &FileSystemPath) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
 
@@ -213,7 +213,7 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
 }
 
 #[turbo_tasks::function]
-async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn Source>>> {
+async fn dynamic_text_route_source(path: &FileSystemPath) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
 

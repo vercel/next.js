@@ -1522,8 +1522,8 @@ pub struct PatternMatches(Vec<PatternMatch>);
 /// symlinks when they are interested in that.
 #[turbo_tasks::function]
 pub async fn read_matches(
-    lookup_dir: FileSystemPath,
-    prefix: RcStr,
+    lookup_dir: &FileSystemPath,
+    prefix: &RcStr,
     force_in_lookup_dir: bool,
     pattern: Vc<Pattern>,
 ) -> Result<Vc<PatternMatches>> {

@@ -354,8 +354,8 @@ struct NodeFileTraceResult {
 
 #[turbo_tasks::function(operation)]
 async fn node_file_trace_operation(
-    package_root: RcStr,
-    input: RcStr,
+    package_root: &RcStr,
+    input: &RcStr,
     directory: RcStr,
 ) -> Result<Vc<NodeFileTraceResult>> {
     let workspace_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(DiskFileSystem::new(
@@ -365,7 +365,7 @@ async fn node_file_trace_operation(
     let input_dir = workspace_fs.root().owned().await?;
     let input = input_dir.join(&format!("tests/{input}"))?;
 
-    let output_fs = DiskFileSystem::new(rcstr!("output"), Vc::cell(directory.clone()));
+    let output_fs = DiskFileSystem::new(rcstr!("output"), Vc::cell(directory));
     let output_dir = output_fs.root().owned().await?;
 
     let source = FileSource::new(input);

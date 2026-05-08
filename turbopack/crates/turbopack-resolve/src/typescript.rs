@@ -228,17 +228,17 @@ impl ValueDefault for TsConfigResolveOptions {
 #[turbo_tasks::function]
 async fn try_join_base_url(
     source: ResolvedVc<Box<dyn Source>>,
-    base_url: RcStr,
+    base_url: &RcStr,
 ) -> Result<Vc<FileSystemPathOption>> {
     Ok(Vc::cell(
-        source.ident().await?.path.parent().try_join(&base_url),
+        source.ident().await?.path.parent().try_join(base_url),
     ))
 }
 
 /// Returns the resolve options
 #[turbo_tasks::function]
 pub async fn tsconfig_resolve_options(
-    tsconfig: FileSystemPath,
+    tsconfig: &FileSystemPath,
 ) -> Result<Vc<TsConfigResolveOptions>> {
     let configs = read_tsconfigs(
         tsconfig.read(),

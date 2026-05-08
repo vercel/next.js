@@ -308,7 +308,7 @@ fn disk_file_system_root_operation(fs: ResolvedVc<DiskFileSystem>) -> Vc<FileSys
 #[turbo_tasks::function]
 async fn read_path(
     invalidations: TransientInstance<PathInvalidations>,
-    path: FileSystemPath,
+    path: &FileSystemPath,
 ) -> anyhow::Result<()> {
     let path_str = path.path.clone();
     invalidations.0.lock().unwrap().insert(path_str);
@@ -319,7 +319,7 @@ async fn read_path(
 #[turbo_tasks::function]
 async fn read_link(
     invalidations: TransientInstance<PathInvalidations>,
-    path: FileSystemPath,
+    path: &FileSystemPath,
 ) -> anyhow::Result<()> {
     let path_str = path.path.clone();
     invalidations.0.lock().unwrap().insert(path_str);
@@ -330,7 +330,7 @@ async fn read_link(
 #[turbo_tasks::function]
 async fn write_path(
     invalidations: TransientInstance<PathInvalidations>,
-    path: FileSystemPath,
+    path: &FileSystemPath,
 ) -> anyhow::Result<()> {
     let path_str = path.path.clone();
     invalidations.0.lock().unwrap().insert(path_str);
@@ -342,7 +342,7 @@ async fn write_path(
 #[turbo_tasks::function]
 async fn write_link(
     invalidations: TransientInstance<PathInvalidations>,
-    path: FileSystemPath,
+    path: &FileSystemPath,
     target: RcStr,
     is_directory: bool,
 ) -> anyhow::Result<()> {
@@ -364,7 +364,7 @@ async fn write_link(
 #[turbo_tasks::function(operation)]
 async fn read_or_write_all_paths_operation(
     invalidations: TransientInstance<PathInvalidations>,
-    root: FileSystemPath,
+    root: &FileSystemPath,
     depth: usize,
     width: usize,
     symlink_count: u32,

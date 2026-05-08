@@ -1,0 +1,71 @@
+id: turbo-task-pass-by-ref-hint
+valid:
+  # Already by-ref — no hint.
+  - |
+    #[turbo_tasks::function]
+    pub async fn ok_by_ref(items: &Vec<i32>) -> Vc<i32> {}
+  - |
+    #[turbo_tasks::function]
+    pub async fn ok_path_by_ref(p: &FileSystemPath) -> Vc<i32> {}
+  # Vc-shaped types — Copy, no hint.
+  - |
+    #[turbo_tasks::function]
+    pub async fn vc_only(v: Vc<Foo>) -> Vc<i32> {}
+  - |
+    #[turbo_tasks::function]
+    pub async fn resolved_vc(v: ResolvedVc<Foo>) -> Vc<i32> {}
+  - |
+    #[turbo_tasks::function]
+    pub async fn vc_wrapping_vec(v: Vc<Vec<Foo>>) -> Vc<i32> {}
+  # Function not annotated — out of scope.
+  - |
+    pub async fn plain_fn(items: Vec<i32>) {}
+  # Primitives by value — no hint.
+  - |
+    #[turbo_tasks::function]
+    pub async fn primitive(n: u32) -> Vc<i32> {}
+
+invalid:
+  # Vec<...> — flag, including when elements are Vc.
+  - |
+    #[turbo_tasks::function]
+    pub async fn flag_vec(items: Vec<i32>) -> Vc<i32> {}
+  - |
+    #[turbo_tasks::function]
+    pub async fn flag_vec_of_vc(items: Vec<Vc<Foo>>) -> Vc<i32> {}
+  - |
+    #[turbo_tasks::function]
+    pub async fn flag_vec_of_resolved(items: Vec<ResolvedVc<Foo>>) -> Vc<i32> {}
+  # Map types — flag.
+  - |
+    #[turbo_tasks::function]
+    pub async fn flag_hashmap(m: HashMap<String, i32>) -> Vc<i32> {}
+  - |
+    #[turbo_tasks::function]
+    pub async fn flag_indexmap(m: IndexMap<String, i32>) -> Vc<i32> {}
+  - |
+    #[turbo_tasks::function]
+    pub async fn flag_fxhashmap(m: FxHashMap<String, i32>) -> Vc<i32> {}
+  - |
+    #[turbo_tasks::function]
+    pub async fn flag_btreemap(m: BTreeMap<String, i32>) -> Vc<i32> {}
+  - |
+    #[turbo_tasks::function]
+    pub async fn flag_btreeset(s: BTreeSet<i32>) -> Vc<i32> {}
+  # Owned strings / paths — flag.
+  - |
+    #[turbo_tasks::function]
+    pub async fn flag_string(s: String) -> Vc<i32> {}
+  - |
+    #[turbo_tasks::function]
+    pub async fn flag_pathbuf(p: PathBuf) -> Vc<i32> {}
+  - |
+    #[turbo_tasks::function]
+    pub async fn flag_path(p: FileSystemPath) -> Vc<i32> {}
+  # Trait declaration also flagged.
+  - |
+    #[turbo_tasks::value_trait]
+    pub trait FooTrait {
+        #[turbo_tasks::function]
+        fn flag_in_trait(p: FileSystemPath) -> Vc<i32>;
+    }

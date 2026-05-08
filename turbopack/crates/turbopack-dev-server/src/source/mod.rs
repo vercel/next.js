@@ -109,7 +109,7 @@ pub trait ContentSourceSideEffect {
 #[turbo_tasks::value_impl]
 impl GetContentSourceContent for ContentSourceContent {
     #[turbo_tasks::function]
-    fn get(self: Vc<Self>, _path: RcStr, _data: ContentSourceData) -> Vc<ContentSourceContent> {
+    fn get(self: Vc<Self>, _path: &RcStr, _data: ContentSourceData) -> Vc<ContentSourceContent> {
         self
     }
 }

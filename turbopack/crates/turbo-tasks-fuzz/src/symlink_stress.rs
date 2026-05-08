@@ -178,7 +178,7 @@ fn disk_file_system_root_operation(fs: ResolvedVc<DiskFileSystem>) -> Vc<FileSys
 
 #[turbo_tasks::function(operation)]
 async fn create_initial_symlinks_operation(
-    symlinks_dir: FileSystemPath,
+    symlinks_dir: &FileSystemPath,
     count: usize,
     target: RcStr,
 ) -> anyhow::Result<()> {
@@ -191,14 +191,14 @@ async fn create_initial_symlinks_operation(
 
 #[turbo_tasks::function(operation)]
 async fn write_symlinks_batch_operation(
-    symlinks_dir: FileSystemPath,
-    updates: Vec<(usize, usize)>,
+    symlinks_dir: &FileSystemPath,
+    updates: &Vec<(usize, usize)>,
 ) -> anyhow::Result<()> {
     updates
-        .into_iter()
+        .iter()
         .map(|(symlink_idx, target_idx)| {
             let target = RcStr::from(format!("../_targets/{}", target_idx));
-            write_symlink(symlinks_dir.clone(), symlink_idx, target)
+            write_symlink(symlinks_dir.clone(), *symlink_idx, target)
         })
         .try_join()
         .await?;
@@ -207,7 +207,7 @@ async fn write_symlinks_batch_operation(
 
 #[turbo_tasks::function]
 async fn write_symlink(
-    symlinks_dir: FileSystemPath,
+    symlinks_dir: &FileSystemPath,
     symlink_idx: usize,
     target: RcStr,
 ) -> anyhow::Result<()> {

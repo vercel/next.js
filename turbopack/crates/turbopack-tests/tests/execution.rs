@@ -310,8 +310,8 @@ struct PreparedTest {
 }
 
 #[turbo_tasks::function]
-async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
-    let resource_path = canonicalize(&resource)?;
+async fn prepare_test(resource: &RcStr) -> Result<Vc<PreparedTest>> {
+    let resource_path = canonicalize(resource)?;
     assert!(resource_path.exists(), "{resource} does not exist");
     assert!(
         resource_path.is_dir(),

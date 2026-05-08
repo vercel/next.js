@@ -220,7 +220,7 @@ pub enum EnvVarTracking {
 /// evaluated result automatically.
 pub async fn get_evaluate_pool(
     entries: ResolvedVc<EvaluateEntries>,
-    cwd: FileSystemPath,
+    cwd: &FileSystemPath,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     node_backend: ResolvedVc<Box<dyn NodeBackend>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,

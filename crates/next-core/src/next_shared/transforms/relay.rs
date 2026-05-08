@@ -33,13 +33,13 @@ pub async fn get_relay_transform_rule(
 #[turbo_tasks::function]
 async fn relay_transform_plugin(
     next_config: Vc<NextConfig>,
-    project_path: FileSystemPath,
+    project_path: &FileSystemPath,
 ) -> Result<Vc<TransformPlugin>> {
     use anyhow::Context as _;
     let compiler = next_config.compiler().await?;
     let config = compiler.relay.as_ref().context("relay config must exist")?;
     Ok(Vc::cell(
-        Box::new(RelayTransformer::new(config, &project_path))
+        Box::new(RelayTransformer::new(config, project_path))
             as Box<dyn CustomTransformer + Send + Sync>,
     ))
 }

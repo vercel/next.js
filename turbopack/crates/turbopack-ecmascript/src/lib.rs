@@ -1161,28 +1161,28 @@ impl EcmascriptModuleContent {
     ///   merged module (used to determine execution order).
     #[turbo_tasks::function]
     pub async fn new_merged(
-        modules: Vec<(
+        modules: &Vec<(
             ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
             MergeableModuleExposure,
         )>,
-        module_options: Vec<Vc<EcmascriptModuleContentOptions>>,
-        entry_points: Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
+        module_options: &Vec<Vc<EcmascriptModuleContentOptions>>,
+        entry_points: &Vec<ResolvedVc<Box<dyn EcmascriptAnalyzable>>>,
     ) -> Result<Vc<Self>> {
         async {
             let modules = modules
-                .into_iter()
+                .iter()
                 .map(|(m, exposed)| {
                     (
-                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(m).unwrap(),
-                        exposed,
+                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*m).unwrap(),
+                        *exposed,
                     )
                 })
                 .collect::<FxIndexMap<_, _>>();
             let entry_points = entry_points
-                .into_iter()
+                .iter()
                 .map(|m| {
                     let m =
-                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(m).unwrap();
+                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*m).unwrap();
                     (m, modules.get_index_of(&m).unwrap())
                 })
                 .collect::<Vec<_>>();

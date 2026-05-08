@@ -617,9 +617,9 @@ impl ModuleGraphImportTracer {
 #[turbo_tasks::value_impl]
 impl ImportTracer for ModuleGraphImportTracer {
     #[turbo_tasks::function]
-    async fn get_traces(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<ImportTraces>> {
+    async fn get_traces(self: Vc<Self>, path: &FileSystemPath) -> Result<Vc<ImportTraces>> {
         let path_to_modules = self.path_to_modules().await?;
-        let Some(modules) = path_to_modules.map.get(&path) else {
+        let Some(modules) = path_to_modules.map.get(path) else {
             return Ok(Vc::default()); // This isn't unusual, the file just might not be in this
             // graph.
         };
@@ -716,7 +716,7 @@ impl ModuleGraph {
 
     #[turbo_tasks::function(operation)]
     async fn from_graphs_inner(
-        graphs: Vec<OperationVc<SingleModuleGraph>>,
+        graphs: &Vec<OperationVc<SingleModuleGraph>>,
         binding_usage: Option<OperationVc<BindingUsageInfo>>,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(ModuleGraph {
@@ -2569,8 +2569,8 @@ pub mod tests {
 
         #[turbo_tasks::function(operation)]
         async fn setup_graph(
-            entries: Vec<RcStr>,
-            graph_entries: Vec<(RcStr, Vec<RcStr>)>,
+            entries: &Vec<RcStr>,
+            graph_entries: &Vec<(RcStr, Vec<RcStr>)>,
         ) -> Result<Vc<SetupGraph>> {
             let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
             let root = fs.root().await?;

@@ -172,7 +172,7 @@ async fn plain_chunk_items_with_info_with_type(
             Ok((
                 ty,
                 smallvec![ChunkItemOrBatchWithInfo::ChunkItem {
-                    chunk_item: chunk_item_with_info.clone(),
+                    chunk_item: *chunk_item_with_info,
                     size: *chunk_item_size.await?,
                     asset_ident: asset_ident.owned().await?,
                 }],
@@ -287,7 +287,7 @@ pub async fn make_chunks(
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     chunk_items_or_batches: ResolvedVc<ChunkItemOrBatchWithAsyncModuleInfos>,
     batch_groups: ResolvedVc<ChunkItemBatchGroups>,
-    key_prefix: RcStr,
+    key_prefix: &RcStr,
 ) -> Result<Vc<Chunks>> {
     let chunking_configs = &*chunking_context.chunking_configs().await?;
     let chunk_items_or_batches = chunk_items_or_batches.await?;
@@ -413,7 +413,7 @@ async fn make_chunk(
                 .into_iter()
                 .map(|item| match item {
                     ChunkItemOrBatchWithInfo::ChunkItem { chunk_item, .. } => {
-                        ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(chunk_item.clone())
+                        ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(*chunk_item)
                     }
                     &ChunkItemOrBatchWithInfo::Batch { batch, .. } => {
                         ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch)

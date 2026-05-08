@@ -72,7 +72,7 @@ pub enum EsmExport {
 #[turbo_tasks::function]
 pub async fn is_export_missing(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    export_name: RcStr,
+    export_name: &RcStr,
 ) -> Result<Vc<bool>> {
     if export_name == "__turbopack_module_id__" {
         return Ok(Vc::cell(false));
@@ -90,7 +90,7 @@ pub async fn is_export_missing(
     };
 
     let exports = exports.await?;
-    if exports.exports.contains_key(&export_name) {
+    if exports.exports.contains_key(export_name) {
         return Ok(Vc::cell(false));
     }
     if export_name == "default" {
@@ -102,7 +102,7 @@ pub async fn is_export_missing(
     }
 
     let all_export_names = get_all_export_names(*module).await?;
-    if all_export_names.esm_exports.contains_key(&export_name) {
+    if all_export_names.esm_exports.contains_key(export_name) {
         return Ok(Vc::cell(false));
     }
 

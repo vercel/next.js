@@ -271,7 +271,7 @@ pub async fn compute_style_groups(
 
         // The list of modules and chunk items that go into the new chunk
         let mut new_chunk_modules = [module].into_iter().collect::<FxHashSet<_>>();
-        let mut new_chunk_items = vec![info.chunk_item.as_ref().unwrap().clone()];
+        let mut new_chunk_items = vec![info.chunk_item.unwrap()];
 
         // The current size of the new chunk
         let mut current_size = info.size;
@@ -374,7 +374,7 @@ pub async fn compute_style_groups(
                     }
                 }
 
-                new_chunk_items.push(info.chunk_item.as_ref().unwrap().clone());
+                new_chunk_items.push(info.chunk_item.unwrap());
                 new_chunk_modules.insert(module);
                 *ordered_modules_with_state.get_mut(&module).unwrap() = true;
                 continue 'outer;

@@ -105,7 +105,7 @@ impl ChunkItemOrBatchWithAsyncModuleInfo {
         Ok(match self {
             Self::ChunkItem(item) => Either::Left(smallvec![(
                 item.chunk_item.ty().to_resolved().await?,
-                Self::ChunkItem(item.clone())
+                Self::ChunkItem(*item)
             )]),
             Self::Batch(batch) => Either::Right(batch.split_by_chunk_type().await?),
         })
