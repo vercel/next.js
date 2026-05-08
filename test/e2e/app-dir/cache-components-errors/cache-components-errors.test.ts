@@ -943,7 +943,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` during the initial render.
 
-                 Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+                 A prior data access is needed to choose between prerendering this value and computing it per request.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -970,7 +970,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` during the initial render.
 
-                 Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+                 A prior data access is needed to choose between prerendering this value and computing it per request.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -999,7 +999,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` during the initial render.
 
-                 Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+                 A prior data access is needed to choose between prerendering this value and computing it per request.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1025,7 +1025,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` during the initial render.
 
-                 Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+                 A prior data access is needed to choose between prerendering this value and computing it per request.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1092,7 +1092,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` during the initial render.
 
-                 Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+                 A prior data access is needed to choose between prerendering this value and computing it per request.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1120,7 +1120,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` during the initial render.
 
-                 Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+                 A prior data access is needed to choose between prerendering this value and computing it per request.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1150,7 +1150,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` during the initial render.
 
-                 Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+                 A prior data access is needed to choose between prerendering this value and computing it per request.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1176,7 +1176,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` during the initial render.
 
-                 Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+                 A prior data access is needed to choose between prerendering this value and computing it per request.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -2000,7 +2000,7 @@ describe('Cache Components Errors', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1228",
-               "description": "Next.js encountered new Date() inside a Client Component without a Suspense boundary above it.",
+               "description": "Next.js encountered new Date() in a Client Component.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
@@ -2029,9 +2029,9 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2055,9 +2055,9 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2083,9 +2083,9 @@ describe('Cache Components Errors', () => {
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2108,9 +2108,9 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2282,7 +2282,7 @@ describe('Cache Components Errors', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1228",
-               "description": "Next.js encountered new Date() inside a Client Component without a Suspense boundary above it.",
+               "description": "Next.js encountered new Date() in a Client Component.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
@@ -2311,9 +2311,9 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2337,9 +2337,9 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2365,9 +2365,9 @@ describe('Cache Components Errors', () => {
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2390,9 +2390,9 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -4851,7 +4851,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4878,7 +4878,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4907,7 +4907,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4933,7 +4933,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4996,7 +4996,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5023,7 +5023,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5052,7 +5052,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5078,7 +5078,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5141,7 +5141,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5168,7 +5168,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5197,7 +5197,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5223,7 +5223,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5286,7 +5286,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5312,7 +5312,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5340,7 +5340,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5365,7 +5365,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5427,7 +5427,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5454,7 +5454,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5483,7 +5483,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5509,7 +5509,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5571,7 +5571,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5597,7 +5597,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5625,7 +5625,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5650,7 +5650,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5730,7 +5730,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5757,7 +5757,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5785,7 +5785,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5812,7 +5812,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5892,7 +5892,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5919,7 +5919,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5947,7 +5947,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5974,7 +5974,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6054,7 +6054,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6081,7 +6081,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6109,7 +6109,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6136,7 +6136,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6216,7 +6216,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6243,7 +6243,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6271,7 +6271,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6298,7 +6298,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6378,7 +6378,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6405,7 +6405,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6433,7 +6433,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6460,7 +6460,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6540,7 +6540,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6567,7 +6567,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6595,7 +6595,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6622,7 +6622,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6702,7 +6702,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6729,7 +6729,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6757,7 +6757,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6784,7 +6784,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6864,7 +6864,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6891,7 +6891,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6919,7 +6919,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6946,7 +6946,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -7026,7 +7026,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -7053,7 +7053,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -7081,7 +7081,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -7108,7 +7108,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               A prior data access is needed to choose between prerendering this value and computing it per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call

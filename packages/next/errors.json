@@ -1241,5 +1241,7 @@
   "1240": "Route \"%s\" accessed header \"%s\" which is not defined in the \\`unstable_samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`headers\\` array, or \\`[\"%s\", null]\\` if it should be absent.",
   "1241": "Route \"%s\" accessed param \"%s\" which is not defined in the \\`unstable_samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`params\\` object.",
   "1242": "Route \"%s\" called %s but param%s %s %s not defined in the \\`unstable_samples\\` of \\`unstable_instant\\`. %s requires all route params to be provided.",
-  "1243": "Route \"%s\" accessed root param \"%s\" which is not defined in the \\`unstable_samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`params\\` object."
+  "1243": "Route \"%s\" accessed root param \"%s\" which is not defined in the \\`unstable_samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`params\\` object.",
+  "1244": "Route \"%s\": Next.js encountered %s during the initial render.\\n\\nA prior data access is needed to choose between prerendering this value and computing it per request.\\n\\nWays to fix this:\\n  - Render at request time by adding a dynamic data access (e.g. \\`await connection()\\`) before this call\\n  - Prerender and cache the value with \\`\"use cache\"\\`\\n  - Render the value on the client with \\`\"use client\"\\`\\n%s\\nLearn more: %s",
+  "1245": "Route \"%s\": Next.js encountered %s in a Client Component.\\n\\nThis value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.\\n\\nWays to fix this:\\n  - Wrap the Client Component in \\`<Suspense fallback={...}>\\`\\n  - Move the read into a \\`useEffect\\` or event handler\\n\\nLearn more: %s"
 }
