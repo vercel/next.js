@@ -543,8 +543,9 @@ if (instantTestStaticFetch) {
       }
 
       const fallbackResponse = bootstrap.response
-      const fallbackInitialRSCPayload =
-        await createFromFetch<InitialRSCPayload>(
+      let fallbackInitialRSCPayload: InitialRSCPayload
+      try {
+        fallbackInitialRSCPayload = await createFromFetch<InitialRSCPayload>(
           Promise.resolve(fallbackResponse.response),
           {
             callServer,
@@ -553,6 +554,10 @@ if (instantTestStaticFetch) {
             unstable_allowPartialStream: true,
           }
         )
+      } catch {
+        showOfflineNavigationCacheMiss('invalid-payload', bootstrap.buildId)
+        return await neverResolveInitialRSCPayload()
+      }
 
       if (fallbackResponse.requestKind === 'initial-load') {
         return fallbackInitialRSCPayload

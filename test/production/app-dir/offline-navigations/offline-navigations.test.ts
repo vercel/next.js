@@ -4327,6 +4327,177 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('misses exact-URL data with a malformed RSC response body during fallback boot', async () => {
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    const { buildId } = await getOfflineNavigationArtifactPaths()
+    const navigationBuildId = next.deploymentId ?? buildId
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await retry(async () => {
+        const initialLoadEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/'
+        )
+        expect(initialLoadEntry).toEqual(
+          expect.objectContaining({
+            buildId: navigationBuildId,
+            kind: 'exact-url',
+            payload: expect.objectContaining({
+              kind: 'rsc-response',
+              requestKind: 'initial-load',
+            }),
+          })
+        )
+      })
+
+      const malformedBodyUrl = `${next.url}/docs/malformed-rsc-body-offline-entry/`
+      const malformedBodyEntry = await browser.eval(
+        async ({ currentBuildId, url }) => {
+          const database = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open('next-offline-navigation-cache', 3)
+            request.onsuccess = () => resolve(request.result)
+            request.onerror = () => reject(request.error)
+          })
+
+          try {
+            const readTransaction = database.transaction(
+              'navigation-data',
+              'readonly'
+            )
+            const entries = await new Promise<any[]>((resolve, reject) => {
+              const request = readTransaction
+                .objectStore('navigation-data')
+                .getAll()
+              request.onsuccess = () => resolve(request.result)
+              request.onerror = () => reject(request.error)
+            })
+            const sourceEntry = entries.find((entry) =>
+              entry.url.endsWith('/docs/')
+            )
+            if (!sourceEntry) {
+              return null
+            }
+
+            const malformedBody = new TextEncoder().encode(
+              '0:{"unterminated"\n'
+            )
+            const writeTransaction = database.transaction(
+              'navigation-data',
+              'readwrite'
+            )
+            writeTransaction.objectStore('navigation-data').put({
+              ...sourceEntry,
+              buildId: currentBuildId,
+              url,
+              payload: {
+                ...sourceEntry.payload,
+                url,
+                body: malformedBody.buffer,
+              },
+            })
+            await new Promise<void>((resolve, reject) => {
+              writeTransaction.oncomplete = () => resolve()
+              writeTransaction.onerror = () => reject(writeTransaction.error)
+              writeTransaction.onabort = () => reject(writeTransaction.error)
+            })
+
+            return {
+              bodyLength: malformedBody.byteLength,
+              buildId: currentBuildId,
+              payloadKind: sourceEntry.payload.kind,
+              url,
+            }
+          } finally {
+            database.close()
+          }
+        },
+        {
+          currentBuildId: navigationBuildId,
+          url: malformedBodyUrl,
+        }
+      )
+      expect(malformedBodyEntry).toEqual({
+        bodyLength: expect.any(Number),
+        buildId: navigationBuildId,
+        payloadKind: 'rsc-response',
+        url: malformedBodyUrl,
+      })
+      expect(malformedBodyEntry!.bodyLength).toBeGreaterThan(0)
+
+      await next.stop()
+      await page!.context().setOffline(true)
+      const response = await page!.goto(malformedBodyUrl, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(response?.status()).toBe(200)
+
+      await retry(async () => {
+        expect(
+          await browser.eval(() => {
+            const cacheMiss = document.getElementById(
+              '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
+            )
+            return cacheMiss === null
+              ? null
+              : {
+                  hidden: cacheMiss.hidden,
+                  reason: cacheMiss.getAttribute(
+                    'data-next-offline-navigation-cache-reason'
+                  ),
+                  text: cacheMiss.textContent,
+                }
+          })
+        ).toEqual({
+          hidden: false,
+          reason: 'invalid-payload',
+          text: 'This page is not available offline.',
+        })
+      })
+
+      expect(
+        await browser.eval(() => ({
+          cache: document.documentElement.getAttribute(
+            'data-next-offline-navigation-cache'
+          ),
+          reason: document.documentElement.getAttribute(
+            'data-next-offline-navigation-cache-reason'
+          ),
+          diagnostic:
+            (
+              window as typeof window & {
+                __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<unknown>
+              }
+            ).__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?.at(-1) ?? null,
+        }))
+      ).toMatchObject({
+        cache: 'miss',
+        reason: 'invalid-payload',
+        diagnostic: {
+          type: 'cache-miss',
+          buildId: navigationBuildId,
+          reason: 'invalid-payload',
+          url: malformedBodyUrl,
+        },
+      })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('misses and deletes expired persisted exact-URL data during fallback boot', async () => {
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
