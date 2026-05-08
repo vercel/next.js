@@ -3,6 +3,9 @@ import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+const OFFLINE_NAVIGATION_CACHE_STATIC_ASSETS =
+  'next-offline-navigation-cache-static-assets'
+
 describe('offlineNavigations build artifacts', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -45,7 +48,32 @@ describe('offlineNavigations build artifacts', () => {
       .sort()
   }
 
-  it('emits a request-invariant offline navigation fallback document when enabled', async () => {
+  async function readOfflineNavigationCacheState(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
+    return browser.eval(async () => {
+      const cacheNames = (await caches.keys()).filter((cacheName) =>
+        cacheName.startsWith('next-offline-navigation-v1:')
+      )
+      const entries: Array<{ cacheName: string; pathname: string }> = []
+
+      for (const cacheName of cacheNames) {
+        const cache = await caches.open(cacheName)
+        const requests = await cache.keys()
+
+        for (const request of requests) {
+          entries.push({
+            cacheName,
+            pathname: new URL(request.url).pathname,
+          })
+        }
+      }
+
+      return { cacheNames, entries }
+    })
+  }
+
+  it('emits request-invariant offline navigation artifacts when enabled', async () => {
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
 
@@ -71,19 +99,38 @@ describe('offlineNavigations build artifacts', () => {
     expect(html.length).toBeLessThan(4096)
 
     expect(serviceWorkerScript).toContain(
-      '"source":"offline-navigation-service-worker"'
+      `"cacheNamespace":"next-offline-navigation-v1:${buildId}:/docs"`
+    )
+    expect(serviceWorkerScript).toContain(
+      `"fallbackDocumentHref":"/docs/_next/static/${buildId}/_offline-navigation-fallback.html"`
+    )
+    expect(serviceWorkerScript).toContain(
+      '"fallbackAssetHrefs":["/app-assets/_next/static/'
+    )
+    expect(serviceWorkerScript).not.toContain('"source"')
+    expect(serviceWorkerScript).toContain('cacheOfflineNavigationResources')
+    expect(serviceWorkerScript).toContain('cacheCurrentStaticAssets')
+    expect(serviceWorkerScript).toContain('fetchManagedStaticAsset')
+    expect(serviceWorkerScript).toContain('getManagedStaticAssetCacheKey')
+    expect(serviceWorkerScript).toContain("cache:'only-if-cached'")
+    expect(serviceWorkerScript).toContain("mode:'same-origin'")
+    expect(serviceWorkerScript).not.toContain("cache:'force-cache'")
+    expect(serviceWorkerScript).toContain('caches.delete')
+    expect(serviceWorkerScript).toContain(
+      OFFLINE_NAVIGATION_CACHE_STATIC_ASSETS
     )
     expect(serviceWorkerScript).toContain('skipWaiting')
     expect(serviceWorkerScript).toContain('clients.claim')
-    expect(serviceWorkerScript).not.toContain('respondWith')
     expect(serviceWorkerScript).not.toContain('\n')
-    expect(serviceWorkerScript.length).toBeLessThan(512)
+    expect(serviceWorkerScript).toContain('respondWith')
+    expect(serviceWorkerScript.length).toBeLessThan(6000)
   })
 
-  it('registers the pass-through service worker when enabled', async () => {
+  it('registers the service worker and caches offline resources when enabled', async () => {
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
 
+    const { buildId } = await getOfflineNavigationArtifactPaths()
     await next.start({ skipBuild: true })
 
     try {
@@ -124,10 +171,39 @@ describe('offlineNavigations build artifacts', () => {
         })
       })
 
+      const cacheName = `next-offline-navigation-v1:${buildId}:/docs`
+      await retry(async () => {
+        const cacheState = await readOfflineNavigationCacheState(browser)
+        expect(cacheState.cacheNames).toContain(cacheName)
+        expect(cacheState.entries).toEqual(
+          expect.arrayContaining([
+            {
+              cacheName,
+              pathname: `/docs/_next/static/${buildId}/_offline-navigation-fallback.html`,
+            },
+            {
+              cacheName,
+              pathname: expect.stringMatching(
+                /^\/app-assets\/_next\/static\/(?:immutable\/)?chunks\/.+\.js$/
+              ),
+            },
+          ])
+        )
+      })
+
       await browser.eval(async () => {
         if (!('serviceWorker' in navigator)) {
           return
         }
+
+        const cacheNames = await caches.keys()
+        await Promise.all(
+          cacheNames
+            .filter((cacheName) =>
+              cacheName.startsWith('next-offline-navigation-v1:')
+            )
+            .map((cacheName) => caches.delete(cacheName))
+        )
 
         const registrations = await navigator.serviceWorker.getRegistrations()
         await Promise.all(

@@ -231,10 +231,12 @@ import { generateRoutesManifest } from './generate-routes-manifest'
 import { validateAppPaths } from './validate-app-paths'
 import {
   createOfflineNavigationFallbackDocument,
+  getOfflineNavigationFallbackDocumentHref,
   getOfflineNavigationFallbackFilePath,
 } from './offline-navigation-fallback'
 import {
   createOfflineNavigationServiceWorker,
+  getOfflineNavigationCacheNamespace,
   getOfflineNavigationServiceWorkerFilePath,
 } from './offline-navigation-service-worker'
 
@@ -4122,12 +4124,25 @@ export default async function build(
               distDir,
               getOfflineNavigationServiceWorkerFilePath()
             )
+            const cacheNamespace = getOfflineNavigationCacheNamespace({
+              basePath: config.basePath,
+              buildId,
+            })
+            const fallbackDocumentHref =
+              getOfflineNavigationFallbackDocumentHref({
+                basePath: config.basePath,
+                buildId,
+              })
 
             await mkdir(path.dirname(fallbackPath), { recursive: true })
             await writeFileUtf8(fallbackPath, fallbackDocument.html)
             await writeFileUtf8(
               serviceWorkerPath,
-              createOfflineNavigationServiceWorker()
+              createOfflineNavigationServiceWorker({
+                cacheNamespace,
+                fallbackAssetHrefs: fallbackDocument.assetHrefs,
+                fallbackDocumentHref,
+              })
             )
           })
       }
