@@ -319,6 +319,56 @@ describe('offlineNavigations build artifacts', () => {
     }, urlSubstring)
   }
 
+  async function deletePersistedOfflineNavigationRouteRecords(
+    browser: Awaited<ReturnType<typeof next.browser>>,
+    pathnameSubstring: string
+  ) {
+    return browser.eval(async (substring) => {
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('next-offline-navigation-cache', 3)
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+
+      try {
+        const entries = await new Promise<any[]>((resolve, reject) => {
+          const transaction = database.transaction('route-data', 'readonly')
+          const request = transaction.objectStore('route-data').getAll()
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })
+        const matchingEntries = entries.filter((entry) =>
+          entry.route.pathname.includes(substring)
+        )
+
+        if (matchingEntries.length === 0) {
+          return {
+            count: 0,
+            keys: [],
+          }
+        }
+
+        const transaction = database.transaction('route-data', 'readwrite')
+        const store = transaction.objectStore('route-data')
+        for (const entry of matchingEntries) {
+          store.delete([entry.buildId, entry.key])
+        }
+        await new Promise<void>((resolve, reject) => {
+          transaction.oncomplete = () => resolve()
+          transaction.onerror = () => reject(transaction.error)
+          transaction.onabort = () => reject(transaction.error)
+        })
+
+        return {
+          count: matchingEntries.length,
+          keys: matchingEntries.map((entry) => entry.key),
+        }
+      } finally {
+        database.close()
+      }
+    }, pathnameSubstring)
+  }
+
   async function expirePersistedOfflineNavigationRouteRecords(
     browser: Awaited<ReturnType<typeof next.browser>>,
     pathnameSubstring: string
@@ -1502,6 +1552,168 @@ describe('offlineNavigations build artifacts', () => {
           )
         ).toBe(false)
       })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
+  it('misses persisted router records when a required route record is missing during fallback boot', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await browser.elementById('prefetch-offline-navigation').click()
+      await retry(async () => {
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        expect(
+          routeRecords.some((record) =>
+            record.route.pathname.includes('/prefetched')
+          )
+        ).toBe(true)
+
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        expect(
+          segmentRecords.some(
+            (record) =>
+              record.key.includes('prefetched') &&
+              record.payload.requestKind === 'segment-prefetch'
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) => record.segment.requestKey === '/_head'
+          )
+        ).toBe(true)
+      })
+
+      const deletedExactEntries = await deletePersistedOfflineNavigationEntries(
+        browser,
+        '/docs/prefetched'
+      )
+      expect(deletedExactEntries).toBeGreaterThan(0)
+      await retry(async () => {
+        const deletedEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/prefetched'
+        )
+        expect(deletedEntry).toBe(null)
+      })
+
+      const deletedRouteRecords =
+        await deletePersistedOfflineNavigationRouteRecords(
+          browser,
+          '/prefetched'
+        )
+      expect(deletedRouteRecords).toEqual({
+        count: expect.any(Number),
+        keys: expect.arrayContaining([expect.stringContaining('/prefetched')]),
+      })
+      expect(deletedRouteRecords.count).toBeGreaterThan(0)
+      await retry(async () => {
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        expect(
+          routeRecords.some((record) =>
+            record.route.pathname.includes('/prefetched')
+          )
+        ).toBe(false)
+
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        expect(
+          segmentRecords.some(
+            (record) =>
+              record.key.includes('prefetched') &&
+              record.segment.requestKey.endsWith('/__PAGE__')
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) => record.segment.requestKey === '/_head'
+          )
+        ).toBe(true)
+      })
+
+      await next.stop()
+      await page!.context().setOffline(true)
+      const missingRouteResponse = await page!.goto(
+        `${next.url}/docs/prefetched`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(missingRouteResponse?.status()).toBe(200)
+
+      await retry(async () => {
+        const diagnostics = await browser.eval(() => {
+          const win = window as typeof window & {
+            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<{
+              reason?: string
+              type?: string
+              url?: string
+            }>
+          }
+          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__ ?? []
+        })
+        expect(diagnostics).toContainEqual(
+          expect.objectContaining({
+            reason: 'missing-route',
+            type: 'router-cache-reconstruction-miss',
+            url: `${next.url}/docs/prefetched`,
+          })
+        )
+        expect(diagnostics).toContainEqual(
+          expect.objectContaining({
+            reason: 'missing-entry',
+            type: 'cache-miss',
+            url: `${next.url}/docs/prefetched`,
+          })
+        )
+      })
+      await retry(async () => {
+        expect(
+          await browser.eval(() => {
+            const cacheMiss = document.getElementById(
+              '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
+            )
+            return cacheMiss === null
+              ? null
+              : {
+                  hidden: cacheMiss.hidden,
+                  reason: cacheMiss.getAttribute(
+                    'data-next-offline-navigation-cache-reason'
+                  ),
+                  text: cacheMiss.textContent,
+                }
+          })
+        ).toEqual({
+          hidden: false,
+          reason: 'missing-entry',
+          text: 'This page is not available offline.',
+        })
+      })
+      expect(
+        await browser.eval(() =>
+          Boolean(document.getElementById('prefetched-page'))
+        )
+      ).toBe(false)
     } finally {
       if (page) {
         await page.context().setOffline(false)
