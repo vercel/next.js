@@ -4146,6 +4146,7 @@ export default async function build(
               createOfflineNavigationServiceWorker({
                 buildId,
                 cacheNamespace: manifest.cacheNamespace,
+                fallbackDocumentHref: manifest.fallbackDocument.href,
                 manifestHref: manifest.manifest.href,
               })
             )
