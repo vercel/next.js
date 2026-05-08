@@ -346,14 +346,26 @@ describe('optimistic-routing', () => {
     // Wait for navigation to complete
     await browser.elementById('actual-page')
 
-    // Step 2: Navigate back to home using browser back button
-    await browser.back()
-    await browser.elementById('rendered-route-history')
+    // Step 2: Navigate forward to /hub. We use a hub page rather than
+    // browser.back() so that the previously-revealed /rewritten/first
+    // accordion can't be re-mounted from BFCache and trigger an
+    // uncontrolled prefetch outside any `act` scope. See
+    // .claude/skills/router-act/SKILL.md.
+    await act(async () => {
+      const revealHub = await browser.elementByCss(
+        'input[data-link-accordion="/hub"]'
+      )
+      await revealHub.click()
+      const linkHub = await browser.elementByCss('a[href="/hub"]')
+      await linkHub.click()
+    })
+    await browser.elementById('hub-content')
 
-    // Step 3: Navigate to /rewritten/second.
-    // This link has prefetch={false}. Even though we've "learned" the route
-    // from step 1, the route should be marked as having a dynamic rewrite,
-    // so we should NOT use the cached pattern.
+    // Step 3: From /hub, reveal /rewritten/second. This link has
+    // prefetch={false}. Even though /rewritten/first was visited in
+    // step 1, that response was marked as a dynamic rewrite, so the
+    // router must not reuse it as a prediction for /rewritten/second —
+    // meaning no prefetch should fire on reveal.
     await act(async () => {
       const revealSecond = await browser.elementByCss(
         'input[data-link-accordion="/rewritten/second"]'
@@ -370,13 +382,12 @@ describe('optimistic-routing', () => {
     await browser.elementById('actual-page')
 
     // Verify using rendered route history that no wrong params were rendered.
-    // If route prediction incorrectly used a cached pattern, we'd see "first"
-    // briefly flash before "second".
+    // If the router had reused step 1's response as a prediction, we'd see
+    // "first" briefly flash before "second".
     expect(await getRenderedRouteHistory(browser)).toEqual([
       { url: '/', params: {} },
       { url: '/rewritten/first', params: { slug: 'first' } },
-      // Back to home
-      { url: '/', params: {} },
+      { url: '/hub', params: {} },
       // Should go directly to "second" with no intermediate wrong params
       { url: '/rewritten/second', params: { slug: 'second' } },
     ])
@@ -408,14 +419,23 @@ describe('optimistic-routing', () => {
     const contentAlpha = await browser.elementById('rewrite-content')
     expect(await contentAlpha.getAttribute('data-content')).toBe('alpha')
 
-    // Step 2: Go back to home
-    await browser.back()
-    await browser.elementById('rendered-route-history')
+    // Step 2: Navigate forward to /hub instead of using browser.back() to
+    // avoid BFCache restoring previously-opened accordions and triggering
+    // uncontrolled prefetches. See .claude/skills/router-act/SKILL.md.
+    await act(async () => {
+      const revealHub = await browser.elementByCss(
+        'input[data-link-accordion="/hub"]'
+      )
+      await revealHub.click()
+      const linkHub = await browser.elementByCss('a[href="/hub"]')
+      await linkHub.click()
+    })
+    await browser.elementById('hub-content')
 
-    // Step 3: Navigate to /search-rewrite?v=beta.
-    // This link has prefetch={false} - if the route was incorrectly cached as
-    // predictable, we'd see "alpha" instead of "beta" because the static page
-    // would be served from cache.
+    // Step 3: From /hub, reveal /search-rewrite?v=beta.
+    // This link has prefetch={false} - if the router had reused step 1's
+    // response as a prediction, we'd see "alpha" instead of "beta" because
+    // the static page would be served from cache.
     await act(async () => {
       const revealBeta = await browser.elementByCss(
         'input[data-link-accordion="/search-rewrite?v=beta"]'
@@ -430,8 +450,9 @@ describe('optimistic-routing', () => {
       await linkBeta.click()
     })
 
-    // Verify we see "beta", not "alpha"
-    // If this shows "alpha", the route was incorrectly using a cached pattern.
+    // Verify we see "beta", not "alpha".
+    // If this shows "alpha", the router incorrectly reused step 1's
+    // response as a prediction for /search-rewrite?v=beta.
     const contentBeta = await browser.elementById('rewrite-content')
     expect(await contentBeta.getAttribute('data-content')).toBe('beta')
   })
