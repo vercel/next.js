@@ -580,12 +580,17 @@ export async function handleBuildComplete({
       })
 
       async function handleTraceFiles(
-        traceFilePath: string,
+        entryFilePath: string,
         type: 'pages' | 'app' | 'neutral'
       ) {
-        const assets = {}
-        const assetsHashes = {}
-        await loadNFT(assets, assetsHashes, tracingRoot, traceFilePath)
+        const assets: Record<string, string> = {}
+        const assetsHashes: Record<string, string> = {}
+        const { entryHash } = await loadNFT(
+          assets,
+          assetsHashes,
+          tracingRoot,
+          `${entryFilePath}.nft.json`
+        )
         Object.assign(
           assets,
           sharedNodeAssets,
@@ -598,7 +603,10 @@ export async function handleBuildComplete({
           type === 'pages' ? pagesSharedNodeAssetsHashes : {},
           type === 'app' ? appPagesSharedNodeAssetsHashes : {}
         )
-        return { assets, assetsHashes }
+        if (entryHash) {
+          assetsHashes[path.relative(tracingRoot, entryFilePath)] = entryHash
+        }
+        return { assets, assetsHashes, entryHash }
       }
 
       async function handleEdgeFunction(
@@ -822,9 +830,8 @@ export async function handleBuildComplete({
           continue
         }
 
-        const pageTraceFile = `${pageFile}.nft.json`
         const { assets, assetsHashes } = await handleTraceFiles(
-          pageTraceFile,
+          pageFile,
           'pages'
         ).catch((err) => {
           if (err.code !== 'ENOENT' || (page !== '/404' && page !== '/500')) {
@@ -842,7 +849,7 @@ export async function handleBuildComplete({
           type: page.startsWith('/api')
             ? AdapterOutputType.PAGES_API
             : AdapterOutputType.PAGES,
-          filePath: pageTraceFile.replace(/\.nft\.json$/, ''),
+          filePath: pageFile,
           pathname: route,
           sourcePage,
           assets,
@@ -923,9 +930,8 @@ export async function handleBuildComplete({
 
       if (hasNodeMiddleware) {
         const middlewareFile = path.join(distDir, 'server', 'middleware.js')
-        const middlewareTrace = `${middlewareFile}.nft.json`
         const { assets, assetsHashes } = await handleTraceFiles(
-          middlewareTrace,
+          middlewareFile,
           'neutral'
         )
         const functionConfig =
@@ -997,9 +1003,8 @@ export async function handleBuildComplete({
             continue
           }
           const pageFile = path.join(appDistDir, `${page}.js`)
-          const pageTraceFile = `${pageFile}.nft.json`
           let { assets, assetsHashes } = await handleTraceFiles(
-            pageTraceFile,
+            pageFile,
             'app'
           ).catch((err) => {
             Log.warn(`Failed to copy traced files for ${pageFile}`, err)
@@ -2123,24 +2128,12 @@ async function getSharedNodeAssets({
   requiredServerFiles: string[]
   hasInstrumentationHook: boolean
 }) {
-  const sharedNodeAssets = {}
-  const sharedNodeAssetsHashes = {}
-  const pagesSharedNodeAssets = {}
-  const pagesSharedNodeAssetsHashes = {}
-  const appPagesSharedNodeAssets = {}
-  const appPagesSharedNodeAssetsHashes = {}
-
-  for (const file of requiredServerFiles) {
-    // add to shared node assets
-    const filePath = path.join(dir, file)
-    const fileOutputPath = path.relative(tracingRoot, filePath)
-    await pushAsset(
-      sharedNodeAssets,
-      sharedNodeAssetsHashes,
-      fileOutputPath,
-      filePath
-    )
-  }
+  const sharedNodeAssets: Record<string, string> = {}
+  const sharedNodeAssetsHashes: Record<string, string> = {}
+  const pagesSharedNodeAssets: Record<string, string> = {}
+  const pagesSharedNodeAssetsHashes: Record<string, string> = {}
+  const appPagesSharedNodeAssets: Record<string, string> = {}
+  const appPagesSharedNodeAssetsHashes: Record<string, string> = {}
 
   const moduleTypes = ['app-page', 'pages'] as const
 
@@ -2249,7 +2242,7 @@ async function getSharedNodeAssets({
   }
 
   if (hasInstrumentationHook) {
-    await loadNFT(
+    const { entryHash: instrumentationEntryHash } = await loadNFT(
       sharedNodeAssets,
       sharedNodeAssetsHashes,
       tracingRoot,
@@ -2264,7 +2257,21 @@ async function getSharedNodeAssets({
       sharedNodeAssets,
       sharedNodeAssetsHashes,
       fileOutputPath,
-      path.join(distDir, 'server', 'instrumentation.js')
+      path.join(distDir, 'server', 'instrumentation.js'),
+      instrumentationEntryHash
+    )
+  }
+
+  // Run after hasInstrumentationHook, which inserts the NFT-provided file hash for .next/server/instrumentation.js
+  for (const file of requiredServerFiles) {
+    // add to shared node assets
+    const filePath = path.join(dir, file)
+    const fileOutputPath = path.relative(tracingRoot, filePath)
+    await pushAsset(
+      sharedNodeAssets,
+      sharedNodeAssetsHashes,
+      fileOutputPath,
+      filePath
     )
   }
 
@@ -2282,11 +2289,12 @@ async function pushAsset(
   assets: Record<string, string>,
   assetsHashes: Record<string, string>,
   targetFilePath: string,
-  sourceFilePath: string
+  sourceFilePath: string,
+  hash?: string
 ) {
   if (!(targetFilePath in assets)) {
     assets[targetFilePath] = sourceFilePath
-    assetsHashes[targetFilePath] = await hashFile(sourceFilePath)
+    assetsHashes[targetFilePath] = hash ?? (await hashFile(sourceFilePath))
   }
 }
 
@@ -2295,12 +2303,13 @@ async function loadNFT(
   assetsHashes: Record<string, string>,
   tracingRoot: string,
   traceFilePath: string
-) {
-  const { files, fileHashes } = (await JSON.parse(
+): Promise<{ entryHash?: string }> {
+  const { files, fileHashes, entryHash } = (await JSON.parse(
     await fs.readFile(traceFilePath, 'utf8')
   )) as {
     files: string[]
     fileHashes?: string[]
+    entryHash?: string
   }
 
   const traceFileDir = path.dirname(traceFilePath)
@@ -2314,6 +2323,7 @@ async function loadNFT(
       assetsHashes[fileOutputPath] = contentHash
     }
   }
+  return { entryHash }
 }
 
 async function hashFile(filePath: string): Promise<string> {

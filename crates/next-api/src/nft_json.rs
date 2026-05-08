@@ -382,10 +382,18 @@ impl Asset for NftJsonAsset {
             }
 
             let (files, file_hashes): (Vec<_>, Vec<_>) = result.into_iter().unzip();
+            // We can't just add this into "files" because Next.js sometimes decides to delete
+            // output files such as `.next/server/pages/index.js` if that page was prerendered and
+            // is fully static. An alternative would be to postprocess the nft file so that
+            // non-adapter consumers (which includes output:standalone) don't experience a breaking
+            // change, but instead we just add it as a separate field that only build-complete
+            // reads.
+            let entry_hash = chunk.content().hash(HashAlgorithm::Xxh3Hash128Hex).await?;
             let json = json!({
               "version": 1,
               "files": files,
-              "fileHashes": file_hashes
+              "fileHashes": file_hashes,
+              "entryHash": entry_hash,
             });
 
             Ok(AssetContent::file(
