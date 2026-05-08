@@ -65,8 +65,13 @@ describe('offlineNavigations build artifacts', () => {
 
     expect(serviceWorkerScript).toContain(`"buildId":"${buildId}"`)
     expect(serviceWorkerScript).toContain(
+      `"cacheNamespace":"next-offline-navigation-v1:${buildId}:/docs"`
+    )
+    expect(serviceWorkerScript).toContain(
       `"manifestHref":"/docs/_next/static/${buildId}/_offline-navigation-manifest.json"`
     )
+    expect(serviceWorkerScript).toContain('cacheOfflineNavigationResources')
+    expect(serviceWorkerScript).toContain('caches.delete')
     expect(serviceWorkerScript).toContain('skipWaiting')
     expect(serviceWorkerScript).toContain('clients.claim')
     expect(serviceWorkerScript).not.toContain('respondWith')
@@ -99,6 +104,7 @@ describe('offlineNavigations build artifacts', () => {
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
 
+    const { buildId } = await getOfflineNavigationArtifactPaths()
     await next.start({ skipBuild: true })
 
     try {
@@ -139,10 +145,55 @@ describe('offlineNavigations build artifacts', () => {
         })
       })
 
+      const cacheState = await browser.eval(async () => {
+        const cacheNames = (await caches.keys()).filter((cacheName) =>
+          cacheName.startsWith('next-offline-navigation-v1:')
+        )
+        const entries: Array<{ cacheName: string; pathname: string }> = []
+
+        for (const cacheName of cacheNames) {
+          const cache = await caches.open(cacheName)
+          const requests = await cache.keys()
+
+          for (const request of requests) {
+            entries.push({
+              cacheName,
+              pathname: new URL(request.url).pathname,
+            })
+          }
+        }
+
+        return { cacheNames, entries }
+      })
+
+      const cacheName = `next-offline-navigation-v1:${buildId}:/docs`
+      expect(cacheState.cacheNames).toContain(cacheName)
+      expect(cacheState.entries).toEqual(
+        expect.arrayContaining([
+          {
+            cacheName,
+            pathname: `/docs/_next/static/${buildId}/_offline-navigation-manifest.json`,
+          },
+          {
+            cacheName,
+            pathname: `/docs/_next/static/${buildId}/_offline-navigation-fallback.html`,
+          },
+        ])
+      )
+
       await browser.eval(async () => {
         if (!('serviceWorker' in navigator)) {
           return
         }
+
+        const cacheNames = await caches.keys()
+        await Promise.all(
+          cacheNames
+            .filter((cacheName) =>
+              cacheName.startsWith('next-offline-navigation-v1:')
+            )
+            .map((cacheName) => caches.delete(cacheName))
+        )
 
         const registrations = await navigator.serviceWorker.getRegistrations()
         await Promise.all(
