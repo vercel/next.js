@@ -4144,6 +4144,7 @@ export default async function build(
             await writeFileUtf8(
               serviceWorkerPath,
               createOfflineNavigationServiceWorker({
+                cacheNamespace: manifest.cacheNamespace,
                 manifestHref: manifest.manifest.href,
               })
             )
