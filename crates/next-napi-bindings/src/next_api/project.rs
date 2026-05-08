@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     io::Write,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, LazyLock},
     thread,
     time::Duration,
 };
@@ -39,7 +39,6 @@ use next_core::{
         TRACING_NEXT_TURBOPACK_TARGETS,
     },
 };
-use once_cell::sync::Lazy;
 use rand::RngExt;
 use serde::Serialize;
 use tokio::{io::AsyncWriteExt, runtime::Handle, time::Instant};
@@ -96,9 +95,9 @@ use crate::{
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
 const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(200);
-static SOURCE_MAP_PREFIX: Lazy<String> = Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
-static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
-    Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
+static SOURCE_MAP_PREFIX: LazyLock<String> = LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
+static SOURCE_MAP_PREFIX_PROJECT: LazyLock<String> =
+    LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
 
 /// Get the `Vc<IssueFilter>` for a `ProjectContainer`.
 fn issue_filter_from_container(container: ResolvedVc<ProjectContainer>) -> Vc<IssueFilter> {
@@ -569,6 +568,7 @@ pub fn project_new(
             let skip_compaction = turbo_engine_options.skip_compaction.unwrap_or(false);
             let turbo_tasks = create_turbo_tasks(
                 PathBuf::from(&options.dist_dir),
+                &options.next_version,
                 options.is_persistent_caching_enabled,
                 memory_limit,
                 dependency_tracking,
@@ -2595,8 +2595,9 @@ pub async fn project_get_all_compilation_issues(
 ///
 /// The `path` should point to the `<distDir>/cache/turbopack` directory.
 #[napi]
-pub async fn turbopack_database_compact(path: String) -> napi::Result<()> {
-    let version_info = crate::next_api::turbopack_ctx::git_version_info();
+pub async fn turbopack_database_compact(path: String, next_version: String) -> napi::Result<()> {
+    let describe = crate::next_api::turbopack_ctx::cache_describe(&next_version);
+    let version_info = crate::next_api::turbopack_ctx::git_version_info(&describe);
     let is_ci = std::env::var("CI").is_ok_and(|v| !v.is_empty());
     turbo_tasks_backend::compact_database(&PathBuf::from(path), &version_info, is_ci)
         .map_err(|e| napi::Error::from_reason(format!("Database compaction failed: {e}")))?;

@@ -121,6 +121,7 @@ jobs:
           TURBO_TEAM: ${{ env.TURBO_TEAM }}
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_CACHE: ${{ env.TURBO_CACHE }}
+          PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}
 
       - name: Upload stats results
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}

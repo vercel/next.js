@@ -4,12 +4,12 @@ use std::{
     fmt::{Display, Formatter, Write},
     future::Future,
     iter::{empty, once},
+    sync::LazyLock,
 };
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use either::Either;
-use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -1786,9 +1786,9 @@ async fn handle_after_resolve_plugins(
 
     for (key, primary) in result_value.primary.iter() {
         if let &ResolveResultItem::Source(source) = primary {
-            let path = source.ident().path().owned().await?;
+            let path = source.ident().await?.path.clone();
             if let Some(new_result) = apply_plugins_to_path(
-                path.clone(),
+                path,
                 lookup_path.clone(),
                 reference_type.clone(),
                 request,
@@ -2450,7 +2450,7 @@ async fn resolve_relative_request(
         forward: FxHashMap<RcStr, SmallVec<[RcStr; 3]>>,
         reverse: FxHashMap<RcStr, RcStr>,
     }
-    static TS_EXTENSION_REPLACEMENTS: Lazy<ExtensionReplacements> = Lazy::new(|| {
+    static TS_EXTENSION_REPLACEMENTS: LazyLock<ExtensionReplacements> = LazyLock::new(|| {
         let mut forward = FxHashMap::default();
         forward.insert(
             rcstr!(".js"),

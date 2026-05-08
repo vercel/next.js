@@ -36,7 +36,6 @@ use constant_value::ConstantValueCodeGen;
 use either::Either;
 use indexmap::map::Entry;
 use num_traits::Zero;
-use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -824,7 +823,7 @@ async fn analyze_ecmascript_module_internal(
                 .await?,
             compile_time_info_ref,
             var_graph: &var_graph,
-            allow_project_root_tracing: !source.ident().path().await?.is_in_node_modules(),
+            allow_project_root_tracing: !source.ident().await?.path.is_in_node_modules(),
             fun_args_values: Default::default(),
             var_cache: Default::default(),
             first_import_meta: true,
@@ -1318,7 +1317,7 @@ async fn analyze_ecmascript_module_internal(
                     if analysis_state.first_import_meta {
                         analysis_state.first_import_meta = false;
                         analysis.add_code_gen(ImportMetaBinding::new(
-                            source.ident().path().owned().await?,
+                            source.ident().await?.path.clone(),
                             analysis_state
                                 .compile_time_info_ref
                                 .hot_module_replacement_enabled,
@@ -1506,7 +1505,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 add_effects(block.effects);
                 value
             }
-            EffectArg::Spread => JsValue::unknown_empty(true, "spread is not supported yet"),
+            EffectArg::Spread => {
+                JsValue::unknown_empty(true, rcstr!("spread is not supported yet"))
+            }
         })
         .collect::<Vec<_>>();
 
@@ -1628,7 +1629,9 @@ async fn handle_dynamic_import<G: Fn(Vec<Effect>) + Send + Sync>(
                 add_effects(block.effects);
                 value
             }
-            EffectArg::Spread => JsValue::unknown_empty(true, "spread is not supported yet"),
+            EffectArg::Spread => {
+                JsValue::unknown_empty(true, rcstr!("spread is not supported yet"))
+            }
         })
         .collect();
 
@@ -1793,7 +1796,7 @@ where
         {
             Ok(cwd)
         } else {
-            Ok(source.ident().path().await?.parent())
+            Ok(source.ident().await?.path.parent())
         }
     };
 
@@ -2335,12 +2338,10 @@ where
 
             let linked_func_call = state
                 .link_value(
-                    JsValue::call(
-                        Box::new(JsValue::WellKnownFunction(
-                            WellKnownFunctionKind::PathResolve(Box::new(
-                                parent_path.path.as_str().into(),
-                            )),
-                        )),
+                    JsValue::call_from_parts(
+                        JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(Box::new(
+                            parent_path.path.as_str().into(),
+                        ))),
                         args.clone(),
                     ),
                     ImportAttributes::empty_ref(),
@@ -2373,16 +2374,21 @@ where
             return Ok(());
         }
         WellKnownFunctionKind::PathJoin if analysis.analyze_mode.is_tracing_assets() => {
-            let context_path = source.ident().path().await?;
             // ignore path.join in `node-gyp`, it will includes too many files
-            if context_path.path.contains("node_modules/node-gyp") {
+            if source
+                .ident()
+                .await?
+                .path
+                .path
+                .contains("node_modules/node-gyp")
+            {
                 return Ok(());
             }
             let args = linked_args().await?;
             let linked_func_call = state
                 .link_value(
-                    JsValue::call(
-                        Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin)),
+                    JsValue::call_from_parts(
+                        JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
                         args.clone(),
                     ),
                     ImportAttributes::empty_ref(),
@@ -2679,10 +2685,10 @@ where
                             } else {
                                 let linked_func_call = state
                                     .link_value(
-                                        JsValue::call(
-                                            Box::new(JsValue::WellKnownFunction(
+                                        JsValue::call_from_parts(
+                                            JsValue::WellKnownFunction(
                                                 WellKnownFunctionKind::PathJoin,
-                                            )),
+                                            ),
                                             vec![
                                                 JsValue::FreeVar(atom!("__dirname")),
                                                 pkg_or_dir.clone(),
@@ -2750,10 +2756,8 @@ where
                 } else {
                     let linked_func_call = state
                         .link_value(
-                            JsValue::call(
-                                Box::new(JsValue::WellKnownFunction(
-                                    WellKnownFunctionKind::PathJoin,
-                                )),
+                            JsValue::call_from_parts(
+                                JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
                                 vec![
                                     JsValue::FreeVar(atom!("__dirname")),
                                     p.into(),
@@ -3137,7 +3141,7 @@ async fn handle_free_var_reference(
             ));
         }
         FreeVarReference::InputRelative(kind) => {
-            let source_path = (*state.source).ident().path().owned().await?;
+            let source_path = (*state.source).ident().await?.path.clone();
             let source_path = match kind {
                 InputRelativeConstant::DirName => source_path.parent(),
                 InputRelativeConstant::FileName => source_path,
@@ -3431,71 +3435,83 @@ async fn value_visitor_inner(
         return Ok(((&*value).try_into()?, true));
     }
     let value = match v {
-        JsValue::Call(
-            _,
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
-            args,
-        ) => require_resolve_visitor(origin, args).await?,
-        JsValue::Call(
-            _,
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::ImportMetaGlob),
-            _,
-        ) => {
+        JsValue::Call(_, call)
+            if matches!(
+                call.callee(),
+                JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
+            ) =>
+        {
+            let (_, args) = call.into_parts();
+            require_resolve_visitor(origin, args).await?
+        }
+        JsValue::Call(_, ref call)
+            if matches!(
+                call.callee(),
+                JsValue::WellKnownFunction(WellKnownFunctionKind::ImportMetaGlob)
+            ) =>
+        {
             // import.meta.glob() result is handled by the effect handler;
             // in value_visitor_inner we just return unknown.
-            v.into_unknown(false, "import.meta.glob()")
+            v.into_unknown(false, rcstr!("import.meta.glob()"))
         }
-        JsValue::Call(
-            _,
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
-            args,
-        ) => require_context_visitor(origin, args).await?,
-        JsValue::Call(
-            _,
-            box JsValue::WellKnownFunction(
-                WellKnownFunctionKind::RequireContextRequire(..)
-                | WellKnownFunctionKind::RequireContextRequireKeys(..)
-                | WellKnownFunctionKind::RequireContextRequireResolve(..),
-            ),
-            _,
-        ) => {
+        JsValue::Call(_, call)
+            if matches!(
+                call.callee(),
+                JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext)
+            ) =>
+        {
+            let (_, args) = call.into_parts();
+            require_context_visitor(origin, args).await?
+        }
+        JsValue::Call(_, ref call)
+            if matches!(
+                call.callee(),
+                JsValue::WellKnownFunction(
+                    WellKnownFunctionKind::RequireContextRequire(..)
+                        | WellKnownFunctionKind::RequireContextRequireKeys(..)
+                        | WellKnownFunctionKind::RequireContextRequireResolve(..),
+                )
+            ) =>
+        {
             // TODO: figure out how to do static analysis without invalidating the whole
             // analysis when a new file gets added
             v.into_unknown(
                 true,
-                "require.context() static analysis is currently limited",
+                rcstr!("require.context() static analysis is currently limited"),
             )
         }
-        JsValue::Call(
-            _,
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire),
-            ref args,
-        ) => {
+        JsValue::Call(_, ref call)
+            if matches!(
+                call.callee(),
+                JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire)
+            ) =>
+        {
             if let [
                 JsValue::Member(
                     _,
                     box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
                     box JsValue::Constant(super::analyzer::ConstantValue::Str(prop)),
                 ),
-            ] = &args[..]
+            ] = call.args()
                 && prop.as_str() == "url"
             {
                 // `createRequire(import.meta.url)`
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
-            } else if let [JsValue::Url(rel, JsValueUrlKind::Relative)] = &args[..] {
+            } else if let [JsValue::Url(rel, JsValueUrlKind::Relative)] = call.args() {
                 // `createRequire(new URL("<rel>", import.meta.url))`
                 JsValue::WellKnownFunction(WellKnownFunctionKind::RequireFrom(Box::new(
                     rel.clone(),
                 )))
             } else {
-                v.into_unknown(true, "createRequire() non constant")
+                v.into_unknown(true, rcstr!("createRequire() non constant"))
             }
         }
-        JsValue::New(
-            _,
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-            ref args,
-        ) => {
+        JsValue::New(_, ref call)
+            if matches!(
+                call.callee(),
+                JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor)
+            ) =>
+        {
             if let [
                 JsValue::Constant(super::analyzer::ConstantValue::Str(url)),
                 JsValue::Member(
@@ -3503,15 +3519,15 @@ async fn value_visitor_inner(
                     box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
                     box JsValue::Constant(super::analyzer::ConstantValue::Str(prop)),
                 ),
-            ] = &args[..]
+            ] = call.args()
             {
                 if prop.as_str() == "url" {
                     JsValue::Url(url.clone(), JsValueUrlKind::Relative)
                 } else {
-                    v.into_unknown(true, "new URL() non constant")
+                    v.into_unknown(true, rcstr!("new URL() non constant"))
                 }
             } else {
-                v.into_unknown(true, "new non constant")
+                v.into_unknown(true, rcstr!("new non constant"))
             }
         }
         JsValue::WellKnownFunction(
@@ -3521,7 +3537,7 @@ async fn value_visitor_inner(
         ) => {
             if ignore {
                 return Ok((
-                    JsValue::unknown(v, true, "ignored well known function"),
+                    JsValue::unknown(v, true, rcstr!("ignored well known function")),
                     true,
                 ));
             } else {
@@ -3536,25 +3552,25 @@ async fn value_visitor_inner(
                 ignore,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                 true,
-                "ignored require",
+                rcstr!("ignored require"),
             ),
             "import" => JsValue::unknown_if(
                 ignore,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
                 true,
-                "ignored import",
+                rcstr!("ignored import"),
             ),
             "Worker" => JsValue::unknown_if(
                 ignore,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
                 true,
-                "ignored Worker constructor",
+                rcstr!("ignored Worker constructor"),
             ),
             "SharedWorker" => JsValue::unknown_if(
                 ignore,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::SharedWorkerConstructor),
                 true,
-                "ignored SharedWorker constructor",
+                rcstr!("ignored SharedWorker constructor"),
             ),
             "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
             "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
@@ -3570,10 +3586,13 @@ async fn value_visitor_inner(
             // TODO check externals
             .then(|| module_value_to_well_known_object(mv))
             .flatten()
-            .unwrap_or_else(|| v.into_unknown(true, "cross module analyzing is not yet supported")),
-        JsValue::Argument(..) => {
-            v.into_unknown(true, "cross function analyzing is not yet supported")
-        }
+            .unwrap_or_else(|| {
+                v.into_unknown(true, rcstr!("cross module analyzing is not yet supported"))
+            }),
+        JsValue::Argument(..) => v.into_unknown(
+            true,
+            rcstr!("cross function analyzing is not yet supported"),
+        ),
         _ => {
             let (mut v, mut modified) =
                 replace_well_known(v, compile_time_info, allow_project_root_tracing).await?;
@@ -3601,40 +3620,37 @@ async fn require_resolve_visitor(
         )
         .to_resolved()
         .await?;
-        let mut values = resolved
-            .primary_sources()
-            .await?
-            .iter()
-            .map(|&source| async move {
-                Ok(require_resolve(source.ident().path().owned().await?).into())
-            })
-            .try_join()
-            .await?;
+        let mut values =
+            resolved
+                .primary_sources()
+                .await?
+                .iter()
+                .map(|&source| async move {
+                    Ok(require_resolve(source.ident().await?.path.clone()).into())
+                })
+                .try_join()
+                .await?;
 
         match values.len() {
             0 => JsValue::unknown(
-                JsValue::call(
-                    Box::new(JsValue::WellKnownFunction(
-                        WellKnownFunctionKind::RequireResolve,
-                    )),
+                JsValue::call_from_parts(
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
                     args,
                 ),
                 false,
-                "unresolvable request",
+                rcstr!("unresolvable request"),
             ),
             1 => values.pop().unwrap(),
             _ => JsValue::alternatives(values),
         }
     } else {
         JsValue::unknown(
-            JsValue::call(
-                Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireResolve,
-                )),
+            JsValue::call_from_parts(
+                JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
                 args,
             ),
             true,
-            "only a single argument is supported",
+            rcstr!("only a single argument is supported"),
         )
     })
 }
@@ -3647,14 +3663,12 @@ async fn require_context_visitor(
         Ok(options) => options,
         Err(err) => {
             return Ok(JsValue::unknown(
-                JsValue::call(
-                    Box::new(JsValue::WellKnownFunction(
-                        WellKnownFunctionKind::RequireContext,
-                    )),
+                JsValue::call_from_parts(
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
                     args,
                 ),
                 true,
-                PrettyPrintError(&err).to_string(),
+                PrettyPrintError(&err).to_string().into(),
             ));
         }
     };
@@ -3676,9 +3690,9 @@ async fn require_context_visitor(
     );
 
     Ok(JsValue::WellKnownFunction(
-        WellKnownFunctionKind::RequireContextRequire(
+        WellKnownFunctionKind::RequireContextRequire(Box::new(
             RequireContextValue::from_context_map(map).await?,
-        ),
+        )),
     ))
 }
 
@@ -3710,9 +3724,9 @@ impl From<Vec<AstParentKind>> for AstPath {
     }
 }
 
-pub static TURBOPACK_HELPER: Lazy<Atom> = Lazy::new(|| atom!("__turbopack-helper__"));
-pub static TURBOPACK_HELPER_WTF8: Lazy<Wtf8Atom> =
-    Lazy::new(|| atom!("__turbopack-helper__").into());
+pub static TURBOPACK_HELPER: LazyLock<Atom> = LazyLock::new(|| atom!("__turbopack-helper__"));
+pub static TURBOPACK_HELPER_WTF8: LazyLock<Wtf8Atom> =
+    LazyLock::new(|| atom!("__turbopack-helper__").into());
 
 /// Detects whether a list of arguments is specifically
 /// `(process.argv[0], ['-e', ...])`. This is useful for detecting if a node
