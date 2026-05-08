@@ -1,6 +1,7 @@
 use std::{env, sync::Arc};
 
 use hashbrown::HashMap;
+use rustc_hash::FxBuildHasher;
 use turbo_rcstr::RcStr;
 
 use crate::{
@@ -12,7 +13,7 @@ use crate::{
 pub struct SpanBottomUpBuilder {
     // These values won't change after creation:
     pub self_spans: Vec<SpanIndex>,
-    pub children: HashMap<(RcStr, RcStr), SpanBottomUpBuilder>,
+    pub children: HashMap<(RcStr, RcStr), SpanBottomUpBuilder, FxBuildHasher>,
     pub example_span: SpanIndex,
 }
 
@@ -44,7 +45,7 @@ pub fn build_bottom_up_graph<'a>(
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(usize::MAX);
-    let mut roots: HashMap<(RcStr, RcStr), SpanBottomUpBuilder> = HashMap::default();
+    let mut roots: HashMap<(RcStr, RcStr), SpanBottomUpBuilder, FxBuildHasher> = HashMap::default();
 
     // unfortunately there is a rustc bug that fails the typechecking here
     // when using Either<impl Iterator, impl Iterator>. This error appears
@@ -54,7 +55,7 @@ pub fn build_bottom_up_graph<'a>(
     let mut current_iterators: Vec<Box<dyn Iterator<Item = SpanRef<'_>>>> =
         vec![Box::new(spans.flat_map(|span| span.children()))];
 
-    let mut current_path: Vec<((&'_ str, &'_ str), SpanIndex)> = vec![];
+    let mut current_path: Vec<((&'_ RcStr, &'_ RcStr), SpanIndex)> = vec![];
     while let Some(mut iter) = current_iterators.pop() {
         if let Some(child) = iter.next() {
             current_iterators.push(iter);
@@ -65,7 +66,7 @@ pub fn build_bottom_up_graph<'a>(
                 .from_key(&StringTupleRef(category, name))
                 .or_insert_with(|| {
                     (
-                        (RcStr::from(category), RcStr::from(name)),
+                        (category.clone(), name.clone()),
                         SpanBottomUpBuilder::new(child.index()),
                     )
                 });
@@ -81,7 +82,7 @@ pub fn build_bottom_up_graph<'a>(
                     .from_key(&StringTupleRef(category, title))
                     .or_insert_with(|| {
                         (
-                            (RcStr::from(category), RcStr::from(title)),
+                            (category.clone(), title.clone()),
                             SpanBottomUpBuilder::new(example_span),
                         )
                     });

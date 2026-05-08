@@ -24,7 +24,7 @@ use crate::{
 };
 
 pub type GroupNameToDirectAndRecusiveSpans<'l> =
-    FxIndexMap<(&'l str, &'l str), (Vec<SpanIndex>, Vec<SpanIndex>)>;
+    FxIndexMap<(&'l RcStr, &'l RcStr), (Vec<SpanIndex>, Vec<SpanIndex>)>;
 
 #[derive(Copy, Clone)]
 pub struct SpanRef<'a> {
@@ -87,18 +87,18 @@ impl<'a> SpanRef<'a> {
         self.index == 0
     }
 
-    pub fn nice_name(&self) -> (&'a str, &'a str) {
+    pub fn nice_name(&self) -> (&'a RcStr, &'a RcStr) {
         let SpanName { category, title } = &self.names().nice_name;
-        (category.as_str(), title.as_str())
+        (category, title)
     }
 
-    pub fn group_name(&self) -> (&'a str, &'a str) {
+    pub fn group_name(&self) -> (&'a RcStr, &'a RcStr) {
         let SpanName { category, title } = &self.names().group_name;
-        (category.as_str(), title.as_str())
+        (category, title)
     }
 
-    pub fn args(&self) -> impl Iterator<Item = (&str, &str)> {
-        self.span.args.iter().map(|(k, v)| (k.as_str(), v.as_str()))
+    pub fn args(&self) -> impl Iterator<Item = (&RcStr, &RcStr)> {
+        self.span.args.iter().map(|(k, v)| (k, v))
     }
 
     pub fn self_time(&self) -> Timestamp {
@@ -413,7 +413,7 @@ impl<'a> SpanRef<'a> {
                 }
                 let (cat, name) = span.nice_name();
                 if !cat.is_empty() {
-                    push_to_index(index, cat, || RcStr::from(cat), span.index());
+                    push_to_index(index, cat, || cat.clone(), span.index());
                 }
                 if !name.is_empty() {
                     push_to_index(
