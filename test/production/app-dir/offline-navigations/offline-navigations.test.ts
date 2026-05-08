@@ -5718,6 +5718,121 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('replays exact-URL data for trailing-slash normalized variants', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    const { buildId } = await getOfflineNavigationArtifactPaths()
+    const navigationBuildId = next.deploymentId ?? buildId
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      const cachedUrl = `${next.url}/docs/url-stress/trailing-slash/?token=trailing-slash`
+      const onlineResponse = await page!.goto(cachedUrl, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(onlineResponse?.status()).toBe(200)
+      await retry(async () => {
+        expect(await browser.elementById('url-stress-page').text()).toBe(
+          'url stress path: trailing-slash'
+        )
+        expect(await browser.elementById('url-stress-token').text()).toBe(
+          'url stress token: trailing-slash'
+        )
+      })
+
+      await retry(async () => {
+        const entry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/url-stress/trailing-slash/'
+        )
+        expect(entry).toEqual({
+          buildId: navigationBuildId,
+          cacheEpoch: 0,
+          expiresAt: expect.any(Number),
+          kind: 'exact-url',
+          payload: {
+            bodyLength: expect.any(Number),
+            kind: 'rsc-response',
+            requestKind: 'initial-load',
+            status: 200,
+          },
+          staleAt: expect.any(Number),
+          url: cachedUrl,
+          version: 2,
+        })
+      })
+
+      const noSlashVariantUrl = `${next.url}/docs/url-stress/trailing-slash?token=trailing-slash`
+
+      await next.stop()
+      await page!.context().setOffline(true)
+
+      const response = await page!.goto(noSlashVariantUrl, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(response?.status()).toBe(200)
+
+      await retry(async () => {
+        expect(await browser.elementById('url-stress-page').text()).toBe(
+          'url stress path: trailing-slash'
+        )
+        expect(await browser.elementById('url-stress-token').text()).toBe(
+          'url stress token: trailing-slash'
+        )
+      })
+      expect(await browser.elementById('offline-status').text()).toBe('offline')
+
+      expect(
+        await browser.eval(() => ({
+          cacheMiss:
+            document.getElementById('__NEXT_OFFLINE_NAVIGATION_CACHE_MISS') ===
+            null
+              ? null
+              : 'present',
+          renderedRoute:
+            document.getElementById('url-stress-page')?.textContent ?? null,
+          diagnostic:
+            (
+              window as typeof window & {
+                __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<{
+                  type?: string
+                }>
+              }
+            ).__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?.find(
+              (diagnostic) => diagnostic.type === 'cache-hit'
+            ) ?? null,
+        }))
+      ).toMatchObject({
+        cacheMiss: null,
+        renderedRoute: 'url stress path: trailing-slash',
+        diagnostic: {
+          type: 'cache-hit',
+          buildId: navigationBuildId,
+          requestKind: 'initial-load',
+          url: noSlashVariantUrl,
+        },
+      })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('shows cache miss when IndexedDB is unavailable during fallback boot', async () => {
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
