@@ -5615,19 +5615,20 @@ async function spawnStaticShellValidationInDevImpl(
 
   const hmrRefreshHash = getHmrRefreshHash(requestStore)
 
-  // Forward an invalid-dynamic-usage error recorded by `'use cache'` only when
-  // userland caught it (try/catch around the cache call). If userland didn't
-  // catch, the rejection propagated into the React render, and React's
-  // `serverComponentsErrorHandler` already stamped a digest on the error and
-  // emitted it as a Flight error chunk — surfacing it again here would
-  // duplicate the entry in the dev overlay. The presence of `digest` is exactly
-  // the "React saw it" signal.
   const { invalidDynamicUsageError } = workStore
-  if (
-    invalidDynamicUsageError &&
-    !(invalidDynamicUsageError as { digest?: unknown }).digest
-  ) {
-    return logMessagesAndSendErrorsToBrowser([invalidDynamicUsageError], ctx)
+  if (invalidDynamicUsageError) {
+    // We don't need to continue the prerender process if we already detected
+    // invalid dynamic usage in the initial prerender phase. Forward the error
+    // to the dev overlay only when userland caught the rejection. If userland
+    // didn't catch, the rejection propagated into the React render and React's
+    // `serverComponentsErrorHandler` already stamped a digest on the error and
+    // emitted it as a Flight error chunk — surfacing it again here would
+    // duplicate the entry in the dev overlay. The presence of `digest` is
+    // exactly the "React saw it" signal.
+    if (!(invalidDynamicUsageError as { digest?: unknown }).digest) {
+      return logMessagesAndSendErrorsToBrowser([invalidDynamicUsageError], ctx)
+    }
+    return
   }
 
   if (syncInterruptReason) {
