@@ -5728,6 +5728,189 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('serves fallback HTML when the cached manifest is missing or corrupted', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    for (const manifestDamage of [
+      {
+        kind: 'missing',
+        targetPath: '/docs/prefetched?missing-manifest-cache=1',
+      },
+      {
+        kind: 'corrupted',
+        targetPath: '/docs/prefetched?corrupted-manifest-cache=1',
+      },
+    ]) {
+      const buildResult = await next.build()
+      expect(buildResult.exitCode).toBe(0)
+
+      const { buildId } = await getOfflineNavigationArtifactPaths()
+      await next.start({ skipBuild: true })
+
+      let page: Playwright.Page | undefined
+      try {
+        const browser = await next.browser('/docs', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
+          },
+        })
+        await waitForOfflineNavigationServiceWorker(browser, page!)
+
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe(
+            'offline navigations page'
+          )
+        })
+
+        const fallbackMessageStorageKey = `__nextOfflineNavigationManifestDamageMessages:${manifestDamage.kind}`
+        await browser.eval(
+          ({ messageType, storageKey }) => {
+            localStorage.removeItem(storageKey)
+            navigator.serviceWorker.addEventListener('message', (event) => {
+              if (event.data?.type === messageType) {
+                const messages = JSON.parse(
+                  localStorage.getItem(storageKey) ?? '[]'
+                )
+                messages.push(event.data)
+                localStorage.setItem(storageKey, JSON.stringify(messages))
+              }
+            })
+          },
+          {
+            messageType: OFFLINE_NAVIGATION_FALLBACK_SERVED,
+            storageKey: fallbackMessageStorageKey,
+          }
+        )
+
+        const cacheDamageState = await browser.eval(
+          async ({ currentBuildId, damageKind }) => {
+            const cacheName = `next-offline-navigation-v1:${currentBuildId}:/docs`
+            const fallbackPath = `/docs/_next/static/${currentBuildId}/_offline-navigation-fallback.html`
+            const manifestPath = `/docs/_next/static/${currentBuildId}/_offline-navigation-manifest.json`
+            const cache = await caches.open(cacheName)
+            const originalManifest = await cache.match(manifestPath)
+
+            if (damageKind === 'missing') {
+              await cache.delete(manifestPath)
+            } else {
+              await cache.put(
+                manifestPath,
+                new Response('{"corruptedOfflineNavigationManifest":true}', {
+                  headers: {
+                    'content-type': 'application/json',
+                  },
+                })
+              )
+            }
+
+            const damagedManifest = await cache.match(manifestPath)
+
+            return {
+              damagedManifestText:
+                damagedManifest === undefined
+                  ? null
+                  : await damagedManifest.text(),
+              hadManifest: Boolean(originalManifest),
+              hasFallback: Boolean(await cache.match(fallbackPath)),
+            }
+          },
+          {
+            currentBuildId: buildId,
+            damageKind: manifestDamage.kind,
+          }
+        )
+        expect(cacheDamageState).toEqual({
+          damagedManifestText:
+            manifestDamage.kind === 'missing'
+              ? null
+              : '{"corruptedOfflineNavigationManifest":true}',
+          hadManifest: true,
+          hasFallback: true,
+        })
+
+        await page!.context().setOffline(true)
+        const targetUrl = `${next.url}${manifestDamage.targetPath}`
+        const offlineResponse = await page!.goto(targetUrl, {
+          waitUntil: 'domcontentloaded',
+        })
+        expect(offlineResponse?.status()).toBe(200)
+
+        await retry(async () => {
+          expect(
+            await browser.eval(() =>
+              document.documentElement.getAttribute(
+                'data-next-offline-navigation-cache-reason'
+              )
+            )
+          ).toBe('missing-entry')
+        })
+
+        expect(
+          await browser.eval((storageKey) => {
+            const cacheMiss = document.getElementById(
+              '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
+            )
+            const win = window as typeof window & {
+              __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<unknown>
+            }
+
+            return {
+              cache: document.documentElement.getAttribute(
+                'data-next-offline-navigation-cache'
+              ),
+              diagnostic:
+                win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?.at(-1) ?? null,
+              fallback: document.documentElement.hasAttribute(
+                'data-next-offline-navigation-fallback'
+              ),
+              fallbackMessages: JSON.parse(
+                localStorage.getItem(storageKey) ?? '[]'
+              ),
+              miss:
+                cacheMiss === null
+                  ? null
+                  : {
+                      hidden: cacheMiss.hidden,
+                      reason: cacheMiss.getAttribute(
+                        'data-next-offline-navigation-cache-reason'
+                      ),
+                      text: cacheMiss.textContent,
+                    },
+            }
+          }, fallbackMessageStorageKey)
+        ).toMatchObject({
+          cache: 'miss',
+          diagnostic: {
+            reason: 'missing-entry',
+            type: 'cache-miss',
+            url: targetUrl,
+          },
+          fallback: true,
+          fallbackMessages: [
+            {
+              buildId,
+              reason: 'network-error',
+              type: OFFLINE_NAVIGATION_FALLBACK_SERVED,
+              url: targetUrl,
+            },
+          ],
+          miss: {
+            hidden: false,
+            reason: 'missing-entry',
+            text: 'This page is not available offline.',
+          },
+        })
+      } finally {
+        if (page) {
+          await page.context().setOffline(false)
+        }
+        await next.stop()
+      }
+    }
+  })
+
   it('does not serve fallback HTML to offline server action submissions', async () => {
     if (shouldSkipReplayWithCachedNavigations) {
       return
