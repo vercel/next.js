@@ -1,4 +1,4 @@
-import { existsSync } from 'fs'
+import { existsSync, unlinkSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
@@ -5902,6 +5902,144 @@ describe('offlineNavigations build artifacts', () => {
             text: 'This page is not available offline.',
           },
         })
+      } finally {
+        if (page) {
+          await page.context().setOffline(false)
+        }
+        await next.stop()
+      }
+    }
+  })
+
+  it('does not activate the service worker when install-time manifest caching fails', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    for (const manifestDamage of [
+      {
+        expectedManifestStatus: 404,
+        kind: 'missing',
+        targetPath: '/docs/prefetched?missing-install-manifest=1',
+      },
+      {
+        expectedManifestStatus: 200,
+        kind: 'corrupted',
+        targetPath: '/docs/prefetched?corrupted-install-manifest=1',
+      },
+    ] as const) {
+      const buildResult = await next.build()
+      expect(buildResult.exitCode).toBe(0)
+
+      const { buildId, manifest } = await getOfflineNavigationArtifactPaths()
+      if (manifestDamage.kind === 'missing') {
+        unlinkSync(manifest.absolutePath)
+      } else {
+        writeFileSync(manifest.absolutePath, 'not offline navigation manifest')
+      }
+
+      await next.start({ skipBuild: true })
+
+      let page: Playwright.Page | undefined
+      const fallbackMessages: Array<unknown> = []
+      try {
+        const manifestResponse = await next.fetch(
+          `/docs/_next/static/${buildId}/_offline-navigation-manifest.json${next.getDeploymentIdQuery()}`
+        )
+        expect(manifestResponse.status).toBe(
+          manifestDamage.expectedManifestStatus
+        )
+        if (manifestDamage.kind === 'corrupted') {
+          expect(await manifestResponse.text()).toBe(
+            'not offline navigation manifest'
+          )
+        }
+
+        const browser = await next.browser('/docs', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
+          },
+        })
+
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe(
+            'offline navigations page'
+          )
+        })
+
+        await page!.exposeFunction(
+          '__nextRecordOfflineNavigationInstallDamageMessage',
+          (message: unknown) => {
+            fallbackMessages.push(message)
+          }
+        )
+        await browser.eval((messageType) => {
+          const win = window as typeof window & {
+            __nextRecordOfflineNavigationInstallDamageMessage?: (
+              message: unknown
+            ) => void
+          }
+          navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data?.type === messageType) {
+              win.__nextRecordOfflineNavigationInstallDamageMessage?.(
+                event.data
+              )
+            }
+          })
+        }, OFFLINE_NAVIGATION_FALLBACK_SERVED)
+
+        await retry(
+          async () => {
+            const serviceWorkerState = await browser.eval(async () => {
+              if (!('serviceWorker' in navigator)) {
+                return {
+                  controlled: false,
+                  registrations: [],
+                }
+              }
+
+              const registrations =
+                await navigator.serviceWorker.getRegistrations()
+              return {
+                controlled: Boolean(navigator.serviceWorker.controller),
+                registrations: registrations
+                  .filter((registration) =>
+                    registration.scope.endsWith('/docs/')
+                  )
+                  .map((registration) => ({
+                    active: registration.active?.scriptURL ?? null,
+                    installing: registration.installing?.state ?? null,
+                    scope: registration.scope,
+                    waiting: registration.waiting?.state ?? null,
+                  })),
+              }
+            })
+
+            expect(serviceWorkerState.controlled).toBe(false)
+            expect(
+              serviceWorkerState.registrations.every(
+                (registration) => registration.active === null
+              )
+            ).toBe(true)
+          },
+          10000,
+          500
+        )
+
+        await page!.context().setOffline(true)
+        let navigationError: string | null = null
+        try {
+          await page!.goto(`${next.url}${manifestDamage.targetPath}`, {
+            waitUntil: 'domcontentloaded',
+          })
+        } catch (error) {
+          navigationError = String(error)
+        }
+
+        expect(navigationError).toMatch(
+          /ERR_FAILED|ERR_INTERNET_DISCONNECTED|NS_ERROR_OFFLINE|offline/i
+        )
+        expect(fallbackMessages).toEqual([])
       } finally {
         if (page) {
           await page.context().setOffline(false)
