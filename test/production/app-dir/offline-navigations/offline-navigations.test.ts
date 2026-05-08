@@ -56,12 +56,22 @@ describe('offlineNavigations build artifacts', () => {
   ) {
     return browser.eval(async (substring) => {
       const database = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open('next-offline-navigation-cache', 2)
+        const request = indexedDB.open('next-offline-navigation-cache', 3)
         request.onupgradeneeded = () => {
           const database = request.result
           if (!database.objectStoreNames.contains('navigation-data')) {
             database.createObjectStore('navigation-data', {
               keyPath: ['buildId', 'url'],
+            })
+          }
+          if (!database.objectStoreNames.contains('route-data')) {
+            database.createObjectStore('route-data', {
+              keyPath: ['buildId', 'key'],
+            })
+          }
+          if (!database.objectStoreNames.contains('segment-data')) {
+            database.createObjectStore('segment-data', {
+              keyPath: ['buildId', 'key'],
             })
           }
           if (!database.objectStoreNames.contains('metadata')) {
@@ -494,7 +504,7 @@ describe('offlineNavigations build artifacts', () => {
       await browser.eval(
         async ({ buildId: entryBuildId, url }) => {
           const database = await new Promise<IDBDatabase>((resolve, reject) => {
-            const request = indexedDB.open('next-offline-navigation-cache', 2)
+            const request = indexedDB.open('next-offline-navigation-cache', 3)
             request.onsuccess = () => resolve(request.result)
             request.onerror = () => reject(request.error)
           })
@@ -533,7 +543,7 @@ describe('offlineNavigations build artifacts', () => {
       await browser.eval(
         async ({ buildId: entryBuildId, url }) => {
           const database = await new Promise<IDBDatabase>((resolve, reject) => {
-            const request = indexedDB.open('next-offline-navigation-cache', 2)
+            const request = indexedDB.open('next-offline-navigation-cache', 3)
             request.onsuccess = () => resolve(request.result)
             request.onerror = () => reject(request.error)
           })
