@@ -65,6 +65,13 @@ function isDocumentNavigationRequest(request){
   const url=new URL(request.url);
   return url.origin===self.location.origin;
 }
+async function isValidFallbackDocumentResponse(response,metadata){
+  if(!response.ok){
+    return false;
+  }
+  const html=await response.clone().text();
+  return html.includes('data-next-offline-navigation-fallback')&&html.includes('id="__NEXT_OFFLINE_NAVIGATION_FALLBACK"')&&html.includes('"buildId":"'+metadata.buildId+'"');
+}
 async function fetchDocumentNavigation(request){
   try{
     return await fetch(request);
@@ -72,7 +79,7 @@ async function fetchDocumentNavigation(request){
     const metadata=self.__NEXT_OFFLINE_NAVIGATION_SW;
     const cache=await caches.open(metadata.cacheNamespace);
     const fallbackResponse=await cache.match(metadata.fallbackDocumentHref);
-    if(fallbackResponse){
+    if(fallbackResponse&&await isValidFallbackDocumentResponse(fallbackResponse,metadata)){
       await notifyClients({
         type:${fallbackServedMessageType},
         buildId:metadata.buildId,

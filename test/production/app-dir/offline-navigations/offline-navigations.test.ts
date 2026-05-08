@@ -670,6 +670,10 @@ describe('offlineNavigations build artifacts', () => {
     expect(serviceWorkerScript).toContain('caches.delete')
     expect(serviceWorkerScript).toContain(OFFLINE_NAVIGATION_FALLBACK_SERVED)
     expect(serviceWorkerScript).toContain('isDocumentNavigationRequest')
+    expect(serviceWorkerScript).toContain('isValidFallbackDocumentResponse')
+    expect(serviceWorkerScript).toContain(
+      'data-next-offline-navigation-fallback'
+    )
     expect(serviceWorkerScript).toContain('skipWaiting')
     expect(serviceWorkerScript).toContain('clients.claim')
     expect(serviceWorkerScript).toContain('respondWith')
@@ -5602,6 +5606,110 @@ describe('offlineNavigations build artifacts', () => {
       try {
         await page!.goto(
           `${next.url}/docs/prefetched?missing-fallback-cache=1`,
+          { waitUntil: 'domcontentloaded' }
+        )
+      } catch (error) {
+        navigationError = String(error)
+      }
+
+      expect(navigationError).toMatch(
+        /ERR_FAILED|ERR_INTERNET_DISCONNECTED|NS_ERROR_OFFLINE|offline/i
+      )
+      expect(fallbackMessages).toEqual([])
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
+  it('does not fake fallback boot when the cached fallback document is corrupted', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    const { buildId } = await getOfflineNavigationArtifactPaths()
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    const fallbackMessages: Array<unknown> = []
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe(
+          'offline navigations page'
+        )
+      })
+
+      await page!.exposeFunction(
+        '__nextRecordOfflineNavigationCacheDamageMessage',
+        (message: unknown) => {
+          fallbackMessages.push(message)
+        }
+      )
+      await browser.eval((messageType) => {
+        const win = window as typeof window & {
+          __nextRecordOfflineNavigationCacheDamageMessage?: (
+            message: unknown
+          ) => void
+        }
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data?.type === messageType) {
+            win.__nextRecordOfflineNavigationCacheDamageMessage?.(event.data)
+          }
+        })
+      }, OFFLINE_NAVIGATION_FALLBACK_SERVED)
+
+      const cacheDamageState = await browser.eval(async (currentBuildId) => {
+        const cacheName = `next-offline-navigation-v1:${currentBuildId}:/docs`
+        const fallbackPath = `/docs/_next/static/${currentBuildId}/_offline-navigation-fallback.html`
+        const manifestPath = `/docs/_next/static/${currentBuildId}/_offline-navigation-manifest.json`
+        const cache = await caches.open(cacheName)
+        const originalFallback = await cache.match(fallbackPath)
+
+        await cache.put(
+          fallbackPath,
+          new Response(
+            '<!doctype html><p id="corrupted-offline-fallback">corrupted offline fallback</p>',
+            {
+              headers: {
+                'content-type': 'text/html; charset=utf-8',
+              },
+            }
+          )
+        )
+
+        const damagedFallback = await cache.match(fallbackPath)
+        const damagedFallbackText = await damagedFallback?.text()
+
+        return {
+          damagedFallbackText,
+          hadFallback: Boolean(originalFallback),
+          hasManifest: Boolean(await cache.match(manifestPath)),
+        }
+      }, buildId)
+      expect(cacheDamageState).toEqual({
+        damagedFallbackText:
+          '<!doctype html><p id="corrupted-offline-fallback">corrupted offline fallback</p>',
+        hadFallback: true,
+        hasManifest: true,
+      })
+
+      await page!.context().setOffline(true)
+      let navigationError: string | null = null
+      try {
+        await page!.goto(
+          `${next.url}/docs/prefetched?corrupted-fallback-cache=1`,
           { waitUntil: 'domcontentloaded' }
         )
       } catch (error) {
