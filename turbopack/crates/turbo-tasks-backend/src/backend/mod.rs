@@ -96,6 +96,22 @@ static IDLE_TIMEOUT: LazyLock<Duration> = LazyLock::new(|| {
         .unwrap_or(Duration::from_secs(2))
 });
 
+/// Priority used to re-schedule a task that became stale during execution.
+///
+/// Stale tasks must run again, but at a priority that reflects why they're being re-run rather
+/// than the (likely higher) priority of the original schedule. We use invalidation priority
+/// based on the task's leaf distance, parented under either the task's current dirty priority
+/// or `leaf()` if it is no longer dirty.
+fn compute_stale_priority(task: &impl TaskGuard) -> TaskPriority {
+    TaskPriority::invalidation(
+        task.get_leaf_distance()
+            .copied()
+            .unwrap_or_default()
+            .distance,
+    )
+    .in_parent(task.is_dirty().unwrap_or(TaskPriority::leaf()))
+}
+
 pub enum StorageMode {
     /// Queries the storage for cache entries that don't exist locally.
     ReadOnly,
@@ -1870,6 +1886,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         Some(TaskExecutionSpec { future, span })
     }
 
+    /// Returns `Some(priority)` if the task became stale during execution and needs to be
+    /// re-scheduled at the given priority. The caller (turbo-tasks manager) hands it to the
+    /// priority runner so re-execution doesn't inherit the original schedule priority.
     fn task_execution_completed(
         &self,
         task_id: TaskId,
@@ -1878,7 +1897,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) -> bool {
+    ) -> Option<TaskPriority> {
         // Task completion is a 4 step process:
         // 1. Remove old edges (dependencies, collectibles, children, cells) and update the
         //    aggregation number of the task and the new children.
@@ -1919,7 +1938,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let mut ctx = self.execute_context(turbo_tasks);
 
-        let Some(TaskExecutionCompletePrepareResult {
+        let TaskExecutionCompletePrepareResult {
             new_children,
             is_now_immutable,
             #[cfg(feature = "verify_determinism")]
@@ -1927,7 +1946,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             new_output,
             output_dependent_tasks,
             is_recomputation,
-        }) = self.task_execution_completed_prepare(
+        } = match self.task_execution_completed_prepare(
             &mut ctx,
             #[cfg(feature = "trace_task_details")]
             &span,
@@ -1937,12 +1956,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             #[cfg(feature = "verify_determinism")]
             stateful,
             has_invalidator,
-        )
-        else {
-            // Task was stale and has been rescheduled
-            #[cfg(feature = "trace_task_details")]
-            span.record("stale", "prepare");
-            return true;
+        ) {
+            Ok(r) => r,
+            Err(stale_priority) => {
+                // Task was stale and has been rescheduled
+                #[cfg(feature = "trace_task_details")]
+                span.record("stale", "prepare");
+                return Some(stale_priority);
+            }
         };
 
         #[cfg(feature = "trace_task_details")]
@@ -1970,15 +1991,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         if has_new_children
-            && self.task_execution_completed_connect(&mut ctx, task_id, new_children)
+            && let Some(stale_priority) =
+                self.task_execution_completed_connect(&mut ctx, task_id, new_children)
         {
             // Task was stale and has been rescheduled
             #[cfg(feature = "trace_task_details")]
             span.record("stale", "connect");
-            return true;
+            return Some(stale_priority);
         }
 
-        let (stale, in_progress_cells) = self.task_execution_completed_finish(
+        let (stale_priority, in_progress_cells) = self.task_execution_completed_finish(
             &mut ctx,
             task_id,
             #[cfg(feature = "verify_determinism")]
@@ -1986,11 +2008,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             new_output,
             is_now_immutable,
         );
-        if stale {
+        if let Some(stale_priority) = stale_priority {
             // Task was stale and has been rescheduled
             #[cfg(feature = "trace_task_details")]
             span.record("stale", "finish");
-            return true;
+            return Some(stale_priority);
         }
 
         let removed_data = self.task_execution_completed_cleanup(
@@ -2005,7 +2027,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         drop(removed_data);
         drop(in_progress_cells);
 
-        false
+        None
     }
 
     fn task_execution_completed_prepare(
@@ -2017,14 +2039,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
-    ) -> Option<TaskExecutionCompletePrepareResult> {
+    ) -> Result<TaskExecutionCompletePrepareResult, TaskPriority> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let is_recomputation = task.is_dirty().is_none();
         let Some(in_progress) = task.get_in_progress_mut() else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
         if matches!(in_progress, InProgressState::Canceled) {
-            return Some(TaskExecutionCompletePrepareResult {
+            return Ok(TaskExecutionCompletePrepareResult {
                 new_children: Default::default(),
                 is_now_immutable: false,
                 #[cfg(feature = "verify_determinism")]
@@ -2048,6 +2070,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // If the task is stale, reschedule it
         #[cfg(not(feature = "no_fast_stale"))]
         if stale && !is_once_task {
+            let stale_priority = compute_stale_priority(&task);
             let Some(InProgressState::InProgress(box InProgressStateInner {
                 done_event,
                 mut new_children,
@@ -2076,7 +2099,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 },
                 ctx,
             );
-            return None;
+            return Err(stale_priority);
         }
 
         // take the children from the task to process them
@@ -2268,7 +2291,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             CleanupOldEdgesOperation::run(task_id, old_edges, queue, ctx);
         }
 
-        Some(TaskExecutionCompletePrepareResult {
+        Ok(TaskExecutionCompletePrepareResult {
             new_children,
             is_now_immutable,
             #[cfg(feature = "verify_determinism")]
@@ -2412,7 +2435,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         ctx: &mut impl ExecuteContext<'_>,
         task_id: TaskId,
         new_children: FxHashSet<TaskId>,
-    ) -> bool {
+    ) -> Option<TaskPriority> {
         debug_assert!(!new_children.is_empty());
 
         let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -2421,7 +2444,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         if matches!(in_progress, InProgressState::Canceled) {
             // Task was canceled in the meantime, so we don't connect the children
-            return false;
+            return None;
         }
         let InProgressState::InProgress(box InProgressStateInner {
             #[cfg(not(feature = "no_fast_stale"))]
@@ -2436,6 +2459,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // If the task is stale, reschedule it
         #[cfg(not(feature = "no_fast_stale"))]
         if *stale && !is_once_task {
+            let stale_priority = compute_stale_priority(&task);
             let Some(InProgressState::InProgress(box InProgressStateInner { done_event, .. })) =
                 task.take_in_progress()
             else {
@@ -2456,7 +2480,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 },
                 ctx,
             );
-            return true;
+            return Some(stale_priority);
         }
 
         let has_active_count = ctx.should_track_activeness()
@@ -2472,9 +2496,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             ctx.should_track_activeness(),
         );
 
-        false
+        None
     }
 
+    #[allow(clippy::type_complexity)]
     fn task_execution_completed_finish(
         &self,
         ctx: &mut impl ExecuteContext<'_>,
@@ -2483,7 +2508,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         new_output: Option<OutputValue>,
         is_now_immutable: bool,
     ) -> (
-        bool,
+        Option<TaskPriority>,
         Option<
             auto_hash_map::AutoMap<CellId, InProgressCellState, BuildHasherDefault<FxHasher>, 1>,
         >,
@@ -2494,7 +2519,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         if matches!(in_progress, InProgressState::Canceled) {
             // Task was canceled in the meantime, so we don't finish it
-            return (false, None);
+            return (None, None);
         }
         let InProgressState::InProgress(box InProgressStateInner {
             done_event,
@@ -2511,12 +2536,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // If the task is stale, reschedule it
         if stale && !is_once_task {
+            let stale_priority = compute_stale_priority(&task);
             let old = task.set_in_progress(InProgressState::Scheduled {
                 done_event,
                 reason: TaskExecutionReason::Stale,
             });
             debug_assert!(old.is_none(), "InProgress already exists");
-            return (true, None);
+            return (Some(stale_priority), None);
         }
 
         // Set the output if it has changed
@@ -2549,12 +2575,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let dirty_changed = task.get_dirty().cloned() != new_dirtyness;
         let data_update = task.update_dirty_state(new_dirtyness);
 
+        // Under verify_determinism we re-run a task whose dirty state or output unexpectedly
+        // changed during execution to confirm determinism. The leaf priority keeps these
+        // verification reruns at the highest priority.
         #[cfg(feature = "verify_determinism")]
-        let reschedule =
-            (dirty_changed || no_output_set) && !task_id.is_transient() && !is_once_task;
+        let stale_priority: Option<TaskPriority> =
+            ((dirty_changed || no_output_set) && !task_id.is_transient() && !is_once_task)
+                .then(TaskPriority::leaf);
         #[cfg(not(feature = "verify_determinism"))]
-        let reschedule = false;
-        if reschedule {
+        let stale_priority: Option<TaskPriority> = None;
+        if stale_priority.is_some() {
             let old = task.set_in_progress(InProgressState::Scheduled {
                 done_event,
                 reason: TaskExecutionReason::Stale,
@@ -2575,7 +2605,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // We return so the data can be dropped outside of critical sections
-        (reschedule, in_progress_cells)
+        (stale_priority, in_progress_cells)
     }
 
     fn task_execution_completed_cleanup(
@@ -3393,7 +3423,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> bool {
+    ) -> Option<TaskPriority> {
         self.0.task_execution_completed(
             task_id,
             result,
