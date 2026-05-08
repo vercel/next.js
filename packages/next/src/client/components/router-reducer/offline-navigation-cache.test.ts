@@ -3,10 +3,14 @@ import {
   createOfflineNavigationRSCResponse,
   createOfflineNavigationRSCResponsePayload,
   deleteOfflineNavigationCacheEntry,
+  getOfflineNavigationRSCResponseCacheSkipReason,
+  invalidateOfflineNavigationCacheEntries,
   isOfflineNavigationRSCResponsePayload,
   normalizeOfflineNavigationCacheUrl,
   readOfflineNavigationCacheEntry,
   writeOfflineNavigationCacheEntry,
+  type OfflineNavigationRSCResponseCacheEligibility,
+  type OfflineNavigationRSCResponseCacheSkipReason,
   type OfflineNavigationCacheEntry,
   type OfflineNavigationCacheStorage,
 } from './offline-navigation-cache'
@@ -17,6 +21,7 @@ class MemoryOfflineNavigationCacheStorage
   implements OfflineNavigationCacheStorage
 {
   entries = new Map<string, OfflineNavigationCacheEntry>()
+  cacheEpoch = 0
 
   async get(key: CacheKey): Promise<OfflineNavigationCacheEntry | undefined> {
     return this.entries.get(this.getKey(key))
@@ -36,6 +41,15 @@ class MemoryOfflineNavigationCacheStorage
         this.entries.delete(key)
       }
     }
+  }
+
+  async getCacheEpoch(): Promise<number> {
+    return this.cacheEpoch
+  }
+
+  async incrementCacheEpoch(): Promise<number> {
+    this.cacheEpoch++
+    return this.cacheEpoch
   }
 
   private getKey(key: CacheKey): string {
@@ -61,6 +75,86 @@ class FailingOfflineNavigationCacheStorage
   async deleteBuild(): Promise<void> {
     throw new Error('delete build failed')
   }
+
+  async getCacheEpoch(): Promise<number> {
+    throw new Error('get epoch failed')
+  }
+
+  async incrementCacheEpoch(): Promise<number> {
+    throw new Error('increment epoch failed')
+  }
+}
+
+type OfflineNavigationEnvKey =
+  | '__NEXT_CONFIG_OUTPUT'
+  | '__NEXT_DEV_SERVER'
+  | '__NEXT_OFFLINE_NAVIGATIONS'
+  | 'NODE_ENV'
+
+const offlineNavigationEnvKeys: Array<OfflineNavigationEnvKey> = [
+  '__NEXT_CONFIG_OUTPUT',
+  '__NEXT_DEV_SERVER',
+  '__NEXT_OFFLINE_NAVIGATIONS',
+  'NODE_ENV',
+]
+
+function withOfflineNavigationCacheEnv<T>(
+  env: Partial<Record<OfflineNavigationEnvKey, string | undefined>>,
+  test: () => T
+): T {
+  const originalEnv: Partial<
+    Record<OfflineNavigationEnvKey, string | undefined>
+  > = {}
+
+  for (const key of offlineNavigationEnvKeys) {
+    originalEnv[key] = process.env[key]
+  }
+
+  const writableEnv = process.env as Record<string, string | undefined>
+
+  for (const key of offlineNavigationEnvKeys) {
+    const value = env[key]
+    if (value === undefined) {
+      delete writableEnv[key]
+    } else {
+      writableEnv[key] = value
+    }
+  }
+
+  try {
+    return test()
+  } finally {
+    for (const key of offlineNavigationEnvKeys) {
+      const value = originalEnv[key]
+      if (value === undefined) {
+        delete writableEnv[key]
+      } else {
+        writableEnv[key] = value
+      }
+    }
+  }
+}
+
+function getCacheSkipReason(
+  eligibility: Partial<OfflineNavigationRSCResponseCacheEligibility> = {},
+  env: Partial<Record<OfflineNavigationEnvKey, string | undefined>> = {}
+) {
+  return withOfflineNavigationCacheEnv(
+    {
+      __NEXT_CONFIG_OUTPUT: undefined,
+      __NEXT_DEV_SERVER: undefined,
+      __NEXT_OFFLINE_NAVIGATIONS: 'true',
+      NODE_ENV: 'production',
+      ...env,
+    },
+    () =>
+      getOfflineNavigationRSCResponseCacheSkipReason({
+        origin: 'https://example.com',
+        requestKind: 'navigation',
+        url: 'https://example.com/dashboard',
+        ...eligibility,
+      })
+  )
 }
 
 describe('offline navigation cache', () => {
@@ -70,6 +164,23 @@ describe('offline navigation cache', () => {
         'https://example.com/dashboard?tab=activity#settings'
       )
     ).toBe('https://example.com/dashboard?tab=activity')
+  })
+
+  it('preserves encoded query values and duplicate search param order', () => {
+    const first = normalizeOfflineNavigationCacheUrl(
+      'https://example.com/docs/url-stress/space%20value/?token=a%2Bb&tag=one&tag=two#section-1'
+    )
+    const reordered = normalizeOfflineNavigationCacheUrl(
+      'https://example.com/docs/url-stress/space%20value/?tag=one&tag=two&token=a%2Bb#section-1'
+    )
+
+    expect(first).toBe(
+      'https://example.com/docs/url-stress/space%20value?token=a%2Bb&tag=one&tag=two'
+    )
+    expect(reordered).toBe(
+      'https://example.com/docs/url-stress/space%20value?tag=one&tag=two&token=a%2Bb'
+    )
+    expect(first).not.toBe(reordered)
   })
 
   it('normalizes exact URL keys with the configured trailing slash', () => {
@@ -113,10 +224,11 @@ describe('offline navigation cache', () => {
         now: 150,
       })
     ).resolves.toEqual({
-      version: 1,
+      version: 2,
       kind: 'exact-url',
       buildId: 'build-a',
       url: 'https://example.com/dashboard?tab=activity',
+      cacheEpoch: 0,
       createdAt: 100,
       staleAt: 200,
       expiresAt: 300,
@@ -192,6 +304,7 @@ describe('offline navigation cache', () => {
       })
     ).resolves.toMatchObject({
       buildId: 'build-a',
+      cacheEpoch: 0,
       createdAt: 100,
       payload: {
         kind: 'rsc-response',
@@ -216,6 +329,61 @@ describe('offline navigation cache', () => {
     })
   })
 
+  it('returns cache eligibility skip reasons for unsupported RSC responses', () => {
+    const cases: Array<{
+      expected: OfflineNavigationRSCResponseCacheSkipReason
+      eligibility?: Partial<OfflineNavigationRSCResponseCacheEligibility>
+      env?: Partial<Record<OfflineNavigationEnvKey, string | undefined>>
+    }> = [
+      {
+        expected: 'disabled',
+        env: { __NEXT_OFFLINE_NAVIGATIONS: undefined },
+      },
+      { expected: 'dev-server', env: { __NEXT_DEV_SERVER: 'true' } },
+      { expected: 'not-production', env: { NODE_ENV: 'development' } },
+      { expected: 'output-export', env: { __NEXT_CONFIG_OUTPUT: 'export' } },
+      { expected: 'unsupported-request', eligibility: { requestKind: null } },
+      { expected: 'missing-payload', eligibility: { hasCachePayload: false } },
+      {
+        expected: 'cross-origin',
+        eligibility: { url: 'https://external.example/dashboard' },
+      },
+      {
+        expected: 'unsupported-segment-prefetching',
+        eligibility: { supportsPerSegmentPrefetching: false },
+      },
+      {
+        expected: 'runtime-prefetch',
+        eligibility: { hasRuntimePrefetch: true },
+      },
+      {
+        expected: 'partial-response',
+        eligibility: { hasPartialResponse: true },
+      },
+      { expected: 'hmr-refresh', eligibility: { isHmrRefresh: true } },
+      { expected: 'interception', eligibility: { isInterception: true } },
+      { expected: 'postponed', eligibility: { isPostponed: true } },
+      { expected: 'redirected', eligibility: { isRedirected: true } },
+    ]
+
+    for (const { expected, eligibility, env } of cases) {
+      expect(getCacheSkipReason(eligibility, env)).toBe(expected)
+    }
+  })
+
+  it('allows eligible same-origin RSC responses in production', () => {
+    expect(getCacheSkipReason()).toBe(null)
+  })
+
+  it('allows initial-load RSC responses without per-segment prefetch support', () => {
+    expect(
+      getCacheSkipReason({
+        requestKind: 'initial-load',
+        supportsPerSegmentPrefetching: false,
+      })
+    ).toBe(null)
+  })
+
   it('deletes exact URL entries', async () => {
     const storage = new MemoryOfflineNavigationCacheStorage()
     const cache = createOfflineNavigationCache(storage)
@@ -233,16 +401,59 @@ describe('offline navigation cache', () => {
     await expect(cache.read(url, { buildId: 'build-a' })).resolves.toBe(null)
   })
 
+  it('invalidates exact URL entries with a durable cache epoch', async () => {
+    const storage = new MemoryOfflineNavigationCacheStorage()
+    const cache = createOfflineNavigationCache(storage)
+    const url = 'https://example.com/dashboard'
+
+    await cache.write({
+      buildId: 'build-a',
+      url,
+      now: 100,
+      staleAt: 200,
+      expiresAt: 300,
+      payload: 'stale payload',
+    })
+    await expect(
+      cache.read(url, { buildId: 'build-a', now: 150 })
+    ).resolves.toMatchObject({
+      cacheEpoch: 0,
+      payload: 'stale payload',
+    })
+
+    await expect(cache.invalidate()).resolves.toBe(true)
+    await expect(
+      cache.read(url, { buildId: 'build-a', now: 150 })
+    ).resolves.toBe(null)
+    expect(storage.entries.size).toBe(0)
+
+    await cache.write({
+      buildId: 'build-a',
+      url,
+      now: 175,
+      staleAt: 250,
+      expiresAt: 350,
+      payload: 'fresh payload',
+    })
+    await expect(
+      cache.read(url, { buildId: 'build-a', now: 200 })
+    ).resolves.toMatchObject({
+      cacheEpoch: 1,
+      payload: 'fresh payload',
+    })
+  })
+
   it('ignores and deletes entries whose stored build id does not match', async () => {
     const storage = new MemoryOfflineNavigationCacheStorage()
     const cache = createOfflineNavigationCache(storage)
     const url = 'https://example.com/dashboard'
 
     await storage.put({
-      version: 1,
+      version: 2,
       kind: 'exact-url',
       buildId: 'build-b',
       url,
+      cacheEpoch: 0,
       createdAt: 100,
       staleAt: 200,
       expiresAt: 300,
@@ -355,6 +566,7 @@ describe('offline navigation cache', () => {
       cache.delete('https://example.com/dashboard', { buildId: 'build-a' })
     ).resolves.toBe(false)
     await expect(cache.deleteBuild('build-a')).resolves.toBe(false)
+    await expect(cache.invalidate()).resolves.toBe(false)
   })
 
   it('is a no-op when IndexedDB is unavailable', async () => {
@@ -387,6 +599,9 @@ describe('offline navigation cache', () => {
           buildId: 'build-a',
         })
       ).resolves.toBe(false)
+      await expect(invalidateOfflineNavigationCacheEntries()).resolves.toBe(
+        false
+      )
     } finally {
       if (originalIndexedDB) {
         Object.defineProperty(globalThis, 'indexedDB', originalIndexedDB)

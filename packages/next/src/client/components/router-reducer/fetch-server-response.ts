@@ -48,7 +48,10 @@ import {
   getStaleAt,
 } from '../segment-cache/cache'
 import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
-import type { OfflineNavigationRSCResponsePayload } from './offline-navigation-cache'
+import type {
+  OfflineNavigationRSCResponsePayload,
+  OfflineNavigationRSCResponseRequestKind,
+} from './offline-navigation-cache'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -387,6 +390,7 @@ export type RSCResponse<T> = {
   url: string
   flightResponsePromise: (Promise<T> & { _debugInfo?: Array<any> }) | null
   cacheData: Promise<FetchResponseCacheData | null>
+  offlineNavigationCacheRequestKind: OfflineNavigationRSCResponseRequestKind | null
   offlineNavigationCachePayload: Promise<OfflineNavigationRSCResponsePayload | null> | null
 }
 
@@ -568,8 +572,13 @@ export async function createFetch<T>(
   let fetchUrl = new URL(url)
   await setCacheBustingSearchParam(fetchUrl, headers)
   let processed = fetch(fetchUrl, fetchOptions).then(processFetch)
+  const offlineNavigationCacheRequestKind =
+    getOfflineNavigationCacheRequestKind(headers)
   let offlineNavigationCachePayload =
-    createOfflineNavigationCachePayloadFromProcessedResponse(processed, headers)
+    createOfflineNavigationCachePayloadFromProcessedResponse(
+      processed,
+      offlineNavigationCacheRequestKind
+    )
   let fetchPromise = processed.then(({ response }) => response)
 
   // Immediately pass the fetch promise to the Flight client so that the debug
@@ -643,7 +652,7 @@ export async function createFetch<T>(
       offlineNavigationCachePayload =
         createOfflineNavigationCachePayloadFromProcessedResponse(
           processed,
-          headers
+          offlineNavigationCacheRequestKind
         )
       fetchPromise = processed.then(({ response }) => response)
       flightResponsePromise = shouldImmediatelyDecode
@@ -684,6 +693,7 @@ export async function createFetch<T>(
 
     cacheData: processed.then(({ cacheData }) => cacheData),
 
+    offlineNavigationCacheRequestKind,
     offlineNavigationCachePayload,
   }
 
@@ -733,10 +743,9 @@ function createOfflineNavigationCachePayloadFromProcessedResponse(
     response: Response
     cacheData: FetchResponseCacheData | null
   }>,
-  headers: RequestHeaders
+  requestKind: OfflineNavigationRSCResponseRequestKind | null
 ): Promise<OfflineNavigationRSCResponsePayload | null> | null {
   const offlineNavigationCache = getOfflineNavigationCacheModule()
-  const requestKind = getOfflineNavigationCacheRequestKind(headers)
   if (requestKind === null || offlineNavigationCache === null) {
     return null
   }
@@ -775,22 +784,27 @@ function persistOfflineNavigationResponse({
   // Soft navigations are persisted after the router has accepted the response,
   // so normal navigation remains the source of truth and offline persistence is
   // only a best-effort side effect.
+  //
+  // The shared helper deliberately treats unsupported or incomplete responses
+  // as cache misses. It must not change the already-accepted navigation.
   const offlineNavigationCache = getOfflineNavigationCacheModule()
   if (offlineNavigationCache === null) {
     return
   }
 
-  if (
-    response.offlineNavigationCachePayload === null ||
-    !flightResponse.S ||
-    flightResponse.d !== undefined ||
-    flightResponse.p !== undefined ||
-    interception ||
-    isHmrRefresh ||
-    postponed ||
-    response.redirected ||
-    canonicalUrl.origin !== location.origin
-  ) {
+  const skipReason =
+    offlineNavigationCache.getOfflineNavigationRSCResponseCacheSkipReason({
+      requestKind: response.offlineNavigationCacheRequestKind,
+      hasCachePayload: response.offlineNavigationCachePayload !== null,
+      supportsPerSegmentPrefetching: flightResponse.S,
+      hasRuntimePrefetch: flightResponse.p !== undefined,
+      isHmrRefresh: isHmrRefresh === true,
+      isInterception: interception,
+      isPostponed: postponed,
+      isRedirected: response.redirected,
+      url: canonicalUrl,
+    })
+  if (skipReason !== null) {
     return
   }
 

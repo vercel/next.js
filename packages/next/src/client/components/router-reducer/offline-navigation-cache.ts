@@ -5,23 +5,56 @@ import { normalizePathTrailingSlash } from '../../normalize-trailing-slash'
 // used instead of the service worker CacheStorage because the router needs
 // structured records tied to the current Next.js build.
 const DATABASE_NAME = 'next-offline-navigation-cache'
-const DATABASE_VERSION = 1
+const DATABASE_VERSION = 2
 const STORE_NAME = 'navigation-data'
-const ENTRY_VERSION = 1
+const METADATA_STORE_NAME = 'metadata'
+const EXACT_URL_CACHE_EPOCH_KEY = 'exact-url-cache-epoch'
+const ENTRY_VERSION = 2
 const RSC_RESPONSE_PAYLOAD_VERSION = 1
 
 type OfflineNavigationCacheKey = [buildId: string, url: string]
-type OfflineNavigationRSCResponseRequestKind =
+export type OfflineNavigationRSCResponseRequestKind =
   | 'navigation'
   | 'route-prefetch'
   | 'client-resume'
   | 'initial-load'
+
+export type OfflineNavigationRSCResponseCacheSkipReason =
+  | 'disabled'
+  | 'dev-server'
+  | 'not-production'
+  | 'output-export'
+  | 'unsupported-request'
+  | 'missing-payload'
+  | 'cross-origin'
+  | 'unsupported-segment-prefetching'
+  | 'runtime-prefetch'
+  | 'partial-response'
+  | 'hmr-refresh'
+  | 'interception'
+  | 'postponed'
+  | 'redirected'
+
+export type OfflineNavigationRSCResponseCacheEligibility = {
+  requestKind: OfflineNavigationRSCResponseRequestKind | null
+  url: string | URL
+  origin?: string
+  hasCachePayload?: boolean
+  supportsPerSegmentPrefetching?: boolean
+  hasRuntimePrefetch?: boolean
+  hasPartialResponse?: boolean
+  isHmrRefresh?: boolean
+  isInterception?: boolean
+  isPostponed?: boolean
+  isRedirected?: boolean
+}
 
 export type OfflineNavigationCacheEntry = {
   version: typeof ENTRY_VERSION
   kind: 'exact-url'
   buildId: string
   url: string
+  cacheEpoch: number
   createdAt: number
   staleAt: number
   expiresAt: number
@@ -69,6 +102,8 @@ export type OfflineNavigationCacheStorage = {
   put(entry: OfflineNavigationCacheEntry): Promise<void>
   delete(key: OfflineNavigationCacheKey): Promise<void>
   deleteBuild(buildId: string): Promise<void>
+  getCacheEpoch(): Promise<number>
+  incrementCacheEpoch(): Promise<number>
 }
 
 export type OfflineNavigationCache = {
@@ -82,6 +117,7 @@ export type OfflineNavigationCache = {
     options?: OfflineNavigationCacheReadOptions
   ) => Promise<boolean>
   deleteBuild: (buildId?: string) => Promise<boolean>
+  invalidate: () => Promise<boolean>
 }
 
 export function normalizeOfflineNavigationCacheUrl(url: string | URL): string {
@@ -111,7 +147,10 @@ export function createOfflineNavigationCache(
 
         const cacheUrl = normalizeOfflineNavigationCacheUrl(url)
         const key: OfflineNavigationCacheKey = [buildId, cacheUrl]
-        const entry = await storage.get(key)
+        const [entry, cacheEpoch] = await Promise.all([
+          storage.get(key),
+          storage.getCacheEpoch(),
+        ])
         if (!entry) {
           return null
         }
@@ -120,7 +159,8 @@ export function createOfflineNavigationCache(
           entry.version !== ENTRY_VERSION ||
           entry.kind !== 'exact-url' ||
           entry.buildId !== buildId ||
-          entry.url !== cacheUrl
+          entry.url !== cacheUrl ||
+          entry.cacheEpoch !== cacheEpoch
         ) {
           await storage.delete(key)
           return null
@@ -146,6 +186,7 @@ export function createOfflineNavigationCache(
           kind: 'exact-url',
           buildId,
           url: normalizeOfflineNavigationCacheUrl(entry.url),
+          cacheEpoch: await storage.getCacheEpoch(),
           createdAt: entry.now ?? Date.now(),
           staleAt: entry.staleAt,
           expiresAt: entry.expiresAt,
@@ -173,6 +214,12 @@ export function createOfflineNavigationCache(
         }
 
         await storage.deleteBuild(cacheBuildId)
+        return true
+      }, false)
+    },
+    invalidate: async () => {
+      return runOfflineNavigationCacheOperation(async () => {
+        await storage.incrementCacheEpoch()
         return true
       }, false)
     },
@@ -206,6 +253,87 @@ export function createOfflineNavigationRSCResponse(
   })
   Object.defineProperty(response, 'url', { value: payload.url })
   return response
+}
+
+export function getOfflineNavigationRSCResponseCacheSkipReason({
+  requestKind,
+  url,
+  origin,
+  hasCachePayload = true,
+  supportsPerSegmentPrefetching = true,
+  hasRuntimePrefetch = false,
+  hasPartialResponse = false,
+  isHmrRefresh = false,
+  isInterception = false,
+  isPostponed = false,
+  isRedirected = false,
+}: OfflineNavigationRSCResponseCacheEligibility): OfflineNavigationRSCResponseCacheSkipReason | null {
+  // Persist only response shapes the offline bootstrap can replay without
+  // issuing follow-up network requests or guessing request context. This is
+  // about replay completeness, not a privacy boundary; entries are still scoped
+  // to the current browser profile and build.
+  if (!process.env.__NEXT_OFFLINE_NAVIGATIONS) {
+    return 'disabled'
+  }
+
+  if (process.env.__NEXT_DEV_SERVER) {
+    return 'dev-server'
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return 'not-production'
+  }
+
+  if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+    return 'output-export'
+  }
+
+  if (requestKind === null) {
+    return 'unsupported-request'
+  }
+
+  if (!hasCachePayload) {
+    return 'missing-payload'
+  }
+
+  const currentOrigin =
+    origin ?? (typeof location === 'undefined' ? null : location.origin)
+  if (
+    currentOrigin !== null &&
+    new URL(url, currentOrigin).origin !== currentOrigin
+  ) {
+    return 'cross-origin'
+  }
+
+  if (!supportsPerSegmentPrefetching && requestKind !== 'initial-load') {
+    return 'unsupported-segment-prefetching'
+  }
+
+  if (hasRuntimePrefetch) {
+    return 'runtime-prefetch'
+  }
+
+  if (hasPartialResponse) {
+    return 'partial-response'
+  }
+
+  if (isHmrRefresh) {
+    return 'hmr-refresh'
+  }
+
+  if (isInterception) {
+    return 'interception'
+  }
+
+  if (isPostponed) {
+    return 'postponed'
+  }
+
+  if (isRedirected) {
+    return 'redirected'
+  }
+
+  return null
 }
 
 export function isOfflineNavigationRSCResponsePayload(
@@ -353,6 +481,36 @@ class IndexedDBOfflineNavigationCacheStorage
     await waitForTransaction(transaction)
   }
 
+  async getCacheEpoch(): Promise<number> {
+    const database = await this.getDatabase()
+    if (database === null) {
+      return 0
+    }
+
+    const epoch = await requestToPromise(
+      database
+        .transaction(METADATA_STORE_NAME, 'readonly')
+        .objectStore(METADATA_STORE_NAME)
+        .get(EXACT_URL_CACHE_EPOCH_KEY)
+    )
+    return typeof epoch === 'number' ? epoch : 0
+  }
+
+  async incrementCacheEpoch(): Promise<number> {
+    const database = await this.getDatabase()
+    if (database === null) {
+      throw new Error()
+    }
+
+    const transaction = database.transaction(METADATA_STORE_NAME, 'readwrite')
+    const store = transaction.objectStore(METADATA_STORE_NAME)
+    const epoch = await requestToPromise(store.get(EXACT_URL_CACHE_EPOCH_KEY))
+    const nextEpoch = (typeof epoch === 'number' ? epoch : 0) + 1
+    store.put(nextEpoch, EXACT_URL_CACHE_EPOCH_KEY)
+    await waitForTransaction(transaction)
+    return nextEpoch
+  }
+
   private async getDatabase(): Promise<IDBDatabase | null> {
     if (this.databasePromise === null) {
       this.databasePromise = this.openDatabase().catch((error) => {
@@ -377,6 +535,9 @@ class IndexedDBOfflineNavigationCacheStorage
           keyPath: ['buildId', 'url'],
         })
       }
+      if (!database.objectStoreNames.contains(METADATA_STORE_NAME)) {
+        database.createObjectStore(METADATA_STORE_NAME)
+      }
     }
 
     const database = await requestToPromise(request)
@@ -397,3 +558,5 @@ export const writeOfflineNavigationCacheEntry = offlineNavigationCache.write
 export const deleteOfflineNavigationCacheEntry = offlineNavigationCache.delete
 export const deleteOfflineNavigationCacheEntriesForBuild =
   offlineNavigationCache.deleteBuild
+export const invalidateOfflineNavigationCacheEntries =
+  offlineNavigationCache.invalidate

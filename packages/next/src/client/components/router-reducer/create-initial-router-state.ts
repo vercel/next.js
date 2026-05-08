@@ -227,7 +227,6 @@ export function createInitialRouterState({
 
   persistInitialOfflineNavigationResponse({
     initialCouldBeIntercepted,
-    initialDynamicStaleTimeSeconds,
     initialFlightStreamForOfflineNavigationCache,
     initialRuntimePrefetchStream,
     initialStaleAt,
@@ -283,7 +282,6 @@ export function createInitialRouterState({
 
 function persistInitialOfflineNavigationResponse({
   initialCouldBeIntercepted,
-  initialDynamicStaleTimeSeconds,
   initialFlightStreamForOfflineNavigationCache,
   initialRuntimePrefetchStream,
   initialStaleAt,
@@ -293,7 +291,6 @@ function persistInitialOfflineNavigationResponse({
   navigatedAt,
 }: {
   initialCouldBeIntercepted: boolean
-  initialDynamicStaleTimeSeconds: number | undefined
   initialFlightStreamForOfflineNavigationCache:
     | ReadableStream<Uint8Array>
     | null
@@ -308,23 +305,38 @@ function persistInitialOfflineNavigationResponse({
   // Online document loads can seed the exact-URL offline cache by teeing the
   // inline RSC stream. This gives the generated fallback document something
   // to replay later even if the user never performed a soft navigation.
+  //
+  // Keep the cache module behind the compile-time flag. Once enabled, the
+  // shared skip-reason helper keeps initial loads and soft navigations aligned
+  // on which RSC responses are complete enough to persist.
   if (process.env.__NEXT_OFFLINE_NAVIGATIONS) {
     if (initialFlightStreamForOfflineNavigationCache == null) {
       return
     }
 
-    if (
-      process.env.__NEXT_DEV_SERVER ||
-      process.env.NODE_ENV !== 'production' ||
-      process.env.__NEXT_CONFIG_OUTPUT === 'export' ||
-      location === null ||
-      !initialSupportsPerSegmentPrefetching ||
-      initialCouldBeIntercepted ||
-      initialDynamicStaleTimeSeconds !== undefined ||
-      initialRuntimePrefetchStream !== undefined ||
-      initialStaleAt === null ||
-      initialStaticStageByteLength !== undefined
-    ) {
+    if (location === null || initialStaleAt === null) {
+      initialFlightStreamForOfflineNavigationCache.cancel()
+      return
+    }
+
+    const url = createHrefFromUrl(location)
+
+    const {
+      createOfflineNavigationRSCResponsePayload,
+      getOfflineNavigationRSCResponseCacheSkipReason,
+      writeOfflineNavigationRSCResponseCacheEntry,
+    } =
+      require('./offline-navigation-cache') as typeof import('./offline-navigation-cache')
+
+    const skipReason = getOfflineNavigationRSCResponseCacheSkipReason({
+      requestKind: 'initial-load',
+      hasPartialResponse: initialStaticStageByteLength !== undefined,
+      hasRuntimePrefetch: initialRuntimePrefetchStream !== undefined,
+      isInterception: initialCouldBeIntercepted,
+      supportsPerSegmentPrefetching: initialSupportsPerSegmentPrefetching,
+      url,
+    })
+    if (skipReason !== null) {
       initialFlightStreamForOfflineNavigationCache.cancel()
       return
     }
@@ -338,14 +350,8 @@ function persistInitialOfflineNavigationResponse({
       }
     )
     Object.defineProperty(response, 'url', {
-      value: createHrefFromUrl(location),
+      value: url,
     })
-
-    const {
-      createOfflineNavigationRSCResponsePayload,
-      writeOfflineNavigationRSCResponseCacheEntry,
-    } =
-      require('./offline-navigation-cache') as typeof import('./offline-navigation-cache')
 
     const payload = createOfflineNavigationRSCResponsePayload(
       response,
@@ -358,14 +364,13 @@ function persistInitialOfflineNavigationResponse({
         expiresAt: staleAt,
         payload,
         staleAt,
-        url: createHrefFromUrl(location),
+        url,
         now: navigatedAt,
       })
     })().catch(() => {
       // The page already rendered. Offline persistence must not affect boot.
     })
   } else {
-    initialFlightStreamForOfflineNavigationCache?.cancel()
     return
   }
 }

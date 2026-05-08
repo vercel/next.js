@@ -371,6 +371,7 @@ export function invalidateEntirePrefetchCache(
 ): void {
   currentRouteCacheVersion++
   currentSegmentCacheVersion++
+  invalidatePersistentOfflineNavigationCache()
 
   pingVisibleLinks(nextUrl, tree)
   pingInvalidationListeners(nextUrl, tree)
@@ -388,6 +389,7 @@ export function invalidateRouteCacheEntries(
   tree: FlightRouterState
 ): void {
   currentRouteCacheVersion++
+  invalidatePersistentOfflineNavigationCache()
 
   pingVisibleLinks(nextUrl, tree)
   pingInvalidationListeners(nextUrl, tree)
@@ -405,9 +407,28 @@ export function invalidateSegmentCacheEntries(
   tree: FlightRouterState
 ): void {
   currentSegmentCacheVersion++
+  invalidatePersistentOfflineNavigationCache()
 
   pingVisibleLinks(nextUrl, tree)
   pingInvalidationListeners(nextUrl, tree)
+}
+
+function invalidatePersistentOfflineNavigationCache(): void {
+  if (
+    !process.env.__NEXT_OFFLINE_NAVIGATIONS ||
+    process.env.__NEXT_DEV_SERVER ||
+    process.env.NODE_ENV !== 'production' ||
+    process.env.__NEXT_CONFIG_OUTPUT === 'export'
+  ) {
+    return
+  }
+
+  const offlineNavigationCache = getOfflineNavigationCacheModule()
+  if (offlineNavigationCache === null) {
+    return
+  }
+
+  void offlineNavigationCache.invalidateOfflineNavigationCacheEntries()
 }
 
 function attachInvalidationListener(task: PrefetchTask): void {
@@ -1632,12 +1653,24 @@ function persistOfflineNavigationClientResumePrefetchResponse({
       addInstantPrefetchHeaderIfLocked(headers)
 
       const response = await fetchPrefetchResponse(url, headers)
-      if (
-        response === null ||
-        response.offlineNavigationCachePayload === null ||
-        response.redirected ||
-        response.headers.get('vary')?.includes(NEXT_URL)
-      ) {
+      if (response === null) {
+        return
+      }
+
+      const skipReason =
+        offlineNavigationCache.getOfflineNavigationRSCResponseCacheSkipReason({
+          requestKind: response.offlineNavigationCacheRequestKind,
+          hasCachePayload: response.offlineNavigationCachePayload !== null,
+          isInterception: response.headers.get('vary')?.includes(NEXT_URL),
+          isRedirected: response.redirected,
+          url,
+        })
+      if (skipReason !== null) {
+        return
+      }
+
+      const payload = response.offlineNavigationCachePayload
+      if (payload === null) {
         return
       }
 
@@ -1645,7 +1678,7 @@ function persistOfflineNavigationClientResumePrefetchResponse({
       await offlineNavigationCache.writeOfflineNavigationRSCResponseCacheEntry({
         buildId: response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? buildId,
         expiresAt: staleAt,
-        payload: response.offlineNavigationCachePayload,
+        payload,
         staleAt,
         url,
       })
