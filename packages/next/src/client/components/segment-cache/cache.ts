@@ -58,6 +58,7 @@ import {
   getRenderedSearchFromVaryPath,
 } from './vary-path'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
+import { writeOfflineNavigationRSCResponseCacheEntry } from '../router-reducer/offline-navigation-cache'
 import type {
   NormalizedPathname,
   NormalizedSearch,
@@ -1577,6 +1578,57 @@ export function convertRouteTreeToFlightRouterState(
   return flightRouterState
 }
 
+function persistOfflineNavigationClientResumePrefetchResponse({
+  buildId,
+  couldBeIntercepted,
+  url,
+}: {
+  buildId: string | undefined
+  couldBeIntercepted: boolean
+  url: URL
+}): void {
+  if (
+    !process.env.__NEXT_OFFLINE_NAVIGATIONS ||
+    process.env.__NEXT_DEV_SERVER ||
+    process.env.NODE_ENV !== 'production' ||
+    process.env.__NEXT_CONFIG_OUTPUT === 'export' ||
+    couldBeIntercepted ||
+    url.origin !== location.origin
+  ) {
+    return
+  }
+
+  void (async () => {
+    try {
+      const headers: RequestHeaders = {
+        [RSC_HEADER]: '1',
+        [NEXT_ROUTER_PREFETCH_HEADER]: '1',
+        [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: '/_full',
+      }
+      addInstantPrefetchHeaderIfLocked(headers)
+
+      const response = await fetchPrefetchResponse(url, headers)
+      if (
+        response === null ||
+        response.offlineNavigationCachePayload === null ||
+        response.redirected ||
+        response.headers.get('vary')?.includes(NEXT_URL)
+      ) {
+        return
+      }
+
+      const staleAt = getStaleAtFromHeader(Date.now(), response)
+      await writeOfflineNavigationRSCResponseCacheEntry({
+        buildId: response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? buildId,
+        expiresAt: staleAt,
+        payload: response.offlineNavigationCachePayload,
+        staleAt,
+        url,
+      })
+    } catch {}
+  })()
+}
+
 export async function fetchRouteOnCacheMiss(
   entry: PendingRouteCacheEntry,
   key: RouteCacheKey
@@ -1777,6 +1829,14 @@ export async function fetchRouteOnCacheMiss(
         routeIsPPREnabled,
         false // hasDynamicRewrite
       )
+
+      persistOfflineNavigationClientResumePrefetchResponse({
+        buildId:
+          response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ??
+          serverData.buildId,
+        couldBeIntercepted,
+        url: urlAfterRedirects,
+      })
     } else {
       // PPR is not enabled for this route. The server responds with a
       // different format (FlightRouterState) that we need to convert.
@@ -1827,6 +1887,13 @@ export async function fetchRouteOnCacheMiss(
         pathname,
         nextUrl
       )
+
+      persistOfflineNavigationClientResumePrefetchResponse({
+        buildId:
+          response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b,
+        couldBeIntercepted,
+        url: urlAfterRedirects,
+      })
     }
 
     if (!couldBeIntercepted) {

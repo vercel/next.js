@@ -4,8 +4,13 @@ const DATABASE_NAME = 'next-offline-navigation-cache'
 const DATABASE_VERSION = 1
 const STORE_NAME = 'navigation-data'
 const ENTRY_VERSION = 1
+const RSC_RESPONSE_PAYLOAD_VERSION = 1
 
 type OfflineNavigationCacheKey = [buildId: string, url: string]
+type OfflineNavigationRSCResponseRequestKind =
+  | 'navigation'
+  | 'route-prefetch'
+  | 'client-resume'
 
 export type OfflineNavigationCacheEntry = {
   version: typeof ENTRY_VERSION
@@ -16,6 +21,17 @@ export type OfflineNavigationCacheEntry = {
   staleAt: number
   expiresAt: number
   payload: unknown
+}
+
+export type OfflineNavigationRSCResponsePayload = {
+  version: typeof RSC_RESPONSE_PAYLOAD_VERSION
+  kind: 'rsc-response'
+  requestKind: OfflineNavigationRSCResponseRequestKind
+  url: string
+  status: number
+  statusText: string
+  headers: Array<[string, string]>
+  body: ArrayBuffer
 }
 
 export type OfflineNavigationCacheWrite = {
@@ -30,6 +46,15 @@ export type OfflineNavigationCacheWrite = {
 export type OfflineNavigationCacheReadOptions = {
   buildId?: string
   now?: number
+}
+
+export type OfflineNavigationRSCResponseCacheWrite = {
+  url: string | URL
+  staleAt: number
+  expiresAt: number
+  buildId?: string
+  now?: number
+  payload: Promise<OfflineNavigationRSCResponsePayload | null>
 }
 
 export type OfflineNavigationCacheStorage = {
@@ -146,6 +171,48 @@ export function createOfflineNavigationCache(
       }, false)
     },
   }
+}
+
+export async function createOfflineNavigationRSCResponsePayload(
+  response: Response,
+  requestKind: OfflineNavigationRSCResponseRequestKind
+): Promise<OfflineNavigationRSCResponsePayload> {
+  const clone = response.clone()
+  return {
+    version: RSC_RESPONSE_PAYLOAD_VERSION,
+    kind: 'rsc-response',
+    requestKind,
+    url: clone.url,
+    status: clone.status,
+    statusText: clone.statusText,
+    headers: Array.from(clone.headers.entries()),
+    body: await clone.arrayBuffer(),
+  }
+}
+
+export function createOfflineNavigationRSCResponse(
+  payload: OfflineNavigationRSCResponsePayload
+): Response {
+  return new Response(payload.body.slice(0), {
+    status: payload.status,
+    statusText: payload.statusText,
+    headers: payload.headers,
+  })
+}
+
+export async function writeOfflineNavigationRSCResponseCacheEntry({
+  payload,
+  ...entry
+}: OfflineNavigationRSCResponseCacheWrite): Promise<boolean> {
+  const resolvedPayload = await payload
+  if (resolvedPayload === null) {
+    return false
+  }
+
+  return writeOfflineNavigationCacheEntry({
+    ...entry,
+    payload: resolvedPayload,
+  })
 }
 
 function getCacheBuildId(buildId: string | undefined): string | null {

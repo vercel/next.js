@@ -1,5 +1,7 @@
 import {
   createOfflineNavigationCache,
+  createOfflineNavigationRSCResponse,
+  createOfflineNavigationRSCResponsePayload,
   deleteOfflineNavigationCacheEntry,
   normalizeOfflineNavigationCacheUrl,
   readOfflineNavigationCacheEntry,
@@ -98,6 +100,81 @@ describe('offline navigation cache', () => {
       staleAt: 200,
       expiresAt: 300,
       payload: { tree: 'payload' },
+    })
+  })
+
+  it('serializes RSC response payloads for persisted navigation entries', async () => {
+    const response = new Response('0:["$","payload"]', {
+      headers: {
+        'content-type': 'text/x-component',
+        'x-nextjs-stale-time': '60',
+      },
+      status: 200,
+      statusText: 'OK',
+    })
+    Object.defineProperty(response, 'url', {
+      value: 'https://example.com/dashboard?_rsc=abc',
+    })
+
+    const payload = await createOfflineNavigationRSCResponsePayload(
+      response,
+      'route-prefetch'
+    )
+    expect(payload).toMatchObject({
+      version: 1,
+      kind: 'rsc-response',
+      requestKind: 'route-prefetch',
+      status: 200,
+      statusText: 'OK',
+      headers: expect.arrayContaining([
+        ['content-type', 'text/x-component'],
+        ['x-nextjs-stale-time', '60'],
+      ]),
+    })
+
+    await expect(
+      createOfflineNavigationRSCResponse(payload).text()
+    ).resolves.toBe('0:["$","payload"]')
+  })
+
+  it('writes RSC response payloads through the exact URL cache', async () => {
+    const storage = new MemoryOfflineNavigationCacheStorage()
+    const cache = createOfflineNavigationCache(storage)
+    const payload = createOfflineNavigationRSCResponsePayload(
+      new Response('0:["$","payload"]'),
+      'navigation'
+    )
+
+    await expect(payload).resolves.toMatchObject({
+      kind: 'rsc-response',
+      requestKind: 'navigation',
+    })
+    await expect(
+      cache.write({
+        buildId: 'build-a',
+        expiresAt: 300,
+        payload: await payload,
+        staleAt: 200,
+        url: 'https://example.com/dashboard#section',
+        now: 100,
+      })
+    ).resolves.toBe(true)
+
+    await expect(
+      cache.read('https://example.com/dashboard', {
+        buildId: 'build-a',
+        now: 150,
+      })
+    ).resolves.toMatchObject({
+      buildId: 'build-a',
+      createdAt: 100,
+      payload: {
+        kind: 'rsc-response',
+        requestKind: 'navigation',
+      },
+      staleAt: 200,
+      expiresAt: 300,
+      url: 'https://example.com/dashboard',
     })
   })
 

@@ -114,6 +114,7 @@ describe('offlineNavigations build artifacts', () => {
     expect(buildResult.exitCode).toBe(0)
 
     const { buildId } = await getOfflineNavigationArtifactPaths()
+    const navigationBuildId = next.deploymentId ?? buildId
     await next.start({ skipBuild: true })
 
     let page: Playwright.Page | undefined
@@ -252,6 +253,77 @@ describe('offlineNavigations build artifacts', () => {
           },
         ])
       )
+
+      await browser.elementById('prefetch-offline-navigation').click()
+      await retry(async () => {
+        const persistedEntry = await browser.eval(async () => {
+          const database = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open('next-offline-navigation-cache', 1)
+            request.onupgradeneeded = () => {
+              const database = request.result
+              if (!database.objectStoreNames.contains('navigation-data')) {
+                database.createObjectStore('navigation-data', {
+                  keyPath: ['buildId', 'url'],
+                })
+              }
+            }
+            request.onsuccess = () => resolve(request.result)
+            request.onerror = () => reject(request.error)
+          })
+
+          try {
+            const entries = await new Promise<any[]>((resolve, reject) => {
+              const transaction = database.transaction(
+                'navigation-data',
+                'readonly'
+              )
+              const request = transaction
+                .objectStore('navigation-data')
+                .getAll()
+              request.onsuccess = () => resolve(request.result)
+              request.onerror = () => reject(request.error)
+            })
+            const entry = entries.find((entry) =>
+              entry.url.includes('/docs/prefetched')
+            )
+            if (!entry) {
+              return null
+            }
+
+            return {
+              buildId: entry.buildId,
+              expiresAt: entry.expiresAt,
+              kind: entry.kind,
+              payload: {
+                bodyLength: entry.payload.body.byteLength,
+                kind: entry.payload.kind,
+                requestKind: entry.payload.requestKind,
+                status: entry.payload.status,
+              },
+              staleAt: entry.staleAt,
+              url: entry.url,
+              version: entry.version,
+            }
+          } finally {
+            database.close()
+          }
+        })
+        expect(persistedEntry).toEqual({
+          buildId: navigationBuildId,
+          expiresAt: expect.any(Number),
+          kind: 'exact-url',
+          payload: {
+            bodyLength: expect.any(Number),
+            kind: 'rsc-response',
+            requestKind: 'client-resume',
+            status: 200,
+          },
+          staleAt: expect.any(Number),
+          url: expect.stringContaining('/docs/prefetched'),
+          version: 1,
+        })
+        expect(persistedEntry!.payload.bodyLength).toBeGreaterThan(0)
+      })
 
       await page!.context().setOffline(true)
       const nonNavigationResult = await browser.eval(async () => {
