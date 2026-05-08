@@ -76,6 +76,19 @@ type OfflineNavigationFallbackDiagnostic =
       buildId: string | undefined
       reason: OfflineNavigationCacheMissReason
     }
+  | {
+      type: 'router-cache-hydration'
+      url: string
+      buildId: string | undefined
+      routes: {
+        hydrated: number
+        skipped: number
+      }
+      segments: {
+        hydrated: number
+        skipped: number
+      }
+    }
 
 declare global {
   interface Window {
@@ -597,6 +610,7 @@ export async function hydrate(
   } else {
     setNavigationBuildId(getDeploymentId()!)
   }
+  const buildId = initialRSCPayload.b ?? getDeploymentId()
 
   if (
     process.env.__NEXT_OFFLINE_NAVIGATIONS &&
@@ -605,6 +619,28 @@ export async function hydrate(
     const { registerOfflineNavigationServiceWorker } =
       require('./offline-navigation-service-worker') as typeof import('./offline-navigation-service-worker')
     registerOfflineNavigationServiceWorker()
+  }
+
+  if (
+    process.env.__NEXT_OFFLINE_NAVIGATIONS &&
+    !process.env.__NEXT_DEV_SERVER &&
+    offlineNavigationClientResumeFetch
+  ) {
+    try {
+      const { hydrateOfflineNavigationRouterCache } =
+        require('./components/segment-cache/cache') as typeof import('./components/segment-cache/cache')
+      const result = await hydrateOfflineNavigationRouterCache()
+      reportOfflineNavigationFallbackDiagnostic({
+        type: 'router-cache-hydration',
+        url: location.href,
+        buildId,
+        routes: result.routes,
+        segments: result.segments,
+      })
+    } catch {
+      // The exact URL fallback already booted. Router cache hydration should
+      // only improve later navigations, never block the current render.
+    }
   }
 
   const initialTimestamp = Date.now()

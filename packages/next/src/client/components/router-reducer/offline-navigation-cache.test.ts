@@ -68,6 +68,12 @@ class MemoryOfflineNavigationCacheStorage
     return this.routeEntries.get(this.getKey(key))
   }
 
+  async getRoutes(buildId: string): Promise<OfflineNavigationRouteRecord[]> {
+    return Array.from(this.routeEntries.values()).filter(
+      (entry) => entry.buildId === buildId
+    )
+  }
+
   async putRoute(entry: OfflineNavigationRouteRecord): Promise<void> {
     this.routeEntries.set(this.getKey([entry.buildId, entry.key]), entry)
   }
@@ -89,6 +95,14 @@ class MemoryOfflineNavigationCacheStorage
     key: RouterCacheKey
   ): Promise<OfflineNavigationSegmentRecord | undefined> {
     return this.segmentEntries.get(this.getKey(key))
+  }
+
+  async getSegments(
+    buildId: string
+  ): Promise<OfflineNavigationSegmentRecord[]> {
+    return Array.from(this.segmentEntries.values()).filter(
+      (entry) => entry.buildId === buildId
+    )
   }
 
   async putSegment(entry: OfflineNavigationSegmentRecord): Promise<void> {
@@ -144,6 +158,10 @@ class FailingOfflineNavigationCacheStorage
     throw new Error('get route failed')
   }
 
+  async getRoutes(): Promise<OfflineNavigationRouteRecord[]> {
+    throw new Error('get routes failed')
+  }
+
   async putRoute(): Promise<void> {
     throw new Error('put route failed')
   }
@@ -162,6 +180,10 @@ class FailingOfflineNavigationCacheStorage
 
   async getSegment(): Promise<OfflineNavigationSegmentRecord | undefined> {
     throw new Error('get segment failed')
+  }
+
+  async getSegments(): Promise<OfflineNavigationSegmentRecord[]> {
+    throw new Error('get segments failed')
   }
 
   async putSegment(): Promise<void> {
@@ -708,6 +730,110 @@ describe('offline navigation cache', () => {
         now: 150,
       })
     ).resolves.toBe(null)
+  })
+
+  it('lists only fresh current-epoch route and segment records', async () => {
+    const storage = new MemoryOfflineNavigationCacheStorage()
+    const cache = createOfflineNavigationRouterCache(storage)
+    const routeVaryPath = serializeOfflineNavigationVaryPath({
+      id: null,
+      value: '/dashboard',
+      parent: null,
+    })
+    const segmentVaryPath = serializeOfflineNavigationVaryPath({
+      id: null,
+      value: 'children/page',
+      parent: null,
+    })
+
+    await cache.writeRoute({
+      buildId: 'build-a',
+      key: 'route:/dashboard',
+      now: 100,
+      staleAt: 200,
+      expiresAt: 300,
+      route: {
+        pathname: '/dashboard',
+        search: '',
+        nextUrl: null,
+        canonicalUrl: '/dashboard',
+        renderedSearch: '',
+        couldBeIntercepted: false,
+        supportsPerSegmentPrefetching: true,
+        hasDynamicRewrite: false,
+      },
+      routeVaryPath,
+      tree: { segment: 'dashboard' },
+      metadata: { segment: 'metadata' },
+    })
+    await cache.writeRoute({
+      buildId: 'build-a',
+      key: 'route:/expired',
+      now: 100,
+      staleAt: 110,
+      expiresAt: 120,
+      route: {
+        pathname: '/expired',
+        search: '',
+        nextUrl: null,
+        canonicalUrl: '/expired',
+        renderedSearch: '',
+        couldBeIntercepted: false,
+        supportsPerSegmentPrefetching: true,
+        hasDynamicRewrite: false,
+      },
+      routeVaryPath,
+      tree: { segment: 'expired' },
+      metadata: { segment: 'metadata' },
+    })
+    await cache.writeSegment({
+      buildId: 'build-a',
+      key: 'segment:/dashboard:children/page',
+      now: 100,
+      staleAt: 200,
+      expiresAt: 300,
+      segment: {
+        requestKey: 'children/page',
+        fetchStrategy: 1,
+        isPartial: false,
+        payloadIndex: 0,
+      },
+      segmentVaryPath,
+      payload: { kind: 'segment-payload' },
+    })
+    await cache.writeSegment({
+      buildId: 'build-a',
+      key: 'segment:/expired:children/page',
+      now: 100,
+      staleAt: 110,
+      expiresAt: 120,
+      segment: {
+        requestKey: 'children/page',
+        fetchStrategy: 1,
+        isPartial: false,
+        payloadIndex: 0,
+      },
+      segmentVaryPath,
+      payload: { kind: 'expired-payload' },
+    })
+
+    await expect(
+      cache.readRoutes({ buildId: 'build-a', now: 150 })
+    ).resolves.toMatchObject([{ key: 'route:/dashboard' }])
+    await expect(
+      cache.readSegments({ buildId: 'build-a', now: 150 })
+    ).resolves.toMatchObject([{ key: 'segment:/dashboard:children/page' }])
+    expect(storage.routeEntries.has('build-a\0route:/expired')).toBe(false)
+    expect(
+      storage.segmentEntries.has('build-a\0segment:/expired:children/page')
+    ).toBe(false)
+
+    await expect(
+      cache.readRoutes({ buildId: 'build-b', now: 150 })
+    ).resolves.toEqual([])
+    await expect(
+      cache.readSegments({ buildId: 'build-b', now: 150 })
+    ).resolves.toEqual([])
   })
 
   it('ignores and deletes entries whose stored build id does not match', async () => {
