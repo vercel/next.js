@@ -196,6 +196,52 @@ describe('offlineNavigations build artifacts', () => {
     })
   }
 
+  async function deletePersistedOfflineNavigationEntries(
+    browser: Awaited<ReturnType<typeof next.browser>>,
+    urlSubstring: string
+  ) {
+    return browser.eval(async (substring) => {
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('next-offline-navigation-cache', 3)
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+
+      try {
+        const entries = await new Promise<any[]>((resolve, reject) => {
+          const transaction = database.transaction(
+            'navigation-data',
+            'readonly'
+          )
+          const request = transaction.objectStore('navigation-data').getAll()
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })
+        const matchingEntries = entries.filter((entry) =>
+          entry.url.includes(substring)
+        )
+
+        if (matchingEntries.length === 0) {
+          return 0
+        }
+
+        const transaction = database.transaction('navigation-data', 'readwrite')
+        const store = transaction.objectStore('navigation-data')
+        for (const entry of matchingEntries) {
+          store.delete([entry.buildId, entry.url])
+        }
+        await new Promise<void>((resolve, reject) => {
+          transaction.oncomplete = () => resolve()
+          transaction.onerror = () => reject(transaction.error)
+          transaction.onabort = () => reject(transaction.error)
+        })
+        return matchingEntries.length
+      } finally {
+        database.close()
+      }
+    }, urlSubstring)
+  }
+
   async function cleanupOfflineNavigationState(
     browser: Awaited<ReturnType<typeof next.browser>>
   ) {
@@ -887,6 +933,117 @@ describe('offlineNavigations build artifacts', () => {
         const registrations = await navigator.serviceWorker.getRegistrations()
         await Promise.all(
           registrations.map((registration) => registration.unregister())
+        )
+      })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
+  it('reconstructs a fully prefetched route from persisted router records', async () => {
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await retry(async () => {
+        expect(
+          await browser.eval(() => Boolean(navigator.serviceWorker.controller))
+        ).toBe(true)
+      })
+
+      await browser.elementById('prefetch-offline-navigation').click()
+      await retry(async () => {
+        const exactEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/prefetched'
+        )
+        expect(exactEntry).toEqual(
+          expect.objectContaining({
+            kind: 'exact-url',
+            payload: expect.objectContaining({
+              kind: 'rsc-response',
+              requestKind: 'client-resume',
+            }),
+          })
+        )
+      })
+      await retry(async () => {
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        expect(
+          routeRecords.some((record) =>
+            record.route.pathname.includes('/prefetched')
+          )
+        ).toBe(true)
+
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        expect(
+          segmentRecords.some(
+            (record) => record.payload.requestKind === 'segment-prefetch'
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) => record.segment.requestKey === '/_head'
+          )
+        ).toBe(true)
+      })
+
+      const deletedExactEntries = await deletePersistedOfflineNavigationEntries(
+        browser,
+        '/docs/prefetched'
+      )
+      expect(deletedExactEntries).toBeGreaterThan(0)
+      await retry(async () => {
+        const deletedEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/prefetched'
+        )
+        expect(deletedEntry).toBe(null)
+      })
+
+      await next.stop()
+      await page!.context().setOffline(true)
+      const routerCacheOnlyResponse = await page!.goto(
+        `${next.url}/docs/prefetched`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(routerCacheOnlyResponse?.status()).toBe(200)
+      await retry(async () => {
+        const routerCacheDiagnostics = await browser.eval(() => {
+          const win = window as typeof window & {
+            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<{
+              type?: string
+              requestKind?: string
+              url?: string
+              reason?: string
+            }>
+          }
+          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__ ?? []
+        })
+        expect(routerCacheDiagnostics).toContainEqual(
+          expect.objectContaining({
+            type: 'cache-hit',
+            requestKind: 'router-cache',
+            url: `${next.url}/docs/prefetched`,
+          })
+        )
+      })
+      await retry(async () => {
+        expect(await browser.elementById('prefetched-page').text()).toBe(
+          'prefetched page'
         )
       })
     } finally {
