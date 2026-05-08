@@ -13,6 +13,7 @@ import loadConfig, { type ConfiguredExperimentalFeature } from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
 import * as Log from '../../build/output/log'
+import { OFFLINE_NAVIGATION_SERVICE_WORKER } from '../../shared/lib/offline-navigation'
 import { DecodeError } from '../../shared/lib/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
@@ -524,6 +525,17 @@ export async function initialize(opts: {
         }
 
         if (
+          matchedOutput.type === 'nextStaticFolder' &&
+          matchedOutput.itemPath.endsWith(
+            `/${OFFLINE_NAVIGATION_SERVICE_WORKER}`
+          )
+        ) {
+          res.setHeader('Cache-Control', 'no-cache, must-revalidate')
+          res.setHeader(
+            'Service-Worker-Allowed',
+            config.basePath ? `${config.basePath}/` : '/'
+          )
+        } else if (
           !res.getHeader('cache-control') &&
           matchedOutput.type === 'nextStaticFolder'
         ) {

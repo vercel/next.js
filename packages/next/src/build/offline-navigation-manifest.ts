@@ -4,6 +4,7 @@ import type { NextConfigComplete } from '../server/config-shared'
 import { CLIENT_STATIC_FILES_PATH } from '../shared/lib/constants'
 import { encodeURIPath } from '../shared/lib/encode-uri-path'
 import { getOfflineNavigationFallbackFilePath } from './offline-navigation-fallback'
+import { getOfflineNavigationServiceWorkerFilePath } from './offline-navigation-service-worker'
 
 export const OFFLINE_NAVIGATION_MANIFEST = '_offline-navigation-manifest.json'
 
@@ -21,6 +22,10 @@ export interface OfflineNavigationManifest {
     href: string
   }
   fallbackDocument: {
+    path: string
+    href: string
+  }
+  serviceWorker: {
     path: string
     href: string
   }
@@ -60,6 +65,7 @@ export function createOfflineNavigationManifest({
 }): OfflineNavigationManifest {
   const manifestPath = getOfflineNavigationManifestFilePath(buildId)
   const fallbackDocumentPath = getOfflineNavigationFallbackFilePath(buildId)
+  const serviceWorkerPath = getOfflineNavigationServiceWorkerFilePath()
 
   return {
     version: 1,
@@ -79,6 +85,10 @@ export function createOfflineNavigationManifest({
     fallbackDocument: {
       path: fallbackDocumentPath,
       href: getStaticHref(basePath, fallbackDocumentPath),
+    },
+    serviceWorker: {
+      path: serviceWorkerPath,
+      href: getStaticHref(basePath, serviceWorkerPath),
     },
   }
 }
