@@ -1,4 +1,10 @@
-import { cacheLife, cacheTag, revalidatePath, updateTag } from 'next/cache'
+import {
+  cacheLife,
+  cacheTag,
+  revalidatePath,
+  revalidateTag,
+  updateTag,
+} from 'next/cache'
 import { redirect } from 'next/navigation'
 import { OfflineStatus } from './offline-status'
 import {
@@ -32,6 +38,11 @@ async function revalidateOfflineNavigationPathAction() {
   revalidatePath('/prefetched')
 }
 
+async function revalidateOfflineNavigationTagAction() {
+  'use server'
+  revalidateTag('offline-navigation-action', { expire: 0 })
+}
+
 export default function Page() {
   return (
     <>
@@ -54,6 +65,11 @@ export default function Page() {
       <form action={revalidateOfflineNavigationPathAction}>
         <button id="revalidate-offline-navigation-path" type="submit">
           Revalidate offline navigation path
+        </button>
+      </form>
+      <form action={revalidateOfflineNavigationTagAction}>
+        <button id="revalidate-offline-navigation-tag" type="submit">
+          Revalidate offline navigation tag
         </button>
       </form>
       <PrefetchButton />
