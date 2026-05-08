@@ -5661,6 +5661,164 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('does not reach route handler mutation side effects while offline', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe(
+          'offline navigations page'
+        )
+      })
+
+      await browser.eval(
+        ({ action, messageType }) => {
+          document.cookie =
+            'offline-navigation-route-mutation=; Max-Age=0; path=/'
+          localStorage.removeItem('__nextOfflineNavigationRouteHandlerMessages')
+          navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data?.type === messageType) {
+              const messages = JSON.parse(
+                localStorage.getItem(
+                  '__nextOfflineNavigationRouteHandlerMessages'
+                ) ?? '[]'
+              )
+              messages.push(event.data)
+              localStorage.setItem(
+                '__nextOfflineNavigationRouteHandlerMessages',
+                JSON.stringify(messages)
+              )
+            }
+          })
+
+          const iframe = document.createElement('iframe')
+          iframe.hidden = true
+          iframe.id = 'offline-navigation-route-handler-target'
+          iframe.name = 'offline-navigation-route-handler-target'
+          document.body.appendChild(iframe)
+
+          const form = document.createElement('form')
+          form.action = action
+          form.id = 'offline-navigation-route-handler-form'
+          form.method = 'post'
+          form.target = iframe.name
+
+          const input = document.createElement('input')
+          input.name = 'offline-navigation-route-handler-value'
+          input.value = 'offline navigation route handler mutation'
+          form.appendChild(input)
+
+          document.body.appendChild(form)
+        },
+        {
+          action: `${next.url}/docs/api/offline-mutation/`,
+          messageType: OFFLINE_NAVIGATION_FALLBACK_SERVED,
+        }
+      )
+
+      const mutationUrl = `${next.url}/docs/api/offline-mutation/`
+      const offlineMutationRequest = page!.waitForEvent('request', {
+        predicate(request) {
+          return (
+            request.method() === 'POST' && request.url().startsWith(mutationUrl)
+          )
+        },
+      })
+
+      await page!.context().setOffline(true)
+      await browser.eval(() => {
+        const form = document.getElementById(
+          'offline-navigation-route-handler-form'
+        ) as HTMLFormElement
+        form.requestSubmit()
+      })
+
+      const request = await offlineMutationRequest
+      expect(request.method()).toBe('POST')
+      expect(request.url()).toContain('/docs/api/offline-mutation')
+
+      expect(
+        await browser.eval((targetUrl) => {
+          const iframe = document.getElementById(
+            'offline-navigation-route-handler-target'
+          ) as HTMLIFrameElement | null
+          let iframeUrl: string | null = null
+
+          try {
+            iframeUrl = iframe?.contentWindow?.location.href ?? null
+          } catch {
+            iframeUrl = 'inaccessible'
+          }
+
+          return {
+            cookie: document.cookie.includes(
+              'offline-navigation-route-mutation=online'
+            ),
+            fallbackMessages: JSON.parse(
+              localStorage.getItem(
+                '__nextOfflineNavigationRouteHandlerMessages'
+              ) ?? '[]'
+            ),
+            iframeReachedTarget: iframeUrl === targetUrl,
+            pageText: document.querySelector('p')?.textContent ?? null,
+          }
+        }, mutationUrl)
+      ).toEqual({
+        cookie: false,
+        fallbackMessages: [],
+        iframeReachedTarget: false,
+        pageText: 'offline navigations page',
+      })
+
+      await page!.context().setOffline(false)
+      await browser.eval(() => {
+        window.dispatchEvent(new Event('online'))
+      })
+
+      const onlineMutationResponse = page!.waitForResponse((response) => {
+        return (
+          response.request().method() === 'POST' &&
+          response.url().startsWith(mutationUrl)
+        )
+      })
+      await browser.eval(() => {
+        const form = document.getElementById(
+          'offline-navigation-route-handler-form'
+        ) as HTMLFormElement
+        form.requestSubmit()
+      })
+
+      expect((await onlineMutationResponse).status()).toBe(200)
+      await retry(async () => {
+        expect(
+          await browser.eval(() =>
+            document.cookie.includes('offline-navigation-route-mutation=online')
+          )
+        ).toBe(true)
+      })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('misses exact-URL replay for query identity collision variants', async () => {
     if (shouldSkipReplayWithCachedNavigations) {
       return
