@@ -362,13 +362,14 @@ impl From<SourcePos> for NapiSourcePos {
 }
 
 #[napi(object)]
-pub struct NapiBuildFeatureUsage {
+pub struct NapiUsedFeature {
     pub feature_name: RcStr,
+    /// How many times it was used, typically this means how often it was imported.
     pub invocation_count: u32,
 }
 
-impl NapiBuildFeatureUsage {
-    pub fn from_pair(feature_name: RcStr, invocation_count: u32) -> Self {
+impl NapiUsedFeature {
+    pub fn new(feature_name: RcStr, invocation_count: u32) -> Self {
         Self {
             feature_name,
             invocation_count,

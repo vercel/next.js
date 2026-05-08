@@ -15,7 +15,7 @@ import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
 import { hasCustomExportOutput } from '../../export/utils'
 import { Telemetry } from '../../telemetry/storage'
-import { eventBuildFeatureUsageFromTurbopackDiagnostics } from '../../telemetry/events/build'
+import { eventBuildFeatureUsageFromTurbopack } from '../../telemetry/events/build'
 import {
   setGlobal,
   trace,
@@ -179,8 +179,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     if (telemetry.isEnabled) {
       try {
         const featureUsage = await project.featureUsage()
-        const events =
-          eventBuildFeatureUsageFromTurbopackDiagnostics(featureUsage)
+        const events = eventBuildFeatureUsageFromTurbopack(featureUsage)
         if (events.length > 0) {
           telemetry.record(events)
         }

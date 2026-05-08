@@ -85,7 +85,7 @@ use crate::{
             NextTurbopackContext, create_turbo_tasks,
         },
         utils::{
-            DetachedVc, NapiBuildFeatureUsage, NapiIssue, RootTask, TurbopackResult, get_issues,
+            DetachedVc, NapiIssue, NapiUsedFeature, RootTask, TurbopackResult, get_issues,
             strongly_consistent_catch_collectables, subscribe,
         },
     },
@@ -2507,13 +2507,6 @@ async fn get_all_compilation_issues_operation(
     Ok(OperationResult { issues, effects }.cell())
 }
 
-#[turbo_tasks::function(operation)]
-async fn project_feature_usage_operation(
-    container: ResolvedVc<ProjectContainer>,
-) -> Result<Vc<ProjectFeatureUsageSummary>> {
-    Ok(container.project().project_feature_usage())
-}
-
 /// Returns the build-feature-usage telemetry summary for this project — the set of
 /// `(featureName, invocationCount)` pairs reported to the Next.js telemetry service.
 ///
@@ -2524,12 +2517,18 @@ async fn project_feature_usage_operation(
 #[napi]
 pub async fn project_feature_usage(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-) -> napi::Result<Vec<NapiBuildFeatureUsage>> {
+) -> napi::Result<Vec<NapiUsedFeature>> {
     let container = project.container;
     let summary = project
         .turbopack_ctx
         .turbo_tasks()
         .run_once(async move {
+            #[turbo_tasks::function(operation)]
+            async fn project_feature_usage_operation(
+                container: ResolvedVc<ProjectContainer>,
+            ) -> Result<Vc<ProjectFeatureUsageSummary>> {
+                Ok(container.project().project_feature_usage())
+            }
             project_feature_usage_operation(container)
                 .read_strongly_consistent()
                 .await
@@ -2540,7 +2539,7 @@ pub async fn project_feature_usage(
     Ok(summary
         .features
         .iter()
-        .map(|(name, count)| NapiBuildFeatureUsage::from_pair(name.clone(), *count))
+        .map(|(name, count)| NapiUsedFeature::new(name.clone(), *count))
         .collect())
 }
 

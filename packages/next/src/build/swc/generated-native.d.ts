@@ -493,7 +493,7 @@ export declare function projectWriteAnalyzeData(
  */
 export declare function projectFeatureUsage(project: {
   __napiType: 'Project'
-}): Promise<Array<NapiBuildFeatureUsage>>
+}): Promise<Array<NapiUsedFeature>>
 export declare function projectGetAllCompilationIssues(project: {
   __napiType: 'Project'
 }): Promise<TurbopackResult>
@@ -575,8 +575,9 @@ export interface NapiSourcePos {
   line: number
   column: number
 }
-export interface NapiBuildFeatureUsage {
+export interface NapiUsedFeature {
   featureName: RcStr
+  /** How many times it was used, typically this means how often it was imported. */
   invocationCount: number
 }
 export declare function expandNextJsTemplate(

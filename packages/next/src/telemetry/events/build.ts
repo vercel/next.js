@@ -235,7 +235,7 @@ export function eventBuildFeatureUsage(
  * Rust side from `FeatureUsageTelemetry` and aggregated per-feature by
  * `get_diagnostics`) into `EVENT_BUILD_FEATURE_USAGE` telemetry events.
  */
-export function eventBuildFeatureUsageFromTurbopackDiagnostics(
+export function eventBuildFeatureUsageFromTurbopack(
   diagnostics: ReadonlyArray<{
     featureName: string
     invocationCount: number

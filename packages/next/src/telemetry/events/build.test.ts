@@ -1,15 +1,15 @@
 import {
   EVENT_BUILD_FEATURE_USAGE,
-  eventBuildFeatureUsageFromTurbopackDiagnostics,
+  eventBuildFeatureUsageFromTurbopack,
 } from './build'
 
 describe('eventBuildFeatureUsageFromTurbopackDiagnostics', () => {
   it('returns empty for empty input', () => {
-    expect(eventBuildFeatureUsageFromTurbopackDiagnostics([])).toEqual([])
+    expect(eventBuildFeatureUsageFromTurbopack([])).toEqual([])
   })
 
   it('maps a single diagnostic to one event', () => {
-    const events = eventBuildFeatureUsageFromTurbopackDiagnostics([
+    const events = eventBuildFeatureUsageFromTurbopack([
       { featureName: 'next/image', invocationCount: 3 },
     ])
     expect(events).toEqual([
@@ -21,7 +21,7 @@ describe('eventBuildFeatureUsageFromTurbopackDiagnostics', () => {
   })
 
   it('preserves invocationCount of 0 for disabled boolean flags', () => {
-    const events = eventBuildFeatureUsageFromTurbopackDiagnostics([
+    const events = eventBuildFeatureUsageFromTurbopack([
       { featureName: 'swcRelay', invocationCount: 0 },
     ])
     expect(events).toEqual([
@@ -33,7 +33,7 @@ describe('eventBuildFeatureUsageFromTurbopackDiagnostics', () => {
   })
 
   it('passes through multiple distinct diagnostics (already aggregated Rust-side)', () => {
-    const events = eventBuildFeatureUsageFromTurbopackDiagnostics([
+    const events = eventBuildFeatureUsageFromTurbopack([
       { featureName: 'next/image', invocationCount: 2 },
       { featureName: 'next/script', invocationCount: 1 },
     ])

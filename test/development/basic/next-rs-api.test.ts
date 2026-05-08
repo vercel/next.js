@@ -3,7 +3,7 @@ import { trace } from 'next/dist/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { createDefineEnv, loadBindings, HmrTarget } from 'next/dist/build/swc'
 import type {
-  BuildFeatureUsage,
+  UsedFeature,
   Issue,
   Project,
   RawEntrypoints,
@@ -62,9 +62,9 @@ function normalizeIssues(issues: Issue[]) {
     })
 }
 
-function normalizeDiagnostics(diagnostics: BuildFeatureUsage[]) {
-  return diagnostics
-    .map((diagnostic) => ({
+function normalizeFeatures(usedFeatures: UsedFeature[]) {
+  return usedFeatures
+    .map((feature) => ({
       // Normalize the target-triple in the `featureName` so snapshots are
       // stable across platforms.
       featureName: diagnostic.featureName.replace(
@@ -415,7 +415,7 @@ describe('next.rs api', () => {
       '/route-nodejs',
     ])
     expect(normalizeIssues(entrypoints.value.issues)).toMatchSnapshot('issues')
-    expect(normalizeDiagnostics(entrypoints.value.diagnostics)).toMatchSnapshot(
+    expect(normalizeFeatures(entrypoints.value.diagnostics)).toMatchSnapshot(
       'diagnostics'
     )
     await entrypointsSubscription.return()
@@ -509,7 +509,7 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot(
+          expect(normalizeFeatures(result.diagnostics)).toMatchSnapshot(
             'diagnostics'
           )
           break
@@ -519,7 +519,7 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot(
+          expect(normalizeFeatures(result.diagnostics)).toMatchSnapshot(
             'diagnostics'
           )
 
@@ -527,7 +527,7 @@ describe('next.rs api', () => {
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('data issues')
-          expect(normalizeDiagnostics(result2.diagnostics)).toMatchSnapshot(
+          expect(normalizeFeatures(result2.diagnostics)).toMatchSnapshot(
             'data diagnostics'
           )
           break
@@ -537,7 +537,7 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot(
+          expect(normalizeFeatures(result.diagnostics)).toMatchSnapshot(
             'diagnostics'
           )
 
@@ -545,7 +545,7 @@ describe('next.rs api', () => {
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('rsc issues')
-          expect(normalizeDiagnostics(result2.diagnostics)).toMatchSnapshot(
+          expect(normalizeFeatures(result2.diagnostics)).toMatchSnapshot(
             'rsc diagnostics'
           )
 
