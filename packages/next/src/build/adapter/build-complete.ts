@@ -1089,20 +1089,20 @@ export async function handleBuildComplete({
           // Skip static metadata routes only when they are prerendered.
           // Dynamic metadata routes (e.g. robots/sitemap using connection())
           // should remain app routes in adapter outputs.
+          // Only skip when the route has concrete prerenders we'll emit as
+          // static files below. Presence in `dynamicRoutes` only means a
+          // fallback pattern is registered — the function is still required
+          // as the parent for those dynamic-route entries.
           const isStaticMetadataRoute = isStaticMetadataFile(normalizedPage)
           const isPrerenderedMetadataRoute =
             prerenderManifest.routes[normalizedPage] ||
-            prerenderManifest.dynamicRoutes[normalizedPage] ||
             config.i18n?.locales?.some((locale) => {
               const localePathname = path.posix.join(
                 '/',
                 locale,
                 normalizedPage.slice(1)
               )
-              return (
-                prerenderManifest.routes[localePathname] ||
-                prerenderManifest.dynamicRoutes[localePathname]
-              )
+              return prerenderManifest.routes[localePathname]
             })
 
           if (isStaticMetadataRoute && isPrerenderedMetadataRoute) {
