@@ -1,3 +1,5 @@
+export const OFFLINE_NAVIGATION_SERVICE_WORKER =
+  '_offline-navigation-service-worker.js'
 export const OFFLINE_NAVIGATION_FALLBACK_HTML =
   '_offline-navigation-fallback.html'
 export const OFFLINE_NAVIGATION_FALLBACK_DOCUMENT_ATTRIBUTE =

@@ -1,6 +1,7 @@
 import { existsSync, readdirSync } from 'fs'
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('offlineNavigations build artifacts', () => {
   const { next } = nextTestSetup({
@@ -23,6 +24,15 @@ describe('offlineNavigations build artifacts', () => {
         ),
         relativePath: `.next/static/${buildId}/_offline-navigation-fallback.html`,
       },
+      serviceWorker: {
+        absolutePath: join(
+          next.testDir,
+          '.next',
+          'static',
+          '_offline-navigation-service-worker.js'
+        ),
+        relativePath: `.next/static/_offline-navigation-service-worker.js`,
+      },
       buildStaticDirectory: {
         absolutePath: join(next.testDir, '.next', 'static', buildId),
       },
@@ -39,9 +49,10 @@ describe('offlineNavigations build artifacts', () => {
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
 
-    const { buildId, buildStaticDirectory, fallbackDocument } =
+    const { buildId, buildStaticDirectory, fallbackDocument, serviceWorker } =
       await getOfflineNavigationArtifactPaths()
     const html = await next.readFile(fallbackDocument.relativePath)
+    const serviceWorkerScript = await next.readFile(serviceWorker.relativePath)
 
     expect(
       getOfflineNavigationBuildFileNames(buildStaticDirectory.absolutePath)
@@ -54,10 +65,78 @@ describe('offlineNavigations build artifacts', () => {
     expect(html).toContain(
       '<script>(self.__next_f=self.__next_f||[]).push([0])</script>'
     )
-    expect(html).toContain('https://cdn.example.com/app-assets/_next/static/')
+    expect(html).toContain('/app-assets/_next/static/')
     expect(html).not.toContain('offline navigations page')
     expect(html).not.toContain('\n')
     expect(html.length).toBeLessThan(4096)
+
+    expect(serviceWorkerScript).toContain(
+      '"source":"offline-navigation-service-worker"'
+    )
+    expect(serviceWorkerScript).toContain('skipWaiting')
+    expect(serviceWorkerScript).toContain('clients.claim')
+    expect(serviceWorkerScript).not.toContain('respondWith')
+    expect(serviceWorkerScript).not.toContain('\n')
+    expect(serviceWorkerScript.length).toBeLessThan(512)
+  })
+
+  it('registers the pass-through service worker when enabled', async () => {
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    try {
+      const swResponse = await next.fetch(
+        `/docs/_next/static/_offline-navigation-service-worker.js${next.getDeploymentIdQuery()}`
+      )
+      expect(swResponse.status).toBe(200)
+      expect(swResponse.headers.get('cache-control')).toBe(
+        'no-cache, must-revalidate'
+      )
+      expect(swResponse.headers.get('service-worker-allowed')).toBe('/docs/')
+
+      const browser = await next.browser('/docs')
+      await retry(async () => {
+        const registration = await browser.eval(async () => {
+          if (!('serviceWorker' in navigator)) {
+            return null
+          }
+
+          const registrations = await navigator.serviceWorker.getRegistrations()
+          const registration = registrations.find((registration) =>
+            registration.scope.endsWith('/docs/')
+          )
+
+          if (!registration) {
+            return null
+          }
+
+          return {
+            scope: registration.scope,
+            scriptURL: registration.active?.scriptURL ?? null,
+          }
+        })
+
+        expect(registration).toEqual({
+          scope: `${next.url}/docs/`,
+          scriptURL: `${next.url}/docs/_next/static/_offline-navigation-service-worker.js${next.getDeploymentIdQuery()}`,
+        })
+      })
+
+      await browser.eval(async () => {
+        if (!('serviceWorker' in navigator)) {
+          return
+        }
+
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(
+          registrations.map((registration) => registration.unregister())
+        )
+      })
+    } finally {
+      await next.stop()
+    }
   })
 
   it('does not emit offline navigation artifacts when disabled', async () => {
@@ -68,7 +147,7 @@ describe('offlineNavigations build artifacts', () => {
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
 
-    const { buildStaticDirectory, fallbackDocument } =
+    const { buildStaticDirectory, fallbackDocument, serviceWorker } =
       await getOfflineNavigationArtifactPaths()
     expect(existsSync(fallbackDocument.absolutePath)).toBe(false)
     expect(
@@ -79,5 +158,6 @@ describe('offlineNavigations build artifacts', () => {
         )
       )
     ).toBe(false)
+    expect(existsSync(serviceWorker.absolutePath)).toBe(false)
   })
 })
