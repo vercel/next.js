@@ -1338,6 +1338,50 @@ export function getNavigationDisallowedDynamicReasons(
     return validationPreventingErrors
   }
 
+  // Missing boundaries on their own aren't a strong signal — a parent
+  // layout may legitimately omit a slot. Run the remaining validation
+  // layers first; if they find a genuine problem we'd rather surface
+  // that. Only fall back to the missing-boundary error when nothing
+  // else explains the failure (so the user is still made aware that
+  // validation didn't complete). When we add a markers API, the
+  // marker-based variant of this check can become strict again.
+  //
+  // NOTE: We don't care about Suspense above body here,
+  // we're only concerned with the validation boundary
+  if (prelude !== PreludeState.Full) {
+    const dynamicErrors = dynamicValidation.dynamicErrors
+    if (dynamicErrors.length > 0) {
+      return dynamicErrors
+    }
+
+    if (
+      prelude === PreludeState.Empty &&
+      !dynamicValidation.hasAllowedClientDynamicAboveBoundary &&
+      allRequiredBoundariesRendered(boundaryState)
+    ) {
+      // If we ever get this far then we messed up the tracking of invalid
+      // dynamic. (When boundaries are missing the fallback below will
+      // surface a more useful error.)
+      return [
+        new InvariantError(
+          `Route "${workStore.route}" failed to render during instant validation and Next.js was unable to determine a reason.`
+        ),
+      ]
+    }
+  } else {
+    const dynamicErrors = dynamicValidation.dynamicErrors
+    if (dynamicErrors.length > 0) {
+      return dynamicErrors
+    }
+
+    if (
+      dynamicValidation.hasAllowedDynamic === false &&
+      dynamicValidation.dynamicMetadata
+    ) {
+      return [dynamicValidation.dynamicMetadata]
+    }
+  }
+
   if (!allRequiredBoundariesRendered(boundaryState)) {
     const { thrownErrorsOutsideBoundary } = dynamicValidation
     const rootInstantStack = dynamicValidation.slotStacks[0]
@@ -1362,40 +1406,6 @@ export function getNavigationDisallowedDynamicReasons(
     }
   }
 
-  // NOTE: We don't care about Suspense above body here,
-  // we're only concerned with the validation boundary
-  if (prelude !== PreludeState.Full) {
-    const dynamicErrors = dynamicValidation.dynamicErrors
-    if (dynamicErrors.length > 0) {
-      return dynamicErrors
-    }
-
-    if (prelude === PreludeState.Empty) {
-      // If a client component suspended prevented us from rendering a shell
-      // but didn't block validation, we don't require a prelude.
-      if (dynamicValidation.hasAllowedClientDynamicAboveBoundary) {
-        return []
-      }
-      // If we ever get this far then we messed up the tracking of invalid dynamic.
-      return [
-        new InvariantError(
-          `Route "${workStore.route}" failed to render during instant validation and Next.js was unable to determine a reason.`
-        ),
-      ]
-    }
-  } else {
-    const dynamicErrors = dynamicValidation.dynamicErrors
-    if (dynamicErrors.length > 0) {
-      return dynamicErrors
-    }
-
-    if (
-      dynamicValidation.hasAllowedDynamic === false &&
-      dynamicValidation.dynamicMetadata
-    ) {
-      return [dynamicValidation.dynamicMetadata]
-    }
-  }
   // We had a non-empty prelude and there are no dynamic holes
   return []
 }
