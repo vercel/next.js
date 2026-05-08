@@ -207,13 +207,19 @@ impl NapiNextTurbopackCallbacks {
     }
 }
 
-/// Returns version info derived from compile-time git metadata.
+/// Returns the cache version `describe` string for the given Next.js version, of the form
+/// `v<next_version>-<git_short_sha>` (e.g. `v16.0.1-canary.13-94e9fa6`).
+pub fn cache_describe(next_version: &str) -> String {
+    format!("v{next_version}-{}", env!("VERGEN_GIT_SHA"))
+}
+
+/// Returns version info derived from the supplied Next.js version and compile-time git metadata.
 ///
 /// The `dirty` flag is only set when not running in CI (`CI` env var unset at build time) and the
 /// working tree was dirty at build time.
-pub fn git_version_info() -> GitVersionInfo<'static> {
+pub fn git_version_info(describe: &str) -> GitVersionInfo<'_> {
     GitVersionInfo {
-        describe: env!("VERGEN_GIT_DESCRIBE"),
+        describe,
         dirty: option_env!("CI").is_none_or(|value| value.is_empty())
             && env!("VERGEN_GIT_DIRTY") == "true",
     }
@@ -221,6 +227,7 @@ pub fn git_version_info() -> GitVersionInfo<'static> {
 
 pub fn create_turbo_tasks(
     output_path: PathBuf,
+    next_version: &str,
     persistent_caching: bool,
     _memory_limit: usize,
     dependency_tracking: bool,
@@ -229,7 +236,8 @@ pub fn create_turbo_tasks(
     skip_compaction: bool,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
-        let version_info = git_version_info();
+        let describe = cache_describe(next_version);
+        let version_info = git_version_info(&describe);
         let (backing_storage, cache_state) = turbo_backing_storage(
             &output_path.join("cache/turbopack"),
             &version_info,
@@ -393,7 +401,7 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
     );
     let version_str = format!(
         "Turbopack version: `{}`\nNext.js version: `{}`",
-        env!("VERGEN_GIT_DESCRIBE"),
+        env!("VERGEN_GIT_SHA"),
         env!("NEXTJS_VERSION")
     );
     let bug_report_url = format!(

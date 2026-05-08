@@ -5,7 +5,6 @@ use serde_json::Value;
 fn main() -> anyhow::Result<()> {
     println!("cargo:rerun-if-env-changed=CI");
     println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_OS");
-    let is_ci = env::var("CI").is_ok_and(|value| !value.is_empty());
     let is_macos_target = env::var("CARGO_CFG_TARGET_OS").is_ok_and(|value| value == "macos");
 
     let nextjs_version = {
@@ -50,11 +49,7 @@ fn main() -> anyhow::Result<()> {
     // commit hash as a version is okay.
     let git = vergen_gitcl::GitclBuilder::default()
         .dirty(/* include_untracked */ true)
-        .describe(
-            /* tags */ true,
-            /* dirty */ !is_ci, // suppress the dirty suffix in CI
-            /* matches */ Some("v[0-9]*"), // find the last version tag
-        )
+        .sha(/* short */ true)
         .build()?;
     vergen_gitcl::Emitter::default()
         .fail_on_error()
