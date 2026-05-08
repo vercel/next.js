@@ -65,7 +65,7 @@ async fn trait_ref() {
 #[derive(Copy, Clone)]
 struct CounterValue(usize);
 
-#[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
+#[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
 struct Counter {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     value: Mutex<(usize, HashSet<Invalidator>)>,

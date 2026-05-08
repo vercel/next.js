@@ -521,12 +521,11 @@ export function createHeadInsertionTransformStream(
   })
 }
 
-function createClientResumeScriptInsertionTransformStream(): TransformStream<
-  Uint8Array,
-  Uint8Array
+async function createClientResumeScriptInsertionTransformStream(): Promise<
+  TransformStream<Uint8Array, Uint8Array>
 > {
   const segmentPath = '/_full'
-  const cacheBustingHeader = computeCacheBustingSearchParam(
+  const cacheBustingHeader = await computeCacheBustingSearchParam(
     '1', //            headers[NEXT_ROUTER_PREFETCH_HEADER]
     '/_full', //       headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]
     undefined, //      headers[NEXT_ROUTER_STATE_TREE_HEADER]
@@ -586,9 +585,9 @@ function createClientResumeScriptInsertionTransformStream(): TransformStream<
  * element inside <head>. Used during instant navigation testing to set
  * self.__next_instant_test before any async bootstrap scripts execute.
  */
-export function createInstantTestScriptInsertionTransformStream(
+export async function createInstantTestScriptInsertionTransformStream(
   requestId: string | null
-): TransformStream<Uint8Array, Uint8Array> {
+): Promise<TransformStream<Uint8Array, Uint8Array>> {
   // Kick off a fetch for the static RSC payload. This is the hydration
   // source for the locked static shell — same as the __NEXT_CLIENT_RESUME
   // fetch used for fallback routes, but with NEXT_INSTANT_PREFETCH_HEADER
@@ -598,7 +597,7 @@ export function createInstantTestScriptInsertionTransformStream(
   // as the feature flag (truthy = instant test mode). The client processes
   // this as a fallback prerender payload for hydration.
   const segmentPath = '/_full'
-  const cacheBustingHeader = computeCacheBustingSearchParam(
+  const cacheBustingHeader = await computeCacheBustingSearchParam(
     '1',
     segmentPath,
     undefined,
@@ -1139,7 +1138,7 @@ export async function continueStaticFallbackPrerender(
     // Insert generated tags to head
     createHeadInsertionTransformStream(getServerInsertedHTML),
     // Insert the client resume script into the head
-    createClientResumeScriptInsertionTransformStream(),
+    await createClientResumeScriptInsertionTransformStream(),
     // Transform metadata
     createMetadataTransformStream(getServerInsertedMetadata),
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML

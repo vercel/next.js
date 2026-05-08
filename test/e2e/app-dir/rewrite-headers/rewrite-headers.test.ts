@@ -476,7 +476,7 @@ describe('rewrite-headers', () => {
 
         // Add cache busting param for RSC requests
         if (headers.rsc === '1') {
-          const cacheBustingParam = computeCacheBustingSearchParam(
+          const cacheBustingParam = await computeCacheBustingSearchParam(
             headers['next-router-prefetch'],
             headers['next-router-segment-prefetch'],
             undefined,

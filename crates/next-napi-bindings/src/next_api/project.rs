@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     io::Write,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, LazyLock},
     thread,
     time::Duration,
 };
@@ -39,7 +39,6 @@ use next_core::{
         TRACING_NEXT_TURBOPACK_TARGETS,
     },
 };
-use once_cell::sync::Lazy;
 use rand::RngExt;
 use serde::Serialize;
 use tokio::{io::AsyncWriteExt, runtime::Handle, time::Instant};
@@ -96,9 +95,9 @@ use crate::{
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
 const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(200);
-static SOURCE_MAP_PREFIX: Lazy<String> = Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
-static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
-    Lazy::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
+static SOURCE_MAP_PREFIX: LazyLock<String> = LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL}///"));
+static SOURCE_MAP_PREFIX_PROJECT: LazyLock<String> =
+    LazyLock::new(|| format!("{SOURCE_URL_PROTOCOL}///[{PROJECT_FILESYSTEM_NAME}]/"));
 
 /// Get the `Vc<IssueFilter>` for a `ProjectContainer`.
 fn issue_filter_from_container(container: ResolvedVc<ProjectContainer>) -> Vc<IssueFilter> {
@@ -454,10 +453,28 @@ pub fn project_new(
     }
     let mut compress = Compression::None;
     if let Some(mut trace) = trace {
-        let internal_dir = PathBuf::from(&options.root_path)
-            .join(&options.project_path)
-            .join(".next-profiles");
-        let trace_file = internal_dir.join("trace-turbopack");
+        let trace_path_override = std::env::var_os("NEXT_TURBOPACK_TRACING_PATH")
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from);
+        let trace_file = if let Some(path) = trace_path_override {
+            if path.is_absolute() {
+                path
+            } else {
+                std::env::current_dir()
+                    .context("Unable to read current working directory")
+                    .unwrap()
+                    .join(path)
+            }
+        } else {
+            PathBuf::from(&options.root_path)
+                .join(&options.project_path)
+                .join(".next-profiles")
+                .join("trace-turbopack")
+        };
+        let trace_dir = trace_file
+            .parent()
+            .expect("Trace file path must have a parent directory")
+            .to_path_buf();
 
         println!("Turbopack tracing enabled with targets: {trace}");
         println!("  Note that this might have a small performance impact.");
@@ -496,8 +513,13 @@ pub fn project_new(
 
         let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
 
-        std::fs::create_dir_all(&internal_dir)
-            .context("Unable to create .next-profiles directory")
+        std::fs::create_dir_all(&trace_dir)
+            .with_context(|| {
+                format!(
+                    "Unable to create trace output directory {}",
+                    trace_dir.display()
+                )
+            })
             .unwrap();
         let (trace_writer, trace_writer_guard) = match compress {
             Compression::None => {
@@ -546,6 +568,7 @@ pub fn project_new(
             let skip_compaction = turbo_engine_options.skip_compaction.unwrap_or(false);
             let turbo_tasks = create_turbo_tasks(
                 PathBuf::from(&options.dist_dir),
+                &options.next_version,
                 options.is_persistent_caching_enabled,
                 memory_limit,
                 dependency_tracking,
@@ -965,7 +988,7 @@ impl NapiEntrypoints {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct EntrypointsWithIssues {
     entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -1000,14 +1023,14 @@ fn project_container_entrypoints_operation(
     container.entrypoints()
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct OperationResult {
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct AllWrittenEntrypointsWithIssues {
     entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -1800,7 +1823,7 @@ pub fn project_entrypoints_subscribe(
     )
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -1945,7 +1968,7 @@ struct HmrChunkNames {
     pub chunk_names: Vec<RcStr>,
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct HmrChunkNamesWithIssues {
     chunk_names: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -2572,8 +2595,9 @@ pub async fn project_get_all_compilation_issues(
 ///
 /// The `path` should point to the `<distDir>/cache/turbopack` directory.
 #[napi]
-pub async fn turbopack_database_compact(path: String) -> napi::Result<()> {
-    let version_info = crate::next_api::turbopack_ctx::git_version_info();
+pub async fn turbopack_database_compact(path: String, next_version: String) -> napi::Result<()> {
+    let describe = crate::next_api::turbopack_ctx::cache_describe(&next_version);
+    let version_info = crate::next_api::turbopack_ctx::git_version_info(&describe);
     let is_ci = std::env::var("CI").is_ok_and(|v| !v.is_empty());
     turbo_tasks_backend::compact_database(&PathBuf::from(path), &version_info, is_ci)
         .map_err(|e| napi::Error::from_reason(format!("Database compaction failed: {e}")))?;

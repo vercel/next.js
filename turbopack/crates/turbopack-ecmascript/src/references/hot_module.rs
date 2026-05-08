@@ -178,10 +178,9 @@ impl ModuleHotReferenceCodeGen {
                     return Ok(None);
                 };
                 let referenced_asset = esm_ref.get_referenced_asset().await?;
-                match &*referenced_asset {
+                match &referenced_asset {
                     ReferencedAsset::Some(asset) => {
-                        let imported_module = &*referenced_asset;
-                        let ident = imported_module
+                        let ident = referenced_asset
                             .get_ident(chunking_context, None, scope_hoisting_context)
                             .await?;
                         if let Some((namespace_ident, ctxt)) =

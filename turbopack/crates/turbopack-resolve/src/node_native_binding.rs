@@ -102,7 +102,8 @@ async fn resolve_node_pre_gyp_files(
         && let AssetContent::File(file) = &*config_asset.content().await?
         && let FileContent::Content(config_file) = &*file.await?
     {
-        let config_file_path = config_asset.ident().path().owned().await?;
+        let config_asset_ident = config_asset.ident().await?;
+        let config_file_path = &config_asset_ident.path;
         let mut affecting_paths = vec![config_file_path.clone()];
         let config_file_dir = config_file_path.parent();
         let node_pre_gyp_config: NodePreGypConfigJson =

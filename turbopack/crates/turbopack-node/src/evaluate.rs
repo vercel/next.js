@@ -67,7 +67,13 @@ enum EvalJavaScriptIncomingMessage {
     Error(StructuredError),
 }
 
-#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual", shared)]
+#[turbo_tasks::value(
+    cell = "new",
+    serialization = "skip",
+    evict = "last",
+    eq = "manual",
+    shared
+)]
 pub struct EvaluatePool {
     #[turbo_tasks(trace_ignore, debug_ignore)]
     pool: Box<dyn EvaluateOperation>,
@@ -443,7 +449,7 @@ pub async fn get_evaluate_entries(
     let entry_module = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
-                runtime_asset.ident().path().await?.join("evaluate.js")?,
+                runtime_asset.ident().await?.path.join("evaluate.js")?,
                 AssetContent::file(
                     FileContent::Content(File::from(
                         "import {run} from 'RUNTIME'; run(() => import('INNER'))",
@@ -693,7 +699,7 @@ impl Issue for EvaluationIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().owned().await
+        self.source.file_path().await
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {

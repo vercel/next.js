@@ -1,8 +1,12 @@
+import http from 'node:http'
+import path from 'node:path'
 import { nextTestSetup } from 'e2e-utils'
+import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 import cheerio from 'cheerio'
+import { fetchViaHTTP, findPort } from 'next-test-utils'
 
 describe('cache-components', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
@@ -348,6 +352,144 @@ describe('cache-components', () => {
       expect($('#page-children').text()).toBe('at buildtime')
     }
   })
+
+  if (isNextStart) {
+    it('should ignore late setHeader calls for direct RSC handlers after headers are sent', async () => {
+      const pageModulePath = path.join(
+        next.testDir,
+        '.next',
+        'server',
+        'app',
+        'cases',
+        'static',
+        'page.js'
+      )
+      const previousCwd = process.cwd()
+      const port = await findPort()
+      let server: http.Server | undefined
+      let handlerError: unknown
+      let lateHeaderAttempted = false
+      let lateHeaderError: unknown
+      let resolveHandled: (() => void) | undefined
+      const handled = new Promise<void>((resolve) => {
+        resolveHandled = resolve
+      })
+
+      try {
+        process.chdir(next.testDir)
+
+        const { handler } = require(pageModulePath) as {
+          handler: (
+            req: http.IncomingMessage,
+            res: http.ServerResponse,
+            ctx: {
+              requestMeta?: Record<string, unknown>
+              waitUntil?: (promise: Promise<void>) => void
+            }
+          ) => Promise<void>
+        }
+
+        server = http.createServer(async (req, res) => {
+          const originalWriteHead = res.writeHead.bind(res)
+          res.writeHead = ((...args: any[]) => {
+            const result = originalWriteHead(...args)
+
+            if (!lateHeaderAttempted) {
+              lateHeaderAttempted = true
+
+              try {
+                res.setHeader('x-test-late', '1')
+              } catch (error) {
+                lateHeaderError = error
+              }
+            }
+
+            return result
+          }) as typeof res.writeHead
+
+          try {
+            await handler(req, res, {
+              waitUntil: () => {},
+              requestMeta: {
+                initURL: `https://localhost:${port}${req.url ?? '/'}`,
+                minimalMode: true,
+                relativeProjectDir: '.',
+              },
+            })
+          } catch (error) {
+            handlerError = error
+
+            if (!res.writableEnded) {
+              if (!res.headersSent) {
+                res.statusCode = 500
+              }
+              res.end()
+            }
+          } finally {
+            resolveHandled?.()
+          }
+        })
+
+        await new Promise<void>((resolve, reject) => {
+          server.listen(port, () => {
+            resolve()
+          })
+          server.once('error', reject)
+        })
+
+        const stateTree = JSON.stringify(['', {}])
+        const requestUrl = new URL('/cases/static', `http://localhost:${port}`)
+        const cacheBustingParam = await computeCacheBustingSearchParam(
+          undefined,
+          undefined,
+          stateTree,
+          undefined
+        )
+
+        if (cacheBustingParam) {
+          requestUrl.searchParams.set('_rsc', cacheBustingParam)
+        }
+
+        const res = await fetchViaHTTP(
+          port,
+          requestUrl.pathname + requestUrl.search,
+          undefined,
+          {
+            headers: {
+              rsc: '1',
+              'next-router-state-tree': stateTree,
+            },
+            redirect: 'manual',
+          }
+        )
+        const flight = await res.text()
+
+        expect(res.status).toBe(200)
+        expect(res.headers.get('content-type')).toContain('text/x-component')
+        await handled
+
+        expect(handlerError).toBeUndefined()
+        expect(lateHeaderAttempted).toBe(true)
+        expect(lateHeaderError).toBeUndefined()
+        expect(flight.length).toBeGreaterThan(0)
+      } finally {
+        process.chdir(previousCwd)
+
+        if (server) {
+          await new Promise<void>((resolve, reject) => {
+            server.close((error) => {
+              if (error) {
+                reject(error)
+                return
+              }
+
+              resolve()
+            })
+          })
+        }
+      }
+    })
+  }
 
   it('should not resume when client components are dynamic but the RSC render was static', async () => {
     let html = await next.render('/cases/static-rsc-dynamic-client', {})

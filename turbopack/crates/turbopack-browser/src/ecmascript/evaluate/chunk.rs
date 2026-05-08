@@ -179,6 +179,7 @@ impl EcmascriptBrowserEvaluateChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     asset_context,
                     this.chunking_context.chunk_base_path(),
+                    this.chunking_context.worker_asset_prefix(),
                     this.chunking_context.asset_suffix(),
                     this.chunking_context.worker_forwarded_globals(),
                     runtime_type,
@@ -207,9 +208,11 @@ impl EcmascriptBrowserEvaluateChunk {
 
     #[turbo_tasks::function]
     async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
-        let mut ident = self.ident.owned().await?;
-
-        ident.add_modifier(rcstr!("ecmascript browser evaluate chunk"));
+        let mut ident = self
+            .ident
+            .owned()
+            .await?
+            .with_modifier(rcstr!("ecmascript browser evaluate chunk"));
 
         let evaluatable_assets = self.evaluatable_assets.await?;
         ident.modifiers.extend(
@@ -219,7 +222,6 @@ impl EcmascriptBrowserEvaluateChunk {
                 .try_join()
                 .await?,
         );
-
         ident.modifiers.extend(
             self.other_chunks
                 .await?
@@ -229,7 +231,7 @@ impl EcmascriptBrowserEvaluateChunk {
                 .await?,
         );
 
-        Ok(AssetIdent::new(ident))
+        Ok(ident.into_vc())
     }
 
     #[turbo_tasks::function]

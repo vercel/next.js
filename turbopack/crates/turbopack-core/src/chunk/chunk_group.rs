@@ -1,4 +1,4 @@
-use std::{collections::HashSet, sync::atomic::AtomicBool};
+use std::sync::atomic::AtomicBool;
 
 use anyhow::{Context, Result};
 use rustc_hash::FxHashMap;
@@ -26,11 +26,7 @@ use crate::{
         },
         module_batches::{BatchingConfig, ModuleBatchesGraphEdge},
     },
-    output::{
-        OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsReferences,
-        OutputAssetsWithReferenced,
-    },
-    reference::ModuleReference,
+    output::{OutputAsset, OutputAssetsReference},
     traced_asset::TracedAsset,
 };
 
@@ -168,29 +164,6 @@ pub async fn make_chunk_group(
         references: ResolvedVc::upcast_vec(async_loaders),
         availability_info: new_availability_info,
     })
-}
-
-pub async fn references_to_output_assets(
-    references: impl IntoIterator<Item = &ResolvedVc<Box<dyn ModuleReference>>>,
-) -> Result<Vc<OutputAssetsWithReferenced>> {
-    let output_assets = references
-        .into_iter()
-        .map(|reference| reference.resolve_reference().primary_output_assets())
-        .try_join()
-        .await?;
-    let mut set = HashSet::new();
-    let output_assets = output_assets
-        .iter()
-        .flatten()
-        .copied()
-        .filter(|&asset| set.insert(asset))
-        .collect::<Vec<_>>();
-    Ok(OutputAssetsWithReferenced {
-        assets: ResolvedVc::cell(output_assets),
-        referenced_assets: OutputAssets::empty_resolved(),
-        references: OutputAssetsReferences::empty_resolved(),
-    }
-    .cell())
 }
 
 pub struct ChunkGroupContentOptions {

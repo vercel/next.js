@@ -111,6 +111,12 @@ const bundleTypes = {
   server: {
     server: path.join(__dirname, 'dist/esm/server/next-server.js'),
   },
+  'app-worker': {
+    'use-cache-probe-worker': path.join(
+      __dirname,
+      'dist/esm/server/dev/use-cache-probe-worker.js'
+    ),
+  },
 }
 
 /**
@@ -162,7 +168,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
   const bundledReactChannel = experimental ? '-experimental' : ''
 
   const alias =
-    bundleType === 'app'
+    bundleType === 'app' || bundleType === 'app-worker'
       ? makeAppAliases({
           experimental,
           bundler: turbo ? 'turbopack' : 'webpack',
@@ -258,7 +264,10 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       rules: [
         { test: /\.m?js$/, loader: `source-map-loader`, enforce: `pre` },
         {
-          include: /[\\/]react-server\.node/,
+          include: [
+            /[\\/]react-server\.node/,
+            /server[\\/]dev[\\/]use-cache-probe-worker/,
+          ],
           layer: 'react-server',
         },
         {

@@ -4,12 +4,12 @@ use std::{
     fmt::{Display, Formatter, Write},
     future::Future,
     iter::{empty, once},
+    sync::LazyLock,
 };
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use either::Either;
-use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -32,7 +32,6 @@ use crate::{
         resolve::ResolvingIssue,
     },
     module::{Module, Modules, OptionModule},
-    output::{OutputAsset, OutputAssets},
     package_json::{PackageJsonIssue, read_package_json},
     raw_module::RawModule,
     reference_type::ReferenceType,
@@ -91,7 +90,6 @@ type AfterResolvePluginWithCondition = (
 #[derive(Clone, Debug)]
 pub enum ModuleResolveResultItem {
     Module(ResolvedVc<Box<dyn Module>>),
-    OutputAsset(ResolvedVc<Box<dyn OutputAsset>>),
     External {
         /// uri, path, reference, etc.
         name: RcStr,
@@ -237,21 +235,6 @@ impl ModuleResolveResult {
         ModuleResolveResult {
             primary: vec![(request_key, ModuleResolveResultItem::Module(module))]
                 .into_boxed_slice(),
-            affecting_sources: Default::default(),
-        }
-        .resolved_cell()
-    }
-
-    pub fn output_asset(
-        request_key: RequestKey,
-        output_asset: ResolvedVc<Box<dyn OutputAsset>>,
-    ) -> ResolvedVc<Self> {
-        ModuleResolveResult {
-            primary: vec![(
-                request_key,
-                ModuleResolveResultItem::OutputAsset(output_asset),
-            )]
-            .into_boxed_slice(),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -413,19 +396,6 @@ impl ModuleResolveResult {
             }
         }
         Ok(Vc::cell(set.into_iter().collect()))
-    }
-
-    #[turbo_tasks::function]
-    pub fn primary_output_assets(&self) -> Vc<OutputAssets> {
-        Vc::cell(
-            self.primary
-                .iter()
-                .filter_map(|(_, item)| match item {
-                    &ModuleResolveResultItem::OutputAsset(a) => Some(a),
-                    _ => None,
-                })
-                .collect(),
-        )
     }
 }
 
@@ -1816,9 +1786,9 @@ async fn handle_after_resolve_plugins(
 
     for (key, primary) in result_value.primary.iter() {
         if let &ResolveResultItem::Source(source) = primary {
-            let path = source.ident().path().owned().await?;
+            let path = source.ident().await?.path.clone();
             if let Some(new_result) = apply_plugins_to_path(
-                path.clone(),
+                path,
                 lookup_path.clone(),
                 reference_type.clone(),
                 request,
@@ -2480,7 +2450,7 @@ async fn resolve_relative_request(
         forward: FxHashMap<RcStr, SmallVec<[RcStr; 3]>>,
         reverse: FxHashMap<RcStr, RcStr>,
     }
-    static TS_EXTENSION_REPLACEMENTS: Lazy<ExtensionReplacements> = Lazy::new(|| {
+    static TS_EXTENSION_REPLACEMENTS: LazyLock<ExtensionReplacements> = LazyLock::new(|| {
         let mut forward = FxHashMap::default();
         forward.insert(
             rcstr!(".js"),

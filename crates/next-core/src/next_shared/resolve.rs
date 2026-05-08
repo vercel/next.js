@@ -1,8 +1,6 @@
-use std::sync::LazyLock;
-
 use anyhow::Result;
 use async_trait::async_trait;
-use rustc_hash::FxHashMap;
+use phf::phf_map;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
@@ -29,24 +27,18 @@ use crate::{next_server::ServerContextType, next_telemetry::ModuleFeatureTelemet
 
 // Set of the features we want to track, following existing references in
 // webpack/plugins/telemetry-plugin.
-static FEATURE_MODULES: LazyLock<FxHashMap<&'static str, Vec<&'static str>>> =
-    LazyLock::new(|| {
-        FxHashMap::from_iter([
-            (
-                "next",
-                vec![
-                    "/image",
-                    "/future/image",
-                    "/legacy/image",
-                    "/script",
-                    "/dynamic",
-                    "/font/google",
-                    "/font/local",
-                ],
-            ),
-            ("@next/font", vec!["/google", "/local"]),
-        ])
-    });
+static FEATURE_MODULES: phf::Map<&'static str, &'static [&'static str]> = phf_map! {
+    "next" => &[
+        "/image",
+        "/future/image",
+        "/legacy/image",
+        "/script",
+        "/dynamic",
+        "/font/google",
+        "/font/local",
+    ],
+    "@next/font" => &["/google", "/local"],
+};
 
 #[turbo_tasks::value(shared)]
 pub struct InvalidImportModuleIssue {

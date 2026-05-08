@@ -8,6 +8,7 @@ import {
 } from 'react-server-dom-webpack/client'
 
 import { InvariantError } from '../../../shared/lib/invariant-error'
+import { fetch } from '../segment-cache/fetch'
 import type {
   FlightRouterState,
   InitialRSCPayload,
@@ -532,7 +533,7 @@ export async function createFetch<T>(
   // search param to it. This should not leak outside of this function, so we
   // track them separately.
   let fetchUrl = new URL(url)
-  setCacheBustingSearchParam(fetchUrl, headers)
+  await setCacheBustingSearchParam(fetchUrl, headers)
   let processed = fetch(fetchUrl, fetchOptions).then(processFetch)
   let fetchPromise = processed.then(({ response }) => response)
 
@@ -602,7 +603,7 @@ export async function createFetch<T>(
       // fetch again.
       // TODO: We should abort the previous request.
       fetchUrl = new URL(responseUrl)
-      setCacheBustingSearchParam(fetchUrl, headers)
+      await setCacheBustingSearchParam(fetchUrl, headers)
       processed = fetch(fetchUrl, fetchOptions).then(processFetch)
       fetchPromise = processed.then(({ response }) => response)
       flightResponsePromise = shouldImmediatelyDecode

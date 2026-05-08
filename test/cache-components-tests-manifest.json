@@ -169,6 +169,7 @@
       "test/e2e/app-dir/error-boundary-navigation/index.test.ts",
       "test/e2e/app-dir/error-boundary-navigation/override-node-env.test.ts",
       "test/e2e/app-dir/errors/index.test.ts",
+      "test/e2e/app-dir/expire-time/**/*",
       "test/e2e/app-dir/fallback-prefetch/fallback-prefetch.test.ts",
       "test/e2e/app-dir/fallback-shells/**/*",
       "test/e2e/app-dir/forbidden/basic/forbidden-basic.test.ts",
@@ -310,6 +311,7 @@
       "test/e2e/edge-configurable-runtime/index.test.ts",
       "test/e2e/edge-pages-support/edge-document.test.ts",
       "test/e2e/edge-pages-support/index.test.ts",
+      "test/e2e/edge-runtime-deprecated/edge-runtime-deprecated.test.ts",
       "test/e2e/edge-runtime-uses-edge-light-import-specifier-for-packages/edge-runtime-uses-edge-light-import-specifier-for-packages.test.ts",
       "test/e2e/import-conditions/import-conditions.test.ts",
       "test/e2e/manual-client-base-path/index.test.ts",
@@ -371,7 +373,7 @@
       "test/production/app-dir/resume-data-cache/resume-data-cache.test.ts",
       "test/production/app-dir/unstable-cache-foreground-revalidate/unstable-cache-foreground-revalidate.test.ts",
       "test/e2e/app-dir/parallel-routes-root-param-dynamic-child/parallel-routes-root-param-dynamic-child.test.ts",
-      "test/e2e/app-dir/unstable-io/unstable-io.test.ts"
+      "test/e2e/app-dir/io/io.test.ts"
     ]
   }
 }

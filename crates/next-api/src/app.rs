@@ -966,7 +966,7 @@ impl AppProject {
                 graphs.push(graph);
                 visited_modules = VisitedModules::concatenate(visited_modules, graph);
 
-                let base = ModuleGraph::from_graphs(graphs.clone());
+                let base = ModuleGraph::from_graphs(graphs.clone(), None);
                 let additional_entries = endpoint.additional_entries(base.connect());
                 let additional_module_graph = SingleModuleGraph::new_with_entries_visited_intern(
                     additional_entries.owned().await?,
@@ -991,20 +991,18 @@ impl AppProject {
                     .await?;
 
                 let (full, binding_usage_info) = if remove_unused_imports {
-                    let full_with_unused_references = ModuleGraph::from_graphs(graphs.clone());
+                    let full_with_unused_references =
+                        ModuleGraph::from_graphs(graphs.clone(), None);
                     let binding_usage_info = compute_binding_usage_info(
                         full_with_unused_references,
                         should_read_binding_usage,
                     );
                     (
-                        ModuleGraph::from_graphs_without_unused_references(
-                            graphs,
-                            binding_usage_info,
-                        ),
+                        ModuleGraph::from_graphs(graphs, Some(binding_usage_info)),
                         Some(binding_usage_info),
                     )
                 } else {
-                    (ModuleGraph::from_graphs(graphs), None)
+                    (ModuleGraph::from_graphs(graphs, None), None)
                 };
 
                 Ok(BaseAndFullModuleGraph {
@@ -1285,7 +1283,8 @@ impl AppEndpoint {
         let (availability_info, client_shared_chunks) = if is_app_page {
             let client_shared_chunk_group = get_app_client_shared_chunk_group(
                 AssetIdent::from_path(project.project_path().owned().await?)
-                    .with_modifier(rcstr!("client-shared-chunks")),
+                    .with_modifier(rcstr!("client-shared-chunks"))
+                    .into_vc(),
                 this.app_project.client_runtime_entries(),
                 *module_graphs.full,
                 *client_chunking_context,
@@ -1828,7 +1827,8 @@ impl AppEndpoint {
                                 AssetIdent::from_path(
                                     this.app_project.project().project_path().owned().await?,
                                 )
-                                .with_modifier(rcstr!("server-utils")),
+                                .with_modifier(rcstr!("server-utils"))
+                                .into_vc(),
                                 ChunkGroup::SharedMerged {
                                     merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
                                     entries: server_utils,

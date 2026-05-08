@@ -69,7 +69,10 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.5";
+const nextjsReactPeerVersion = "19.2.6";
+
+const ROOT_PACKAGE_MANAGER: string =
+  require('../../../package.json').packageManager
 
 export class NextInstance {
   protected files: ResolvedFileConfig
@@ -275,6 +278,10 @@ export class NextInstance {
             path.join(this.testDir, 'package.json'),
             JSON.stringify(
               {
+                // Pin packageManager so corepack doesn't auto-inject a reference
+                // to the latest version (and rewrite this file mid-test).
+                // Callers can override via packageJson.packageManager.
+                packageManager: ROOT_PACKAGE_MANAGER,
                 ...this.packageJson,
                 dependencies: {
                   ...finalDependencies,

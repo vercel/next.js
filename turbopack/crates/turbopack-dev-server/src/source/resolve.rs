@@ -23,7 +23,7 @@ use crate::source::{
 
 /// The result of [`resolve_source_request`]. Similar to a [`ContentSourceContent`], but without the
 /// [`Rewrite`][ContentSourceContent::Rewrite] variant, as this is taken care in the function.
-#[turbo_tasks::value(serialization = "none", shared)]
+#[turbo_tasks::value(serialization = "skip", shared)]
 pub enum ResolveSourceRequestResult {
     NotFound,
     Static(ResolvedVc<StaticContent>, ResolvedVc<HeaderList>),

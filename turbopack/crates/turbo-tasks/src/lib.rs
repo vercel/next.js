@@ -29,6 +29,7 @@ mod id_factory;
 mod invalidation;
 mod join_iter_ext;
 pub mod keyed;
+mod local_task_tracker;
 #[doc(hidden)]
 pub mod macro_helpers;
 mod manager;
@@ -101,7 +102,7 @@ pub use crate::{
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,
     spawn::{JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread},
-    state::{State, TransientState},
+    state::{State, parking_lot_mutex_bincode},
     task::{
         SharedReference, TypedSharedReference,
         task_input::{EitherTaskInput, TaskInput},
@@ -109,7 +110,7 @@ pub use crate::{
     task_execution_reason::TaskExecutionReason,
     trait_ref::TraitRef,
     value::{TransientInstance, TransientValue},
-    value_type::{TraitMethod, TraitType, ValueType},
+    value_type::{TraitMethod, TraitType, ValueType, ValueTypePersistence},
     vc::{
         Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture,
         ResolveOperationVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast,

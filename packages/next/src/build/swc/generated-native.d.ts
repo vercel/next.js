@@ -491,7 +491,10 @@ export declare function projectGetAllCompilationIssues(project: {
  *
  * The `path` should point to the `<distDir>/cache/turbopack` directory.
  */
-export declare function turbopackDatabaseCompact(path: string): Promise<void>
+export declare function turbopackDatabaseCompact(
+  path: string,
+  nextVersion: string
+): Promise<void>
 /**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *
@@ -616,8 +619,11 @@ export interface TraceQueryOptions {
   parent?: string
   /** When `true` (default), aggregate child spans with the same name. */
   aggregated?: boolean
-  /** Sort mode: `"value"` for duration descending, `"name"` for alphabetical. Omit for execution order. */
-  sort?: 'value' | 'name'
+  /**
+   * Sort mode: `"value"` for duration descending, `"name"` for alphabetical.
+   * Omit for execution order (no sorting).
+   */
+  sort?: string
   /** Optional substring search query applied to span name/category. */
   search?: string
   /** 1-based page number. Default `1`. */

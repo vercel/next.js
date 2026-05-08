@@ -21,15 +21,14 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 use turbo_tasks::{
-    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, TypedSharedReference,
-    ValueTypeId,
+    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
     backend::{CachedTaskType, CellHash, TransientTaskType},
     event::Event,
     task_storage,
 };
 
 use crate::{
-    backend::counter_map::CounterMap,
+    backend::{cell_data::CellData, counter_map::CounterMap},
     data::{
         ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
         InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType, TransientTask,
@@ -150,6 +149,14 @@ struct TaskStorageSchema {
     /// Whether the task output is immutable (persisted).
     #[field(storage = "flag", category = "data")]
     immutable: bool,
+
+    /// Whether an optimization of the aggregation number for this task is pending.
+    /// Set when an `OptimizeJob` for this task is dropped without being processed (because
+    /// the in-memory `optimize_queue` was at capacity, or the `AggregationUpdateQueue` ran
+    /// out of its optimization budget). Cleared by `optimize_task` when it actually runs.
+    /// Persisted so that a dropped optimization is recovered after restart.
+    #[field(storage = "flag", category = "meta")]
+    optimization_pending: bool,
 
     /// Whether clean in current session (transient flag).
     #[field(storage = "flag", category = "transient")]
@@ -286,13 +293,22 @@ struct TaskStorageSchema {
     // =========================================================================
     // CELL DATA (data)
     // =========================================================================
-    /// Persistent cell data (serializable).
-    #[field(storage = "auto_map", category = "data", shrink_on_completion)]
-    persistent_cell_data: AutoMap<CellId, TypedSharedReference>,
-
-    /// Transient cell data (not serializable).
-    #[field(storage = "auto_map", category = "transient", shrink_on_completion)]
-    transient_cell_data: AutoMap<CellId, SharedReference>,
+    /// Cell data for all cells, regardless of serialization mode.
+    ///
+    /// `CellData` is a newtype over `AutoMap<CellId, SharedReference>` whose
+    /// bincode impl filters out entries whose value type is not
+    /// `ValueTypePersistence::Persistable` at encode time (i.e. `SkipPersist`
+    /// or `SessionStateful`). Those entries stay in memory but are not
+    /// persisted — on restore the next read triggers the "cell index in range
+    /// but data missing" recompute path. `SessionStateful` value types are
+    /// identified on `ValueType::persistence` for future eviction handling.
+    #[field(
+        storage = "auto_map",
+        category = "data",
+        shrink_on_completion,
+        as_type = "AutoMap<CellId, SharedReference>"
+    )]
+    cell_data: CellData,
 
     /// Hash of transient cell data, persisted for hash-based change detection when
     /// transient data has been evicted from memory.
@@ -771,20 +787,22 @@ mod tests {
         assert!(storage.flags.current_session_clean());
 
         // Test persisted_bits only includes non-transient flags
-        // invalidator=bit 0, immutable=bit 1 (persisted)
-        // current_session_clean=bit 2 (transient)
+        // optimization_pending=bit 0 (meta, persisted)
+        // invalidator=bit 1, immutable=bit 2 (data, persisted)
+        // current_session_clean=bit 3 (transient)
         let persisted = storage.flags.persisted_bits();
-        assert_eq!(persisted, 0b11); // Only bits 0, 1
+        assert_eq!(persisted, 0b110); // invalidator + immutable
 
         // Test TaskFlags constants
-        assert_eq!(TaskFlags::PERSISTED_MASK, 0b11); // 2 persisted flags
+        assert_eq!(TaskFlags::PERSISTED_MASK, 0b111); // 3 persisted flags
 
         // Test set_persisted_bits preserves transient flags
         let mut storage2 = TaskStorage::new();
         storage2.flags.set_current_session_clean(true); // Set transient flag
-        storage2.flags.set_persisted_bits(0b10); // Set immutable only
+        storage2.flags.set_persisted_bits(0b100); // Set immutable only
         assert!(storage2.flags.immutable());
         assert!(!storage2.flags.invalidator());
+        assert!(!storage2.flags.optimization_pending());
         assert!(storage2.flags.current_session_clean()); // Transient flag preserved
     }
 
@@ -832,7 +850,7 @@ mod tests {
         // Set a persisted flag and verify internal state flags are still transient
         storage.flags.set_immutable(true);
         let persisted = storage.flags.persisted_bits();
-        assert_eq!(persisted, 0b10); // Only immutable (bit 1)
+        assert_eq!(persisted, 0b100); // Only immutable (bit 2)
     }
 
     // Helper to create encoder

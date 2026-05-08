@@ -1030,13 +1030,13 @@ ${row}
 }
 
 function generatePrTarballSection(actionInfo) {
-  if (actionInfo.isRelease || !actionInfo.githubHeadSha) return ''
+  if (actionInfo.isRelease || !actionInfo.commitId) return ''
 
   return `<details>
 <summary><strong>📎 Tarball URL</strong></summary>
 
 \`\`\`
-https://vercel-packages.vercel.app/next/commits/${actionInfo.githubHeadSha}/next
+${actionInfo.previewBuildsBaseUrl}/commits/${actionInfo.commitId}/next
 \`\`\`
 
 </details>
