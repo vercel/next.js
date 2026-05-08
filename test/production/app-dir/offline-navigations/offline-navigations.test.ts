@@ -3569,6 +3569,146 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('misses exact-URL replay for query identity collision variants', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    const { buildId } = await getOfflineNavigationArtifactPaths()
+    const navigationBuildId = next.deploymentId ?? buildId
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      const cachedUrl = `${next.url}/docs/url-stress/space%20value/?token=a%2Bb&tag=one&tag=two`
+      const onlineResponse = await page!.goto(cachedUrl, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(onlineResponse?.status()).toBe(200)
+      await retry(async () => {
+        expect(await browser.elementById('url-stress-page').text()).toBe(
+          'url stress path: space%20value'
+        )
+        expect(await browser.elementById('url-stress-token').text()).toBe(
+          'url stress token: a+b'
+        )
+        expect(await browser.elementById('url-stress-tags').text()).toBe(
+          'url stress tags: one,two'
+        )
+      })
+
+      await retry(async () => {
+        const entry = await readPersistedOfflineNavigationEntry(
+          browser,
+          '/docs/url-stress/space%20value/'
+        )
+        expect(entry).toEqual({
+          buildId: navigationBuildId,
+          cacheEpoch: 0,
+          expiresAt: expect.any(Number),
+          kind: 'exact-url',
+          payload: {
+            bodyLength: expect.any(Number),
+            kind: 'rsc-response',
+            requestKind: 'initial-load',
+            status: 200,
+          },
+          staleAt: expect.any(Number),
+          url: cachedUrl,
+          version: 2,
+        })
+      })
+
+      const collisionVariants = [
+        {
+          name: 'plus-as-space',
+          url: `${next.url}/docs/url-stress/space%20value/?token=a+b&tag=one&tag=two`,
+        },
+        {
+          name: 'duplicate-param-order',
+          url: `${next.url}/docs/url-stress/space%20value/?token=a%2Bb&tag=two&tag=one`,
+        },
+      ]
+
+      await next.stop()
+      await page!.context().setOffline(true)
+
+      for (const variant of collisionVariants) {
+        const response = await page!.goto(variant.url, {
+          waitUntil: 'domcontentloaded',
+        })
+        expect(response?.status()).toBe(200)
+
+        await retry(async () => {
+          expect(
+            await browser.eval(() => {
+              const cacheMiss = document.getElementById(
+                '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
+              )
+              return cacheMiss === null
+                ? null
+                : {
+                    hidden: cacheMiss.hidden,
+                    reason: cacheMiss.getAttribute(
+                      'data-next-offline-navigation-cache-reason'
+                    ),
+                    text: cacheMiss.textContent,
+                  }
+            })
+          ).toEqual({
+            hidden: false,
+            reason: 'missing-entry',
+            text: 'This page is not available offline.',
+          })
+        })
+
+        expect(
+          await browser.eval(() => ({
+            cache: document.documentElement.getAttribute(
+              'data-next-offline-navigation-cache'
+            ),
+            reason: document.documentElement.getAttribute(
+              'data-next-offline-navigation-cache-reason'
+            ),
+            renderedRoute:
+              document.getElementById('url-stress-page')?.textContent ?? null,
+            diagnostic:
+              (
+                window as typeof window & {
+                  __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<unknown>
+                }
+              ).__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?.at(-1) ?? null,
+          }))
+        ).toMatchObject({
+          cache: 'miss',
+          reason: 'missing-entry',
+          renderedRoute: null,
+          diagnostic: {
+            type: 'cache-miss',
+            buildId: navigationBuildId,
+            reason: 'missing-entry',
+            url: variant.url,
+          },
+        })
+      }
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('shows cache miss when IndexedDB is unavailable during fallback boot', async () => {
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
