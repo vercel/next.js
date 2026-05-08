@@ -166,6 +166,23 @@ describe('offline navigation cache', () => {
     ).toBe('https://example.com/dashboard?tab=activity')
   })
 
+  it('preserves encoded query values and duplicate search param order', () => {
+    const first = normalizeOfflineNavigationCacheUrl(
+      'https://example.com/docs/url-stress/space%20value/?token=a%2Bb&tag=one&tag=two#section-1'
+    )
+    const reordered = normalizeOfflineNavigationCacheUrl(
+      'https://example.com/docs/url-stress/space%20value/?tag=one&tag=two&token=a%2Bb#section-1'
+    )
+
+    expect(first).toBe(
+      'https://example.com/docs/url-stress/space%20value?token=a%2Bb&tag=one&tag=two'
+    )
+    expect(reordered).toBe(
+      'https://example.com/docs/url-stress/space%20value?tag=one&tag=two&token=a%2Bb'
+    )
+    expect(first).not.toBe(reordered)
+  })
+
   it('normalizes exact URL keys with the configured trailing slash', () => {
     const originalTrailingSlash = process.env.__NEXT_TRAILING_SLASH
     process.env.__NEXT_TRAILING_SLASH = 'true'
