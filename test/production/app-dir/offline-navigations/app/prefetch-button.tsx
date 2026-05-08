@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+import { clearOfflineNavigationCache } from 'next/offline'
 import { useRouter } from 'next/navigation'
 
 export function PrefetchButton() {
@@ -44,5 +46,24 @@ export function RefreshButton() {
     <button id="refresh-offline-navigation" onClick={() => router.refresh()}>
       Refresh offline navigation
     </button>
+  )
+}
+
+export function ClearOfflineNavigationCacheButton() {
+  const [result, setResult] = useState('idle')
+  return (
+    <>
+      <button
+        id="clear-offline-navigation-cache"
+        onClick={async () => {
+          setResult(
+            (await clearOfflineNavigationCache()) ? 'cleared' : 'not-cleared'
+          )
+        }}
+      >
+        Clear offline navigation cache
+      </button>
+      <p id="clear-offline-navigation-cache-result">{result}</p>
+    </>
   )
 }

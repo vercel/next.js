@@ -1,1 +1,4 @@
-export { useOffline } from './dist/client/components/use-offline'
+export {
+  clearOfflineNavigationCache,
+  useOffline,
+} from './dist/client/components/use-offline'

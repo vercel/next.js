@@ -9,6 +9,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { OfflineStatus } from './offline-status'
 import {
+  ClearOfflineNavigationCacheButton,
   DynamicPatternSourcePrefetchButton,
   DynamicPatternTargetPrefetchButton,
   PrefetchButton,
@@ -91,6 +92,7 @@ export default function Page() {
       <DynamicPatternSourcePrefetchButton />
       <DynamicPatternTargetPrefetchButton />
       <RefreshButton />
+      <ClearOfflineNavigationCacheButton />
     </>
   )
 }
