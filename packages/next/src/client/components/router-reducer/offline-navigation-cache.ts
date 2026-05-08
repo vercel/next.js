@@ -825,6 +825,28 @@ function ensureObjectStore(
   }
 }
 
+async function deleteBuildEntriesFromObjectStore(
+  store: IDBObjectStore,
+  buildId: string
+): Promise<void> {
+  const cursorRequest = store.openCursor()
+  await new Promise<void>((resolve, reject) => {
+    cursorRequest.onsuccess = () => {
+      const cursor = cursorRequest.result
+      if (cursor === null) {
+        resolve()
+        return
+      }
+
+      if ((cursor.value as { buildId?: unknown }).buildId === buildId) {
+        cursor.delete()
+      }
+      cursor.continue()
+    }
+    cursorRequest.onerror = () => reject(cursorRequest.error ?? new Error())
+  })
+}
+
 class IndexedDBOfflineNavigationCacheStorage
   implements OfflineNavigationCacheStorage
 {
@@ -850,24 +872,19 @@ class IndexedDBOfflineNavigationCacheStorage
       throw new Error()
     }
 
-    const transaction = database.transaction(EXACT_URL_STORE_NAME, 'readwrite')
-    const store = transaction.objectStore(EXACT_URL_STORE_NAME)
-    const cursorRequest = store.openCursor()
-    await new Promise<void>((resolve, reject) => {
-      cursorRequest.onsuccess = () => {
-        const cursor = cursorRequest.result
-        if (cursor === null) {
-          resolve()
-          return
-        }
-
-        if ((cursor.value as OfflineNavigationCacheEntry).buildId === buildId) {
-          cursor.delete()
-        }
-        cursor.continue()
-      }
-      cursorRequest.onerror = () => reject(cursorRequest.error ?? new Error())
-    })
+    const transaction = database.transaction(
+      [EXACT_URL_STORE_NAME, ROUTE_STORE_NAME, SEGMENT_STORE_NAME],
+      'readwrite'
+    )
+    await Promise.all(
+      [EXACT_URL_STORE_NAME, ROUTE_STORE_NAME, SEGMENT_STORE_NAME].map(
+        (storeName) =>
+          deleteBuildEntriesFromObjectStore(
+            transaction.objectStore(storeName),
+            buildId
+          )
+      )
+    )
     await waitForTransaction(transaction)
   }
 

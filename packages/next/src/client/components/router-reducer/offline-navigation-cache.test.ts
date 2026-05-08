@@ -51,6 +51,16 @@ class MemoryOfflineNavigationCacheStorage
         this.entries.delete(key)
       }
     }
+    for (const [key, entry] of this.routeEntries) {
+      if (entry.buildId === buildId) {
+        this.routeEntries.delete(key)
+      }
+    }
+    for (const [key, entry] of this.segmentEntries) {
+      if (entry.buildId === buildId) {
+        this.segmentEntries.delete(key)
+      }
+    }
   }
 
   async getCacheEpoch(): Promise<number> {
@@ -892,6 +902,7 @@ describe('offline navigation cache', () => {
   it('can delete all entries for a build without touching other builds', async () => {
     const storage = new MemoryOfflineNavigationCacheStorage()
     const cache = createOfflineNavigationCache(storage)
+    const routerCache = createOfflineNavigationRouterCache(storage)
 
     await cache.write({
       buildId: 'build-a',
@@ -907,6 +918,72 @@ describe('offline navigation cache', () => {
       expiresAt: 300,
       payload: 'b',
     })
+    await routerCache.writeRoute({
+      buildId: 'build-a',
+      key: 'route:/a',
+      staleAt: 200,
+      expiresAt: 300,
+      route: {
+        pathname: '/a',
+        search: '',
+        nextUrl: null,
+        canonicalUrl: '/a',
+        renderedSearch: '',
+        couldBeIntercepted: false,
+        supportsPerSegmentPrefetching: true,
+        hasDynamicRewrite: false,
+      },
+      routeVaryPath: [],
+      tree: null,
+      metadata: null,
+    })
+    await routerCache.writeRoute({
+      buildId: 'build-b',
+      key: 'route:/b',
+      staleAt: 200,
+      expiresAt: 300,
+      route: {
+        pathname: '/b',
+        search: '',
+        nextUrl: null,
+        canonicalUrl: '/b',
+        renderedSearch: '',
+        couldBeIntercepted: false,
+        supportsPerSegmentPrefetching: true,
+        hasDynamicRewrite: false,
+      },
+      routeVaryPath: [],
+      tree: null,
+      metadata: null,
+    })
+    await routerCache.writeSegment({
+      buildId: 'build-a',
+      key: 'segment:/a',
+      staleAt: 200,
+      expiresAt: 300,
+      segment: {
+        requestKey: 'children/page',
+        fetchStrategy: 1,
+        isPartial: false,
+        payloadIndex: 0,
+      },
+      segmentVaryPath: [],
+      payload: null,
+    })
+    await routerCache.writeSegment({
+      buildId: 'build-b',
+      key: 'segment:/b',
+      staleAt: 200,
+      expiresAt: 300,
+      segment: {
+        requestKey: 'children/page',
+        fetchStrategy: 1,
+        isPartial: false,
+        payloadIndex: 0,
+      },
+      segmentVaryPath: [],
+      payload: null,
+    })
 
     await expect(cache.deleteBuild('build-a')).resolves.toBe(true)
     await expect(
@@ -915,6 +992,18 @@ describe('offline navigation cache', () => {
     await expect(
       cache.read('https://example.com/b', { buildId: 'build-b', now: 150 })
     ).resolves.toMatchObject({ payload: 'b' })
+    await expect(
+      routerCache.readRoute('route:/a', { buildId: 'build-a', now: 150 })
+    ).resolves.toBe(null)
+    await expect(
+      routerCache.readRoute('route:/b', { buildId: 'build-b', now: 150 })
+    ).resolves.toMatchObject({ key: 'route:/b' })
+    await expect(
+      routerCache.readSegment('segment:/a', { buildId: 'build-a', now: 150 })
+    ).resolves.toBe(null)
+    await expect(
+      routerCache.readSegment('segment:/b', { buildId: 'build-b', now: 150 })
+    ).resolves.toMatchObject({ key: 'segment:/b' })
   })
 
   it('treats missing build ids as no-ops', async () => {

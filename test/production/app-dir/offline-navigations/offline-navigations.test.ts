@@ -6,6 +6,11 @@ import type * as Playwright from 'playwright'
 
 const OFFLINE_NAVIGATION_FALLBACK_SERVED =
   'next-offline-navigation-fallback-served'
+// cachedNavigations changes the runtime cache shape in ways the durable offline
+// replay format does not model yet. Keep artifact and service worker coverage
+// in that CI mode, but leave replay behavior to standard cache-components runs.
+const shouldSkipReplayWithCachedNavigations =
+  process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS === 'true'
 
 describe('offlineNavigations build artifacts', () => {
   const { next } = nextTestSetup({
@@ -396,6 +401,54 @@ describe('offlineNavigations build artifacts', () => {
     })
   }
 
+  async function waitForOfflineNavigationServiceWorker(
+    browser: Awaited<ReturnType<typeof next.browser>>,
+    page: Playwright.Page
+  ) {
+    await retry(
+      async () => {
+        const state = await browser.eval(async () => {
+          if (!('serviceWorker' in navigator)) {
+            return {
+              controlled: false,
+              hasActiveRegistration: false,
+            }
+          }
+
+          const registrations = await navigator.serviceWorker.getRegistrations()
+          return {
+            controlled: Boolean(navigator.serviceWorker.controller),
+            hasActiveRegistration: registrations.some(
+              (registration) =>
+                registration.scope.endsWith('/docs/') &&
+                registration.active !== null
+            ),
+          }
+        })
+
+        expect(state.hasActiveRegistration).toBe(true)
+      },
+      10000,
+      500
+    )
+
+    if (
+      !(await browser.eval(() => Boolean(navigator.serviceWorker.controller)))
+    ) {
+      await page.reload({ waitUntil: 'domcontentloaded' })
+    }
+
+    await retry(
+      async () => {
+        expect(
+          await browser.eval(() => Boolean(navigator.serviceWorker.controller))
+        ).toBe(true)
+      },
+      10000,
+      500
+    )
+  }
+
   it('emits request-invariant offline navigation artifacts when enabled', async () => {
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
@@ -509,11 +562,7 @@ describe('offlineNavigations build artifacts', () => {
           scriptURL: `${next.url}/docs/_next/static/_offline-navigation-service-worker.js${next.getDeploymentIdQuery()}`,
         })
       })
-      await retry(async () => {
-        expect(
-          await browser.eval(() => Boolean(navigator.serviceWorker.controller))
-        ).toBe(true)
-      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
       expect(await browser.elementById('offline-status').text()).toBe('online')
 
       await browser.eval((messageType) => {
@@ -1074,6 +1123,10 @@ describe('offlineNavigations build artifacts', () => {
   })
 
   it('reconstructs a fully prefetched route from persisted router records', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
 
@@ -1086,11 +1139,7 @@ describe('offlineNavigations build artifacts', () => {
           page = p
         },
       })
-      await retry(async () => {
-        expect(
-          await browser.eval(() => Boolean(navigator.serviceWorker.controller))
-        ).toBe(true)
-      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
 
       await browser.elementById('prefetch-offline-navigation').click()
       await retry(async () => {
@@ -1185,6 +1234,10 @@ describe('offlineNavigations build artifacts', () => {
   })
 
   it('misses persisted router records after router refresh invalidation', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
 
@@ -1197,11 +1250,7 @@ describe('offlineNavigations build artifacts', () => {
           page = p
         },
       })
-      await retry(async () => {
-        expect(
-          await browser.eval(() => Boolean(navigator.serviceWorker.controller))
-        ).toBe(true)
-      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
 
       await browser.elementById('prefetch-offline-navigation').click()
       await retry(async () => {
@@ -1355,6 +1404,10 @@ describe('offlineNavigations build artifacts', () => {
   })
 
   it('replays a dynamic route from persisted known route patterns', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
 
@@ -1367,11 +1420,7 @@ describe('offlineNavigations build artifacts', () => {
           page = p
         },
       })
-      await retry(async () => {
-        expect(
-          await browser.eval(() => Boolean(navigator.serviceWorker.controller))
-        ).toBe(true)
-      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
 
       await prefetchDynamicPatternReplayData(browser)
 
@@ -1428,11 +1477,7 @@ describe('offlineNavigations build artifacts', () => {
           page = p
         },
       })
-      await retry(async () => {
-        expect(
-          await browser.eval(() => Boolean(navigator.serviceWorker.controller))
-        ).toBe(true)
-      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
 
       await prefetchDynamicPatternReplayData(browser)
 
@@ -1518,6 +1563,10 @@ describe('offlineNavigations build artifacts', () => {
   })
 
   it('replays request-sensitive exact URLs from browser-private storage', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
 
@@ -1532,11 +1581,7 @@ describe('offlineNavigations build artifacts', () => {
           page = p
         },
       })
-      await retry(async () => {
-        expect(
-          await browser.eval(() => Boolean(navigator.serviceWorker.controller))
-        ).toBe(true)
-      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
 
       await browser.eval(() => {
         document.cookie = 'offline-session=alpha; path=/; SameSite=Lax'
@@ -1615,6 +1660,10 @@ describe('offlineNavigations build artifacts', () => {
   })
 
   it('covers exact URL shape and pass-through stress cases', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
     const buildResult = await next.build()
     expect(buildResult.exitCode).toBe(0)
 
@@ -1629,11 +1678,7 @@ describe('offlineNavigations build artifacts', () => {
           page = p
         },
       })
-      await retry(async () => {
-        expect(
-          await browser.eval(() => Boolean(navigator.serviceWorker.controller))
-        ).toBe(true)
-      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
 
       const notFoundResponse = await page!.goto(
         `${next.url}/docs/missing-offline-navigation-route/`,
