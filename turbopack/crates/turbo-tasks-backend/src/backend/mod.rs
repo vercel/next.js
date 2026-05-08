@@ -2577,7 +2577,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // Under verify_determinism we re-run a task whose dirty state or output unexpectedly
         // changed during execution to confirm determinism. The leaf priority keeps these
-        // verification reruns at the lowest priority.
+        // verification reruns at the highest priority.
         #[cfg(feature = "verify_determinism")]
         let stale_priority: Option<TaskPriority> =
             ((dirty_changed || no_output_set) && !task_id.is_transient() && !is_once_task)
