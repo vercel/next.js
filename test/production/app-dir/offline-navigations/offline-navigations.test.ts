@@ -2,6 +2,10 @@ import { existsSync, readdirSync } from 'fs'
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import type * as Playwright from 'playwright'
+
+const OFFLINE_NAVIGATION_FALLBACK_SERVED =
+  'next-offline-navigation-fallback-served'
 
 const OFFLINE_NAVIGATION_CACHE_STATIC_ASSETS =
   'next-offline-navigation-cache-static-assets'
@@ -119,11 +123,13 @@ describe('offlineNavigations build artifacts', () => {
     expect(serviceWorkerScript).toContain(
       OFFLINE_NAVIGATION_CACHE_STATIC_ASSETS
     )
+    expect(serviceWorkerScript).toContain(OFFLINE_NAVIGATION_FALLBACK_SERVED)
+    expect(serviceWorkerScript).toContain('isDocumentNavigationRequest')
     expect(serviceWorkerScript).toContain('skipWaiting')
     expect(serviceWorkerScript).toContain('clients.claim')
     expect(serviceWorkerScript).not.toContain('\n')
     expect(serviceWorkerScript).toContain('respondWith')
-    expect(serviceWorkerScript.length).toBeLessThan(6000)
+    expect(serviceWorkerScript.length).toBeLessThan(8000)
   })
 
   it('registers the service worker and caches offline resources when enabled', async () => {
@@ -133,6 +139,7 @@ describe('offlineNavigations build artifacts', () => {
     const { buildId } = await getOfflineNavigationArtifactPaths()
     await next.start({ skipBuild: true })
 
+    let page: Playwright.Page | undefined
     try {
       const swResponse = await next.fetch(
         `/docs/_next/static/_offline-navigation-service-worker.js${next.getDeploymentIdQuery()}`
@@ -143,7 +150,11 @@ describe('offlineNavigations build artifacts', () => {
       )
       expect(swResponse.headers.get('service-worker-allowed')).toBe('/docs/')
 
-      const browser = await next.browser('/docs')
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
       await retry(async () => {
         const registration = await browser.eval(async () => {
           if (!('serviceWorker' in navigator)) {
@@ -170,6 +181,62 @@ describe('offlineNavigations build artifacts', () => {
           scriptURL: `${next.url}/docs/_next/static/_offline-navigation-service-worker.js${next.getDeploymentIdQuery()}`,
         })
       })
+      await retry(async () => {
+        expect(
+          await browser.eval(() => Boolean(navigator.serviceWorker.controller))
+        ).toBe(true)
+      })
+      expect(await browser.elementById('offline-status').text()).toBe('online')
+
+      await browser.eval((messageType) => {
+        const win = window as typeof window & {
+          __restoreOfflineNavigationFetch?: () => void
+        }
+        const originalFetch = window.fetch
+        win.__restoreOfflineNavigationFetch = () => {
+          window.fetch = originalFetch
+          delete win.__restoreOfflineNavigationFetch
+        }
+        window.fetch = async () => {
+          throw new TypeError('offline navigation test')
+        }
+        navigator.serviceWorker.dispatchEvent(
+          new MessageEvent('message', {
+            data: {
+              type: messageType,
+            },
+          })
+        )
+      }, OFFLINE_NAVIGATION_FALLBACK_SERVED)
+      await retry(async () => {
+        expect(await browser.elementById('offline-status').text()).toBe(
+          'offline'
+        )
+      })
+      await browser.eval(() => {
+        const win = window as typeof window & {
+          __restoreOfflineNavigationFetch?: () => void
+        }
+        win.__restoreOfflineNavigationFetch?.()
+        window.dispatchEvent(new Event('online'))
+      })
+      await retry(async () => {
+        expect(await browser.elementById('offline-status').text()).toBe(
+          'online'
+        )
+      })
+
+      await browser.eval((messageType) => {
+        localStorage.removeItem('__nextOfflineNavigationMessage')
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data?.type === messageType) {
+            localStorage.setItem(
+              '__nextOfflineNavigationMessage',
+              JSON.stringify(event.data)
+            )
+          }
+        })
+      }, OFFLINE_NAVIGATION_FALLBACK_SERVED)
 
       const cacheName = `next-offline-navigation-v1:${buildId}:/docs`
       await retry(async () => {
@@ -191,6 +258,40 @@ describe('offlineNavigations build artifacts', () => {
         )
       })
 
+      await page!.context().setOffline(true)
+      const nonNavigationResult = await browser.eval(async () => {
+        try {
+          await fetch('/docs?__next_offline_probe=1', {
+            headers: { rsc: '1' },
+          })
+          return 'resolved'
+        } catch {
+          return 'rejected'
+        }
+      })
+      expect(nonNavigationResult).toBe('rejected')
+
+      const offlineResponse = await page!.goto(
+        `${next.url}/docs/offline-navigation-cache-miss`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(offlineResponse?.status()).toBe(200)
+      expect(
+        await browser.eval(() =>
+          document.documentElement.hasAttribute(
+            'data-next-offline-navigation-fallback'
+          )
+        )
+      ).toBe(true)
+      const serviceWorkerMessage = await browser.eval(() => {
+        const message = localStorage.getItem('__nextOfflineNavigationMessage')
+        return message === null ? null : JSON.parse(message)
+      })
+      expect(serviceWorkerMessage).toMatchObject({
+        type: OFFLINE_NAVIGATION_FALLBACK_SERVED,
+      })
+      await page!.context().setOffline(false)
+
       await browser.eval(async () => {
         if (!('serviceWorker' in navigator)) {
           return
@@ -211,6 +312,9 @@ describe('offlineNavigations build artifacts', () => {
         )
       })
     } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
       await next.stop()
     }
   })

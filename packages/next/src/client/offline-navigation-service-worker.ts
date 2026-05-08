@@ -1,10 +1,16 @@
 import { getDeploymentIdQuery } from '../shared/lib/deployment-id'
 import {
   OFFLINE_NAVIGATION_CACHE_STATIC_ASSETS,
+  OFFLINE_NAVIGATION_FALLBACK_SERVED,
   OFFLINE_NAVIGATION_SERVICE_WORKER,
 } from '../shared/lib/offline-navigation-constants'
 
+let isListeningForServiceWorkerMessages = false
 let isSyncingCurrentStaticAssets = false
+
+type OfflineNavigationFallbackServedMessage = {
+  type: typeof OFFLINE_NAVIGATION_FALLBACK_SERVED
+}
 
 type OfflineNavigationCacheStaticAssetsMessage = {
   type: typeof OFFLINE_NAVIGATION_CACHE_STATIC_ASSETS
@@ -22,6 +28,41 @@ function getServiceWorkerHref(): string {
 function getServiceWorkerScope(): string {
   const basePath = getBasePath()
   return basePath ? `${basePath}/` : '/'
+}
+
+// The generated worker posts this message when it had to serve the fallback
+// document. Treat it as the same user-visible offline transition as the
+// browser's native offline event.
+function listenForOfflineNavigationMessages(): void {
+  if (isListeningForServiceWorkerMessages) {
+    return
+  }
+  isListeningForServiceWorkerMessages = true
+
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    handleOfflineNavigationServiceWorkerMessage(event.data)
+  })
+}
+
+export function handleOfflineNavigationServiceWorkerMessage(data: unknown) {
+  if (!isOfflineNavigationFallbackServedMessage(data)) {
+    return
+  }
+
+  const { notifyOffline } =
+    require('./components/offline') as typeof import('./components/offline')
+  notifyOffline()
+}
+
+function isOfflineNavigationFallbackServedMessage(
+  data: unknown
+): data is OfflineNavigationFallbackServedMessage {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    (data as Partial<OfflineNavigationFallbackServedMessage>).type ===
+      OFFLINE_NAVIGATION_FALLBACK_SERVED
+  )
 }
 
 function isNextStaticAssetHref(href: string): boolean {
@@ -118,6 +159,7 @@ export function registerOfflineNavigationServiceWorker(): void {
     return
   }
 
+  listenForOfflineNavigationMessages()
   syncCurrentNextStaticAssetsWithServiceWorker()
 
   // Registration is best-effort: a failed service worker install should not

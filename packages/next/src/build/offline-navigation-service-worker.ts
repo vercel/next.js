@@ -4,6 +4,7 @@ import { CLIENT_STATIC_FILES_PATH } from '../shared/lib/constants'
 import {
   OFFLINE_NAVIGATION_CACHE_PREFIX,
   OFFLINE_NAVIGATION_CACHE_STATIC_ASSETS,
+  OFFLINE_NAVIGATION_FALLBACK_SERVED,
   OFFLINE_NAVIGATION_SERVICE_WORKER,
   OFFLINE_NAVIGATION_SERVICE_WORKER_METADATA_GLOBAL,
 } from '../shared/lib/offline-navigation-constants'
@@ -166,9 +167,40 @@ const installAndActivateListenersSource = [
   '});',
 ].join('')
 
+function renderDocumentNavigationSource(
+  fallbackServedMessageType: string
+): string {
+  return [
+    'function isDocumentNavigationRequest(request){',
+    "if(request.method!=='GET'||request.mode!=='navigate'||request.destination!=='document'){return false;}",
+    'const url=new URL(request.url);',
+    'return url.origin===self.location.origin;',
+    '}',
+    'async function fetchDocumentNavigation(request){',
+    'try{return await fetch(request);}',
+    'catch(err){',
+    readServiceWorkerMetadataSource(),
+    'const cache=await caches.open(metadata.cacheNamespace);',
+    'const fallbackResponse=await cache.match(normalizeHref(metadata.fallbackDocumentHref));',
+    'if(fallbackResponse){',
+    `await notifyClients({type:${JSON.stringify(fallbackServedMessageType)}});`,
+    'return fallbackResponse;',
+    '}',
+    'throw err;',
+    '}',
+    '}',
+    'async function notifyClients(message){',
+    "const clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});",
+    'await Promise.all(clients.map((client)=>client.postMessage(message)));',
+    '}',
+  ].join('')
+}
+
 const fetchListenerSource = [
   "self.addEventListener('fetch',(event)=>{",
-  'if(getFallbackAssetCacheKey(event.request)!==null||getManagedStaticAssetCacheKey(event.request)!==null){',
+  'if(isDocumentNavigationRequest(event.request)){',
+  'event.respondWith(fetchDocumentNavigation(event.request));',
+  '}else if(getFallbackAssetCacheKey(event.request)!==null||getManagedStaticAssetCacheKey(event.request)!==null){',
   'event.respondWith(fetchManagedStaticAsset(event.request));',
   '}',
   '});',
@@ -181,8 +213,9 @@ function renderMessageListener(messageType: string): string {
 }
 
 // Offline navigations use a generated, app-local service worker for the
-// document fallback and the bootstrap assets referenced by that fallback. It
-// does not interpret route data; later client-router slices own route replay.
+// document fallback and the bootstrap assets referenced by that fallback. It is
+// network-first for regular document loads; the client bootstrap owns route
+// data after the fallback document loads.
 export function createOfflineNavigationServiceWorker({
   cacheNamespace,
   fallbackAssetHrefs,
@@ -204,6 +237,7 @@ export function createOfflineNavigationServiceWorker({
     assetCacheKeySource,
     staticAssetFetchSource,
     currentAssetPromotionSource,
+    renderDocumentNavigationSource(OFFLINE_NAVIGATION_FALLBACK_SERVED),
     installAndActivateListenersSource,
     fetchListenerSource,
     renderMessageListener(OFFLINE_NAVIGATION_CACHE_STATIC_ASSETS),
