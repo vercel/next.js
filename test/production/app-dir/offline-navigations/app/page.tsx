@@ -1,4 +1,5 @@
 import { cacheLife, cacheTag, updateTag } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { OfflineStatus } from './offline-status'
 import {
   DynamicPatternSourcePrefetchButton,
@@ -20,6 +21,12 @@ async function invalidateOfflineNavigationAction() {
   updateTag('offline-navigation-action')
 }
 
+async function redirectAfterOfflineNavigationInvalidationAction() {
+  'use server'
+  updateTag('offline-navigation-action')
+  redirect('/?offline-navigation-redirect=1')
+}
+
 export default function Page() {
   return (
     <>
@@ -29,6 +36,14 @@ export default function Page() {
       <form action={invalidateOfflineNavigationAction}>
         <button id="invalidate-offline-navigation-action" type="submit">
           Invalidate offline navigation action
+        </button>
+      </form>
+      <form action={redirectAfterOfflineNavigationInvalidationAction}>
+        <button
+          id="redirect-after-offline-navigation-invalidation"
+          type="submit"
+        >
+          Redirect after offline navigation invalidation
         </button>
       </form>
       <PrefetchButton />
