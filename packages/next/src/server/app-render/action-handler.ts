@@ -508,6 +508,25 @@ export function parseHostHeader(
       : undefined
 }
 
+/**
+ * Returns a peer worker pathname to forward a Server Action POST when the
+ * strict manifest lookup misses the current page. When the request was already
+ * forwarded once (`x-action-forwarded`), returns `undefined` so the handler
+ * falls through to lenient module resolution instead of forwarding in a loop.
+ *
+ * @see https://github.com/vercel/next.js/issues/84504
+ */
+export function selectPeerWorkerForForwarding(
+  actionId: string | null | undefined,
+  page: string,
+  actionWasForwarded: boolean
+): string | undefined {
+  if (!actionId || actionWasForwarded) {
+    return undefined
+  }
+  return selectWorkerForForwarding(actionId, page)
+}
+
 type ServerActionsConfig = {
   bodySizeLimit?: SizeLimit
   allowedOrigins?: string[]
@@ -706,22 +725,24 @@ export async function handleAction({
 
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
 
-  if (actionId) {
-    const forwardedWorker = selectWorkerForForwarding(actionId, page)
+  const forwardedWorker = selectPeerWorkerForForwarding(
+    actionId,
+    page,
+    actionWasForwarded
+  )
 
-    // If forwardedWorker is truthy, it means there isn't a worker for the action
-    // in the current handler, so we forward the request to a worker that has the action.
-    if (forwardedWorker) {
-      return {
-        type: 'done',
-        result: await createForwardedActionResponse(
-          req,
-          res,
-          host,
-          forwardedWorker,
-          ctx.renderOpts.basePath
-        ),
-      }
+  // If forwardedWorker is truthy, it means there isn't a worker for the action
+  // in the current handler, so we forward the request to a worker that has the action.
+  if (forwardedWorker) {
+    return {
+      type: 'done',
+      result: await createForwardedActionResponse(
+        req,
+        res,
+        host,
+        forwardedWorker,
+        ctx.renderOpts.basePath
+      ),
     }
   }
 

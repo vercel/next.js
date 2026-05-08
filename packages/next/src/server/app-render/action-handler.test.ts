@@ -1,4 +1,25 @@
-import { parseHostHeader } from './action-handler'
+jest.mock('./manifests-singleton', () => {
+  const actual = jest.requireActual<typeof import('./manifests-singleton')>(
+    './manifests-singleton'
+  )
+  return {
+    ...actual,
+    selectWorkerForForwarding: jest.fn((actionId: string, pageName: string) =>
+      actual.selectWorkerForForwarding(actionId, pageName)
+    ),
+  }
+})
+
+import {
+  parseHostHeader,
+  selectPeerWorkerForForwarding,
+} from './action-handler'
+import * as manifestsSingleton from './manifests-singleton'
+
+const selectWorkerForForwardingMock =
+  manifestsSingleton.selectWorkerForForwarding as jest.MockedFunction<
+    typeof manifestsSingleton.selectWorkerForForwarding
+  >
 
 describe('parseHostHeader', () => {
   it('should return correct host', () => {
@@ -87,5 +108,47 @@ describe('parseHostHeader', () => {
         'www.bar.com'
       )
     ).toEqual({ type: 'x-forwarded-host', value: 'www.bar.com' })
+  })
+})
+
+describe('selectPeerWorkerForForwarding', () => {
+  beforeEach(() => {
+    selectWorkerForForwardingMock.mockClear()
+    selectWorkerForForwardingMock.mockImplementation((actionId, page) =>
+      jest
+        .requireActual<
+          typeof import('./manifests-singleton')
+        >('./manifests-singleton')
+        .selectWorkerForForwarding(actionId, page)
+    )
+  })
+
+  it('does not call selectWorkerForForwarding when the action was already forwarded', () => {
+    expect(
+      selectPeerWorkerForForwarding('action-id', '/some/page', true)
+    ).toBeUndefined()
+
+    expect(selectWorkerForForwardingMock).not.toHaveBeenCalled()
+  })
+
+  it('does not call selectWorkerForForwarding when actionId is undefined', () => {
+    expect(
+      selectPeerWorkerForForwarding(undefined, '/some/page', false)
+    ).toBeUndefined()
+
+    expect(selectWorkerForForwardingMock).not.toHaveBeenCalled()
+  })
+
+  it('delegates to selectWorkerForForwarding when forwarding is allowed', () => {
+    selectWorkerForForwardingMock.mockImplementation(() => '/app/foo/page')
+
+    expect(
+      selectPeerWorkerForForwarding('action-id', '/some/page', false)
+    ).toBe('/app/foo/page')
+
+    expect(selectWorkerForForwardingMock).toHaveBeenCalledWith(
+      'action-id',
+      '/some/page'
+    )
   })
 })
