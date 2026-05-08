@@ -196,6 +196,54 @@ describe('offlineNavigations build artifacts', () => {
     })
   }
 
+  async function deletePersistedOfflineNavigationSegmentRecords(
+    browser: Awaited<ReturnType<typeof next.browser>>,
+    options: {
+      keySubstring: string
+      requestKeySuffix: string
+    }
+  ) {
+    return browser.eval(async ({ keySubstring, requestKeySuffix }) => {
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('next-offline-navigation-cache', 3)
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+
+      try {
+        const entries = await new Promise<any[]>((resolve, reject) => {
+          const transaction = database.transaction('segment-data', 'readonly')
+          const request = transaction.objectStore('segment-data').getAll()
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })
+        const matchingEntries = entries.filter(
+          (entry) =>
+            entry.key.includes(keySubstring) &&
+            entry.segment.requestKey.endsWith(requestKeySuffix)
+        )
+
+        if (matchingEntries.length === 0) {
+          return 0
+        }
+
+        const transaction = database.transaction('segment-data', 'readwrite')
+        const store = transaction.objectStore('segment-data')
+        for (const entry of matchingEntries) {
+          store.delete([entry.buildId, entry.key])
+        }
+        await new Promise<void>((resolve, reject) => {
+          transaction.oncomplete = () => resolve()
+          transaction.onerror = () => reject(transaction.error)
+          transaction.onabort = () => reject(transaction.error)
+        })
+        return matchingEntries.length
+      } finally {
+        database.close()
+      }
+    }, options)
+  }
+
   async function deletePersistedOfflineNavigationEntries(
     browser: Awaited<ReturnType<typeof next.browser>>,
     urlSubstring: string
@@ -240,6 +288,64 @@ describe('offlineNavigations build artifacts', () => {
         database.close()
       }
     }, urlSubstring)
+  }
+
+  async function prefetchDynamicPatternReplayData(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
+    await browser.elementById('prefetch-dynamic-pattern-source').click()
+    await retry(async () => {
+      const routeRecords =
+        await readPersistedOfflineNavigationRouteRecords(browser)
+      expect(
+        routeRecords.some((record) =>
+          record.route.pathname.includes('/dynamic-prefetch/learned')
+        )
+      ).toBe(true)
+    })
+
+    await browser.elementById('prefetch-dynamic-pattern-target').click()
+    await retry(async () => {
+      const exactEntry = await readPersistedOfflineNavigationEntry(
+        browser,
+        '/docs/dynamic-prefetch/replayed'
+      )
+      expect(exactEntry).toBe(null)
+
+      const routeRecords =
+        await readPersistedOfflineNavigationRouteRecords(browser)
+      expect(
+        routeRecords.some((record) =>
+          record.route.pathname.includes('/dynamic-prefetch/learned')
+        )
+      ).toBe(true)
+      expect(
+        routeRecords.some((record) =>
+          record.route.pathname.includes('/dynamic-prefetch/replayed')
+        )
+      ).toBe(false)
+
+      const segmentRecords =
+        await readPersistedOfflineNavigationSegmentRecords(browser)
+      const replayedSegmentRecords = segmentRecords.filter((record) =>
+        record.key.includes('replayed')
+      )
+      expect(
+        segmentRecords.some(
+          (record) => record.payload.requestKind === 'segment-prefetch'
+        )
+      ).toBe(true)
+      expect(
+        replayedSegmentRecords.some((record) =>
+          record.segment.requestKey.endsWith('/__PAGE__')
+        )
+      ).toBe(true)
+      expect(
+        replayedSegmentRecords.some(
+          (record) => record.segment.requestKey === '/_head'
+        )
+      ).toBe(true)
+    })
   }
 
   async function cleanupOfflineNavigationState(
@@ -1073,54 +1179,7 @@ describe('offlineNavigations build artifacts', () => {
         ).toBe(true)
       })
 
-      await browser.elementById('prefetch-dynamic-pattern-source').click()
-      await retry(async () => {
-        const routeRecords =
-          await readPersistedOfflineNavigationRouteRecords(browser)
-        expect(
-          routeRecords.some((record) =>
-            record.route.pathname.includes('/dynamic-prefetch/learned')
-          )
-        ).toBe(true)
-      })
-
-      await browser.elementById('prefetch-dynamic-pattern-target').click()
-      await retry(async () => {
-        const exactEntry = await readPersistedOfflineNavigationEntry(
-          browser,
-          '/docs/dynamic-prefetch/replayed'
-        )
-        expect(exactEntry).toBe(null)
-
-        const routeRecords =
-          await readPersistedOfflineNavigationRouteRecords(browser)
-        expect(
-          routeRecords.some((record) =>
-            record.route.pathname.includes('/dynamic-prefetch/replayed')
-          )
-        ).toBe(false)
-
-        const segmentRecords =
-          await readPersistedOfflineNavigationSegmentRecords(browser)
-        const replayedSegmentRecords = segmentRecords.filter((record) =>
-          record.key.includes('replayed')
-        )
-        expect(
-          segmentRecords.some(
-            (record) => record.payload.requestKind === 'segment-prefetch'
-          )
-        ).toBe(true)
-        expect(
-          replayedSegmentRecords.some((record) =>
-            record.segment.requestKey.endsWith('/__PAGE__')
-          )
-        ).toBe(true)
-        expect(
-          replayedSegmentRecords.some(
-            (record) => record.segment.requestKey === '/_head'
-          )
-        ).toBe(true)
-      })
+      await prefetchDynamicPatternReplayData(browser)
 
       await next.stop()
       await page!.context().setOffline(true)
@@ -1153,6 +1212,108 @@ describe('offlineNavigations build artifacts', () => {
         expect(await browser.elementById('dynamic-prefetch-page').text()).toBe(
           'dynamic prefetch path: replayed'
         )
+      })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
+  it('misses dynamic route pattern replay when a required segment record is missing', async () => {
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await retry(async () => {
+        expect(
+          await browser.eval(() => Boolean(navigator.serviceWorker.controller))
+        ).toBe(true)
+      })
+
+      await prefetchDynamicPatternReplayData(browser)
+
+      const deletedSegments =
+        await deletePersistedOfflineNavigationSegmentRecords(browser, {
+          keySubstring: 'replayed',
+          requestKeySuffix: '/__PAGE__',
+        })
+      expect(deletedSegments).toBeGreaterThan(0)
+      await retry(async () => {
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        expect(
+          segmentRecords.some(
+            (record) =>
+              record.key.includes('replayed') &&
+              record.segment.requestKey.endsWith('/__PAGE__')
+          )
+        ).toBe(false)
+      })
+
+      await next.stop()
+      await page!.context().setOffline(true)
+      const missingSegmentResponse = await page!.goto(
+        `${next.url}/docs/dynamic-prefetch/replayed#missing-segment`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(missingSegmentResponse?.status()).toBe(200)
+      await retry(async () => {
+        const diagnostics = await browser.eval(() => {
+          const win = window as typeof window & {
+            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<{
+              type?: string
+              reason?: string
+              url?: string
+            }>
+          }
+          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__ ?? []
+        })
+        expect(diagnostics).toContainEqual(
+          expect.objectContaining({
+            type: 'router-cache-reconstruction-miss',
+            reason: 'missing-segment',
+            url: `${next.url}/docs/dynamic-prefetch/replayed#missing-segment`,
+          })
+        )
+        expect(diagnostics).toContainEqual(
+          expect.objectContaining({
+            type: 'cache-miss',
+            reason: 'missing-entry',
+            url: `${next.url}/docs/dynamic-prefetch/replayed#missing-segment`,
+          })
+        )
+      })
+      await retry(async () => {
+        expect(
+          await browser.eval(() => {
+            const cacheMiss = document.getElementById(
+              '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
+            )
+            return cacheMiss === null
+              ? null
+              : {
+                  hidden: cacheMiss.hidden,
+                  reason: cacheMiss.getAttribute(
+                    'data-next-offline-navigation-cache-reason'
+                  ),
+                  text: cacheMiss.textContent,
+                }
+          })
+        ).toEqual({
+          hidden: false,
+          reason: 'missing-entry',
+          text: 'This page is not available offline.',
+        })
       })
     } finally {
       if (page) {
