@@ -1909,6 +1909,201 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('misses a workspace shell route when a required nested layout record is missing during fallback boot', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    const workspaceRoute = '/workspace/acme/channel/general/thread/123'
+    const workspaceUrlPath = `/docs${workspaceRoute}`
+    const workspaceLayoutRequestKey = '/workspace/$d$workspace'
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await browser.elementById('prefetch-workspace-shell').click()
+      await retry(async () => {
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        expect(
+          routeRecords.some((record) =>
+            record.route.pathname.includes(workspaceRoute)
+          )
+        ).toBe(true)
+
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        const segmentRequestKeys = segmentRecords.map(
+          (record) => record.segment.requestKey
+        )
+        expect(segmentRequestKeys).toContain(workspaceLayoutRequestKey)
+        expect(
+          segmentRecords.some((record) =>
+            record.segment.requestKey.endsWith('/@sidebar/__DEFAULT__')
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) =>
+              record.segment.requestKey.includes('/@activity/') &&
+              record.segment.requestKey.endsWith('/__PAGE__')
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) =>
+              record.key.includes('workspace') &&
+              record.segment.requestKey.endsWith('/__PAGE__')
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) => record.segment.requestKey === '/_head'
+          )
+        ).toBe(true)
+      })
+
+      const deletedExactEntries = await deletePersistedOfflineNavigationEntries(
+        browser,
+        workspaceUrlPath
+      )
+      expect(deletedExactEntries).toBeGreaterThan(0)
+      await retry(async () => {
+        const deletedEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          workspaceUrlPath
+        )
+        expect(deletedEntry).toBe(null)
+      })
+
+      const deletedWorkspaceLayoutRecords =
+        await deletePersistedOfflineNavigationSegmentRecords(browser, {
+          keySubstring: 'workspace',
+          requestKeySuffix: workspaceLayoutRequestKey,
+        })
+      expect(deletedWorkspaceLayoutRecords).toBeGreaterThan(0)
+      await retry(async () => {
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        expect(
+          routeRecords.some((record) =>
+            record.route.pathname.includes(workspaceRoute)
+          )
+        ).toBe(true)
+
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        const segmentRequestKeys = segmentRecords.map(
+          (record) => record.segment.requestKey
+        )
+        expect(segmentRequestKeys).not.toContain(workspaceLayoutRequestKey)
+        expect(
+          segmentRecords.some((record) =>
+            record.segment.requestKey.endsWith('/@sidebar/__DEFAULT__')
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) =>
+              record.segment.requestKey.includes('/@activity/') &&
+              record.segment.requestKey.endsWith('/__PAGE__')
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) =>
+              record.key.includes('workspace') &&
+              record.segment.requestKey.endsWith('/__PAGE__')
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) => record.segment.requestKey === '/_head'
+          )
+        ).toBe(true)
+      })
+
+      await next.stop()
+      await page!.context().setOffline(true)
+      const missingWorkspaceLayoutResponse = await page!.goto(
+        `${next.url}${workspaceUrlPath}`,
+        {
+          waitUntil: 'domcontentloaded',
+        }
+      )
+      expect(missingWorkspaceLayoutResponse?.status()).toBe(200)
+
+      await retry(async () => {
+        const diagnostics = await browser.eval(() => {
+          const win = window as typeof window & {
+            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<{
+              reason?: string
+              type?: string
+              url?: string
+            }>
+          }
+          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__ ?? []
+        })
+        expect(diagnostics).toContainEqual(
+          expect.objectContaining({
+            reason: 'missing-segment',
+            type: 'router-cache-reconstruction-miss',
+            url: `${next.url}${workspaceUrlPath}`,
+          })
+        )
+        expect(diagnostics).toContainEqual(
+          expect.objectContaining({
+            reason: 'missing-entry',
+            type: 'cache-miss',
+            url: `${next.url}${workspaceUrlPath}`,
+          })
+        )
+      })
+      await retry(async () => {
+        expect(
+          await browser.eval(() => {
+            const cacheMiss = document.getElementById(
+              '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
+            )
+            return cacheMiss === null
+              ? null
+              : {
+                  hidden: cacheMiss.hidden,
+                  reason: cacheMiss.getAttribute(
+                    'data-next-offline-navigation-cache-reason'
+                  ),
+                  text: cacheMiss.textContent,
+                }
+          })
+        ).toEqual({
+          hidden: false,
+          reason: 'missing-entry',
+          text: 'This page is not available offline.',
+        })
+      })
+      expect(
+        await browser.eval(() =>
+          Boolean(document.getElementById('workspace-thread-page'))
+        )
+      ).toBe(false)
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('misses and deletes expired persisted route records during fallback boot', async () => {
     if (shouldSkipReplayWithCachedNavigations) {
       return
