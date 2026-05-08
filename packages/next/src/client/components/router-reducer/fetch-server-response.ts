@@ -685,7 +685,7 @@ export async function createFetch<T>(
 
 function getOfflineNavigationCacheRequestKind(
   headers: RequestHeaders
-): 'navigation' | 'route-prefetch' | 'client-resume' | null {
+): OfflineNavigationRSCResponseRequestKind | null {
   if (
     !process.env.__NEXT_OFFLINE_NAVIGATIONS ||
     process.env.__NEXT_DEV_SERVER ||
@@ -705,8 +705,12 @@ function getOfflineNavigationCacheRequestKind(
 
   if (
     headers[NEXT_ROUTER_PREFETCH_HEADER] !== undefined &&
-    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] === undefined
+    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] !== undefined
   ) {
+    return 'segment-prefetch'
+  }
+
+  if (headers[NEXT_ROUTER_PREFETCH_HEADER] !== undefined) {
     return 'route-prefetch'
   }
 
