@@ -229,12 +229,18 @@ describe('offlineNavigations build artifacts', () => {
     browser: Awaited<ReturnType<typeof next.browser>>,
     options: {
       keySubstring: string
+      requestKey?: string
       requestKeySubstring?: string
-      requestKeySuffix: string
+      requestKeySuffix?: string
     }
   ) {
     return browser.eval(
-      async ({ keySubstring, requestKeySubstring, requestKeySuffix }) => {
+      async ({
+        keySubstring,
+        requestKey,
+        requestKeySubstring,
+        requestKeySuffix,
+      }) => {
         const database = await new Promise<IDBDatabase>((resolve, reject) => {
           const request = indexedDB.open('next-offline-navigation-cache', 3)
           request.onsuccess = () => resolve(request.result)
@@ -251,9 +257,12 @@ describe('offlineNavigations build artifacts', () => {
           const matchingEntries = entries.filter(
             (entry) =>
               entry.key.includes(keySubstring) &&
-              (requestKeySubstring === undefined ||
-                entry.segment.requestKey.includes(requestKeySubstring)) &&
-              entry.segment.requestKey.endsWith(requestKeySuffix)
+              (requestKey === undefined
+                ? (requestKeySubstring === undefined ||
+                    entry.segment.requestKey.includes(requestKeySubstring)) &&
+                  (requestKeySuffix === undefined ||
+                    entry.segment.requestKey.endsWith(requestKeySuffix))
+                : entry.segment.requestKey === requestKey)
           )
 
           if (matchingEntries.length === 0) {
@@ -2042,6 +2051,204 @@ describe('offlineNavigations build artifacts', () => {
         }
       )
       expect(missingWorkspaceLayoutResponse?.status()).toBe(200)
+
+      await retry(async () => {
+        const diagnostics = await browser.eval(() => {
+          const win = window as typeof window & {
+            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<{
+              reason?: string
+              type?: string
+              url?: string
+            }>
+          }
+          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__ ?? []
+        })
+        expect(diagnostics).toContainEqual(
+          expect.objectContaining({
+            reason: 'missing-segment',
+            type: 'router-cache-reconstruction-miss',
+            url: `${next.url}${workspaceUrlPath}`,
+          })
+        )
+        expect(diagnostics).toContainEqual(
+          expect.objectContaining({
+            reason: 'missing-entry',
+            type: 'cache-miss',
+            url: `${next.url}${workspaceUrlPath}`,
+          })
+        )
+      })
+      await retry(async () => {
+        expect(
+          await browser.eval(() => {
+            const cacheMiss = document.getElementById(
+              '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
+            )
+            return cacheMiss === null
+              ? null
+              : {
+                  hidden: cacheMiss.hidden,
+                  reason: cacheMiss.getAttribute(
+                    'data-next-offline-navigation-cache-reason'
+                  ),
+                  text: cacheMiss.textContent,
+                }
+          })
+        ).toEqual({
+          hidden: false,
+          reason: 'missing-entry',
+          text: 'This page is not available offline.',
+        })
+      })
+      expect(
+        await browser.eval(() =>
+          Boolean(document.getElementById('workspace-thread-page'))
+        )
+      ).toBe(false)
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
+  it('misses a workspace shell route when the required root layout record is missing during fallback boot', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    const workspaceRoute = '/workspace/acme/channel/general/thread/123'
+    const workspaceUrlPath = `/docs${workspaceRoute}`
+    const rootLayoutRequestKey = ''
+    const workspaceLayoutRequestKey = '/workspace/$d$workspace'
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await browser.elementById('prefetch-workspace-shell').click()
+      await retry(async () => {
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        expect(
+          routeRecords.some((record) =>
+            record.route.pathname.includes(workspaceRoute)
+          )
+        ).toBe(true)
+
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        const segmentRequestKeys = segmentRecords.map(
+          (record) => record.segment.requestKey
+        )
+        expect(segmentRequestKeys).toContain(rootLayoutRequestKey)
+        expect(segmentRequestKeys).toContain(workspaceLayoutRequestKey)
+        expect(
+          segmentRecords.some((record) =>
+            record.segment.requestKey.endsWith('/@sidebar/__DEFAULT__')
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) =>
+              record.segment.requestKey.includes('/@activity/') &&
+              record.segment.requestKey.endsWith('/__PAGE__')
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) =>
+              record.key.includes('workspace') &&
+              record.segment.requestKey.endsWith('/__PAGE__')
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) => record.segment.requestKey === '/_head'
+          )
+        ).toBe(true)
+      })
+
+      const deletedExactEntries = await deletePersistedOfflineNavigationEntries(
+        browser,
+        workspaceUrlPath
+      )
+      expect(deletedExactEntries).toBeGreaterThan(0)
+      await retry(async () => {
+        const deletedEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          workspaceUrlPath
+        )
+        expect(deletedEntry).toBe(null)
+      })
+
+      const deletedRootLayoutRecords =
+        await deletePersistedOfflineNavigationSegmentRecords(browser, {
+          keySubstring: '',
+          requestKey: rootLayoutRequestKey,
+        })
+      expect(deletedRootLayoutRecords).toBeGreaterThan(0)
+      await retry(async () => {
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        expect(
+          routeRecords.some((record) =>
+            record.route.pathname.includes(workspaceRoute)
+          )
+        ).toBe(true)
+
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        const segmentRequestKeys = segmentRecords.map(
+          (record) => record.segment.requestKey
+        )
+        expect(segmentRequestKeys).not.toContain(rootLayoutRequestKey)
+        expect(segmentRequestKeys).toContain(workspaceLayoutRequestKey)
+        expect(
+          segmentRecords.some((record) =>
+            record.segment.requestKey.endsWith('/@sidebar/__DEFAULT__')
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) =>
+              record.segment.requestKey.includes('/@activity/') &&
+              record.segment.requestKey.endsWith('/__PAGE__')
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) =>
+              record.key.includes('workspace') &&
+              record.segment.requestKey.endsWith('/__PAGE__')
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) => record.segment.requestKey === '/_head'
+          )
+        ).toBe(true)
+      })
+
+      await next.stop()
+      await page!.context().setOffline(true)
+      const missingRootLayoutResponse = await page!.goto(
+        `${next.url}${workspaceUrlPath}`,
+        {
+          waitUntil: 'domcontentloaded',
+        }
+      )
+      expect(missingRootLayoutResponse?.status()).toBe(200)
 
       await retry(async () => {
         const diagnostics = await browser.eval(() => {
