@@ -4,6 +4,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import type * as Playwright from 'playwright'
 
+const OFFLINE_NAVIGATION_FALLBACK_SERVED =
+  'next-offline-navigation-fallback-served'
+
 describe('offlineNavigations build artifacts', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -76,6 +79,7 @@ describe('offlineNavigations build artifacts', () => {
     )
     expect(serviceWorkerScript).toContain('cacheOfflineNavigationResources')
     expect(serviceWorkerScript).toContain('caches.delete')
+    expect(serviceWorkerScript).toContain(OFFLINE_NAVIGATION_FALLBACK_SERVED)
     expect(serviceWorkerScript).toContain('isDocumentNavigationRequest')
     expect(serviceWorkerScript).toContain('skipWaiting')
     expect(serviceWorkerScript).toContain('clients.claim')
@@ -159,6 +163,59 @@ describe('offlineNavigations build artifacts', () => {
           await browser.eval(() => Boolean(navigator.serviceWorker.controller))
         ).toBe(true)
       })
+      expect(await browser.elementById('offline-status').text()).toBe('online')
+
+      await browser.eval((messageType) => {
+        const win = window as typeof window & {
+          __restoreOfflineNavigationFetch?: () => void
+        }
+        const originalFetch = window.fetch
+        win.__restoreOfflineNavigationFetch = () => {
+          window.fetch = originalFetch
+          delete win.__restoreOfflineNavigationFetch
+        }
+        window.fetch = async () => {
+          throw new TypeError('offline navigation test')
+        }
+        navigator.serviceWorker.dispatchEvent(
+          new MessageEvent('message', {
+            data: {
+              type: messageType,
+              reason: 'network-error',
+              url: location.href,
+            },
+          })
+        )
+      }, OFFLINE_NAVIGATION_FALLBACK_SERVED)
+      await retry(async () => {
+        expect(await browser.elementById('offline-status').text()).toBe(
+          'offline'
+        )
+      })
+      await browser.eval(() => {
+        const win = window as typeof window & {
+          __restoreOfflineNavigationFetch?: () => void
+        }
+        win.__restoreOfflineNavigationFetch?.()
+        window.dispatchEvent(new Event('online'))
+      })
+      await retry(async () => {
+        expect(await browser.elementById('offline-status').text()).toBe(
+          'online'
+        )
+      })
+
+      await browser.eval((messageType) => {
+        localStorage.removeItem('__nextOfflineNavigationMessage')
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data?.type === messageType) {
+            localStorage.setItem(
+              '__nextOfflineNavigationMessage',
+              JSON.stringify(event.data)
+            )
+          }
+        })
+      }, OFFLINE_NAVIGATION_FALLBACK_SERVED)
 
       const cacheState = await browser.eval(async () => {
         const cacheNames = (await caches.keys()).filter((cacheName) =>
@@ -221,6 +278,16 @@ describe('offlineNavigations build artifacts', () => {
           )
         )
       ).toBe(true)
+      const serviceWorkerMessage = await browser.eval(() => {
+        const message = localStorage.getItem('__nextOfflineNavigationMessage')
+        return message === null ? null : JSON.parse(message)
+      })
+      expect(serviceWorkerMessage).toMatchObject({
+        type: OFFLINE_NAVIGATION_FALLBACK_SERVED,
+        buildId,
+        reason: 'network-error',
+        url: `${next.url}/docs/offline-navigation-cache-miss`,
+      })
       await page!.context().setOffline(false)
 
       await browser.eval(async () => {

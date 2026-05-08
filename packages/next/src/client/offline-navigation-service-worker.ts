@@ -1,7 +1,17 @@
 import { getDeploymentIdQuery } from '../shared/lib/deployment-id'
+import { OFFLINE_NAVIGATION_FALLBACK_SERVED } from '../shared/lib/offline-navigation-constants'
 
 const OFFLINE_NAVIGATION_SERVICE_WORKER =
   '_offline-navigation-service-worker.js'
+
+let isListeningForServiceWorkerMessages = false
+
+type OfflineNavigationFallbackServedMessage = {
+  type: typeof OFFLINE_NAVIGATION_FALLBACK_SERVED
+  buildId?: string
+  reason?: 'network-error'
+  url?: string
+}
 
 function getBasePath(): string {
   return (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
@@ -16,6 +26,38 @@ function getServiceWorkerScope(): string {
   return basePath ? `${basePath}/` : '/'
 }
 
+function listenForOfflineNavigationMessages(): void {
+  if (isListeningForServiceWorkerMessages) {
+    return
+  }
+  isListeningForServiceWorkerMessages = true
+
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    handleOfflineNavigationServiceWorkerMessage(event.data)
+  })
+}
+
+export function handleOfflineNavigationServiceWorkerMessage(data: unknown) {
+  if (!isOfflineNavigationFallbackServedMessage(data)) {
+    return
+  }
+
+  const { notifyOffline } =
+    require('./components/offline') as typeof import('./components/offline')
+  notifyOffline()
+}
+
+function isOfflineNavigationFallbackServedMessage(
+  data: unknown
+): data is OfflineNavigationFallbackServedMessage {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    (data as Partial<OfflineNavigationFallbackServedMessage>).type ===
+      OFFLINE_NAVIGATION_FALLBACK_SERVED
+  )
+}
+
 export function registerOfflineNavigationServiceWorker(): void {
   if (
     process.env.__NEXT_DEV_SERVER ||
@@ -25,6 +67,8 @@ export function registerOfflineNavigationServiceWorker(): void {
   ) {
     return
   }
+
+  listenForOfflineNavigationMessages()
 
   navigator.serviceWorker
     .register(getServiceWorkerHref(), {
