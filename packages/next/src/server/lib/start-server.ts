@@ -43,6 +43,7 @@ import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
 import { durationToString } from '../../build/duration-to-string'
+import type { NextConfig } from '../config-shared'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -143,11 +144,13 @@ export async function getRequestHandlers({
   onDevServerCleanup,
   server,
   hostname,
+  customServer,
   minimalMode,
   keepAliveTimeout,
   experimentalHttpsServer,
   serverFastRefresh,
   quiet,
+  conf,
 }: {
   dir: string
   port: number
@@ -155,11 +158,13 @@ export async function getRequestHandlers({
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   server?: import('http').Server
   hostname?: string
+  customServer?: boolean
   minimalMode?: boolean
   keepAliveTimeout?: number
   experimentalHttpsServer?: boolean
   serverFastRefresh?: boolean
   quiet?: boolean
+  conf?: NextConfig
 }): ReturnType<typeof initialize> {
   return initialize({
     dir,
@@ -169,11 +174,13 @@ export async function getRequestHandlers({
     dev: isDev,
     minimalMode,
     server,
+    customServer,
     keepAliveTimeout,
     experimentalHttpsServer,
     serverFastRefresh,
     startServerSpan,
     quiet,
+    conf,
   })
 }
 

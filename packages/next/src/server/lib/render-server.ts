@@ -9,6 +9,7 @@ import type { OnCacheEntryHandler } from '../request-meta'
 import { interopDefault } from '../../lib/interop-default'
 import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
 import type { ConfiguredExperimentalFeature } from '../config'
+import type { NextConfig } from '../config-shared'
 
 export type ServerInitResult = {
   requestHandler: RequestHandler
@@ -100,6 +101,7 @@ async function initializeImpl(opts: {
   startServerSpan: Span | undefined
   quiet?: boolean
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
+  conf?: NextConfig
   distDir: string
   experimentalFeatures: ConfiguredExperimentalFeature[]
   cacheComponents: boolean
