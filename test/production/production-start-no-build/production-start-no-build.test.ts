@@ -2,15 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('Production Usage without production build', () => {
-  const { next, isNextStart } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
-
-  if (!isNextStart) {
-    it('skipped for non-start mode', () => {})
-    return
-  }
+  if (skipped) return
 
   it('should show error when there is no production build', async () => {
     await next.start({ skipBuild: true }).catch(() => {})

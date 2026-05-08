@@ -3,15 +3,12 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('build with proxy trace', () => {
   describe('production mode', () => {
-    const { next, isNextStart } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: path.join(__dirname, 'app'),
       skipStart: true,
+      skipDeployment: true,
     })
-
-    if (!isNextStart) {
-      it('skipped for non-start mode', () => {})
-      return
-    }
+    if (skipped) return
 
     it('should build and output trace correctly', async () => {
       const { exitCode } = await next.build({

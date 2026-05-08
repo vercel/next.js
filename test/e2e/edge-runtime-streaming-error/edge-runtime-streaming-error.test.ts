@@ -3,12 +3,13 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('edge-runtime-streaming-error', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
     // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
     skipDeployment: true,
   })
+  if (skipped) return
 
   it('logs the error correctly', async () => {
     const res = await next.fetch('/api/test')

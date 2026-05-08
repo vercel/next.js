@@ -3,10 +3,11 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { retry } from 'next-test-utils'
 
 describe('jsconfig.json baseurl', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
+  if (skipped) return
 
   describe('default behavior', () => {
     it('should render the page', async () => {

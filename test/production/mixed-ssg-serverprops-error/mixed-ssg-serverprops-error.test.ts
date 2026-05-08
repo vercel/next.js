@@ -4,13 +4,12 @@ import { SERVER_PROPS_SSG_CONFLICT } from 'next/dist/lib/constants'
 
 describe('Mixed getStaticProps and getServerSideProps error', () => {
   describe('production mode', () => {
-    const { next, isNextStart, isTurbopack } = nextTestSetup({
+    const { next, isTurbopack, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      skipDeployment: true,
     })
-
-    if (!isNextStart) {
-      it('skipped for non-start mode', () => {})
+    if (skipped) {
       return
     }
 

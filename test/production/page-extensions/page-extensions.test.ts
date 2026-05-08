@@ -2,15 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('Page Extensions', () => {
   describe('production mode', () => {
-    const { next, isNextStart } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      skipDeployment: true,
     })
-
-    if (!isNextStart) {
-      it('skipped for non-start mode', () => {})
-      return
-    }
+    if (skipped) return
 
     it('should use the default pageExtensions if set to undefined', async () => {
       await next.patchFile(

@@ -2,15 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('Production Custom Build Directory', () => {
   describe('production mode', () => {
-    const { next, isNextStart } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      skipDeployment: true,
     })
-
-    if (!isNextStart) {
-      it('skipped for non-start mode', () => {})
-      return
-    }
+    if (skipped) return
 
     it('should render the page', async () => {
       const result = await next.build()

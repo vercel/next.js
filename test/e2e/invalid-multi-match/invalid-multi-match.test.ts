@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Custom routes invalid multi-match', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
     // The test asserts on `next.cliOutput`, expecting the local
@@ -11,6 +11,7 @@ describe('Custom routes invalid multi-match', () => {
     // error string at the top level, so the assertions don't apply.
     skipDeployment: true,
   })
+  if (skipped) return
   if (isNextDeploy) return
 
   it('should show error for invalid multi-match', async () => {

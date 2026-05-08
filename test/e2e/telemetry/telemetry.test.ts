@@ -4,11 +4,12 @@ import { nextTestSetup } from 'e2e-utils'
 import { findAllTelemetryEvents } from 'next-test-utils'
 
 describe('Telemetry CLI', () => {
-  const { next, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, isNextStart, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
+  if (skipped) return
 
   it('can print telemetry status', async () => {
     const { stdout } = await next.runCommand(['telemetry'])

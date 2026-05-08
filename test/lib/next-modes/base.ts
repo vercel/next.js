@@ -1008,11 +1008,17 @@ export class NextInstance {
   public async browser(
     ...args: Parameters<OmitFirstArgument<typeof webdriver>>
   ): Promise<Playwright> {
-    try {
-      this.throwIfUnavailable()
-    } catch (error) {
-      Error.captureStackTrace(error, this.browser)
-      throw error
+    // When `baseUrl` is provided the test is driving a separate server (proxy,
+    // static-export server, etc.), so we don't require the Next.js server to
+    // be running.
+    const baseUrl = args[1]?.baseUrl
+    if (baseUrl === undefined) {
+      try {
+        this.throwIfUnavailable()
+      } catch (error) {
+        Error.captureStackTrace(error, this.browser)
+        throw error
+      }
     }
     return webdriver(this.url, ...args)
   }

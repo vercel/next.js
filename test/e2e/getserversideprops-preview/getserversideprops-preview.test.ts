@@ -16,11 +16,12 @@ function getData(html: string) {
 }
 
 describe('ServerSide Props Preview Mode', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
     skipDeployment: true,
   })
+  if (skipped) return
 
   if (isNextStart) {
     it('should compile successfully', async () => {

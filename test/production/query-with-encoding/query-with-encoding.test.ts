@@ -2,12 +2,11 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('Query String with Encoding', () => {
   describe('production mode', () => {
-    const { next, isNextStart } = nextTestSetup({ files: __dirname })
-
-    if (!isNextStart) {
-      it('skipped for non-start mode', () => {})
-      return
-    }
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipDeployment: true,
+    })
+    if (skipped) return
 
     describe('new line', () => {
       it('should have correct query on SSR', async () => {

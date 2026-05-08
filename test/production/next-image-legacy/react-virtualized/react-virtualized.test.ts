@@ -1,72 +1,75 @@
+import { spawn, ChildProcess } from 'child_process'
+import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { findPort, waitFor } from 'next-test-utils'
-import webdriver from 'next-webdriver'
-import httpProxy from 'http-proxy'
-import http from 'http'
+import { waitFor } from 'next-test-utils'
 
 describe('react-virtualized wrapping next/legacy/image', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    dependencies: { 'react-virtualized': 'latest' },
+    skipDeployment: true,
+    dependencies: {
+      'react-virtualized': 'latest',
+      'http-proxy': '1.18.1',
+    },
   })
+  if (skipped) return
 
-  let proxyServer: http.Server
+  let proxyChild: ChildProcess
   let proxyPort: number
-  let cancelCount = 0
+
+  async function getCancelCount() {
+    const res = await fetch(`http://localhost:${proxyPort}/_test/cancel-count`)
+    const data = (await res.json()) as { cancelCount: number }
+    return data.cancelCount
+  }
 
   beforeAll(async () => {
     await next.build()
     await next.start()
 
-    proxyPort = await findPort()
-    const proxy = httpProxy.createProxyServer({
-      target: next.url,
-    })
+    proxyChild = spawn(
+      process.execPath,
+      [join(next.testDir, 'server.js'), next.url, '0', '3000'],
+      { stdio: ['ignore', 'pipe', 'inherit'] }
+    )
 
-    proxyServer = http.createServer(async (req, res) => {
-      let isComplete = false
-
-      if (req.url.startsWith('/_next/image')) {
-        req.on('close', () => {
-          if (!isComplete) {
-            cancelCount++
-          }
-        })
-        console.log('stalling request for', req.url)
-        await waitFor(3000)
-        isComplete = true
+    proxyPort = await new Promise<number>((resolve, reject) => {
+      let buf = ''
+      const onData = (chunk: Buffer) => {
+        buf += chunk.toString()
+        const m = buf.match(/__PORT__:(\d+)/)
+        if (m) {
+          proxyChild.stdout!.off('data', onData)
+          resolve(Number(m[1]))
+        }
       }
-      proxy.web(req, res)
-    })
-
-    proxy.on('error', (err) => {
-      console.warn('Failed to proxy', err)
-    })
-
-    await new Promise<void>((resolve) => {
-      proxyServer.listen(proxyPort, () => resolve())
+      proxyChild.stdout!.on('data', onData)
+      proxyChild.once('exit', (code) => {
+        reject(new Error(`proxy server exited early with code ${code}`))
+      })
     })
   })
 
-  afterAll(() => {
-    proxyServer?.close()
+  afterAll(async () => {
+    proxyChild?.kill()
   })
 
   it('should not cancel requests for images', async () => {
     // TODO: this test doesnt work unless we can set `disableCache: true`
-    let browser = await webdriver(proxyPort, '/', {
+    let browser = await next.browser('/', {
+      baseUrl: proxyPort,
       disableCache: true,
     })
-    expect(cancelCount).toBe(0)
+    expect(await getCancelCount()).toBe(0)
     await browser.eval('window.scrollTo({ top: 100, behavior: "smooth" })')
     await waitFor(100)
-    expect(cancelCount).toBe(0)
+    expect(await getCancelCount()).toBe(0)
     await browser.eval('window.scrollTo({ top: 200, behavior: "smooth" })')
     await waitFor(200)
-    expect(cancelCount).toBe(0)
+    expect(await getCancelCount()).toBe(0)
     await browser.eval('window.scrollTo({ top: 300, behavior: "smooth" })')
     await waitFor(300)
-    expect(cancelCount).toBe(0)
+    expect(await getCancelCount()).toBe(0)
   })
 })

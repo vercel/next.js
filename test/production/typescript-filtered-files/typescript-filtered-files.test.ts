@@ -2,15 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('TypeScript filtered files', () => {
   describe('production mode', () => {
-    const { next, isNextStart } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      skipDeployment: true,
     })
-
-    if (!isNextStart) {
-      it('skipped for non-start mode', () => {})
-      return
-    }
+    if (skipped) return
 
     it('should fail to build the app with a file named con*test*.js', async () => {
       const { exitCode } = await next.build()

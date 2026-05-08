@@ -3,12 +3,11 @@ import { retry } from 'next-test-utils'
 
 describe('Production Usage', () => {
   describe('production mode', () => {
-    const { next, isNextStart } = nextTestSetup({ files: __dirname })
-
-    if (!isNextStart) {
-      it('skipped for non-start mode', () => {})
-      return
-    }
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipDeployment: true,
+    })
+    if (skipped) return
 
     it('should navigate forward and back correctly', async () => {
       const browser = await next.browser('/')

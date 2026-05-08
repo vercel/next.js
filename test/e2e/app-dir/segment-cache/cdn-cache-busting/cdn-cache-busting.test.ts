@@ -1,7 +1,6 @@
 import type * as Playwright from 'playwright'
 import type { ChildProcess } from 'child_process'
 import type { Server } from 'http'
-import webdriver from 'next-webdriver'
 import { createRouterAct } from 'router-act'
 import { findPort } from 'next-test-utils'
 import { isNextDeploy, isNextDev, nextTestSetup } from 'e2e-utils'
@@ -70,7 +69,8 @@ describe('segment cache (CDN cache busting)', () => {
       'the Vary header',
     async () => {
       let act
-      const browser = await webdriver(port, '/', {
+      const browser = await next.browser('/', {
+        baseUrl: port,
         beforePageLoad(p: Playwright.Page) {
           act = createRouterAct(p)
         },
@@ -103,7 +103,7 @@ describe('segment cache (CDN cache busting)', () => {
       'cache busting query param if a custom header is sent during a prefetch ' +
       'without a corresponding cache-busting search param',
     async () => {
-      const browser = await webdriver(port, '/')
+      const browser = await next.browser('/', { baseUrl: port })
       const { status, responseUrl, redirected } = await browser.eval(
         async () => {
           const res = await fetch('/target-page', {
@@ -131,7 +131,8 @@ describe('segment cache (CDN cache busting)', () => {
       'performs a redirect',
     async () => {
       let act
-      const browser = await webdriver(port, '/', {
+      const browser = await next.browser('/', {
+        baseUrl: port,
         beforePageLoad(p: Playwright.Page) {
           act = createRouterAct(p)
         },

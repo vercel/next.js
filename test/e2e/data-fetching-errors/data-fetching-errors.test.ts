@@ -7,10 +7,11 @@ import {
 
 describe('GS(S)P Page Errors', () => {
   ;(isNextDev ? describe : describe.skip)('development mode', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
     })
+    if (skipped) return
 
     it('should show error for getStaticProps as component member', async () => {
       const outputIndex = next.cliOutput.length
@@ -103,11 +104,12 @@ describe('GS(S)P Page Errors', () => {
     })
   })
   ;(isNextStart ? describe : describe.skip)('production mode', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
       skipDeployment: true,
     })
+    if (skipped) return
 
     it('should show build error for getStaticProps as component member', async () => {
       await next.patchFile(

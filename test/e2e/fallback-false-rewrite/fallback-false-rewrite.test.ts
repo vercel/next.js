@@ -2,11 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 describe('fallback: false rewrite', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
     skipDeployment: true,
   })
+  if (skipped) return
 
   it('should rewrite correctly for path at same level as fallback: false SSR', async () => {
     const res = await next.fetch('/hello', { redirect: 'manual' })

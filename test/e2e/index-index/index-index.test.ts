@@ -3,13 +3,14 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('nested index.js', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     // Vercel's deploy infrastructure normalizes nested `/index/index/index`
     // paths differently from Next.js's local server, so the routing
     // assertions here are local-only.
     skipDeployment: true,
   })
+  if (skipped) return
 
   it('should ssr page /', async () => {
     const $ = await next.render$('/')

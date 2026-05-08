@@ -3,10 +3,11 @@ import { retry } from 'next-test-utils'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 
 describe('jsconfig paths', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+  const { next, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
+  if (skipped) return
   if (isNextDeploy) return
 
   it('should alias components', async () => {

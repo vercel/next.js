@@ -2,12 +2,11 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('File Dependencies', () => {
   describe('production mode', () => {
-    const { next, isNextStart } = nextTestSetup({ files: __dirname })
-
-    if (!isNextStart) {
-      it('skipped for non-start mode', () => {})
-      return
-    }
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipDeployment: true,
+    })
+    if (skipped) return
 
     it('should apply styles defined in global and module css files in a standard page.', async () => {
       const browser = await next.browser('/')

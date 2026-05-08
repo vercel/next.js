@@ -1,15 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Invalid Prerender Catchall Params', () => {
-  const { next, isNextStart } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
-
-  if (!isNextStart) {
-    it('skipped for non-start mode', () => {})
-    return
-  }
+  if (skipped) return
 
   describe('production mode', () => {
     it('should fail the build', async () => {

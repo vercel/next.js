@@ -8,19 +8,21 @@ const expectedErr =
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'undefined webpack config error',
   () => {
-    const { next, isNextStart } = nextTestSetup({
+    const { next, isNextStart, skipped } = nextTestSetup({
       files: __dirname,
+      skipStart: true,
+      skipDeployment: true,
     })
-
+    if (skipped) return
     ;(isNextStart ? describe : describe.skip)('production mode', () => {
       it.skip('should show in production mode', async () => {
-        // Original test used nextBuild; in nextTestSetup context, build output
-        // is available via next.cliOutput in production mode
-        expect(next.cliOutput).toMatch(expectedErr)
+        const { cliOutput } = await next.build()
+        expect(cliOutput).toMatch(expectedErr)
       })
     })
 
     it('should show error in development mode', async () => {
+      await next.start()
       await retry(async () => {
         expect(next.cliOutput).toMatch(expectedErr)
       })

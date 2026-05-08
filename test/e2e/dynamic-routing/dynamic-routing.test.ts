@@ -2,7 +2,7 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { runTests } from './shared'
 
 describe('Dynamic Routing', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
     // Some assertions (`should not decode slashes`, `should serve file with
@@ -10,6 +10,7 @@ describe('Dynamic Routing', () => {
     // and don't apply to Vercel's deploy infrastructure.
     skipDeployment: true,
   })
+  if (skipped) return
 
   runTests({ next, isNextDev, isTurbopack, middlewareEnabled: false })
 })

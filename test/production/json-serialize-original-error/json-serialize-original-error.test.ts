@@ -2,15 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('JSON Serialization', () => {
   describe('production mode', () => {
-    const { next, isNextStart } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      skipDeployment: true,
     })
-
-    if (!isNextStart) {
-      it('skipped for non-start mode', () => {})
-      return
-    }
+    if (skipped) return
 
     test('should fail with original error', async () => {
       const { exitCode } = await next.build()

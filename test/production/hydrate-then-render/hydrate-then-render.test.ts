@@ -2,14 +2,11 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('hydrate/render ordering', () => {
   describe('production mode', () => {
-    const { next, isNextStart } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
+      skipDeployment: true,
     })
-
-    if (!isNextStart) {
-      it('skipped for non-start mode', () => {})
-      return
-    }
+    if (skipped) return
 
     it('correctly measures hydrate followed by render', async () => {
       const browser = await next.browser('/')

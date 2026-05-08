@@ -5,12 +5,13 @@ import { nextTestSetup } from 'e2e-utils'
 import { findPort, killApp, renderViaHTTP, retry } from 'next-test-utils'
 
 describe('page features telemetry', () => {
-  const { next, isTurbopack, isNextStart } = nextTestSetup({
+  const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     // Calls `next.build()` directly which is not supported on `NextDeployInstance`.
     skipDeployment: true,
   })
+  if (skipped) return
 
   async function launchDevServer(
     port: number,

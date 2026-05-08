@@ -3,15 +3,12 @@ import { nextTestSetup } from 'e2e-utils'
 describe('Production Config Usage', () => {
   describe('production mode', () => {
     describe('with generateBuildId', () => {
-      const { next, isNextStart } = nextTestSetup({
+      const { next, skipped } = nextTestSetup({
         files: __dirname + '/fixture-generateBuildId',
         disableAutoSkewProtection: true,
+        skipDeployment: true,
       })
-
-      if (!isNextStart) {
-        it('skipped for non-start mode', () => {})
-        return
-      }
+      if (skipped) return
 
       it('should add the custom buildid', async () => {
         const browser = await next.browser('/')
@@ -25,15 +22,12 @@ describe('Production Config Usage', () => {
     })
 
     describe('env', () => {
-      const { next, isNextStart } = nextTestSetup({
+      const { next, skipped } = nextTestSetup({
         files: __dirname,
         skipStart: true,
+        skipDeployment: true,
       })
-
-      if (!isNextStart) {
-        it('skipped for non-start mode', () => {})
-        return
-      }
+      if (skipped) return
 
       it('should fail with leading __ in env key', async () => {
         const start = next.cliOutput.length

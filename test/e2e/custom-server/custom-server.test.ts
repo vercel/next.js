@@ -21,7 +21,7 @@ describe.each([
       : undefined
 
   describe('with dynamic assetPrefix', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
@@ -30,6 +30,7 @@ describe.each([
       skipDeployment: true,
       disableAutoSkewProtection: true,
     })
+    if (skipped) return
 
     it('should serve internal file from render', async () => {
       const html = await next.render('/static/hello.txt', undefined, { agent })
@@ -115,7 +116,7 @@ describe.each([
     })
   })
   ;(isNextDev ? describe.skip : describe)('with generateEtags enabled', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
@@ -128,6 +129,7 @@ describe.each([
       skipDeployment: true,
       disableAutoSkewProtection: true,
     })
+    if (skipped) return
 
     it('response includes etag header', async () => {
       const response = await next.fetch('/', { agent })
@@ -136,7 +138,7 @@ describe.each([
   })
 
   describe('with generateEtags disabled', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
@@ -149,6 +151,7 @@ describe.each([
       skipDeployment: true,
       disableAutoSkewProtection: true,
     })
+    if (skipped) return
 
     it('response does not include etag header', async () => {
       const response = await next.fetch('/', { agent })
@@ -158,7 +161,7 @@ describe.each([
 
   if (useHttps === 'false') {
     ;(isNextDev ? describe : describe.skip)('HMR with custom server', () => {
-      const { next } = nextTestSetup({
+      const { next, skipped } = nextTestSetup({
         files: __dirname,
         startCommand: 'node server.js',
         serverReadyPattern: /- Local:/,
@@ -167,6 +170,7 @@ describe.each([
         skipDeployment: true,
         disableAutoSkewProtection: true,
       })
+      if (skipped) return
 
       it('Should support HMR when rendering with /index pathname', async () => {
         const browser = await next.browser('/test-index-hmr')
@@ -202,7 +206,7 @@ describe.each([
   }
 
   describe('Error when rendering without starting slash', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
@@ -211,7 +215,7 @@ describe.each([
       skipDeployment: true,
       disableAutoSkewProtection: true,
     })
-
+    if (skipped) return
     ;(isNextDev ? it : it.skip)('should warn in development mode', async () => {
       const cliOutputBefore = next.cliOutput.length
       const html = await next.render('/no-slash', undefined, { agent })
@@ -235,7 +239,7 @@ describe.each([
   })
 
   describe('with a custom fetch polyfill', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
@@ -248,6 +252,7 @@ describe.each([
       skipDeployment: true,
       disableAutoSkewProtection: true,
     })
+    if (skipped) return
 
     it('should serve internal file from render', async () => {
       const html = await next.render('/static/hello.txt', undefined, { agent })
@@ -256,7 +261,7 @@ describe.each([
   })
 
   describe('unhandled rejection', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
@@ -265,6 +270,7 @@ describe.each([
       skipDeployment: true,
       disableAutoSkewProtection: true,
     })
+    if (skipped) return
 
     it('stderr should include error message and stack trace', async () => {
       const cliOutputBefore = next.cliOutput.length
@@ -282,7 +288,7 @@ describe.each([
   })
 
   describe('legacy NextCustomServer methods', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
@@ -291,6 +297,7 @@ describe.each([
       skipDeployment: true,
       disableAutoSkewProtection: true,
     })
+    if (skipped) return
 
     it('NextCustomServer.renderToHTML', async () => {
       const rawHTML = await next.render(

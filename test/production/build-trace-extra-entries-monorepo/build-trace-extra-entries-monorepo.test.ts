@@ -3,15 +3,12 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('build trace with extra entries in monorepo', () => {
   describe('production mode', () => {
-    const { next, isNextStart } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      skipDeployment: true,
     })
-
-    if (!isNextStart) {
-      it('skipped for non-start mode', () => {})
-      return
-    }
+    if (skipped) return
 
     it('should build and trace correctly', async () => {
       const appDir = path.join(next.testDir, 'app')

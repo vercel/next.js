@@ -2,15 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('Legacy Prerender', () => {
   describe('production mode', () => {
-    const { next, isNextStart } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       skipStart: true,
       files: __dirname,
+      skipDeployment: true,
     })
-
-    if (!isNextStart) {
-      it('skipped for non-start mode', () => {})
-      return
-    }
+    if (skipped) return
 
     describe('handles old getStaticParams', () => {
       it('should fail the build', async () => {

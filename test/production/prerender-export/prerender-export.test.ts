@@ -2,16 +2,17 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP, startStaticServer, waitFor } from 'next-test-utils'
 import { AddressInfo, Server } from 'net'
-import webdriver from 'next-webdriver'
 
 describe('SSG Prerender export', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
     dependencies: {
       firebase: '7.14.5',
     },
   })
+  if (skipped) return
 
   let server: Server
   let appPort: number
@@ -60,7 +61,7 @@ describe('SSG Prerender export', () => {
 
     await Promise.all(toBuild.map((pg) => renderViaHTTP(appPort, pg)))
 
-    const browser = await webdriver(appPort, '/')
+    const browser = await next.browser('/', { baseUrl: appPort })
     let text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
 

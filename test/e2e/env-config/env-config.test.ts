@@ -3,7 +3,7 @@ import { retry } from 'next-test-utils'
 import cheerio from 'cheerio'
 
 describe('env-config', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     env: {
       PROCESS_ENV_KEY: 'processenvironment',
@@ -11,6 +11,7 @@ describe('env-config', () => {
     },
     skipDeployment: true,
   })
+  if (skipped) return
 
   const getEnvFromHtml = async (path: string) => {
     const html = await next.render(path)

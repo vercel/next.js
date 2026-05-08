@@ -4,15 +4,12 @@ const strictRouteTypes =
   process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
 
 describe('tsconfig.json verifier', () => {
-  const { next, isNextStart } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
-
-  if (!isNextStart) {
-    it('skipped for non-start mode', () => {})
-    return
-  }
+  if (skipped) return
 
   beforeEach(async () => {
     await next.deleteFile('tsconfig.json')
@@ -1131,18 +1128,15 @@ describe('tsconfig.json verifier', () => {
 // TypeScript 6 deprecates (TS5107). Pin TypeScript 5.9 for this case until we
 // stop emitting the deprecated resolution.
 describe('tsconfig.json verifier 5.x', () => {
-  const { next, isNextStart } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     dependencies: {
       typescript: '5.9.3',
     },
+    skipDeployment: true,
   })
-
-  if (!isNextStart) {
-    it('skipped for non-start mode', () => {})
-    return
-  }
+  if (skipped) return
 
   beforeEach(async () => {
     await next.deleteFile('tsconfig.json')

@@ -2,10 +2,11 @@ import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import { BUILD_ID_FILE, BUILD_MANIFEST } from 'next/constants'
 
 describe('distDir', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
+  if (skipped) return
 
   it('should render the page', async () => {
     const html = await next.render('/')
@@ -27,11 +28,12 @@ describe('distDir', () => {
 
 if (isNextStart) {
   describe('distDir config validation', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
       skipDeployment: true,
     })
+    if (skipped) return
 
     it('should throw error with invalid distDir', async () => {
       const origConfig = await next.readFile('next.config.js')

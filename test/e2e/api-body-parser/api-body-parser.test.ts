@@ -2,11 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('API body parser', () => {
   describe('without custom server', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       // Uses a custom HTTP/proxy server in front of Next.js; not applicable in deploy mode.
       skipDeployment: true,
     })
+    if (skipped) return
 
     it('should parse JSON body', async () => {
       const res = await next.fetch('/api', {
@@ -22,7 +23,7 @@ describe('API body parser', () => {
   })
 
   describe('with custom server (pre-parsed body)', () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
@@ -33,6 +34,7 @@ describe('API body parser', () => {
       // Uses a custom HTTP/proxy server in front of Next.js; not applicable in deploy mode.
       skipDeployment: true,
     })
+    if (skipped) return
 
     it('should not throw if request body is already parsed in custom middleware', async () => {
       const res = await next.fetch('/api', {

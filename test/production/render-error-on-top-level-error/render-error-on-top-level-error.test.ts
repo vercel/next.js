@@ -4,14 +4,11 @@ import { join } from 'path'
 describe('Top Level Error', () => {
   describe('production mode', () => {
     describe('with getInitialProps', () => {
-      const { next, isNextStart } = nextTestSetup({
+      const { next, skipped } = nextTestSetup({
         files: join(__dirname, 'with-get-initial-props'),
+        skipDeployment: true,
       })
-
-      if (!isNextStart) {
-        it('skipped for non-start mode', () => {})
-        return
-      }
+      if (skipped) return
 
       it('should render error page with getInitialProps', async () => {
         const browser = await next.browser('/')
@@ -21,14 +18,11 @@ describe('Top Level Error', () => {
     })
 
     describe('without getInitialProps', () => {
-      const { next, isNextStart } = nextTestSetup({
+      const { next, skipped } = nextTestSetup({
         files: join(__dirname, 'without-get-initial-props'),
+        skipDeployment: true,
       })
-
-      if (!isNextStart) {
-        it('skipped for non-start mode', () => {})
-        return
-      }
+      if (skipped) return
 
       it('should render error page', async () => {
         const browser = await next.browser('/')

@@ -1,81 +1,95 @@
 /* eslint-disable jest/no-standalone-expect */
+import { spawn, ChildProcess } from 'child_process'
+import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import {
   retry,
-  findPort,
   waitFor,
   getClientBuildManifestLoaderChunkUrlPath,
 } from 'next-test-utils'
-import http from 'http'
-import httpProxy from 'http-proxy'
-import webdriver from 'next-webdriver'
-import { join } from 'path'
 
 describe('Prefetching Links in viewport', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
+    dependencies: {
+      'http-proxy': '1.18.1',
+    },
   })
+  if (skipped) return
 
-  let stallJs: boolean
-  let proxyServer: http.Server
+  let proxyChild: ChildProcess
   let proxyPort: number
-  let nextDataRequests: string[] = []
   let buildId: string
+
+  async function getDataRequests(): Promise<string[]> {
+    const res = await fetch(`http://localhost:${proxyPort}/_test/data-requests`)
+    const data = (await res.json()) as { nextDataRequests: string[] }
+    return data.nextDataRequests
+  }
+
+  async function resetDataRequests() {
+    await fetch(`http://localhost:${proxyPort}/_test/data-requests/reset`)
+  }
+
+  async function setStall(on: boolean) {
+    await fetch(
+      `http://localhost:${proxyPort}/_test/stall/${on ? 'on' : 'off'}`
+    )
+  }
 
   beforeAll(async () => {
     await next.build()
     buildId = await next.readFile('.next/BUILD_ID')
     await next.start({ skipBuild: true })
 
-    proxyPort = await findPort()
-    const proxy = httpProxy.createProxyServer({
-      target: next.url,
-    })
+    proxyChild = spawn(
+      process.execPath,
+      [join(next.testDir, 'server.js'), next.url, '0'],
+      { stdio: ['ignore', 'pipe', 'inherit'] }
+    )
 
-    proxyServer = http.createServer(async (req, res) => {
-      if (stallJs && req.url.includes('chunks/pages/another')) {
-        console.log('stalling request for', req.url)
-        await new Promise((resolve) => setTimeout(resolve, 5 * 1000))
+    proxyPort = await new Promise<number>((resolve, reject) => {
+      let buf = ''
+      const onData = (chunk: Buffer) => {
+        buf += chunk.toString()
+        const m = buf.match(/__PORT__:(\d+)/)
+        if (m) {
+          proxyChild.stdout!.off('data', onData)
+          resolve(Number(m[1]))
+        }
       }
-      if (req.url.startsWith('/_next/data')) {
-        nextDataRequests.push(req.url)
-      }
-      proxy.web(req, res)
-    })
-
-    proxy.on('error', (err) => {
-      console.warn('Failed to proxy', err)
-    })
-
-    await new Promise<void>((resolve) => {
-      proxyServer.listen(proxyPort, () => resolve())
+      proxyChild.stdout!.on('data', onData)
+      proxyChild.once('exit', (code) => {
+        reject(new Error(`proxy server exited early with code ${code}`))
+      })
     })
   })
 
-  afterAll(() => {
-    proxyServer?.close()
+  afterAll(async () => {
+    proxyChild?.kill()
   })
 
   it('should de-dupe inflight SSG requests', async () => {
-    nextDataRequests = []
-    const browser = await webdriver(proxyPort, '/')
+    await resetDataRequests()
+    const browser = await next.browser('/', { baseUrl: proxyPort })
     await browser.eval(function navigate() {
       ;(window as any).next.router.push('/ssg/slow')
       ;(window as any).next.router.push('/ssg/slow')
       ;(window as any).next.router.push('/ssg/slow')
     })
     await browser.waitForElementByCss('#content')
+    const dataRequests = await getDataRequests()
     expect(
-      nextDataRequests.filter((reqUrl) => reqUrl.includes('/ssg/slow.json'))
-        .length
+      dataRequests.filter((reqUrl) => reqUrl.includes('/ssg/slow.json')).length
     ).toBe(2)
   })
 
   it('should handle timed out prefetch correctly', async () => {
     try {
-      stallJs = true
-      const browser = await webdriver(proxyPort, '/')
+      await setStall(true)
+      const browser = await next.browser('/', { baseUrl: proxyPort })
 
       await browser.elementByCss('#scroll-to-another').click()
       // wait for preload to timeout
@@ -88,14 +102,14 @@ describe('Prefetching Links in viewport', () => {
 
       expect(await browser.elementByCss('#another').text()).toBe('Hello world')
     } finally {
-      stallJs = false
+      await setStall(false)
     }
   })
 
   it('should prefetch with link in viewport onload', async () => {
     let browser
     try {
-      browser = await webdriver(proxyPort, '/')
+      browser = await next.browser('/', { baseUrl: proxyPort })
 
       await retry(async () => {
         const links = await browser.elementsByCss('link[rel=prefetch]')
@@ -119,11 +133,11 @@ describe('Prefetching Links in viewport', () => {
   it('should prefetch with non-bot UA', async () => {
     let browser
     try {
-      browser = await webdriver(
-        proxyPort,
+      browser = await next.browser(
         `/bot-user-agent?useragent=${encodeURIComponent(
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36'
-        )}`
+        )}`,
+        { baseUrl: proxyPort }
       )
       await retry(async () => {
         const links = await browser.elementsByCss('link[rel=prefetch]')
@@ -137,11 +151,11 @@ describe('Prefetching Links in viewport', () => {
   it('should not prefetch with bot UA', async () => {
     let browser
     try {
-      browser = await webdriver(
-        proxyPort,
+      browser = await next.browser(
         `/bot-user-agent?useragent=${encodeURIComponent(
           'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/W.X.Y.Z Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
-        )}`
+        )}`,
+        { baseUrl: proxyPort }
       )
       const links = await browser.elementsByCss('link[rel=prefetch]')
       expect(links).toHaveLength(0)
@@ -153,7 +167,7 @@ describe('Prefetching Links in viewport', () => {
   it('should prefetch rewritten href with link in viewport onload', async () => {
     let browser
     try {
-      browser = await webdriver(proxyPort, '/rewrite-prefetch')
+      browser = await next.browser('/rewrite-prefetch', { baseUrl: proxyPort })
 
       await retry(async () => {
         const links = await browser.elementsByCss('link[rel=prefetch]')
@@ -182,7 +196,7 @@ describe('Prefetching Links in viewport', () => {
   it('should prefetch with link in viewport when href changes', async () => {
     let browser
     try {
-      browser = await webdriver(proxyPort, '/')
+      browser = await next.browser('/', { baseUrl: proxyPort })
       await browser.elementByCss('button').click()
       await waitFor(2 * 1000)
 
@@ -214,7 +228,7 @@ describe('Prefetching Links in viewport', () => {
   it('should prefetch with link in viewport on scroll', async () => {
     let browser
     try {
-      browser = await webdriver(proxyPort, '/')
+      browser = await next.browser('/', { baseUrl: proxyPort })
       await browser.elementByCss('#scroll-to-another').click()
 
       await retry(async () => {
@@ -239,7 +253,7 @@ describe('Prefetching Links in viewport', () => {
   it('should prefetch with link in viewport and inject script on hover', async () => {
     let browser
     try {
-      browser = await webdriver(proxyPort, '/')
+      browser = await next.browser('/', { baseUrl: proxyPort })
       await browser.elementByCss('#scroll-to-another').click()
 
       await retry(async () => {
@@ -281,7 +295,9 @@ describe('Prefetching Links in viewport', () => {
   it('should inject script on hover with prefetching disabled', async () => {
     let browser
     try {
-      browser = await webdriver(proxyPort, '/prefetch-disabled')
+      browser = await next.browser('/prefetch-disabled', {
+        baseUrl: proxyPort,
+      })
 
       let chunkAnother = getClientBuildManifestLoaderChunkUrlPath(
         next.testDir,
@@ -323,7 +339,9 @@ describe('Prefetching Links in viewport', () => {
   it('should inject script on hover with prefetching disabled and fetch data', async () => {
     let browser
     try {
-      browser = await webdriver(proxyPort, '/prefetch-disabled-ssg')
+      browser = await next.browser('/prefetch-disabled-ssg', {
+        baseUrl: proxyPort,
+      })
 
       let chunkBasic = getClientBuildManifestLoaderChunkUrlPath(
         next.testDir,
@@ -361,7 +379,7 @@ describe('Prefetching Links in viewport', () => {
   it('should inject a <script> tag when onMouseEnter (even with invalid ref)', async () => {
     let browser
     try {
-      browser = await webdriver(proxyPort, '/invalid-ref')
+      browser = await next.browser('/invalid-ref', { baseUrl: proxyPort })
       await browser.elementByCss('#btn-link').moveTo()
 
       await retry(async () => {
@@ -384,7 +402,7 @@ describe('Prefetching Links in viewport', () => {
   })
 
   it('should not have unhandledRejection when failing to prefetch on link', async () => {
-    const browser = await webdriver(proxyPort, '/')
+    const browser = await next.browser('/', { baseUrl: proxyPort })
     await browser.eval(`(function() {
       window.addEventListener('unhandledrejection', function (err) {
         window.hadUnhandledReject = true;
@@ -400,7 +418,7 @@ describe('Prefetching Links in viewport', () => {
   })
 
   it('should not prefetch when prefetch is explicitly set to false', async () => {
-    const browser = await webdriver(proxyPort, '/opt-out')
+    const browser = await next.browser('/opt-out', { baseUrl: proxyPort })
 
     await retry(async () => {
       const links = await browser.elementsByCss('link[rel=prefetch]')
@@ -419,7 +437,7 @@ describe('Prefetching Links in viewport', () => {
   ;(isTurbopack ? it.skip : it)(
     'should not prefetch already loaded scripts',
     async () => {
-      const browser = await webdriver(proxyPort, '/')
+      const browser = await next.browser('/', { baseUrl: proxyPort })
 
       const scriptSrcs = await browser.eval(`(function() {
       return Array.from(document.querySelectorAll('script'))
@@ -445,7 +463,9 @@ describe('Prefetching Links in viewport', () => {
   )
 
   it('should not duplicate prefetches', async () => {
-    const browser = await webdriver(proxyPort, '/multi-prefetch')
+    const browser = await next.browser('/multi-prefetch', {
+      baseUrl: proxyPort,
+    })
 
     const links = await browser.elementsByCss('link[rel=prefetch]')
 
@@ -466,7 +486,7 @@ describe('Prefetching Links in viewport', () => {
   })
 
   it('should not re-prefetch for an already prefetched page', async () => {
-    const browser = await webdriver(proxyPort, '/')
+    const browser = await next.browser('/', { baseUrl: proxyPort })
 
     await retry(async () => {
       const links = await browser.elementsByCss('link[rel=prefetch]')
@@ -499,7 +519,7 @@ describe('Prefetching Links in viewport', () => {
   })
 
   it('should prefetch with a different asPath for a prefetched page', async () => {
-    const browser = await webdriver(proxyPort, '/')
+    const browser = await next.browser('/', { baseUrl: proxyPort })
     await browser.eval(`(function() {
       window.calledPrefetch = false
       window.next.router.prefetch = function() {
@@ -534,7 +554,7 @@ describe('Prefetching Links in viewport', () => {
   })
 
   it('should prefetch data files', async () => {
-    const browser = await webdriver(proxyPort, '/ssg/fixture')
+    const browser = await next.browser('/ssg/fixture', { baseUrl: proxyPort })
     await waitFor(2 * 1000)
 
     const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
@@ -554,7 +574,9 @@ describe('Prefetching Links in viewport', () => {
   })
 
   it('should prefetch data files when mismatched', async () => {
-    const browser = await webdriver(proxyPort, '/ssg/fixture/mismatch')
+    const browser = await next.browser('/ssg/fixture/mismatch', {
+      baseUrl: proxyPort,
+    })
     await waitFor(2 * 1000)
 
     const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)

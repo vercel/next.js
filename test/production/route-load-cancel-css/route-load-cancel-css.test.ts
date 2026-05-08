@@ -3,12 +3,11 @@ import { waitFor } from 'next-test-utils'
 
 describe('route cancel via CSS', () => {
   describe('production mode', () => {
-    const { next, isNextStart } = nextTestSetup({ files: __dirname })
-
-    if (!isNextStart) {
-      it('skipped for non-start mode', () => {})
-      return
-    }
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipDeployment: true,
+    })
+    if (skipped) return
 
     it('should cancel slow page loads on re-navigation', async () => {
       const browser = await next.browser('/')

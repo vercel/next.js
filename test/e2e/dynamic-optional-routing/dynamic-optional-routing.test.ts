@@ -3,10 +3,11 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('Dynamic Optional Routing', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
+  if (skipped) return
 
   it('should render catch-all top-level route with multiple segments', async () => {
     const html = await next.render('/hello/world')
@@ -216,11 +217,12 @@ describe('Dynamic Optional Routing', () => {
 })
 
 describe('Dynamic Optional Routing - build validation', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
+  if (skipped) return
 
   const DUMMY_PAGE = 'export default () => null'
 

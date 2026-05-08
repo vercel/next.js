@@ -1,13 +1,14 @@
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 
 describe('TypeScript Features', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     dependencies: {
       sass: 'latest',
     },
     skipDeployment: true,
   })
+  if (skipped) return
 
   it('should render the page', async () => {
     const $ = await next.render$('/hello')
@@ -100,7 +101,7 @@ export default function EvilPage(): JSX.Element {
 ;(isNextStart ? describe : describe.skip)(
   'TypeScript production compilation',
   () => {
-    const { next } = nextTestSetup({
+    const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipStart: true,
       dependencies: {
@@ -108,6 +109,7 @@ export default function EvilPage(): JSX.Element {
       },
       skipDeployment: true,
     })
+    if (skipped) return
 
     it('should build the app', async () => {
       const { cliOutput, exitCode } = await next.build()
