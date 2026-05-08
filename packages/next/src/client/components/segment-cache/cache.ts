@@ -58,7 +58,10 @@ import {
   getRenderedSearchFromVaryPath,
 } from './vary-path'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
-import { writeOfflineNavigationRSCResponseCacheEntry } from '../router-reducer/offline-navigation-cache'
+import {
+  getOfflineNavigationRSCResponseCacheSkipReason,
+  writeOfflineNavigationRSCResponseCacheEntry,
+} from '../router-reducer/offline-navigation-cache'
 import type {
   NormalizedPathname,
   NormalizedSearch,
@@ -1608,12 +1611,23 @@ function persistOfflineNavigationClientResumePrefetchResponse({
       addInstantPrefetchHeaderIfLocked(headers)
 
       const response = await fetchPrefetchResponse(url, headers)
-      if (
-        response === null ||
-        response.offlineNavigationCachePayload === null ||
-        response.redirected ||
-        response.headers.get('vary')?.includes(NEXT_URL)
-      ) {
+      if (response === null) {
+        return
+      }
+
+      const skipReason = getOfflineNavigationRSCResponseCacheSkipReason({
+        requestKind: response.offlineNavigationCacheRequestKind,
+        hasCachePayload: response.offlineNavigationCachePayload !== null,
+        isInterception: response.headers.get('vary')?.includes(NEXT_URL),
+        isRedirected: response.redirected,
+        url,
+      })
+      if (skipReason !== null) {
+        return
+      }
+
+      const payload = response.offlineNavigationCachePayload
+      if (payload === null) {
         return
       }
 
@@ -1621,7 +1635,7 @@ function persistOfflineNavigationClientResumePrefetchResponse({
       await writeOfflineNavigationRSCResponseCacheEntry({
         buildId: response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? buildId,
         expiresAt: staleAt,
-        payload: response.offlineNavigationCachePayload,
+        payload,
         staleAt,
         url,
       })
