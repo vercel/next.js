@@ -55,13 +55,93 @@ function isOfflineNavigationFallbackDocument(): boolean {
   )
 }
 
-function showOfflineNavigationCacheMiss(): void {
+const OFFLINE_NAVIGATION_DIAGNOSTIC_LIMIT = 32
+
+type OfflineNavigationCacheMissReason =
+  | 'missing-entry'
+  | 'invalid-payload'
+  | 'unsupported-request-kind'
+  | 'read-error'
+
+type OfflineNavigationFallbackDiagnostic =
+  | {
+      type: 'cache-hit'
+      url: string
+      buildId: string | undefined
+      requestKind: OfflineNavigationFallbackResponse['requestKind']
+    }
+  | {
+      type: 'cache-miss'
+      url: string
+      buildId: string | undefined
+      reason: OfflineNavigationCacheMissReason
+    }
+
+declare global {
+  interface Window {
+    __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?:
+      | OfflineNavigationFallbackDiagnostic[]
+      | undefined
+  }
+}
+
+function reportOfflineNavigationFallbackDiagnostic(
+  diagnostic: OfflineNavigationFallbackDiagnostic
+): void {
+  const diagnostics = (window.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__ ??= [])
+  if (diagnostics.length >= OFFLINE_NAVIGATION_DIAGNOSTIC_LIMIT) {
+    diagnostics.shift()
+  }
+  diagnostics.push(diagnostic)
+}
+
+function showOfflineNavigationCacheHit(
+  requestKind: OfflineNavigationFallbackResponse['requestKind'],
+  buildId: string | undefined
+): void {
+  document.documentElement.setAttribute(
+    'data-next-offline-navigation-cache',
+    'hit'
+  )
+  document.documentElement.removeAttribute(
+    'data-next-offline-navigation-cache-reason'
+  )
+  reportOfflineNavigationFallbackDiagnostic({
+    type: 'cache-hit',
+    url: location.href,
+    buildId,
+    requestKind,
+  })
+}
+
+function showOfflineNavigationCacheMiss(
+  reason: OfflineNavigationCacheMissReason,
+  buildId: string | undefined
+): void {
+  document.documentElement.setAttribute(
+    'data-next-offline-navigation-cache',
+    'miss'
+  )
+  document.documentElement.setAttribute(
+    'data-next-offline-navigation-cache-reason',
+    reason
+  )
   const cacheMissElement = document.getElementById(
     '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
   )
   if (cacheMissElement !== null) {
     cacheMissElement.hidden = false
+    cacheMissElement.setAttribute(
+      'data-next-offline-navigation-cache-reason',
+      reason
+    )
   }
+  reportOfflineNavigationFallbackDiagnostic({
+    type: 'cache-miss',
+    url: location.href,
+    buildId,
+    reason,
+  })
 }
 
 function neverResolveOfflineNavigationResponse(): Promise<Response> {
@@ -97,12 +177,22 @@ function createOfflineNavigationFallbackResponse():
     })
     const payload = entry?.payload
 
+    if (!isOfflineNavigationRSCResponsePayload(payload)) {
+      showOfflineNavigationCacheMiss(
+        payload === undefined ? 'missing-entry' : 'invalid-payload',
+        buildId
+      )
+      return {
+        requestKind: 'client-resume',
+        response: await neverResolveOfflineNavigationResponse(),
+      }
+    }
+
     if (
-      !isOfflineNavigationRSCResponsePayload(payload) ||
-      (payload.requestKind !== 'client-resume' &&
-        payload.requestKind !== 'initial-load')
+      payload.requestKind !== 'client-resume' &&
+      payload.requestKind !== 'initial-load'
     ) {
-      showOfflineNavigationCacheMiss()
+      showOfflineNavigationCacheMiss('unsupported-request-kind', buildId)
       return {
         requestKind: 'client-resume',
         response: await neverResolveOfflineNavigationResponse(),
@@ -112,12 +202,13 @@ function createOfflineNavigationFallbackResponse():
     const requestKind: OfflineNavigationFallbackResponse['requestKind'] =
       payload.requestKind === 'initial-load' ? 'initial-load' : 'client-resume'
 
+    showOfflineNavigationCacheHit(requestKind, buildId)
     return {
       requestKind,
       response: createOfflineNavigationRSCResponse(payload),
     }
   })().catch(async (): Promise<OfflineNavigationFallbackResponse> => {
-    showOfflineNavigationCacheMiss()
+    showOfflineNavigationCacheMiss('read-error', undefined)
     return {
       requestKind: 'client-resume',
       response: await neverResolveOfflineNavigationResponse(),
