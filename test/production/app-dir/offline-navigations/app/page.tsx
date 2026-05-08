@@ -14,6 +14,7 @@ import {
   DynamicPatternTargetPrefetchButton,
   PrefetchButton,
   RefreshButton,
+  WorkspaceShellPrefetchButton,
 } from './prefetch-button'
 
 async function ActionInvalidationMarker() {
@@ -91,6 +92,7 @@ export default function Page() {
       <PrefetchButton />
       <DynamicPatternSourcePrefetchButton />
       <DynamicPatternTargetPrefetchButton />
+      <WorkspaceShellPrefetchButton />
       <RefreshButton />
       <ClearOfflineNavigationCacheButton />
     </>

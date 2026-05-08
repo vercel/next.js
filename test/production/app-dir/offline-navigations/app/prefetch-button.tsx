@@ -40,6 +40,20 @@ export function DynamicPatternTargetPrefetchButton() {
   )
 }
 
+export function WorkspaceShellPrefetchButton() {
+  const router = useRouter()
+  return (
+    <button
+      id="prefetch-workspace-shell"
+      onClick={() =>
+        router.prefetch('/workspace/acme/channel/general/thread/123')
+      }
+    >
+      Prefetch workspace shell
+    </button>
+  )
+}
+
 export function RefreshButton() {
   const router = useRouter()
   return (
