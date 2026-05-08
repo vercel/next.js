@@ -437,50 +437,60 @@ describe('config telemetry', () => {
       )
     })
 
-    it('emits telemetry for usage of swc plugins', async () => {
-      const originalPkg = await fs.readFile(
-        path.join(next.testDir, 'package.json'),
-        'utf8'
-      )
-      const swcPluginsPkg = await fs.readFile(
-        path.join(next.testDir, 'package.swc-plugins'),
-        'utf8'
-      )
+    // Turbopack intentionally does not support these events
+    ;(isTurbopack ? it.skip : it)(
+      'emits telemetry for usage of swc plugins',
+      async () => {
+        const originalPkg = await fs.readFile(
+          path.join(next.testDir, 'package.json'),
+          'utf8'
+        )
+        const swcPluginsPkg = await fs.readFile(
+          path.join(next.testDir, 'package.swc-plugins'),
+          'utf8'
+        )
 
-      await fs.writeFile(path.join(next.testDir, 'package.json'), swcPluginsPkg)
-      await fs.rename(
-        path.join(next.testDir, 'next.config.swc-plugins'),
-        path.join(next.testDir, 'next.config.js')
-      )
+        // Merge the swc plugins fields into the existing package.json so we
+        // keep `packageManager` and other generated fields.
+        const merged = JSON.stringify({
+          ...JSON.parse(originalPkg),
+          ...JSON.parse(swcPluginsPkg),
+        })
+        await fs.writeFile(path.join(next.testDir, 'package.json'), merged)
+        await fs.rename(
+          path.join(next.testDir, 'next.config.swc-plugins'),
+          path.join(next.testDir, 'next.config.js')
+        )
 
-      const { cliOutput } = await next.build({
-        env: { NEXT_TELEMETRY_DEBUG: '1' },
-      })
+        const { cliOutput } = await next.build({
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        })
 
-      await fs.rename(
-        path.join(next.testDir, 'next.config.js'),
-        path.join(next.testDir, 'next.config.swc-plugins')
-      )
-      await fs.writeFile(path.join(next.testDir, 'package.json'), originalPkg)
+        await fs.rename(
+          path.join(next.testDir, 'next.config.js'),
+          path.join(next.testDir, 'next.config.swc-plugins')
+        )
+        await fs.writeFile(path.join(next.testDir, 'package.json'), originalPkg)
 
-      const pluginDetectedEvents = findAllTelemetryEvents(
-        cliOutput,
-        'NEXT_SWC_PLUGIN_DETECTED'
-      )
-      expect(pluginDetectedEvents).toEqual([
-        {
-          pluginName: 'swc-plugin-coverage-instrument',
-          pluginVersion: '0.0.6',
-        },
-        {
-          pluginName: '@swc/plugin-relay',
-          pluginVersion: '0.2.0',
-        },
-        {
-          pluginName: '/test/absolute_path/plugin.wasm',
-        },
-      ])
-    })
+        const pluginDetectedEvents = findAllTelemetryEvents(
+          cliOutput,
+          'NEXT_SWC_PLUGIN_DETECTED'
+        )
+        expect(pluginDetectedEvents).toEqual([
+          {
+            pluginName: 'swc-plugin-coverage-instrument',
+            pluginVersion: '0.0.6',
+          },
+          {
+            pluginName: '@swc/plugin-relay',
+            pluginVersion: '0.2.0',
+          },
+          {
+            pluginName: '/test/absolute_path/plugin.wasm',
+          },
+        ])
+      }
+    )
 
     // Turbopack intentionally does not support these events
     ;(isTurbopack ? it.skip : it)(

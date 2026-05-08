@@ -1153,24 +1153,27 @@ Next.js Config:
 
     test('should print output with next.config.mjs', async () => {
       let info = { stdout: '', stderr: '' }
+      const originalPkg = await next.readFile('package.json')
 
       try {
         await next.patchFile(
           'next.config.mjs',
           `export default { output: 'standalone' }`
         )
+        // Merge `type: 'module'` into the existing package.json so we keep
+        // the `packageManager` field that nextTestSetup generated. Without
+        // it corepack auto-fetches the latest pnpm, which is incompatible
+        // with the runner's Node version on CI.
         await next.patchFile(
           'package.json',
-          JSON.stringify({
-            type: 'module',
-          })
+          JSON.stringify({ ...JSON.parse(originalPkg), type: 'module' })
         )
         info = await next.runCommand(['info'], {
           cwd: next.testDir,
         })
       } finally {
         await next.deleteFile('next.config.mjs')
-        await next.deleteFile('package.json')
+        await next.patchFile('package.json', originalPkg)
       }
 
       expect((info.stderr || '').toLowerCase()).not.toContain('error')

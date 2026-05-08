@@ -228,11 +228,15 @@ describe('Telemetry CLI', () => {
     })
 
     it('cli session: package.json custom babel config (plugin)', async () => {
-      const babelPkg = await fs.readFile(
-        path.join(__dirname, 'package.babel'),
-        'utf8'
+      const babelPkg = JSON.parse(
+        await fs.readFile(path.join(__dirname, 'package.babel'), 'utf8')
       )
-      await next.patchFile('package.json', babelPkg, async () => {
+      const originalPkg = await next.readFile('package.json')
+      // Merge the babel field into the existing package.json so we keep
+      // `packageManager` and dependencies. Otherwise corepack auto-fetches
+      // pnpm and the build fails on CI runners.
+      const merged = JSON.stringify({ ...JSON.parse(originalPkg), ...babelPkg })
+      await next.patchFile('package.json', merged, async () => {
         const { cliOutput } = await next.build({
           env: {
             NEXT_TELEMETRY_DEBUG: '1',

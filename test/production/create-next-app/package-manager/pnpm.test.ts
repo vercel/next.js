@@ -1,4 +1,5 @@
 import {
+  command,
   DEFAULT_FILES,
   FULL_EXAMPLE_PATH,
   projectFilesShouldExist,
@@ -11,11 +12,17 @@ import {
 const lockFile = 'pnpm-lock.yaml'
 const files = [...DEFAULT_FILES, lockFile]
 
+// Match the monorepo's pinned pnpm so CNA's `pnpm install` doesn't drift to
+// whichever version corepack happens to fetch as "latest" at test time.
+const rootPackageManager: string =
+  require('../../../../package.json').packageManager
+
 describe('create-next-app with package manager pnpm', () => {
   let nextTgzFilename: string
 
-  beforeAll(() => {
+  beforeAll(async () => {
     nextTgzFilename = resolveNextTgzFilename()
+    await command('corepack', ['prepare', '--activate', rootPackageManager])
   })
 
   it('should use pnpm for --use-pnpm flag', async () => {
