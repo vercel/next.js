@@ -1,5 +1,5 @@
 export default function Dynamic({ now }) {
-  return <p id="content">dynamic-{now}</p>
+  return <p id="content">{`dynamic-${now}`}</p>
 }
 
 export async function getServerSideProps() {
