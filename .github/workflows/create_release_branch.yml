@@ -30,14 +30,14 @@ jobs:
 
     steps:
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
           check-latest: true
 
       - name: Create GitHub App token
         id: release-app-token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
         with:
           client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
@@ -76,7 +76,7 @@ jobs:
       - id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         timeout-minutes: 5
         id: cache-pnpm-store
         with:
