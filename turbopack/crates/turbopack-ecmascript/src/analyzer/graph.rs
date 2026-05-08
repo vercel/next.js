@@ -1,7 +1,6 @@
 use std::{
     iter,
     mem::{replace, take},
-    sync::Arc,
 };
 
 use anyhow::{Ok, Result};
@@ -21,6 +20,7 @@ use swc_core::{
         visit::{fields::*, *},
     },
 };
+use triomphe::Arc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbopack_core::resolve::ExportUsage;
 
@@ -459,7 +459,7 @@ impl EvalContext {
         match values.len() {
             0 => JsValue::Constant(ConstantValue::Str(rcstr!("").into())),
             1 => values.into_iter().next().unwrap(),
-            _ => JsValue::concat(values),
+            _ => JsValue::concat(values.into_iter().map(Arc::new).collect()),
         }
     }
 
@@ -506,7 +506,7 @@ impl EvalContext {
             }) => {
                 let arg = self.eval(arg);
 
-                JsValue::logical_not(Box::new(arg))
+                JsValue::logical_not(Arc::new(arg))
             }
 
             Expr::Unary(UnaryExpr {
@@ -516,7 +516,7 @@ impl EvalContext {
             }) => {
                 let arg = self.eval(arg);
 
-                JsValue::type_of(Box::new(arg))
+                JsValue::type_of(Arc::new(arg))
             }
 
             Expr::Bin(BinExpr {
@@ -531,9 +531,9 @@ impl EvalContext {
                 match (l, r) {
                     (JsValue::Add(c, l), r) => JsValue::Add(
                         c + r.total_nodes(),
-                        l.into_iter().chain(iter::once(r)).collect(),
+                        l.into_iter().chain(iter::once(Arc::new(r))).collect(),
                     ),
-                    (l, r) => JsValue::add(vec![l, r]),
+                    (l, r) => JsValue::add(vec![Arc::new(l), Arc::new(r)]),
                 }
             }
 
@@ -542,49 +542,52 @@ impl EvalContext {
                 left,
                 right,
                 ..
-            }) => JsValue::logical_and(vec![self.eval(left), self.eval(right)]),
+            }) => JsValue::logical_and(vec![Arc::new(self.eval(left)), Arc::new(self.eval(right))]),
 
             Expr::Bin(BinExpr {
                 op: op!("||"),
                 left,
                 right,
                 ..
-            }) => JsValue::logical_or(vec![self.eval(left), self.eval(right)]),
+            }) => JsValue::logical_or(vec![Arc::new(self.eval(left)), Arc::new(self.eval(right))]),
 
             Expr::Bin(BinExpr {
                 op: op!("??"),
                 left,
                 right,
                 ..
-            }) => JsValue::nullish_coalescing(vec![self.eval(left), self.eval(right)]),
+            }) => JsValue::nullish_coalescing(vec![
+                Arc::new(self.eval(left)),
+                Arc::new(self.eval(right)),
+            ]),
 
             Expr::Bin(BinExpr {
                 op: op!("=="),
                 left,
                 right,
                 ..
-            }) => JsValue::equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
+            }) => JsValue::equal(Arc::new(self.eval(left)), Arc::new(self.eval(right))),
 
             Expr::Bin(BinExpr {
                 op: op!("!="),
                 left,
                 right,
                 ..
-            }) => JsValue::not_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
+            }) => JsValue::not_equal(Arc::new(self.eval(left)), Arc::new(self.eval(right))),
 
             Expr::Bin(BinExpr {
                 op: op!("==="),
                 left,
                 right,
                 ..
-            }) => JsValue::strict_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
+            }) => JsValue::strict_equal(Arc::new(self.eval(left)), Arc::new(self.eval(right))),
 
             Expr::Bin(BinExpr {
                 op: op!("!=="),
                 left,
                 right,
                 ..
-            }) => JsValue::strict_not_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
+            }) => JsValue::strict_not_equal(Arc::new(self.eval(left)), Arc::new(self.eval(right))),
 
             &Expr::Cond(CondExpr {
                 box ref cons,
@@ -601,9 +604,9 @@ impl EvalContext {
                     }
                 } else {
                     JsValue::tenary(
-                        Box::new(test),
-                        Box::new(self.eval(cons)),
-                        Box::new(self.eval(alt)),
+                        Arc::new(test),
+                        Arc::new(self.eval(cons)),
+                        Arc::new(self.eval(alt)),
                     )
                 }
             }
@@ -648,7 +651,7 @@ impl EvalContext {
                 SyntaxContext::empty(),
             )),
 
-            Expr::Await(AwaitExpr { arg, .. }) => JsValue::awaited(Box::new(self.eval(arg))),
+            Expr::Await(AwaitExpr { arg, .. }) => JsValue::awaited(Arc::new(self.eval(arg))),
 
             Expr::Seq(e) => {
                 let mut seq = e.exprs.iter().map(|e| self.eval(e)).peekable();
@@ -670,7 +673,7 @@ impl EvalContext {
                 ..
             }) => {
                 let obj = self.eval(obj);
-                JsValue::member(Box::new(obj), Box::new(prop.sym.clone().into()))
+                JsValue::member(Arc::new(obj), Arc::new(prop.sym.clone().into()))
             }
 
             Expr::Member(MemberExpr {
@@ -680,7 +683,7 @@ impl EvalContext {
             }) => {
                 let obj = self.eval(obj);
                 let prop = self.eval(&computed.expr);
-                JsValue::member(Box::new(obj), Box::new(prop))
+                JsValue::member(Arc::new(obj), Arc::new(prop))
             }
 
             Expr::New(NewExpr {
@@ -699,7 +702,7 @@ impl EvalContext {
 
                 JsValue::new_from_iter(
                     self.eval(callee),
-                    args.iter().map(|arg| self.eval(&arg.expr)),
+                    args.iter().map(|arg| Arc::new(self.eval(&arg.expr))),
                 )
             }
 
@@ -731,12 +734,12 @@ impl EvalContext {
                     JsValue::member_call_from_iter(
                         obj,
                         prop,
-                        args.iter().map(|arg| self.eval(&arg.expr)),
+                        args.iter().map(|arg| Arc::new(self.eval(&arg.expr))),
                     )
                 } else {
                     JsValue::call_from_iter(
                         self.eval(callee),
-                        args.iter().map(|arg| self.eval(&arg.expr)),
+                        args.iter().map(|arg| Arc::new(self.eval(&arg.expr))),
                     )
                 }
             }
@@ -754,7 +757,10 @@ impl EvalContext {
                     );
                 }
 
-                let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
+                let args = args
+                    .iter()
+                    .map(|arg| Arc::new(self.eval(&arg.expr)))
+                    .collect();
 
                 JsValue::super_call(args)
             }
@@ -773,7 +779,7 @@ impl EvalContext {
                 }
                 JsValue::call_from_iter(
                     JsValue::FreeVar(atom!("import")),
-                    args.iter().map(|arg| self.eval(&arg.expr)),
+                    args.iter().map(|arg| Arc::new(self.eval(&arg.expr))),
                 )
             }
 
@@ -786,8 +792,8 @@ impl EvalContext {
                     .elems
                     .iter()
                     .map(|e| match e {
-                        Some(e) => self.eval(&e.expr),
-                        _ => JsValue::Constant(ConstantValue::Undefined),
+                        Some(e) => Arc::new(self.eval(&e.expr)),
+                        _ => Arc::new(JsValue::Constant(ConstantValue::Undefined)),
                     })
                     .collect();
                 JsValue::array(arr)
@@ -798,19 +804,22 @@ impl EvalContext {
                     .iter()
                     .map(|prop| match prop {
                         PropOrSpread::Spread(SpreadElement { expr, .. }) => {
-                            ObjectPart::Spread(self.eval(expr))
+                            ObjectPart::Spread(Arc::new(self.eval(expr)))
                         }
                         PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp { key, box value })) => {
-                            ObjectPart::KeyValue(self.eval_prop_name(key), self.eval(value))
+                            ObjectPart::KeyValue(
+                                Arc::new(self.eval_prop_name(key)),
+                                Arc::new(self.eval(value)),
+                            )
                         }
                         PropOrSpread::Prop(box Prop::Shorthand(ident)) => ObjectPart::KeyValue(
-                            ident.sym.clone().into(),
-                            self.eval(&Expr::Ident(ident.clone())),
+                            Arc::new(ident.sym.clone().into()),
+                            Arc::new(self.eval(&Expr::Ident(ident.clone()))),
                         ),
-                        _ => ObjectPart::Spread(JsValue::unknown_empty(
+                        _ => ObjectPart::Spread(Arc::new(JsValue::unknown_empty(
                             true,
                             rcstr!("unsupported object part"),
-                        )),
+                        ))),
                     })
                     .collect(),
             ),
@@ -1136,9 +1145,11 @@ mod analyzer_state {
                 function.is_async(),
                 function.is_generator(),
                 match return_values.len() {
-                    0 => JsValue::Constant(ConstantValue::Undefined),
-                    1 => return_values.into_iter().next().unwrap(),
-                    _ => JsValue::alternatives(return_values),
+                    0 => Arc::new(JsValue::Constant(ConstantValue::Undefined)),
+                    1 => Arc::new(return_values.into_iter().next().unwrap()),
+                    _ => Arc::new(JsValue::alternatives(
+                        return_values.into_iter().map(Arc::new).collect(),
+                    )),
                 },
             )
         }
@@ -1915,7 +1926,7 @@ impl VisitAstPath for Analyzer<'_> {
                 (AssignOp::AddAssign, Some(key)) => {
                     let left = self.eval_context.eval(&Expr::Ident(key.clone().into()));
                     let right = self.eval_context.eval(&n.right);
-                    JsValue::add(vec![left, right])
+                    JsValue::add(vec![Arc::new(left), Arc::new(right)])
                 }
                 _ => JsValue::unknown_empty(true, rcstr!("unsupported assign operation")),
             };
@@ -2272,8 +2283,8 @@ impl VisitAstPath for Analyzer<'_> {
                 let init_value = self.eval_context.eval(init);
                 let pat_value = Some(if should_include_undefined {
                     JsValue::alternatives(vec![
-                        init_value,
-                        JsValue::Constant(ConstantValue::Undefined),
+                        Arc::new(init_value),
+                        Arc::new(JsValue::Constant(ConstantValue::Undefined)),
                     ])
                 } else {
                     init_value
@@ -2347,7 +2358,7 @@ impl VisitAstPath for Analyzer<'_> {
         let iterable = self.eval_context.eval(&n.right);
 
         // TODO n.await is ignored (async interables)
-        self.with_pat_value(Some(JsValue::iterated(Box::new(iterable))), |this| {
+        self.with_pat_value(Some(JsValue::iterated(Arc::new(iterable))), |this| {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::ForOfStmt(n, ForOfStmtField::Left));
             n.left.visit_with_ast_path(this, &mut ast_path);
@@ -2469,14 +2480,14 @@ impl VisitAstPath for Analyzer<'_> {
                     pat,
                     AssignTargetPatField::Array,
                 ));
-                self.handle_array_pat_with_value(arr, value, &mut ast_path);
+                self.handle_array_pat_with_value(arr, Arc::new(value), &mut ast_path);
             }
             AssignTargetPat::Object(obj) => {
                 let mut ast_path = ast_path.with_guard(AstParentNodeRef::AssignTargetPat(
                     pat,
                     AssignTargetPatField::Object,
                 ));
-                self.handle_object_pat_with_value(obj, value, &mut ast_path);
+                self.handle_object_pat_with_value(obj, Arc::new(value), &mut ast_path);
             }
             AssignTargetPat::Invalid(_) => {}
         }
@@ -2507,7 +2518,7 @@ impl VisitAstPath for Analyzer<'_> {
                 let value = value.unwrap_or_else(|| {
                     JsValue::unknown_empty(false, rcstr!("pattern without value"))
                 });
-                self.handle_array_pat_with_value(arr, value, &mut ast_path);
+                self.handle_array_pat_with_value(arr, Arc::new(value), &mut ast_path);
             }
 
             Pat::Object(obj) => {
@@ -2516,7 +2527,7 @@ impl VisitAstPath for Analyzer<'_> {
                 let value = value.unwrap_or_else(|| {
                     JsValue::unknown_empty(false, rcstr!("pattern without value"))
                 });
-                self.handle_object_pat_with_value(obj, value, &mut ast_path);
+                self.handle_object_pat_with_value(obj, Arc::new(value), &mut ast_path);
             }
 
             _ => pat.visit_children_with_ast_path(self, ast_path),
@@ -3100,17 +3111,22 @@ impl Analyzer<'_> {
     fn handle_array_pat_with_value<'ast: 'r, 'r>(
         &mut self,
         arr: &'ast ArrayPat,
-        pat_value: JsValue,
+        pat_value: Arc<JsValue>,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        match pat_value {
+        match Arc::unwrap_or_clone(pat_value) {
             JsValue::Array { items, .. } => {
                 for (idx, (elem_pat, value_item)) in arr
                     .elems
                     .iter()
                     // TODO: This does not handle inline spreads correctly
                     // e.g. `let [a,..b,c] = [1,2,3]`
-                    .zip(items.into_iter().map(Some).chain(iter::repeat(None)))
+                    .zip(
+                        items
+                            .into_iter()
+                            .map(|v| Some(Arc::unwrap_or_clone(v)))
+                            .chain(iter::repeat(None)),
+                    )
                     .enumerate()
                 {
                     self.with_pat_value(value_item, |this| {
@@ -3121,10 +3137,11 @@ impl Analyzer<'_> {
                 }
             }
             value => {
+                let value = Arc::new(value);
                 for (idx, elem) in arr.elems.iter().enumerate() {
                     let pat_value = Some(JsValue::member(
-                        Box::new(value.clone()),
-                        Box::new(JsValue::Constant(ConstantValue::Num((idx as f64).into()))),
+                        value.clone(),
+                        Arc::new(JsValue::Constant(ConstantValue::Num((idx as f64).into()))),
                     ));
                     self.with_pat_value(pat_value, |this| {
                         let mut ast_path = ast_path
@@ -3139,7 +3156,7 @@ impl Analyzer<'_> {
     fn handle_object_pat_with_value<'ast: 'r, 'r>(
         &mut self,
         obj: &'ast ObjectPat,
-        pat_value: JsValue,
+        pat_value: Arc<JsValue>,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         for (i, prop) in obj.props.iter().enumerate() {
@@ -3160,10 +3177,7 @@ impl Analyzer<'_> {
                         ));
                         key.visit_with_ast_path(self, &mut ast_path);
                     }
-                    let pat_value = Some(JsValue::member(
-                        Box::new(pat_value.clone()),
-                        Box::new(key_value),
-                    ));
+                    let pat_value = Some(JsValue::member(pat_value.clone(), Arc::new(key_value)));
                     self.with_pat_value(pat_value, |this| {
                         let mut ast_path = ast_path.with_guard(AstParentNodeRef::KeyValuePatProp(
                             kv,
@@ -3191,11 +3205,11 @@ impl Analyzer<'_> {
                         if let Some(box value) = value {
                             let value = self.eval_context.eval(value);
                             JsValue::alternatives(vec![
-                                JsValue::member(Box::new(pat_value.clone()), Box::new(key_value)),
-                                value,
+                                Arc::new(JsValue::member(pat_value.clone(), Arc::new(key_value))),
+                                Arc::new(value),
                             ])
                         } else {
-                            JsValue::member(Box::new(pat_value.clone()), Box::new(key_value))
+                            JsValue::member(pat_value.clone(), Arc::new(key_value))
                         },
                     );
                     {

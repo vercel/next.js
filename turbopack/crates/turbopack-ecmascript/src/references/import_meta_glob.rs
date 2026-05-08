@@ -195,7 +195,7 @@ pub fn parse_import_meta_glob(
                                         format!("?{s}").into()
                                     };
                                     query = Some(q);
-                                } else if let JsValue::Object { parts, .. } = val {
+                                } else if let JsValue::Object { parts, .. } = &**val {
                                     // Support object form: { query: { bar: 'foo', raw: true } }
                                     // Serializes to "?bar=foo&raw=true" with URL-encoding.
                                     use crate::analyzer::ObjectPart;

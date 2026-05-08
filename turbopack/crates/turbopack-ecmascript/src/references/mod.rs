@@ -26,7 +26,7 @@ use std::{
     future::Future,
     mem::take,
     ops::Deref,
-    sync::{Arc, LazyLock},
+    sync::{Arc as StdArc, LazyLock},
 };
 
 use anyhow::Result;
@@ -60,6 +60,10 @@ use swc_core::{
 };
 use tokio::sync::OnceCell;
 use tracing::Instrument;
+// `triomphe::Arc` is preferred for `JsValue` because of its smaller header
+// (no weak refcount). `std::sync::Arc` is still imported as `StdArc` above for
+// types that interoperate with `Arc<Globals>` etc.
+use triomphe::Arc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, TaskInput,
@@ -499,7 +503,7 @@ impl AnalysisState<'_> {
     }
 }
 
-fn set_handler_and_globals<F, R>(handler: &Handler, globals: &Arc<Globals>, f: F) -> R
+fn set_handler_and_globals<F, R>(handler: &Handler, globals: &StdArc<Globals>, f: F) -> R
 where
     F: FnOnce() -> R,
 {
@@ -1095,7 +1099,7 @@ async fn analyze_ecmascript_module_internal(
                 } => {
                     let func = analysis_state
                         .link_value(
-                            JsValue::member(obj.clone(), prop),
+                            JsValue::member(Arc::new((*obj).clone()), Arc::new(*prop)),
                             eval_context.imports.get_attributes(span),
                         )
                         .await?;
@@ -1535,7 +1539,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             logical_property: _,
         } => {
             for alt in values {
-                if let JsValue::WellKnownFunction(wkf) = alt {
+                if let JsValue::WellKnownFunction(wkf) = Arc::unwrap_or_clone(alt) {
                     handle_well_known_function_call(
                         wkf,
                         new,
@@ -1680,13 +1684,12 @@ async fn handle_dynamic_import_with_linked_args(
             .and_then(|options| {
                 if let JsValue::Object { parts, .. } = options {
                     parts.iter().find_map(|part| {
-                        if let ObjectPart::KeyValue(
-                            JsValue::Constant(super::analyzer::ConstantValue::Str(key)),
-                            value,
-                        ) = part
+                        if let ObjectPart::KeyValue(key, value) = part
+                            && let JsValue::Constant(super::analyzer::ConstantValue::Str(key)) =
+                                &**key
                             && key.as_str() == "with"
                         {
-                            return Some(value);
+                            return Some(&**value);
                         }
                         None
                     })
@@ -1806,14 +1809,11 @@ where
         match func {
             WellKnownFunctionKind::URLConstructor => {
                 let args = linked_args().await?;
-                if let [
-                    url,
-                    JsValue::Member(
-                        _,
-                        box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                        box JsValue::Constant(super::analyzer::ConstantValue::Str(meta_prop)),
-                    ),
-                ] = &args[..]
+                if let [url, member] = &args[..]
+                    && let JsValue::Member(_, member_obj, member_prop) = member
+                    && let JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta) = &**member_obj
+                    && let JsValue::Constant(super::analyzer::ConstantValue::Str(meta_prop)) =
+                        &**member_prop
                     && meta_prop.as_str() == "url"
                 {
                     let pat = js_value_to_pattern(url);
@@ -1908,12 +1908,15 @@ where
                     if let Some(opts) = args.get(1) {
                         match opts {
                             JsValue::Object { parts, .. } => {
-                                let eval_value = parts.iter().find_map(|part| match part {
-                                    ObjectPart::KeyValue(
-                                        JsValue::Constant(JsConstantValue::Str(key)),
-                                        value,
-                                    ) if key.as_str() == "eval" => Some(value),
-                                    _ => None,
+                                let eval_value = parts.iter().find_map(|part| {
+                                    if let ObjectPart::KeyValue(key, value) = part
+                                        && let JsValue::Constant(JsConstantValue::Str(key)) = &**key
+                                        && key.as_str() == "eval"
+                                    {
+                                        Some(&**value)
+                                    } else {
+                                        None
+                                    }
                                 });
                                 if let Some(eval_value) = eval_value {
                                     match eval_value {
@@ -2131,15 +2134,11 @@ where
             )
         }
         WellKnownFunctionKind::Define => {
+            // analyze_amd_define expects `&[Arc<JsValue>]`; rewrap inline.
+            let args_arc: Vec<Arc<JsValue>> =
+                linked_args().await?.iter().cloned().map(Arc::new).collect();
             analyze_amd_define(
-                source,
-                analysis,
-                origin,
-                handler,
-                span,
-                ast_path,
-                linked_args().await?,
-                error_mode,
+                source, analysis, origin, handler, span, ast_path, &args_arc, error_mode,
             )
             .await?;
         }
@@ -2228,7 +2227,9 @@ where
 
         WellKnownFunctionKind::RequireContext => {
             let args = linked_args().await?;
-            let options = match parse_require_context(args) {
+            // parse_require_context expects `&[Arc<JsValue>]`; rewrap inline.
+            let args_arc: Vec<Arc<JsValue>> = args.iter().cloned().map(Arc::new).collect();
+            let options = match parse_require_context(&args_arc) {
                 Ok(options) => options,
                 Err(err) => {
                     let (args, hints) = explain_args(args);
@@ -2338,11 +2339,11 @@ where
 
             let linked_func_call = state
                 .link_value(
-                    JsValue::call_from_parts(
+                    JsValue::call_from_iter(
                         JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(Box::new(
                             parent_path.path.as_str().into(),
                         ))),
-                        args.clone(),
+                        args.iter().cloned().map(Arc::new),
                     ),
                     ImportAttributes::empty_ref(),
                 )
@@ -2387,9 +2388,9 @@ where
             let args = linked_args().await?;
             let linked_func_call = state
                 .link_value(
-                    JsValue::call_from_parts(
+                    JsValue::call_from_iter(
                         JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
-                        args.clone(),
+                        args.iter().cloned().map(Arc::new),
                     ),
                     ImportAttributes::empty_ref(),
                 )
@@ -2434,7 +2435,7 @@ where
                 let pat = js_value_to_pattern(&args[0]);
                 if pat.is_match_ignore_dynamic("node") && args.len() >= 2 {
                     let first_arg =
-                        JsValue::member(Box::new(args[1].clone()), Box::new(0_f64.into()));
+                        JsValue::member(Arc::new(args[1].clone()), Arc::new(0_f64.into()));
                     let first_arg = state
                         .link_value(first_arg, ImportAttributes::empty_ref())
                         .await?;
@@ -2685,13 +2686,13 @@ where
                             } else {
                                 let linked_func_call = state
                                     .link_value(
-                                        JsValue::call_from_parts(
+                                        JsValue::call_from_iter(
                                             JsValue::WellKnownFunction(
                                                 WellKnownFunctionKind::PathJoin,
                                             ),
-                                            vec![
-                                                JsValue::FreeVar(atom!("__dirname")),
-                                                pkg_or_dir.clone(),
+                                            [
+                                                Arc::new(JsValue::FreeVar(atom!("__dirname"))),
+                                                Arc::new(pkg_or_dir.clone()),
                                             ],
                                         ),
                                         ImportAttributes::empty_ref(),
@@ -2756,12 +2757,12 @@ where
                 } else {
                     let linked_func_call = state
                         .link_value(
-                            JsValue::call_from_parts(
+                            JsValue::call_from_iter(
                                 JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
-                                vec![
-                                    JsValue::FreeVar(atom!("__dirname")),
-                                    p.into(),
-                                    atom!("intl").into(),
+                                [
+                                    Arc::new(JsValue::FreeVar(atom!("__dirname"))),
+                                    Arc::new(p.into()),
+                                    Arc::new(atom!("intl").into()),
                                 ],
                             ),
                             ImportAttributes::empty_ref(),
@@ -2829,14 +2830,16 @@ where
                 let context_dir = get_traced_project_dir().await?;
                 let resolved_dirs = parts
                     .iter()
-                    .filter_map(|object_part| match object_part {
-                        ObjectPart::KeyValue(
-                            JsValue::Constant(key),
-                            JsValue::Array { items: dirs, .. },
-                        ) if key.as_str() == Some("includeDirs") => {
+                    .filter_map(|object_part| {
+                        if let ObjectPart::KeyValue(key, value) = object_part
+                            && let JsValue::Constant(key_const) = &**key
+                            && key_const.as_str() == Some("includeDirs")
+                            && let JsValue::Array { items: dirs, .. } = &**value
+                        {
                             Some(dirs.iter().filter_map(|dir| dir.as_str()))
+                        } else {
+                            None
                         }
-                        _ => None,
                     })
                     .flatten()
                     .map(|dir| {
@@ -3195,10 +3198,14 @@ async fn analyze_amd_define(
     handler: &Handler,
     span: Span,
     ast_path: &[AstParentKind],
-    args: &[JsValue],
+    args: &[Arc<JsValue>],
     error_mode: ResolveErrorMode,
 ) -> Result<()> {
-    match args {
+    // Pre-deref the arms via a slice of `&JsValue`. This avoids having to write `&**arg`
+    // in each pattern and keeps the existing match shape. `args` slot count is at most a
+    // small fixed handful, so the borrow vec is cheap.
+    let derefed: Vec<&JsValue> = args.iter().map(|a| &**a).collect();
+    match derefed.as_slice() {
         [JsValue::Constant(id), JsValue::Array { items: deps, .. }, _] if id.as_str().is_some() => {
             analyze_amd_define_with_deps(
                 source,
@@ -3305,7 +3312,7 @@ async fn analyze_amd_define_with_deps(
     span: Span,
     ast_path: &[AstParentKind],
     id: Option<&str>,
-    deps: &[JsValue],
+    deps: &[Arc<JsValue>],
     error_mode: ResolveErrorMode,
 ) -> Result<()> {
     let mut requests = Vec::new();
@@ -3486,18 +3493,17 @@ async fn value_visitor_inner(
                 JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire)
             ) =>
         {
-            if let [
-                JsValue::Member(
-                    _,
-                    box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                    box JsValue::Constant(super::analyzer::ConstantValue::Str(prop)),
-                ),
-            ] = call.args()
+            if let [arg] = call.args()
+                && let JsValue::Member(_, member_obj, member_prop) = &**arg
+                && let JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta) = &**member_obj
+                && let JsValue::Constant(super::analyzer::ConstantValue::Str(prop)) = &**member_prop
                 && prop.as_str() == "url"
             {
                 // `createRequire(import.meta.url)`
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
-            } else if let [JsValue::Url(rel, JsValueUrlKind::Relative)] = call.args() {
+            } else if let [arg] = call.args()
+                && let JsValue::Url(rel, JsValueUrlKind::Relative) = &**arg
+            {
                 // `createRequire(new URL("<rel>", import.meta.url))`
                 JsValue::WellKnownFunction(WellKnownFunctionKind::RequireFrom(Box::new(
                     rel.clone(),
@@ -3512,14 +3518,11 @@ async fn value_visitor_inner(
                 JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor)
             ) =>
         {
-            if let [
-                JsValue::Constant(super::analyzer::ConstantValue::Str(url)),
-                JsValue::Member(
-                    _,
-                    box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                    box JsValue::Constant(super::analyzer::ConstantValue::Str(prop)),
-                ),
-            ] = call.args()
+            if let [arg0, arg1] = call.args()
+                && let JsValue::Constant(super::analyzer::ConstantValue::Str(url)) = &**arg0
+                && let JsValue::Member(_, member_obj, member_prop) = &**arg1
+                && let JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta) = &**member_obj
+                && let JsValue::Constant(super::analyzer::ConstantValue::Str(prop)) = &**member_prop
             {
                 if prop.as_str() == "url" {
                     JsValue::Url(url.clone(), JsValueUrlKind::Relative)
@@ -3606,7 +3609,7 @@ async fn value_visitor_inner(
 
 async fn require_resolve_visitor(
     origin: Vc<Box<dyn ResolveOrigin>>,
-    args: Vec<JsValue>,
+    args: Vec<Arc<JsValue>>,
 ) -> Result<JsValue> {
     Ok(if args.len() == 1 {
         let pat = js_value_to_pattern(&args[0]);
@@ -3620,16 +3623,17 @@ async fn require_resolve_visitor(
         )
         .to_resolved()
         .await?;
-        let mut values =
-            resolved
-                .primary_sources()
-                .await?
-                .iter()
-                .map(|&source| async move {
-                    Ok(require_resolve(source.ident().await?.path.clone()).into())
-                })
-                .try_join()
-                .await?;
+        let mut values: Vec<Arc<JsValue>> = resolved
+            .primary_sources()
+            .await?
+            .iter()
+            .map(|&source| async move {
+                Ok(Arc::new(
+                    require_resolve(source.ident().await?.path.clone()).into(),
+                ))
+            })
+            .try_join()
+            .await?;
 
         match values.len() {
             0 => JsValue::unknown(
@@ -3640,7 +3644,7 @@ async fn require_resolve_visitor(
                 false,
                 rcstr!("unresolvable request"),
             ),
-            1 => values.pop().unwrap(),
+            1 => Arc::unwrap_or_clone(values.pop().unwrap()),
             _ => JsValue::alternatives(values),
         }
     } else {
@@ -3657,13 +3661,13 @@ async fn require_resolve_visitor(
 
 async fn require_context_visitor(
     origin: Vc<Box<dyn ResolveOrigin>>,
-    args: Vec<JsValue>,
+    args: Vec<Arc<JsValue>>,
 ) -> Result<JsValue> {
     let options = match parse_require_context(&args) {
         Ok(options) => options,
         Err(err) => {
             return Ok(JsValue::unknown(
-                JsValue::call_from_parts(
+                JsValue::call_from_iter(
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
                     args,
                 ),
@@ -3737,33 +3741,29 @@ fn is_invoking_node_process_eval(args: &[JsValue]) -> bool {
         return false;
     }
 
-    if let JsValue::Member(_, obj, constant) = &args[0] {
-        // Is the first argument to spawn `process.argv[]`?
-        if let (
-            &box JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessArgv),
-            &box JsValue::Constant(JsConstantValue::Num(ConstantNumber(num))),
-        ) = (obj, constant)
+    if let JsValue::Member(_, obj, constant) = &args[0]
+        && let JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessArgv) = &**obj
+        && let JsValue::Constant(JsConstantValue::Num(ConstantNumber(num))) = &**constant
+    {
+        // Is it specifically `process.argv[0]`?
+        if num.is_zero()
+            && let JsValue::Array {
+                total_nodes: _,
+                items,
+                mutable: _,
+            } = &args[1]
         {
-            // Is it specifically `process.argv[0]`?
-            if num.is_zero()
-                && let JsValue::Array {
-                    total_nodes: _,
-                    items,
-                    mutable: _,
-                } = &args[1]
-            {
-                // Is `-e` one of the arguments passed to the program?
-                if items.iter().any(|e| {
-                    if let JsValue::Constant(JsConstantValue::Str(ConstantString::Atom(arg))) = e {
-                        arg == "-e"
-                    } else {
-                        false
-                    }
-                }) {
-                    // If so, this is likely spawning node to evaluate a string, and
-                    // does not need to be statically analyzed.
-                    return true;
+            // Is `-e` one of the arguments passed to the program?
+            if items.iter().any(|e| {
+                if let JsValue::Constant(JsConstantValue::Str(ConstantString::Atom(arg))) = &**e {
+                    arg == "-e"
+                } else {
+                    false
                 }
+            }) {
+                // If so, this is likely spawning node to evaluate a string, and
+                // does not need to be statically analyzed.
+                return true;
             }
         }
     }

@@ -1,12 +1,13 @@
-use std::{collections::hash_map::Entry, fmt::Display, future::Future, mem::take};
+use std::{collections::hash_map::Entry, fmt::Display, future::Future};
 
 use anyhow::Result;
 use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::ecma::ast::Id;
+use triomphe::Arc;
 use turbo_rcstr::rcstr;
 
-use super::{JsValue, graph::VarGraph};
+use super::{JsValue, graph::VarGraph, take_arc_slot};
 
 pub async fn link<'a, B, RB, F, RF>(
     graph: &VarGraph,
@@ -176,7 +177,9 @@ where
                 if matches!(call.callee(), JsValue::Function(..)) =>
             {
                 let (callee, args) = call.into_parts();
-                let JsValue::Function(function_nodes, func_ident, return_value) = callee else {
+                let JsValue::Function(function_nodes, func_ident, return_value) =
+                    Arc::unwrap_or_clone(callee)
+                else {
                     unreachable!()
                 };
                 total_nodes -= 2; // Call + Function
@@ -185,9 +188,14 @@ where
                     for arg in args.iter() {
                         total_nodes -= arg.total_nodes();
                     }
-                    entry.insert(args);
+                    // Materialize back to `Vec<JsValue>` for the legacy `fun_args_values`
+                    // map signature; the Arc unwrap is cheap when each arg is uniquely
+                    // owned (the common case here).
+                    let args_owned: Vec<JsValue> =
+                        args.into_iter().map(Arc::unwrap_or_clone).collect();
+                    entry.insert(args_owned);
                     work_queue_stack.push(Step::LeaveCall(func_ident));
-                    work_queue_stack.push(Step::Enter(*return_value));
+                    work_queue_stack.push(Step::Enter(Arc::unwrap_or_clone(return_value)));
                 } else {
                     total_nodes -= return_value.total_nodes();
                     for arg in args.iter() {
@@ -235,14 +243,16 @@ where
                     let mut has_early_children = false;
                     val.for_each_early_children_mut(&mut |child| {
                         has_early_children = true;
-                        work_queue_stack.push(Step::Enter(take(child)));
+                        work_queue_stack
+                            .push(Step::Enter(Arc::unwrap_or_clone(take_arc_slot(child))));
                         false
                     });
                     if has_early_children {
                         work_queue_stack[i] = Step::EarlyVisit(val);
                     } else {
                         val.for_each_children_mut(&mut |child| {
-                            work_queue_stack.push(Step::Enter(take(child)));
+                            work_queue_stack
+                                .push(Step::Enter(Arc::unwrap_or_clone(take_arc_slot(child))));
                             false
                         });
                         work_queue_stack[i] = Step::Leave(val);
@@ -256,7 +266,7 @@ where
             Step::EarlyVisit(mut val) => {
                 val.for_each_early_children_mut(&mut |child| {
                     let val = done.pop().unwrap();
-                    *child = val;
+                    *child = Arc::new(val);
                     true
                 });
                 val.debug_assert_total_nodes_up_to_date();
@@ -296,7 +306,8 @@ where
                     let i = work_queue_stack.len();
                     work_queue_stack.push(Step::TemporarySlot);
                     val.for_each_late_children_mut(&mut |child| {
-                        work_queue_stack.push(Step::Enter(take(child)));
+                        work_queue_stack
+                            .push(Step::Enter(Arc::unwrap_or_clone(take_arc_slot(child))));
                         false
                     });
                     work_queue_stack[i] = Step::LeaveLate(val);
@@ -306,7 +317,7 @@ where
             Step::Leave(mut val) => {
                 val.for_each_children_mut(&mut |child| {
                     let val = done.pop().unwrap();
-                    *child = val;
+                    *child = Arc::new(val);
                     true
                 });
                 val.debug_assert_total_nodes_up_to_date();
@@ -329,7 +340,7 @@ where
             Step::LeaveLate(mut val) => {
                 val.for_each_late_children_mut(&mut |child| {
                     let val = done.pop().unwrap();
-                    *child = val;
+                    *child = Arc::new(val);
                     true
                 });
                 val.debug_assert_total_nodes_up_to_date();
