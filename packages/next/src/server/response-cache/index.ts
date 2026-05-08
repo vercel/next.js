@@ -295,6 +295,21 @@ export default class ResponseCache implements ResponseCacheBase {
       }
     )
 
+    if (
+      this.minimal_mode &&
+      response &&
+      invocationID &&
+      response.cacheControl
+    ) {
+      const cacheKey = createCacheKey(key, invocationID)
+      if (!this.cache.get(cacheKey)) {
+        this.cache.set(cacheKey, {
+          entry: response,
+          expiresAt: Date.now() + this.ttl,
+        })
+      }
+    }
+
     return toResponseCacheEntry(response)
   }
 
