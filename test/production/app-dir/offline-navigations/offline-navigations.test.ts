@@ -1545,6 +1545,138 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('restores workspace shell metadata from persisted router records', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    const workspaceRoute = '/workspace/acme/channel/general/thread/123'
+    const workspaceUrlPath = `/docs${workspaceRoute}`
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await browser.elementById('prefetch-workspace-shell').click()
+      await retry(async () => {
+        const exactEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          workspaceUrlPath
+        )
+        expect(exactEntry).toEqual(
+          expect.objectContaining({
+            kind: 'exact-url',
+            payload: expect.objectContaining({
+              kind: 'rsc-response',
+              requestKind: 'client-resume',
+            }),
+          })
+        )
+      })
+      await retry(async () => {
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        expect(
+          routeRecords.some((record) =>
+            record.route.pathname.includes(workspaceRoute)
+          )
+        ).toBe(true)
+
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        expect(
+          segmentRecords.some(
+            (record) =>
+              record.key.includes('workspace') &&
+              record.payload.requestKind === 'segment-prefetch'
+          )
+        ).toBe(true)
+        expect(
+          segmentRecords.some(
+            (record) => record.segment.requestKey === '/_head'
+          )
+        ).toBe(true)
+      })
+
+      const deletedExactEntries = await deletePersistedOfflineNavigationEntries(
+        browser,
+        workspaceUrlPath
+      )
+      expect(deletedExactEntries).toBeGreaterThan(0)
+      await retry(async () => {
+        const deletedEntry = await readPersistedOfflineNavigationEntry(
+          browser,
+          workspaceUrlPath
+        )
+        expect(deletedEntry).toBe(null)
+      })
+
+      await next.stop()
+      await page!.context().setOffline(true)
+      const workspaceResponse = await page!.goto(
+        `${next.url}${workspaceUrlPath}`,
+        {
+          waitUntil: 'domcontentloaded',
+        }
+      )
+      expect(workspaceResponse?.status()).toBe(200)
+      await retry(async () => {
+        const routerCacheDiagnostics = await browser.eval(() => {
+          const win = window as typeof window & {
+            __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<{
+              type?: string
+              requestKind?: string
+              url?: string
+              reason?: string
+            }>
+          }
+          return win.__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__ ?? []
+        })
+        expect(routerCacheDiagnostics).toContainEqual(
+          expect.objectContaining({
+            type: 'cache-hit',
+            requestKind: 'router-cache',
+            url: `${next.url}${workspaceUrlPath}`,
+          })
+        )
+      })
+      await retry(async () => {
+        expect(await browser.elementById('workspace-thread-page').text()).toBe(
+          'workspace thread: acme/general/123'
+        )
+        expect(await browser.elementById('offline-status').text()).toBe(
+          'offline'
+        )
+        expect(
+          await browser.eval(() => ({
+            description:
+              document
+                .querySelector('meta[name="description"]')
+                ?.getAttribute('content') ?? null,
+            title: document.title,
+          }))
+        ).toEqual({
+          description: 'Offline workspace thread acme/general/123',
+          title: 'Workspace acme thread general/123',
+        })
+      })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('misses a workspace shell route when a required default slot record is missing during fallback boot', async () => {
     if (shouldSkipReplayWithCachedNavigations) {
       return

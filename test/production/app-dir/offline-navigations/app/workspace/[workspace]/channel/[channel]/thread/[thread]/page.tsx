@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { OfflineStatus } from '../../../../../../offline-status'
 
 type WorkspaceThreadPageProps = {
@@ -21,6 +22,17 @@ export default async function WorkspaceThreadPage({
       <OfflineStatus />
     </>
   )
+}
+
+export async function generateMetadata({
+  params,
+}: WorkspaceThreadPageProps): Promise<Metadata> {
+  const { channel, thread, workspace } = await params
+
+  return {
+    title: `Workspace ${workspace} thread ${channel}/${thread}`,
+    description: `Offline workspace thread ${workspace}/${channel}/${thread}`,
+  }
 }
 
 export function generateStaticParams({
