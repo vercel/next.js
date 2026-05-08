@@ -58,6 +58,18 @@ async function cacheOfflineNavigationResources(){
   const fallbackResponse=await fetchRequiredResource(manifest.fallbackDocument.href);
   await cache.put(manifest.fallbackDocument.href,fallbackResponse);
 }
+async function unregisterOfflineNavigationServiceWorker(){
+  const metadata=self.__NEXT_OFFLINE_NAVIGATION_SW;
+  await caches.delete(metadata.cacheNamespace);
+  await self.registration.unregister();
+}
+async function refreshOfflineNavigationResources(){
+  try{
+    await cacheOfflineNavigationResources();
+  }catch(err){
+    await unregisterOfflineNavigationServiceWorker();
+  }
+}
 function isDocumentNavigationRequest(request){
   if(request.method!=='GET'||request.mode!=='navigate'||request.destination!=='document'){
     return false;
@@ -74,7 +86,7 @@ async function isValidFallbackDocumentResponse(response,metadata){
 }
 async function fetchDocumentNavigation(request){
   try{
-    return await fetch(request);
+    return {fromNetwork:true,response:await fetch(request)};
   }catch(err){
     const metadata=self.__NEXT_OFFLINE_NAVIGATION_SW;
     const cache=await caches.open(metadata.cacheNamespace);
@@ -86,7 +98,7 @@ async function fetchDocumentNavigation(request){
         reason:'network-error',
         url:request.url
       });
-      return fallbackResponse;
+      return {fromNetwork:false,response:fallbackResponse};
     }
     throw err;
   }
@@ -115,7 +127,13 @@ self.addEventListener('activate',(event)=>{
 });
 self.addEventListener('fetch',(event)=>{
   if(isDocumentNavigationRequest(event.request)){
-    event.respondWith(fetchDocumentNavigation(event.request));
+    const navigationResult=fetchDocumentNavigation(event.request);
+    event.respondWith(navigationResult.then((result)=>result.response));
+    event.waitUntil(navigationResult.then((result)=>{
+      if(result.fromNetwork){
+        return refreshOfflineNavigationResources();
+      }
+    }).catch(()=>{}));
   }
 });
 `

@@ -667,6 +667,10 @@ describe('offlineNavigations build artifacts', () => {
       `"manifestHref":"/docs/_next/static/${buildId}/_offline-navigation-manifest.json"`
     )
     expect(serviceWorkerScript).toContain('cacheOfflineNavigationResources')
+    expect(serviceWorkerScript).toContain('refreshOfflineNavigationResources')
+    expect(serviceWorkerScript).toContain(
+      'unregisterOfflineNavigationServiceWorker'
+    )
     expect(serviceWorkerScript).toContain('caches.delete')
     expect(serviceWorkerScript).toContain(OFFLINE_NAVIGATION_FALLBACK_SERVED)
     expect(serviceWorkerScript).toContain('isDocumentNavigationRequest')
@@ -6044,6 +6048,184 @@ describe('offlineNavigations build artifacts', () => {
         if (page) {
           await page.context().setOffline(false)
         }
+        await next.stop()
+      }
+    }
+  })
+
+  it('cleans up stale service worker artifacts when offlineNavigations is disabled', async () => {
+    if (shouldSkipReplayWithCachedNavigations) {
+      return
+    }
+
+    const enabledBuildResult = await next.build()
+    expect(enabledBuildResult.exitCode).toBe(0)
+
+    const { buildId } = await getOfflineNavigationArtifactPaths()
+    await next.start({ skipBuild: true })
+
+    const previousForcedPort = next.forcedPort
+    let isStarted = true
+    let page: Playwright.Page | undefined
+    const fallbackMessages: Array<unknown> = []
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      const enabledCacheState = await browser.eval(async (currentBuildId) => {
+        const cacheNames = await caches.keys()
+        return {
+          cacheNames: cacheNames.filter((cacheName) =>
+            cacheName.startsWith('next-offline-navigation-v1:')
+          ),
+          controlled: Boolean(navigator.serviceWorker.controller),
+          registrations: (await navigator.serviceWorker.getRegistrations()).map(
+            (registration) => ({
+              active: registration.active?.scriptURL ?? null,
+              scope: registration.scope,
+            })
+          ),
+          expectedCacheName: `next-offline-navigation-v1:${currentBuildId}:/docs`,
+        }
+      }, buildId)
+      expect(enabledCacheState).toMatchObject({
+        cacheNames: [enabledCacheState.expectedCacheName],
+        controlled: true,
+      })
+      expect(enabledCacheState.registrations).toEqual(
+        expect.arrayContaining([
+          {
+            active: expect.stringContaining(
+              '/docs/_next/static/_offline-navigation-service-worker.js'
+            ),
+            scope: `${next.url}/docs/`,
+          },
+        ])
+      )
+
+      next.forcedPort = next.appPort
+      await next.stop()
+      isStarted = false
+
+      await next.patchFile(
+        'next.config.js',
+        (content) =>
+          content.replace(
+            'offlineNavigations: true',
+            'offlineNavigations: false'
+          ),
+        async () => {
+          const disabledBuildResult = await next.build()
+          expect(disabledBuildResult.exitCode).toBe(0)
+
+          const { fallbackDocument, manifest, serviceWorker } =
+            await getOfflineNavigationArtifactPaths()
+          expect(existsSync(fallbackDocument.absolutePath)).toBe(false)
+          expect(existsSync(manifest.absolutePath)).toBe(false)
+          expect(existsSync(serviceWorker.absolutePath)).toBe(false)
+
+          await next.start({ skipBuild: true })
+          isStarted = true
+
+          try {
+            await page!.goto(`${next.url}/docs?offline-navigation-disabled=1`, {
+              waitUntil: 'domcontentloaded',
+            })
+            await retry(async () => {
+              expect(await browser.elementByCss('p').text()).toBe(
+                'offline navigations page'
+              )
+            })
+
+            await page!.exposeFunction(
+              '__nextRecordOfflineNavigationFlagDisabledMessage',
+              (message: unknown) => {
+                fallbackMessages.push(message)
+              }
+            )
+            await browser.eval((messageType) => {
+              const win = window as typeof window & {
+                __nextRecordOfflineNavigationFlagDisabledMessage?: (
+                  message: unknown
+                ) => void
+              }
+              navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data?.type === messageType) {
+                  win.__nextRecordOfflineNavigationFlagDisabledMessage?.(
+                    event.data
+                  )
+                }
+              })
+            }, OFFLINE_NAVIGATION_FALLBACK_SERVED)
+
+            await retry(
+              async () => {
+                const cleanupState = await browser.eval(async () => {
+                  const cacheNames = await caches.keys()
+                  const registrations =
+                    await navigator.serviceWorker.getRegistrations()
+                  return {
+                    cacheNames: cacheNames.filter((cacheName) =>
+                      cacheName.startsWith('next-offline-navigation-v1:')
+                    ),
+                    registrations: registrations
+                      .filter((registration) =>
+                        registration.scope.endsWith('/docs/')
+                      )
+                      .map((registration) => ({
+                        active: registration.active?.scriptURL ?? null,
+                        installing: registration.installing?.state ?? null,
+                        scope: registration.scope,
+                        waiting: registration.waiting?.state ?? null,
+                      })),
+                  }
+                })
+
+                expect(cleanupState.cacheNames).toEqual([])
+                expect(
+                  cleanupState.registrations.every(
+                    (registration) => registration.active === null
+                  )
+                ).toBe(true)
+              },
+              10000,
+              500
+            )
+
+            await page!.context().setOffline(true)
+            let navigationError: string | null = null
+            try {
+              await page!.goto(
+                `${next.url}/docs/prefetched?flag-disabled-cleanup=1`,
+                { waitUntil: 'domcontentloaded' }
+              )
+            } catch (error) {
+              navigationError = String(error)
+            }
+
+            expect(navigationError).toMatch(
+              /ERR_FAILED|ERR_INTERNET_DISCONNECTED|NS_ERROR_OFFLINE|offline/i
+            )
+            expect(fallbackMessages).toEqual([])
+          } finally {
+            if (page) {
+              await page.context().setOffline(false)
+            }
+            await next.stop()
+            isStarted = false
+          }
+        }
+      )
+    } finally {
+      next.forcedPort = previousForcedPort
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      if (isStarted) {
         await next.stop()
       }
     }
