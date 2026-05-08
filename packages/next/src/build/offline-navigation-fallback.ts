@@ -38,11 +38,13 @@ export function createOfflineNavigationFallbackDocument({
   buildId,
   buildManifest,
   crossOrigin,
+  deploymentId,
 }: {
   assetPrefix: string
   buildId: string
   buildManifest: BuildManifest
   crossOrigin: '' | 'anonymous' | 'use-credentials' | undefined
+  deploymentId: string | undefined
 }): string | null {
   const rootMainFiles = buildManifest.rootMainFiles.filter((file) =>
     file.endsWith('.js')
@@ -74,11 +76,15 @@ export function createOfflineNavigationFallbackDocument({
     source: 'offline-navigation-fallback',
   }
 
+  const deploymentIdAttribute = deploymentId
+    ? ` data-dpl-id="${htmlEscapeAttributeString(deploymentId)}"`
+    : ''
+
   return `<!DOCTYPE html><html data-next-offline-navigation-fallback="" data-build-id="${htmlEscapeAttributeString(
     buildId
-  )}"><head><meta charSet="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="next-offline-navigation-fallback" content="1"><meta name="next-build-id" content="${htmlEscapeAttributeString(
+  )}"${deploymentIdAttribute}><head><meta charSet="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="next-offline-navigation-fallback" content="1"><meta name="next-build-id" content="${htmlEscapeAttributeString(
     buildId
   )}"><script id="__NEXT_OFFLINE_NAVIGATION_FALLBACK" type="application/json">${htmlEscapeJsonString(
     JSON.stringify(metadata)
-  )}</script></head><body><div id="__next"></div><script>self.__next_f=self.__next_f||[];self.__next_f.push([0])</script>${polyfillScripts}${bootstrapScripts}</body></html>`
+  )}</script></head><body><div id="__next"></div><p id="__NEXT_OFFLINE_NAVIGATION_CACHE_MISS" hidden>This page is not available offline.</p><script>self.__next_f=self.__next_f||[];self.__next_f.push([0])</script>${polyfillScripts}${bootstrapScripts}</body></html>`
 }

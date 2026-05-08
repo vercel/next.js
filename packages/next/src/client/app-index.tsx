@@ -45,6 +45,77 @@ const instantTestStaticFetch: Promise<Response> | undefined =
     ? (self.__next_instant_test as unknown as Promise<Response>)
     : undefined
 
+function isOfflineNavigationFallbackDocument(): boolean {
+  return Boolean(
+    process.env.__NEXT_OFFLINE_NAVIGATIONS &&
+      !process.env.__NEXT_DEV_SERVER &&
+      document.documentElement.hasAttribute(
+        'data-next-offline-navigation-fallback'
+      )
+  )
+}
+
+function showOfflineNavigationCacheMiss(): void {
+  const cacheMissElement = document.getElementById(
+    '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
+  )
+  if (cacheMissElement !== null) {
+    cacheMissElement.hidden = false
+  }
+}
+
+function neverResolveOfflineNavigationResponse(): Promise<Response> {
+  return new Promise<Response>(() => {})
+}
+
+function createOfflineNavigationClientResumeFetch():
+  | Promise<Response>
+  | undefined {
+  if (!isOfflineNavigationFallbackDocument()) {
+    return undefined
+  }
+
+  return (async () => {
+    const {
+      createOfflineNavigationRSCResponse,
+      isOfflineNavigationRSCResponsePayload,
+      readOfflineNavigationCacheEntry,
+    } =
+      require('./components/router-reducer/offline-navigation-cache') as typeof import('./components/router-reducer/offline-navigation-cache')
+
+    const buildId =
+      getDeploymentId() ??
+      document.documentElement.getAttribute('data-build-id') ??
+      undefined
+    const entry = await readOfflineNavigationCacheEntry(location.href, {
+      buildId,
+    })
+    const payload = entry?.payload
+
+    if (
+      !isOfflineNavigationRSCResponsePayload(payload) ||
+      payload.requestKind !== 'client-resume'
+    ) {
+      showOfflineNavigationCacheMiss()
+      return neverResolveOfflineNavigationResponse()
+    }
+
+    return createOfflineNavigationRSCResponse(payload)
+  })().catch(() => {
+    showOfflineNavigationCacheMiss()
+    return neverResolveOfflineNavigationResponse()
+  })
+}
+
+const offlineNavigationClientResumeFetch =
+  createOfflineNavigationClientResumeFetch()
+
+const hasLockedStaticShell =
+  Boolean(instantTestStaticFetch) ||
+  Boolean(offlineNavigationClientResumeFetch) ||
+  // @ts-expect-error
+  Boolean(window.__NEXT_CLIENT_RESUME)
+
 const encoder = new TextEncoder()
 
 let initialServerDataBuffer: (string | Uint8Array)[] | undefined = undefined
@@ -128,14 +199,11 @@ function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
       ctr.enqueue(typeof val === 'string' ? encoder.encode(val) : val)
     })
     if (initialServerDataLoaded && !initialServerDataFlushed) {
-      // Instant Navigation Testing API: don't close or error the inline
-      // Flight stream. The static shell has no inline Flight data, so the
-      // stream is empty. Closing it would cause React to log an error about
-      // missing data. Leaving it open lets React treat any holes as
-      // "still suspended." Hydration uses the separately fetched RSC payload
-      // (self.__next_instant_test), not this stream.
+      // Locked static shells do not have a real inline Flight stream. Closing
+      // or erroring this stream causes React to report a missing-data failure,
+      // but the actual hydration data arrives through a separate response.
       if (isStreamErrorOrUnfinished(ctr)) {
-        if (!instantTestStaticFetch) {
+        if (!hasLockedStaticShell) {
           ctr.error(
             new Error(
               'The connection to the page was unexpectedly closed, possibly due to the stop button being clicked, loss of Wi-Fi, or an unstable internet connection.'
@@ -155,7 +223,11 @@ function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
 
 // When `DOMContentLoaded`, we can close all pending writers to finish hydration.
 const DOMContentLoaded = function () {
-  if (initialServerDataWriter && !initialServerDataFlushed) {
+  if (
+    initialServerDataWriter &&
+    !initialServerDataFlushed &&
+    !hasLockedStaticShell
+  ) {
     initialServerDataWriter.close()
     initialServerDataFlushed = true
     initialServerDataBuffer = undefined
@@ -198,7 +270,8 @@ if (process.env.NODE_ENV !== 'production') {
 let initialFlightStreamForCache: ReadableStream<Uint8Array> | null = null
 if (
   process.env.__NEXT_CACHE_COMPONENTS &&
-  process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS
+  process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS &&
+  !offlineNavigationClientResumeFetch
 ) {
   const [forReact, forCache] = readable.tee()
   readable = forReact
@@ -242,6 +315,20 @@ if (instantTestStaticFetch) {
       initialRSCPayload
     )
   })
+} else if (offlineNavigationClientResumeFetch) {
+  initialServerResponse = Promise.resolve(
+    createFromFetch<InitialRSCPayload>(offlineNavigationClientResumeFetch, {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+      unstable_allowPartialStream: true,
+    })
+  ).then(async (fallbackInitialRSCPayload) =>
+    createInitialRSCPayloadFromFallbackPrerender(
+      await offlineNavigationClientResumeFetch,
+      fallbackInitialRSCPayload
+    )
+  )
 } else if (
   // @ts-expect-error
   window.__NEXT_CLIENT_RESUME
@@ -365,7 +452,11 @@ export async function hydrate(
   // Initialize the offline module to register browser event listeners
   // (offline/online) before any components hydrate.
   if (process.env.__NEXT_USE_OFFLINE) {
-    require('./components/offline') as typeof import('./components/offline')
+    const { notifyOffline } =
+      require('./components/offline') as typeof import('./components/offline')
+    if (offlineNavigationClientResumeFetch) {
+      notifyOffline()
+    }
   }
 
   // setNavigationBuildId should be called only once, during JS initialization
@@ -411,9 +502,13 @@ export async function hydrate(
     </StrictModeIfEnabled>
   )
 
-  if (document.documentElement.id === '__next_error__') {
+  if (
+    document.documentElement.id === '__next_error__' ||
+    isOfflineNavigationFallbackDocument()
+  ) {
     let element = reactEl
-    // Server rendering failed, fall back to client-side rendering
+    // Error documents and generated offline navigation fallback documents do
+    // not contain route HTML that can be hydrated.
     if (process.env.NODE_ENV !== 'production') {
       const { RootLevelDevOverlayElement } =
         require('../next-devtools/userspace/app/client-entry') as typeof import('../next-devtools/userspace/app/client-entry')

@@ -1,4 +1,5 @@
 import { getNavigationBuildId } from '../../navigation-build-id'
+import { normalizePathTrailingSlash } from '../../normalize-trailing-slash'
 
 const DATABASE_NAME = 'next-offline-navigation-cache'
 const DATABASE_VERSION = 1
@@ -89,6 +90,7 @@ export function normalizeOfflineNavigationCacheUrl(url: string | URL): string {
       : new URL(url.href)
 
   normalized.hash = ''
+  normalized.pathname = normalizePathTrailingSlash(normalized.pathname)
   return normalized.href
 }
 
@@ -182,7 +184,7 @@ export async function createOfflineNavigationRSCResponsePayload(
     version: RSC_RESPONSE_PAYLOAD_VERSION,
     kind: 'rsc-response',
     requestKind,
-    url: clone.url,
+    url: response.url,
     status: clone.status,
     statusText: clone.statusText,
     headers: Array.from(clone.headers.entries()),
@@ -193,11 +195,35 @@ export async function createOfflineNavigationRSCResponsePayload(
 export function createOfflineNavigationRSCResponse(
   payload: OfflineNavigationRSCResponsePayload
 ): Response {
-  return new Response(payload.body.slice(0), {
+  const response = new Response(payload.body.slice(0), {
     status: payload.status,
     statusText: payload.statusText,
     headers: payload.headers,
   })
+  Object.defineProperty(response, 'url', { value: payload.url })
+  return response
+}
+
+export function isOfflineNavigationRSCResponsePayload(
+  payload: unknown
+): payload is OfflineNavigationRSCResponsePayload {
+  if (payload === null || typeof payload !== 'object') {
+    return false
+  }
+
+  const candidate = payload as Partial<OfflineNavigationRSCResponsePayload>
+  return (
+    candidate.version === RSC_RESPONSE_PAYLOAD_VERSION &&
+    candidate.kind === 'rsc-response' &&
+    (candidate.requestKind === 'navigation' ||
+      candidate.requestKind === 'route-prefetch' ||
+      candidate.requestKind === 'client-resume') &&
+    typeof candidate.url === 'string' &&
+    typeof candidate.status === 'number' &&
+    typeof candidate.statusText === 'string' &&
+    Array.isArray(candidate.headers) &&
+    candidate.body instanceof ArrayBuffer
+  )
 }
 
 export async function writeOfflineNavigationRSCResponseCacheEntry({
