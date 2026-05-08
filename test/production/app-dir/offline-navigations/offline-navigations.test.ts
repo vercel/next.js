@@ -2954,6 +2954,94 @@ describe('offlineNavigations build artifacts', () => {
     }
   })
 
+  it('shows cache miss when IndexedDB is unavailable during fallback boot', async () => {
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        async beforePageLoad(p: Playwright.Page) {
+          page = p
+          await p.addInitScript(() => {
+            Object.defineProperty(window, 'indexedDB', {
+              configurable: true,
+              value: undefined,
+            })
+          })
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+      expect(await browser.eval(() => typeof indexedDB)).toBe('undefined')
+
+      await next.stop()
+      await page!.context().setOffline(true)
+      const response = await page!.goto(`${next.url}/docs/idb-unavailable/`, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(response?.status()).toBe(200)
+
+      await retry(async () => {
+        expect(
+          await browser.eval(() => {
+            const cacheMiss = document.getElementById(
+              '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
+            )
+            return cacheMiss === null
+              ? null
+              : {
+                  fallback: document.documentElement.hasAttribute(
+                    'data-next-offline-navigation-fallback'
+                  ),
+                  hidden: cacheMiss.hidden,
+                  reason: cacheMiss.getAttribute(
+                    'data-next-offline-navigation-cache-reason'
+                  ),
+                  text: cacheMiss.textContent,
+                }
+          })
+        ).toEqual({
+          fallback: true,
+          hidden: false,
+          reason: 'missing-entry',
+          text: 'This page is not available offline.',
+        })
+      })
+
+      expect(
+        await browser.eval(() => ({
+          cache: document.documentElement.getAttribute(
+            'data-next-offline-navigation-cache'
+          ),
+          reason: document.documentElement.getAttribute(
+            'data-next-offline-navigation-cache-reason'
+          ),
+          diagnostic:
+            (
+              window as typeof window & {
+                __NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?: Array<unknown>
+              }
+            ).__NEXT_OFFLINE_NAVIGATION_DIAGNOSTICS__?.at(-1) ?? null,
+        }))
+      ).toMatchObject({
+        cache: 'miss',
+        reason: 'missing-entry',
+        diagnostic: {
+          type: 'cache-miss',
+          reason: 'missing-entry',
+          url: `${next.url}/docs/idb-unavailable/`,
+        },
+      })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
   it('does not emit offline navigation artifacts when disabled', async () => {
     await next.patchFile('next.config.js', (content) =>
       content.replace('offlineNavigations: true', 'offlineNavigations: false')
