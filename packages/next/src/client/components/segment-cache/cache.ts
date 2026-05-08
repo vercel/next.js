@@ -65,6 +65,8 @@ import {
   createOfflineNavigationRSCResponse,
   createOfflineNavigationVaryPathKey,
   invalidateOfflineNavigationCacheEntries,
+  invalidateOfflineNavigationRouteRecords,
+  invalidateOfflineNavigationSegmentRecords,
   getOfflineNavigationRSCResponseCacheSkipReason,
   isOfflineNavigationRSCResponsePayload,
   readOfflineNavigationRouteRecords,
@@ -411,7 +413,7 @@ export function invalidateEntirePrefetchCache(
 ): void {
   currentRouteCacheVersion++
   currentSegmentCacheVersion++
-  invalidatePersistentOfflineNavigationCache()
+  invalidatePersistentOfflineNavigationCache('entire')
 
   pingVisibleLinks(nextUrl, tree)
   pingInvalidationListeners(nextUrl, tree)
@@ -429,7 +431,7 @@ export function invalidateRouteCacheEntries(
   tree: FlightRouterState
 ): void {
   currentRouteCacheVersion++
-  invalidatePersistentOfflineNavigationCache()
+  invalidatePersistentOfflineNavigationCache('route')
 
   pingVisibleLinks(nextUrl, tree)
   pingInvalidationListeners(nextUrl, tree)
@@ -447,13 +449,20 @@ export function invalidateSegmentCacheEntries(
   tree: FlightRouterState
 ): void {
   currentSegmentCacheVersion++
-  invalidatePersistentOfflineNavigationCache()
+  invalidatePersistentOfflineNavigationCache('segment')
 
   pingVisibleLinks(nextUrl, tree)
   pingInvalidationListeners(nextUrl, tree)
 }
 
-function invalidatePersistentOfflineNavigationCache(): void {
+type PersistentOfflineNavigationCacheInvalidation =
+  | 'entire'
+  | 'route'
+  | 'segment'
+
+function invalidatePersistentOfflineNavigationCache(
+  kind: PersistentOfflineNavigationCacheInvalidation
+): void {
   if (
     !process.env.__NEXT_OFFLINE_NAVIGATIONS ||
     process.env.__NEXT_DEV_SERVER ||
@@ -464,6 +473,12 @@ function invalidatePersistentOfflineNavigationCache(): void {
   }
 
   void invalidateOfflineNavigationCacheEntries()
+  if (kind === 'entire' || kind === 'route') {
+    void invalidateOfflineNavigationRouteRecords()
+  }
+  if (kind === 'entire' || kind === 'segment') {
+    void invalidateOfflineNavigationSegmentRecords()
+  }
 }
 
 function attachInvalidationListener(task: PrefetchTask): void {
