@@ -5,6 +5,7 @@ import {
   revalidateTag,
   updateTag,
 } from 'next/cache'
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { OfflineStatus } from './offline-status'
 import {
@@ -43,6 +44,15 @@ async function revalidateOfflineNavigationTagAction() {
   revalidateTag('offline-navigation-action', { expire: 0 })
 }
 
+async function mutateOfflineNavigationCookieAction() {
+  'use server'
+  const cookieStore = await cookies()
+  cookieStore.set('offline-navigation-cookie-mutation', `${Date.now()}`, {
+    path: '/',
+    sameSite: 'lax',
+  })
+}
+
 export default function Page() {
   return (
     <>
@@ -70,6 +80,11 @@ export default function Page() {
       <form action={revalidateOfflineNavigationTagAction}>
         <button id="revalidate-offline-navigation-tag" type="submit">
           Revalidate offline navigation tag
+        </button>
+      </form>
+      <form action={mutateOfflineNavigationCookieAction}>
+        <button id="mutate-offline-navigation-cookie" type="submit">
+          Mutate offline navigation cookie
         </button>
       </form>
       <PrefetchButton />
