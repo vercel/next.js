@@ -821,7 +821,7 @@ fn gen_restore_inline_field(field: &FieldInfo) -> TokenStream {
                 if self.#field_name.is_empty() {
                     self.#field_name = source.#field_name;
                 } else {
-                    self.#field_name.extend(source.#field_name);
+                    self.#field_name.merge_restore(source.#field_name);
                 }
             }
         }
@@ -833,7 +833,7 @@ fn gen_restore_inline_field(field: &FieldInfo) -> TokenStream {
                 if self.#field_name.is_empty() {
                     self.#field_name = source.#field_name;
                 } else {
-                    self.#field_name.extend(source.#field_name);
+                    self.#field_name.merge_restore(source.#field_name);
                 }
             }
         }
@@ -3853,7 +3853,7 @@ fn gen_restore_lazy_merge_arm(field: &FieldInfo, discriminant: u8) -> TokenStrea
                     LazyField::#variant_name(v) => v,
                     _ => unreachable!(),
                 };
-                residue.extend(incoming);
+                residue.merge_restore(incoming);
             } else {
                 self.lazy.push(LazyField::#variant_name(incoming));
             }

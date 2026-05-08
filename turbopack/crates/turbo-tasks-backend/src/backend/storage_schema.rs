@@ -855,6 +855,33 @@ impl IsTransient for (CellRef, Option<u64>) {
     }
 }
 
+/// Defines a strategy for merging data from disk into this storage item.
+///
+/// For most types this is a trivial `extend` call
+pub(crate) trait MergeRestore {
+    type Item;
+    fn merge_restore(&mut self, items: impl IntoIterator<Item = Self::Item>);
+}
+
+impl<K, V> MergeRestore for CounterMap<K, V>
+where
+    K: Eq + Hash,
+{
+    type Item = (K, V);
+    fn merge_restore(&mut self, items: impl IntoIterator<Item = Self::Item>) {
+        self.extend(items)
+    }
+}
+impl<V> MergeRestore for AutoSet<V>
+where
+    V: Eq + Hash,
+{
+    type Item = V;
+    fn merge_restore(&mut self, items: impl IntoIterator<Item = Self::Item>) {
+        self.extend(items)
+    }
+}
+
 /// Outcome of a `drop_partial` call: did residue (transient entries that
 /// can't be reconstructed from disk) survive the drop?
 #[must_use]

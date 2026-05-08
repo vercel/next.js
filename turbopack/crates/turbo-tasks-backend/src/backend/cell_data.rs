@@ -23,7 +23,7 @@ use turbo_tasks::{
     CellId, Evictability, SharedReference, ShrinkToFit, ValueTypePersistence, registry,
 };
 
-use crate::backend::storage_schema::{DropPartial, DropPartialOutcome};
+use crate::backend::storage_schema::{DropPartial, DropPartialOutcome, MergeRestore};
 
 /// The value is stored as [`SharedReference`] rather than
 /// [`TypedSharedReference`] because the `CellId` key already carries the
@@ -44,11 +44,10 @@ impl CellData {
     }
 }
 
-impl CellData {
-    /// Merge incoming entries into `self`, preferring residue over the
-    /// incoming value on key conflict.
-    pub(crate) fn extend(&mut self, incoming: impl IntoIterator<Item = (CellId, SharedReference)>) {
-        for (k, v) in incoming {
+impl MergeRestore for CellData {
+    type Item = (CellId, SharedReference);
+    fn merge_restore(&mut self, items: impl IntoIterator<Item = Self::Item>) {
+        for (k, v) in items {
             match self.entry(k) {
                 Entry::Vacant(e) => {
                     e.insert(v);
