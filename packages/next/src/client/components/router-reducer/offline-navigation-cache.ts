@@ -281,7 +281,7 @@ export function getOfflineNavigationRSCResponseCacheSkipReason({
     return 'cross-origin'
   }
 
-  if (!supportsPerSegmentPrefetching) {
+  if (!supportsPerSegmentPrefetching && requestKind !== 'initial-load') {
     return 'unsupported-segment-prefetching'
   }
 
