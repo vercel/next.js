@@ -168,7 +168,7 @@ jobs:
       - name: Get pnpm store directory
         if: ${{ runner.environment == 'github-hosted' }}
         id: get-store-path
-        run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
+        run: echo STORE_PATH="$(pnpm store path)" >> "$GITHUB_OUTPUT"
 
       - name: Cache pnpm store
         if: ${{ runner.environment == 'github-hosted' }}
