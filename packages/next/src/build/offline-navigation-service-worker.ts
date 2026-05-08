@@ -2,6 +2,7 @@ import path from 'node:path'
 
 import { CLIENT_STATIC_FILES_PATH } from '../shared/lib/constants'
 import { OFFLINE_NAVIGATION_SERVICE_WORKER } from '../shared/lib/offline-navigation'
+import { OFFLINE_NAVIGATION_FALLBACK_SERVED } from '../shared/lib/offline-navigation-constants'
 
 export function getOfflineNavigationServiceWorkerFilePath(): string {
   return path.join(CLIENT_STATIC_FILES_PATH, OFFLINE_NAVIGATION_SERVICE_WORKER)
@@ -25,6 +26,9 @@ export function createOfflineNavigationServiceWorker({
     manifestHref,
     source: 'offline-navigation-service-worker',
   })
+  const fallbackServedMessageType = JSON.stringify(
+    OFFLINE_NAVIGATION_FALLBACK_SERVED
+  )
 
   return `self.__NEXT_OFFLINE_NAVIGATION_SW=${metadata};
 const CACHE_PREFIX='next-offline-navigation-v1:';
@@ -69,10 +73,20 @@ async function fetchDocumentNavigation(request){
     const cache=await caches.open(metadata.cacheNamespace);
     const fallbackResponse=await cache.match(metadata.fallbackDocumentHref);
     if(fallbackResponse){
+      await notifyClients({
+        type:${fallbackServedMessageType},
+        buildId:metadata.buildId,
+        reason:'network-error',
+        url:request.url
+      });
       return fallbackResponse;
     }
     throw err;
   }
+}
+async function notifyClients(message){
+  const clients=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+  await Promise.all(clients.map((client)=>client.postMessage(message)));
 }
 self.addEventListener('install',(event)=>{
   event.waitUntil((async()=>{
