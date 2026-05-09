@@ -228,9 +228,9 @@ describe('build-output-prerender', () => {
              6 |
            To debug the issue, start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
            Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
-           Error: Route "/server": Next.js encountered \`Math.random()\` during the initial render.
+           Error: Route "/server": Next.js encountered \`Math.random()\` without an explicit rendering intent.
 
-           This value must either be prerendered or computed per request.
+           This value can change between renders, so it must be either prerendered or computed later.
 
            Ways to fix this:
              - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -275,9 +275,9 @@ describe('build-output-prerender', () => {
              6 |
            To debug the issue, start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
            Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
-           Error: Route "/server": Next.js encountered \`Math.random()\` during the initial render.
+           Error: Route "/server": Next.js encountered \`Math.random()\` without an explicit rendering intent.
 
-           This value must either be prerendered or computed per request.
+           This value can change between renders, so it must be either prerendered or computed later.
 
            Ways to fix this:
              - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
