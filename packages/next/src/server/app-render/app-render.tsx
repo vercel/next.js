@@ -1597,8 +1597,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         // catch, the rejection propagated into the React render and React's
         // `serverComponentsErrorHandler` already stamped a digest on the error
         // and emitted it as a Flight error chunk — surfacing it again here
-        // would duplicate the entry in the dev overlay. The presence of
-        // `digest` is exactly the "React saw it" signal.
+        // would duplicate the entry in the dev overlay.
         if (
           invalidDynamicUsageError &&
           !(invalidDynamicUsageError as { digest?: unknown }).digest
@@ -3072,8 +3071,7 @@ async function renderToHTMLOrFlightImpl(
     // didn't catch, the rejection propagated into the React render, and React's
     // `serverComponentsErrorHandler` already stamped a digest on the error and
     // emitted it as a Flight error chunk — surfacing it again here would
-    // duplicate the entry in the dev overlay. The presence of `digest` is
-    // exactly the "React saw it" signal.
+    // duplicate the entry in the dev overlay.
     //
     // The cacheComponents paths forward this themselves via
     // `spawnStaticShellValidationInDev` and the validation-skipped fallback in
@@ -5623,8 +5621,7 @@ async function spawnStaticShellValidationInDevImpl(
     // didn't catch, the rejection propagated into the React render and React's
     // `serverComponentsErrorHandler` already stamped a digest on the error and
     // emitted it as a Flight error chunk — surfacing it again here would
-    // duplicate the entry in the dev overlay. The presence of `digest` is
-    // exactly the "React saw it" signal.
+    // duplicate the entry in the dev overlay.
     if (!(invalidDynamicUsageError as { digest?: unknown }).digest) {
       return logMessagesAndSendErrorsToBrowser([invalidDynamicUsageError], ctx)
     }
