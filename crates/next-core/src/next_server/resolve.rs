@@ -42,41 +42,38 @@ pub enum ExternalPredicate {
 /// possible to resolve them at runtime.
 #[turbo_tasks::value]
 pub(crate) struct ExternalCjsModulesResolvePlugin {
-    root: FileSystemPath,
     predicate: ResolvedVc<ExternalPredicate>,
     import_externals: bool,
+    condition: ResolvedVc<AfterResolvePluginCondition>,
 }
 
 #[turbo_tasks::value_impl]
 impl ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         root: FileSystemPath,
         predicate: ResolvedVc<ExternalPredicate>,
         import_externals: bool,
-    ) -> Vc<Self> {
-        ExternalCjsModulesResolvePlugin {
+    ) -> Result<Vc<Self>> {
+        let condition = AfterResolvePluginCondition::new_with_glob(
             root,
+            Glob::new(rcstr!("**/node_modules/**"), GlobOptions::default()),
+        )
+        .to_resolved()
+        .await?;
+        Ok(ExternalCjsModulesResolvePlugin {
             predicate,
             import_externals,
+            condition,
         }
-        .cell()
+        .cell())
     }
-}
-
-#[turbo_tasks::function]
-fn condition(root: FileSystemPath) -> Vc<AfterResolvePluginCondition> {
-    AfterResolvePluginCondition::new_with_glob(
-        root,
-        Glob::new(rcstr!("**/node_modules/**"), GlobOptions::default()),
-    )
 }
 
 #[turbo_tasks::value_impl]
 impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
-    #[turbo_tasks::function]
     fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition> {
-        condition(self.root.clone())
+        *self.condition
     }
 
     #[turbo_tasks::function]
@@ -85,7 +82,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         fs_path: FileSystemPath,
         lookup_path: FileSystemPath,
         reference_type: ReferenceType,
-        request: ResolvedVc<Request>,
+        request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let request_value = &*request.await?;
         let Request::Module {
@@ -112,10 +109,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let predicate = self.predicate.await?;
         let must_be_external = match &*predicate {
             ExternalPredicate::AllExcept(exceptions) => {
-                if *condition(self.root.clone())
-                    .matches(lookup_path.clone())
-                    .await?
-                {
+                if self.condition.await?.matches(&lookup_path) {
                     return Ok(ResolveResultOption::none());
                 }
 
@@ -214,7 +208,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             Ok(ResolveResultOption::none())
         };
 
-        let mut request = *request;
+        let mut request = request;
         let mut request_str = request_str.to_string();
 
         let node_resolve_options = if is_esm {
@@ -230,7 +224,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 node_resolve_options,
             );
             let Some(result_from_original_location) =
-                *node_resolved_from_original_location.first_source().await?
+                node_resolved_from_original_location.await?.first_source()
             else {
                 if is_esm
                     && !package_subpath.is_empty()
@@ -288,7 +282,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     request,
                     node_resolve_options,
                 );
-                let resolves_equal = if let Some(result) = *node_resolved.first_source().await? {
+                let resolves_equal = if let Some(result) = node_resolved.await?.first_source() {
                     let ident = result.ident().await?;
                     let cjs_path = &ident.path;
                     cjs_path == path

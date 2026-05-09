@@ -1972,10 +1972,7 @@ impl JsValue {
                         "Generator",
                         "A Generator or AsyncGenerator object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator",
                     ),
-                    WellKnownObjectKind::GlobalObject => (
-                        "Object",
-                        "The global Object variable",
-                    ),
+                    WellKnownObjectKind::GlobalObject => ("Object", "The global Object variable"),
                     WellKnownObjectKind::PathModule | WellKnownObjectKind::PathModuleDefault => (
                         "path",
                         "The Node.js path module: https://nodejs.org/api/path.html",
@@ -1984,7 +1981,8 @@ impl JsValue {
                         "fs",
                         "The Node.js fs module: https://nodejs.org/api/fs.html",
                     ),
-                    WellKnownObjectKind::FsExtraModule | WellKnownObjectKind::FsExtraModuleDefault => (
+                    WellKnownObjectKind::FsExtraModule
+                    | WellKnownObjectKind::FsExtraModuleDefault => (
                         "fs-extra",
                         "The Node.js fs-extra module: https://github.com/jprichardson/node-fs-extra",
                     ),
@@ -1996,15 +1994,18 @@ impl JsValue {
                         "url",
                         "The Node.js url module: https://nodejs.org/api/url.html",
                     ),
-                    WellKnownObjectKind::ModuleModule | WellKnownObjectKind::ModuleModuleDefault => (
+                    WellKnownObjectKind::ModuleModule
+                    | WellKnownObjectKind::ModuleModuleDefault => (
                         "module",
                         "The Node.js `module` module: https://nodejs.org/api/module.html",
                     ),
-                    WellKnownObjectKind::WorkerThreadsModule | WellKnownObjectKind::WorkerThreadsModuleDefault => (
+                    WellKnownObjectKind::WorkerThreadsModule
+                    | WellKnownObjectKind::WorkerThreadsModuleDefault => (
                         "worker_threads",
                         "The Node.js `worker_threads` module: https://nodejs.org/api/worker_threads.html",
                     ),
-                    WellKnownObjectKind::ChildProcessModule | WellKnownObjectKind::ChildProcessModuleDefault => (
+                    WellKnownObjectKind::ChildProcessModule
+                    | WellKnownObjectKind::ChildProcessModuleDefault => (
                         "child_process",
                         "The Node.js child_process module: https://nodejs.org/api/child_process.html",
                     ),
@@ -2030,28 +2031,22 @@ impl JsValue {
                     ),
                     WellKnownObjectKind::NodeExpressApp => (
                         "express",
-                        "The Node.js express package: https://github.com/expressjs/express"
+                        "The Node.js express package: https://github.com/expressjs/express",
                     ),
                     WellKnownObjectKind::NodeProtobufLoader => (
                         "@grpc/proto-loader",
-                        "The Node.js @grpc/proto-loader package: https://github.com/grpc/grpc-node"
+                        "The Node.js @grpc/proto-loader package: https://github.com/grpc/grpc-node",
                     ),
                     WellKnownObjectKind::NodeBuffer => (
                         "Buffer",
-                        "The Node.js Buffer object: https://nodejs.org/api/buffer.html#class-buffer"
+                        "The Node.js Buffer object: https://nodejs.org/api/buffer.html#class-buffer",
                     ),
                     WellKnownObjectKind::RequireCache => (
                         "require.cache",
-                        "The CommonJS require.cache object: https://nodejs.org/api/modules.html#requirecache"
+                        "The CommonJS require.cache object: https://nodejs.org/api/modules.html#requirecache",
                     ),
-                    WellKnownObjectKind::ImportMeta => (
-                        "import.meta",
-                        "The import.meta object"
-                    ),
-                    WellKnownObjectKind::ModuleHot => (
-                        "module.hot",
-                        "The module.hot HMR API"
-                    ),
+                    WellKnownObjectKind::ImportMeta => ("import.meta", "The import.meta object"),
+                    WellKnownObjectKind::ModuleHot => ("module.hot", "The module.hot HMR API"),
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -2064,16 +2059,16 @@ impl JsValue {
             JsValue::WellKnownFunction(func) => {
                 let (name, explainer) = match func {
                     WellKnownFunctionKind::ArrayFilter => (
-                      "Array.prototype.filter".to_string(),
-                      "The standard Array.prototype.filter method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter"
+                        "Array.prototype.filter".to_string(),
+                        "The standard Array.prototype.filter method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter",
                     ),
                     WellKnownFunctionKind::ArrayForEach => (
-                      "Array.prototype.forEach".to_string(),
-                      "The standard Array.prototype.forEach method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach"
+                        "Array.prototype.forEach".to_string(),
+                        "The standard Array.prototype.forEach method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach",
                     ),
                     WellKnownFunctionKind::ArrayMap => (
-                      "Array.prototype.map".to_string(),
-                      "The standard Array.prototype.map method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map"
+                        "Array.prototype.map".to_string(),
+                        "The standard Array.prototype.map method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map",
                     ),
                     WellKnownFunctionKind::ObjectAssign => (
                         "Object.assign".to_string(),
@@ -2093,19 +2088,38 @@ impl JsValue {
                     ),
                     WellKnownFunctionKind::Import => (
                         "import".to_string(),
-                        "The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports"
+                        "The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports",
                     ),
-                    WellKnownFunctionKind::Require => ("require".to_string(), "The require method from CommonJS"),
+                    WellKnownFunctionKind::Require => {
+                        ("require".to_string(), "The require method from CommonJS")
+                    }
                     WellKnownFunctionKind::RequireFrom(rel) => (
                         format!("createRequire('{rel}')"),
-                        "The return value of Node.js module.createRequire: https://nodejs.org/api/module.html#modulecreaterequirefilename"
+                        "The return value of Node.js module.createRequire: https://nodejs.org/api/module.html#modulecreaterequirefilename",
                     ),
-                    WellKnownFunctionKind::RequireResolve => ("require.resolve".to_string(), "The require.resolve method from CommonJS"),
-                    WellKnownFunctionKind::RequireContext => ("require.context".to_string(), "The require.context method from webpack"),
-                    WellKnownFunctionKind::RequireContextRequire(..) => ("require.context(...)".to_string(), "The require.context(...) method from webpack: https://webpack.js.org/api/module-methods/#requirecontext"),
-                    WellKnownFunctionKind::RequireContextRequireKeys(..) => ("require.context(...).keys".to_string(), "The require.context(...).keys method from webpack: https://webpack.js.org/guides/dependency-management/#requirecontext"),
-                    WellKnownFunctionKind::RequireContextRequireResolve(..) => ("require.context(...).resolve".to_string(), "The require.context(...).resolve method from webpack: https://webpack.js.org/guides/dependency-management/#requirecontext"),
-                    WellKnownFunctionKind::Define => ("define".to_string(), "The define method from AMD"),
+                    WellKnownFunctionKind::RequireResolve => (
+                        "require.resolve".to_string(),
+                        "The require.resolve method from CommonJS",
+                    ),
+                    WellKnownFunctionKind::RequireContext => (
+                        "require.context".to_string(),
+                        "The require.context method from webpack",
+                    ),
+                    WellKnownFunctionKind::RequireContextRequire(..) => (
+                        "require.context(...)".to_string(),
+                        "The require.context(...) method from webpack: https://webpack.js.org/api/module-methods/#requirecontext",
+                    ),
+                    WellKnownFunctionKind::RequireContextRequireKeys(..) => (
+                        "require.context(...).keys".to_string(),
+                        "The require.context(...).keys method from webpack: https://webpack.js.org/guides/dependency-management/#requirecontext",
+                    ),
+                    WellKnownFunctionKind::RequireContextRequireResolve(..) => (
+                        "require.context(...).resolve".to_string(),
+                        "The require.context(...).resolve method from webpack: https://webpack.js.org/guides/dependency-management/#requirecontext",
+                    ),
+                    WellKnownFunctionKind::Define => {
+                        ("define".to_string(), "The define method from AMD")
+                    }
                     WellKnownFunctionKind::FsReadMethod(name) => (
                         format!("fs.{name}"),
                         "A file reading method from the Node.js fs module: https://nodejs.org/api/fs.html",
@@ -2152,63 +2166,63 @@ impl JsValue {
                     ),
                     WellKnownFunctionKind::NodeGypBuild => (
                         "node-gyp-build".to_string(),
-                        "The Node.js node-gyp-build module: https://github.com/prebuild/node-gyp-build"
+                        "The Node.js node-gyp-build module: https://github.com/prebuild/node-gyp-build",
                     ),
                     WellKnownFunctionKind::NodeBindings => (
                         "bindings".to_string(),
-                        "The Node.js bindings module: https://github.com/TooTallNate/node-bindings"
+                        "The Node.js bindings module: https://github.com/TooTallNate/node-bindings",
                     ),
                     WellKnownFunctionKind::NodeExpress => (
                         "express".to_string(),
-                        "require('express')() : https://github.com/expressjs/express"
+                        "require('express')() : https://github.com/expressjs/express",
                     ),
                     WellKnownFunctionKind::NodeExpressSet => (
                         "set".to_string(),
-                        "require('express')().set('view engine', 'jade')  https://github.com/expressjs/express"
+                        "require('express')().set('view engine', 'jade')  https://github.com/expressjs/express",
                     ),
                     WellKnownFunctionKind::NodeStrongGlobalize => (
-                      "SetRootDir".to_string(),
-                      "require('strong-globalize')()  https://github.com/strongloop/strong-globalize"
+                        "SetRootDir".to_string(),
+                        "require('strong-globalize')()  https://github.com/strongloop/strong-globalize",
                     ),
                     WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir => (
-                      "SetRootDir".to_string(),
-                      "require('strong-globalize').SetRootDir(__dirname)  https://github.com/strongloop/strong-globalize"
+                        "SetRootDir".to_string(),
+                        "require('strong-globalize').SetRootDir(__dirname)  https://github.com/strongloop/strong-globalize",
                     ),
                     WellKnownFunctionKind::NodeResolveFrom => (
-                      "resolveFrom".to_string(),
-                      "require('resolve-from')(__dirname, 'node-gyp/bin/node-gyp')  https://github.com/sindresorhus/resolve-from"
+                        "resolveFrom".to_string(),
+                        "require('resolve-from')(__dirname, 'node-gyp/bin/node-gyp')  https://github.com/sindresorhus/resolve-from",
                     ),
                     WellKnownFunctionKind::NodeProtobufLoad => (
-                      "load/loadSync".to_string(),
-                      "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
+                        "load/loadSync".to_string(),
+                        "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node",
                     ),
                     WellKnownFunctionKind::NodeWorkerConstructor => (
-                      "Worker".to_string(),
-                      "The Node.js worker_threads Worker constructor: https://nodejs.org/api/worker_threads.html#worker_threads_class_worker"
+                        "Worker".to_string(),
+                        "The Node.js worker_threads Worker constructor: https://nodejs.org/api/worker_threads.html#worker_threads_class_worker",
                     ),
                     WellKnownFunctionKind::WorkerConstructor => (
-                      "Worker".to_string(),
-                      "The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker"
+                        "Worker".to_string(),
+                        "The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker",
                     ),
                     WellKnownFunctionKind::SharedWorkerConstructor => (
-                      "SharedWorker".to_string(),
-                      "The standard SharedWorker constructor: https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker/SharedWorker"
+                        "SharedWorker".to_string(),
+                        "The standard SharedWorker constructor: https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker/SharedWorker",
                     ),
                     WellKnownFunctionKind::URLConstructor => (
-                      "URL".to_string(),
-                      "The standard URL constructor: https://developer.mozilla.org/en-US/docs/Web/API/URL/URL"
+                        "URL".to_string(),
+                        "The standard URL constructor: https://developer.mozilla.org/en-US/docs/Web/API/URL/URL",
                     ),
                     WellKnownFunctionKind::ModuleHotAccept => (
-                      "module.hot.accept".to_string(),
-                      "The module.hot.accept HMR API: https://webpack.js.org/api/hot-module-replacement/#accept"
+                        "module.hot.accept".to_string(),
+                        "The module.hot.accept HMR API: https://webpack.js.org/api/hot-module-replacement/#accept",
                     ),
                     WellKnownFunctionKind::ModuleHotDecline => (
-                      "module.hot.decline".to_string(),
-                      "The module.hot.decline HMR API: https://webpack.js.org/api/hot-module-replacement/#decline"
+                        "module.hot.decline".to_string(),
+                        "The module.hot.decline HMR API: https://webpack.js.org/api/hot-module-replacement/#decline",
                     ),
                     WellKnownFunctionKind::ImportMetaGlob => (
-                      "import.meta.glob".to_string(),
-                      "The import.meta.glob() function from Vite: https://vite.dev/guide/features.html#glob-import"
+                        "import.meta.glob".to_string(),
+                        "The import.meta.glob() function from Vite: https://vite.dev/guide/features.html#glob-import",
                     ),
                 };
                 if depth > 0 {

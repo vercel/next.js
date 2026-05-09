@@ -16,7 +16,7 @@ jobs:
     if: ${{ github.event.workflow_run.event == 'pull_request' && github.repository == 'vercel/next.js' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
 
