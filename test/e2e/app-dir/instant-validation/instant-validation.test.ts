@@ -300,8 +300,8 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1220",
-           "description": "Next.js encountered uncached data during the initial render.",
+           "code": "E1253",
+           "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (23:19) @ Dynamic
@@ -423,8 +423,8 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1220",
-           "description": "Next.js encountered uncached data during the initial render.",
+           "code": "E1253",
+           "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (8:19) @ Layout
@@ -692,8 +692,8 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1220",
-           "description": "Next.js encountered uncached data during the initial render.",
+           "code": "E1253",
+           "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (24:19) @ Dynamic
@@ -744,7 +744,7 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1247",
+           "code": "E1250",
            "description": "Next.js encountered Date.now() without an explicit rendering intent.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -822,7 +822,7 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1247",
+           "code": "E1250",
            "description": "Next.js encountered Date.now() without an explicit rendering intent.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -925,7 +925,7 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1247",
+           "code": "E1250",
            "description": "Next.js encountered Date.now() without an explicit rendering intent.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -993,7 +993,7 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1247",
+           "code": "E1250",
            "description": "Next.js encountered Date.now() without an explicit rendering intent.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -1089,7 +1089,7 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1247",
+           "code": "E1250",
            "description": "Next.js encountered Date.now() without an explicit rendering intent.",
            "environmentLabel": "Server",
            "label": "Instant",
