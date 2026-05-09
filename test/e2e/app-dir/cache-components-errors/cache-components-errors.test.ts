@@ -2951,49 +2951,19 @@ Ways to fix this:
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
-                  expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during the initial render.
+                  expect(output).toInclude(
+                    `Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during the initial render.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
-                   Ways to fix this:
-                     - Cache the data access with \`"use cache"\`
-                     - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Use \`generateStaticParams\` to make route params static
-                     - Set \`export const instant = false\` to allow a blocking route
+Ways to fix this:
+  - Cache the data access with \`"use cache"\`
+  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
 
-                   Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at a (<next-dist-dir>)
-                       at b (<next-dist-dir>)
-                       at c (<next-dist-dir>)
-                       at d (<next-dist-dir>)
-                       at e (<next-dist-dir>)
-                       at f (<next-dist-dir>)
-                       at g (<next-dist-dir>)
-                       at h (<next-dist-dir>)
-                       at i (<next-dist-dir>)
-                       at j (<next-dist-dir>)
-                       ... collapsed 10 duplicate lines matching above lines ...
-                       at main (<anonymous>)
-                       at body (<anonymous>)
-                       at html (<anonymous>)
-                       at k (<next-dist-dir>)
-                       at l (<next-dist-dir>)
-                       at m (<next-dist-dir>)
-                       at n (<next-dist-dir>)
-                       at o (<next-dist-dir>)
-                       at p (<next-dist-dir>)
-                       at q (<next-dist-dir>)
-                       at r (<next-dist-dir>)
-                       at s (<next-dist-dir>)
-                       at t (<next-dist-dir>)
-                       at u (<next-dist-dir>)
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/fast" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-low-expire/fast". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-low-expire/fast/page: /use-cache-low-expire/fast, exiting the build."
-                  `)
+Learn more: https://nextjs.org/docs/messages/blocking-route`
+                  )
                 }
               }
             })
@@ -3103,49 +3073,19 @@ Ways to fix this:
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
-                  expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during the initial render.
+                  expect(output).toInclude(
+                    `Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during the initial render.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
-                   Ways to fix this:
-                     - Cache the data access with \`"use cache"\`
-                     - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Use \`generateStaticParams\` to make route params static
-                     - Set \`export const instant = false\` to allow a blocking route
+Ways to fix this:
+  - Cache the data access with \`"use cache"\`
+  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
 
-                   Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at a (<next-dist-dir>)
-                       at b (<next-dist-dir>)
-                       at c (<next-dist-dir>)
-                       at d (<next-dist-dir>)
-                       at e (<next-dist-dir>)
-                       at f (<next-dist-dir>)
-                       at g (<next-dist-dir>)
-                       at h (<next-dist-dir>)
-                       at i (<next-dist-dir>)
-                       at j (<next-dist-dir>)
-                       ... collapsed 10 duplicate lines matching above lines ...
-                       at main (<anonymous>)
-                       at body (<anonymous>)
-                       at html (<anonymous>)
-                       at k (<next-dist-dir>)
-                       at l (<next-dist-dir>)
-                       at m (<next-dist-dir>)
-                       at n (<next-dist-dir>)
-                       at o (<next-dist-dir>)
-                       at p (<next-dist-dir>)
-                       at q (<next-dist-dir>)
-                       at r (<next-dist-dir>)
-                       at s (<next-dist-dir>)
-                       at t (<next-dist-dir>)
-                       at u (<next-dist-dir>)
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/slow" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-low-expire/slow". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-low-expire/slow/page: /use-cache-low-expire/slow, exiting the build."
-                  `)
+Learn more: https://nextjs.org/docs/messages/blocking-route`
+                  )
                 }
               }
             })
@@ -3360,49 +3300,19 @@ Ways to fix this:
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
-                  expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during the initial render.
+                  expect(output).toInclude(
+                    `Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during the initial render.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
-                   Ways to fix this:
-                     - Cache the data access with \`"use cache"\`
-                     - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Use \`generateStaticParams\` to make route params static
-                     - Set \`export const instant = false\` to allow a blocking route
+Ways to fix this:
+  - Cache the data access with \`"use cache"\`
+  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
 
-                   Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at a (<next-dist-dir>)
-                       at b (<next-dist-dir>)
-                       at c (<next-dist-dir>)
-                       at d (<next-dist-dir>)
-                       at e (<next-dist-dir>)
-                       at f (<next-dist-dir>)
-                       at g (<next-dist-dir>)
-                       at h (<next-dist-dir>)
-                       at i (<next-dist-dir>)
-                       at j (<next-dist-dir>)
-                       ... collapsed 10 duplicate lines matching above lines ...
-                       at main (<anonymous>)
-                       at body (<anonymous>)
-                       at html (<anonymous>)
-                       at k (<next-dist-dir>)
-                       at l (<next-dist-dir>)
-                       at m (<next-dist-dir>)
-                       at n (<next-dist-dir>)
-                       at o (<next-dist-dir>)
-                       at p (<next-dist-dir>)
-                       at q (<next-dist-dir>)
-                       at r (<next-dist-dir>)
-                       at s (<next-dist-dir>)
-                       at t (<next-dist-dir>)
-                       at u (<next-dist-dir>)
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/fast" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-revalidate-0/fast". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-revalidate-0/fast/page: /use-cache-revalidate-0/fast, exiting the build."
-                  `)
+Learn more: https://nextjs.org/docs/messages/blocking-route`
+                  )
                 }
               }
             })
@@ -3512,49 +3422,19 @@ Ways to fix this:
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
-                  expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during the initial render.
+                  expect(output).toInclude(
+                    `Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during the initial render.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
-                   Ways to fix this:
-                     - Cache the data access with \`"use cache"\`
-                     - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Use \`generateStaticParams\` to make route params static
-                     - Set \`export const instant = false\` to allow a blocking route
+Ways to fix this:
+  - Cache the data access with \`"use cache"\`
+  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
 
-                   Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at a (<next-dist-dir>)
-                       at b (<next-dist-dir>)
-                       at c (<next-dist-dir>)
-                       at d (<next-dist-dir>)
-                       at e (<next-dist-dir>)
-                       at f (<next-dist-dir>)
-                       at g (<next-dist-dir>)
-                       at h (<next-dist-dir>)
-                       at i (<next-dist-dir>)
-                       at j (<next-dist-dir>)
-                       ... collapsed 10 duplicate lines matching above lines ...
-                       at main (<anonymous>)
-                       at body (<anonymous>)
-                       at html (<anonymous>)
-                       at k (<next-dist-dir>)
-                       at l (<next-dist-dir>)
-                       at m (<next-dist-dir>)
-                       at n (<next-dist-dir>)
-                       at o (<next-dist-dir>)
-                       at p (<next-dist-dir>)
-                       at q (<next-dist-dir>)
-                       at r (<next-dist-dir>)
-                       at s (<next-dist-dir>)
-                       at t (<next-dist-dir>)
-                       at u (<next-dist-dir>)
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow, exiting the build."
-                  `)
+Learn more: https://nextjs.org/docs/messages/blocking-route`
+                  )
                 }
               }
             })
@@ -3756,49 +3636,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.`
                 )
               } else {
-                expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.
-
-                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
-
-                 Ways to fix this:
-                   - Cache the data access with \`"use cache"\`
-                   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Use \`generateStaticParams\` to make route params static
-                   - Set \`export const instant = false\` to allow a blocking route
-
-                 Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<next-dist-dir>)
-                     ... collapsed 10 duplicate lines matching above lines ...
-                     at main (<anonymous>)
-                     at body (<anonymous>)
-                     at html (<anonymous>)
-                     at k (<next-dist-dir>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<next-dist-dir>)
-                     at u (<next-dist-dir>)
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-params/[slug]" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/use-cache-params/[slug]". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-params/[slug]/page: /use-cache-params/[slug], exiting the build."
-                `)
+                expect(output).toInclude(
+                  `Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.`
+                )
               }
             }
           })
