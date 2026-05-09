@@ -168,6 +168,7 @@ import {
   DynamicHoleKind,
   trackThrownErrorInNavigation,
   createInstantValidationState,
+  type InstantValidationPhase,
   type NavigationValidationResult,
 } from './dynamic-rendering'
 import { logBuildDebugHint } from './blocking-route-messages'
@@ -5693,7 +5694,8 @@ async function spawnStaticShellValidationInDevImpl(
       fallbackRouteParams,
       ctx,
       hmrRefreshHash,
-      validationSamples
+      validationSamples,
+      ctx.flightRouterState ? 'navigation' : 'initial'
     )
 
     if (instantConfigsResult.length > 0) {
@@ -6055,7 +6057,8 @@ async function validateInstantConfigs(
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   ctx: AppRenderContext,
   hmrRefreshHash: string | undefined,
-  validationSamples: ValidationStoreClient['validationSamples'] | null
+  validationSamples: ValidationStoreClient['validationSamples'] | null,
+  phase: InstantValidationPhase
 ): Promise<Array<unknown>> {
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
@@ -6235,7 +6238,8 @@ async function validateInstantConfigs(
                       payloadResult.hasAmbiguousErrors
                         ? DynamicHoleKind.Runtime
                         : DynamicHoleKind.Dynamic,
-                      boundaryState
+                      boundaryState,
+                      phase
                     )
                   }
                   return
@@ -7069,7 +7073,8 @@ async function validateInstantConfigInBuildWithSample(
       fallbackRouteParams,
       validationCtx,
       undefined, // hmrRefreshHash,
-      validationSamples
+      validationSamples,
+      'initial'
     )
   })
 }
