@@ -678,7 +678,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               variant="runtime"
               kind="sync-io"
               cause={errorDetails.cause}
-              explanation="Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request."
+              explanation="This value must either be prerendered or computed per request."
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
@@ -691,8 +691,8 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           errorType={errorType}
           errorMessage={
             <>
-              Next.js encountered <code>{errorDetails.cause}</code> inside a
-              Client Component without a Suspense boundary above it.
+              Next.js encountered <code>{errorDetails.cause}</code> in a Client
+              Component.
             </>
           }
           onClose={isServerError ? undefined : onClose}

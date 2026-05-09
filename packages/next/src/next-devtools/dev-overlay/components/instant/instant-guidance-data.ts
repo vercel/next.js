@@ -522,7 +522,7 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
     'This prevents the page from being prerendered, leading to a slower user experience.',
   'sync-io': '',
   'sync-io-client':
-    'Without an upstream `<Suspense>` boundary, Next.js has no fallback to prerender in place of this Client Component.',
+    'This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.',
 }
 
 export const NAVIGATION_EXPLANATION =

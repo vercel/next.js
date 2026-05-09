@@ -252,8 +252,8 @@ describe('Cache Components Errors', () => {
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at Dynamic (app/dynamic-metadata-error-route/page.tsx:20:16)
-                   at Page (app/dynamic-metadata-error-route/page.tsx:15:7)
+                   at Dynamic (webpack:///app/dynamic-metadata-error-route/page.tsx:20:16)
+                   at Page (webpack:///app/dynamic-metadata-error-route/page.tsx:15:7)
                  18 | }
                  19 |
                > 20 | async function Dynamic() {
@@ -280,9 +280,30 @@ describe('Cache Components Errors', () => {
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
+                   at a (<next-dist-dir>)
+                   at b (<next-dist-dir>)
+                   at c (<next-dist-dir>)
+                   at d (<next-dist-dir>)
+                   at e (<next-dist-dir>)
+                   at f (<next-dist-dir>)
+                   at g (<next-dist-dir>)
+                   at h (<next-dist-dir>)
+                   at i (<next-dist-dir>)
+                   at j (<next-dist-dir>)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
+                   at k (<next-dist-dir>)
+                   at l (<next-dist-dir>)
+                   at m (<next-dist-dir>)
+                   at n (<next-dist-dir>)
+                   at o (<next-dist-dir>)
+                   at p (<next-dist-dir>)
+                   at q (<next-dist-dir>)
+                   at r (<next-dist-dir>)
+                   at s (<next-dist-dir>)
+                   at t (<next-dist-dir>)
+                   at u (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-metadata-error-route" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -726,9 +747,9 @@ describe('Cache Components Errors', () => {
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at fetchRandom (app/dynamic-root/page.tsx:62:16)
-                   at FetchingComponent (app/dynamic-root/page.tsx:46:56)
-                   at Page (app/dynamic-root/page.tsx:23:9)
+                   at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
+                   at FetchingComponent (webpack:///app/dynamic-root/page.tsx:46:56)
+                   at Page (webpack:///app/dynamic-root/page.tsx:23:9)
                  60 |   // Hide uncached I/O behind a runtime API call, to ensure we still get the
                  61 |   // correct owner stack for the error.
                > 62 |   await cookies()
@@ -748,9 +769,9 @@ describe('Cache Components Errors', () => {
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at fetchRandom (app/dynamic-root/page.tsx:62:16)
-                   at FetchingComponent (app/dynamic-root/page.tsx:46:56)
-                   at Page (app/dynamic-root/page.tsx:28:7)
+                   at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
+                   at FetchingComponent (webpack:///app/dynamic-root/page.tsx:46:56)
+                   at Page (webpack:///app/dynamic-root/page.tsx:28:7)
                  60 |   // Hide uncached I/O behind a runtime API call, to ensure we still get the
                  61 |   // correct owner stack for the error.
                > 62 |   await cookies()
@@ -777,17 +798,31 @@ describe('Cache Components Errors', () => {
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at <unknown> (app/dynamic-root/indirection.tsx:7:34)
+                   at a (<next-dist-dir>)
+                   at b (<next-dist-dir>)
+                   at c (<next-dist-dir>)
+                   at d (<next-dist-dir>)
+                   at e (<next-dist-dir>)
+                   at f (<next-dist-dir>)
+                   at g (<next-dist-dir>)
+                   at h (<next-dist-dir>)
+                   at i (<next-dist-dir>)
+                   at j (<next-dist-dir>)
+                   at k (<next-dist-dir>)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                  5 | }
-                  6 |
-               >  7 | export function IndirectionTwo({ children }) {
-                    |                                  ^
-                  8 |   return children
-                  9 | }
-                 10 |
+                   at l (<next-dist-dir>)
+                   at m (<next-dist-dir>)
+                   at n (<next-dist-dir>)
+                   at o (<next-dist-dir>)
+                   at p (<next-dist-dir>)
+                   at q (<next-dist-dir>)
+                   at r (<next-dist-dir>)
+                   at s (<next-dist-dir>)
+                   at t (<next-dist-dir>)
+                   at u (<next-dist-dir>)
+                   at v (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -802,9 +837,30 @@ describe('Cache Components Errors', () => {
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
+                   at w (<next-dist-dir>)
+                   at x (<next-dist-dir>)
+                   at y (<next-dist-dir>)
+                   at z (<next-dist-dir>)
+                   at a (<next-dist-dir>)
+                   at b (<next-dist-dir>)
+                   at c (<next-dist-dir>)
+                   at d (<next-dist-dir>)
+                   at e (<next-dist-dir>)
+                   at f (<next-dist-dir>)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
+                   at g (<next-dist-dir>)
+                   at h (<next-dist-dir>)
+                   at i (<next-dist-dir>)
+                   at j (<next-dist-dir>)
+                   at k (<next-dist-dir>)
+                   at l (<next-dist-dir>)
+                   at m (<next-dist-dir>)
+                   at n (<next-dist-dir>)
+                   at o (<next-dist-dir>)
+                   at p (<next-dist-dir>)
+                   at q (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -887,7 +943,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` during the initial render.
 
-                 Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+                 This value must either be prerendered or computed per request.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -914,7 +970,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` during the initial render.
 
-                 Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+                 This value must either be prerendered or computed per request.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -922,8 +978,8 @@ describe('Cache Components Errors', () => {
                    - Render the value on the client with \`"use client"\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                     at RandomReadingComponent (app/sync-random-with-fallback/page.tsx:37:23)
-                     at Page (app/sync-random-with-fallback/page.tsx:18:11)
+                     at RandomReadingComponent (webpack:///app/sync-random-with-fallback/page.tsx:37:23)
+                     at Page (webpack:///app/sync-random-with-fallback/page.tsx:18:11)
                    35 |     use(new Promise((r) => process.nextTick(r)))
                    36 |   }
                  > 37 |   const random = Math.random()
@@ -943,7 +999,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` during the initial render.
 
-                 Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+                 This value must either be prerendered or computed per request.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -969,7 +1025,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` during the initial render.
 
-                 Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+                 This value must either be prerendered or computed per request.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -977,14 +1033,7 @@ describe('Cache Components Errors', () => {
                    - Render the value on the client with \`"use client"\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                     at a (app/sync-random-with-fallback/page.tsx:37:23)
-                   35 |     use(new Promise((r) => process.nextTick(r)))
-                   36 |   }
-                 > 37 |   const random = Math.random()
-                      |                       ^
-                   38 |   return (
-                   39 |     <div>
-                   40 |       <span id="rand">{random}</span>
+                     at a (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-random-with-fallback" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1043,7 +1092,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` during the initial render.
 
-                 Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+                 This value must either be prerendered or computed per request.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1071,7 +1120,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` during the initial render.
 
-                 Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+                 This value must either be prerendered or computed per request.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1079,9 +1128,9 @@ describe('Cache Components Errors', () => {
                    - Render the value on the client with \`"use client"\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                     at getRandomNumber (app/sync-random-without-fallback/page.tsx:32:15)
-                     at RandomReadingComponent (app/sync-random-without-fallback/page.tsx:40:18)
-                     at Page (app/sync-random-without-fallback/page.tsx:18:11)
+                     at getRandomNumber (webpack:///app/sync-random-without-fallback/page.tsx:32:15)
+                     at RandomReadingComponent (webpack:///app/sync-random-without-fallback/page.tsx:40:18)
+                     at Page (webpack:///app/sync-random-without-fallback/page.tsx:18:11)
                    30 |
                    31 | function getRandomNumber() {
                  > 32 |   return Math.random()
@@ -1101,7 +1150,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` during the initial render.
 
-                 Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+                 This value must either be prerendered or computed per request.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1127,7 +1176,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` during the initial render.
 
-                 Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+                 This value must either be prerendered or computed per request.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1135,14 +1184,7 @@ describe('Cache Components Errors', () => {
                    - Render the value on the client with \`"use client"\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                     at a (app/sync-random-without-fallback/page.tsx:32:15)
-                   30 |
-                   31 | function getRandomNumber() {
-                 > 32 |   return Math.random()
-                      |               ^
-                   33 | }
-                   34 |
-                   35 | function RandomReadingComponent() {
+                     at a (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-random-without-fallback" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -1365,7 +1407,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at CookiesReadingComponent (app/sync-cookies/page.tsx:18:36)
+                     at CookiesReadingComponent (webpack:///app/sync-cookies/page.tsx:18:36)
                    16 | async function CookiesReadingComponent() {
                    17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const token = (cookies() as any).get('token')
@@ -1402,15 +1444,8 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at a (app/sync-cookies/page.tsx:18:36)
-                     at b (<anonymous>)
-                   16 | async function CookiesReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
-                 > 18 |   const token = (cookies() as any).get('token')
-                      |                                    ^
-                   19 |
-                   20 |   return (
-                   21 |     <div> {
+                     at a (<next-dist-dir>)
+                     at b (<anonymous>) {
                    digest: '<error-digest>'
                  }
                  Export encountered an error on /sync-cookies/page: /sync-cookies, exiting the build."
@@ -1706,7 +1741,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at HeadersReadingComponent (app/sync-headers/page.tsx:18:40)
+                     at HeadersReadingComponent (webpack:///app/sync-headers/page.tsx:18:40)
                    16 | async function HeadersReadingComponent() {
                    17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
                  > 18 |   const userAgent = (headers() as any).get('user-agent')
@@ -1743,15 +1778,8 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at a (app/sync-headers/page.tsx:18:40)
-                     at b (<anonymous>)
-                   16 | async function HeadersReadingComponent() {
-                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync...
-                 > 18 |   const userAgent = (headers() as any).get('user-agent')
-                      |                                        ^
-                   19 |   return (
-                   20 |     <div>
-                   21 |       this component reads the \`user-agent\` header synchronously: {userAgent} {
+                     at a (<next-dist-dir>)
+                     at b (<anonymous>) {
                    digest: '<error-digest>'
                  }
                  Export encountered an error on /sync-headers/page: /sync-headers, exiting the build."
@@ -1972,7 +2000,7 @@ describe('Cache Components Errors', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1228",
-               "description": "Next.js encountered new Date() inside a Client Component without a Suspense boundary above it.",
+               "description": "Next.js encountered new Date() in a Client Component.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
@@ -2001,9 +2029,9 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2027,17 +2055,17 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
-                     at Page (app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx:22:9)
+                     at SyncIO (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at Page (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx:22:9)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2055,9 +2083,9 @@ describe('Cache Components Errors', () => {
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2080,23 +2108,16 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at <unknown> (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
-                   3 | export function SyncIO() {
-                   4 |   // This is a sync IO access that should not cause an error
-                 > 5 |   const data = new Date().toISOString()
-                     |                ^
-                   6 |
-                   7 |   return (
-                   8 |     <main>
+                     at a (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/guarded-async-unguarded-clientsync" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2217,8 +2238,8 @@ describe('Cache Components Errors', () => {
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at RequestData (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
-                     at Page (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:27:9)
+                     at RequestData (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
+                     at Page (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:27:9)
                    32 |
                    33 | async function RequestData() {
                  > 34 |   ;(await cookies()).get('foo')
@@ -2261,7 +2282,7 @@ describe('Cache Components Errors', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1228",
-               "description": "Next.js encountered new Date() inside a Client Component without a Suspense boundary above it.",
+               "description": "Next.js encountered new Date() in a Client Component.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
@@ -2290,9 +2311,9 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2316,17 +2337,17 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
-                     at Page (app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx:22:9)
+                     at SyncIO (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at Page (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx:22:9)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2344,9 +2365,9 @@ describe('Cache Components Errors', () => {
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2369,23 +2390,16 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at <unknown> (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
-                   3 | export function SyncIO() {
-                   4 |   // This is a sync IO access that should not cause an error
-                 > 5 |   const data = new Date().toISOString()
-                     |                ^
-                   6 |
-                   7 |   return (
-                   8 |     <main>
+                     at a (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-unguarded-clientsync" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2477,8 +2491,8 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at CookiesReadingComponent (app/use-cache-cookies/page.tsx:22:18)
-                     at Page (app/use-cache-cookies/page.tsx:10:7)
+                     at CookiesReadingComponent (webpack:///app/use-cache-cookies/page.tsx:22:18)
+                     at Page (webpack:///app/use-cache-cookies/page.tsx:10:7)
                    20 |   // in userland.
                    21 |   try {
                  > 22 |     await cookies()
@@ -2495,14 +2509,8 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (app/use-cache-cookies/page.tsx:22:11)
-                   20 |   // in userland.
-                   21 |   try {
-                 > 22 |     await cookies()
-                      |           ^
-                   23 |   } catch {}
-                   24 |
-                   25 |   return null
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-cookies" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2573,8 +2581,8 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at DraftModeEnablingComponent (app/use-cache-draft-mode/page.tsx:20:26)
-                     at Page (app/use-cache-draft-mode/page.tsx:9:7)
+                     at DraftModeEnablingComponent (webpack:///app/use-cache-draft-mode/page.tsx:20:26)
+                     at Page (webpack:///app/use-cache-draft-mode/page.tsx:9:7)
                    18 |   // here to ensure that this error is shown even when it's caught in userland.
                    19 |   try {
                  > 20 |     ;(await draftMode()).enable()
@@ -2610,14 +2618,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (app/use-cache-draft-mode/page.tsx:20:26)
-                   18 |   // here to ensure that this error is shown even when it's caught in userland.
-                   19 |   try {
-                 > 20 |     ;(await draftMode()).enable()
-                      |                          ^
-                   21 |   } catch {}
-                   22 |
-                   23 |   return null
+                     at a (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2707,8 +2708,8 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at HeadersReadingComponent (app/use-cache-headers/page.tsx:21:18)
-                     at Page (app/use-cache-headers/page.tsx:10:7)
+                     at HeadersReadingComponent (webpack:///app/use-cache-headers/page.tsx:21:18)
+                     at Page (webpack:///app/use-cache-headers/page.tsx:10:7)
                    19 |   // to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
                  > 21 |     await headers()
@@ -2725,14 +2726,8 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (app/use-cache-headers/page.tsx:21:11)
-                   19 |   // to ensure that this error is shown even when it's caught in userland.
-                   20 |   try {
-                 > 21 |     await headers()
-                      |           ^
-                   22 |   } catch {}
-                   23 |
-                   24 |   return null
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-headers" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2820,8 +2815,8 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-connection used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at ConnectionCallingComponent (app/use-cache-connection/page.tsx:21:21)
-                     at Page (app/use-cache-connection/page.tsx:10:7)
+                     at ConnectionCallingComponent (webpack:///app/use-cache-connection/page.tsx:21:21)
+                     at Page (webpack:///app/use-cache-connection/page.tsx:10:7)
                    19 |   // here to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
                  > 21 |     await connection()
@@ -2838,14 +2833,8 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route /use-cache-connection used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (app/use-cache-connection/page.tsx:21:11)
-                   19 |   // here to ensure that this error is shown even when it's caught in userland.
-                   20 |   try {
-                 > 21 |     await connection()
-                      |           ^
-                   22 |   } catch {}
-                   23 |
-                   24 |   return null
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-connection" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2962,27 +2951,19 @@ Ways to fix this:
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
-                  expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during the initial render.
+                  expect(output).toInclude(
+                    `Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during the initial render.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
-                   Ways to fix this:
-                     - Cache the data access with \`"use cache"\`
-                     - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Use \`generateStaticParams\` to make route params static
-                     - Set \`export const instant = false\` to allow a blocking route
+Ways to fix this:
+  - Cache the data access with \`"use cache"\`
+  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
 
-                   Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at main (<anonymous>)
-                       at body (<anonymous>)
-                       at html (<anonymous>)
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/fast" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-low-expire/fast". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-low-expire/fast/page: /use-cache-low-expire/fast, exiting the build."
-                  `)
+Learn more: https://nextjs.org/docs/messages/blocking-route`
+                  )
                 }
               }
             })
@@ -3092,27 +3073,19 @@ Ways to fix this:
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
-                  expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during the initial render.
+                  expect(output).toInclude(
+                    `Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during the initial render.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
-                   Ways to fix this:
-                     - Cache the data access with \`"use cache"\`
-                     - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Use \`generateStaticParams\` to make route params static
-                     - Set \`export const instant = false\` to allow a blocking route
+Ways to fix this:
+  - Cache the data access with \`"use cache"\`
+  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
 
-                   Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at main (<anonymous>)
-                       at body (<anonymous>)
-                       at html (<anonymous>)
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/slow" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-low-expire/slow". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-low-expire/slow/page: /use-cache-low-expire/slow, exiting the build."
-                  `)
+Learn more: https://nextjs.org/docs/messages/blocking-route`
+                  )
                 }
               }
             })
@@ -3192,7 +3165,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at async Page (app/use-cache-low-expire/nested/page.tsx:20:14)
+                       at async Page (webpack:///app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
                    > 20 |     result = await outerCache()
@@ -3209,14 +3182,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at async k (app/use-cache-low-expire/nested/page.tsx:20:14)
-                     18 |   let result: number | undefined
-                     19 |   try {
-                   > 20 |     result = await outerCache()
-                        |              ^
-                     21 |   } catch {}
-                     22 |
-                     23 |   return (
+                       at a (<next-dist-dir>)
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -3334,27 +3300,19 @@ Ways to fix this:
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
-                  expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during the initial render.
+                  expect(output).toInclude(
+                    `Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during the initial render.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
-                   Ways to fix this:
-                     - Cache the data access with \`"use cache"\`
-                     - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Use \`generateStaticParams\` to make route params static
-                     - Set \`export const instant = false\` to allow a blocking route
+Ways to fix this:
+  - Cache the data access with \`"use cache"\`
+  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
 
-                   Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at main (<anonymous>)
-                       at body (<anonymous>)
-                       at html (<anonymous>)
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/fast" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-revalidate-0/fast". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-revalidate-0/fast/page: /use-cache-revalidate-0/fast, exiting the build."
-                  `)
+Learn more: https://nextjs.org/docs/messages/blocking-route`
+                  )
                 }
               }
             })
@@ -3464,27 +3422,19 @@ Ways to fix this:
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
-                  expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during the initial render.
+                  expect(output).toInclude(
+                    `Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during the initial render.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
-                   Ways to fix this:
-                     - Cache the data access with \`"use cache"\`
-                     - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Use \`generateStaticParams\` to make route params static
-                     - Set \`export const instant = false\` to allow a blocking route
+Ways to fix this:
+  - Cache the data access with \`"use cache"\`
+  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
 
-                   Learn more: https://nextjs.org/docs/messages/blocking-route
-                       at main (<anonymous>)
-                       at body (<anonymous>)
-                       at html (<anonymous>)
-                   To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                     - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/slow" in your browser to investigate the error.
-                     - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                   Error occurred prerendering page "/use-cache-revalidate-0/slow". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-revalidate-0/slow/page: /use-cache-revalidate-0/slow, exiting the build."
-                  `)
+Learn more: https://nextjs.org/docs/messages/blocking-route`
+                  )
                 }
               }
             })
@@ -3566,7 +3516,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at async Page (app/use-cache-revalidate-0/nested/page.tsx:20:14)
+                       at async Page (webpack:///app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
                    > 20 |     result = await outerCache()
@@ -3583,14 +3533,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at async k (app/use-cache-revalidate-0/nested/page.tsx:20:14)
-                     18 |   let result: number | undefined
-                     19 |   try {
-                   > 20 |     result = await outerCache()
-                        |              ^
-                     21 |   } catch {}
-                     22 |
-                     23 |   return (
+                       at a (<next-dist-dir>)
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -3693,27 +3636,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.`
                 )
               } else {
-                expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.
-
-                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
-
-                 Ways to fix this:
-                   - Cache the data access with \`"use cache"\`
-                   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Use \`generateStaticParams\` to make route params static
-                   - Set \`export const instant = false\` to allow a blocking route
-
-                 Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at main (<anonymous>)
-                     at body (<anonymous>)
-                     at html (<anonymous>)
-                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-params/[slug]" in your browser to investigate the error.
-                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-                 Error occurred prerendering page "/use-cache-params/[slug]". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-params/[slug]/page: /use-cache-params/[slug], exiting the build."
-                `)
+                expect(output).toInclude(
+                  `Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.`
+                )
               }
             }
           })
@@ -3930,7 +3855,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route /use-cache-cookies-third-party used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at Page (app/use-cache-cookies-third-party/page.tsx:10:7)
+                       at Page (webpack:///app/use-cache-cookies-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
                       9 |       </p>
                    > 10 |       <CachedCookiesReader />
@@ -3947,7 +3872,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route /use-cache-cookies-third-party used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at ignore-listed frames
+                       at a (<next-dist-dir>)
+                       at b (<next-dist-dir>)
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-cookies-third-party" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -4016,7 +3942,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route /use-cache-draft-mode-third-party used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at Page (app/use-cache-draft-mode-third-party/page.tsx:10:7)
+                       at Page (webpack:///app/use-cache-draft-mode-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
                       9 |       </p>
                    > 10 |       <CachedDraftModeEnabler />
@@ -4045,7 +3971,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route /use-cache-draft-mode-third-party used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at ignore-listed frames
+                       at a (<next-dist-dir>)
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode-third-party" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -4126,7 +4052,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route /use-cache-headers-third-party used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at Page (app/use-cache-headers-third-party/page.tsx:10:7)
+                       at Page (webpack:///app/use-cache-headers-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
                       9 |       </p>
                    > 10 |       <CachedHeadersReader />
@@ -4143,7 +4069,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route /use-cache-headers-third-party used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at ignore-listed frames
+                       at a (<next-dist-dir>)
+                       at b (<next-dist-dir>)
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-headers-third-party" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -4224,7 +4151,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route /use-cache-connection-third-party used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at Page (app/use-cache-connection-third-party/page.tsx:10:7)
+                       at Page (webpack:///app/use-cache-connection-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
                       9 |       </p>
                    > 10 |       <CachedConnectionCaller />
@@ -4241,7 +4168,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 } else {
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route /use-cache-connection-third-party used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
-                       at ignore-listed frames
+                       at a (<next-dist-dir>)
+                       at b (<next-dist-dir>)
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-connection-third-party" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -4333,8 +4261,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
-                     at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                     at async ComponentWithCachedData (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
+                     at <unknown> (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                     at async ComponentWithCachedData (webpack:///app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
                    20 |
                  > 21 | const getCachedData = unstable_cache(async () => {
@@ -4371,15 +4299,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
-                     at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                     at async g (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
-                   19 | }
-                   20 |
-                 > 21 | const getCachedData = unstable_cache(async () => {
-                      |                                      ^
-                   22 |   'use cache: private'
-                   23 |
-                   24 |   return fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
+                     at c (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -4452,7 +4374,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               } else
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at Private (app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at Private (webpack:///app/use-cache-private-in-use-cache/page.tsx:15:1)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -4504,27 +4426,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "⨯ Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at a (<anonymous>)
-                   13 | }
-                   14 |
-                 > 15 | async function Private() {
-                      | ^
-                   16 |   'use cache: private'
-                   17 |
-                   18 |   return <p>Private</p> {
+                     at a (<next-dist-dir>)
+                     at b (<anonymous>) {
                    digest: '<error-digest>'
                  }
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
-                     at <unknown> (app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at b (<anonymous>)
-                   13 | }
-                   14 |
-                 > 15 | async function Private() {
-                      | ^
-                   16 |   'use cache: private'
-                   17 |
-                   18 |   return <p>Private</p> {
+                     at c (<next-dist-dir>)
+                     at d (<anonymous>) {
                    digest: '<error-digest>'
                  }
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -4658,9 +4566,30 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
+                     at c (<next-dist-dir>)
+                     at d (<next-dist-dir>)
+                     at e (<next-dist-dir>)
+                     at f (<next-dist-dir>)
+                     at g (<next-dist-dir>)
+                     at h (<next-dist-dir>)
+                     at i (<next-dist-dir>)
+                     at j (<next-dist-dir>)
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
+                     at k (<next-dist-dir>)
+                     at l (<next-dist-dir>)
+                     at m (<next-dist-dir>)
+                     at n (<next-dist-dir>)
+                     at o (<next-dist-dir>)
+                     at p (<next-dist-dir>)
+                     at q (<next-dist-dir>)
+                     at r (<next-dist-dir>)
+                     at s (<next-dist-dir>)
+                     at t (<next-dist-dir>)
+                     at u (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -4762,7 +4691,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4789,7 +4718,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4798,8 +4727,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
-                   at DateReadingComponent (app/sync-io-current-time/date/page.tsx:19:16)
-                   at Page (app/sync-io-current-time/date/page.tsx:11:9)
+                   at DateReadingComponent (webpack:///app/sync-io-current-time/date/page.tsx:19:16)
+                   at Page (webpack:///app/sync-io-current-time/date/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{Date()}</div>
@@ -4818,7 +4747,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4844,7 +4773,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4853,13 +4782,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
-                   at a (app/sync-io-current-time/date/page.tsx:19:16)
-                 17 | async function DateReadingComponent() {
-                 18 |   await new Promise((r) => process.nextTick(r))
-               > 19 |   return <div>{Date()}</div>
-                    |                ^
-                 20 | }
-                 21 |
+                   at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -4913,7 +4836,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4940,7 +4863,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4949,8 +4872,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
-                   at DateReadingComponent (app/sync-io-current-time/date-now/page.tsx:19:21)
-                   at Page (app/sync-io-current-time/date-now/page.tsx:11:9)
+                   at DateReadingComponent (webpack:///app/sync-io-current-time/date-now/page.tsx:19:21)
+                   at Page (webpack:///app/sync-io-current-time/date-now/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{Date.now()}</div>
@@ -4969,7 +4892,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4995,7 +4918,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5004,13 +4927,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
-                   at a (app/sync-io-current-time/date-now/page.tsx:19:21)
-                 17 | async function DateReadingComponent() {
-                 18 |   await new Promise((r) => process.nextTick(r))
-               > 19 |   return <div>{Date.now()}</div>
-                    |                     ^
-                 20 | }
-                 21 |
+                   at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/date-now" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -5064,7 +4981,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5091,7 +5008,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5100,8 +5017,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
-                   at DateReadingComponent (app/sync-io-current-time/new-date/page.tsx:19:16)
-                   at Page (app/sync-io-current-time/new-date/page.tsx:11:9)
+                   at DateReadingComponent (webpack:///app/sync-io-current-time/new-date/page.tsx:19:16)
+                   at Page (webpack:///app/sync-io-current-time/new-date/page.tsx:11:9)
                  17 | async function DateReadingComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{new Date().toString()}</div>
@@ -5120,7 +5037,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5146,7 +5063,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5155,13 +5072,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
-                   at a (app/sync-io-current-time/new-date/page.tsx:19:16)
-                 17 | async function DateReadingComponent() {
-                 18 |   await new Promise((r) => process.nextTick(r))
-               > 19 |   return <div>{new Date().toString()}</div>
-                    |                ^
-                 20 | }
-                 21 |
+                   at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-current-time/new-date" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -5215,7 +5126,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5241,7 +5152,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5249,8 +5160,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-random/math-random/page.tsx:19:21)
-                   at Page (app/sync-io-random/math-random/page.tsx:11:9)
+                   at SyncIOComponent (webpack:///app/sync-io-random/math-random/page.tsx:19:21)
+                   at Page (webpack:///app/sync-io-random/math-random/page.tsx:11:9)
                  17 | async function SyncIOComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{Math.random()}</div>
@@ -5269,7 +5180,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5294,7 +5205,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5302,13 +5213,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-random/math-random/page.tsx:19:21)
-                 17 | async function SyncIOComponent() {
-                 18 |   await new Promise((r) => process.nextTick(r))
-               > 19 |   return <div>{Math.random()}</div>
-                    |                     ^
-                 20 | }
-                 21 |
+                   at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-random/math-random" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -5362,7 +5267,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5389,7 +5294,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5397,8 +5302,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
-                   at SyncIOComponent (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
-                   at Page (app/sync-io-web-crypto/get-random-value/page.tsx:11:9)
+                   at SyncIOComponent (webpack:///app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
+                   at Page (webpack:///app/sync-io-web-crypto/get-random-value/page.tsx:11:9)
                  18 |   await new Promise((r) => process.nextTick(r))
                  19 |   const buffer = new Uint8Array(8)
                > 20 |   crypto.getRandomValues(buffer)
@@ -5418,7 +5323,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5444,7 +5349,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5452,14 +5357,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
-                   at a (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
-                 18 |   await new Promise((r) => process.nextTick(r))
-                 19 |   const buffer = new Uint8Array(8)
-               > 20 |   crypto.getRandomValues(buffer)
-                    |          ^
-                 21 |   return <div>{buffer.toString()}</div>
-                 22 | }
-                 23 |
+                   at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/get-random-value" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -5513,7 +5411,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5539,7 +5437,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5547,8 +5445,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
-                   at SyncIOComponent (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
-                   at Page (app/sync-io-web-crypto/random-uuid/page.tsx:11:9)
+                   at SyncIOComponent (webpack:///app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
+                   at Page (webpack:///app/sync-io-web-crypto/random-uuid/page.tsx:11:9)
                  17 | async function SyncIOComponent() {
                  18 |   await new Promise((r) => process.nextTick(r))
                > 19 |   return <div>{crypto.randomUUID()}</div>
@@ -5567,7 +5465,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5592,7 +5490,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5600,13 +5498,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
-                   at a (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
-                 17 | async function SyncIOComponent() {
-                 18 |   await new Promise((r) => process.nextTick(r))
-               > 19 |   return <div>{crypto.randomUUID()}</div>
-                    |                       ^
-                 20 | }
-                 21 |
+                   at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-web-crypto/random-uuid" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -5678,7 +5570,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5705,7 +5597,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5733,7 +5625,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5741,12 +5633,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
-                   at Page (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:12:9)
+                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:17)
+                   at Page (webpack:///app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
-                    |                        ^
+                    |                 ^
                  21 |   return <div>{first.publicKey}</div>
                  22 | }
                  23 |
@@ -5760,7 +5652,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5768,14 +5660,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
-                 18 | async function SyncIOComponent() {
-                 19 |   await new Promise((r) => process.nextTick(r))
-               > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
-                    |                        ^
-                 21 |   return <div>{first.publicKey}</div>
-                 22 | }
-                 23 |
+                   at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-pair-sync" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -5847,7 +5732,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5874,7 +5759,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5902,7 +5787,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5910,15 +5795,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
-                   at Page (app/sync-io-node-crypto/generate-key-sync/page.tsx:12:9)
+                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-key-sync/page.tsx:20:17)
+                   at Page (webpack:///app/sync-io-node-crypto/generate-key-sync/page.tsx:12:9)
+                 18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
-                 20 |   const first = crypto
-               > 21 |     .generateKeySync('hmac', {
-                    |      ^
+               > 20 |   const first = crypto
+                    |                 ^
+                 21 |     .generateKeySync('hmac', {
                  22 |       length: 512,
                  23 |     })
-                 24 |     .export()
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-sync" in your browser to investigate the error.
                Error occurred prerendering page "/sync-io-node-crypto/generate-key-sync". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -5929,7 +5814,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5937,14 +5822,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
-                 19 |   await new Promise((r) => process.nextTick(r))
-                 20 |   const first = crypto
-               > 21 |     .generateKeySync('hmac', {
-                    |      ^
-                 22 |       length: 512,
-                 23 |     })
-                 24 |     .export()
+                   at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-key-sync" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -6016,7 +5894,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6043,7 +5921,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6071,7 +5949,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6079,12 +5957,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
-                   at Page (app/sync-io-node-crypto/generate-prime-sync/page.tsx:12:9)
+                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:32)
+                   at Page (webpack:///app/sync-io-node-crypto/generate-prime-sync/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
-                    |                                       ^
+                    |                                ^
                  21 |   return <div>{first.toString()}</div>
                  22 | }
                  23 |
@@ -6098,7 +5976,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6106,14 +5984,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
-                 18 | async function SyncIOComponent() {
-                 19 |   await new Promise((r) => process.nextTick(r))
-               > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
-                    |                                       ^
-                 21 |   return <div>{first.toString()}</div>
-                 22 | }
-                 23 |
+                   at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/generate-prime-sync" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -6185,7 +6056,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6212,7 +6083,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6240,7 +6111,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6248,12 +6119,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
-                   at SyncIOComponent (app/sync-io-node-crypto/get-random-values/page.tsx:21:10)
-                   at Page (app/sync-io-node-crypto/get-random-values/page.tsx:12:9)
+                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/get-random-values/page.tsx:21:3)
+                   at Page (webpack:///app/sync-io-node-crypto/get-random-values/page.tsx:12:9)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = new Uint8Array(8)
                > 21 |   crypto.getRandomValues(first)
-                    |          ^
+                    |   ^
                  22 |   return <div>{first.toString()}</div>
                  23 | }
                  24 |
@@ -6267,7 +6138,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6275,14 +6146,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
-                   at a (app/sync-io-node-crypto/get-random-values/page.tsx:21:10)
-                 19 |   await new Promise((r) => process.nextTick(r))
-                 20 |   const first = new Uint8Array(8)
-               > 21 |   crypto.getRandomValues(first)
-                    |          ^
-                 22 |   return <div>{first.toString()}</div>
-                 23 | }
-                 24 |
+                   at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/get-random-values" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -6354,7 +6218,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6381,7 +6245,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6409,7 +6273,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6417,12 +6281,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
-                   at Page (app/sync-io-node-crypto/random-bytes/page.tsx:12:9)
+                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-bytes/page.tsx:20:17)
+                   at Page (webpack:///app/sync-io-node-crypto/random-bytes/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomBytes(8)
-                    |                        ^
+                    |                 ^
                  21 |   return <div>{first.toString()}</div>
                  22 | }
                  23 |
@@ -6436,7 +6300,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6444,14 +6308,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
-                 18 | async function SyncIOComponent() {
-                 19 |   await new Promise((r) => process.nextTick(r))
-               > 20 |   const first = crypto.randomBytes(8)
-                    |                        ^
-                 21 |   return <div>{first.toString()}</div>
-                 22 | }
-                 23 |
+                   at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-bytes" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -6523,7 +6380,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6550,7 +6407,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6578,7 +6435,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6586,12 +6443,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
-                   at Page (app/sync-io-node-crypto/random-fill-sync/page.tsx:12:9)
+                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-fill-sync/page.tsx:21:3)
+                   at Page (webpack:///app/sync-io-node-crypto/random-fill-sync/page.tsx:12:9)
                  19 |   await new Promise((r) => process.nextTick(r))
                  20 |   const first = new Uint8Array(16)
                > 21 |   crypto.randomFillSync(first, 4, 8)
-                    |          ^
+                    |   ^
                  22 |   return <div>{first.toString()}</div>
                  23 | }
                  24 |
@@ -6605,7 +6462,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6613,14 +6470,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
-                 19 |   await new Promise((r) => process.nextTick(r))
-                 20 |   const first = new Uint8Array(16)
-               > 21 |   crypto.randomFillSync(first, 4, 8)
-                    |          ^
-                 22 |   return <div>{first.toString()}</div>
-                 23 | }
-                 24 |
+                   at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-fill-sync" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -6692,7 +6542,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6719,7 +6569,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6747,7 +6597,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6755,12 +6605,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
-                   at Page (app/sync-io-node-crypto/random-int-between/page.tsx:12:9)
+                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-int-between/page.tsx:20:17)
+                   at Page (webpack:///app/sync-io-node-crypto/random-int-between/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomInt(128, 256)
-                    |                        ^
+                    |                 ^
                  21 |   return <div>{first}</div>
                  22 | }
                  23 |
@@ -6774,7 +6624,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6782,14 +6632,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
-                 18 | async function SyncIOComponent() {
-                 19 |   await new Promise((r) => process.nextTick(r))
-               > 20 |   const first = crypto.randomInt(128, 256)
-                    |                        ^
-                 21 |   return <div>{first}</div>
-                 22 | }
-                 23 |
+                   at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-between" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -6861,7 +6704,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6888,7 +6731,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6916,7 +6759,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6924,12 +6767,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
-                   at Page (app/sync-io-node-crypto/random-int-up-to/page.tsx:12:9)
+                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-int-up-to/page.tsx:20:17)
+                   at Page (webpack:///app/sync-io-node-crypto/random-int-up-to/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomInt(128)
-                    |                        ^
+                    |                 ^
                  21 |   return <div>{first}</div>
                  22 | }
                  23 |
@@ -6943,7 +6786,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6951,14 +6794,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
-                 18 | async function SyncIOComponent() {
-                 19 |   await new Promise((r) => process.nextTick(r))
-               > 20 |   const first = crypto.randomInt(128)
-                    |                        ^
-                 21 |   return <div>{first}</div>
-                 22 | }
-                 23 |
+                   at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-int-up-to" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -7030,7 +6866,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -7057,7 +6893,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -7085,7 +6921,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -7093,12 +6929,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at SyncIOComponent (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
-                   at Page (app/sync-io-node-crypto/random-uuid/page.tsx:12:9)
+                   at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-uuid/page.tsx:20:17)
+                   at Page (webpack:///app/sync-io-node-crypto/random-uuid/page.tsx:12:9)
                  18 | async function SyncIOComponent() {
                  19 |   await new Promise((r) => process.nextTick(r))
                > 20 |   const first = crypto.randomUUID()
-                    |                        ^
+                    |                 ^
                  21 |   return <div>{first}</div>
                  22 | }
                  23 |
@@ -7112,7 +6948,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` during the initial render.
 
-               Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+               This value must either be prerendered or computed per request.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -7120,14 +6956,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
-                   at a (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
-                 18 | async function SyncIOComponent() {
-                 19 |   await new Promise((r) => process.nextTick(r))
-               > 20 |   const first = crypto.randomUUID()
-                    |                        ^
-                 21 |   return <div>{first}</div>
-                 22 | }
-                 23 |
+                   at a (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/sync-io-node-crypto/random-uuid" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -7249,8 +7078,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at Client (app/client-awaited-io/client.tsx:6:19)
-                   at Page (app/client-awaited-io/page.tsx:5:10)
+                   at Client (webpack:///app/client-awaited-io/client.tsx:6:19)
+                   at Page (webpack:///app/client-awaited-io/page.tsx:5:10)
                  4 |
                  5 | export function Client({ io }: { io: Promise<string> }) {
                > 6 |   const data = use(io)
@@ -7277,16 +7106,30 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
-                   at <unknown> (app/client-awaited-io/client.tsx:5:26)
+                   at a (<next-dist-dir>)
+                   at b (<next-dist-dir>)
+                   at c (<next-dist-dir>)
+                   at d (<next-dist-dir>)
+                   at e (<next-dist-dir>)
+                   at f (<next-dist-dir>)
+                   at g (<next-dist-dir>)
+                   at h (<next-dist-dir>)
+                   at i (<next-dist-dir>)
+                   at j (<next-dist-dir>)
+                   at k (<next-dist-dir>)
                    at body (<anonymous>)
                    at html (<anonymous>)
-                 3 | import { use } from 'react'
-                 4 |
-               > 5 | export function Client({ io }: { io: Promise<string> }) {
-                   |                          ^
-                 6 |   const data = use(io)
-                 7 |   return <div>Data: {data}</div>
-                 8 | }
+                   at l (<next-dist-dir>)
+                   at m (<next-dist-dir>)
+                   at n (<next-dist-dir>)
+                   at o (<next-dist-dir>)
+                   at p (<next-dist-dir>)
+                   at q (<next-dist-dir>)
+                   at r (<next-dist-dir>)
+                   at s (<next-dist-dir>)
+                   at t (<next-dist-dir>)
+                   at u (<next-dist-dir>)
+                   at v (<next-dist-dir>)
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/client-awaited-io" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.

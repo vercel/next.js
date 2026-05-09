@@ -32,7 +32,7 @@ function createSyncIOErrorImpl(
 ): Error {
   return new Error(
     `Route "${route}": Next.js encountered ${expression} during the initial render.\n\n` +
-      `Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.\n\n` +
+      `This value must either be prerendered or computed per request.\n\n` +
       `Ways to fix this:\n` +
       `  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call\n` +
       `  - Prerender and cache the value with \`"use cache"\`\n` +
@@ -70,8 +70,8 @@ export function createSyncIOClientError(
   type: SyncIOApiType
 ): Error {
   return new Error(
-    `Route "${route}": Next.js encountered ${expression} inside a Client Component without a Suspense boundary above it.\n\n` +
-      `Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.\n\n` +
+    `Route "${route}": Next.js encountered ${expression} in a Client Component.\n\n` +
+      `This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.\n\n` +
       `Ways to fix this:\n` +
       `  - Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
       `  - Move the read into a \`useEffect\` or event handler\n` +

@@ -765,7 +765,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io": Next.js encountered \`Date.now()\` during the initial render.
 
-         Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+         This value must either be prerendered or computed per request.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -784,7 +784,7 @@ describe('instant validation', () => {
            11 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
          Error: Route "/suspense-in-root/runtime/invalid-sync-io": Next.js encountered \`Date.now()\` during the initial render.
 
-         Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+         This value must either be prerendered or computed per request.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -843,7 +843,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered \`Date.now()\` during the initial render.
 
-         Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+         This value must either be prerendered or computed per request.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -862,7 +862,7 @@ describe('instant validation', () => {
            15 |       <p>Runtime page with sync IO after cookies: {now}</p>
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered \`Date.now()\` during the initial render.
 
-         Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+         This value must either be prerendered or computed per request.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -881,7 +881,7 @@ describe('instant validation', () => {
            15 |       <p>Runtime page with sync IO after cookies: {now}</p>
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered \`Date.now()\` during the initial render.
 
-         Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+         This value must either be prerendered or computed per request.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1014,7 +1014,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata": Next.js encountered \`Date.now()\` during the initial render.
 
-         Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+         This value must either be prerendered or computed per request.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1033,7 +1033,7 @@ describe('instant validation', () => {
            12 |   }
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata": Next.js encountered \`Date.now()\` during the initial render.
 
-         Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+         This value must either be prerendered or computed per request.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1110,7 +1110,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered \`Date.now()\` during the initial render.
 
-         Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+         This value must either be prerendered or computed per request.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1129,7 +1129,7 @@ describe('instant validation', () => {
            14 |   }
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered \`Date.now()\` during the initial render.
 
-         Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+         This value must either be prerendered or computed per request.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1148,7 +1148,7 @@ describe('instant validation', () => {
            14 |   }
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered \`Date.now()\` during the initial render.
 
-         Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+         This value must either be prerendered or computed per request.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -3384,6 +3384,57 @@ describe('instant validation', () => {
              [cause]: Error [InvariantError]: Invariant: Missing value for segment key: "catchall" with dynamic param type: c. This is a bug in Next.js.
                  at ignore-listed frames
            }
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        }
+      })
+    })
+
+    describe('multi-depth fallback deferral', () => {
+      // The validation outer loop iterates from deepest configured depth
+      // to shallowest. When the deepest iteration only produces a missing-
+      // boundary fallback (i.e., the configured boundary didn't render and
+      // there were no thrown errors), that fallback should be deferred so
+      // a real error from a shallower depth can win. If no shallower depth
+      // surfaces a real error, the deferred fallback eventually surfaces
+      // so the user is still made aware that validation didn't complete.
+
+      it('surfaces deferred fallback when no shallower depth has a real error', async () => {
+        // Outer layout has unstable_instant and validates cleanly. Inner
+        // page has unstable_instant but its parent layout drops {children},
+        // so the inner boundary can't render. Without the deferral, we'd
+        // bail out after the deepest iteration; with deferral, the outer
+        // iteration runs cleanly and the deferred fallback then surfaces.
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/static/multi-depth-deferred-fallback/inner'
+          )
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "description": "Route "/suspense-in-root/static/multi-depth-deferred-fallback/inner": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx (7:33) @ unstable_instant
+           >  7 | export const unstable_instant = { level: 'experimental-error' }
+                |                                 ^",
+             "stack": [
+               "unstable_instant app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx (7:33)",
+             ],
+           }
+          `)
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/static/multi-depth-deferred-fallback/inner'
+          )
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/suspense-in-root/static/multi-depth-deferred-fallback/inner": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.
+               at ignore-listed frames
+           Build-time instant validation failed for route "/suspense-in-root/static/multi-depth-deferred-fallback/inner".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/multi-depth-deferred-fallback/inner" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)

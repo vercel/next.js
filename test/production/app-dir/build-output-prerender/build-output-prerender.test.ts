@@ -71,9 +71,9 @@ describe('build-output-prerender', () => {
         if (isTurbopack) {
           // TODO(veil): Why is the location incomplete unless we enable --no-mangling?
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+           "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
 
-           Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+           This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -95,9 +95,9 @@ describe('build-output-prerender', () => {
           `)
         } else {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+           "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
 
-           Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+           This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -210,9 +210,9 @@ describe('build-output-prerender', () => {
       it('shows all prerender errors with readable stacks and code frames', async () => {
         if (isTurbopack) {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+           "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
 
-           Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+           This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -230,7 +230,7 @@ describe('build-output-prerender', () => {
            Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
            Error: Route "/server": Next.js encountered \`Math.random()\` during the initial render.
 
-           Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+           This value must either be prerendered or computed per request.
 
            Ways to fix this:
              - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -256,9 +256,9 @@ describe('build-output-prerender', () => {
         } else {
           // TODO(veil): Bundler protocols should not appear in stackframes.
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+           "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
 
-           Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+           This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
 
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -277,7 +277,7 @@ describe('build-output-prerender', () => {
            Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
            Error: Route "/server": Next.js encountered \`Math.random()\` during the initial render.
 
-           Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
+           This value must either be prerendered or computed per request.
 
            Ways to fix this:
              - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
