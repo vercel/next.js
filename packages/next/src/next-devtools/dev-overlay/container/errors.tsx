@@ -638,8 +638,8 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           errorType={errorType}
           errorMessage={
             <>
-              Next.js encountered <code>{errorDetails.cause}</code> during the
-              initial render.
+              Next.js encountered <code>{errorDetails.cause}</code> without an
+              explicit rendering intent.
             </>
           }
           onClose={isServerError ? undefined : onClose}
@@ -659,7 +659,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               variant="runtime"
               kind="sync-io"
               cause={errorDetails.cause}
-              explanation="This value must either be prerendered or computed per request."
+              explanation="This value can change between renders, so it must be either prerendered or computed later."
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>

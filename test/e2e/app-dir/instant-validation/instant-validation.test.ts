@@ -744,8 +744,8 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1227",
-           "description": "Next.js encountered Date.now() during the initial render.",
+           "code": "E1247",
+           "description": "Next.js encountered Date.now() without an explicit rendering intent.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/suspense-in-root/runtime/invalid-sync-io/page.tsx (8:20) @ Page
@@ -763,9 +763,9 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-sync-io": Next.js encountered \`Date.now()\` during the initial render.
+         "Error: Route "/suspense-in-root/runtime/invalid-sync-io": Next.js encountered \`Date.now()\` without an explicit rendering intent.
 
-         This value must either be prerendered or computed per request.
+         This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -782,9 +782,9 @@ describe('instant validation', () => {
             9 |   return (
            10 |     <main>
            11 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io": Next.js encountered \`Date.now()\` during the initial render.
+         Error: Route "/suspense-in-root/runtime/invalid-sync-io": Next.js encountered \`Date.now()\` without an explicit rendering intent.
 
-         This value must either be prerendered or computed per request.
+         This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -822,8 +822,8 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1227",
-           "description": "Next.js encountered Date.now() during the initial render.",
+           "code": "E1247",
+           "description": "Next.js encountered Date.now() without an explicit rendering intent.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx (12:20) @ Page
@@ -841,9 +841,9 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered \`Date.now()\` during the initial render.
+         "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered \`Date.now()\` without an explicit rendering intent.
 
-         This value must either be prerendered or computed per request.
+         This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -860,9 +860,9 @@ describe('instant validation', () => {
            13 |   return (
            14 |     <main>
            15 |       <p>Runtime page with sync IO after cookies: {now}</p>
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered \`Date.now()\` during the initial render.
+         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered \`Date.now()\` without an explicit rendering intent.
 
-         This value must either be prerendered or computed per request.
+         This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -879,9 +879,9 @@ describe('instant validation', () => {
            13 |   return (
            14 |     <main>
            15 |       <p>Runtime page with sync IO after cookies: {now}</p>
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered \`Date.now()\` during the initial render.
+         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered \`Date.now()\` without an explicit rendering intent.
 
-         This value must either be prerendered or computed per request.
+         This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -925,8 +925,8 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1227",
-           "description": "Next.js encountered Date.now() during the initial render.",
+           "code": "E1247",
+           "description": "Next.js encountered Date.now() without an explicit rendering intent.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx (28:20) @ Page
@@ -993,8 +993,8 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1227",
-           "description": "Next.js encountered Date.now() during the initial render.",
+           "code": "E1247",
+           "description": "Next.js encountered Date.now() without an explicit rendering intent.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx (9:20) @ Module.generateMetadata
@@ -1012,9 +1012,9 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata": Next.js encountered \`Date.now()\` during the initial render.
+         "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata": Next.js encountered \`Date.now()\` without an explicit rendering intent.
 
-         This value must either be prerendered or computed per request.
+         This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1031,9 +1031,9 @@ describe('instant validation', () => {
            10 |   return {
            11 |     title: \`Sync IO in metadata: \${now}\`,
            12 |   }
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata": Next.js encountered \`Date.now()\` during the initial render.
+         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata": Next.js encountered \`Date.now()\` without an explicit rendering intent.
 
-         This value must either be prerendered or computed per request.
+         This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1089,8 +1089,8 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1227",
-           "description": "Next.js encountered Date.now() during the initial render.",
+           "code": "E1247",
+           "description": "Next.js encountered Date.now() without an explicit rendering intent.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx (11:20) @ Module.generateMetadata
@@ -1108,28 +1108,9 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered \`Date.now()\` during the initial render.
+         "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered \`Date.now()\` without an explicit rendering intent.
 
-         This value must either be prerendered or computed per request.
-
-         Ways to fix this:
-           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-           - Prerender and cache the value with \`"use cache"\`
-           - Render the value on the client with \`"use client"\`
-           - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
-
-         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
-            9 | export async function generateMetadata() {
-           10 |   await cookies()
-         > 11 |   const now = Date.now()
-              |                    ^
-           12 |   return {
-           13 |     title: \`Layout metadata with sync IO: \${now}\`,
-           14 |   }
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered \`Date.now()\` during the initial render.
-
-         This value must either be prerendered or computed per request.
+         This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1146,9 +1127,28 @@ describe('instant validation', () => {
            12 |   return {
            13 |     title: \`Layout metadata with sync IO: \${now}\`,
            14 |   }
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered \`Date.now()\` during the initial render.
+         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered \`Date.now()\` without an explicit rendering intent.
 
-         This value must either be prerendered or computed per request.
+         This value can change between renders, so it must be either prerendered or computed later.
+
+         Ways to fix this:
+           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - Prerender and cache the value with \`"use cache"\`
+           - Render the value on the client with \`"use client"\`
+           - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+
+         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+             at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
+            9 | export async function generateMetadata() {
+           10 |   await cookies()
+         > 11 |   const now = Date.now()
+              |                    ^
+           12 |   return {
+           13 |     title: \`Layout metadata with sync IO: \${now}\`,
+           14 |   }
+         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered \`Date.now()\` without an explicit rendering intent.
+
+         This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
