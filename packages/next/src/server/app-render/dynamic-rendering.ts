@@ -846,8 +846,6 @@ export enum DynamicHoleKind {
   Dynamic = 2,
 }
 
-export type InstantValidationPhase = 'initial' | 'navigation'
-
 /** Stores dynamic reasons used during an SSR render in instant validation. */
 export type InstantValidationState = {
   hasDynamicMetadata: boolean
@@ -885,8 +883,7 @@ export function trackDynamicHoleInNavigation(
   dynamicValidation: InstantValidationState,
   clientDynamic: DynamicTrackingState,
   kind: DynamicHoleKind,
-  boundaryState: ValidationBoundaryTracking,
-  phase: InstantValidationPhase
+  boundaryState: ValidationBoundaryTracking
 ) {
   if (hasOutletRegex.test(componentStack)) {
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
@@ -994,13 +991,9 @@ export function trackDynamicHoleInNavigation(
   }
 
   const error = addErrorContext(
-    phase === 'navigation'
-      ? kind === DynamicHoleKind.Runtime
-        ? createRuntimeBodyErrorInNavigation(workStore.route)
-        : createDynamicBodyErrorInNavigation(workStore.route)
-      : kind === DynamicHoleKind.Runtime
-        ? createRuntimeBodyError(workStore.route)
-        : createDynamicBodyError(workStore.route),
+    kind === DynamicHoleKind.Runtime
+      ? createRuntimeBodyErrorInNavigation(workStore.route)
+      : createDynamicBodyErrorInNavigation(workStore.route),
     componentStack,
     effectiveCreateInstantStack
   )

@@ -629,7 +629,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1221",
+           "code": "E1255",
            "description": "Next.js encountered runtime data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -647,13 +647,14 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/suspense-too-high": Next.js encountered runtime data during the initial render.
+         "Error: Route "/suspense-in-root/static/suspense-too-high": Next.js encountered runtime data during the initial render or a navigation.
 
-         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - Allow runtime prefetch with \`export const prefetch = 'force-runtime'\`
            - Use \`generateStaticParams\` to make route params static
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -692,8 +693,8 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1253",
-           "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1254",
+           "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (24:19) @ Dynamic
@@ -711,9 +712,9 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/suspense-too-high": Next.js encountered uncached data during the initial render.
+         "Error: Route "/suspense-in-root/runtime/suspense-too-high": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`

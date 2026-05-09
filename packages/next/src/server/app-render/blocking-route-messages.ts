@@ -24,8 +24,8 @@ export function createDynamicBodyError(route: string): Error {
 
 export function createRuntimeBodyErrorInNavigation(route: string): Error {
   return new Error(
-    `Route "${route}": Next.js encountered runtime data during a navigation.\n\n` +
-      `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` blocks the navigation from being instant, leading to a slower user experience.\n\n` +
+    `Route "${route}": Next.js encountered runtime data during the initial render or a navigation.\n\n` +
+      `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - Allow runtime prefetch with \`export const prefetch = 'force-runtime'\`\n` +
       `  - Use \`generateStaticParams\` to make route params static\n` +
@@ -37,8 +37,8 @@ export function createRuntimeBodyErrorInNavigation(route: string): Error {
 
 export function createDynamicBodyErrorInNavigation(route: string): Error {
   return new Error(
-    `Route "${route}": Next.js encountered uncached data during a navigation.\n\n` +
-      `\`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` blocks the navigation from being instant, leading to a slower user experience.\n\n` +
+    `Route "${route}": Next.js encountered uncached data during the initial render or a navigation.\n\n` +
+      `\`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - Cache the data access with \`"use cache"\`\n` +
       `  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
