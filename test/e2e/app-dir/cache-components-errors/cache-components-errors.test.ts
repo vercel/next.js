@@ -4282,65 +4282,35 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
             if (isTurbopack) {
               await expect(browser).toDisplayRedbox(`
-               [
-                 {
-                   "code": "E1164",
-                   "description": "Next.js encountered uncached data during the initial render.",
-                   "environmentLabel": "Server",
-                   "label": "Instant",
-                   "source": "app/use-cache-private-in-unstable-cache/page.tsx (16:22) @ ComponentWithCachedData
-               > 16 |   const data = await getCachedData()
-                    |                      ^",
-                   "stack": [
-                     "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:22)",
-                     "Page app/use-cache-private-in-unstable-cache/page.tsx (10:7)",
-                   ],
-                 },
-                 {
-                   "code": "E1016",
-                   "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
-                   "environmentLabel": "Server",
-                   "label": "Runtime Error",
-                   "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <anonymous>
+               {
+                 "code": "E1016",
+                 "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
+                 "environmentLabel": "Server",
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <anonymous>
                > 21 | const getCachedData = unstable_cache(async () => {
                     |                                      ^",
-                   "stack": [
-                     "<anonymous> app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
-                     "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
-                   ],
-                 },
-               ]
+                 "stack": [
+                   "<anonymous> app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
+                   "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
+                 ],
+               }
               `)
             } else {
               await expect(browser).toDisplayRedbox(`
-               [
-                 {
-                   "code": "E1164",
-                   "description": "Next.js encountered uncached data during the initial render.",
-                   "environmentLabel": "Server",
-                   "label": "Instant",
-                   "source": "app/use-cache-private-in-unstable-cache/page.tsx (16:22) @ ComponentWithCachedData
-               > 16 |   const data = await getCachedData()
-                    |                      ^",
-                   "stack": [
-                     "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:22)",
-                     "Page app/use-cache-private-in-unstable-cache/page.tsx (10:7)",
-                   ],
-                 },
-                 {
-                   "code": "E1016",
-                   "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
-                   "environmentLabel": "Server",
-                   "label": "Runtime Error",
-                   "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ eval
+               {
+                 "code": "E1016",
+                 "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
+                 "environmentLabel": "Server",
+                 "label": "Runtime Error",
+                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ eval
                > 21 | const getCachedData = unstable_cache(async () => {
                     |                                      ^",
-                   "stack": [
-                     "eval app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
-                     "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
-                   ],
-                 },
-               ]
+                 "stack": [
+                   "eval app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
+                   "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
+                 ],
+               }
               `)
             }
           })
