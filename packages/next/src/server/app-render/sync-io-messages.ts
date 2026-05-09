@@ -31,8 +31,8 @@ function createSyncIOErrorImpl(
   docsUrl: string
 ): Error {
   return new Error(
-    `Route "${route}": Next.js encountered ${expression} during the initial render.\n\n` +
-      `This value must either be prerendered or computed per request.\n\n` +
+    `Route "${route}": Next.js encountered ${expression} without an explicit rendering intent.\n\n` +
+      `This value can change between renders, so it must be either prerendered or computed later.\n\n` +
       `Ways to fix this:\n` +
       `  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call\n` +
       `  - Prerender and cache the value with \`"use cache"\`\n` +
