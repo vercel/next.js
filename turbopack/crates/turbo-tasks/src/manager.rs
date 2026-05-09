@@ -1185,70 +1185,66 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                 let this = this.clone();
                 let future = async move {
                     abort_on_panic(async {
-                        let mut schedule_again = true;
-                        while schedule_again {
-                            // it's okay for execution ids to overflow and wrap, they're just used
-                            // for an assert
-                            let execution_id = this.execution_id_factory.wrapping_get();
-                            let current_task_state = Arc::new(RwLock::new(CurrentTaskState::new(
-                                task_id,
-                                execution_id,
-                                priority,
-                                false, // in_top_level_task
-                            )));
-                            let single_execution_future = async {
-                                if this.stopped.load(Ordering::Acquire) {
-                                    this.backend.task_execution_canceled(task_id, &*this);
-                                    return false;
-                                }
+                        // it's okay for execution ids to overflow and wrap, they're just used
+                        // for an assert
+                        let execution_id = this.execution_id_factory.wrapping_get();
+                        let current_task_state = Arc::new(RwLock::new(CurrentTaskState::new(
+                            task_id,
+                            execution_id,
+                            priority,
+                            false, // in_top_level_task
+                        )));
+                        let single_execution_future = async {
+                            if this.stopped.load(Ordering::Acquire) {
+                                this.backend.task_execution_canceled(task_id, &*this);
+                                return None;
+                            }
 
-                                let Some(TaskExecutionSpec { future, span }) = this
-                                    .backend
-                                    .try_start_task_execution(task_id, priority, &*this)
-                                else {
-                                    return false;
+                            let TaskExecutionSpec { future, span } = this
+                                .backend
+                                .try_start_task_execution(task_id, priority, &*this)?;
+
+                            async {
+                                let result = CaptureFuture::new(future).await;
+
+                                // wait for all spawned local tasks using `local` to finish
+                                wait_for_local_tasks().await;
+
+                                let result = match result {
+                                    Ok(Ok(raw_vc)) => {
+                                        // This is safe because we waited for all local tasks to
+                                        // complete above
+                                        raw_vc
+                                            .to_non_local_unchecked_sync(&*this)
+                                            .map_err(|err| err.into())
+                                    }
+                                    Ok(Err(err)) => Err(err.into()),
+                                    Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
                                 };
 
-                                async {
-                                    let result = CaptureFuture::new(future).await;
-
-                                    // wait for all spawned local tasks using `local` to finish
-                                    wait_for_local_tasks().await;
-
-                                    let result = match result {
-                                        Ok(Ok(raw_vc)) => {
-                                            // This is safe because we waited for all local tasks to
-                                            // complete above
-                                            raw_vc
-                                                .to_non_local_unchecked_sync(&*this)
-                                                .map_err(|err| err.into())
-                                        }
-                                        Ok(Err(err)) => Err(err.into()),
-                                        Err(err) => {
-                                            Err(TurboTasksExecutionError::Panic(Arc::new(err)))
-                                        }
-                                    };
-
-                                    let finished_state = this.finish_current_task_state();
-                                    let cell_counters = CURRENT_TASK_STATE.with(|ts| {
-                                        ts.write().unwrap().cell_counters.take().unwrap()
-                                    });
-                                    this.backend.task_execution_completed(
-                                        task_id,
-                                        result,
-                                        &cell_counters,
-                                        #[cfg(feature = "verify_determinism")]
-                                        finished_state.stateful,
-                                        finished_state.has_invalidator,
-                                        &*this,
-                                    )
-                                }
-                                .instrument(span)
-                                .await
-                            };
-                            schedule_again = CURRENT_TASK_STATE
-                                .scope(current_task_state, single_execution_future)
-                                .await;
+                                let finished_state = this.finish_current_task_state();
+                                let cell_counters = CURRENT_TASK_STATE
+                                    .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
+                                this.backend.task_execution_completed(
+                                    task_id,
+                                    result,
+                                    &cell_counters,
+                                    #[cfg(feature = "verify_determinism")]
+                                    finished_state.stateful,
+                                    finished_state.has_invalidator,
+                                    &*this,
+                                )
+                            }
+                            .instrument(span)
+                            .await
+                        };
+                        if let Some(stale_priority) = CURRENT_TASK_STATE
+                            .scope(current_task_state, single_execution_future)
+                            .await
+                        {
+                            // Task was stale; re-schedule at the correct invalidation priority so
+                            // other tasks can run in the right priority order.
+                            this.schedule(task_id, stale_priority);
                         }
                         this.finish_foreground_job();
                     })

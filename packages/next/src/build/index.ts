@@ -1852,6 +1852,9 @@ export default async function build(
             appDir: dir,
             relativeAppDir: path.relative(outputFileTracingRoot, dir),
             files: [
+              // distDir `{"type":"commonjs"}` boundary so `.next/server/**/*.js`
+              // is loaded as CJS when the user's project is "type": "module".
+              'package.json',
               ROUTES_MANIFEST,
               path.relative(distDir, pagesManifestPath),
               BUILD_MANIFEST,

@@ -40,7 +40,7 @@ export interface Binding {
       handle: TraceServerHandle,
       options: TraceQueryOptions
     ): TraceQueryResult
-    databaseCompact(path: string): Promise<void>
+    databaseCompact(path: string, nextVersion: string): Promise<void>
 
     nextBuild?: any
   }

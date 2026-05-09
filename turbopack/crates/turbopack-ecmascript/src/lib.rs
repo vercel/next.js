@@ -779,17 +779,16 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyze_ecmascript_module(self, None)
-    }
-
-    #[turbo_tasks::function]
     pub fn options(&self) -> Vc<EcmascriptOptions> {
         *self.options
     }
 }
 
 impl EcmascriptModuleAsset {
+    pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
+        analyze_ecmascript_module(self, None)
+    }
+
     pub async fn parse(&self) -> Result<Vc<ParseResult>> {
         let options = self.options.await?;
         let node_env = self
@@ -1355,23 +1354,22 @@ async fn merge_modules(
                 // TODO looking up an Atom in a Map<RcStr, _>, would ideally work without creating a
                 // RcStr every time.
                 let sym_rc_str: RcStr = sym.as_str().into();
-                let (local, local_ctxt) = if let Some((local, local_ctxt)) =
-                    eval_context_exports.get(&sym_rc_str)
-                {
-                    (Some(local), *local_ctxt)
-                } else if sym.starts_with("__TURBOPACK__imported__module__") {
-                    // The variable corresponding to the `export * as foo from "...";` is generated
-                    // in the module generating the reexport (and it's not listed in the
-                    // eval_context). `EsmAssetReference::code_gen` uses a dummy span when
-                    // generating this variable.
-                    (None, SyntaxContext::empty())
-                } else {
-                    self.error = Err(anyhow::anyhow!(
-                        "Expected to find a local export for {sym} with ctxt {ctxt:#?} in \
+                let (local, local_ctxt) =
+                    if let Some((local, local_ctxt)) = eval_context_exports.get(&sym_rc_str) {
+                        (Some(local), *local_ctxt)
+                    } else if sym.starts_with("__TURBOPACK__imported__module__") {
+                        // The variable corresponding to the `export * as foo from "...";` is generated
+                        // in the module generating the reexport (and it's not listed in the
+                        // eval_context). `EsmAssetReference::code_gen` uses a dummy span when
+                        // generating this variable.
+                        (None, SyntaxContext::empty())
+                    } else {
+                        self.error = Err(anyhow::anyhow!(
+                            "Expected to find a local export for {sym} with ctxt {ctxt:#?} in \
                          {eval_context_exports:?}",
-                    ));
-                    return;
-                };
+                        ));
+                        return;
+                    };
 
                 let global_ctxt = self.get_context_for(module, local_ctxt);
 
