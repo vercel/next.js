@@ -911,8 +911,8 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered Math.random() during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered Math.random() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-random-with-fallback/page.tsx (37:23) @ RandomReadingComponent
@@ -941,9 +941,9 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` during the initial render.
+                 "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` without an explicit rendering intent.
 
-                 This value must either be prerendered or computed per request.
+                 This value can change between renders, so it must be either prerendered or computed later.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -968,9 +968,9 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` during the initial render.
+                 "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` without an explicit rendering intent.
 
-                 This value must either be prerendered or computed per request.
+                 This value can change between renders, so it must be either prerendered or computed later.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -997,9 +997,9 @@ describe('Cache Components Errors', () => {
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` during the initial render.
+                 "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` without an explicit rendering intent.
 
-                 This value must either be prerendered or computed per request.
+                 This value can change between renders, so it must be either prerendered or computed later.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1023,9 +1023,9 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` during the initial render.
+                 "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` without an explicit rendering intent.
 
-                 This value must either be prerendered or computed per request.
+                 This value can change between renders, so it must be either prerendered or computed later.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1059,8 +1059,8 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered Math.random() during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered Math.random() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-random-without-fallback/page.tsx (32:15) @ getRandomNumber
@@ -1090,9 +1090,9 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` during the initial render.
+                 "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` without an explicit rendering intent.
 
-                 This value must either be prerendered or computed per request.
+                 This value can change between renders, so it must be either prerendered or computed later.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1118,9 +1118,9 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` during the initial render.
+                 "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` without an explicit rendering intent.
 
-                 This value must either be prerendered or computed per request.
+                 This value can change between renders, so it must be either prerendered or computed later.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1148,9 +1148,9 @@ describe('Cache Components Errors', () => {
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` during the initial render.
+                 "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` without an explicit rendering intent.
 
-                 This value must either be prerendered or computed per request.
+                 This value can change between renders, so it must be either prerendered or computed later.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1174,9 +1174,9 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` during the initial render.
+                 "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` without an explicit rendering intent.
 
-                 This value must either be prerendered or computed per request.
+                 This value can change between renders, so it must be either prerendered or computed later.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4659,8 +4659,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1227",
-             "description": "Next.js encountered Date.now() during the initial render.",
+             "code": "E1247",
+             "description": "Next.js encountered Date.now() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-current-time/date/page.tsx (19:16) @ DateReadingComponent
@@ -4689,9 +4689,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` during the initial render.
+               "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4716,9 +4716,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` during the initial render.
+               "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4745,9 +4745,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` during the initial render.
+               "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4771,9 +4771,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` during the initial render.
+               "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4804,8 +4804,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1227",
-             "description": "Next.js encountered Date.now() during the initial render.",
+             "code": "E1247",
+             "description": "Next.js encountered Date.now() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-current-time/date-now/page.tsx (19:21) @ DateReadingComponent
@@ -4834,9 +4834,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` during the initial render.
+               "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4861,9 +4861,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` during the initial render.
+               "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4890,9 +4890,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` during the initial render.
+               "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4916,9 +4916,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` during the initial render.
+               "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4949,8 +4949,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1227",
-             "description": "Next.js encountered Date.now() during the initial render.",
+             "code": "E1247",
+             "description": "Next.js encountered Date.now() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-current-time/new-date/page.tsx (19:16) @ DateReadingComponent
@@ -4979,9 +4979,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` during the initial render.
+               "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5006,9 +5006,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` during the initial render.
+               "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5035,9 +5035,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` during the initial render.
+               "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5061,9 +5061,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` during the initial render.
+               "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5094,8 +5094,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1227",
-             "description": "Next.js encountered Math.random() during the initial render.",
+             "code": "E1247",
+             "description": "Next.js encountered Math.random() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-random/math-random/page.tsx (19:21) @ SyncIOComponent
@@ -5124,9 +5124,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` during the initial render.
+               "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5150,9 +5150,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` during the initial render.
+               "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5178,9 +5178,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` during the initial render.
+               "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5203,9 +5203,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` during the initial render.
+               "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5235,8 +5235,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1227",
-             "description": "Next.js encountered crypto.getRandomValues() during the initial render.",
+             "code": "E1247",
+             "description": "Next.js encountered crypto.getRandomValues() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-web-crypto/get-random-value/page.tsx (20:10) @ SyncIOComponent
@@ -5265,9 +5265,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
+               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5292,9 +5292,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
+               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5321,9 +5321,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
+               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5347,9 +5347,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
+               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5379,8 +5379,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1227",
-             "description": "Next.js encountered crypto.randomUUID() during the initial render.",
+             "code": "E1247",
+             "description": "Next.js encountered crypto.randomUUID() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-web-crypto/random-uuid/page.tsx (19:23) @ SyncIOComponent
@@ -5409,9 +5409,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` during the initial render.
+               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5435,9 +5435,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` during the initial render.
+               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5463,9 +5463,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` during the initial render.
+               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5488,9 +5488,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` during the initial render.
+               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5521,8 +5521,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24) @ SyncIOComponent
@@ -5537,8 +5537,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:17) @ SyncIOComponent
@@ -5568,9 +5568,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5595,9 +5595,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5623,9 +5623,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5650,9 +5650,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5683,8 +5683,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered require('node:crypto').generateKeySync(...) during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered require('node:crypto').generateKeySync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6) @ SyncIOComponent
@@ -5699,8 +5699,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered require('node:crypto').generateKeySync(...) during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered require('node:crypto').generateKeySync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (20:17) @ SyncIOComponent
@@ -5730,9 +5730,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5757,9 +5757,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5785,9 +5785,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5812,9 +5812,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5845,8 +5845,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39) @ SyncIOComponent
@@ -5861,8 +5861,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:32) @ SyncIOComponent
@@ -5892,9 +5892,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5919,9 +5919,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5947,9 +5947,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5974,9 +5974,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6007,8 +6007,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered crypto.getRandomValues() during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered crypto.getRandomValues() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/get-random-values/page.tsx (21:10) @ SyncIOComponent
@@ -6023,8 +6023,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered crypto.getRandomValues() during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered crypto.getRandomValues() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/get-random-values/page.tsx (21:3) @ SyncIOComponent
@@ -6054,9 +6054,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6081,9 +6081,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6109,9 +6109,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6136,9 +6136,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6169,8 +6169,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered require('node:crypto').randomBytes(size) during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered require('node:crypto').randomBytes(size) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:24) @ SyncIOComponent
@@ -6185,8 +6185,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered require('node:crypto').randomBytes(size) during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered require('node:crypto').randomBytes(size) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:17) @ SyncIOComponent
@@ -6216,9 +6216,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6243,9 +6243,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6271,9 +6271,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6298,9 +6298,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6331,8 +6331,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered require('node:crypto').randomFillSync(...) during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered require('node:crypto').randomFillSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10) @ SyncIOComponent
@@ -6347,8 +6347,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered require('node:crypto').randomFillSync(...) during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered require('node:crypto').randomFillSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:3) @ SyncIOComponent
@@ -6378,9 +6378,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6405,9 +6405,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6433,9 +6433,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6460,9 +6460,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6493,8 +6493,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered require('node:crypto').randomInt(min, max) during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered require('node:crypto').randomInt(min, max) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:24) @ SyncIOComponent
@@ -6509,8 +6509,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered require('node:crypto').randomInt(min, max) during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered require('node:crypto').randomInt(min, max) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:17) @ SyncIOComponent
@@ -6540,9 +6540,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6567,9 +6567,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6595,9 +6595,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6622,9 +6622,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6655,8 +6655,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered require('node:crypto').randomInt(min, max) during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered require('node:crypto').randomInt(min, max) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24) @ SyncIOComponent
@@ -6671,8 +6671,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered require('node:crypto').randomInt(min, max) during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered require('node:crypto').randomInt(min, max) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:17) @ SyncIOComponent
@@ -6702,9 +6702,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6729,9 +6729,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6757,9 +6757,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6784,9 +6784,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6817,8 +6817,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered require('node:crypto').randomUUID() during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered require('node:crypto').randomUUID() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:24) @ SyncIOComponent
@@ -6833,8 +6833,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1227",
-               "description": "Next.js encountered require('node:crypto').randomUUID() during the initial render.",
+               "code": "E1247",
+               "description": "Next.js encountered require('node:crypto').randomUUID() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:17) @ SyncIOComponent
@@ -6864,9 +6864,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6891,9 +6891,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6919,9 +6919,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6946,9 +6946,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` during the initial render.
+               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` without an explicit rendering intent.
 
-               This value must either be prerendered or computed per request.
+               This value can change between renders, so it must be either prerendered or computed later.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
