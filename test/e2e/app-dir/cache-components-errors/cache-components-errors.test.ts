@@ -1999,7 +1999,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1228",
+               "code": "E1245",
                "description": "Next.js encountered new Date() in a Client Component.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -2281,7 +2281,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1228",
+               "code": "E1245",
                "description": "Next.js encountered new Date() in a Client Component.",
                "environmentLabel": "Server",
                "label": "Instant",
