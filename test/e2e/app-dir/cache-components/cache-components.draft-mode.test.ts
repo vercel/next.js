@@ -39,4 +39,23 @@ describe('cache-components', () => {
       expect(getLines('Route "/draftmode')).toEqual([])
     }
   })
+
+  if (!isNextDev) {
+    it('should stream Suspense fallbacks when draft mode is enabled', async () => {
+      const draftRes = await next.fetch('/draftmode/toggle')
+      const setCookie = draftRes.headers.get('set-cookie')
+      const cookieHeader = { Cookie: setCookie?.split(';', 1)[0] }
+
+      expect(cookieHeader.Cookie).toBeTruthy()
+
+      const $ = await next.render$('/draftmode/streaming', undefined, {
+        headers: cookieHeader,
+      })
+
+      expect($('#draft-mode').text()).toBe('true')
+      expect($('#delayed-runtime-fallback').text()).toBe(
+        'Loading draft content...'
+      )
+    })
+  }
 })

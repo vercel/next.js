@@ -295,6 +295,7 @@ async fn build_internal(
                 origin
                     .resolve_asset(request_vc, origin.resolve_options(), ty)
                     .await?
+                    .await?
                     .first_module()
                     .await?
                     .with_context(|| {
@@ -450,11 +451,10 @@ async fn build_internal(
                             Target::Browser => chunking_context.evaluated_chunk_group_assets(
                                 AssetIdent::from_path(
                                     build_output_root
-                                        .join(
-                                            ecmascript.ident().path().await?.file_stem().unwrap(),
-                                        )?
+                                        .join(ecmascript.ident().await?.path.file_stem().unwrap())?
                                         .with_extension("entry.js"),
-                                ),
+                                )
+                                .into_vc(),
                                 ChunkGroup::Entry(
                                     [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
                                 ),
@@ -469,8 +469,8 @@ async fn build_internal(
                                                 .join(
                                                     ecmascript
                                                         .ident()
-                                                        .path()
                                                         .await?
+                                                        .path
                                                         .file_stem()
                                                         .unwrap(),
                                                 )?

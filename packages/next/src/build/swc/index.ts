@@ -1410,7 +1410,7 @@ async function loadWasm(importPath = '') {
             `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.`
         )
       },
-      databaseCompact(_path: string): Promise<void> {
+      databaseCompact(_path: string, _nextVersion: string): Promise<void> {
         throw new Error(
           'Turbopack database compaction is not supported on this platform'
         )
@@ -1659,8 +1659,11 @@ function loadNative(importPath?: string): Binding {
         queryTraceSpans(handle, options) {
           return (customBindings ?? bindings).queryTraceSpans(handle, options)
         },
-        databaseCompact(dbPath: string) {
-          return (customBindings ?? bindings).turbopackDatabaseCompact(dbPath)
+        databaseCompact(dbPath: string, dbNextVersion: string) {
+          return (customBindings ?? bindings).turbopackDatabaseCompact(
+            dbPath,
+            dbNextVersion
+          )
         },
       },
       mdx: {

@@ -9,6 +9,7 @@ const { linkPackages } =
 
 const PREFER_OFFLINE = process.env.NEXT_TEST_PREFER_OFFLINE === '1'
 const useRspack = process.env.NEXT_TEST_USE_RSPACK === '1'
+const ROOT_PACKAGE_MANAGER = require('../../package.json').packageManager
 
 async function installDependencies(cwd, tmpDir) {
   const args = [
@@ -82,10 +83,24 @@ async function createNextInstall({
         require('console').log('using provided pkg paths')
       } else {
         await rootSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
-          execa('pnpm', ['turbo', 'run', 'pack-for-isolated-tests'], {
-            cwd: origRepoDir,
-            stdio: ['ignore', 'inherit', 'inherit'],
-          })
+          execa(
+            'pnpm',
+            [
+              'turbo',
+              'run',
+              'pack-for-isolated-tests',
+              '--output-logs',
+              'new-only',
+              // Jest tui can't handle Turborepo tui. But we're cutting off stdin
+              // so Turborepo's tui isn't interactive anyway.
+              '--ui',
+              'stream',
+            ],
+            {
+              cwd: origRepoDir,
+              stdio: ['ignore', 'inherit', 'inherit'],
+            }
+          )
         )
 
         if (process.env.NEXT_TEST_WASM) {
@@ -161,6 +176,10 @@ async function createNextInstall({
         path.join(installDir, 'package.json'),
         JSON.stringify(
           {
+            // Pin packageManager so corepack doesn't auto-inject a reference
+            // to the latest version (and rewrite this file mid-test).
+            // Callers can override via packageJson.packageManager.
+            packageManager: ROOT_PACKAGE_MANAGER,
             ...packageJson,
             scripts,
             dependencies: combinedDependencies,

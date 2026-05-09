@@ -422,19 +422,11 @@ impl ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    pub async fn is_types_resolving_enabled(&self) -> Result<Vc<bool>> {
-        let resolve_options_context = self.resolve_options_context.await?;
-        Ok(Vc::cell(
-            resolve_options_context.enable_types && resolve_options_context.enable_typescript,
-        ))
-    }
-
-    #[turbo_tasks::function]
     pub async fn with_types_resolving_enabled(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
-        if *self.is_types_resolving_enabled().await? {
+        let this = self.await?;
+        if this.is_types_resolving_enabled().await? {
             return Ok(self);
         }
-        let this = self.await?;
         let resolve_options_context = *this
             .resolve_options_context
             .with_types_enabled()
@@ -452,6 +444,10 @@ impl ModuleAssetContext {
 }
 
 impl ModuleAssetContext {
+    async fn is_types_resolving_enabled(&self) -> Result<bool> {
+        let resolve_options_context = self.resolve_options_context.await?;
+        Ok(resolve_options_context.enable_types && resolve_options_context.enable_typescript)
+    }
     async fn process_with_transition_rules(
         self: Vc<Self>,
         source: ResolvedVc<Box<dyn Source>>,
@@ -653,7 +649,8 @@ async fn process_default_internal(
     processed_rules: Vec<usize>,
 ) -> Result<Vc<ProcessResult>> {
     let ident = source.ident().to_resolved().await?;
-    let path_ref = ident.path().await?;
+    let ident_ref = ident.await?;
+    let path_ref = &ident_ref.path;
     let options = ModuleOptions::new(
         path_ref.parent(),
         module_asset_context.module_options_context(),
@@ -827,7 +824,7 @@ async fn process_default_internal(
         if processed_rules.contains(&i) {
             continue;
         }
-        if rule.matches(source, &path_ref, &reference_type).await? {
+        if rule.matches(source, path_ref, &reference_type).await? {
             for effect in rule.effects() {
                 match effect {
                     ModuleRuleEffect::Ignore => {
@@ -1024,8 +1021,8 @@ impl AssetContext for ModuleAssetContext {
         );
 
         let mut result = self.process_resolve_result(*result.to_resolved().await?, reference_type);
-
-        if *self.is_types_resolving_enabled().await? {
+        let this = self.await?;
+        if this.is_types_resolving_enabled().await? {
             let types_result = type_resolve(
                 Vc::upcast(PlainResolveOrigin::new(Vc::upcast(self), origin_path)),
                 request,

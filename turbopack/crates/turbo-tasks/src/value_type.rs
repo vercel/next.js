@@ -280,7 +280,9 @@ pub(crate) fn register_all_trait_methods(_: &[&'static ValueType]) {
     for entry in inventory::iter::<CollectableTraitMethods> {
         entry
             .value_type
-            .register_trait(entry.trait_type, entry.methods)
+            .register_trait(entry.trait_type, entry.methods);
+        // Reigster all the rust vtables to support into_trait_ref calling stryles
+        (entry.finalize_vtable_registry)();
     }
 }
 

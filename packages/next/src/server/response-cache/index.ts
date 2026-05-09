@@ -335,7 +335,16 @@ export default class ResponseCache implements ResponseCacheBase {
           })
         : null
 
-      if (previousIncrementalCacheEntry && !context.isOnDemandRevalidate) {
+      // `isStale === -1` signals that the entry is past its `expire` (either
+      // via an expired tag or, with `cacheLife({ expire })`, past the route's
+      // expire time in the prerender manifest). In that case we must NOT
+      // early-resolve with the stale value — instead we fall through to a
+      // blocking revalidation so the response returned to the user is fresh.
+      if (
+        previousIncrementalCacheEntry &&
+        !context.isOnDemandRevalidate &&
+        previousIncrementalCacheEntry.isStale !== -1
+      ) {
         resolve(previousIncrementalCacheEntry)
         resolved = true
 
@@ -353,7 +362,7 @@ export default class ResponseCache implements ResponseCacheBase {
         context.isFallback,
         responseGenerator,
         previousIncrementalCacheEntry,
-        previousIncrementalCacheEntry !== null && !context.isOnDemandRevalidate,
+        resolved,
         undefined,
         context.invocationID
       )

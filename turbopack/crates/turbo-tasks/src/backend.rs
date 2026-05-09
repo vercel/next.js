@@ -558,6 +558,11 @@ pub trait Backend: Sync + Send {
 
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
+    /// Called when a task's execution finishes.
+    ///
+    /// Returns `Some(priority)` if the task was invalidated again while executing and must be
+    /// re-run. The caller is responsible for re-scheduling the task at the returned priority
+    /// (typically lower than the priority of the just-finished run).
     fn task_execution_completed(
         &self,
         task: TaskId,
@@ -566,7 +571,7 @@ pub trait Backend: Sync + Send {
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> bool;
+    ) -> Option<TaskPriority>;
 
     type BackendJob: Send + 'static;
 
