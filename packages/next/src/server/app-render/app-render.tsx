@@ -168,6 +168,7 @@ import {
   DynamicHoleKind,
   trackThrownErrorInNavigation,
   createInstantValidationState,
+  type NavigationValidationResult,
 } from './dynamic-rendering'
 import { logBuildDebugHint } from './blocking-route-messages'
 import {
@@ -6107,21 +6108,10 @@ async function validateInstantConfigs(
   const { implicitTags, nonce, workStore } = ctx
   const isDebugChannelEnabled = !!ctx.renderOpts.setReactDebugChannel
 
-  /**
-   * Build and validate a combined payload at the given URL depth.
-   *
-   * Returns null if no instant config exists at this depth.
-   * Returns an empty array if validation passed.
-   * Returns a non-empty array of errors if validation failed.
-   *
-   * When the initial validation uses static segments and finds errors,
-   * automatically retries with runtime stages to discriminate between
-   * runtime and dynamic errors, returning the more specific result.
-   */
   async function validateAtDepth(
     depth: number,
     groupDepthForValidation: number
-  ): Promise<Array<unknown> | null> {
+  ): Promise<null | NavigationValidationResult> {
     return validateAtDepthImpl(depth, groupDepthForValidation, null)
   }
 
@@ -6129,7 +6119,7 @@ async function validateInstantConfigs(
     depth: number,
     groupDepthForValidation: number,
     previousBoundaryState: null | ValidationBoundaryTracking
-  ): Promise<null | Array<unknown>> {
+  ): Promise<null | NavigationValidationResult> {
     const extraChunksController = new AbortController()
 
     const boundaryState = createValidationBoundaryTracking()
@@ -6211,7 +6201,7 @@ async function validateInstantConfigs(
       validationSampleTracking,
     }
 
-    let errors: Array<unknown>
+    let result: NavigationValidationResult
     try {
       const { prelude: unprocessedPrelude } = await runInSequentialTasks(
         () => {
@@ -6307,7 +6297,7 @@ async function validateInstantConfigs(
 
       const { preludeIsEmpty } = await processPreludeOp(unprocessedPrelude)
 
-      errors = getNavigationDisallowedDynamicReasons(
+      result = getNavigationDisallowedDynamicReasons(
         workStore,
         preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
         instantValidationState,
@@ -6315,7 +6305,7 @@ async function validateInstantConfigs(
         boundaryState
       )
     } catch (thrownValue) {
-      errors = getNavigationDisallowedDynamicReasons(
+      result = getNavigationDisallowedDynamicReasons(
         workStore,
         PreludeState.Errored,
         instantValidationState,
@@ -6324,28 +6314,32 @@ async function validateInstantConfigs(
       )
     }
 
-    // This prerender did not produce any errors
-    if (errors.length === 0) {
-      return []
+    // If the prerender produced no real errors at this depth — either an
+    // empty array (clean) or a deferred-only result (Error/AggregateError
+    // representing a missing-boundary fallback) — there's nothing to
+    // discriminate. Pass it up so the outer loop can hold any deferred
+    // fallback back until every depth has been tried.
+    if (!Array.isArray(result) || result.length === 0) {
+      return result
     }
 
     if (previousBoundaryState === null && payloadResult.hasAmbiguousErrors) {
       // This is the first validation attempt. we prepared a payload where dynamic holes might be runtime data dependencies
       // or dynamic data dependencies. We do a followup validation using a payload with only Runtime segments to discriminate
-      const dynamicOnlyErrors = await validateAtDepthImpl(
+      const dynamicOnlyResult = await validateAtDepthImpl(
         depth,
         groupDepthForValidation,
         boundaryState
       )
 
-      if (dynamicOnlyErrors !== null && dynamicOnlyErrors.length > 0) {
+      if (Array.isArray(dynamicOnlyResult) && dynamicOnlyResult.length > 0) {
         // The dynamic errors only validation found errors to report so we favor those
-        return dynamicOnlyErrors
+        return dynamicOnlyResult
       }
     }
 
-    // If we didn't return some other errors at this point the only thing to return is this validation's errors
-    return errors
+    // If we didn't return some other errors at this point the only thing to return is this validation's result
+    return result
   }
 
   // Discover validation depth bounds from the LoaderTree. The array
@@ -6353,6 +6347,8 @@ async function validateInstantConfigs(
   // (route group segments) between that URL depth and the next.
   const groupDepthsByUrlDepth = discoverValidationDepths(loaderTree)
   const maxDepth = groupDepthsByUrlDepth.length
+
+  let impairedValidation: null | Error | AggregateError = null
 
   for (let depth = maxDepth - 1; depth >= 0; depth--) {
     const maxGroupDepth = groupDepthsByUrlDepth[depth]
@@ -6369,21 +6365,43 @@ async function validateInstantConfigs(
             : '...')
       )
 
-      const errors = await validateAtDepth(depth, currentGroupDepth)
+      const result = await validateAtDepth(depth, currentGroupDepth)
 
-      if (errors === null) {
+      if (Array.isArray(result)) {
+        const errors: Array<Error> = result
+        // Validation completed at least partially.
+        if (errors.length > 0) {
+          // There were issues with producing an instant UI for this attempted navigation
+          debug?.(
+            `  Depth ${depth}+${currentGroupDepth}: ❌ Failed (${errors.length} errors)`
+          )
+          return errors
+        } else {
+          // There is nothing blocking instant UI for this simluated navigation
+          debug?.(`  Depth ${depth}+${currentGroupDepth}: ✅ Passed`)
+        }
+      } else if (result === null) {
+        // There was no validation to perform at this level
         debug?.(`  No config at depth ${depth}+${currentGroupDepth}, skipping.`)
-        continue
+      } else {
+        // Something prevented this level from fully validating but there were no detected errors
+        if (impairedValidation === null) {
+          impairedValidation = result
+        }
       }
+    }
+  }
 
-      if (errors.length > 0) {
-        debug?.(
-          `  Depth ${depth}+${currentGroupDepth}: ❌ Failed (${errors.length} errors)`
-        )
-        return errors
-      }
-
-      debug?.(`  Depth ${depth}+${currentGroupDepth}: ✅ Passed`)
+  if (impairedValidation) {
+    debug?.(
+      `⏸ All depths passed without real errors; surfacing deferred missing-boundary fallback`
+    )
+    if (impairedValidation instanceof AggregateError) {
+      // There is at least one potential cause of the validation blocking
+      return impairedValidation.errors
+    } else {
+      // There was no known cause but we report something anyway
+      return [impairedValidation]
     }
   }
 

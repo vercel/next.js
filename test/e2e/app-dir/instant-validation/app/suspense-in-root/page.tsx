@@ -254,6 +254,9 @@ export default async function Page() {
         <li>
           <DebugLinks href="/suspense-in-root/static/cross-slot-blocking/inner/deep" />
         </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/multi-depth-deferred-fallback/inner" />
+        </li>
       </ul>
 
       <h2>Disable Validation</h2>
