@@ -30,7 +30,7 @@ export function createHeadersInUseCacheError(): Error {
 
 export function createSearchParamsInUseCacheError(): Error {
   return new Error(
-    `\`searchParams\` cannot be read inside "use cache". \`await searchParams\` outside the cached function and pass the values you need as arguments. Learn more: ${NEXT_REQUEST_IN_USE_CACHE}`
+    `\`searchParams\` cannot be read inside "use cache". Await \`searchParams\` outside the cached function and pass the values you need as arguments. Learn more: ${NEXT_REQUEST_IN_USE_CACHE}`
   )
 }
 

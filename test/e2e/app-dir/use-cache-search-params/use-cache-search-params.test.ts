@@ -9,7 +9,7 @@ import {
 import stripAnsi from 'strip-ansi'
 
 const getExpectedErrorMessage = () =>
-  `\`searchParams\` cannot be read inside "use cache". \`await searchParams\` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache`
+  `\`searchParams\` cannot be read inside "use cache". Await \`searchParams\` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache`
 
 describe('use-cache-search-params', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -136,8 +136,8 @@ describe('use-cache-search-params', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E842",
-         "description": "\`searchParams\` cannot be read inside "use cache". \`await searchParams\` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+         "code": "E1223",
+         "description": "\`searchParams\` cannot be read inside "use cache". Await \`searchParams\` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/search-params-used-generate-metadata/page.tsx (9:17) @ generateMetadata
@@ -157,8 +157,8 @@ describe('use-cache-search-params', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E842",
-         "description": "\`searchParams\` cannot be read inside "use cache". \`await searchParams\` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+         "code": "E1223",
+         "description": "\`searchParams\` cannot be read inside "use cache". Await \`searchParams\` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/search-params-used-generate-viewport/page.tsx (9:17) @ generateViewport
