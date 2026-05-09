@@ -172,8 +172,8 @@ describe('use-cache-deadlock-probe', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E236",
-         "description": "Filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means a request-scoped value (e.g. \`cookies()\`, \`searchParams\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+         "code": "E1239",
+         "description": "Filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means a request-scoped value (e.g. \`params\`, \`searchParams\`, \`cookies()\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/also-hangs/page.tsx (5:1) @ getCachedData

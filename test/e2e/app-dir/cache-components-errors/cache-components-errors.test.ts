@@ -2306,7 +2306,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E831",
+               "code": "E1218",
                "description": "\`cookies()\` cannot be called inside "use cache". Read \`cookies()\` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": null,
                "label": "Runtime Error",
@@ -2415,7 +2415,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E829",
+               "code": "E1230",
                "description": "\`draftMode().enable()\` cannot be called inside "use cache". The status of \`draftMode()\` can be read in a cache, but it must not be enabled or disabled there. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": null,
                "label": "Runtime Error",
@@ -2523,7 +2523,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E833",
+               "code": "E1221",
                "description": "\`headers()\` cannot be called inside "use cache". Read \`headers()\` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": null,
                "label": "Runtime Error",
@@ -2630,7 +2630,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E841",
+               "code": "E1227",
                "description": "\`connection()\` cannot be called inside "use cache". A cache entry may be produced before a request exists, so it cannot depend on the request lifecycle. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                "environmentLabel": null,
                "label": "Runtime Error",
@@ -3060,7 +3060,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1009",
+                 "code": "E1244",
                  "description": "Nested "use cache" with short \`expire\` (under 5 minutes) cannot be used inside an outer "use cache" without an explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" with longer \`expire\` to prerender it, or short \`expire\` to keep it dynamic. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -3489,7 +3489,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1000",
+                 "code": "E1247",
                  "description": "Nested "use cache" with \`revalidate: 0\` cannot be used inside an outer "use cache" without an explicit \`cacheLife()\`. Add \`cacheLife()\` to the outer "use cache" with non-zero \`revalidate\` to prerender it, or zero \`revalidate\` to keep it dynamic. Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -3884,7 +3884,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E831",
+                 "code": "E1218",
                  "description": "\`cookies()\` cannot be called inside "use cache". Read \`cookies()\` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -3983,7 +3983,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E829",
+                 "code": "E1230",
                  "description": "\`draftMode().enable()\` cannot be called inside "use cache". The status of \`draftMode()\` can be read in a cache, but it must not be enabled or disabled there. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -4081,7 +4081,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E833",
+                 "code": "E1221",
                  "description": "\`headers()\` cannot be called inside "use cache". Read \`headers()\` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -4180,7 +4180,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E841",
+                 "code": "E1227",
                  "description": "\`connection()\` cannot be called inside "use cache". A cache entry may be produced before a request exists, so it cannot depend on the request lifecycle. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -4283,7 +4283,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             if (isTurbopack) {
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1236",
+                 "code": "E1242",
                  "description": ""use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -4299,7 +4299,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             } else {
               await expect(browser).toDisplayRedbox(`
                {
-                 "code": "E1236",
+                 "code": "E1242",
                  "description": ""use cache: private" cannot be used inside \`unstable_cache()\`. Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                  "environmentLabel": null,
                  "label": "Runtime Error",
@@ -4411,7 +4411,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
             await expect(browser).toDisplayRedbox(`
              {
-               "code": "E1233",
+               "code": "E1240",
                "description": ""use cache: private" cannot be nested inside "use cache". It can only be nested inside another "use cache: private". Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache-private",
                "environmentLabel": null,
                "label": "Runtime Error",
