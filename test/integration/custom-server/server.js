@@ -26,7 +26,17 @@ const { createServer } = require(
   process.env.USE_HTTPS === 'true' ? 'https' : 'http'
 )
 
-const app = next({ dev, hostname: 'localhost', port, dir })
+const app = next({
+  dev,
+  hostname: 'localhost',
+  port,
+  dir,
+  conf: process.env.BASE_PATH
+    ? {
+        basePath: process.env.BASE_PATH,
+      }
+    : undefined,
+})
 const handleNextRequests = app.getRequestHandler()
 
 const httpOptions = {

@@ -421,8 +421,10 @@ class NextCustomServer implements NextWrapperServer {
       isDev: !!this.options.dev,
       onDevServerCleanup,
       hostname: this.options.hostname || 'localhost',
+      customServer: true,
       minimalMode: this.options.minimalMode,
       quiet: this.options.quiet,
+      conf: this.options.conf,
     })
     this.init = initResult
   }

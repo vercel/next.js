@@ -59,7 +59,11 @@ import {
   handleChromeDevtoolsWorkspaceRequest,
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
-import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
+import {
+  getNextConfigRuntime,
+  type NextConfig,
+  type NextConfigComplete,
+} from '../config-shared'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -93,6 +97,7 @@ export async function initialize(opts: {
   serverFastRefresh?: boolean
   startServerSpan?: Span
   quiet?: boolean
+  conf?: NextConfig
 }): Promise<ServerInitResult> {
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
@@ -104,6 +109,7 @@ export async function initialize(opts: {
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
     opts.dir,
     {
+      customConfig: opts.conf,
       silent: false,
       reportExperimentalFeatures(features) {
         experimentalFeatures = features.toSorted(({ key: a }, { key: b }) =>
@@ -753,6 +759,7 @@ export async function initialize(opts: {
     startServerSpan: opts.startServerSpan,
     quiet: opts.quiet,
     onDevServerCleanup: opts.onDevServerCleanup,
+    conf: opts.conf,
     distDir: config.distDir,
     experimentalFeatures,
     cacheComponents: config.cacheComponents,

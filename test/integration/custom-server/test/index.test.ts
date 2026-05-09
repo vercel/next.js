@@ -170,6 +170,18 @@ describe.each([
     })
   })
 
+  describe('with config provided through next()', () => {
+    beforeAll(() => startServer({ BASE_PATH: '/config-test' }))
+    afterAll(() => killApp(server))
+
+    it('should apply basePath routing', async () => {
+      const html = await renderViaHTTP(nextUrl, '/config-test', undefined, {
+        agent,
+      })
+      expect(html).toContain('Asset')
+    })
+  })
+
   // playwright fails with SSL error due to self-signed cert
   if (!useHttps) {
     describe('HMR with custom server', () => {
