@@ -3,7 +3,6 @@ import { trace } from 'next/dist/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { createDefineEnv, loadBindings, HmrTarget } from 'next/dist/build/swc'
 import type {
-  UsedFeature,
   Issue,
   Project,
   RawEntrypoints,
@@ -52,26 +51,6 @@ function normalizeIssues(issues: Issue[]) {
         ...issue.source,
         source: normalizePath(issue.source.source.ident),
       },
-    }))
-    .sort((a, b) => {
-      const a_ = JSON.stringify(a)
-      const b_ = JSON.stringify(b)
-      if (a_ < b_) return -1
-      if (a_ > b_) return 1
-      return 0
-    })
-}
-
-function normalizeFeatures(usedFeatures: UsedFeature[]) {
-  return usedFeatures
-    .map((feature) => ({
-      // Normalize the target-triple in the `featureName` so snapshots are
-      // stable across platforms.
-      featureName: diagnostic.featureName.replace(
-        /^swc\/target\/(x86_64|i686|aarch64)-(apple-darwin|unknown-linux-(gnu|musl)|pc-windows-msvc)$/,
-        'swc/target/platform-triplet'
-      ),
-      invocationCount: diagnostic.invocationCount,
     }))
     .sort((a, b) => {
       const a_ = JSON.stringify(a)
@@ -415,9 +394,6 @@ describe('next.rs api', () => {
       '/route-nodejs',
     ])
     expect(normalizeIssues(entrypoints.value.issues)).toMatchSnapshot('issues')
-    expect(normalizeFeatures(entrypoints.value.diagnostics)).toMatchSnapshot(
-      'diagnostics'
-    )
     await entrypointsSubscription.return()
   })
 
@@ -509,9 +485,6 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeFeatures(result.diagnostics)).toMatchSnapshot(
-            'diagnostics'
-          )
           break
         }
         case 'page': {
@@ -519,17 +492,11 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeFeatures(result.diagnostics)).toMatchSnapshot(
-            'diagnostics'
-          )
 
           const result2 = await route.dataEndpoint.writeToDisk()
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('data issues')
-          expect(normalizeFeatures(result2.diagnostics)).toMatchSnapshot(
-            'data diagnostics'
-          )
           break
         }
         case 'app-page': {
@@ -537,17 +504,11 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeFeatures(result.diagnostics)).toMatchSnapshot(
-            'diagnostics'
-          )
 
           const result2 = await route.pages[0].rscEndpoint.writeToDisk()
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('rsc issues')
-          expect(normalizeFeatures(result2.diagnostics)).toMatchSnapshot(
-            'rsc diagnostics'
-          )
 
           break
         }
@@ -679,10 +640,6 @@ describe('next.rs api', () => {
             expect(result.value).toHaveProperty('resource', expect.toBeObject())
             expect(result.value).toHaveProperty('type', 'issues')
             expect(normalizeIssues(result.value.issues)).toEqual([])
-            expect(result.value).toHaveProperty(
-              'diagnostics',
-              expect.toBeEmpty()
-            )
           })
         )
         console.log('waiting for events')
@@ -726,13 +683,9 @@ describe('next.rs api', () => {
               })(),
               serverSideSubscription &&
                 (async () => {
-                  for await (const {
-                    issues,
-                    diagnostics,
-                  } of serverSideSubscription) {
+                  for await (const { issues } of serverSideSubscription) {
                     if (done) return
                     expect(issues).toBeArray()
-                    expect(diagnostics).toBeArray()
                     foundServerSideChange = true
                   }
                 })(),
@@ -805,7 +758,6 @@ describe('next.rs api', () => {
         expect(result.done).toBe(false)
         expect(result.value).toHaveProperty('resource', expect.toBeObject())
         expect(result.value).toHaveProperty('type', 'issues')
-        expect(result.value).toHaveProperty('diagnostics', expect.toBeEmpty())
       })
     )
     const merged = raceIterators(subscriptions)

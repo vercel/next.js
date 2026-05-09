@@ -1,104 +1,31 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`next.rs api should allow to write app Node.js page to disk: diagnostics 1`] = `[]`;
-
 exports[`next.rs api should allow to write app Node.js page to disk: issues 1`] = `[]`;
-
-exports[`next.rs api should allow to write app Node.js page to disk: rsc diagnostics 1`] = `[]`;
 
 exports[`next.rs api should allow to write app Node.js page to disk: rsc issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write app Node.js route to disk: diagnostics 1`] = `[]`;
-
 exports[`next.rs api should allow to write app Node.js route to disk: issues 1`] = `[]`;
-
-exports[`next.rs api should allow to write app edge page to disk: diagnostics 1`] = `[]`;
 
 exports[`next.rs api should allow to write app edge page to disk: issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write app edge page to disk: rsc diagnostics 1`] = `[]`;
-
 exports[`next.rs api should allow to write app edge page to disk: rsc issues 1`] = `[]`;
-
-exports[`next.rs api should allow to write app edge route to disk: diagnostics 1`] = `[]`;
 
 exports[`next.rs api should allow to write app edge route to disk: issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write pages Node.js api to disk: diagnostics 1`] = `[]`;
-
 exports[`next.rs api should allow to write pages Node.js api to disk: issues 1`] = `[]`;
-
-exports[`next.rs api should allow to write pages Node.js page to disk: data diagnostics 1`] = `[]`;
 
 exports[`next.rs api should allow to write pages Node.js page to disk: data issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write pages Node.js page to disk: diagnostics 1`] = `[]`;
-
 exports[`next.rs api should allow to write pages Node.js page to disk: issues 1`] = `[]`;
-
-exports[`next.rs api should allow to write pages edge api to disk: diagnostics 1`] = `[]`;
 
 exports[`next.rs api should allow to write pages edge api to disk: issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write pages edge page to disk: data diagnostics 1`] = `[]`;
-
 exports[`next.rs api should allow to write pages edge page to disk: data issues 1`] = `[]`;
-
-exports[`next.rs api should allow to write pages edge page to disk: diagnostics 1`] = `[]`;
 
 exports[`next.rs api should allow to write pages edge page to disk: issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write root page to disk: data diagnostics 1`] = `[]`;
-
 exports[`next.rs api should allow to write root page to disk: data issues 1`] = `[]`;
 
-exports[`next.rs api should allow to write root page to disk: diagnostics 1`] = `[]`;
-
 exports[`next.rs api should allow to write root page to disk: issues 1`] = `[]`;
-
-exports[`next.rs api should detect the correct routes: diagnostics 1`] = `
-[
-  {
-    "featureName": "modularizeImports",
-    "invocationCount": 1,
-  },
-  {
-    "featureName": "skipProxyUrlNormalize",
-    "invocationCount": 0,
-  },
-  {
-    "featureName": "skipTrailingSlashRedirect",
-    "invocationCount": 0,
-  },
-  {
-    "featureName": "swc/target/platform-triplet",
-    "invocationCount": 1,
-  },
-  {
-    "featureName": "swcEmotion",
-    "invocationCount": 0,
-  },
-  {
-    "featureName": "swcReactRemoveProperties",
-    "invocationCount": 0,
-  },
-  {
-    "featureName": "swcRelay",
-    "invocationCount": 0,
-  },
-  {
-    "featureName": "swcRemoveConsole",
-    "invocationCount": 0,
-  },
-  {
-    "featureName": "swcStyledComponents",
-    "invocationCount": 0,
-  },
-  {
-    "featureName": "transpilePackages",
-    "invocationCount": 0,
-  },
-]
-`;
 
 exports[`next.rs api should detect the correct routes: issues 1`] = `[]`;
