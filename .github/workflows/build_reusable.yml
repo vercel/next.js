@@ -96,6 +96,11 @@ on:
         required: false
         type: string
         default: 'chromium'
+      needsPlaywright:
+        description: 'whether Playwright browser installation is needed'
+        required: false
+        type: string
+        default: 'yes'
 env:
   NAPI_CLI_VERSION: 2.18.4
   TURBO_VERSION: 2.9.4
@@ -324,7 +329,7 @@ jobs:
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - name: Install Playwright browsers
-        if: ${{ inputs.skipInstallBuild != 'yes' }}
+        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' }}
         run: |
           PW_VERSION=$(pnpm playwright --version 2>/dev/null || echo "unknown")
           CACHE_DIR="$HOME/.cache"
