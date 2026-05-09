@@ -32,7 +32,7 @@ function createSyncIOErrorImpl(
 ): Error {
   return new Error(
     `Route "${route}": Next.js encountered ${expression} during the initial render.\n\n` +
-      `A prior data access is needed to choose between prerendering this value and computing it per request.\n\n` +
+      `This value must either be prerendered or computed per request.\n\n` +
       `Ways to fix this:\n` +
       `  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call\n` +
       `  - Prerender and cache the value with \`"use cache"\`\n` +

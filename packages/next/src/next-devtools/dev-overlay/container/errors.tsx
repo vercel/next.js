@@ -659,7 +659,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               variant="runtime"
               kind="sync-io"
               cause={errorDetails.cause}
-              explanation="A prior data access is needed to choose between prerendering this value and computing it per request."
+              explanation="This value must either be prerendered or computed per request."
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
