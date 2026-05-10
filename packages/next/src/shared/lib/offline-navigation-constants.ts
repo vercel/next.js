@@ -11,8 +11,14 @@ export const OFFLINE_NAVIGATION_SERVICE_WORKER_METADATA_GLOBAL =
   '__NEXT_OFFLINE_NAVIGATION_SW'
 export const OFFLINE_NAVIGATION_FALLBACK_DOCUMENT_ATTRIBUTE =
   'data-next-offline-navigation-fallback'
+export const OFFLINE_NAVIGATION_CACHE_STATUS_ATTRIBUTE =
+  'data-next-offline-navigation-cache'
+export const OFFLINE_NAVIGATION_CACHE_REASON_ATTRIBUTE =
+  'data-next-offline-navigation-cache-reason'
 export const OFFLINE_NAVIGATION_FALLBACK_SCRIPT_ID =
   '__NEXT_OFFLINE_NAVIGATION_FALLBACK'
+export const OFFLINE_NAVIGATION_CACHE_MISS_ELEMENT_ID =
+  '__NEXT_OFFLINE_NAVIGATION_CACHE_MISS'
 export const OFFLINE_NAVIGATION_FALLBACK_META_NAME =
   'next-offline-navigation-fallback'
 export const OFFLINE_NAVIGATION_BUILD_ID_META_NAME = 'next-build-id'

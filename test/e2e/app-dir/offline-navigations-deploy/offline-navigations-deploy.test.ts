@@ -91,6 +91,97 @@ describe('offlineNavigations deploy-safe runtime behavior', () => {
     })
   }
 
+  async function readPersistedOfflineNavigationRouteRecords(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
+    return browser.eval(async () => {
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('next-offline-navigation-cache', 1)
+        request.onupgradeneeded = () => {
+          const database = request.result
+          if (!database.objectStoreNames.contains('route-data')) {
+            database.createObjectStore('route-data', {
+              keyPath: ['buildId', 'key'],
+            })
+          }
+          if (!database.objectStoreNames.contains('segment-data')) {
+            database.createObjectStore('segment-data', {
+              keyPath: ['buildId', 'key'],
+            })
+          }
+          if (!database.objectStoreNames.contains('metadata')) {
+            database.createObjectStore('metadata')
+          }
+        }
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+
+      try {
+        const entries = await new Promise<any[]>((resolve, reject) => {
+          const transaction = database.transaction('route-data', 'readonly')
+          const request = transaction.objectStore('route-data').getAll()
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })
+
+        return entries.map((entry) => ({
+          key: entry.key,
+          route: entry.route,
+        }))
+      } finally {
+        database.close()
+      }
+    })
+  }
+
+  async function readPersistedOfflineNavigationSegmentRecords(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
+    return browser.eval(async () => {
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('next-offline-navigation-cache', 1)
+        request.onupgradeneeded = () => {
+          const database = request.result
+          if (!database.objectStoreNames.contains('route-data')) {
+            database.createObjectStore('route-data', {
+              keyPath: ['buildId', 'key'],
+            })
+          }
+          if (!database.objectStoreNames.contains('segment-data')) {
+            database.createObjectStore('segment-data', {
+              keyPath: ['buildId', 'key'],
+            })
+          }
+          if (!database.objectStoreNames.contains('metadata')) {
+            database.createObjectStore('metadata')
+          }
+        }
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error)
+      })
+
+      try {
+        const entries = await new Promise<any[]>((resolve, reject) => {
+          const transaction = database.transaction('segment-data', 'readonly')
+          const request = transaction.objectStore('segment-data').getAll()
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })
+
+        return entries.map((entry) => ({
+          key: entry.key,
+          payload: {
+            requestKind: entry.payload?.requestKind,
+          },
+          segment: entry.segment,
+        }))
+      } finally {
+        database.close()
+      }
+    })
+  }
+
   it('registers the service worker and serves current-build assets from Cache Storage', async () => {
     let page: Playwright.Page | undefined
     try {
@@ -186,6 +277,53 @@ describe('offlineNavigations deploy-safe runtime behavior', () => {
         status: 200,
       })
       await page!.context().setOffline(false)
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+    }
+  })
+
+  it('recovers a viewport-prefetched route while offline', async () => {
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await retry(async () => {
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        expect(
+          routeRecords.some((record) =>
+            record.route.pathname.includes('/viewport-prefetch')
+          )
+        ).toBe(true)
+
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        expect(
+          segmentRecords.some(
+            (record) =>
+              record.key.includes('viewport-prefetch') &&
+              record.payload.requestKind === 'segment-prefetch'
+          )
+        ).toBe(true)
+      })
+
+      await page!.context().setOffline(true)
+      const response = await page!.goto(`${next.url}/docs/viewport-prefetch/`, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(response?.status()).toBe(200)
+      await retry(async () => {
+        expect(await browser.elementById('viewport-prefetch-page').text()).toBe(
+          'viewport prefetch page'
+        )
+      })
     } finally {
       if (page) {
         await page.context().setOffline(false)

@@ -4110,6 +4110,7 @@ export default async function build(
               buildId,
               buildManifest,
               crossOrigin: config.crossOrigin,
+              deploymentId: config.deploymentId,
             })
 
             if (fallbackDocument === null) {

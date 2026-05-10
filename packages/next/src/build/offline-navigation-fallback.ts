@@ -10,6 +10,7 @@ import { CLIENT_STATIC_FILES_PATH } from '../shared/lib/constants'
 import { createInitialInlinedFlightDataScriptContent } from '../shared/lib/inlined-flight-data'
 import {
   OFFLINE_NAVIGATION_BUILD_ID_META_NAME,
+  OFFLINE_NAVIGATION_CACHE_MISS_ELEMENT_ID,
   OFFLINE_NAVIGATION_FALLBACK_DOCUMENT_ATTRIBUTE,
   OFFLINE_NAVIGATION_FALLBACK_HTML,
   OFFLINE_NAVIGATION_FALLBACK_META_NAME,
@@ -83,6 +84,10 @@ function renderInitialFlightBootstrapScript(): string {
   return `<script>${createInitialInlinedFlightDataScriptContent(null)}</script>`
 }
 
+function renderOfflineNavigationCacheMissElement(): string {
+  return `<p id="${OFFLINE_NAVIGATION_CACHE_MISS_ELEMENT_ID}" hidden>This page is not available offline.</p>`
+}
+
 export interface OfflineNavigationFallbackDocument {
   html: string
   assetHrefs: string[]
@@ -91,19 +96,24 @@ export interface OfflineNavigationFallbackDocument {
 function renderFallbackDocument({
   bootstrapScripts,
   buildId,
+  deploymentId,
   metadata,
   polyfillScripts,
 }: {
   bootstrapScripts: string
   buildId: string
+  deploymentId: string | undefined
   metadata: unknown
   polyfillScripts: string
 }): string {
   const escapedBuildId = htmlEscapeAttributeString(buildId)
+  const deploymentIdAttribute = deploymentId
+    ? ` data-dpl-id="${htmlEscapeAttributeString(deploymentId)}"`
+    : ''
 
   return [
     '<!DOCTYPE html>',
-    `<html ${OFFLINE_NAVIGATION_FALLBACK_DOCUMENT_ATTRIBUTE}="" data-build-id="${escapedBuildId}">`,
+    `<html ${OFFLINE_NAVIGATION_FALLBACK_DOCUMENT_ATTRIBUTE}="" data-build-id="${escapedBuildId}"${deploymentIdAttribute}>`,
     '<head>',
     '<meta charSet="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
@@ -113,6 +123,7 @@ function renderFallbackDocument({
     '</head>',
     '<body>',
     '<div id="__next"></div>',
+    renderOfflineNavigationCacheMissElement(),
     renderInitialFlightBootstrapScript(),
     polyfillScripts,
     bootstrapScripts,
@@ -122,18 +133,21 @@ function renderFallbackDocument({
 }
 
 // Generate the build-scoped HTML entrypoint used by offline document fallback
-// handling. It intentionally contains only the app bootstrap, not route HTML,
-// so the artifact stays request-invariant.
+// handling. It intentionally contains only the app bootstrap, not route HTML;
+// route data is restored by the client from persisted Segment Cache records
+// after this document loads.
 export function createOfflineNavigationFallbackDocument({
   assetPrefix,
   buildId,
   buildManifest,
   crossOrigin,
+  deploymentId,
 }: {
   assetPrefix: string
   buildId: string
   buildManifest: BuildManifest
   crossOrigin: '' | 'anonymous' | 'use-credentials' | undefined
+  deploymentId: string | undefined
 }): OfflineNavigationFallbackDocument | null {
   const rootMainFiles = buildManifest.rootMainFiles.filter((file) =>
     file.endsWith('.js')
@@ -178,6 +192,7 @@ export function createOfflineNavigationFallbackDocument({
     html: renderFallbackDocument({
       bootstrapScripts,
       buildId,
+      deploymentId,
       metadata,
       polyfillScripts,
     }),
