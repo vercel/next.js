@@ -176,7 +176,8 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
     printBuildErrors(entrypoints, dev)
 
-    if (telemetry.isEnabled) {
+    // Skip when telemetry is fully off — featureUsage() isn't free.
+    if (telemetry.isEnabled || process.env.NEXT_TELEMETRY_DEBUG) {
       try {
         const featureUsage = await project.featureUsage()
         const events = eventBuildFeatureUsageFromTurbopack(featureUsage)
