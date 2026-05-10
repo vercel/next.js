@@ -54,16 +54,43 @@ import {
   createMetadataRouteTree,
 } from './cache'
 import { isValueExpired } from './cache-map'
+import { hasBasePath } from '../../has-base-path'
+import { removeBasePath } from '../../remove-base-path'
 import { doesStaticSegmentAppearInURL } from '../../route-params'
-import type { NormalizedPathname, NormalizedSearch } from './cache-key'
+import type {
+  NormalizedNextUrl,
+  NormalizedPathname,
+  NormalizedSearch,
+} from './cache-key'
 import {
   appendLayoutVaryPath,
   finalizeLayoutVaryPath,
   finalizePageVaryPath,
   finalizeMetadataVaryPath,
+  getFulfilledRouteVaryPath,
   type PartialSegmentVaryPath,
   type PageVaryPath,
 } from './vary-path'
+
+let offlineNavigationCacheModule:
+  | typeof import('../router-reducer/offline-navigation-cache')
+  | undefined
+
+// Keep the runtime require inside a compile-time flag branch so disabled builds
+// do not pull the offline cache module into client chunks.
+function getOfflineNavigationCacheModule():
+  | typeof import('../router-reducer/offline-navigation-cache')
+  | null {
+  if (process.env.__NEXT_OFFLINE_NAVIGATIONS) {
+    if (offlineNavigationCacheModule === undefined) {
+      offlineNavigationCacheModule =
+        require('../router-reducer/offline-navigation-cache') as typeof import('../router-reducer/offline-navigation-cache')
+    }
+    return offlineNavigationCacheModule
+  } else {
+    return null
+  }
+}
 
 /**
  * The known route tree is analogous to a route table. A different routing
@@ -176,6 +203,10 @@ function createEmptyPart(): KnownRoutePart {
 // The root of the known route tree.
 let knownRouteTreeRoot: KnownRoutePart = createEmptyPart()
 
+function removeBasePathIfPresent(pathname: string): string {
+  return hasBasePath(pathname) ? removeBasePath(pathname) : pathname
+}
+
 /**
  * Learns a route pattern from a server response and inserts it into the cache.
  *
@@ -208,13 +239,15 @@ export function discoverKnownRoute(
 ): FulfilledRouteCacheEntry {
   const tree = routeTree
 
-  const pathnameParts = pathname.split('/').filter((p) => p !== '')
+  const routePathname = removeBasePathIfPresent(pathname)
+  const pathnameParts = routePathname.split('/').filter((p) => p !== '')
   const firstPart = pathnameParts.length > 0 ? pathnameParts[0] : null
   const remainingParts = pathnameParts.length > 0 ? pathnameParts.slice(1) : []
+  let fulfilledEntry: FulfilledRouteCacheEntry
 
   if (pendingEntry !== null) {
     // Fulfill the pending entry first
-    const fulfilledEntry = fulfillRouteCacheEntry(
+    fulfilledEntry = fulfillRouteCacheEntry(
       now,
       pendingEntry,
       tree,
@@ -245,26 +278,112 @@ export function discoverKnownRoute(
       supportsPerSegmentPrefetching,
       hasDynamicRewrite
     )
-    return fulfilledEntry
+  } else {
+    // No pending entry - discoverKnownRoutePart will create one and insert it
+    // into the cache, or return an existing pattern if one exists.
+    fulfilledEntry = discoverKnownRoutePart(
+      knownRouteTreeRoot,
+      tree,
+      firstPart,
+      remainingParts,
+      null,
+      now,
+      pathname,
+      nextUrl,
+      tree,
+      metadataVaryPath,
+      couldBeIntercepted,
+      canonicalUrl,
+      supportsPerSegmentPrefetching,
+      hasDynamicRewrite
+    )
   }
 
-  // No pending entry - discoverKnownRoutePart will create one and insert it
-  // into the cache, or return an existing pattern if one exists.
-  return discoverKnownRoutePart(
+  if (process.env.__NEXT_OFFLINE_NAVIGATIONS) {
+    persistOfflineNavigationRouteRecord(now, pathname, nextUrl, fulfilledEntry)
+  }
+  return fulfilledEntry
+}
+
+function persistOfflineNavigationRouteRecord(
+  now: number,
+  pathname: string,
+  nextUrl: string | null,
+  entry: FulfilledRouteCacheEntry
+): void {
+  if (
+    !process.env.__NEXT_OFFLINE_NAVIGATIONS ||
+    process.env.__NEXT_DEV_SERVER ||
+    process.env.NODE_ENV !== 'production' ||
+    process.env.__NEXT_CONFIG_OUTPUT === 'export' ||
+    entry.staleAt <= now
+  ) {
+    return
+  }
+
+  const offlineNavigationCache = getOfflineNavigationCacheModule()
+  if (offlineNavigationCache === null) {
+    return
+  }
+
+  const routeVaryPath = getFulfilledRouteVaryPath(
+    pathname as NormalizedPathname,
+    entry.renderedSearch,
+    nextUrl as NormalizedNextUrl | null,
+    entry.couldBeIntercepted
+  )
+
+  void offlineNavigationCache.writeOfflineNavigationRouteRecord({
+    key: offlineNavigationCache.createOfflineNavigationVaryPathKey(
+      routeVaryPath
+    ),
+    now,
+    staleAt: entry.staleAt,
+    expiresAt: entry.staleAt,
+    route: {
+      pathname,
+      search: entry.renderedSearch,
+      nextUrl,
+      canonicalUrl: entry.canonicalUrl,
+      renderedSearch: entry.renderedSearch,
+      couldBeIntercepted: entry.couldBeIntercepted,
+      supportsPerSegmentPrefetching: entry.supportsPerSegmentPrefetching,
+      hasDynamicRewrite: entry.hasDynamicRewrite,
+    },
+    routeVaryPath:
+      offlineNavigationCache.serializeOfflineNavigationVaryPath(routeVaryPath),
+    tree: entry.tree,
+    metadata: entry.metadata,
+  })
+}
+
+export function restoreKnownRouteFromCacheEntry(
+  now: number,
+  pathname: string,
+  nextUrl: string | null,
+  entry: FulfilledRouteCacheEntry
+): void {
+  const routePathname = removeBasePathIfPresent(pathname)
+  const pathnameParts = routePathname.split('/').filter((p) => p !== '')
+  const firstPart = pathnameParts.length > 0 ? pathnameParts[0] : null
+  const remainingParts = pathnameParts.length > 0 ? pathnameParts.slice(1) : []
+  const metadataVaryPath = entry.metadata.varyPath as PageVaryPath
+
+  discoverKnownRoutePart(
     knownRouteTreeRoot,
-    tree,
+    entry.tree,
     firstPart,
     remainingParts,
-    null,
+    entry,
     now,
     pathname,
     nextUrl,
-    tree,
+    entry.tree,
     metadataVaryPath,
-    couldBeIntercepted,
-    canonicalUrl,
-    supportsPerSegmentPrefetching,
-    hasDynamicRewrite
+    entry.couldBeIntercepted,
+    entry.canonicalUrl,
+    entry.supportsPerSegmentPrefetching,
+    entry.hasDynamicRewrite
   )
 }
 
@@ -517,7 +636,8 @@ export function matchKnownRoute(
   pathname: string,
   search: NormalizedSearch
 ): FulfilledRouteCacheEntry | null {
-  const pathnameParts = pathname.split('/').filter((p) => p !== '')
+  const routePathname = removeBasePathIfPresent(pathname)
+  const pathnameParts = routePathname.split('/').filter((p) => p !== '')
   const resolvedParams: ResolvedParams = new Map()
   const match = matchKnownRoutePart(
     now,

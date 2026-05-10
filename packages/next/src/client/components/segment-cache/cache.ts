@@ -6,6 +6,8 @@ import type {
 import type {
   CacheNodeSeedData,
   FlightData,
+  HeadData,
+  InitialRSCPayload,
   Segment as FlightRouterStateSegment,
 } from '../../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../../shared/lib/app-router-types'
@@ -39,6 +41,7 @@ import {
   type PrefetchSubtaskResult,
 } from './scheduler'
 import {
+  type VaryPath,
   type RouteVaryPath,
   type SegmentVaryPath,
   type PartialSegmentVaryPath,
@@ -59,6 +62,12 @@ import {
 } from './vary-path'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import type {
+  OfflineNavigationRouteRecord,
+  OfflineNavigationRSCResponsePayload,
+  OfflineNavigationSegmentRecord,
+  OfflineNavigationSerializedVaryPath,
+} from '../router-reducer/offline-navigation-cache'
+import type {
   NormalizedPathname,
   NormalizedSearch,
   NormalizedNextUrl,
@@ -78,6 +87,7 @@ import {
   setInCacheMap,
   setSizeInCacheMap,
   deleteFromCacheMap,
+  Fallback,
   isValueExpired,
   type CacheMap,
   type UnknownMapEntry,
@@ -105,10 +115,35 @@ import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { FetchStrategy } from './types'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 import { readFromBFCache, UnknownDynamicStaleTime } from './bfcache'
-import { discoverKnownRoute, matchKnownRoute } from './optimistic-routes'
+import {
+  discoverKnownRoute,
+  matchKnownRoute,
+  restoreKnownRouteFromCacheEntry,
+} from './optimistic-routes'
 import { convertServerPatchToFullTree, type NavigationSeed } from './navigation'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
+import { normalizePathTrailingSlash } from '../../normalize-trailing-slash'
+
+let offlineNavigationCacheModule:
+  | typeof import('../router-reducer/offline-navigation-cache')
+  | undefined
+
+// Keep the runtime require inside a compile-time flag branch so disabled builds
+// do not pull the offline cache module into client chunks.
+function getOfflineNavigationCacheModule():
+  | typeof import('../router-reducer/offline-navigation-cache')
+  | null {
+  if (process.env.__NEXT_OFFLINE_NAVIGATIONS) {
+    if (offlineNavigationCacheModule === undefined) {
+      offlineNavigationCacheModule =
+        require('../router-reducer/offline-navigation-cache') as typeof import('../router-reducer/offline-navigation-cache')
+    }
+    return offlineNavigationCacheModule
+  } else {
+    return null
+  }
+}
 
 /**
  * Ensures a minimum stale time of 30s to avoid issues where the server sends a too
@@ -281,6 +316,41 @@ export type SegmentCacheEntry =
   | RejectedSegmentCacheEntry
   | FulfilledSegmentCacheEntry
 
+export type OfflineNavigationRouterCacheHydrationResult = {
+  routes: {
+    hydrated: number
+    skipped: number
+  }
+  segments: {
+    hydrated: number
+    skipped: number
+  }
+}
+
+export type OfflineNavigationRouterCacheReconstructionResult =
+  | {
+      status: 'fulfilled'
+      initialRSCPayload: InitialRSCPayload
+      route: {
+        canonicalUrl: string
+        renderedSearch: string
+      }
+      segments: {
+        restored: number
+      }
+      head: {
+        restored: number
+      }
+    }
+  | {
+      status: 'miss'
+      reason:
+        | 'missing-route'
+        | 'unsupported-route'
+        | 'missing-segment'
+        | 'missing-head'
+    }
+
 export type NonEmptySegmentCacheEntry = Exclude<
   SegmentCacheEntry,
   EmptySegmentCacheEntry
@@ -351,6 +421,7 @@ export function invalidateEntirePrefetchCache(
 ): void {
   currentRouteCacheVersion++
   currentSegmentCacheVersion++
+  invalidatePersistentOfflineNavigationCache('entire')
 
   pingVisibleLinks(nextUrl, tree)
   pingInvalidationListeners(nextUrl, tree)
@@ -368,6 +439,7 @@ export function invalidateRouteCacheEntries(
   tree: FlightRouterState
 ): void {
   currentRouteCacheVersion++
+  invalidatePersistentOfflineNavigationCache('route')
 
   pingVisibleLinks(nextUrl, tree)
   pingInvalidationListeners(nextUrl, tree)
@@ -385,9 +457,43 @@ export function invalidateSegmentCacheEntries(
   tree: FlightRouterState
 ): void {
   currentSegmentCacheVersion++
+  invalidatePersistentOfflineNavigationCache('segment')
 
   pingVisibleLinks(nextUrl, tree)
   pingInvalidationListeners(nextUrl, tree)
+}
+
+type PersistentOfflineNavigationCacheInvalidation =
+  | 'entire'
+  | 'route'
+  | 'segment'
+
+function invalidatePersistentOfflineNavigationCache(
+  kind: PersistentOfflineNavigationCacheInvalidation
+): void {
+  // Mirror in-memory router cache invalidation into IndexedDB with epochs.
+  // Entries are invalidated lazily on read, which avoids blocking the current
+  // navigation on storage deletes.
+  if (
+    !process.env.__NEXT_OFFLINE_NAVIGATIONS ||
+    process.env.__NEXT_DEV_SERVER ||
+    process.env.NODE_ENV !== 'production' ||
+    process.env.__NEXT_CONFIG_OUTPUT === 'export'
+  ) {
+    return
+  }
+
+  const offlineNavigationCache = getOfflineNavigationCacheModule()
+  if (offlineNavigationCache === null) {
+    return
+  }
+
+  if (kind === 'entire' || kind === 'route') {
+    void offlineNavigationCache.invalidateOfflineNavigationRouteRecords()
+  }
+  if (kind === 'entire' || kind === 'segment') {
+    void offlineNavigationCache.invalidateOfflineNavigationSegmentRecords()
+  }
 }
 
 function attachInvalidationListener(task: PrefetchTask): void {
@@ -1154,6 +1260,429 @@ export function markRouteEntryAsDynamicRewrite(
   // Note: The caller is responsible for also calling invalidateRouteCacheEntries
   // to invalidate other entries that may have been derived from this template
   // before we knew it had a dynamic rewrite.
+}
+
+export async function hydrateOfflineNavigationRouterCache({
+  buildId,
+  now = Date.now(),
+}: {
+  buildId?: string
+  now?: number
+} = {}): Promise<OfflineNavigationRouterCacheHydrationResult> {
+  // Bring persisted route and segment records back into the in-memory router
+  // cache before trying to reconstruct an offline document navigation.
+  const offlineNavigationCache = getOfflineNavigationCacheModule()
+  if (offlineNavigationCache === null) {
+    return {
+      routes: {
+        hydrated: 0,
+        skipped: 0,
+      },
+      segments: {
+        hydrated: 0,
+        skipped: 0,
+      },
+    }
+  }
+
+  const [routeRecords, segmentRecords] = await Promise.all([
+    offlineNavigationCache.readOfflineNavigationRouteRecords({ buildId, now }),
+    offlineNavigationCache.readOfflineNavigationSegmentRecords({
+      buildId,
+      now,
+    }),
+  ])
+
+  return hydrateOfflineNavigationRouterCacheFromRecords(
+    now,
+    routeRecords,
+    segmentRecords
+  )
+}
+
+export function createOfflineNavigationInitialRSCPayloadFromRouterCache({
+  buildId,
+  globalErrorState,
+  now,
+  url,
+}: {
+  buildId: string | undefined
+  globalErrorState: InitialRSCPayload['G']
+  now: number
+  url: string
+}): OfflineNavigationRouterCacheReconstructionResult {
+  // Recreate the minimum InitialRSCPayload that app-index needs to boot from
+  // prefetched router-cache data. If any route, segment, or head record is
+  // missing, report a cache miss rather than rendering an incomplete tree.
+  const requestUrl = new URL(url, location.href)
+  requestUrl.pathname = normalizePathTrailingSlash(requestUrl.pathname)
+  const routeEntry = readRouteCacheEntry(
+    now,
+    createPrefetchRequestKey(requestUrl.href, null)
+  )
+  if (routeEntry === null || routeEntry.status !== EntryStatus.Fulfilled) {
+    return {
+      status: 'miss',
+      reason: 'missing-route',
+    }
+  }
+
+  if (
+    routeEntry.couldBeIntercepted ||
+    routeEntry.hasDynamicRewrite ||
+    !routeEntry.supportsPerSegmentPrefetching
+  ) {
+    return {
+      status: 'miss',
+      reason: 'unsupported-route',
+    }
+  }
+
+  const seedResult = createOfflineNavigationSeedDataFromRouterCache(
+    now,
+    routeEntry.tree
+  )
+  if (seedResult.status === 'miss') {
+    return seedResult
+  }
+
+  const metadataVaryPath = routeEntry.metadata.varyPath as PageVaryPath | null
+  if (metadataVaryPath === null) {
+    return {
+      status: 'miss',
+      reason: 'missing-head',
+    }
+  }
+
+  const headResult = readOfflineNavigationHeadFromRouterCache(
+    now,
+    metadataVaryPath
+  )
+  if (headResult.status === 'miss') {
+    return headResult
+  }
+
+  const initialRSCPayload: InitialRSCPayload = {
+    c: routeEntry.canonicalUrl.split('/'),
+    q: routeEntry.renderedSearch,
+    i: routeEntry.couldBeIntercepted,
+    f: [
+      [
+        convertRouteTreeToFlightRouterState(routeEntry.tree),
+        seedResult.seedData,
+        headResult.head,
+        false,
+      ],
+    ],
+    m: undefined,
+    G: globalErrorState,
+    S: routeEntry.supportsPerSegmentPrefetching,
+    h: null,
+  }
+  if (buildId !== undefined) {
+    initialRSCPayload.b = buildId
+  }
+
+  return {
+    status: 'fulfilled',
+    initialRSCPayload,
+    route: {
+      canonicalUrl: routeEntry.canonicalUrl,
+      renderedSearch: routeEntry.renderedSearch,
+    },
+    segments: {
+      restored: seedResult.segments,
+    },
+    head: {
+      restored: 1,
+    },
+  }
+}
+
+type OfflineNavigationSeedDataResult =
+  | {
+      status: 'fulfilled'
+      seedData: CacheNodeSeedData
+      segments: number
+    }
+  | Extract<
+      OfflineNavigationRouterCacheReconstructionResult,
+      { status: 'miss' }
+    >
+
+function createOfflineNavigationSeedDataFromRouterCache(
+  now: number,
+  tree: RouteTree
+): OfflineNavigationSeedDataResult {
+  const segmentEntry = readSegmentCacheEntry(now, tree.varyPath)
+  if (segmentEntry === null || segmentEntry.status !== EntryStatus.Fulfilled) {
+    return {
+      status: 'miss',
+      reason: 'missing-segment',
+    }
+  }
+
+  const parallelRoutes: CacheNodeSeedData[1] = {}
+  let restoredSegments = 1
+  if (tree.slots !== null) {
+    for (const parallelRouteKey in tree.slots) {
+      const childResult = createOfflineNavigationSeedDataFromRouterCache(
+        now,
+        tree.slots[parallelRouteKey]
+      )
+      if (childResult.status === 'miss') {
+        return childResult
+      }
+
+      parallelRoutes[parallelRouteKey] = childResult.seedData
+      restoredSegments += childResult.segments
+    }
+  }
+
+  return {
+    status: 'fulfilled',
+    seedData: [
+      segmentEntry.rsc,
+      parallelRoutes,
+      null,
+      segmentEntry.isPartial,
+      null,
+    ],
+    segments: restoredSegments,
+  }
+}
+
+function readOfflineNavigationHeadFromRouterCache(
+  now: number,
+  metadataVaryPath: PageVaryPath
+):
+  | {
+      status: 'fulfilled'
+      head: HeadData
+    }
+  | Extract<
+      OfflineNavigationRouterCacheReconstructionResult,
+      { status: 'miss' }
+    > {
+  const metadataEntry = readSegmentCacheEntry(now, metadataVaryPath)
+  if (
+    metadataEntry === null ||
+    metadataEntry.status !== EntryStatus.Fulfilled
+  ) {
+    return {
+      status: 'miss',
+      reason: 'missing-head',
+    }
+  }
+
+  return {
+    status: 'fulfilled',
+    head: metadataEntry.rsc,
+  }
+}
+
+export async function hydrateOfflineNavigationRouterCacheFromRecords(
+  now: number,
+  routeRecords: OfflineNavigationRouteRecord[],
+  segmentRecords: OfflineNavigationSegmentRecord[]
+): Promise<OfflineNavigationRouterCacheHydrationResult> {
+  const result: OfflineNavigationRouterCacheHydrationResult = {
+    routes: {
+      hydrated: 0,
+      skipped: 0,
+    },
+    segments: {
+      hydrated: 0,
+      skipped: 0,
+    },
+  }
+
+  for (const record of routeRecords) {
+    const entry = writeOfflineNavigationRouteRecordIntoCache(now, record)
+    if (entry !== null) {
+      restoreKnownRouteFromCacheEntry(
+        now,
+        record.route.pathname,
+        record.route.nextUrl,
+        entry
+      )
+      result.routes.hydrated++
+    } else {
+      result.routes.skipped++
+    }
+  }
+
+  for (const record of segmentRecords) {
+    if (await writeOfflineNavigationSegmentRecordIntoCache(now, record)) {
+      result.segments.hydrated++
+    } else {
+      result.segments.skipped++
+    }
+  }
+
+  return result
+}
+
+export function writeOfflineNavigationRouteRecordIntoCache(
+  now: number,
+  record: OfflineNavigationRouteRecord
+): FulfilledRouteCacheEntry | null {
+  const route = record.route
+  if (
+    record.staleAt <= now ||
+    route === null ||
+    typeof route !== 'object' ||
+    record.tree === null ||
+    record.metadata === null ||
+    typeof route.canonicalUrl !== 'string' ||
+    typeof route.renderedSearch !== 'string' ||
+    typeof route.pathname !== 'string' ||
+    typeof route.search !== 'string' ||
+    (route.nextUrl !== null && typeof route.nextUrl !== 'string') ||
+    typeof route.couldBeIntercepted !== 'boolean' ||
+    typeof route.supportsPerSegmentPrefetching !== 'boolean' ||
+    typeof route.hasDynamicRewrite !== 'boolean'
+  ) {
+    return null
+  }
+
+  const varyPath = deserializeOfflineNavigationVaryPath(record.routeVaryPath)
+  if (varyPath === null) {
+    return null
+  }
+
+  const fulfilledEntry: FulfilledRouteCacheEntry = {
+    status: EntryStatus.Fulfilled,
+    blockedTasks: null,
+    canonicalUrl: route.canonicalUrl,
+    renderedSearch: route.renderedSearch as NormalizedSearch,
+    tree: record.tree as RouteTree,
+    metadata: record.metadata as RouteTree,
+    couldBeIntercepted: route.couldBeIntercepted,
+    supportsPerSegmentPrefetching: route.supportsPerSegmentPrefetching,
+    hasDynamicRewrite: route.hasDynamicRewrite,
+    ref: null,
+    size: 0,
+    staleAt: record.staleAt,
+    version: getCurrentRouteCacheVersion(),
+  }
+  const isRevalidation = false
+  setInCacheMap(
+    routeCacheMap,
+    varyPath as RouteVaryPath,
+    fulfilledEntry,
+    isRevalidation
+  )
+  return fulfilledEntry
+}
+
+export async function writeOfflineNavigationSegmentRecordIntoCache(
+  now: number,
+  record: OfflineNavigationSegmentRecord
+): Promise<boolean> {
+  const offlineNavigationCache = getOfflineNavigationCacheModule()
+  if (offlineNavigationCache === null) {
+    return false
+  }
+
+  const segment = record.segment
+  if (
+    record.staleAt <= now ||
+    segment === null ||
+    typeof segment !== 'object' ||
+    !offlineNavigationCache.isOfflineNavigationRSCResponsePayload(
+      record.payload
+    ) ||
+    record.payload.requestKind !== 'segment-prefetch' ||
+    !isOfflineNavigationFetchStrategy(segment.fetchStrategy) ||
+    typeof segment.isPartial !== 'boolean' ||
+    typeof segment.payloadIndex !== 'number' ||
+    segment.payloadIndex < 0
+  ) {
+    return false
+  }
+
+  const response = offlineNavigationCache.createOfflineNavigationRSCResponse(
+    record.payload
+  )
+  if (response.body === null) {
+    return false
+  }
+
+  const varyPath = deserializeOfflineNavigationVaryPath(record.segmentVaryPath)
+  if (varyPath === null) {
+    return false
+  }
+
+  let serverResponse: SegmentPrefetchResponse
+  try {
+    serverResponse =
+      await createFromNextReadableStream<SegmentPrefetchResponse>(
+        response.body,
+        undefined,
+        { allowPartialStream: true }
+      )
+  } catch {
+    return false
+  }
+
+  const segmentData = serverResponse.data[segment.payloadIndex]
+  if (segmentData === undefined || segmentData === null) {
+    return false
+  }
+
+  const pendingEntry = upgradeToPendingSegment(
+    createDetachedSegmentCacheEntry(now),
+    segment.fetchStrategy
+  )
+  const fulfilledEntry = fulfillSegmentCacheEntry(
+    pendingEntry,
+    segmentData.rsc,
+    record.staleAt,
+    segment.isPartial
+  )
+  const isRevalidation = false
+  setInCacheMap(
+    segmentCacheMap,
+    varyPath as SegmentVaryPath,
+    fulfilledEntry,
+    isRevalidation
+  )
+  return true
+}
+
+function isOfflineNavigationFetchStrategy(
+  fetchStrategy: number
+): fetchStrategy is FetchStrategy {
+  return (
+    fetchStrategy === FetchStrategy.LoadingBoundary ||
+    fetchStrategy === FetchStrategy.PPR ||
+    fetchStrategy === FetchStrategy.PPRRuntime ||
+    fetchStrategy === FetchStrategy.Full
+  )
+}
+
+function deserializeOfflineNavigationVaryPath(
+  serialized: OfflineNavigationSerializedVaryPath
+): VaryPath | null {
+  if (!Array.isArray(serialized) || serialized.length === 0) {
+    return null
+  }
+
+  let parent: VaryPath | null = null
+  for (let i = serialized.length - 1; i >= 0; i--) {
+    const part = serialized[i]
+    if (part.value.kind !== 'value' && part.value.kind !== 'fallback') {
+      return null
+    }
+
+    parent = {
+      id: part.id,
+      value: part.value.kind === 'fallback' ? Fallback : part.value.value,
+      parent,
+    }
+  }
+  return parent
 }
 
 function fulfillSegmentCacheEntry(
@@ -2052,7 +2581,29 @@ export async function fetchSegmentsOnCacheMiss(
       }
 
       // Set the fulfilled entry into the canonical cache slot.
-      upsertSegmentEntry(now, canonicalVaryPath, fulfilled)
+      const upserted = upsertSegmentEntry(now, canonicalVaryPath, fulfilled)
+      // Cached Navigations can already have a more complete root segment in
+      // memory, causing the upsert to decline the network candidate. Persist
+      // the candidate anyway so an empty offline fallback document can restore
+      // the root layout after a hard reload.
+      const persistedEntry =
+        upserted !== null && upserted.status === EntryStatus.Fulfilled
+          ? upserted
+          : node.tree.requestKey === ROOT_SEGMENT_REQUEST_KEY
+            ? fulfilled
+            : null
+      if (persistedEntry !== null) {
+        if (process.env.__NEXT_OFFLINE_NAVIGATIONS) {
+          persistOfflineNavigationSegmentRecord(
+            now,
+            node.tree,
+            canonicalVaryPath,
+            persistedEntry,
+            dataIndex,
+            response.offlineNavigationCache?.payload ?? null
+          )
+        }
+      }
 
       node = node.parent
       dataIndex++
@@ -2869,6 +3420,58 @@ export function canNewFetchStrategyProvideMoreContent(
   newStrategy: FetchStrategy
 ): boolean {
   return currentStrategy < newStrategy
+}
+
+function persistOfflineNavigationSegmentRecord(
+  now: number,
+  tree: RouteTree,
+  varyPath: SegmentVaryPath,
+  entry: FulfilledSegmentCacheEntry,
+  payloadIndex: number,
+  payload: Promise<OfflineNavigationRSCResponsePayload | null> | null
+): void {
+  // Segment prefetch responses can bundle parent segment data. Store the
+  // response once per fulfilled segment with the payload index needed to read
+  // that segment back during router-cache hydration. Keeping each record
+  // self-contained lets the fallback bootstrap restore segments independently.
+  if (
+    !process.env.__NEXT_OFFLINE_NAVIGATIONS ||
+    process.env.__NEXT_DEV_SERVER ||
+    process.env.NODE_ENV !== 'production' ||
+    process.env.__NEXT_CONFIG_OUTPUT === 'export' ||
+    entry.staleAt <= now ||
+    payload === null
+  ) {
+    return
+  }
+
+  const offlineNavigationCache = getOfflineNavigationCacheModule()
+  if (offlineNavigationCache === null) {
+    return
+  }
+
+  void (async () => {
+    const resolvedPayload = await payload
+    if (resolvedPayload === null) {
+      return
+    }
+
+    await offlineNavigationCache.writeOfflineNavigationSegmentRecord({
+      key: offlineNavigationCache.createOfflineNavigationVaryPathKey(varyPath),
+      now,
+      staleAt: entry.staleAt,
+      expiresAt: entry.staleAt,
+      segment: {
+        requestKey: tree.requestKey,
+        fetchStrategy: entry.fetchStrategy,
+        isPartial: entry.isPartial,
+        payloadIndex,
+      },
+      segmentVaryPath:
+        offlineNavigationCache.serializeOfflineNavigationVaryPath(varyPath),
+      payload: resolvedPayload,
+    })
+  })()
 }
 
 /**
