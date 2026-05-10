@@ -1,4 +1,5 @@
 export {
+  parseSetCookie,
   RequestCookies,
   ResponseCookies,
   stringifyCookie,
