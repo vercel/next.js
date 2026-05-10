@@ -60,8 +60,8 @@ describe('instant validation - level error', () => {
         const browser = await next.browser('/bare')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1247",
-           "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1254",
+           "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/bare/page.tsx (11:19) @ Page
@@ -90,8 +90,8 @@ describe('instant validation - level error', () => {
                ],
              },
            ],
-           "code": "E1247",
-           "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1254",
+           "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/explicit-error/page.tsx (11:19) @ Page
@@ -120,8 +120,8 @@ describe('instant validation - level error', () => {
                ],
              },
            ],
-           "code": "E1247",
-           "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1254",
+           "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/explicit-true/page.tsx (12:19) @ Page
@@ -150,8 +150,8 @@ describe('instant validation - level error', () => {
                ],
              },
            ],
-           "code": "E1247",
-           "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1254",
+           "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/explicit-warning/page.tsx (11:19) @ Page
@@ -177,8 +177,8 @@ describe('instant validation - level error', () => {
         const browser = await next.browser('/layered')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1247",
-           "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1254",
+           "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/layered/page.tsx (8:19) @ Page
@@ -197,9 +197,9 @@ describe('instant validation - level error', () => {
         const result = await prerender('/bare')
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/bare": Next.js encountered uncached data during the initial render.
+         "Error: Route "/bare": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -207,9 +207,35 @@ describe('instant validation - level error', () => {
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
-             at a (<anonymous>)
+             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
+             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
+             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
+             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
+             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
+             at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
+             at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
+             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
+             at h (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
+           263 | /**
+           264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+         > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
+               |                                  ^
+           266 |     const context = useContext(GlobalLayoutRouterContext);
+           267 |     const parentNavPromises = useContext(NavigationPromisesContext);
+           268 |     if (!context) {
          Build-time instant validation failed for route "/bare".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/bare" in your browser to investigate the error.
@@ -223,9 +249,9 @@ describe('instant validation - level error', () => {
         const result = await prerender('/explicit-error')
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/explicit-error": Next.js encountered uncached data during the initial render.
+         "Error: Route "/explicit-error": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -233,9 +259,35 @@ describe('instant validation - level error', () => {
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
-             at a (<anonymous>)
+             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
+             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
+             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
+             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
+             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
+             at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
+             at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
+             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
+             at h (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
+           263 | /**
+           264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+         > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
+               |                                  ^
+           266 |     const context = useContext(GlobalLayoutRouterContext);
+           267 |     const parentNavPromises = useContext(NavigationPromisesContext);
+           268 |     if (!context) {
          Build-time instant validation failed for route "/explicit-error".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/explicit-error" in your browser to investigate the error.
@@ -249,9 +301,9 @@ describe('instant validation - level error', () => {
         const result = await prerender('/explicit-true')
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/explicit-true": Next.js encountered uncached data during the initial render.
+         "Error: Route "/explicit-true": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -259,9 +311,35 @@ describe('instant validation - level error', () => {
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
-             at a (<anonymous>)
+             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
+             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
+             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
+             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
+             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
+             at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
+             at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
+             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
+             at h (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
+           263 | /**
+           264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+         > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
+               |                                  ^
+           266 |     const context = useContext(GlobalLayoutRouterContext);
+           267 |     const parentNavPromises = useContext(NavigationPromisesContext);
+           268 |     if (!context) {
          Build-time instant validation failed for route "/explicit-true".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/explicit-true" in your browser to investigate the error.
@@ -288,9 +366,9 @@ describe('instant validation - level error', () => {
         const result = await prerender('/layered')
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/layered": Next.js encountered uncached data during the initial render.
+         "Error: Route "/layered": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -298,9 +376,35 @@ describe('instant validation - level error', () => {
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
-             at a (<anonymous>)
+             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
+             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
+             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
+             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
+             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
+             at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
+             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
+             at f (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
+             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
+             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
+             at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
+             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
+             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
+             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
+             at h (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
+           263 | /**
+           264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
+         > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
+               |                                  ^
+           266 |     const context = useContext(GlobalLayoutRouterContext);
+           267 |     const parentNavPromises = useContext(NavigationPromisesContext);
+           268 |     if (!context) {
          Build-time instant validation failed for route "/layered".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/layered" in your browser to investigate the error.
