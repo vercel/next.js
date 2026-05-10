@@ -264,6 +264,7 @@ import {
   anySegmentNeedsInstantValidationInBuild,
   resolveInstantConfigSamplesForPage,
 } from './instant-validation/instant-config'
+import { htmlEscapeJsonString } from '../../shared/lib/htmlescape'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import {
   createWebDebugChannel,
@@ -3342,7 +3343,7 @@ async function renderToStream(
   // For MPA navigations (page reload, direct URL entry), the request ID
   // header is not present, so we generate a random one.
   const bootstrapScriptContent = process.env.__NEXT_DEV_SERVER
-    ? `self.__next_r=${JSON.stringify(requestId ?? crypto.randomUUID())}`
+    ? `self.__next_r=${htmlEscapeJsonString(JSON.stringify(requestId ?? crypto.randomUUID()))}`
     : undefined
 
   // Create the "render route (app)" span manually so we can keep it open during streaming.
