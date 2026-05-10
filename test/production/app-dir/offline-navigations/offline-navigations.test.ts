@@ -356,6 +356,30 @@ describe('offlineNavigations build artifacts', () => {
     })
   }
 
+  async function cleanupOfflineNavigationState(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
+    await browser.eval(async () => {
+      if (!('serviceWorker' in navigator)) {
+        return
+      }
+
+      const cacheNames = await caches.keys()
+      await Promise.all(
+        cacheNames
+          .filter((cacheName) =>
+            cacheName.startsWith('next-offline-navigation-v1:')
+          )
+          .map((cacheName) => caches.delete(cacheName))
+      )
+
+      const registrations = await navigator.serviceWorker.getRegistrations()
+      await Promise.all(
+        registrations.map((registration) => registration.unregister())
+      )
+    })
+  }
+
   async function waitForOfflineNavigationServiceWorker(
     browser: Awaited<ReturnType<typeof next.browser>>,
     page: Playwright.Page
@@ -1217,6 +1241,163 @@ describe('offlineNavigations build artifacts', () => {
       )
       expect(missingSegmentResponse?.status()).toBe(200)
       await expectOfflineNavigationCacheMiss(browser, 'missing-segment')
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
+  it('misses hard-loaded request-sensitive URLs without cached router records', async () => {
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await browser.eval(() => {
+        document.cookie = 'offline-session=alpha; path=/; SameSite=Lax'
+      })
+      const onlineResponse = await page!.goto(
+        `${next.url}/docs/request-sensitive/`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(onlineResponse?.status()).toBe(200)
+      await retry(async () => {
+        expect(await browser.elementById('request-sensitive-page').text()).toBe(
+          'request sensitive session: alpha'
+        )
+      })
+
+      await retry(async () => {
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        expect(
+          segmentRecords.some((record) =>
+            record.key.includes('request-sensitive')
+          )
+        ).toBe(false)
+      })
+
+      await page!.context().setOffline(true)
+      const offlineResponse = await page!.goto(
+        `${next.url}/docs/request-sensitive/`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(offlineResponse?.status()).toBe(200)
+      await expectOfflineNavigationCacheMiss(browser, 'missing-segment')
+
+      await page!.context().setOffline(false)
+      await browser.eval(async () => {
+        window.dispatchEvent(new Event('online'))
+
+        const cacheNames = await caches.keys()
+        await Promise.all(
+          cacheNames
+            .filter((cacheName) =>
+              cacheName.startsWith('next-offline-navigation-v1:')
+            )
+            .map((cacheName) => caches.delete(cacheName))
+        )
+
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(
+          registrations.map((registration) => registration.unregister())
+        )
+      })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
+  it('misses hard-loaded URL shape stress cases without complete router records', async () => {
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      const cachedUrl = `${next.url}/docs/url-stress/space%20value/?token=a%2Bb&tag=one&tag=two#section-1`
+      const onlineResponse = await page!.goto(cachedUrl, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(onlineResponse?.status()).toBe(200)
+      await retry(async () => {
+        expect(await browser.elementById('url-stress-page').text()).toBe(
+          'url stress path: space%20value'
+        )
+        expect(await browser.elementById('url-stress-token').text()).toBe(
+          'url stress token: a+b'
+        )
+        expect(await browser.elementById('url-stress-tags').text()).toBe(
+          'url stress tags: one,two'
+        )
+        expect(await browser.elementById('url-stress-hash').text()).toBe(
+          'url stress hash: #section-1'
+        )
+      })
+
+      await retry(async () => {
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        expect(
+          routeRecords.some((record) =>
+            record.route.pathname.includes('/url-stress')
+          )
+        ).toBe(true)
+
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        expect(
+          segmentRecords.some((record) => record.key.includes('url-stress'))
+        ).toBe(false)
+      })
+
+      const rootResponse = await page!.goto(`${next.url}/docs/`, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(rootResponse?.status()).toBe(200)
+
+      await next.stop()
+      await page!.context().setOffline(true)
+      const offlineResponse = await page!.goto(cachedUrl, {
+        waitUntil: 'domcontentloaded',
+      })
+      expect(offlineResponse?.status()).toBe(200)
+      await expectOfflineNavigationCacheMiss(browser, 'missing-segment')
+
+      const reorderedSearchResponse = await page!.goto(
+        `${next.url}/docs/url-stress/space%20value/?tag=one&tag=two&token=a%2Bb#section-3`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(reorderedSearchResponse?.status()).toBe(200)
+      await expectOfflineNavigationCacheMiss(browser, 'missing-segment')
+
+      await page!.context().setOffline(false)
+      await browser.eval(() => {
+        window.dispatchEvent(new Event('online'))
+      })
+      await cleanupOfflineNavigationState(browser)
     } finally {
       if (page) {
         await page.context().setOffline(false)
