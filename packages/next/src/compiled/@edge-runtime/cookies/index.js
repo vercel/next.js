@@ -42,7 +42,8 @@ function stringifyCookie(c) {
     "partitioned" in c && c.partitioned && "Partitioned",
     "priority" in c && c.priority && `Priority=${c.priority}`
   ].filter(Boolean);
-  const stringified = `${c.name}=${encodeURIComponent((_a = c.value) != null ? _a : "")}`;
+  const encode = "encode" in c && typeof c.encode === "function" ? c.encode : encodeURIComponent;
+  const stringified = `${c.name}=${encode((_a = c.value) != null ? _a : "")}`;
   return attrs.length === 0 ? stringified : `${stringified}; ${attrs.join("; ")}`;
 }
 function parseCookie(cookie) {
@@ -56,12 +57,16 @@ function parseCookie(cookie) {
       continue;
     }
     const [key, value] = [pair.slice(0, splitAt), pair.slice(splitAt + 1)];
-    try {
-      map.set(key, decodeURIComponent(value != null ? value : "true"));
-    } catch {
-    }
+    map.set(key, decodeCookieValue(value != null ? value : "true"));
   }
   return map;
+}
+function decodeCookieValue(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 function parseSetCookie(setCookie) {
   if (!setCookie) {
@@ -86,7 +91,7 @@ function parseSetCookie(setCookie) {
   );
   const cookie = {
     name,
-    value: decodeURIComponent(value),
+    value: decodeCookieValue(value),
     domain,
     ...expires && { expires: new Date(expires) },
     ...httponly && { httpOnly: true },

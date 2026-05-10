@@ -119,3 +119,11 @@ it('response.cookie does not modify options', async () => {
   response.cookies.set('cookieName', 'cookieValue', options)
   expect(options).toEqual({ maxAge: 10000 })
 })
+
+it('supports a custom cookie value encoder', () => {
+  const response = new NextResponse()
+
+  response.cookies.set('raw', 'qwerty123=', { encode: String })
+
+  expect(response.headers.get('set-cookie')).toBe('raw=qwerty123=; Path=/')
+})
