@@ -353,6 +353,58 @@ describe('offlineNavigations build artifacts', () => {
     })
   }
 
+  async function prefetchDynamicPatternReplayData(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
+    await browser.elementById('prefetch-dynamic-pattern-source').click()
+    await retry(async () => {
+      const routeRecords =
+        await readPersistedOfflineNavigationRouteRecords(browser)
+      expect(
+        routeRecords.some((record) =>
+          record.route.pathname.includes('/dynamic-prefetch/learned')
+        )
+      ).toBe(true)
+    })
+
+    await browser.elementById('prefetch-dynamic-pattern-target').click()
+    await retry(async () => {
+      const routeRecords =
+        await readPersistedOfflineNavigationRouteRecords(browser)
+      expect(
+        routeRecords.some((record) =>
+          record.route.pathname.includes('/dynamic-prefetch/learned')
+        )
+      ).toBe(true)
+      expect(
+        routeRecords.some((record) =>
+          record.route.pathname.includes('/dynamic-prefetch/replayed')
+        )
+      ).toBe(false)
+
+      const segmentRecords =
+        await readPersistedOfflineNavigationSegmentRecords(browser)
+      const replayedSegmentRecords = segmentRecords.filter((record) =>
+        record.key.includes('replayed')
+      )
+      expect(
+        segmentRecords.some(
+          (record) => record.payload.requestKind === 'segment-prefetch'
+        )
+      ).toBe(true)
+      expect(
+        replayedSegmentRecords.some((record) =>
+          getPersistedSegmentRequestKey(record)?.endsWith('/__PAGE__')
+        )
+      ).toBe(true)
+      expect(
+        replayedSegmentRecords.some((record) =>
+          isPersistedHeadSegmentRecord(record)
+        )
+      ).toBe(true)
+    })
+  }
+
   async function cleanupOfflineNavigationState(
     browser: Awaited<ReturnType<typeof next.browser>>
   ) {
@@ -1368,6 +1420,131 @@ describe('offlineNavigations build artifacts', () => {
         window.dispatchEvent(new Event('online'))
       })
       await cleanupOfflineNavigationState(browser)
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
+  it('replays a dynamic route from persisted known route patterns', async () => {
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await prefetchDynamicPatternReplayData(browser)
+      await retry(async () => {
+        const routeRecords =
+          await readPersistedOfflineNavigationRouteRecords(browser)
+        expect(
+          routeRecords.some((record) =>
+            record.route.pathname.includes('/dynamic-prefetch/replayed')
+          )
+        ).toBe(false)
+      })
+      await retry(async () => {
+        const cacheState = await readOfflineNavigationCacheState(browser)
+        expect(cacheState.entries).toEqual(
+          expect.arrayContaining([
+            {
+              cacheName: expect.stringMatching(/^next-offline-navigation-v1:/),
+              pathname: expect.stringMatching(
+                /^\/app-assets\/_next\/static\/(?:immutable\/)?chunks\/.+\.js$/
+              ),
+            },
+          ])
+        )
+      })
+
+      const session = await (
+        page!.context() as Playwright.BrowserContext & {
+          newCDPSession: (page: Playwright.Page) => Promise<{
+            send: (method: string) => Promise<void>
+            detach: () => Promise<void>
+          }>
+        }
+      ).newCDPSession(page!)
+
+      try {
+        await session.send('Network.clearBrowserCache')
+      } finally {
+        await session.detach()
+      }
+
+      await next.stop()
+      await page!.context().setOffline(true)
+      const dynamicReplayResponse = await page!.goto(
+        `${next.url}/docs/dynamic-prefetch/replayed#restored`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(dynamicReplayResponse?.status()).toBe(200)
+      await retry(async () => {
+        expect(await browser.elementById('dynamic-prefetch-page').text()).toBe(
+          'dynamic prefetch path: replayed'
+        )
+      })
+    } finally {
+      if (page) {
+        await page.context().setOffline(false)
+      }
+      await next.stop()
+    }
+  })
+
+  it('misses dynamic route pattern replay when a required segment record is missing', async () => {
+    const buildResult = await next.build()
+    expect(buildResult.exitCode).toBe(0)
+
+    await next.start({ skipBuild: true })
+
+    let page: Playwright.Page | undefined
+    try {
+      const browser = await next.browser('/docs', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      await waitForOfflineNavigationServiceWorker(browser, page!)
+
+      await prefetchDynamicPatternReplayData(browser)
+
+      const deletedSegments =
+        await deletePersistedOfflineNavigationSegmentRecords(browser, {
+          keySubstring: 'replayed',
+          requestKeySuffix: '/__PAGE__',
+        })
+      expect(deletedSegments).toBeGreaterThan(0)
+      await retry(async () => {
+        const segmentRecords =
+          await readPersistedOfflineNavigationSegmentRecords(browser)
+        expect(
+          segmentRecords.some(
+            (record) =>
+              record.key.includes('replayed') &&
+              getPersistedSegmentRequestKey(record)?.endsWith('/__PAGE__')
+          )
+        ).toBe(false)
+      })
+
+      await next.stop()
+      await page!.context().setOffline(true)
+      const missingSegmentResponse = await page!.goto(
+        `${next.url}/docs/dynamic-prefetch/replayed#missing-segment`,
+        { waitUntil: 'domcontentloaded' }
+      )
+      expect(missingSegmentResponse?.status()).toBe(200)
+      await expectOfflineNavigationCacheMiss(browser, 'missing-segment')
     } finally {
       if (page) {
         await page.context().setOffline(false)

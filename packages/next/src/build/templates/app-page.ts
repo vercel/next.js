@@ -890,7 +890,8 @@ export async function handler(
             staleTimes: nextConfig.experimental.staleTimes,
             dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
             optimisticRouting: Boolean(
-              nextConfig.experimental.optimisticRouting
+              nextConfig.experimental.optimisticRouting ||
+                nextConfig.experimental.offlineNavigations
             ),
             inlineCss: Boolean(nextConfig.experimental.inlineCss),
             prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
