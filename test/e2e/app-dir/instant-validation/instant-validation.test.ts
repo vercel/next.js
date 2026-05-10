@@ -209,36 +209,9 @@ describe('instant validation', () => {
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             ... collapsed 18 duplicate lines matching above 9 lines 2 times...
              at body (<anonymous>)
              at html (<anonymous>)
-             at d (<anonymous>)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at g (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at h (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-           263 | /**
-           264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-         > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-               |                                  ^
-           266 |     const context = useContext(GlobalLayoutRouterContext);
-           267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-           268 |     if (!context) {
+             at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-runtime".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/missing-suspense-around-runtime" in your browser to investigate the error.
@@ -296,36 +269,9 @@ describe('instant validation', () => {
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             ... collapsed 18 duplicate lines matching above 9 lines 2 times...
              at body (<anonymous>)
              at html (<anonymous>)
-             at d (<anonymous>)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at g (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at h (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-           263 | /**
-           264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-         > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-               |                                  ^
-           266 |     const context = useContext(GlobalLayoutRouterContext);
-           267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-           268 |     if (!context) {
+             at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-dynamic".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/missing-suspense-around-dynamic" in your browser to investigate the error.
@@ -386,36 +332,9 @@ describe('instant validation', () => {
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
              at main (<anonymous>)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             ... collapsed 18 duplicate lines matching above 9 lines 2 times...
              at body (<anonymous>)
              at html (<anonymous>)
-             at d (<anonymous>)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at g (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at h (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-           263 | /**
-           264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-         > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-               |                                  ^
-           266 |     const context = useContext(GlobalLayoutRouterContext);
-           267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-           268 |     if (!context) {
+             at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/runtime/missing-suspense-around-dynamic".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/missing-suspense-around-dynamic" in your browser to investigate the error.
@@ -474,36 +393,9 @@ describe('instant validation', () => {
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             ... collapsed 9 duplicate lines matching above lines ...
              at body (<anonymous>)
              at html (<anonymous>)
-             at d (<anonymous>)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at g (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at h (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-           263 | /**
-           264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-         > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-               |                                  ^
-           266 |     const context = useContext(GlobalLayoutRouterContext);
-           267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-           268 |     if (!context) {
+             at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-dynamic-layout".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/missing-suspense-around-dynamic-layout" in your browser to investigate the error.
@@ -561,36 +453,9 @@ describe('instant validation', () => {
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             ... collapsed 9 duplicate lines matching above lines ...
              at body (<anonymous>)
              at html (<anonymous>)
-             at d (<anonymous>)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at g (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at h (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-           263 | /**
-           264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-         > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-               |                                  ^
-           266 |     const context = useContext(GlobalLayoutRouterContext);
-           267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-           268 |     if (!context) {
+             at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/runtime/missing-suspense-around-dynamic-layout".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/missing-suspense-around-dynamic-layout" in your browser to investigate the error.
@@ -700,36 +565,9 @@ describe('instant validation', () => {
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             ... collapsed 18 duplicate lines matching above 9 lines 2 times...
              at body (<anonymous>)
              at html (<anonymous>)
-             at d (<anonymous>)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at g (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at h (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-           263 | /**
-           264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-         > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-               |                                  ^
-           266 |     const context = useContext(GlobalLayoutRouterContext);
-           267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-           268 |     if (!context) {
+             at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-search-params".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/missing-suspense-around-search-params" in your browser to investigate the error.
@@ -823,48 +661,12 @@ describe('instant validation', () => {
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             at d (<anonymous>)
+             at a (<anonymous>)
              at div (<anonymous>)
              at div (<anonymous>)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             ... collapsed 9 duplicate lines matching above lines ...
              at body (<anonymous>)
              at html (<anonymous>)
-             at h (<anonymous>)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at j (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at k (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at l (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-           263 | /**
-           264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-         > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-               |                                  ^
-           266 |     const context = useContext(GlobalLayoutRouterContext);
-           267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-           268 |     if (!context) {
+             at b (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/suspense-too-high".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/suspense-too-high" in your browser to investigate the error.
@@ -925,46 +727,10 @@ describe('instant validation', () => {
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
              at main (<anonymous>)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             at d (<anonymous>)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             ... collapsed 9 duplicate lines matching above lines ...
+             at a (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
-             at h (<anonymous>)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at j (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at k (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at l (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-           263 | /**
-           264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-         > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-               |                                  ^
-           266 |     const context = useContext(GlobalLayoutRouterContext);
-           267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-           268 |     if (!context) {
+             at b (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/runtime/suspense-too-high".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/suspense-too-high" in your browser to investigate the error.
@@ -1500,56 +1266,10 @@ describe('instant validation', () => {
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
              at main (<anonymous>)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at f (<anonymous>)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             at a.s.parallelRouterKey (../../../packages/next/dist/esm/client/components/layout-router.js:350:43)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             ... collapsed 9 duplicate lines matching above lines ...
+             at a (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
-             at k (<anonymous>)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at m (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at n (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at o (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-           263 | /**
-           264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-         > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-               |                                  ^
-           266 |     const context = useContext(GlobalLayoutRouterContext);
-           267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-           268 |     if (!context) {
+             at b (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/invalid-loading-above-route-group".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/invalid-loading-above-route-group" in your browser to investigate the error.
@@ -1609,37 +1329,9 @@ describe('instant validation', () => {
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
-             at a.s.parallelRouterKey (../../../packages/next/dist/esm/client/components/layout-router.js:350:43)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             ... collapsed 9 duplicate lines matching above lines ...
              at body (<anonymous>)
              at html (<anonymous>)
-             at d (<anonymous>)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at g (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at h (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-           348 |     return children;
-           349 | }
-         > 350 | export function LoadingBoundaryProvider({ loading, children }) {
-               |                                           ^
-           351 |     // Provides the data needed to render a loading.tsx boundary, via context.
-           352 |     //
-           353 |     // loading.tsx creates a Suspense boundary around each of a layout's child
+             at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/invalid-dynamic-layout-with-loading".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/invalid-dynamic-layout-with-loading" in your browser to investigate the error.
@@ -1713,36 +1405,9 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 27 duplicate lines matching above 9 lines 3 times...
                at body (<anonymous>)
                at html (<anonymous>)
-               at d (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at g (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at h (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic" in your browser to investigate the error.
@@ -1829,46 +1494,10 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
                at div (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
                at body (<anonymous>)
                at html (<anonymous>)
-               at g (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/invalid-blocking-inside-static".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/invalid-blocking-inside-static" in your browser to investigate the error.
@@ -1926,46 +1555,10 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
                at div (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
                at body (<anonymous>)
                at html (<anonymous>)
-               at g (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-blocking-inside-runtime".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/invalid-blocking-inside-runtime" in your browser to investigate the error.
@@ -2027,47 +1620,11 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
                at div (<anonymous>)
-               ... collapsed 10 duplicate lines matching above lines ...
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
+               at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at g (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-in-parallel-route".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/missing-suspense-in-parallel-route" in your browser to investigate the error.
@@ -2126,56 +1683,11 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
                at div (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 10 duplicate lines matching above lines ...
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at g (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at i (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
+               at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at j (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at k (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at l (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at m (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at n (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-in-parallel-route/foo".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/missing-suspense-in-parallel-route/foo" in your browser to investigate the error.
@@ -2234,46 +1746,10 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
                at div (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
                at body (<anonymous>)
                at html (<anonymous>)
-               at g (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-in-parallel-route/bar".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/missing-suspense-in-parallel-route/bar" in your browser to investigate the error.
@@ -2330,29 +1806,9 @@ describe('instant validation', () => {
            Error: Route "/suspense-in-root/static/invalid-client-data-blocks-validation": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.
                at <unknown> (app/suspense-in-root/static/invalid-client-data-blocks-validation/client.tsx:6:37)
                at div (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
                at body (<anonymous>)
                at html (<anonymous>)
-               at d (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at g (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at h (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
+               at a (<anonymous>)
              4 | import { useDataCache } from '../../../../client-data-fetching-lib/client'
              5 |
            > 6 | export function FetchesClientData({ children }) {
@@ -2528,29 +1984,9 @@ describe('instant validation', () => {
                at <unknown> (app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/client.tsx:3:30)
                at a (<anonymous>)
                at div (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at c (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at d (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
                at body (<anonymous>)
                at html (<anonymous>)
-               at e (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at g (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at h (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at i (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
+               at b (<anonymous>)
              1 | 'use client'
              2 |
            > 3 | export function ErrorInSSR({ children }) {
@@ -2649,36 +2085,9 @@ describe('instant validation', () => {
            Error: An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.
                at a (<anonymous>)
                at div (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at c (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at d (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
                at body (<anonymous>)
                at html (<anonymous>)
-               at e (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at g (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at h (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at i (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) { {
+               at b (<anonymous>) {
              [cause]: Error: Error from node_modules
                  at ignore-listed frames
            }
@@ -2744,36 +2153,9 @@ describe('instant validation', () => {
                at a (<anonymous>)
                at b (<anonymous>)
                at div (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at c (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at e (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
                at body (<anonymous>)
                at html (<anonymous>)
-               at f (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at g (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at i (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at j (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) { {
+               at c (<anonymous>) {
              [cause]: Error: Bail out to client-side rendering: next/dynamic
                  at ignore-listed frames {
                reason: 'next/dynamic',
@@ -2869,29 +2251,9 @@ describe('instant validation', () => {
                at ignore-listed frames
            Error: An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.
                at <unknown> (app/suspense-in-root/static/invalid-client-error-in-parent-sibling/client.tsx:5:11)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
                at body (<anonymous>)
                at html (<anonymous>)
-               at d (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at g (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at h (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
+               at a (<anonymous>)
              3 | export function ErrorInSSR() {
              4 |   if (typeof window === 'undefined') {
            > 5 |     throw new Error('No SSR please')
@@ -3256,46 +2618,10 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
                at div (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 18 duplicate lines matching above 9 lines 2 times...
                at body (<anonymous>)
                at html (<anonymous>)
-               at g (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-config-only".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/route-group-config-only" in your browser to investigate the error.
@@ -3354,47 +2680,11 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
                at div (<anonymous>)
-               ... collapsed 10 duplicate lines matching above lines ...
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
+               at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at g (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-config-and-segment-config".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/route-group-config-and-segment-config" in your browser to investigate the error.
@@ -3453,47 +2743,11 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
                at div (<anonymous>)
-               ... collapsed 10 duplicate lines matching above lines ...
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
+               at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at g (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-segment-config-only".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/route-group-segment-config-only" in your browser to investigate the error.
@@ -3552,47 +2806,11 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
                at div (<anonymous>)
-               ... collapsed 10 duplicate lines matching above lines ...
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 18 duplicate lines matching above 9 lines 2 times...
+               at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at g (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-config-with-deeper-segment/inner".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/route-group-config-with-deeper-segment/inner" in your browser to investigate the error.
@@ -3651,47 +2869,11 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
                at div (<anonymous>)
-               ... collapsed 10 duplicate lines matching above lines ...
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 18 duplicate lines matching above 9 lines 2 times...
+               at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
-               at g (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-deeper-segment-config/inner".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/route-group-deeper-segment-config/inner" in your browser to investigate the error.
@@ -3757,47 +2939,11 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               at d (<anonymous>)
+               at a (<anonymous>)
                at div (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at g (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 18 duplicate lines matching above 9 lines 2 times...
                at body (<anonymous>)
                at html (<anonymous>)
-               at h (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at j (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at k (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at l (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at b (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-shared-boundary".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/route-group-shared-boundary" in your browser to investigate the error.
@@ -3870,48 +3016,11 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 27 duplicate lines matching above 9 lines 3 times...
                at div (<anonymous>)
                at div (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
                at body (<anonymous>)
                at html (<anonymous>)
-               at g (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/parallel-group-depths-deep-slot-hole".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/parallel-group-depths-deep-slot-hole" in your browser to investigate the error.
@@ -3978,47 +3087,10 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
                at div (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
                at body (<anonymous>)
                at html (<anonymous>)
-               at g (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/parallel-group-depths-shallow-slot-hole".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/parallel-group-depths-shallow-slot-hole" in your browser to investigate the error.
@@ -4087,36 +3159,9 @@ describe('instant validation', () => {
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             ... collapsed 9 duplicate lines matching above lines ...
              at body (<anonymous>)
              at html (<anonymous>)
-             at d (<anonymous>)
-             at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-             at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-             at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-             at g (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-             at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-             at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-             at h (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-             at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-             at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-             at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-           263 | /**
-           264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-         > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-               |                                  ^
-           266 |     const context = useContext(GlobalLayoutRouterContext);
-           267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-           268 |     if (!context) {
+             at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/runtime/static-layout-above-runtime-config/inner".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/static-layout-above-runtime-config/inner" in your browser to investigate the error.
@@ -4234,48 +3279,11 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 18 duplicate lines matching above 9 lines 2 times...
                at div (<anonymous>)
                at div (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
                at body (<anonymous>)
                at html (<anonymous>)
-               at g (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/config-depth-preference-slot-wins/deeper/[...rest]".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/config-depth-preference-slot-wins/deeper/[...rest]" in your browser to investigate the error.
@@ -4336,48 +3344,11 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
                at div (<anonymous>)
                at div (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at d (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at f (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 9 duplicate lines matching above lines ...
                at body (<anonymous>)
                at html (<anonymous>)
-               at g (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at h (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at i (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at j (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at k (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/config-children-preferred".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/config-children-preferred" in your browser to investigate the error.
@@ -4556,36 +3527,9 @@ describe('instant validation', () => {
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at a (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at b (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at c (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-               ... collapsed 18 duplicate lines matching above 9 lines 2 times...
                at body (<anonymous>)
                at html (<anonymous>)
-               at d (<anonymous>)
-               at M (../../../packages/next/dist/esm/client/components/layout-router.js:265:34)
-               at e (../../../packages/next/dist/esm/client/components/redirect-boundary.js:28:9)
-               at f (../../../packages/next/dist/esm/client/components/redirect-boundary.js:70:36)
-               at g (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:19:9)
-               at <unknown> (../../../packages/next/dist/esm/client/components/http-access-fallback/error-boundary.js:94:46)
-               at N (../../../packages/next/dist/esm/client/components/layout-router.js:388:32)
-               at h (../../../packages/next/dist/esm/client/components/error-boundary.js:105:37)
-               at K (../../../packages/next/dist/esm/client/components/layout-router.js:99:9)
-               at L (../../../packages/next/dist/esm/client/components/layout-router.js:248:39)
-               at <unknown> (../../../packages/next/dist/esm/client/components/layout-router.js:417:49)
-             263 | /**
-             264 |  * InnerLayoutRouter handles rendering the provided segment based on the cache.
-           > 265 |  */ function InnerLayoutRouter({ tree, segmentPath, debugNameContext, cacheNode: maybeCac...
-                 |                                  ^
-             266 |     const context = useContext(GlobalLayoutRouterContext);
-             267 |     const parentNavPromises = useContext(NavigationPromisesContext);
-             268 |     if (!context) {
+               at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/disable-validation/disable-dev".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/disable-validation/disable-dev" in your browser to investigate the error.
