@@ -12,6 +12,9 @@ import cheerio from 'cheerio'
 import { join } from 'path'
 
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
+const mockedGoogleFontResponses = require.resolve(
+  '../../../e2e/next-font/google-font-mocked-responses.js'
+)
 
 // Importing module CSS in _document is allowed in Turbopack
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
@@ -114,6 +117,32 @@ describe('Valid Global CSS from npm', () => {
           .trim()
 
         expect(cssContent).toMatchInlineSnapshot(`".red-text{color:"red"}"`)
+      })
+    }
+  )
+})
+
+describe('Valid Global CSS with next/font in Custom App', () => {
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      const appDir = join(fixturesDir, 'next-font-global-css')
+
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+
+      it('should build successfully', async () => {
+        const { code, stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+          env: {
+            NEXT_DEPLOYMENT_ID: 'test-dpl-id-1234',
+            NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
+            __NEXT_SUPPORTS_IMMUTABLE_ASSETS: '1',
+          },
+        })
+        expect(code).toBe(0)
+        expect(stderr).not.toContain('Global CSS cannot be imported')
       })
     }
   )

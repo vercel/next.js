@@ -776,6 +776,7 @@ async fn validate_pages_css_imports_individual(
 ) -> Result<()> {
     let graph = graph.await?;
     let entry = entry.to_resolved().await?;
+    let app_path = app_module.ident().path().owned().await?;
 
     let entries = if !is_single_page {
         if !graph.graphs.first().unwrap().has_entry_module(entry) {
@@ -839,19 +840,28 @@ async fn validate_pages_css_imports_individual(
 
     candidates
         .into_iter()
-        .map(async |issue| {
-            let ident = issue.module.ident().await?;
-            let path = &ident.path;
-            // We allow imports of global CSS files which are inside of `node_modules`.
-            // We also allow data URL CSS imports (e.g. `data:text/css,...`) since they
-            // are mostly tooling-generated and co-located with the importing components
-            Ok(
-                if !path.is_in_node_modules() && !path.file_name().starts_with("data:") {
-                    Some(issue)
-                } else {
-                    None
-                },
-            )
+        .map(|issue| {
+            let app_path = app_path.clone();
+            async move {
+                let parent_ident = issue.parent_module.ident().await?;
+                // The app file can appear as a distinct module instance after transforms.
+                if &parent_ident.path == &app_path {
+                    return Ok(None);
+                }
+
+                let ident = issue.module.ident().await?;
+                let path = &ident.path;
+                // We allow imports of global CSS files which are inside of `node_modules`.
+                // We also allow data URL CSS imports (e.g. `data:text/css,...`) since they
+                // are mostly tooling-generated and co-located with the importing components
+                Ok(
+                    if !path.is_in_node_modules() && !path.file_name().starts_with("data:") {
+                        Some(issue)
+                    } else {
+                        None
+                    },
+                )
+            }
         })
         .try_flat_join()
         .await?
