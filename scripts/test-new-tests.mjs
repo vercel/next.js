@@ -102,7 +102,10 @@ async function main() {
     console.log(`Verifying artifacts for commit ${commitSha}`)
     // Attempt to fetch the deploy artifacts for the commit
     // These might take a moment to become available, so we'll retry a few times
-    const fetchWithRetry = async (url, retries = 5, timeout = 5000) => {
+    // The deploy preview tarball is uploaded by a separate workflow that runs in
+    // parallel with this one. On busy CI the upload can lag the test job by
+    // several minutes, so wait long enough to absorb that without flaking.
+    const fetchWithRetry = async (url, retries = 30, timeout = 10000) => {
       for (let i = 0; i < retries; i++) {
         const res = await fetch(url)
         if (res.ok) {
