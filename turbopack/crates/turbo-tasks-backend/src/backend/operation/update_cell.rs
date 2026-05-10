@@ -209,7 +209,7 @@ impl UpdateCellOperation {
             task.remove_cell_data(&cell)
         };
 
-        // Update cell_data_hash for non-hashonly cells.
+        // Update cell_data_hash for hash-only cells.
         if matches!(value_type.persistence, ValueTypePersistence::HashOnly) {
             update_cell_data_hash(&mut task, &cell, content_hash);
         }

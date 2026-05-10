@@ -53,11 +53,14 @@ pub fn primitive(input: TokenStream) -> TokenStream {
             decode_ty,
         } = bincode_wrappers;
         quote! {
-            turbo_tasks::ValueType::new_with_bincode_wrappers::<#ty, #encode_ty, #decode_ty>(#name)
+            turbo_tasks::ValueType::new_with_bincode_wrappers::<#ty, #encode_ty, #decode_ty>(
+                #name,
+                turbo_tasks::Evictability::Always,
+            )
         }
     } else {
         quote! {
-            turbo_tasks::ValueType::persistable::<#ty>(#name)
+            turbo_tasks::ValueType::persistable::<#ty>(#name, turbo_tasks::Evictability::Always)
         }
     };
 

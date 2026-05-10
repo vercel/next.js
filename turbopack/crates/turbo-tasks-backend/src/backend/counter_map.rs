@@ -117,6 +117,34 @@ impl<K, V> CounterMap<K, V> {
     {
         self.0.remove(key)
     }
+
+    /// Retain only entries for which `f(key, value)` returns `true`.
+    pub fn retain<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&K, &V) -> bool,
+        K: Eq + Hash,
+    {
+        self.0.retain(|k, v| f(k, v));
+    }
+
+    /// Extend this map with the entries from an iterator. Used by restore paths
+    /// to merge persistent entries loaded from disk into an existing map that
+    /// may hold transient residue.
+    pub fn extend(&mut self, iter: impl IntoIterator<Item = (K, V)>)
+    where
+        K: Eq + Hash,
+    {
+        self.0.extend(iter);
+    }
+}
+
+impl<K, V> IntoIterator for CounterMap<K, V> {
+    type Item = (K, V);
+    type IntoIter = <InnerMap<K, V> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
 }
 
 impl<K: Hash + Eq, V: CounterValue> CounterMap<K, V> {

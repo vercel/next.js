@@ -33,33 +33,48 @@ type Vtable = &'static [&'static NativeFunction];
 /// Carries the serializer/deserializer pair for `Persistable` values — today
 /// that's bincode, but the enum name is neutral so the choice of mechanism can
 /// evolve without a cascade of rename work.
+///
+/// This is orthogonal to [`Evictability`]: persistence describes whether a
+/// cell round-trips through the persistent cache, while evictability
+/// describes whether it can be dropped from memory.
 pub enum ValueTypePersistence {
     /// Cells are serialized to the persistent cache and restored on next
     /// access after eviction. Maps to `serialization = "auto" | "custom"`.
     Persistable(AnyEncodeFn, AnyDecodeFn<SharedReference>),
     /// The value type opts out of being persisted: re-running the producing
     /// task to reproduce the cell is preferred over serializing the in-memory
-    /// form. Cells are evictable; the next reader after eviction triggers a
-    /// recompute from the task's inputs. Maps to
-    /// `serialization = "skip"` (plus an optional `evict` attribute).
-    SkipPersist {
-        /// Whether re-deriving this cell is non-trivial (e.g. WASM compile,
-        /// spawning a Node process pool). Eviction policy may prefer
-        /// evicting cheap cells first. True iff declared with
-        /// `serialization = "skip", evict = "last"`.
-        expensive: bool,
-    },
+    /// form. Maps to `serialization = "skip"`.
+    Skip,
     /// The value type is not persisted, but the macro emitted a
     /// `DeterministicHash` derive and the write path stashes a `content_hash`
     /// into `cell_data_hash` so post-eviction reads can detect unchanged
     /// content and skip invalidation. Maps to `serialization = "hash"`.
     HashOnly,
-    /// Not persistable, not reconstructible — holds interior-mutable state
-    /// that accumulates across the session (`State<>` cells, `Arc<Mutex<_>>`
-    /// dedup histories). Re-running the producing task would lose the
-    /// accumulated state, so cells of this type must stay in memory across
-    /// eviction. Maps to `serialization = "skip", evict = "never"`.
-    SessionStateful,
+}
+
+/// Eviction policy for a [`ValueType`].
+///
+/// Orthogonal to [`ValueTypePersistence`]: a cell can be both persistable
+/// and non-evictable (e.g. `DiskFileSystem`, which holds session-scoped file
+/// watchers but whose serializable fields can still round-trip the cache).
+pub enum Evictability {
+    /// Cells of this type can be freely dropped from in-memory storage on
+    /// the eviction sweep. The next reader either restores from disk
+    /// (`Persistable`), recomputes from the producing task's inputs
+    /// (`Skip` / `HashOnly`), or — for `HashOnly` — short-circuits via the
+    /// stored `content_hash` if the value is unchanged. Default when `evict`
+    /// is omitted.
+    Always,
+    /// Cells are evictable, but re-deriving them is non-trivial (e.g. WASM
+    /// compile, spawning a Node process pool). Eviction policy may prefer
+    /// evicting cheaper cells first. Maps to `evict = "last"`.
+    Expensive,
+    /// Cells must stay in memory across the session. Required for value
+    /// types holding interior-mutable state (`State<>` cells,
+    /// `Arc<Mutex<_>>` dedup histories) or session-scoped handles (file
+    /// watchers, worker pools, plugin DSOs) — re-running the producing
+    /// task would lose the accumulated state. Maps to `evict = "never"`.
+    Never,
 }
 
 /// A definition of a type of data.
@@ -70,6 +85,10 @@ pub struct ValueType {
 
     /// How cells of this type participate in the persistent cache.
     pub persistence: ValueTypePersistence,
+
+    /// Whether cells of this type can be dropped from in-memory storage on
+    /// the eviction sweep. Independent of [`ValueType::persistence`].
+    pub evictability: Evictability,
 
     /// An implementation of
     /// [`VcCellMode::raw_cell`][crate::vc::VcCellMode::raw_cell].
@@ -120,60 +139,29 @@ pub trait ManualDecodeWrapper: Decode<()> {
 }
 
 impl ValueType {
-    /// Construct a `ValueType` that opts out of being persisted. Cells are
-    /// evictable; the next reader after eviction triggers a recompute from
-    /// the task's inputs.
+    /// Construct a `ValueType` for a non-codec persistence mode
+    /// ([`ValueTypePersistence::Skip`] / [`ValueTypePersistence::HashOnly`]).
     ///
-    /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
-    /// `serialization = "skip"`.
-    pub const fn skip_persist<T: VcValueType>(global_name: &'static str) -> Self {
-        Self::new_inner::<T>(
-            global_name,
-            ValueTypePersistence::SkipPersist { expensive: false },
-        )
-    }
-
-    /// Construct a `ValueType` that opts out of being persisted and is marked
-    /// as expensive to re-derive (e.g. WASM compile, Node process spawn). The
-    /// eviction policy may prefer evicting cheaper cells first.
-    ///
-    /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
-    /// `serialization = "skip", evict = "last"`.
-    pub const fn skip_persist_expensive<T: VcValueType>(global_name: &'static str) -> Self {
-        Self::new_inner::<T>(
-            global_name,
-            ValueTypePersistence::SkipPersist { expensive: true },
-        )
-    }
-
-    /// Construct a `ValueType` that opts out of being persisted but stashes a
-    /// `content_hash` on each write so post-eviction reads can detect
-    /// unchanged content and skip invalidation.
-    ///
-    /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
-    /// `serialization = "hash"`.
-    pub const fn hash_only<T: VcValueType>(global_name: &'static str) -> Self {
-        Self::new_inner::<T>(global_name, ValueTypePersistence::HashOnly)
-    }
-
-    /// Construct a `ValueType` whose cells cannot be reconstructed by
-    /// re-executing the task — they hold session-scoped state (file system
-    /// handles, worker pools, plugin DSOs, `State<>` interior mutability).
-    /// The storage layer must keep them in memory across eviction.
-    ///
-    /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
-    /// `serialization = "skip", evict = "never"`.
-    pub const fn session_stateful<T: VcValueType>(global_name: &'static str) -> Self {
-        Self::new_inner::<T>(global_name, ValueTypePersistence::SessionStateful)
+    /// Used by [`#[turbo_tasks::value]`][crate::value] for `serialization =
+    /// "skip"` and `serialization = "hash"`. For `serialization = "auto" |
+    /// "custom"` use [`ValueType::persistable`] instead — its codec functions
+    /// inline at the call site.
+    pub const fn new<T: VcValueType>(
+        global_name: &'static str,
+        persistence: ValueTypePersistence,
+        evictability: Evictability,
+    ) -> Self {
+        Self::new_inner::<T>(global_name, persistence, evictability)
     }
 
     /// Construct a `ValueType` whose cells round-trip through the persistent
-    /// cache. Cells are evictable and restored from disk on next access.
+    /// cache via the auto-derived bincode `Encode` / `Decode` impls.
     ///
     /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
     /// `serialization = "auto"` and `serialization = "custom"`.
     pub const fn persistable<T: VcValueType + Encode + Decode<()>>(
         global_name: &'static str,
+        evictability: Evictability,
     ) -> Self {
         Self::new_inner::<T>(
             global_name,
@@ -187,6 +175,7 @@ impl ValueType {
                     Ok(SharedReference::new(triomphe::Arc::new(val)))
                 },
             ),
+            evictability,
         )
     }
 
@@ -203,6 +192,7 @@ impl ValueType {
         D: ManualDecodeWrapper<Value = T>,
     >(
         global_name: &'static str,
+        evictability: Evictability,
     ) -> Self {
         Self::new_inner::<T>(
             global_name,
@@ -216,6 +206,7 @@ impl ValueType {
                     Ok(SharedReference::new(triomphe::Arc::new(val)))
                 },
             ),
+            evictability,
         )
     }
 
@@ -223,10 +214,12 @@ impl ValueType {
     const fn new_inner<T: VcValueType>(
         global_name: &'static str,
         persistence: ValueTypePersistence,
+        evictability: Evictability,
     ) -> Self {
         Self {
             ty: RegistryType::new::<T>(std::any::type_name::<T>(), global_name),
             persistence,
+            evictability,
             raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
             traits: SyncUnsafeCell::new(ValueTypeTraits { traits: None }),
         }
@@ -440,12 +433,12 @@ pub const fn build_trait_vtable<
 
 #[cfg(test)]
 mod tests {
-    //! Asserts that each `serialization = "..."` annotation lands on the right
-    //! `ValueTypePersistence` variant. These are purely compile-time /
-    //! macro-expansion properties of the value types, so no turbo_tasks runtime
-    //! is needed — we read the registered `ValueType` via `registry::get_value_type`
-    //! and match on `persistence`.
-    use super::ValueTypePersistence;
+    //! Asserts that each `serialization` / `evict` annotation lands on the
+    //! right `ValueTypePersistence` and `Evictability` fields. These are
+    //! purely compile-time / macro-expansion properties of the value types,
+    //! so no turbo_tasks runtime is needed — we read the registered
+    //! `ValueType` via `registry::get_value_type` and inspect the fields.
+    use super::{Evictability, ValueTypePersistence};
     use crate::{self as turbo_tasks, VcValueType, registry};
 
     #[turbo_tasks::value(serialization = "skip")]
@@ -463,61 +456,76 @@ mod tests {
     #[turbo_tasks::value]
     struct PersistableValue(u32);
 
+    #[turbo_tasks::value(evict = "never")]
+    struct PersistableNeverValue(u32);
+
     #[test]
-    fn skip_maps_to_skip_persist() {
+    fn skip_maps_to_skip_always() {
         let vt = registry::get_value_type(SkipValue::get_value_type_id());
         assert!(
-            matches!(
-                vt.persistence,
-                ValueTypePersistence::SkipPersist { expensive: false },
-            ),
-            "`serialization = \"skip\"` must map to SkipPersist {{ expensive: false }}"
+            matches!(vt.persistence, ValueTypePersistence::Skip),
+            "`serialization = \"skip\"` must map to ValueTypePersistence::Skip"
         );
+        assert!(matches!(vt.evictability, Evictability::Always));
         assert!(!SkipValue::has_serialization());
     }
 
     #[test]
-    fn hash_maps_to_hash_only() {
+    fn hash_maps_to_hash_only_always() {
         let vt = registry::get_value_type(HashValue::get_value_type_id());
         assert!(
             matches!(vt.persistence, ValueTypePersistence::HashOnly),
-            "`serialization = \"hash\"` must map to HashOnly"
+            "`serialization = \"hash\"` must map to ValueTypePersistence::HashOnly"
         );
+        assert!(matches!(vt.evictability, Evictability::Always));
         assert!(!HashValue::has_serialization());
     }
 
     #[test]
-    fn skip_expensive_maps_to_skip_persist_expensive() {
+    fn skip_expensive_maps_to_skip_expensive() {
         let vt = registry::get_value_type(SkipExpensiveValue::get_value_type_id());
+        assert!(matches!(vt.persistence, ValueTypePersistence::Skip));
         assert!(
-            matches!(
-                vt.persistence,
-                ValueTypePersistence::SkipPersist { expensive: true },
-            ),
-            "`serialization = \"skip\", evict = \"last\"` must map to SkipPersist {{ expensive: \
-             true }}"
+            matches!(vt.evictability, Evictability::Expensive),
+            "`serialization = \"skip\", evict = \"last\"` must map to Evictability::Expensive"
         );
         assert!(!SkipExpensiveValue::has_serialization());
     }
 
     #[test]
-    fn session_stateful_maps_to_session_stateful() {
+    fn session_stateful_maps_to_skip_never() {
         let vt = registry::get_value_type(SessionStatefulValue::get_value_type_id());
+        assert!(matches!(vt.persistence, ValueTypePersistence::Skip));
         assert!(
-            matches!(vt.persistence, ValueTypePersistence::SessionStateful),
-            "`serialization = \"skip\", evict = \"never\"` must map to \
-             ValueTypePersistence::SessionStateful"
+            matches!(vt.evictability, Evictability::Never),
+            "`serialization = \"skip\", evict = \"never\"` must map to Evictability::Never"
         );
         assert!(!SessionStatefulValue::has_serialization());
     }
 
     #[test]
-    fn default_maps_to_persistable() {
+    fn default_maps_to_persistable_always() {
         let vt = registry::get_value_type(PersistableValue::get_value_type_id());
         assert!(
             matches!(vt.persistence, ValueTypePersistence::Persistable(_, _)),
             "default (auto) serialization must map to ValueTypePersistence::Persistable"
         );
+        assert!(matches!(vt.evictability, Evictability::Always));
         assert!(PersistableValue::has_serialization());
+    }
+
+    #[test]
+    fn persistable_never_maps_to_persistable_never() {
+        let vt = registry::get_value_type(PersistableNeverValue::get_value_type_id());
+        assert!(
+            matches!(vt.persistence, ValueTypePersistence::Persistable(_, _)),
+            "`evict = \"never\"` (default serialization) must keep \
+             ValueTypePersistence::Persistable"
+        );
+        assert!(
+            matches!(vt.evictability, Evictability::Never),
+            "`evict = \"never\"` must map to Evictability::Never"
+        );
+        assert!(PersistableNeverValue::has_serialization());
     }
 }

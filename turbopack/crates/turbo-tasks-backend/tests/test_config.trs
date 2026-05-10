@@ -11,6 +11,7 @@
       turbo_tasks_backend::BackendOptions {
         num_workers: Some(2),
         small_preallocation: true,
+        storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
         ..Default::default()
       },
       turbo_tasks_backend::turbo_backing_storage(

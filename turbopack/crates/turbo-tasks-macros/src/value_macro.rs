@@ -286,15 +286,20 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         .into();
     }
 
-    // `evict = "last" | "never"` is only valid when `serialization = "skip"`;
-    // other persistence modes have their own eviction semantics fixed by the
-    // backend (Persistable: evict-and-restore, HashOnly: evict-with-hash-gate).
-    if !matches!(evict_mode, EvictMode::Always)
+    // `evict = "last"` only makes sense for `serialization = "skip"`: it
+    // says "re-deriving this cell is expensive", and re-derivation is the
+    // recovery path only for skip mode. Persistable cells restore from disk
+    // (predictable cost), HashOnly cells short-circuit on unchanged hash.
+    //
+    // `evict = "never"` is allowed with any serialization mode — a value
+    // type can be persistable AND hold session-scoped state that must not
+    // leave memory (e.g. `DiskFileSystem` carrying file watchers).
+    if matches!(evict_mode, EvictMode::Last)
         && !matches!(serialization_mode, SerializationMode::Skip)
     {
         return syn::Error::new(
             proc_macro2::Span::call_site(),
-            "evict = \"last\" | \"never\" is only valid with serialization = \"skip\"",
+            "evict = \"last\" is only valid with serialization = \"skip\"",
         )
         .to_compile_error()
         .into();
@@ -469,24 +474,33 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     }
 
     let name = global_name_for_type(ident);
-    // Dispatch to the constructor whose name reflects the persistence +
-    // eviction combo. `evict` is only read when `serialization = Skip`;
-    // other modes ignore it (and the parser rejects non-Always values).
-    let new_value_type = match (&serialization_mode, &evict_mode) {
-        (SerializationMode::Auto | SerializationMode::Custom, _) => quote! {
-            turbo_tasks::ValueType::persistable::<#ident>(#name)
+    // `serialization` and `evict` set independent fields on `ValueType`:
+    // persistence carries the codec (or marks Skip / HashOnly), evictability
+    // controls the in-memory drop policy. The codec-bearing constructor
+    // (`persistable`) is kept distinct so its functions inline at the call
+    // site; non-codec modes go through the generic `new` constructor.
+    let evictability = match evict_mode {
+        EvictMode::Always => quote! { turbo_tasks::Evictability::Always },
+        EvictMode::Last => quote! { turbo_tasks::Evictability::Expensive },
+        EvictMode::Never => quote! { turbo_tasks::Evictability::Never },
+    };
+    let new_value_type = match &serialization_mode {
+        SerializationMode::Auto | SerializationMode::Custom => quote! {
+            turbo_tasks::ValueType::persistable::<#ident>(#name, #evictability)
         },
-        (SerializationMode::Hash, _) => quote! {
-            turbo_tasks::ValueType::hash_only::<#ident>(#name)
+        SerializationMode::Skip => quote! {
+            turbo_tasks::ValueType::new::<#ident>(
+                #name,
+                turbo_tasks::ValueTypePersistence::Skip,
+                #evictability,
+            )
         },
-        (SerializationMode::Skip, EvictMode::Always) => quote! {
-            turbo_tasks::ValueType::skip_persist::<#ident>(#name)
-        },
-        (SerializationMode::Skip, EvictMode::Last) => quote! {
-            turbo_tasks::ValueType::skip_persist_expensive::<#ident>(#name)
-        },
-        (SerializationMode::Skip, EvictMode::Never) => quote! {
-            turbo_tasks::ValueType::session_stateful::<#ident>(#name)
+        SerializationMode::Hash => quote! {
+            turbo_tasks::ValueType::new::<#ident>(
+                #name,
+                turbo_tasks::ValueTypePersistence::HashOnly,
+                #evictability,
+            )
         },
     };
     let has_serialization = match serialization_mode {
@@ -587,6 +601,7 @@ pub fn value_type_and_register(
             fn has_serialization() -> bool {
                 #has_serialization
             }
+
         }
     }
 }

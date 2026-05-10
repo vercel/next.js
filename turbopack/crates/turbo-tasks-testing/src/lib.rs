@@ -28,7 +28,8 @@ use turbo_tasks::{
 };
 
 pub use crate::run::{
-    Registration, run, run_once, run_once_without_cache_check, run_with_tt, run_without_cache_check,
+    Registration, TestInstance, run, run_once, run_once_without_cache_check, run_with_tt,
+    run_without_cache_check, test_instance,
 };
 
 enum Task {

@@ -14,7 +14,7 @@ use std::{
     pin::Pin,
     sync::{
         Arc, LazyLock,
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, Ordering},
     },
     time::SystemTime,
 };
@@ -29,10 +29,10 @@ use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
 use turbo_tasks::{
-    CellId, FxDashMap, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
-    ReadOutputOptions, ReadTracking, SharedReference, StackDynTaskInputs, TRANSIENT_TASK_BIT,
-    TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId, TurboTasksBackendApi,
-    TurboTasksPanic, ValueTypeId,
+    CellId, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency, ReadOutputOptions,
+    ReadTracking, SharedReference, StackDynTaskInputs, TRANSIENT_TASK_BIT, TaskExecutionReason,
+    TaskId, TaskPersistence, TaskPriority, TraitTypeId, TurboTasksBackendApi, TurboTasksPanic,
+    ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, CellHash, TaskExecutionSpec, TransientTaskType,
         TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
@@ -51,7 +51,7 @@ use turbo_tasks::{
 
 pub use self::{
     operation::AnyOperation,
-    storage::{SpecificTaskDataCategory, TaskDataCategory},
+    storage::{EvictionCounts, SpecificTaskDataCategory, TaskDataCategory},
 };
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::TaskDirtyCause;
@@ -75,7 +75,6 @@ use crate::{
     },
     error::TaskError,
     utils::{
-        dash_map_drop_contents::drop_contents,
         dash_map_raw_entry::{RawEntry, get_shard, raw_entry_in_shard, raw_get_in_shard},
         shard_amount::compute_shard_amount,
     },
@@ -146,6 +145,11 @@ pub struct BackendOptions {
 
     /// Avoid big preallocations for faster startup. Should only be used for testing purposes.
     pub small_preallocation: bool,
+
+    /// When enabled, evict all evictable tasks from in-memory storage after every snapshot.
+    /// This reclaims memory by clearing persisted data that can be re-loaded from disk on demand.
+    /// This is an EXPERIMENTAL FEATURE under development
+    pub evict_after_snapshot: bool,
 }
 
 impl Default for BackendOptions {
@@ -156,13 +160,13 @@ impl Default for BackendOptions {
             storage_mode: Some(StorageMode::ReadWrite),
             num_workers: None,
             small_preallocation: false,
+            evict_after_snapshot: false,
         }
     }
 }
 
 pub enum TurboTasksBackendJob {
-    InitialSnapshot,
-    FollowUpSnapshot,
+    Snapshot,
 }
 
 pub struct TurboTasksBackend<B: BackingStorage>(Arc<TurboTasksBackendInner<B>>);
@@ -175,8 +179,6 @@ struct TurboTasksBackendInner<B: BackingStorage> {
     persisted_task_id_factory: IdFactoryWithReuse<TaskId>,
     transient_task_id_factory: IdFactoryWithReuse<TaskId>,
 
-    task_cache: FxDashMap<Arc<CachedTaskType>, TaskId>,
-
     storage: Storage,
 
     /// Coordinates the operation/snapshot interleaving protocol. See
@@ -187,8 +189,6 @@ struct TurboTasksBackendInner<B: BackingStorage> {
     /// enforces that contract for our two callers (background loop and
     /// `stop_and_wait`).
     snapshot_in_progress: Mutex<()>,
-    /// The timestamp of the last started snapshot since [`Self::start_time`].
-    last_snapshot: AtomicU64,
 
     stopping: AtomicBool,
     stopping_event: Event,
@@ -216,6 +216,19 @@ impl<B: BackingStorage> TurboTasksBackend<B> {
     pub fn backing_storage(&self) -> &B {
         &self.0.backing_storage
     }
+
+    /// Perform a snapshot and then evict all evictable tasks from memory.
+    ///
+    /// This is exposed for integration tests that need to verify the
+    /// snapshot → evict → restore cycle works correctly.
+    ///
+    /// Returns `(snapshot_had_new_data, eviction_counts)`.
+    pub fn snapshot_and_evict_for_testing(
+        &self,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    ) -> (bool, EvictionCounts) {
+        self.0.snapshot_and_evict_for_testing(turbo_tasks)
+    }
 }
 
 impl<B: BackingStorage> TurboTasksBackendInner<B> {
@@ -239,11 +252,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 TaskId::try_from(TRANSIENT_TASK_BIT).unwrap(),
                 TaskId::MAX,
             ),
-            task_cache: FxDashMap::default(),
             storage: Storage::new(shard_amount, small_preallocation),
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(()),
-            last_snapshot: AtomicU64::new(0),
             stopping: AtomicBool::new(false),
             stopping_event: Event::new(|| || "TurboTasksBackend::stopping_event".to_string()),
             idle_start_event: Event::new(|| || "TurboTasksBackend::idle_start_event".to_string()),
@@ -286,6 +297,39 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             self.options.storage_mode,
             Some(StorageMode::ReadWrite) | Some(StorageMode::ReadWriteOnShutdown)
         )
+    }
+
+    fn should_evict(&self) -> bool {
+        self.options.evict_after_snapshot && self.should_persist()
+    }
+
+    /// Perform a snapshot and then evict all evictable tasks from memory.
+    ///
+    /// This is exposed for integration tests that need to verify the
+    /// snapshot → evict → restore cycle works correctly.
+    ///
+    /// Returns `(snapshot_had_new_data, eviction_counts)`.
+    #[doc(hidden)]
+    pub fn snapshot_and_evict_for_testing(
+        &self,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    ) -> (bool, EvictionCounts) {
+        assert!(
+            self.should_persist(),
+            "snapshot_and_evict requires persistence"
+        );
+        let snapshot_result = self.snapshot_and_persist(None, "test", turbo_tasks);
+        let had_new_data = match snapshot_result {
+            Ok((_, new_data)) => new_data,
+            Err(_) => {
+                // Snapshot/persist failed — skip eviction since the data may not
+                // be on disk yet. Evicting now could lose in-memory state that
+                // can't be restored.
+                return (false, EvictionCounts::default());
+            }
+        };
+        let counts = self.storage.evict_after_snapshot(None);
+        (had_new_data, counts)
     }
 
     fn should_restore(&self) -> bool {
@@ -1359,7 +1403,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Schedule the snapshot job
             let _span = trace_span!("persisting background job").entered();
             let _span = tracing::info_span!("thread").entered();
-            turbo_tasks.schedule_backend_background_job(TurboTasksBackendJob::InitialSnapshot);
+            turbo_tasks.schedule_backend_background_job(TurboTasksBackendJob::Snapshot);
         }
     }
 
@@ -1380,7 +1424,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         {
             eprintln!("Persisting failed during shutdown: {err:?}");
         }
-        drop_contents(&self.task_cache);
         self.storage.drop_contents();
         if let Err(err) = self.backing_storage.shutdown() {
             println!("Shutting down failed: {err}");
@@ -1453,7 +1496,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // Compute hash and shard index once from borrowed components (no heap allocation).
         let arg_ref = arg.as_ref();
         let hash = CachedTaskType::hash_from_components(
-            self.task_cache.hasher(),
+            self.storage.task_cache.hasher(),
             native_fn,
             this,
             arg_ref,
@@ -1461,7 +1504,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // Locate the shard once so that the read-only lookup and any
         // write-lock retry below share the same reference (saves a modulo +
         // memory lookup on the miss path).
-        let shard = get_shard(&self.task_cache, hash);
+        let shard = get_shard(&self.storage.task_cache, hash);
 
         // Step 1: Fast read-only cache lookup (read lock, no allocation).
         // Use a read lock rather than a write lock to avoid contention. connect_child
@@ -1487,7 +1530,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             self.track_cache_hit_by_fn(native_fn);
             // Step 3a: Insert into in-memory cache using the pre-located shard.
             // Use the existing Arc from storage to avoid a duplicate allocation.
-            match raw_entry_in_shard(shard, self.task_cache.hasher(), hash, |k| {
+            match raw_entry_in_shard(shard, self.storage.task_cache.hasher(), hash, |k| {
                 k.eq_components(native_fn, this, arg_ref)
             }) {
                 RawEntry::Occupied(_) => {}
@@ -1497,7 +1540,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             };
             task_id
         } else {
-            match raw_entry_in_shard(shard, self.task_cache.hasher(), hash, |k| {
+            match raw_entry_in_shard(shard, self.storage.task_cache.hasher(), hash, |k| {
                 k.eq_components(native_fn, this, arg_ref)
             }) {
                 RawEntry::Occupied(e) => {
@@ -2686,24 +2729,26 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
             match job {
-                TurboTasksBackendJob::InitialSnapshot | TurboTasksBackendJob::FollowUpSnapshot => {
+                TurboTasksBackendJob::Snapshot => {
                     debug_assert!(self.should_persist());
 
-                    let last_snapshot = self.last_snapshot.load(Ordering::Relaxed);
-                    let mut last_snapshot = self.start_time + Duration::from_millis(last_snapshot);
+                    let mut last_snapshot = self.start_time;
                     let mut idle_start_listener = self.idle_start_event.listen();
                     let mut idle_end_listener = self.idle_end_event.listen();
+                    // Whether to immediately set an idle timeout if possible.
+                    // Set to false if we don't persist anything in a cycle.
                     let mut fresh_idle = true;
-                    loop {
+                    let mut evicted = false;
+                    let mut is_first = true;
+                    'outer: loop {
                         const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(300);
                         const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
                         let idle_timeout = *IDLE_TIMEOUT;
-                        let (time, mut reason) =
-                            if matches!(job, TurboTasksBackendJob::InitialSnapshot) {
-                                (FIRST_SNAPSHOT_WAIT, "initial snapshot timeout")
-                            } else {
-                                (SNAPSHOT_INTERVAL, "regular snapshot interval")
-                            };
+                        let (time, mut reason) = if is_first {
+                            (FIRST_SNAPSHOT_WAIT, "initial snapshot timeout")
+                        } else {
+                            (SNAPSHOT_INTERVAL, "regular snapshot interval")
+                        };
 
                         let until = last_snapshot + time;
                         if until > Instant::now() {
@@ -2726,7 +2771,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                         idle_start_listener = self.idle_start_event.listen()
                                     },
                                     _ = &mut idle_end_listener => {
-                                        idle_time = until + idle_timeout;
+                                        idle_time = far_future();
                                         idle_end_listener = self.idle_end_event.listen()
                                     },
                                     _ = tokio::time::sleep_until(until) => {
@@ -2757,7 +2802,54 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 return;
                             }
                             Ok((snapshot_start, new_data)) => {
+                                // if we see 'new_data' then the next idle transition is 'fresh'
+                                fresh_idle = new_data;
+                                is_first = false;
                                 last_snapshot = snapshot_start;
+
+                                // Polls the idle-end event without blocking. Returns
+                                // `true` and refreshes the listener if idle has ended,
+                                // `false` if we are still idle.
+                                macro_rules! check_idle_ended {
+                                    () => {{
+                                        tokio::select! {
+                                            biased;
+                                            _ = &mut idle_end_listener => {
+                                                idle_end_listener = self.idle_end_event.listen();
+                                                true
+                                            },
+                                            _ = std::future::ready(()) => false,
+                                        }
+                                    }};
+                                }
+                                // Evict persisted tasks from memory to reclaim space.
+                                // Like compaction, this runs after snapshot_and_persist
+                                // as a separate concern.
+                                //
+                                // TODO: improve eviction policy — current approach is a full sweep
+                                // after every snapshot. Better strategies to consider:
+                                //   - Memory pressure signals: only evict when RSS exceeds a
+                                //     threshold rather than unconditionally.
+                                //   - Recency data: track last-access time per task and evict
+                                //     least-recently-used entries first rather than all at once.
+                                //   - Eviction intensity: partial sweeps (evict a fraction of
+                                //     eligible tasks per cycle) to reduce latency spikes.
+                                // Evict when there is new data to persist (the common
+                                // case) or on the very first snapshot after startup
+                                // (data was already on disk from a prior run, so
+                                // new_data may be false but in-memory state can still
+                                // be evicted).
+                                let mut ran_eviction = false;
+                                if this.should_evict() && (new_data || !evicted) {
+                                    if check_idle_ended!() {
+                                        // need to start all the way over so we catch the next
+                                        // signal
+                                        continue 'outer;
+                                    }
+                                    evicted = true;
+                                    ran_eviction = true;
+                                    this.storage.evict_after_snapshot(background_span.id());
+                                }
 
                                 // Compact while idle (up to limit), regardless of
                                 // whether the snapshot had new data.
@@ -2765,18 +2857,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 // `EnteredSpan` is `!Send` and would prevent the
                                 // future from being sent across threads when it
                                 // suspends at the `select!` await below.
+                                let mut ran_compaction = false;
                                 const MAX_IDLE_COMPACTION_PASSES: usize = 10;
                                 for _ in 0..MAX_IDLE_COMPACTION_PASSES {
-                                    let idle_ended = tokio::select! {
-                                        biased;
-                                        _ = &mut idle_end_listener => {
-                                            idle_end_listener = self.idle_end_event.listen();
-                                            true
-                                        },
-                                        _ = std::future::ready(()) => false,
-                                    };
-                                    if idle_ended {
-                                        break;
+                                    if check_idle_ended!() {
+                                        continue 'outer;
                                     }
                                     // Enter the span only around the synchronous
                                     // compact() call so we never hold an
@@ -2787,7 +2872,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                     )
                                     .entered();
                                     match self.backing_storage.compact() {
-                                        Ok(true) => {}
+                                        Ok(true) => {
+                                            ran_compaction = true;
+                                        }
                                         Ok(false) => break,
                                         Err(err) => {
                                             eprintln!("Compaction failed: {err:?}");
@@ -2800,21 +2887,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                         }
                                     }
                                 }
-
-                                if !new_data {
-                                    fresh_idle = false;
-                                    continue;
+                                if check_idle_ended!() {
+                                    continue 'outer;
                                 }
-                                let last_snapshot = last_snapshot.duration_since(self.start_time);
-                                self.last_snapshot.store(
-                                    last_snapshot.as_millis().try_into().unwrap(),
-                                    Ordering::Relaxed,
-                                );
-
-                                turbo_tasks.schedule_backend_background_job(
-                                    TurboTasksBackendJob::FollowUpSnapshot,
-                                );
-                                return;
+                                // After running snapshotting/eviction/compaction we have churned a
+                                // _lot_ of memory if we are still
+                                // idle tell `mimalloc` that now would be a good time to release
+                                // memory back to the OS
+                                if new_data || ran_compaction || ran_eviction {
+                                    turbo_tasks_malloc::TurboMalloc::collect(true);
+                                }
                             }
                         }
                     }

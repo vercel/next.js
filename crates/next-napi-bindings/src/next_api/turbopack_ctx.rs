@@ -256,6 +256,8 @@ pub fn create_turbo_tasks(
                 }),
                 dependency_tracking,
                 num_workers: Some(tokio::runtime::Handle::current().metrics().num_workers()),
+                evict_after_snapshot: std::env::var("TURBO_ENGINE_EVICT_AFTER_SNAPSHOT")
+                    .is_ok_and(|v| v == "1" || v == "true"),
                 ..Default::default()
             },
             Either::Left(backing_storage),

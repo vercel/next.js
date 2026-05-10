@@ -619,8 +619,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Clears all caches of the database.
     pub fn clear_cache(&self) {
-        self.key_block_cache.clear();
-        self.value_block_cache.clear();
+        self.clear_block_caches();
         for meta in self.inner.write().meta_files.iter_mut() {
             meta.clear_cache();
         }
