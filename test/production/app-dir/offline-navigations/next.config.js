@@ -6,6 +6,7 @@ const nextConfig = {
   assetPrefix: '/app-assets',
   basePath: '/docs',
   experimental: {
+    exposeTestingApiInProductionBuild: true,
     offlineNavigations: true,
   },
   trailingSlash: true,

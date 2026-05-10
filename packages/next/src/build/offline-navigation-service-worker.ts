@@ -10,7 +10,8 @@ export function getOfflineNavigationServiceWorkerFilePath(): string {
 
 // Offline navigations use a generated, app-local service worker as a document
 // fallback only. It is network-first for regular loads and only serves the
-// fallback document after the network request fails.
+// fallback document after the network request fails; route data is restored
+// later by the client from the durable router cache.
 export function createOfflineNavigationServiceWorker({
   cacheNamespace,
   fallbackDocumentHref,

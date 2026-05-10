@@ -88,6 +88,12 @@ export function createInitialRouterState({
     acc
   )
   const metadataVaryPath = acc.metadataVaryPath
+  const initialStaleAt =
+    location === null ||
+    initialSeedData === null ||
+    initialStaticStageByteLength !== undefined
+      ? null
+      : getStaleAt(navigatedAt, initialStaleTime)
   const initialTask = createInitialCacheNodeForHydration(
     navigatedAt,
     initialRouteTree,
@@ -157,7 +163,7 @@ export function createInitialRouterState({
         // hydration and write it into the cache directly.
         const now = Date.now()
 
-        getStaleAt(now, initialStaleTime)
+        initialStaleAt!
           .then((staleAt) => {
             writeStaticStageResponseIntoCache(
               now,
