@@ -1,0 +1,201 @@
+---
+title: Offline navigations
+description: Learn how to enable offline hard reloads and navigation recovery with Cache Components.
+nav_title: Offline navigations
+version: experimental
+related:
+  title: API Reference
+  description: Learn more about the APIs used in this guide.
+  links:
+    - app/api-reference/config/next-config-js/offlineNavigations
+    - app/api-reference/functions/use-offline
+    - app/api-reference/config/next-config-js/cacheComponents
+---
+
+Offline navigations help an App Router app keep working when a user reloads or opens a same-origin route while their browser is offline.
+
+When a route has browser-private navigation data and the current-build assets it needs, Next.js can restore that route instead of showing the browser's network error page. If the browser does not have everything it needs for the route, the app shows a clear offline miss.
+
+Use offline navigations for read-only route recovery. It does not make every route available offline, sync mutations, or replace a custom Progressive Web App strategy.
+
+## Enable offline navigations
+
+Offline navigations require [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents):
+
+```ts filename="next.config.ts" highlight={4,6}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  experimental: {
+    offlineNavigations: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" highlight={3,5}
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  cacheComponents: true,
+  experimental: {
+    offlineNavigations: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+You do not need to add your own service worker to enable this behavior. `offlineNavigations` configures the required router features automatically.
+
+## Show offline state
+
+Use [`useOffline`](/docs/app/api-reference/functions/use-offline) from `next/offline` to show whether the app is currently offline:
+
+```tsx filename="app/offline-status.tsx" switcher
+'use client'
+
+import { useOffline } from 'next/offline'
+
+export function OfflineStatus() {
+  const isOffline = useOffline()
+  return <p>{isOffline ? 'Offline' : 'Online'}</p>
+}
+```
+
+```jsx filename="app/offline-status.js" switcher
+'use client'
+
+import { useOffline } from 'next/offline'
+
+export function OfflineStatus() {
+  const isOffline = useOffline()
+  return <p>{isOffline ? 'Offline' : 'Online'}</p>
+}
+```
+
+Render the indicator from a shared layout so it is visible after a hard reload:
+
+```tsx filename="app/layout.tsx" switcher
+import { OfflineStatus } from './offline-status'
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <OfflineStatus />
+        {children}
+      </body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { OfflineStatus } from './offline-status'
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <OfflineStatus />
+        {children}
+      </body>
+    </html>
+  )
+}
+```
+
+## Make routes available offline
+
+Offline navigations work for routes the current browser has enough data and assets to render. The most reliable way to make an important route available later is to load it or let Next.js prefetch it before the user needs it offline.
+
+Visible `<Link>` components prefetch automatically in production. Use [`router.prefetch`](/docs/app/api-reference/functions/use-router#userouter) when you want to explicitly prepare a route, such as a dashboard or report the user is likely to open offline:
+
+```tsx filename="app/prefetch-report-button.tsx" switcher
+'use client'
+
+import { useRouter } from 'next/navigation'
+
+export function PrefetchReportButton() {
+  const router = useRouter()
+
+  return (
+    <button onClick={() => router.prefetch('/reports/weekly')}>
+      Make weekly report available offline
+    </button>
+  )
+}
+```
+
+```jsx filename="app/prefetch-report-button.js" switcher
+'use client'
+
+import { useRouter } from 'next/navigation'
+
+export function PrefetchReportButton() {
+  const router = useRouter()
+
+  return (
+    <button onClick={() => router.prefetch('/reports/weekly')}>
+      Make weekly report available offline
+    </button>
+  )
+}
+```
+
+If the route has everything it needs, a hard reload or document navigation can render it while offline. If route data is missing, the app shows an offline miss state instead of guessing or rendering partial UI.
+
+## What to expect
+
+Offline navigations are browser-private and same-origin:
+
+- A route can be restored only in the browser profile where it was loaded or prefetched.
+- Dynamic routes can be restored after the browser has learned and cached the matching route.
+- A route can miss offline if it was never loaded, was not fully prefetched, or was invalidated.
+- Next.js caches the fallback document and its bootstrap assets. Current-build JavaScript and CSS chunks can also be reused offline after the app loads or prefetches them online.
+- If the current build's cached assets or navigation data are cleared, evicted, or from another deployment, the route cannot boot offline.
+- Browser storage can be cleared by users, browser settings, storage pressure, or DevTools. If storage is cleared, offline recovery may not start.
+- Mutations, Server Actions, Route Handlers, and POST requests still require the network.
+
+Offline navigations do not cache arbitrary `fetch` responses, custom static assets, cookies, local storage, or your app's own data stores. If your app stores data separately, continue to manage that storage yourself.
+
+## Keep offline data fresh
+
+Offline navigations follow normal App Router cache invalidation. Use the same APIs you already use to refresh client and server data:
+
+- [`router.refresh()`](/docs/app/api-reference/functions/use-router#userouter) refreshes dynamic route data and invalidates offline navigation data for the affected route.
+- [`refresh()`](/docs/app/api-reference/functions/refresh) refreshes client router data from a Server Action.
+- [`updateTag()`](/docs/app/api-reference/functions/updateTag) and [`revalidatePath()`](/docs/app/api-reference/functions/revalidatePath) invalidate server data and any offline navigation data that depends on it.
+- Mutating cookies in a Server Action invalidates the client router cache, including offline navigation data.
+
+For sign out, account switches, workspace switches, or client-only auth changes, use the same refresh or revalidation API you would use for the online app. Offline navigations mirror those invalidations instead of exposing a separate offline-specific reset API.
+
+## Test offline navigations
+
+Offline navigations do not run in `next dev`. Test with a production build:
+
+```bash
+next build
+next start
+```
+
+Then in a browser:
+
+1. Visit the route online.
+2. Prefetch or navigate to any routes you expect to restore offline.
+3. Open DevTools and switch the network to **Offline**.
+4. Reload the route or open a cached route URL.
+
+If the route has valid offline navigation data, it renders and [`useOffline`](/docs/app/api-reference/functions/use-offline) returns `true`. If required data is missing, the app shows an offline miss state.
+
+> **Good to know**:
+>
+> - `localhost` is treated as a secure context, so service worker registration works with `next start` locally.
+> - Static export integration is not included in this experimental API.
+> - For push notifications, background sync, offline mutations, or custom asset caching, use a custom PWA strategy.

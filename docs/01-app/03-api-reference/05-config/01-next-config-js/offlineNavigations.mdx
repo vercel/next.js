@@ -1,0 +1,78 @@
+---
+title: offlineNavigations
+description: Enable offline hard reloads and navigation recovery for Cache Components apps.
+version: experimental
+related:
+  title: Next Steps
+  description: Learn how to build and observe offline navigations.
+  links:
+    - app/guides/offline-navigations
+    - app/api-reference/functions/use-offline
+    - app/api-reference/config/next-config-js/cacheComponents
+---
+
+`offlineNavigations` lets an App Router app recover routes with cached navigation data and current-build assets when a same-origin document navigation fails because the browser is offline.
+
+```ts filename="next.config.ts" highlight={6}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  experimental: {
+    offlineNavigations: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" highlight={5}
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  cacheComponents: true,
+  experimental: {
+    offlineNavigations: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+## Reference
+
+| Option               | Type      | Default | Description                                                                 |
+| -------------------- | --------- | ------- | --------------------------------------------------------------------------- |
+| `offlineNavigations` | `boolean` | `false` | Enables offline recovery for App Router routes with cached navigation data. |
+
+## Requirements
+
+`offlineNavigations` requires [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) to be enabled.
+
+When `offlineNavigations` is enabled, Next.js also configures the router features required to restore prefetched routes. You do not need to enable them separately.
+
+Use [`useOffline`](/docs/app/api-reference/functions/use-offline) from `next/offline` to show whether the app is currently offline.
+
+## Behavior
+
+In production, Next.js registers a managed service worker for offline navigation recovery. It is used only for same-origin document navigations.
+
+When a user reloads or opens a route while offline:
+
+- If the browser has valid navigation data and the current-build assets needed for the route, the route renders.
+- If the app can boot but the route data is missing or invalidated, the app shows an offline miss.
+- If the fallback cannot start, or the current build's managed assets are cleared, evicted, or from another deployment, the route cannot boot offline.
+- If the browser is online, normal App Router navigation behavior is unchanged.
+
+> **Good to know**:
+>
+> - `next dev` does not register the managed service worker. Test offline navigations with `next build` and `next start`.
+> - `offlineNavigations` does not cache arbitrary `fetch` responses, Server Actions, POST requests, app-owned storage, or custom static assets.
+> - Next.js caches the fallback document and its bootstrap assets. Current-build JavaScript and CSS chunks can also be reused offline after the app loads or prefetches them online.
+> - Offline recovery is browser-private and same-origin, similar to persistent browser cache. Use the normal router refresh and cache revalidation APIs when server-visible state changes.
+> - Static export integration is not included in this experimental API.
+
+## Version History
+
+| Version   | Changes                              |
+| --------- | ------------------------------------ |
+| `v16.3.0` | `offlineNavigations` was introduced. |
