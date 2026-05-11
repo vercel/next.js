@@ -147,7 +147,7 @@ function revalidate(
       case 'cache':
       case 'private-cache':
         // Only reachable from a Server Action calling a cached fn.
-        throw createRevalidateDuringUseCacheError(expression)
+        throw createRevalidateDuringUseCacheError(store.route, expression)
       case 'unstable-cache':
         throw new Error(
           `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`

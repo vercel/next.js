@@ -16,7 +16,7 @@ export function throwForSearchParamsAccessInUseCache(
   workStore: WorkStore,
   constructorOpt: Function
 ): never {
-  const error = createSearchParamsInUseCacheError()
+  const error = createSearchParamsInUseCacheError(workStore.route)
 
   Error.captureStackTrace(error, constructorOpt)
   workStore.invalidDynamicUsageError ??= error

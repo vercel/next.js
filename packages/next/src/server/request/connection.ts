@@ -58,7 +58,7 @@ export function connection(): Promise<void> {
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'cache': {
-          const error = createConnectionInPublicUseCacheError()
+          const error = createConnectionInPublicUseCacheError(workStore.route)
           Error.captureStackTrace(error, connection)
           applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
@@ -68,7 +68,7 @@ export function connection(): Promise<void> {
           // It might not be intuitive to throw for private caches as well, but
           // we don't consider runtime prefetches as "actual requests" (in the
           // navigation sense), despite allowing them to read cookies.
-          const error = createConnectionInPrivateUseCacheError()
+          const error = createConnectionInPrivateUseCacheError(workStore.route)
           Error.captureStackTrace(error, connection)
           applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error

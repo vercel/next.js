@@ -204,7 +204,10 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
       switch (workUnitStore.type) {
         case 'cache':
         case 'private-cache': {
-          const error = createDraftModeMutationInUseCacheError(expression)
+          const error = createDraftModeMutationInUseCacheError(
+            workStore.route,
+            expression
+          )
           Error.captureStackTrace(error, constructorOpt)
           applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error

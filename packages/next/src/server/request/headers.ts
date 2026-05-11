@@ -66,7 +66,7 @@ export function headers(): Promise<ReadonlyHeaders> {
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'cache': {
-          const error = createHeadersInUseCacheError()
+          const error = createHeadersInUseCacheError(workStore.route)
           Error.captureStackTrace(error, headers)
           applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error

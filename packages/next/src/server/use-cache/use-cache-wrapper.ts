@@ -1495,12 +1495,18 @@ export async function cache(
         )
       case 'unstable-cache': {
         throw wrapAsInvalidDynamicUsageError(
-          createUseCachePrivateInsideUnstableCacheError(expression)
+          createUseCachePrivateInsideUnstableCacheError(
+            workStore.route,
+            expression
+          )
         )
       }
       case 'cache': {
         throw wrapAsInvalidDynamicUsageError(
-          createUseCachePrivateInsidePublicUseCacheError(expression)
+          createUseCachePrivateInsidePublicUseCacheError(
+            workStore.route,
+            expression
+          )
         )
       }
       case 'request':
@@ -1517,7 +1523,10 @@ export async function cache(
         break
       case 'generate-static-params':
         throw wrapAsInvalidDynamicUsageError(
-          createUseCachePrivateOutsideRequestContextError(expression)
+          createUseCachePrivateOutsideRequestContextError(
+            workStore.route,
+            expression
+          )
         )
       default:
         workUnitStore satisfies never
@@ -1961,7 +1970,9 @@ export async function cache(
               if (rdcResult.entry.revalidate === 0) {
                 if (rdcResult.hasExplicitRevalidate === false) {
                   throw wrapAsInvalidDynamicUsageError(
-                    createNestedUseCacheZeroRevalidateWithoutOuterCacheLifeError()
+                    createNestedUseCacheZeroRevalidateWithoutOuterCacheLifeError(
+                      workStore.route
+                    )
                   )
                 }
                 debug?.(
@@ -1972,7 +1983,9 @@ export async function cache(
               } else {
                 if (rdcResult.hasExplicitExpire === false) {
                   throw wrapAsInvalidDynamicUsageError(
-                    createNestedUseCacheShortExpireWithoutOuterCacheLifeError()
+                    createNestedUseCacheShortExpireWithoutOuterCacheLifeError(
+                      workStore.route
+                    )
                   )
                 }
                 debug?.(
@@ -2009,7 +2022,9 @@ export async function cache(
                   rdcResult.hasExplicitRevalidate === false
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    createNestedUseCacheZeroRevalidateWithoutOuterCacheLifeError()
+                    createNestedUseCacheZeroRevalidateWithoutOuterCacheLifeError(
+                      workStore.route
+                    )
                   )
                 }
                 if (
@@ -2017,7 +2032,9 @@ export async function cache(
                   rdcResult.hasExplicitExpire === false
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    createNestedUseCacheShortExpireWithoutOuterCacheLifeError()
+                    createNestedUseCacheShortExpireWithoutOuterCacheLifeError(
+                      workStore.route
+                    )
                   )
                 }
                 // We delay the cache here so that it doesn't resolve in the static task --
