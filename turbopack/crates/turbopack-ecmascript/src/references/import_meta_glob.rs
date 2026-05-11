@@ -663,13 +663,15 @@ impl Module for ImportMetaGlobAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let origin_path = self.origin.origin_path().owned().await?;
-        Ok(AssetIdent::from_path(origin_path).with_modifier(modifier(
-            &self.patterns,
-            self.eager,
-            &self.import,
-            &self.query,
-            &self.base,
-        )))
+        Ok(AssetIdent::from_path(origin_path)
+            .with_modifier(modifier(
+                &self.patterns,
+                self.eager,
+                &self.import,
+                &self.query,
+                &self.base,
+            ))
+            .into_vc())
     }
 
     #[turbo_tasks::function]

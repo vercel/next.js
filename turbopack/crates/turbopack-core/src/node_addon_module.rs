@@ -33,8 +33,14 @@ impl NodeAddonModule {
 #[turbo_tasks::value_impl]
 impl Module for NodeAddonModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().with_modifier(rcstr!("node addon"))
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .source
+            .ident()
+            .owned()
+            .await?
+            .with_modifier(rcstr!("node addon"))
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -46,7 +52,8 @@ impl Module for NodeAddonModule {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         static SHARP_BINARY_REGEX: LazyLock<Regex> =
             LazyLock::new(|| Regex::new("/sharp-(\\w+-\\w+).node$").unwrap());
-        let module_path = self.source.ident().path().await?;
+        let ident = self.source.ident().await?;
+        let module_path = &ident.path;
 
         // For most .node binaries, we usually assume that they are standalone dynamic library
         // binaries that get loaded by some `require` call. So the binary itself doesn't read any

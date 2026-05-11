@@ -6,6 +6,7 @@ import type { AppSegmentConfig } from '../../build/segment-config/app/app-segmen
 import type { AfterContext } from '../after/after-context'
 import type { CacheLife } from '../use-cache/cache-life'
 import type { SharedCacheResult } from '../use-cache/use-cache-wrapper'
+import type { ValidationLevel } from '../config-shared'
 
 // Share the instance module in the next-shared layer
 import { workAsyncStorageInstance } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
@@ -95,6 +96,23 @@ export interface WorkStore {
    */
   pendingCacheInvocations?: Map<string, Promise<SharedCacheResult>>
 
+  /**
+   * Set by the dev-server's hang-detection probe worker (see
+   * `use-cache-probe-worker.ts`) to switch `cache()` into a one-shot fill
+   * path: run `generateCacheEntry` as for a cold fill, drain the resulting
+   * stream, return. No cache-handler or resume-data-cache I/O, no
+   * intra-request leader election — the probe just needs to learn whether
+   * the body completes in module-scope isolation.
+   */
+  readonly useCacheProbeMode?: {
+    /**
+     * Max wall time the probe fill may take. `cache()` enforces this with
+     * `UseCacheTimeoutError`, which the probe worker translates to
+     * `{ outcome: 'hung' }` for the parent process.
+     */
+    readonly timeoutMs: number
+  }
+
   isDraftMode?: boolean
   isUnstableNoStore?: boolean
   isPrefetchRequest?: boolean
@@ -115,6 +133,7 @@ export interface WorkStore {
   readonly nonce?: string
 
   cacheComponentsEnabled: boolean
+  validationLevel: ValidationLevel
 
   /**
    * Run the given function inside a clean AsyncLocalStorage snapshot. This is

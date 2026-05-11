@@ -8159,17 +8159,17 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/unstable-io/unstable-io.test.ts": {
+  "test/e2e/app-dir/io/io.test.ts": {
     "passed": [
-      "unstable_io with cache components should make content after unstable_io() dynamic during prerender",
-      "unstable_io with cache components should resolve immediately inside a \"use cache\" scope",
-      "unstable_io with cache components should work in pages router with React.use() (CC)",
-      "unstable_io with cache components should work in pages router with getServerSideProps (CC)",
-      "unstable_io with cache components should work in pages router with getStaticProps (CC)",
-      "unstable_io without cache components should be a no-op during prerender without cache components",
-      "unstable_io without cache components should work in pages router with React.use()",
-      "unstable_io without cache components should work in pages router with getServerSideProps",
-      "unstable_io without cache components should work in pages router with getStaticProps"
+      "io with cache components should make content after io() dynamic during prerender",
+      "io with cache components should resolve immediately inside a \"use cache\" scope",
+      "io with cache components should work in pages router with React.use() (CC)",
+      "io with cache components should work in pages router with getServerSideProps (CC)",
+      "io with cache components should work in pages router with getStaticProps (CC)",
+      "io without cache components should be a no-op during prerender without cache components",
+      "io without cache components should work in pages router with React.use()",
+      "io without cache components should work in pages router with getServerSideProps",
+      "io without cache components should work in pages router with getStaticProps"
     ],
     "failed": [],
     "pending": [],

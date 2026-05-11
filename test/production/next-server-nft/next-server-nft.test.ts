@@ -1,14 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import fs from 'fs'
+import { NextAdapter } from 'next'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
-async function readNormalizedNFT(next, name) {
-  const data = await next.readJSON(name)
+function normalizeNFT(base: string, files: string[]): string[] {
   const result = [
     ...new Set(
-      data.files
+      files
         .filter((file: string) => {
           // They are important, but they are never actually included by themselves but rather as
           // part of some JS files in the same directory tree, which are higher-signal for the
@@ -17,8 +17,12 @@ async function readNormalizedNFT(next, name) {
             return false
           }
 
+          if (file.includes('.next/server/chunks/')) {
+            return false
+          }
+
           // Filter out the many symlinks that power node_modules
-          const fileAbsolute = path.join(next.testDir, name, '..', file)
+          const fileAbsolute = path.join(base, file)
           try {
             if (fs.lstatSync(fileAbsolute).isSymbolicLink()) {
               return false
@@ -55,6 +59,11 @@ async function readNormalizedNFT(next, name) {
   ]
   result.sort()
   return result
+}
+
+async function readNormalizedNFT(next, name) {
+  const data = await next.readJSON(name)
+  return normalizeNFT(path.join(next.testDir, name, '..'), data.files)
 }
 
 // Only run this test for Turbopack as it is more conservative (i.e. aggressive) in including
@@ -515,6 +524,198 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/styled-jsx/dist/index/index.js",
            "/node_modules/styled-jsx/index.js",
            "/node_modules/styled-jsx/style.js",
+         ]
+        `)
+      })
+    })
+
+    describe('with adapters', () => {
+      const { next, skipped } = nextTestSetup({
+        files: __dirname,
+        dependencies: {
+          typescript: '5.9.2',
+        },
+        nextConfig: {
+          adapterPath: path.join(__dirname, './my-adapter.mjs'),
+        },
+      })
+
+      if (skipped) {
+        return
+      }
+
+      it('should not include .next directory in traces despite dynamic fs operations', async () => {
+        // This test verifies that the denied_path feature prevents the .next directory
+        // from being included in traces. The app/dynamic-read page uses dynamic fs.readFileSync
+        // with path.join(process.cwd(), ...) which could theoretically read any file.
+
+        // Check the page-specific trace that has the dynamic fs operations
+        const pageTrace = await readNormalizedNFT(
+          next,
+          '.next/server/app/dynamic-read/page.js.nft.json'
+        )
+
+        // Snapshot the non-node_modules and non-chunks files to see what's being traced
+        // We also filter out chunks because their names change with every build
+        const nonNodeModulesFiles = pageTrace.filter(
+          (file: string) =>
+            !file.includes('/node_modules/') && !file.includes('/chunks/')
+        )
+
+        expect(nonNodeModulesFiles).toMatchInlineSnapshot(`
+         [
+           "./page/react-loadable-manifest.json",
+           "./page_client-reference-manifest.js",
+         ]
+        `)
+      })
+
+      it('should not trace too many files in next-minimal-server.js.nft.json', async () => {
+        const {
+          outputs,
+          repoRoot,
+        }: Parameters<NextAdapter['onBuildComplete']>[0] = await next.readJSON(
+          'build-complete.json'
+        )
+
+        const files = new Set<string>()
+
+        function appendOutput(output: {
+          filePath: string
+          assets: Record<string, string>
+        }) {
+          if (output == null) return
+
+          for (const file of Object.values(output.assets)) {
+            files.add('./' + path.relative(repoRoot, file))
+          }
+        }
+
+        outputs.pages.forEach(appendOutput)
+        outputs.appPages.forEach(appendOutput)
+        appendOutput(outputs.middleware)
+        outputs.pagesApi.forEach(appendOutput)
+        outputs.appRoutes.forEach(appendOutput)
+
+        const trace = normalizeNFT(repoRoot, Array.from(files))
+
+        expect(trace).toMatchInlineSnapshot(`
+         [
+           "./.next/BUILD_ID",
+           "./.next/app-path-routes-manifest.json",
+           "./.next/build-manifest.json",
+           "./.next/prerender-manifest.json",
+           "./.next/required-server-files.json",
+           "./.next/routes-manifest.json",
+           "./.next/server/app-paths-manifest.json",
+           "./.next/server/app/_global-error/page/react-loadable-manifest.json",
+           "./.next/server/app/_global-error/page_client-reference-manifest.js",
+           "./.next/server/app/_not-found/page/react-loadable-manifest.json",
+           "./.next/server/app/_not-found/page_client-reference-manifest.js",
+           "./.next/server/app/dynamic-read/page/react-loadable-manifest.json",
+           "./.next/server/app/dynamic-read/page_client-reference-manifest.js",
+           "./.next/server/app/page/react-loadable-manifest.json",
+           "./.next/server/app/page_client-reference-manifest.js",
+           "./.next/server/functions-config-manifest.json",
+           "./.next/server/middleware-build-manifest.js",
+           "./.next/server/middleware-manifest.json",
+           "./.next/server/next-font-manifest.js",
+           "./.next/server/next-font-manifest.json",
+           "./.next/server/pages-manifest.json",
+           "./.next/server/prefetch-hints.json",
+           "./.next/server/server-reference-manifest.js",
+           "./.next/server/server-reference-manifest.json",
+           "/node_modules/@swc/helpers/cjs/_interop_require_default.cjs",
+           "/node_modules/next/dist/build/adapter/setup-node-env.external.js",
+           "/node_modules/next/dist/client/components/app-router-headers.js",
+           "/node_modules/next/dist/client/components/hooks-server-context.js",
+           "/node_modules/next/dist/client/components/static-generation-bailout.js",
+           "/node_modules/next/dist/client/lib/console.js",
+           "/node_modules/next/dist/compiled/@opentelemetry/api/index.js",
+           "/node_modules/next/dist/compiled/jsonwebtoken/index.js",
+           "/node_modules/next/dist/compiled/next-server/app-page-turbo.runtime.prod.js",
+           "/node_modules/next/dist/compiled/source-map/source-map.js",
+           "/node_modules/next/dist/compiled/stacktrace-parser/stack-trace-parser.cjs.js",
+           "/node_modules/next/dist/compiled/ws/index.js",
+           "/node_modules/next/dist/lib/client-and-server-references.js",
+           "/node_modules/next/dist/lib/constants.js",
+           "/node_modules/next/dist/lib/framework/boundary-constants.js",
+           "/node_modules/next/dist/lib/interop-default.js",
+           "/node_modules/next/dist/lib/is-error.js",
+           "/node_modules/next/dist/lib/picocolors.js",
+           "/node_modules/next/dist/lib/scheduler.js",
+           "/node_modules/next/dist/lib/semver-noop.js",
+           "/node_modules/next/dist/server/app-render/action-async-storage-instance.js",
+           "/node_modules/next/dist/server/app-render/action-async-storage.external.js",
+           "/node_modules/next/dist/server/app-render/after-task-async-storage-instance.js",
+           "/node_modules/next/dist/server/app-render/after-task-async-storage.external.js",
+           "/node_modules/next/dist/server/app-render/async-local-storage.js",
+           "/node_modules/next/dist/server/app-render/blocking-route-messages.js",
+           "/node_modules/next/dist/server/app-render/cache-signal.js",
+           "/node_modules/next/dist/server/app-render/console-async-storage-instance.js",
+           "/node_modules/next/dist/server/app-render/console-async-storage.external.js",
+           "/node_modules/next/dist/server/app-render/dynamic-access-async-storage-instance.js",
+           "/node_modules/next/dist/server/app-render/dynamic-access-async-storage.external.js",
+           "/node_modules/next/dist/server/app-render/dynamic-rendering.js",
+           "/node_modules/next/dist/server/app-render/instant-validation/boundary-constants.js",
+           "/node_modules/next/dist/server/app-render/instant-validation/boundary-tracking.js",
+           "/node_modules/next/dist/server/app-render/module-loading/track-module-loading.external.js",
+           "/node_modules/next/dist/server/app-render/module-loading/track-module-loading.instance.js",
+           "/node_modules/next/dist/server/app-render/staged-rendering.js",
+           "/node_modules/next/dist/server/app-render/work-async-storage-instance.js",
+           "/node_modules/next/dist/server/app-render/work-async-storage.external.js",
+           "/node_modules/next/dist/server/app-render/work-unit-async-storage-instance.js",
+           "/node_modules/next/dist/server/app-render/work-unit-async-storage.external.js",
+           "/node_modules/next/dist/server/dev/browser-logs/file-logger.js",
+           "/node_modules/next/dist/server/dynamic-rendering-utils.js",
+           "/node_modules/next/dist/server/lib/incremental-cache/memory-cache.external.js",
+           "/node_modules/next/dist/server/lib/incremental-cache/shared-cache-controls.external.js",
+           "/node_modules/next/dist/server/lib/incremental-cache/tags-manifest.external.js",
+           "/node_modules/next/dist/server/lib/lru-cache.js",
+           "/node_modules/next/dist/server/lib/parse-stack.js",
+           "/node_modules/next/dist/server/lib/router-utils/instrumentation-globals.external.js",
+           "/node_modules/next/dist/server/lib/router-utils/instrumentation-node-extensions.js",
+           "/node_modules/next/dist/server/lib/source-maps.js",
+           "/node_modules/next/dist/server/lib/trace/constants.js",
+           "/node_modules/next/dist/server/lib/trace/tracer.js",
+           "/node_modules/next/dist/server/load-manifest.external.js",
+           "/node_modules/next/dist/server/node-environment-baseline.js",
+           "/node_modules/next/dist/server/node-environment-extensions/console-dim.external.js",
+           "/node_modules/next/dist/server/node-environment-extensions/console-exit.js",
+           "/node_modules/next/dist/server/node-environment-extensions/console-file.js",
+           "/node_modules/next/dist/server/node-environment-extensions/date.js",
+           "/node_modules/next/dist/server/node-environment-extensions/error-inspect.js",
+           "/node_modules/next/dist/server/node-environment-extensions/fast-set-immediate.external.js",
+           "/node_modules/next/dist/server/node-environment-extensions/io-utils.js",
+           "/node_modules/next/dist/server/node-environment-extensions/node-crypto.js",
+           "/node_modules/next/dist/server/node-environment-extensions/random.js",
+           "/node_modules/next/dist/server/node-environment-extensions/unhandled-rejection.external.js",
+           "/node_modules/next/dist/server/node-environment-extensions/web-crypto.js",
+           "/node_modules/next/dist/server/node-environment.js",
+           "/node_modules/next/dist/server/node-polyfill-crypto.js",
+           "/node_modules/next/dist/server/patch-error-inspect.js",
+           "/node_modules/next/dist/server/require-hook.js",
+           "/node_modules/next/dist/server/response-cache/types.js",
+           "/node_modules/next/dist/server/route-modules/app-page/module.compiled.js",
+           "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/app-router-context.js",
+           "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/entrypoints.js",
+           "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/head-manager-context.js",
+           "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/hooks-client-context.js",
+           "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/image-config-context.js",
+           "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/router-context.js",
+           "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/server-inserted-html.js",
+           "/node_modules/next/dist/server/runtime-reacts.external.js",
+           "/node_modules/next/dist/shared/lib/deep-freeze.js",
+           "/node_modules/next/dist/shared/lib/invariant-error.js",
+           "/node_modules/next/dist/shared/lib/is-plain-object.js",
+           "/node_modules/next/dist/shared/lib/is-thenable.js",
+           "/node_modules/next/dist/shared/lib/lazy-dynamic/bailout-to-csr.js",
+           "/node_modules/next/dist/shared/lib/no-fallback-error.external.js",
+           "/node_modules/next/dist/shared/lib/promise-with-resolvers.js",
+           "/node_modules/next/dist/shared/lib/server-reference-info.js",
+           "/node_modules/react/cjs/react.development.js",
+           "/node_modules/react/cjs/react.production.js",
+           "/node_modules/react/index.js",
          ]
         `)
       })
