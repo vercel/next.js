@@ -535,8 +535,8 @@ async function readNormalizedNFT(next, name) {
         dependencies: {
           typescript: '5.9.2',
         },
-        env: {
-          NEXT_ADAPTER_PATH: path.join(__dirname, './my-adapter.mjs'),
+        nextConfig: {
+          adapterPath: path.join(__dirname, './my-adapter.mjs'),
         },
       })
 
