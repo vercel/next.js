@@ -22,7 +22,7 @@ describe('Cache Components Dev Errors', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "code": "E1247",
-       "description": "Next.js encountered Math.random() without an explicit rendering intent.",
+       "description": "Next.js encountered Math.random() while prerendering.",
        "environmentLabel": "Server",
        "label": "Instant",
        "source": "app/error/page.tsx (2:23) @ Page
@@ -52,7 +52,7 @@ describe('Cache Components Dev Errors', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "code": "E1247",
-       "description": "Next.js encountered Math.random() without an explicit rendering intent.",
+       "description": "Next.js encountered Math.random() while prerendering.",
        "environmentLabel": "Server",
        "label": "Instant",
        "source": "app/error/page.tsx (2:23) @ Page

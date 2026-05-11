@@ -31,8 +31,8 @@ function createSyncIOErrorImpl(
   docsUrl: string
 ): Error {
   return new Error(
-    `Route "${route}": Next.js encountered ${expression} without an explicit rendering intent.\n\n` +
-      `This value can change between renders, so it must be either prerendered or computed later.\n\n` +
+    `Route "${route}": Next.js encountered ${expression} while prerendering.\n\n` +
+      `This expression produces a unique value on every evaluation so it cannot be prerendered directly.\n\n` +
       `Ways to fix this:\n` +
       `  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call\n` +
       `  - Prerender and cache the value with \`"use cache"\`\n` +
@@ -71,7 +71,7 @@ export function createSyncIOClientError(
 ): Error {
   return new Error(
     `Route "${route}": Next.js encountered ${expression} in a Client Component.\n\n` +
-      `This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.\n\n` +
+      `This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.\n\n` +
       `Ways to fix this:\n` +
       `  - Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
       `  - Move the read into a \`useEffect\` or event handler\n` +

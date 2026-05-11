@@ -73,7 +73,7 @@ describe('build-output-prerender', () => {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
 
-           This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+           This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.
 
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -97,7 +97,7 @@ describe('build-output-prerender', () => {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
 
-           This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+           This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.
 
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -212,7 +212,7 @@ describe('build-output-prerender', () => {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
 
-           This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+           This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.
 
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -228,9 +228,9 @@ describe('build-output-prerender', () => {
              6 |
            To debug the issue, start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
            Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
-           Error: Route "/server": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+           Error: Route "/server": Next.js encountered \`Math.random()\` while prerendering.
 
-           This value can change between renders, so it must be either prerendered or computed later.
+           This expression produces a unique value on every evaluation so it cannot be prerendered directly.
 
            Ways to fix this:
              - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -258,7 +258,7 @@ describe('build-output-prerender', () => {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
 
-           This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+           This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.
 
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -275,9 +275,9 @@ describe('build-output-prerender', () => {
              6 |
            To debug the issue, start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
            Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
-           Error: Route "/server": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+           Error: Route "/server": Next.js encountered \`Math.random()\` while prerendering.
 
-           This value can change between renders, so it must be either prerendered or computed later.
+           This expression produces a unique value on every evaluation so it cannot be prerendered directly.
 
            Ways to fix this:
              - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
