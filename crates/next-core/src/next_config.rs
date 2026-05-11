@@ -161,6 +161,8 @@ pub struct NextConfig {
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     cache_components: Option<bool>,
+
+    adapter_path: Option<RcStr>,
     //
     // These are never used by Turbopack, and potentially non-serializable anyway:
     // cache_life: (),
@@ -1478,7 +1480,9 @@ pub struct OptionJsonValue(
 );
 
 fn turbopack_config_documentation_link() -> RcStr {
-    rcstr!("https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders")
+    rcstr!(
+        "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders"
+    )
 }
 
 #[turbo_tasks::value(shared)]
@@ -2033,6 +2037,11 @@ impl NextConfig {
                 // rootParams should be enabled implicitly in cacheComponents.
                 .unwrap_or(self.cache_components.unwrap_or(false)),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn is_using_adapter(&self) -> Vc<bool> {
+        Vc::cell(self.adapter_path.is_some())
     }
 
     #[turbo_tasks::function]

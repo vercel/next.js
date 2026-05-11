@@ -16,7 +16,6 @@ pub mod condition;
 pub mod context;
 pub mod data_uri_source;
 pub mod debug_id;
-pub mod diagnostics;
 pub mod environment;
 pub mod file_source;
 pub mod generated_code_source;
