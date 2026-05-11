@@ -144,15 +144,21 @@ export async function exportAppPage(
     } else {
       const hasFallbackParams =
         fallbackRouteParams != null && fallbackRouteParams.size > 0
+      const isOutputExportFallbackShell =
+        renderOpts.nextConfigOutput === 'export' &&
+        renderOpts.cacheComponents &&
+        hasFallbackParams
       const shouldWriteRsc =
         !renderOpts.experimental.isRoutePPREnabled ||
+        isOutputExportFallbackShell ||
         (!postponed && !hasFallbackParams)
       hasStaticRsc = shouldWriteRsc
 
       // With PPR enabled, we normally skip writing .rsc because it may contain
       // dynamic data. However, for fully static outputs (no postponed state and
       // no fallback params), we can safely emit the route .rsc to support
-      // static navigations.
+      // static navigations. Static export fallback shells also need their
+      // fallback RSC artifact so exported clients can resolve dynamic routes.
       if (shouldWriteRsc) {
         fileWriter.append(
           htmlFilepath.replace(/\.html$/, RSC_SUFFIX),

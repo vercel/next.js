@@ -1,32 +1,43 @@
 import { existsSync, promises as fs } from 'fs'
 import { dirname, join, relative, sep } from 'path'
-import { getPagePath } from '../../server/require'
-import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import {
-  getOutputExportFallbackPath,
-  getOutputExportFallbackStaticPrefix,
-} from '../../lib/output-export-dynamic-fallback'
+  RSC_SEGMENTS_DIR_SUFFIX,
+  RSC_SEGMENT_SUFFIX,
+  RSC_SUFFIX,
+} from '../../lib/constants'
+import { getOutputExportFallbackRouteManifestPath } from '../../lib/output-export-dynamic-fallback'
+import {
+  planOutputExportFallbackRoutes,
+  type OutputExportDynamicRouteInfo,
+} from '../../lib/output-export-fallback-routes'
+import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
+import { getPagePath } from '../../server/require'
+import { convertSegmentPathToStaticExportFilename } from '../../shared/lib/segment-cache/segment-value-encoding'
 
-type OutputExportDynamicRouteInfo = {
-  fallbackSourceRoute: string | undefined
-  fallbackRouteParams:
-    | ReadonlyArray<{
-        paramName: string
-        paramType: string
-      }>
-    | undefined
+export type OutputExportFallbackArtifactVariant = {
+  route: string
+  fallbackPath: string
+  orig: string
 }
 
-type CopyExportedAppHtmlOptions = {
-  outDir: string
-  orig: string
-  routePath: string
-  subFolders: boolean
-  checkRouteCollision?: boolean
+export type OutputExportFallbackArtifactPlan = {
+  fallbackRoute: string
+  needsRouteManifest: boolean
+  variants: OutputExportFallbackArtifactVariant[]
 }
 
 type OutputExportError = Error & {
   code: 'NEXT_EXPORT_ERROR'
+}
+
+type CopyExportedAppArtifactsOptions = {
+  outDir: string
+  orig: string
+  routePath: string
+  segmentsRoutePath: string
+  subFolders: boolean
+  checkRouteCollision?: boolean
+  routeCollisionPath?: string
 }
 
 function createOutputExportError(message: string): OutputExportError {
@@ -59,44 +70,91 @@ function assertNoOutputExportPathCollision(
   )
 }
 
-export async function copyExportedAppHtml({
+export async function copyExportedAppArtifacts({
   outDir,
   orig,
   routePath,
+  segmentsRoutePath,
   subFolders,
   checkRouteCollision = false,
-}: CopyExportedAppHtmlOptions): Promise<string> {
+  routeCollisionPath,
+}: CopyExportedAppArtifactsOptions): Promise<string> {
   const route = normalizePagePath(routePath)
   const flatHtmlDest = join(outDir, `${route}.html`)
+  const flatJsonDest = join(outDir, `${route}.txt`)
   const folderHtmlDest = join(
     outDir,
     `${route}${route !== '/index' ? `${sep}index` : ''}.html`
   )
+  const folderJsonDest = join(
+    outDir,
+    `${route}${route !== '/index' ? `${sep}index` : ''}.txt`
+  )
   const htmlDest =
     subFolders && route !== '/index' ? folderHtmlDest : flatHtmlDest
+  const jsonDest =
+    subFolders && route !== '/index' ? folderJsonDest : flatJsonDest
+
+  const segmentsDir = `${orig}${RSC_SEGMENTS_DIR_SUFFIX}`
+  const segmentCopies: Array<{
+    src: string
+    dest: string
+  }> = []
+
+  if (existsSync(segmentsDir)) {
+    const segmentsDirDest = join(outDir, segmentsRoutePath)
+    const segmentPaths = await collectSegmentPaths(segmentsDir)
+    for (const segmentFileSrc of segmentPaths) {
+      const segmentPath =
+        '/' + segmentFileSrc.slice(0, -RSC_SEGMENT_SUFFIX.length)
+      const segmentFilename =
+        convertSegmentPathToStaticExportFilename(segmentPath)
+      segmentCopies.push({
+        src: join(segmentsDir, segmentFileSrc),
+        dest: join(segmentsDirDest, segmentFilename),
+      })
+    }
+  }
 
   if (checkRouteCollision) {
     assertNoOutputExportPathCollision(
       outDir,
-      [flatHtmlDest, folderHtmlDest],
-      routePath
+      [
+        flatHtmlDest,
+        flatJsonDest,
+        folderHtmlDest,
+        folderJsonDest,
+        ...segmentCopies.map(({ dest }) => dest),
+      ],
+      routeCollisionPath ?? routePath
     )
   }
 
   await fs.mkdir(dirname(htmlDest), { recursive: true })
+  await fs.mkdir(dirname(jsonDest), { recursive: true })
   await fs.copyFile(`${orig}.html`, htmlDest)
+  await fs.copyFile(`${orig}${RSC_SUFFIX}`, jsonDest)
+
+  await Promise.all(
+    segmentCopies.map(async ({ src, dest }) => {
+      await fs.mkdir(dirname(dest), { recursive: true })
+      await fs.copyFile(src, dest)
+    })
+  )
 
   return htmlDest
 }
 
-export async function emitOutputExportFallbackHtmlFiles(
+export function planOutputExportFallbackArtifacts(
   dynamicRoutes: Readonly<Record<string, OutputExportDynamicRouteInfo>>,
   mapAppRouteToPage: Map<string, string>,
-  distDir: string,
-  outDir: string,
-  subFolders: boolean
-): Promise<string[]> {
-  const fallbackHtmlPaths: string[] = []
+  distDir: string
+): OutputExportFallbackArtifactPlan[] {
+  const dynamicRoutesWithArtifacts: Record<
+    string,
+    OutputExportDynamicRouteInfo
+  > = {}
+  const origByRoute = new Map<string, string>()
 
   for (const [dynamicRoute, prerenderInfo] of Object.entries(dynamicRoutes)) {
     if (
@@ -104,11 +162,6 @@ export async function emitOutputExportFallbackHtmlFiles(
       !prerenderInfo.fallbackRouteParams ||
       prerenderInfo.fallbackRouteParams.length === 0
     ) {
-      continue
-    }
-
-    const staticPrefix = getOutputExportFallbackStaticPrefix(dynamicRoute)
-    if (staticPrefix === null) {
       continue
     }
 
@@ -129,23 +182,74 @@ export async function emitOutputExportFallbackHtmlFiles(
 
     const sourceRoute = normalizePagePath(dynamicRoute)
     const orig = join(distPagesDir, sourceRoute)
-    if (!existsSync(`${orig}.html`)) {
+    if (!existsSync(`${orig}.html`) || !existsSync(`${orig}${RSC_SUFFIX}`)) {
       continue
     }
 
-    const fallbackPath = getOutputExportFallbackPath(staticPrefix)
-    fallbackHtmlPaths.push(
-      await copyExportedAppHtml({
-        outDir,
-        orig,
-        routePath: fallbackPath,
-        subFolders,
-        checkRouteCollision: true,
-      })
-    )
+    dynamicRoutesWithArtifacts[dynamicRoute] = prerenderInfo
+    origByRoute.set(dynamicRoute, orig)
   }
 
-  return fallbackHtmlPaths
+  return planOutputExportFallbackRoutes(dynamicRoutesWithArtifacts).map(
+    ({ fallbackRoute, needsRouteManifest, entries }) => ({
+      fallbackRoute,
+      needsRouteManifest,
+      variants: entries.map(({ route, fallbackPath }) => ({
+        route,
+        fallbackPath,
+        orig: origByRoute.get(route)!,
+      })),
+    })
+  )
+}
+
+export async function emitOutputExportFallbackArtifacts(
+  plans: OutputExportFallbackArtifactPlan[],
+  outDir: string,
+  subFolders: boolean
+): Promise<string[]> {
+  const fallbackHtmlPathsByPlan = await Promise.all(
+    plans.map(async ({ fallbackRoute, needsRouteManifest, variants }) => {
+      if (needsRouteManifest) {
+        const manifestPath = join(
+          outDir,
+          getOutputExportFallbackRouteManifestPath(fallbackRoute)
+        )
+        assertNoOutputExportPathCollision(outDir, [manifestPath], fallbackRoute)
+        await fs.mkdir(dirname(manifestPath), { recursive: true })
+        await fs.writeFile(
+          manifestPath,
+          JSON.stringify(
+            {
+              version: 1,
+              routes: variants.map(({ route, fallbackPath }) => ({
+                route,
+                fallbackPath,
+              })),
+            },
+            null,
+            2
+          )
+        )
+      }
+
+      return Promise.all(
+        variants.map(async ({ fallbackPath, orig }) => {
+          return copyExportedAppArtifacts({
+            outDir,
+            orig,
+            routePath: fallbackPath,
+            segmentsRoutePath: fallbackPath,
+            subFolders,
+            checkRouteCollision: true,
+            routeCollisionPath: fallbackPath,
+          })
+        })
+      )
+    })
+  )
+
+  return fallbackHtmlPathsByPlan.flat()
 }
 
 function getPathDepth(outDir: string, filePath: string): number {
@@ -156,6 +260,9 @@ export async function writeOutputExportFallbackHtml(
   outDir: string,
   fallbackHtmlPaths: string[]
 ): Promise<void> {
+  // Prefer a shallow __fallback shell for the global fallback entry point so
+  // the bootstrap document still carries the right root structure and assets.
+  // Fall back to a generic document only if no __fallback shell exists.
   const genericSource = [
     join(outDir, 'index.html'),
     join(outDir, '404.html'),
@@ -165,7 +272,8 @@ export async function writeOutputExportFallbackHtml(
     (a, b) =>
       getPathDepth(outDir, a) - getPathDepth(outDir, b) || a.localeCompare(b)
   )
-  const fallbackSource = sortedFallbackPaths[0] ?? genericSource
+  const pprShellSource = sortedFallbackPaths[0]
+  const fallbackSource = pprShellSource ?? genericSource
   if (!fallbackSource) {
     return
   }
@@ -181,6 +289,9 @@ export async function writeOutputExportFallbackHtml(
 
   const fallbackHtml = await fs.readFile(fallbackSource, 'utf8')
   const exportFallbackScript = '<script>self.__NEXT_EXPORT_FALLBACK=1</script>'
+  // The global fallback document is only a bootstrap shell. Keep it hidden
+  // until the client resolves the actual route-specific fallback payload and
+  // React commits the real tree. Removed in app-index.tsx after hydration.
   const exportFallbackStyle =
     '<style id="__next-export-fallback-style">#__next{visibility:hidden}</style>'
   const injection = `${exportFallbackStyle}${exportFallbackScript}`
@@ -192,4 +303,38 @@ export async function writeOutputExportFallbackHtml(
       : injection + fallbackHtml
 
   await fs.writeFile(globalFallbackPath, patchedFallbackHtml)
+}
+
+async function collectSegmentPaths(segmentsDirectory: string) {
+  const results: Array<string> = []
+  await collectSegmentPathsImpl(segmentsDirectory, segmentsDirectory, results)
+  return results
+}
+
+async function collectSegmentPathsImpl(
+  segmentsDirectory: string,
+  directory: string,
+  results: Array<string>
+) {
+  const segmentFiles = await fs.readdir(directory, {
+    withFileTypes: true,
+  })
+  await Promise.all(
+    segmentFiles.map(async (segmentFile) => {
+      if (segmentFile.isDirectory()) {
+        await collectSegmentPathsImpl(
+          segmentsDirectory,
+          join(directory, segmentFile.name),
+          results
+        )
+        return
+      }
+      if (!segmentFile.name.endsWith(RSC_SEGMENT_SUFFIX)) {
+        return
+      }
+      results.push(
+        relative(segmentsDirectory, join(directory, segmentFile.name))
+      )
+    })
+  )
 }

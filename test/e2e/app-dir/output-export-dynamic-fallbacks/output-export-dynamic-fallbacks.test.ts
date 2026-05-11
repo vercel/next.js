@@ -15,7 +15,7 @@ describe('output-export-dynamic-fallbacks', () => {
     skipStart: true,
   })
 
-  it('writes route fallback HTML without emitting fallback RSC data', async () => {
+  it('writes route fallback HTML and RSC artifacts', async () => {
     await next.build()
 
     const outDir = join(next.testDir, 'out')
@@ -23,7 +23,16 @@ describe('output-export-dynamic-fallbacks', () => {
       await fs.pathExists(join(outDir, 'another', '__fallback.html'))
     ).toBe(true)
     expect(await fs.pathExists(join(outDir, 'another', '__fallback.txt'))).toBe(
-      false
+      true
+    )
+
+    const segmentFiles = await fs.readdir(join(outDir, 'another', '__fallback'))
+    expect(segmentFiles).toEqual(
+      expect.arrayContaining([
+        '__next._full.txt',
+        '__next._tree.txt',
+        '__next.another.$d$slug.__PAGE__.txt',
+      ])
     )
     expect(await fs.pathExists(join(outDir, '_fallback.html'))).toBe(true)
 
@@ -40,6 +49,9 @@ describe('output-export-dynamic-fallbacks', () => {
       expect(await globalFallbackRes.text()).toContain(
         '__NEXT_EXPORT_FALLBACK=1'
       )
+
+      const rscRes = await fetchViaHTTP(port, '/another/__fallback.txt')
+      expect(rscRes.status).toBe(200)
     } finally {
       await stopApp(app)
     }
