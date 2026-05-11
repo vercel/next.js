@@ -374,7 +374,6 @@ describe('Prerender', () => {
       ]
 
       for (const toBuild of toBuildBatches) {
-         
         await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
       }
 
