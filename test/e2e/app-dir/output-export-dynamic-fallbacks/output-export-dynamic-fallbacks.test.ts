@@ -6,6 +6,7 @@ import { join } from 'path'
 import express from 'express'
 import webdriver from 'next-webdriver'
 import { fetchViaHTTP, findPort, retry, stopApp } from 'next-test-utils'
+import { createRouterAct } from 'router-act'
 
 describe('output-export-dynamic-fallbacks', () => {
   const { next } = nextTestSetup({
@@ -14,7 +15,7 @@ describe('output-export-dynamic-fallbacks', () => {
     skipStart: true,
   })
 
-  it('writes route fallback HTML and RSC artifacts', async () => {
+  it('writes fallback artifacts and resolves hard loads and prefetched soft navigations', async () => {
     await next.build()
 
     const outDir = join(next.testDir, 'out')
@@ -59,6 +60,29 @@ describe('output-export-dynamic-fallbacks', () => {
         })
       } finally {
         await hardLoad.close()
+      }
+
+      let act: ReturnType<typeof createRouterAct>
+      const softNav = await webdriver(port, '/another', {
+        beforePageLoad(page) {
+          act = createRouterAct(page)
+        },
+      })
+      try {
+        const toggle = await softNav.elementByCss(
+          'input[data-link-accordion="/another/alpha"]'
+        )
+
+        await act!(async () => {
+          await toggle.click()
+          await softNav.elementByCss('a[href="/another/alpha"]').click()
+        })
+
+        await retry(async () => {
+          expect(await softNav.elementByCss('h1').text()).toBe('alpha')
+        })
+      } finally {
+        await softNav.close()
       }
     } finally {
       await stopApp(app)

@@ -23,6 +23,10 @@ import type RenderResult from '../../server/render-result'
 import { getIsPossibleServerAction } from '../../server/lib/server-action-request-meta'
 import { getBotType } from '../../shared/lib/router/utils/is-bot'
 import { interopDefault } from '../../lib/interop-default'
+import {
+  isOutputExportDynamicFallbackEnabled,
+  isOutputExportOptimisticRoutingEnabled,
+} from '../../lib/output-export-dynamic-fallback'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 import { CloseController } from '../../server/web/web-on-close'
@@ -166,14 +170,18 @@ async function requestHandler(
         staleTimes: nextConfig.experimental.staleTimes,
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
         optimisticRouting: Boolean(
-          nextConfig.experimental.optimisticRouting ||
-            nextConfig.experimental.offlineNavigations
+          nextConfig.experimental.offlineNavigations ||
+            isOutputExportOptimisticRoutingEnabled(nextConfig)
         ),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
-        cachedNavigations: Boolean(nextConfig.experimental.cachedNavigations),
+        cachedNavigations: Boolean(
+          nextConfig.experimental.cachedNavigations ||
+            nextConfig.experimental.offlineNavigations ||
+            isOutputExportDynamicFallbackEnabled(nextConfig)
+        ),
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
         clientParamParsingOrigins:

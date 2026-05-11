@@ -31,6 +31,10 @@ import {
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr' with { 'turbopack-transition': 'next-server-utility' }
 import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
 import {
+  isOutputExportDynamicFallbackEnabled,
+  isOutputExportOptimisticRoutingEnabled,
+} from '../../lib/output-export-dynamic-fallback' with { 'turbopack-transition': 'next-server-utility' }
+import {
   getFallbackRouteParams,
   getPlaceholderFallbackRouteParams,
   buildDynamicSegmentPlaceholder,
@@ -890,15 +894,17 @@ export async function handler(
             staleTimes: nextConfig.experimental.staleTimes,
             dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
             optimisticRouting: Boolean(
-              nextConfig.experimental.optimisticRouting ||
-                nextConfig.experimental.offlineNavigations
+              nextConfig.experimental.offlineNavigations ||
+                isOutputExportOptimisticRoutingEnabled(nextConfig)
             ),
             inlineCss: Boolean(nextConfig.experimental.inlineCss),
             prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
             useCacheTimeout: nextConfig.experimental.useCacheTimeout,
             cachedNavigations: Boolean(
-              nextConfig.experimental.cachedNavigations
+              nextConfig.experimental.cachedNavigations ||
+                nextConfig.experimental.offlineNavigations ||
+                isOutputExportDynamicFallbackEnabled(nextConfig)
             ),
             clientTraceMetadata:
               nextConfig.experimental.clientTraceMetadata || ([] as any),

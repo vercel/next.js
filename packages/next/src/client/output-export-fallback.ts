@@ -58,7 +58,7 @@ async function fetchConfiguredOutputExportDataResult(
   renderedUrl: URL,
   prefersTrailingSlash: boolean,
   init?: RequestInit
-): Promise<{ response: Response; dataUrl: URL } | null> {
+): Promise<Response | null> {
   const configuredDataUrl = getConfiguredOutputExportDataUrl(
     renderedUrl,
     prefersTrailingSlash
@@ -74,10 +74,7 @@ async function fetchConfiguredOutputExportDataResult(
     return null
   }
 
-  return {
-    response,
-    dataUrl: configuredDataUrl,
-  }
+  return response
 }
 
 export async function fetchOutputExportFallbackResponse(
@@ -92,14 +89,14 @@ export async function fetchOutputExportFallbackResponse(
     const candidateUrl = new URL(renderedUrl)
     candidateUrl.pathname = candidate
 
-    const result = await fetchConfiguredOutputExportDataResult(
+    const response = await fetchConfiguredOutputExportDataResult(
       candidateUrl,
       prefersTrailingSlash,
       init
     )
-    if (result) {
+    if (response) {
       return {
-        response: result.response,
+        response,
         renderedUrl,
         fallbackUrl: candidateUrl,
       }

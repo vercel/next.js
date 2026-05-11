@@ -50,6 +50,10 @@ import { format as formatUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
 import { isRSCRequestHeader } from './lib/is-rsc-request'
 import {
+  isOutputExportDynamicFallbackEnabled,
+  isOutputExportOptimisticRoutingEnabled,
+} from '../lib/output-export-dynamic-fallback'
+import {
   APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
   PAGES_MANIFEST,
@@ -577,17 +581,20 @@ export default abstract class Server<
         clientParamParsingOrigins:
           this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
-        optimisticRouting:
-          this.nextConfig.experimental.optimisticRouting ||
+        optimisticRouting: Boolean(
           this.nextConfig.experimental.offlineNavigations ||
-          false,
+            isOutputExportOptimisticRoutingEnabled(this.nextConfig)
+        ),
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         prefetchInlining:
           this.nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
         useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
-        cachedNavigations:
-          this.nextConfig.experimental.cachedNavigations ?? false,
+        cachedNavigations: Boolean(
+          this.nextConfig.experimental.cachedNavigations ||
+            this.nextConfig.experimental.offlineNavigations ||
+            isOutputExportDynamicFallbackEnabled(this.nextConfig)
+        ),
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           this.nextConfig.experimental.maxPostponedStateSize
         ),
