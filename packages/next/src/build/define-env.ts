@@ -303,6 +303,10 @@ export function getDefineEnv({
     'process.env.__NEXT_ROUTER_BASEPATH': config.basePath,
     'process.env.__NEXT_HAS_REWRITES': hasRewrites,
     'process.env.__NEXT_CONFIG_OUTPUT': config.output,
+    'process.env.__NEXT_OUTPUT_EXPORT_DYNAMIC_FALLBACKS':
+      config.output === 'export' &&
+      config.cacheComponents === true &&
+      config.experimental.outputExportDynamicFallbacks === true,
     'process.env.__NEXT_I18N_SUPPORT': !!config.i18n,
     'process.env.__NEXT_I18N_DOMAINS': config.i18n?.domains ?? false,
     'process.env.__NEXT_I18N_CONFIG': config.i18n || '',

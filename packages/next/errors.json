@@ -1194,5 +1194,6 @@
   "1193": "\\`experimental.offlineNavigations\\` requires \\`cacheComponents\\` to be enabled. Please update your %s accordingly.",
   "1194": "Expected staticChildren to be initialized for known dynamic siblings.",
   "1195": "Route \"%s\" used %s in a Server Component with \"output: export\". This is not supported because %s See more info here: https://nextjs.org/docs/app/guides/static-exports",
-  "1196": "Route \"%s\" used unresolved dynamic params in a Server Component with \"output: export\". This is not supported because these fallback params are only available on the client. Move param-dependent content into a Client Component or add generateStaticParams() to prerender this route. See more info here: https://nextjs.org/docs/app/guides/static-exports"
+  "1196": "Route \"%s\" used unresolved dynamic params in a Server Component with \"output: export\". This is not supported because these fallback params are only available on the client. Move param-dependent content into a Client Component or add generateStaticParams() to prerender this route. See more info here: https://nextjs.org/docs/app/guides/static-exports",
+  "1197": "Could not find an output export fallback for \"%s\"."
 }
