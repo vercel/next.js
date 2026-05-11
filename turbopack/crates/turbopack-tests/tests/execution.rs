@@ -29,7 +29,7 @@ use turbopack::{
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
 };
 use turbopack_core::{
-    chunk::{ChunkingConfig, MangleType, MinifyType},
+    chunk::ChunkingConfig,
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
@@ -47,8 +47,10 @@ use turbopack_core::{
         options::{ImportMap, ImportMapping},
     },
 };
-use turbopack_css::chunk::CssChunkType;
-use turbopack_ecmascript::{TreeShakingMode, chunk::EcmascriptChunkType};
+use turbopack_css::{chunk::CssChunkType, emit_options::CssEmitOptions};
+use turbopack_ecmascript::{
+    TreeShakingMode, chunk::EcmascriptChunkType, emit_options::EcmascriptEmitOptions,
+};
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{
     child_process_backend,
@@ -546,18 +548,21 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     )
     .source_map_source_type(turbopack_core::chunk::SourceMapSourceType::RelativeUri)
     .module_merging(options.scope_hoisting)
-    .minify_type(if options.minify {
-        MinifyType::Minify {
-            mangle: Some(MangleType::OptimalSize),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
     .export_usage(if options.remove_unused_exports {
         Some(binding_usage.unwrap().connect().to_resolved().await?)
     } else {
         None
     });
+
+    if options.minify {
+        let ecma_opts = EcmascriptEmitOptions::builder()
+            .preset_minify_optimal_size()
+            .build();
+        let css_opts = CssEmitOptions::builder().preset_minify().build();
+        builder = builder
+            .emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()))
+            .emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+    }
 
     if options.remove_unused_imports {
         builder = builder.unused_references(

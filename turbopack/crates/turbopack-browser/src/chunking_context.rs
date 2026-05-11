@@ -8,8 +8,8 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, CrossOrigin,
-        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
+        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, CrossOrigin, EmitOption,
+        EmitOptions, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
         SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
@@ -123,8 +123,16 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
-        self.chunking_context.minify_type = minify_type;
+    pub fn emit_option(mut self, opt: ResolvedVc<Box<dyn EmitOption>>) -> Self {
+        self.chunking_context.emit_options.push(opt);
+        self
+    }
+
+    pub fn emit_options(
+        mut self,
+        opts: impl IntoIterator<Item = ResolvedVc<Box<dyn EmitOption>>>,
+    ) -> Self {
+        self.chunking_context.emit_options.extend(opts);
         self
     }
 
@@ -311,8 +319,8 @@ pub struct BrowserChunkingContext {
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
     runtime_type: RuntimeType,
-    /// Whether to minify resulting chunks
-    minify_type: MinifyType,
+    /// Emit options
+    emit_options: Vec<ResolvedVc<Box<dyn EmitOption>>>,
     /// Whether content hashing is enabled for chunk filenames.
     chunk_content_hashing: Option<ContentHashing>,
     /// Content hashing for asset filenames.
@@ -382,7 +390,7 @@ impl BrowserChunkingContext {
                 debug_ids: false,
                 environment,
                 runtime_type,
-                minify_type: MinifyType::NoMinify,
+                emit_options: vec![],
                 chunk_content_hashing: None,
                 asset_content_hashing: ContentHashing::Direct { length: 13 },
                 source_maps_type: SourceMapsType::Full,
@@ -505,12 +513,6 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn source_maps_type(&self) -> Vc<SourceMapsType> {
         self.source_maps_type.cell()
-    }
-
-    /// Returns the minify type.
-    #[turbo_tasks::function]
-    pub fn minify_type(&self) -> Vc<MinifyType> {
-        self.minify_type.cell()
     }
 
     /// Returns the chunk path information.
@@ -749,8 +751,8 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    pub fn minify_type(&self) -> Vc<MinifyType> {
-        self.minify_type.cell()
+    fn emit_options(&self) -> Vc<EmitOptions> {
+        Vc::cell(self.emit_options.clone())
     }
 
     #[turbo_tasks::function]

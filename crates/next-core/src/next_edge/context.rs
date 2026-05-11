@@ -6,8 +6,8 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
-        AssetSuffix, ChunkingConfig, ChunkingContext, CrossOrigin, MangleType, MinifyType,
-        SourceMapsType, UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, ChunkingContext, CrossOrigin, SourceMapsType,
+        UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
@@ -30,7 +30,8 @@ use crate::{
     next_shared::resolve::NextSharedRuntimeResolvePlugin,
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
-        free_var_references_with_vercel_system_env_warnings, worker_forwarded_globals,
+        free_var_references_with_vercel_system_env_warnings, minify_emit_options,
+        worker_forwarded_globals,
     },
 };
 
@@ -250,14 +251,6 @@ pub async fn get_edge_chunking_context_with_client_assets(
         suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
         static_suffix: css_url_suffix.to_resolved().await?,
     })
-    .minify_type(if *turbo_minify.await? {
-        MinifyType::Minify {
-            // React needs deterministic function names to work correctly.
-            mangle: (!*no_mangling.await?).then_some(MangleType::Deterministic),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
     .source_maps(*turbo_source_maps.await?)
     .cross_origin(cross_origin_loading)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
@@ -265,7 +258,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .unused_references(unused_references.to_resolved().await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
-    .worker_forwarded_globals(worker_forwarded_globals());
+    .worker_forwarded_globals(worker_forwarded_globals())
+    .emit_options(minify_emit_options(turbo_minify, no_mangling, true).await?);
 
     if !next_mode.is_development() {
         builder = builder
@@ -353,13 +347,6 @@ pub async fn get_edge_chunking_context(
     // implementation in the edge sandbox. It will respond with the
     // asset from the output directory.
     .asset_base_path(Some(rcstr!("blob:server/edge/")))
-    .minify_type(if *turbo_minify.await? {
-        MinifyType::Minify {
-            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
     .source_maps(*turbo_source_maps.await?)
     .cross_origin(cross_origin)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
@@ -367,7 +354,8 @@ pub async fn get_edge_chunking_context(
     .unused_references(unused_references.to_resolved().await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
-    .worker_forwarded_globals(worker_forwarded_globals());
+    .worker_forwarded_globals(worker_forwarded_globals())
+    .emit_options(minify_emit_options(turbo_minify, no_mangling, false).await?);
 
     if !next_mode.is_development() {
         builder = builder

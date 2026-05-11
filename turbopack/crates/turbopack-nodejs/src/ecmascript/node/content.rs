@@ -3,13 +3,16 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkingContext, MinifyType},
+    chunk::{ChunkingContext, chunking_context::find_emit_option},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMapAsset},
     version::{Update, Version, VersionedContent},
 };
-use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
+use turbopack_ecmascript::{
+    chunk::EcmascriptChunkContent, emit_options::EcmascriptEmitOptions, minify::minify,
+    utils::StringifyJs,
+};
 
 use super::{
     chunk::EcmascriptBuildNodeChunk, update::update_node_chunk,
@@ -72,8 +75,10 @@ impl EcmascriptBuildNodeChunkContent {
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = *self.chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
+        let ecma_opts =
+            EcmascriptEmitOptions::get_or_default(Vc::upcast(*self.chunking_context)).await?;
+        if let Some(ref swc_opts) = ecma_opts.swc_minify_options {
+            code = minify(code, source_maps, swc_opts)?;
         }
 
         Ok(code.cell())
@@ -81,11 +86,16 @@ impl EcmascriptBuildNodeChunkContent {
 
     #[turbo_tasks::function]
     pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBuildNodeChunkVersion>> {
+        let ecma_opts = find_emit_option::<EcmascriptEmitOptions>(
+            Vc::upcast::<Box<dyn ChunkingContext>>(*self.chunking_context).emit_options(),
+        )
+        .await?
+        .unwrap_or_else(|| EcmascriptEmitOptions::default().cell());
         Ok(EcmascriptBuildNodeChunkVersion::new(
             self.chunking_context.output_root().owned().await?,
             self.chunk.path().owned().await?,
             *self.content,
-            *self.chunking_context.minify_type().await?,
+            ecma_opts,
         ))
     }
 }

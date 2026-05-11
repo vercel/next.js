@@ -1,5 +1,4 @@
 {
-  "minifyType": "NoMinify",
   "runtime": "NodeJs",
   "runtimeType": "Production"
 }

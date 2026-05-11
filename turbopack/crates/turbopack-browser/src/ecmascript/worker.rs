@@ -8,13 +8,13 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, MinifyType},
+    chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
     source_map::{GenerateSourceMap, SourceMapAsset},
 };
-use turbopack_ecmascript::minify::minify;
+use turbopack_ecmascript::{emit_options::EcmascriptEmitOptions, minify::minify};
 
 /// A pre-compiled worker entrypoint that bootstraps workers by reading config from URL params.
 ///
@@ -57,8 +57,9 @@ impl EcmascriptBrowserWorkerEntrypoint {
         let forwarded_globals = this.forwarded_globals.await?;
         let mut code = generate_worker_bootstrap_code(&forwarded_globals)?;
 
-        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
+        let ecma_opts = EcmascriptEmitOptions::get_or_default(*this.chunking_context).await?;
+        if let Some(ref swc_opts) = ecma_opts.swc_minify_options {
+            code = minify(code, source_maps, swc_opts)?;
         }
 
         Ok(code.cell())
