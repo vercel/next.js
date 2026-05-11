@@ -1,20 +1,14 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import { fetchViaHTTP, waitFor } from 'next-test-utils'
 
 describe('app-dir-prevent-304-caching', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
-        app: new FileRef(join(__dirname, 'app')),
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
+      app: new FileRef(join(__dirname, 'app')),
+    },
   })
-  afterAll(() => next.destroy())
 
   // https://github.com/vercel/next.js/issues/56580
   it('should not cache 304 status', async () => {

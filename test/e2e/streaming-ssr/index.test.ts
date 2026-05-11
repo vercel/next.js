@@ -1,6 +1,5 @@
 import { join } from 'path'
 import { createNext, nextTestSetup } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -122,49 +121,46 @@ if (isNextProd) {
   })
 
   describe('react 18 streaming SSR in minimal mode with node runtime', () => {
-    let next: NextInstance
-
-    beforeAll(async () => {
+    beforeAll(() => {
       if (isNextProd) {
         process.env.NEXT_PRIVATE_MINIMAL_MODE = '1'
       }
+    })
+    afterAll(() => {
+      if (isNextProd) {
+        delete process.env.NEXT_PRIVATE_MINIMAL_MODE
+      }
+    })
 
-      next = await createNext({
-        files: {
-          'pages/index.js': `
+    const { next } = nextTestSetup({
+      files: {
+        'pages/index.js': `
           export default function Page() {
             return <p>streaming</p>
           }
           export async function getServerSideProps() {
             return { props: {} }
           }`,
+      },
+      nextConfig: {
+        webpack(config, { nextRuntime }) {
+          const path = require('path')
+          const fs = require('fs')
+
+          const runtimeFilePath = path.join(__dirname, 'runtimes.txt')
+          let runtimeContent = ''
+
+          try {
+            runtimeContent = fs.readFileSync(runtimeFilePath, 'utf8')
+            runtimeContent += '\n'
+          } catch (_) {}
+
+          runtimeContent += nextRuntime || 'client'
+
+          fs.writeFileSync(runtimeFilePath, runtimeContent)
+          return config
         },
-        nextConfig: {
-          webpack(config, { nextRuntime }) {
-            const path = require('path')
-            const fs = require('fs')
-
-            const runtimeFilePath = path.join(__dirname, 'runtimes.txt')
-            let runtimeContent = ''
-
-            try {
-              runtimeContent = fs.readFileSync(runtimeFilePath, 'utf8')
-              runtimeContent += '\n'
-            } catch (_) {}
-
-            runtimeContent += nextRuntime || 'client'
-
-            fs.writeFileSync(runtimeFilePath, runtimeContent)
-            return config
-          },
-        },
-      })
-    })
-    afterAll(() => {
-      if (isNextProd) {
-        delete process.env.NEXT_PRIVATE_MINIMAL_MODE
-      }
-      next.destroy()
+      },
     })
 
     // Relies on the custom webpack config above
