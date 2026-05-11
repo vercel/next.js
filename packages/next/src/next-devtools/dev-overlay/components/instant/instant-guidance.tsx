@@ -12,8 +12,6 @@ import {
 
 export type { GuidanceKind, GuidanceVariant } from './instant-guidance-data'
 
-// ── Components ────────────────────────────────────
-
 function CardGrid({ cards }: { cards: FixCard[] }) {
   return (
     <div data-nextjs-card-grid>
@@ -24,6 +22,7 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
           data-card-conditional={card.conditional || undefined}
           key={card.title}
         >
+          <span data-nextjs-fix-card-title>{card.title}</span>
           <pre data-nextjs-fix-snippet>
             {card.snippets.map((s, i) => (
               <span
@@ -47,7 +46,6 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
               </span>
             ))}
           </pre>
-          <span data-nextjs-fix-card-title>{card.title}</span>
         </div>
       ))}
     </div>
@@ -59,11 +57,13 @@ export function InstantGuidance({
   kind = 'blocking-route',
   explanation,
   cause,
+  showExplanation = true,
 }: {
   variant: GuidanceVariant
   kind?: GuidanceKind
   explanation?: string
   cause?: string
+  showExplanation?: boolean
 }) {
   const cards = getCards(kind, variant, cause)
   let docsUrl: string
@@ -78,7 +78,7 @@ export function InstantGuidance({
 
   return (
     <div data-nextjs-instant-guidance>
-      {defaultExplanation || docsUrl ? (
+      {showExplanation && (defaultExplanation || docsUrl) ? (
         <p data-nextjs-instant-explanation>
           {defaultExplanation ? <>{defaultExplanation} </> : null}
           {docsUrl ? (
@@ -96,17 +96,32 @@ export function InstantGuidance({
   )
 }
 
+export function InstantExplanation() {
+  return (
+    <p data-nextjs-instant-explanation>
+      {EXPLANATIONS['blocking-route']}{' '}
+      <a
+        href={DOCS_URLS['blocking-route']}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Learn more
+      </a>
+    </p>
+  )
+}
+
 export const INSTANT_GUIDANCE_STYLES = css`
   [data-nextjs-instant-guidance] {
-    margin-top: 16px;
-    padding: 0 16px 16px;
+    margin: 0;
+    padding: 0;
   }
 
   [data-nextjs-instant-explanation] {
     font-size: var(--size-14);
     line-height: var(--size-20);
     color: var(--color-gray-900);
-    margin: 0 0 16px;
+    margin: 0;
   }
 
   [data-nextjs-instant-explanation] a {
@@ -116,15 +131,6 @@ export const INSTANT_GUIDANCE_STYLES = css`
 
   [data-nextjs-instant-explanation] a:hover {
     text-decoration: underline;
-  }
-
-  [data-nextjs-instant-fix-heading] {
-    font-size: var(--size-14);
-    font-weight: 400;
-    color: var(--color-gray-900);
-    margin: 0 0 20px;
-    padding-top: 16px;
-    border-top: 1px solid var(--color-gray-alpha-400);
   }
 
   /* ── Grid ───────────────────────────────────── */
@@ -142,7 +148,7 @@ export const INSTANT_GUIDANCE_STYLES = css`
 
   [data-nextjs-fix-card-title] {
     display: block;
-    margin-top: 10px;
+    margin: 0;
     font-size: var(--size-13);
     color: var(--color-gray-900);
     text-align: center;
@@ -155,16 +161,15 @@ export const INSTANT_GUIDANCE_STYLES = css`
   /* ── Snippet ──────────────────────────────────── */
   [data-nextjs-fix-snippet] {
     font-family: var(--font-stack-monospace);
-    font-size: 11.5px;
-    line-height: 1.6;
+    font-size: 12px;
+    line-height: 1.5;
     margin: 0;
-    padding: 14px;
+    padding: 16px;
     white-space: pre;
     overflow: hidden;
     background: var(--color-background-200);
-    border: 1px solid var(--color-gray-alpha-400);
-    border-radius: var(--rounded-lg);
-    height: 100px;
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--rounded-xl);
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -191,7 +196,6 @@ export const INSTANT_GUIDANCE_STYLES = css`
   [data-card-color='teal'] [data-nextjs-fix-snippet] {
     border-color: var(--color-instant-border-teal);
   }
-
   [data-snippet-line] {
     display: block;
     color: var(--color-gray-800);

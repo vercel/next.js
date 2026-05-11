@@ -74,7 +74,8 @@ export const styles = `
   }
 
   .nextjs__container_errors_desc.nextjs__container_errors_desc_instant {
-    color: var(--color-gray-900);
+    color: var(--color-gray-1000);
+    margin-left: 0;
   }
 
   .nextjs__container_errors_desc.truncated {

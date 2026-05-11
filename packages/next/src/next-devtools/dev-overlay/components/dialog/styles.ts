@@ -28,7 +28,6 @@ export const styles = css`
       opacity: 1;
       scale: 1;
     }
-
   }
 
   [data-nextjs-dialog] {
@@ -59,7 +58,10 @@ export const styles = css`
   }
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
+    display: flex;
+    flex-direction: column;
     flex-shrink: 0;
+    gap: 4px;
     margin-bottom: 8px;
   }
 

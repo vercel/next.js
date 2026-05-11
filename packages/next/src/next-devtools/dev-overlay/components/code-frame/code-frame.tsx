@@ -117,7 +117,7 @@ export const CODE_FRAME_STYLES = `
     font-family: var(--font-stack-monospace);
     font-size: var(--size-12);
     line-height: var(--code-frame-line-height);
-    margin: 8px 0;
+    margin: 0;
 
     svg {
       width: var(--size-16);

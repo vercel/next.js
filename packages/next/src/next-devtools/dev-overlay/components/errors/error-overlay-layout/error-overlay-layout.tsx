@@ -38,6 +38,7 @@ export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorMessage: ErrorMessageType
   errorType: ErrorType
   children?: React.ReactNode
+  headerChildren?: React.ReactNode
   errorCode?: string
   error: ReadyRuntimeError['error']
   debugInfo?: DebugInfo
@@ -55,6 +56,7 @@ export function ErrorOverlayLayout({
   errorMessage,
   errorType,
   children,
+  headerChildren,
   errorCode,
   errorCount,
   error,
@@ -147,8 +149,8 @@ export function ErrorOverlayLayout({
                     )}
                   </span>
                 </div>
+                {headerChildren}
               </ErrorOverlayDialogHeader>
-
               <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
             </DialogContent>
           </Resizer>

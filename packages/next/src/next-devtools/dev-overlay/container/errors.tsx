@@ -21,6 +21,7 @@ import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
 import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
+  InstantExplanation,
   InstantGuidance,
   type GuidanceKind,
   type GuidanceVariant,
@@ -217,6 +218,7 @@ function InstantRuntimeError({
   kind = 'blocking-route',
   explanation,
   cause,
+  showExplanation = true,
   dialogResizerRef,
 }: {
   error: ReadyRuntimeError
@@ -224,6 +226,7 @@ function InstantRuntimeError({
   kind?: GuidanceKind
   explanation?: string
   cause?: string
+  showExplanation?: boolean
   dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }) {
   const frames = useFrames(error)
@@ -251,6 +254,7 @@ function InstantRuntimeError({
         kind={kind}
         explanation={explanation}
         cause={cause}
+        showExplanation={showExplanation}
       />
       {frames.length > 0 && (
         <ErrorOverlayCallStack
@@ -533,6 +537,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               ? 'Next.js encountered runtime data during the initial render.'
               : 'Next.js encountered uncached data during the initial render.'
           }
+          headerChildren={<InstantExplanation />}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
@@ -548,6 +553,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               key={activeError.id.toString()}
               error={activeError}
               variant={errorDetails.variant}
+              showExplanation={false}
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>

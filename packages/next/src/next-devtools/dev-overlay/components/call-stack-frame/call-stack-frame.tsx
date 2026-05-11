@@ -93,7 +93,7 @@ export const CALL_STACK_FRAME_STYLES = `
     -moz-user-select: text;
     -ms-user-select: text;
 
-    padding: 6px 8px;
+    padding: 0;
 
     border-radius: var(--rounded-lg);
   }
@@ -103,7 +103,7 @@ export const CALL_STACK_FRAME_STYLES = `
     align-items: center;
     gap: 4px;
 
-    margin-bottom: 4px;
+    margin: 0;
     font-family: var(--font-stack-monospace);
 
     color: var(--color-gray-1000);

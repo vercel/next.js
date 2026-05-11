@@ -44,7 +44,7 @@ export function CallStack({
 export const CALL_STACK_STYLES = css`
   [data-nextjs-call-stack-container] {
     position: relative;
-    margin-top: 8px;
+    margin: 0;
   }
 
   [data-nextjs-call-stack-header] {
@@ -52,7 +52,7 @@ export const CALL_STACK_STYLES = css`
     justify-content: space-between;
     align-items: center;
     min-height: var(--size-28);
-    padding: 8px 8px 12px 4px;
+    padding: 0;
     width: 100%;
   }
 
@@ -76,6 +76,7 @@ export const CALL_STACK_STYLES = css`
 
     padding: 0 6px;
     height: var(--size-20);
+    min-width: 20px;
     gap: 4px;
 
     color: var(--color-gray-1000);
