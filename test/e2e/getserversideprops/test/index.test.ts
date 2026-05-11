@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { createNext, FileRef } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import escapeRegex from 'escape-string-regexp'
 import {
   check,
@@ -16,12 +16,10 @@ import {
 } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { NextInstance } from 'e2e-utils'
 
 const appDir = join(__dirname, '../app')
 
 let buildId
-let next: NextInstance
 
 const expectedManifestRoutes = () => [
   {
@@ -203,7 +201,7 @@ const expectedManifestRoutes = () => [
   },
 ]
 
-const navigateTest = () => {
+const navigateTest = (next: ReturnType<typeof nextTestSetup>['next']) => {
   it('should navigate between pages successfully', async () => {
     const toBuild = [
       '/',
@@ -289,8 +287,12 @@ const navigateTest = () => {
   })
 }
 
-const runTests = (isDev = false, isDeploy = false) => {
-  navigateTest()
+const runTests = (
+  next: ReturnType<typeof nextTestSetup>['next'],
+  isDev = false,
+  isDeploy = false
+) => {
+  navigateTest(next)
 
   it('should work with early request ending', async () => {
     const res = await fetchViaHTTP(next.url, '/early-request-end')
@@ -869,19 +871,18 @@ const runTests = (isDev = false, isDeploy = false) => {
 }
 
 describe('getServerSideProps', () => {
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(appDir, 'pages')),
-        public: new FileRef(join(appDir, 'public')),
-        'world.txt': new FileRef(join(appDir, 'world.txt')),
-        'next.config.js': new FileRef(join(appDir, 'next.config.js')),
-      },
-      patchFileDelay: 500,
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(appDir, 'pages')),
+      public: new FileRef(join(appDir, 'public')),
+      'world.txt': new FileRef(join(appDir, 'world.txt')),
+      'next.config.js': new FileRef(join(appDir, 'next.config.js')),
+    },
+    patchFileDelay: 500,
+  })
+  beforeAll(() => {
     buildId = next.buildId
   })
-  afterAll(() => next.destroy())
 
-  runTests((global as any).isNextDev, (global as any).isNextDeploy)
+  runTests(next, (global as any).isNextDev, (global as any).isNextDeploy)
 })
