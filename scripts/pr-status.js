@@ -2,7 +2,10 @@ const { execSync, execFileSync, spawn } = require('child_process')
 const fs = require('fs/promises')
 const path = require('path')
 
-const OUTPUT_DIR = path.join(__dirname, 'pr-status')
+const OUTPUT_ROOT = path.join(__dirname, 'pr-status')
+const RESULTS_DIR = path.join(OUTPUT_ROOT, 'results')
+const INTERMEDIATE_DIR = path.join(OUTPUT_ROOT, 'intermediate')
+const ANSI_RE = new RegExp(String.raw`\u001B\[[0-9;]*[A-Za-z]`, 'g')
 
 // ============================================================================
 // Helper Functions
@@ -88,6 +91,14 @@ function sanitizeFilename(name) {
     .substring(0, 100)
 }
 
+function resultPath(...segments) {
+  return path.join(RESULTS_DIR, ...segments)
+}
+
+function intermediatePath(...segments) {
+  return path.join(INTERMEDIATE_DIR, ...segments)
+}
+
 function escapeMarkdownTableCell(text) {
   if (!text) return ''
   // Escape pipe characters and newlines for markdown table cells
@@ -100,6 +111,34 @@ function escapeMarkdownTableCell(text) {
 function stripTimestamps(logContent) {
   // Remove GitHub Actions timestamp prefixes like "2026-01-23T10:11:12.8077557Z "
   return logContent.replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z\s/gm, '')
+}
+
+function stripAnsi(text) {
+  return String(text || '').replace(ANSI_RE, '')
+}
+
+function truncate(text, maxLength) {
+  const value = String(text || '')
+  if (value.length <= maxLength) return value
+  return `${value.substring(0, maxLength)}...`
+}
+
+function normalizeTestPath(testName) {
+  const normalized = String(testName || '').replace(/\\/g, '/')
+  const match = normalized.match(/(?:^|\/)(test\/.*)$/)
+  return match ? match[1] : normalized
+}
+
+function formatFailedAssertionName(assertion) {
+  const ancestors = assertion?.ancestorTitles || []
+  const title = assertion?.title || assertion?.fullName || 'Unknown test'
+  return [...ancestors, title].filter(Boolean).join(' > ')
+}
+
+function collectFailureMessages(testResult) {
+  return (testResult?.assertionResults || [])
+    .flatMap((assertion) => assertion.failureMessages || [])
+    .join('\n\n')
 }
 
 function isBot(username) {
@@ -131,11 +170,18 @@ function getJobEnvVarsFromWorkflow() {
       const afterBuild = match[3]
       const exports = []
       for (const line of afterBuild.split('\n')) {
-        const exportMatch = line.match(
-          /^\s*export\s+([\w]+)=["']?([^"'\s]+)["']?/
-        )
+        const exportMatch = line.match(/^\s*export\s+([\w]+)=(.*)$/)
         if (exportMatch) {
-          exports.push(`${exportMatch[1]}=${exportMatch[2]}`)
+          let value = exportMatch[2].trim()
+          if (
+            (value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'"))
+          ) {
+            value = value.substring(1, value.length - 1)
+          }
+          if (value) {
+            exports.push(`${exportMatch[1]}=${value}`)
+          }
         }
       }
       if (exports.length > 0) {
@@ -539,6 +585,82 @@ function extractTestCaseGroups(logContent) {
   return groups
 }
 
+function extractStructuredTestFiles(testResults) {
+  const testsByPath = new Map()
+
+  for (const result of testResults) {
+    const resultTestFiles = result.testResults || []
+
+    for (const testResult of resultTestFiles) {
+      const failedAssertions = (testResult.assertionResults || [])
+        .filter((assertion) => assertion.status === 'failed')
+        .map((assertion) => ({
+          name: formatFailedAssertionName(assertion),
+          message: stripAnsi(
+            (assertion.failureMessages || []).join('\n\n') || testResult.message
+          ).trim(),
+        }))
+
+      const failed =
+        testResult.status === 'failed' ||
+        failedAssertions.length > 0 ||
+        (resultTestFiles.length === 1 && (result.numFailedTests || 0) > 0)
+
+      if (!failed) continue
+
+      const testPath = normalizeTestPath(testResult.name)
+      if (!testsByPath.has(testPath)) {
+        testsByPath.set(testPath, {
+          testPath,
+          attempts: [],
+          rawOutput: null,
+        })
+      }
+
+      testsByPath.get(testPath).attempts.push({
+        status: testResult.status || 'unknown',
+        processEnv: result.processEnv || {},
+        summary: {
+          failed: result.numFailedTests || failedAssertions.length,
+          passed: result.numPassedTests || 0,
+          total: result.numTotalTests || 0,
+        },
+        message: stripAnsi(
+          testResult.message || collectFailureMessages(testResult)
+        ).trim(),
+        failedAssertions,
+      })
+    }
+  }
+
+  return [...testsByPath.values()].sort((a, b) =>
+    a.testPath.localeCompare(b.testPath)
+  )
+}
+
+function mergeRawTestOutputs(structuredTestFiles, rawTestGroups) {
+  const testsByPath = new Map(
+    structuredTestFiles.map((testFile) => [testFile.testPath, testFile])
+  )
+
+  for (const rawGroup of rawTestGroups) {
+    const existing = testsByPath.get(rawGroup.testPath)
+    if (existing) {
+      existing.rawOutput = rawGroup.content
+    } else {
+      testsByPath.set(rawGroup.testPath, {
+        testPath: rawGroup.testPath,
+        attempts: [],
+        rawOutput: rawGroup.content,
+      })
+    }
+  }
+
+  return [...testsByPath.values()].sort((a, b) =>
+    a.testPath.localeCompare(b.testPath)
+  )
+}
+
 function extractSections(logContent) {
   // Split the log into sections at ##[group] and ##[endgroup] boundaries
   const sections = []
@@ -871,7 +993,7 @@ function generateIndexMd(
   return lines.join('\n')
 }
 
-function generateJobMd(jobMetadata, testResults, testGroups, sections) {
+function generateJobMd(jobMetadata, testResults, testFiles, sections) {
   const duration = formatDuration(
     jobMetadata.started_at,
     jobMetadata.completed_at
@@ -898,13 +1020,14 @@ function generateJobMd(jobMetadata, testResults, testGroups, sections) {
       const sectionNum = i + 1
       const filename = `job-${jobMetadata.id}-section-${sectionNum}.txt`
       const errorPrefix = section.hasError ? '[error] ' : ''
+      const linkPath = `../intermediate/${filename}`
 
       if (section.name) {
         lines.push(
-          `- ${errorPrefix}[${section.name} (${section.lineCount} lines)](${filename})`
+          `- ${errorPrefix}[${section.name} (${section.lineCount} lines)](${linkPath})`
         )
       } else {
-        lines.push(`- ${errorPrefix}[${section.lineCount} lines](${filename})`)
+        lines.push(`- ${errorPrefix}[${section.lineCount} lines](${linkPath})`)
       }
     }
     lines.push('')
@@ -927,10 +1050,10 @@ function generateJobMd(jobMetadata, testResults, testGroups, sections) {
           for (const assertion of testResult.assertionResults) {
             if (assertion.status === 'failed') {
               allFailedTests.push({
-                testFile: testResult.name,
-                testName: assertion.fullName || assertion.title,
+                testFile: normalizeTestPath(testResult.name),
+                testName: formatFailedAssertionName(assertion),
                 error:
-                  assertion.failureMessages?.[0]?.substring(0, 100) ||
+                  stripAnsi(assertion.failureMessages?.[0] || '').trim() ||
                   'Unknown',
               })
             }
@@ -959,28 +1082,24 @@ function generateJobMd(jobMetadata, testResults, testGroups, sections) {
       )
 
       for (const test of allFailedTests) {
-        const shortFile = test.testFile.replace(/.*\/next\.js\/next\.js\//, '')
-        const shortError = test.error
-          .replace(/\n/g, ' ')
-          .substring(0, 60)
-          .replace(/\|/g, '\\|')
+        const shortError = truncate(
+          test.error.replace(/\n/g, ' ').replace(/\|/g, '\\|'),
+          60
+        )
         lines.push(
-          `| ${escapeMarkdownTableCell(shortFile)} | ${escapeMarkdownTableCell(test.testName)} | ${shortError}... |`
+          `| ${escapeMarkdownTableCell(test.testFile)} | ${escapeMarkdownTableCell(test.testName)} | ${shortError} |`
         )
       }
       lines.push('')
     }
   }
 
-  if (testGroups.length > 0) {
+  if (testFiles.length > 0) {
     lines.push('## Individual Test Files', '')
-    const seenPaths = new Set()
-    for (const group of testGroups) {
-      if (seenPaths.has(group.testPath)) continue
-      seenPaths.add(group.testPath)
-      const sanitizedName = sanitizeFilename(group.testPath)
+    for (const testFile of testFiles) {
+      const sanitizedName = sanitizeFilename(testFile.testPath)
       lines.push(
-        `- [${group.testPath}](job-${jobMetadata.id}-test-${sanitizedName}.md)`
+        `- [${testFile.testPath}](job-${jobMetadata.id}-test-${sanitizedName}.md)`
       )
     }
   }
@@ -988,28 +1107,52 @@ function generateJobMd(jobMetadata, testResults, testGroups, sections) {
   return lines.join('\n')
 }
 
-function generateTestMd(jobMetadata, testPath, content, testResultJson) {
+function generateTestMd(jobMetadata, testFile) {
   const lines = [
-    `# Test: ${testPath}`,
+    `# Test: ${testFile.testPath}`,
     '',
     `Job: [${jobMetadata.name}](job-${jobMetadata.id}.md)`,
     '',
-    '## Output',
-    '',
-    '```',
-    content,
-    '```',
   ]
 
-  if (testResultJson) {
+  if (testFile.attempts.length > 0) {
     lines.push(
+      '## Structured Results',
       '',
-      '## Test Results JSON',
-      '',
-      '```json',
-      JSON.stringify(testResultJson, null, 2),
-      '```'
+      `Attempts: ${testFile.attempts.length}`,
+      ''
     )
+
+    for (let i = 0; i < testFile.attempts.length; i++) {
+      const attempt = testFile.attempts[i]
+      lines.push(`### Attempt ${i + 1}`, '', `Status: ${attempt.status}`)
+
+      if (attempt.processEnv?.NEXT_TEST_MODE) {
+        lines.push(`Mode: ${attempt.processEnv.NEXT_TEST_MODE}`)
+      }
+
+      lines.push(
+        `Failed: ${attempt.summary.failed}`,
+        `Passed: ${attempt.summary.passed}`,
+        `Total: ${attempt.summary.total}`,
+        ''
+      )
+
+      if (attempt.failedAssertions.length > 0) {
+        for (const assertion of attempt.failedAssertions) {
+          lines.push(`#### ${assertion.name}`, '')
+          lines.push('```', assertion.message || 'Unknown failure', '```', '')
+        }
+      } else if (attempt.message) {
+        lines.push('```', attempt.message, '```', '')
+      } else {
+        lines.push('_No structured failure details captured._', '')
+      }
+    }
+  }
+
+  if (testFile.rawOutput && testFile.attempts.length === 0) {
+    lines.push('## Raw Job Output', '', '```', testFile.rawOutput, '```')
   }
 
   return lines.join('\n')
@@ -1266,8 +1409,9 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
 async function runAnalysis(prNumberArg, skipFlakyCheck) {
   // Step 1: Delete and recreate output directory
   console.log('Cleaning output directory...')
-  await fs.rm(OUTPUT_DIR, { recursive: true, force: true })
-  await fs.mkdir(OUTPUT_DIR, { recursive: true })
+  await fs.rm(OUTPUT_ROOT, { recursive: true, force: true })
+  await fs.mkdir(RESULTS_DIR, { recursive: true })
+  await fs.mkdir(INTERMEDIATE_DIR, { recursive: true })
 
   // Step 2: Get branch info
   console.log('Getting branch info...')
@@ -1353,7 +1497,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
       for (let i = 0; i < reviewData.reviewThreads.length; i++) {
         const thread = reviewData.reviewThreads[i]
         await fs.writeFile(
-          path.join(OUTPUT_DIR, `thread-${i + 1}.md`),
+          resultPath(`thread-${i + 1}.md`),
           generateThreadMd(thread, i)
         )
       }
@@ -1361,7 +1505,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
       for (const review of reviewData.reviews) {
         if (review.body && review.body.trim()) {
           await fs.writeFile(
-            path.join(OUTPUT_DIR, `review-${review.id}.md`),
+            resultPath(`review-${review.id}.md`),
             generateReviewMd(review)
           )
         }
@@ -1369,7 +1513,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
       // Write individual comment files
       for (const comment of reviewData.prComments) {
         await fs.writeFile(
-          path.join(OUTPUT_DIR, `comment-${comment.id}.md`),
+          resultPath(`comment-${comment.id}.md`),
           generateCommentMd(comment)
         )
       }
@@ -1384,7 +1528,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
       skipped: [],
     }
     await fs.writeFile(
-      path.join(OUTPUT_DIR, 'index.md'),
+      resultPath('index.md'),
       generateIndexMd(
         branchInfo,
         runMetadata,
@@ -1440,36 +1584,30 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
       const section = sections[i]
       const sectionNum = i + 1
       await fs.writeFile(
-        path.join(OUTPUT_DIR, `job-${id}-section-${sectionNum}.txt`),
+        intermediatePath(`job-${id}-section-${sectionNum}.txt`),
         section.content
       )
     }
 
     // Extract test case groups
-    const testGroups = extractTestCaseGroups(logs)
+    const testFiles = mergeRawTestOutputs(
+      extractStructuredTestFiles(testResults),
+      extractTestCaseGroups(logs)
+    )
 
     // Write individual test files
-    for (const group of testGroups) {
-      const sanitizedName = sanitizeFilename(group.testPath)
-      // Find matching test result JSON for this test
-      const matchingResult = testResults.find((r) =>
-        r.testResults?.some((tr) => tr.name?.includes(group.testPath))
-      )
-      const testMd = generateTestMd(
-        jobMetadata,
-        group.testPath,
-        group.content,
-        matchingResult
-      )
+    for (const testFile of testFiles) {
+      const sanitizedName = sanitizeFilename(testFile.testPath)
+      const testMd = generateTestMd(jobMetadata, testFile)
       await fs.writeFile(
-        path.join(OUTPUT_DIR, `job-${id}-test-${sanitizedName}.md`),
+        resultPath(`job-${id}-test-${sanitizedName}.md`),
         testMd
       )
     }
 
     // Generate job markdown
-    const jobMd = generateJobMd(jobMetadata, testResults, testGroups, sections)
-    await fs.writeFile(path.join(OUTPUT_DIR, `job-${id}.md`), jobMd)
+    const jobMd = generateJobMd(jobMetadata, testResults, testFiles, sections)
+    await fs.writeFile(resultPath(`job-${id}.md`), jobMd)
   }
 
   // Step 7: Write PR review files if we have PR data
@@ -1479,7 +1617,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
     for (let i = 0; i < reviewData.reviewThreads.length; i++) {
       const thread = reviewData.reviewThreads[i]
       await fs.writeFile(
-        path.join(OUTPUT_DIR, `thread-${i + 1}.md`),
+        resultPath(`thread-${i + 1}.md`),
         generateThreadMd(thread, i)
       )
     }
@@ -1487,7 +1625,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
     for (const review of reviewData.reviews) {
       if (review.body?.trim()) {
         await fs.writeFile(
-          path.join(OUTPUT_DIR, `review-${review.id}.md`),
+          resultPath(`review-${review.id}.md`),
           generateReviewMd(review)
         )
       }
@@ -1495,7 +1633,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
     // Write individual comment files
     for (const comment of reviewData.prComments) {
       await fs.writeFile(
-        path.join(OUTPUT_DIR, `comment-${comment.id}.md`),
+        resultPath(`comment-${comment.id}.md`),
         generateCommentMd(comment)
       )
     }
@@ -1507,7 +1645,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
     flakyTests = await getFlakyTests(branchInfo.branchName, 5)
     if (flakyTests.size > 0) {
       await fs.writeFile(
-        path.join(OUTPUT_DIR, 'flaky-tests.json'),
+        resultPath('flaky-tests.json'),
         JSON.stringify([...flakyTests].sort(), null, 2)
       )
     }
@@ -1530,9 +1668,9 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
     jobEnvMap,
     flakyTests
   )
-  await fs.writeFile(path.join(OUTPUT_DIR, 'index.md'), indexMd)
+  await fs.writeFile(resultPath('index.md'), indexMd)
 
-  console.log(`\nDone! Output written to ${OUTPUT_DIR}/index.md`)
+  console.log(`\nDone! Output written to ${RESULTS_DIR}/index.md`)
   return { runId: latestRun.id, isRunInProgress }
 }
 

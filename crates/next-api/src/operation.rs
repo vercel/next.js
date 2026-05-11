@@ -2,10 +2,10 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc,
-    TaskInput, Vc, debug::ValueDebugFormat, take_effects, trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc, TaskInput, Vc,
+    debug::ValueDebugFormat, take_effects, trace::TraceRawVcs,
 };
-use turbopack_core::{diagnostics::Diagnostic, issue::CollectibleIssuesExt};
+use turbopack_core::issue::CollectibleIssuesExt;
 
 use crate::{
     entrypoints::Entrypoints,
@@ -31,14 +31,13 @@ pub struct EntrypointsOperation {
     pub pages_error_endpoint: OperationVc<OptionEndpoint>,
 }
 
-/// Removes diagnostics, issues, and effects from the top-level `entrypoints` operation so that
-/// they're not duplicated across many different individual entrypoints or routes.
+/// Removes issues and effects from the top-level `entrypoints` operation so that they're not
+/// duplicated across many different individual entrypoints or routes.
 #[turbo_tasks::function(operation)]
 async fn entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
 ) -> Result<Vc<Entrypoints>> {
     let _ = entrypoints.resolve().strongly_consistent().await?;
-    entrypoints.drop_collectibles::<Box<dyn Diagnostic>>();
     entrypoints.drop_issues();
     let _ = take_effects(entrypoints).await?;
     Ok(entrypoints.connect())

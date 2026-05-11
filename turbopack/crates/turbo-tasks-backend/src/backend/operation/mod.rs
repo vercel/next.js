@@ -23,7 +23,7 @@ use turbo_tasks::{
     macro_helpers::NativeFunction,
 };
 
-use self::aggregation_update::ComputeDirtyAndCleanUpdate;
+pub use self::aggregation_update::ComputeDirtyAndCleanUpdate;
 use crate::{
     backend::{
         EventDescription, TaskDataCategory, TurboTasksBackend, TurboTasksBackendInner,
@@ -562,6 +562,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             if let Some(task_type) = entry.task_type.clone() {
                 // Insert into the task cache to avoid future lookups
                 self.backend
+                    .storage
                     .task_cache
                     .entry(task_type)
                     .or_insert(entry.task_id);
@@ -641,7 +642,7 @@ fn apply_restore_result(
                 task.flags.set_restoring(task_category, false);
                 return Ok(());
             }
-            task.restore_from(storage, task_category);
+            task.restore_from(storage, category);
             task.flags.set_restored(task_category);
             task.flags.set_restoring(task_category, false);
             Ok(())
@@ -1053,6 +1054,7 @@ impl Display for TaskTypeRef<'_> {
     }
 }
 
+#[derive(Debug)]
 pub enum TaskType {
     Cached(Arc<CachedTaskType>),
     Transient(Arc<TransientTask>),

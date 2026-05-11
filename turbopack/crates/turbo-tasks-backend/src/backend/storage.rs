@@ -1,6 +1,7 @@
 use std::{
     cell::Cell,
-    hash::Hash,
+    fmt::{Display, Formatter},
+    hash::{BuildHasher, Hash},
     ops::{Deref, DerefMut},
     sync::{
         Arc,
@@ -9,16 +10,20 @@ use std::{
 };
 
 use thread_local::ThreadLocal;
+use tracing::span::Id;
 use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{FxDashMap, TaskId, backend::CachedTaskType, event::Event, parallel};
 
 use crate::{
-    backend::storage_schema::TaskStorage,
+    backend::storage_schema::{
+        DropPartialOutcome, KeyEvictability, TaskStorage, UnevictableReason, ValueEvictability,
+    },
     backing_storage::SnapshotItem,
     database::key_value_database::KeySpace,
     utils::{
         dash_map_drop_contents::drop_contents,
         dash_map_multi::{RefMut, get_multiple_mut},
+        dash_map_raw_entry::{TryLockAndRemove, try_lock_and_remove},
     },
 };
 
@@ -27,6 +32,60 @@ pub enum TaskDataCategory {
     Meta,
     Data,
     All,
+}
+
+/// Counts of tasks evicted at each level.
+#[derive(Debug, Default)]
+pub struct EvictionCounts {
+    pub key_evictions: usize,
+    pub full: usize,
+    pub data_and_meta: usize,
+    pub data_only: usize,
+    pub meta_only: usize,
+    /// Per-reason counts of tasks we considered but could not evict, indexed by
+    /// `UnevictableReason::index()`.
+    pub unevictable_reasons: [usize; UnevictableReason::COUNT],
+}
+
+impl std::ops::AddAssign for EvictionCounts {
+    fn add_assign(&mut self, rhs: Self) {
+        self.key_evictions += rhs.key_evictions;
+        self.full += rhs.full;
+        self.data_and_meta += rhs.data_and_meta;
+        self.data_only += rhs.data_only;
+        self.meta_only += rhs.meta_only;
+        for i in 0..UnevictableReason::COUNT {
+            self.unevictable_reasons[i] += rhs.unevictable_reasons[i];
+        }
+    }
+}
+
+impl Display for EvictionCounts {
+    /// Compact `field=value,...` form used as a single tracing span field so that
+    /// adding a new counter or `UnevictableReason` variant doesn't require updating
+    /// the span field list.
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let skipped: usize = self.unevictable_reasons.iter().sum();
+        write!(
+            f,
+            "task_cache_evictions={},full={},data_and_meta={},data_only={},meta_only={},skipped={}",
+            self.key_evictions,
+            self.full,
+            self.data_and_meta,
+            self.data_only,
+            self.meta_only,
+            skipped,
+        )?;
+        for reason in UnevictableReason::ALL {
+            write!(
+                f,
+                ",{}={}",
+                reason.span_name(),
+                self.unevictable_reasons[reason.index()],
+            )?;
+        }
+        Ok(())
+    }
 }
 
 impl TaskDataCategory {
@@ -91,12 +150,23 @@ pub struct Storage {
     /// - `None`: Task was first modified during snapshot mode (not part of current snapshot). Will
     ///   be marked as modified at the beginning of the next snapshot cycle.
     snapshots: FxDashMap<TaskId, Option<Box<TaskStorage>>>,
+    /// The main storage map
+    ///
+    /// Lock Ordering: Task creation acquires a `task_cache` lock and then inserts into this map.
+    /// Because both datastructures are sharded on different keys, the locks are not 'strictly'
+    /// ordered but we should treat them as such
+    /// Acquiring locks in the opposite order should be defensive
     map: FxDashMap<TaskId, Box<TaskStorage>>,
     /// A shared event notified whenever any task finishes restoring (successfully or not).
     ///
     /// Threads waiting for another thread's in-progress restore subscribe to this event,
     /// then re-check the specific task's `restoring`/`restored` bits after waking.
     pub(crate) restored: Event,
+    /// Maps `CachedTaskType` → `TaskId` for deduplication of persistent task creation.
+    /// This is backed by the TaskCache table in the database.
+    ///
+    /// LockOrdering: See the comments on [map].
+    pub task_cache: FxDashMap<Arc<CachedTaskType>, TaskId>,
 }
 
 impl Storage {
@@ -112,8 +182,7 @@ impl Storage {
             Default::default(),
             shard_amount,
         );
-        let num_shards = map.shards().len();
-        let shard_modified_counts = (0..num_shards)
+        let shard_modified_counts = (0..shard_amount)
             .map(|_| AtomicU64::new(0))
             .collect::<Vec<_>>()
             .into_boxed_slice();
@@ -130,6 +199,7 @@ impl Storage {
             ),
             map,
             restored: Event::new(|| || "Storage::restored".to_string()),
+            task_cache: FxDashMap::default(),
         }
     }
 
@@ -361,6 +431,141 @@ impl Storage {
     pub fn drop_contents(&self) {
         drop_contents(&self.map);
         drop_contents(&self.snapshots);
+        drop_contents(&self.task_cache);
+    }
+
+    /// Evict tasks from in-memory storage after a successful snapshot.
+    ///
+    /// Iterates all tasks and applies the eviction level returned by
+    /// `TaskStorage::evictability()`:
+    /// - `Full`: remove from map entirely
+    /// - `DataAndMeta`: drop both data and meta fields, keep task in map
+    /// - `DataOnly`: drop data fields only
+    /// - `MetaOnly`: drop meta fields only
+    /// - `No`: skip
+    ///
+    /// Must be called when NOT in snapshot mode (i.e., after `end_snapshot()`).
+    pub fn evict_after_snapshot(&self, parent_span: Option<Id>) -> EvictionCounts {
+        let span = tracing::trace_span!(
+            parent: parent_span,
+            "evict_after_snapshot",
+            total_task_cache_keys = self.task_cache.len(),
+            total_map_keys = self.map.len(),
+            counts = tracing::field::Empty,
+        )
+        .entered();
+        debug_assert!(
+            !self.snapshot_mode(),
+            "evict_after_snapshot must not be called during snapshot mode"
+        );
+
+        let counts: Vec<EvictionCounts> = parallel::map_collect(self.map.shards(), |shard| {
+            let mut shard = shard.write();
+            let mut evicted = EvictionCounts::default();
+            // task_cache removals that we couldn't perform inline because the target shard
+            // was contended. We defer them until after the map shard lock is released to
+            // avoid a lock cycle with get_or_create_persistent_task, which takes task_cache
+            // before map. Allocated lazily on first conflict.
+            let mut deferred_task_cache_removals: Vec<Arc<CachedTaskType>> = Vec::new();
+            // SAFETY: We hold the write lock for the duration of iteration.
+            for bucket in unsafe { shard.iter() } {
+                // SAFETY: The write lock guard outlives the bucket reference.
+                let (task_id, task) = unsafe { bucket.as_mut() };
+                if task_id.is_transient() {
+                    evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
+                    continue;
+                }
+                let (key_evictability, value_evictability) = task.get().evictability();
+                match key_evictability {
+                    KeyEvictability::Evictable => {
+                        // The task type is persisted to backing storage (new_task = false),
+                        // so task_cache is a pure perf cache. Remove it now; it will be
+                        // re-populated by task_by_type() on the next cache miss.
+                        let task_type = task.get().get_persistent_task_type().unwrap();
+                        // Only try to acquire the lock, if we cannot just remove at the end
+                        // Because `get_or_create_task` acquires 'task_cache' then `storage.map` and
+                        // we do the opposite we need to be defensive here.  Attempting here is just
+                        // an optimization to avoid pushing into `deferred_task_cache_removals`
+                        match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
+                            TryLockAndRemove::Removed => {
+                                evicted.key_evictions += 1;
+                            }
+                            TryLockAndRemove::NotFound => {
+                                // Generally this should be rare, it more or less implies something
+                                // else is concurrently holding the Arc
+                            }
+                            TryLockAndRemove::WouldBlock => {
+                                // Contention, to avoid a deadlock just defer
+                                deferred_task_cache_removals.push(task_type.clone());
+                            }
+                        }
+                    }
+                    KeyEvictability::AlreadyEvicted | KeyEvictability::Unevictable => {}
+                }
+                match value_evictability {
+                    ValueEvictability::Evictable { meta, data } => {
+                        match task.get_mut().drop_partial(data, meta) {
+                            DropPartialOutcome::Empty => {
+                                unsafe {
+                                    shard.erase(bucket);
+                                }
+                                evicted.full += 1;
+                            }
+                            DropPartialOutcome::HasResidue => {
+                                if data && meta {
+                                    evicted.data_and_meta += 1;
+                                } else if data {
+                                    evicted.data_only += 1;
+                                } else {
+                                    debug_assert!(meta);
+                                    evicted.meta_only += 1;
+                                }
+                            }
+                        }
+                    }
+                    ValueEvictability::Unevictable(reason) => {
+                        evicted.unevictable_reasons[reason.index()] += 1;
+                    }
+                }
+            }
+            // Shrink the shard if it's less than half full, to reclaim slack capacity
+            // after bulk evictions. We already hold the write lock, so this is free
+            // from a locking perspective. TaskId hashing is cheap (it's just an integer).
+            let len = shard.len();
+            if shard.capacity() > len * 2 {
+                shard.shrink_to(len, |(k, _v)| self.map.hasher().hash_one(k));
+            }
+            // Release the map shard lock before draining deferred removals so that a thread
+            // holding a task_cache shard lock and waiting on this map shard can make progress.
+            drop(shard);
+            for task_type in deferred_task_cache_removals {
+                if self.task_cache.remove(task_type.as_ref()).is_some() {
+                    evicted.key_evictions += 1;
+                }
+            }
+            evicted
+        });
+
+        let mut totals = EvictionCounts::default();
+        for evicted in counts {
+            totals += evicted;
+        }
+        // Shrink task_cache only when we evicted more entries than remain — i.e. the map
+        // is less than half full. Rehashing each surviving CachedTaskType isn't free, so
+        // we gate it on meaningful slack. Within that, walk shards in parallel and shrink
+        // each one independently if it is itself less than half full.
+        if totals.key_evictions > self.task_cache.len() {
+            parallel::for_each(self.task_cache.shards(), |shard| {
+                let mut shard = shard.write();
+                let len = shard.len();
+                if shard.capacity() > len * 2 {
+                    shard.shrink_to(len, |(k, _v)| self.task_cache.hasher().hash_one(k));
+                }
+            });
+        }
+        span.record("counts", tracing::field::display(&totals));
+
+        totals
     }
 }
 

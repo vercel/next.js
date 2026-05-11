@@ -1,4 +1,3 @@
-import { runNextCommand } from 'next-test-utils'
 import { join } from 'path'
 import { expectedWhenTrailingSlashTrue, getFiles } from './utils'
 import { FileRef, isNextStart, nextTestSetup, PatchedFileRef } from 'e2e-utils'
@@ -46,27 +45,14 @@ describe('app dir - with output export', () => {
         expect(exitCode).toBe(0)
         expect(await getFiles(join(next.testDir, 'out'))).toEqual([])
 
-        let stdout = ''
-        let stderr = ''
-        let error = undefined
-        try {
-          await runNextCommand(['export'], {
-            cwd: next.testDir,
-            onStdout(msg) {
-              stdout += msg
-            },
-            onStderr(msg) {
-              stderr += msg
-            },
-          })
-        } catch (e) {
-          error = e
-        }
-        expect(error).toBeDefined()
-        expect(stderr).toContain(
+        const result = await next.runCommand(['export'])
+        expect(result.exitCode).not.toBe(0)
+        expect(result.stderr).toContain(
           `\`next export\` has been removed in favor of 'output: export' in next.config.js`
         )
-        expect(stdout).not.toContain('Export successful. Files written to')
+        expect(result.stdout).not.toContain(
+          'Export successful. Files written to'
+        )
         expect(await getFiles(join(next.testDir, 'out'))).toEqual([])
       })
     })

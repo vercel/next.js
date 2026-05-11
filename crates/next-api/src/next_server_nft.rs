@@ -40,6 +40,12 @@ enum ServerNftType {
 
 #[turbo_tasks::function]
 pub async fn next_server_nft_assets(project: Vc<Project>) -> Result<Vc<OutputAssets>> {
+    if *project.next_config().is_using_adapter().await? {
+        // When using an adapter, we don't need to generate any server NFTs as build-complete
+        // doesn't use them at all.
+        return Ok(Vc::cell(vec![]));
+    }
+
     let has_next_support = *project.ci_has_next_support().await?;
     let is_standalone = *project.next_config().is_standalone().await?;
 

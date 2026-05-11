@@ -52,10 +52,7 @@ use crate::{
         transforms::{get_next_server_internal_transforms_rules, get_next_server_transforms_rules},
     },
     next_shared::{
-        resolve::{
-            ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
-            NextNodeSharedRuntimeResolvePlugin,
-        },
+        resolve::{NextExternalResolvePlugin, NextNodeSharedRuntimeResolvePlugin},
         transforms::{
             EcmascriptTransformStage, emotion::get_emotion_transform_rule, get_ecma_transform_rule,
             next_react_server_components::get_next_react_server_components_transform_rule,
@@ -149,10 +146,6 @@ pub async fn get_server_resolve_options_context(
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path.clone()).await?;
     let root_dir = project_path.root().owned().await?;
-    let module_feature_report_resolve_plugin =
-        ModuleFeatureReportResolvePlugin::new(project_path.clone())
-            .to_resolved()
-            .await?;
 
     // Always load these predefined packages as external.
     let mut external_packages: Vec<RcStr> = load_next_js_jsonc_file(
@@ -237,20 +230,17 @@ pub async fn get_server_resolve_options_context(
         ServerContextType::Pages { .. }
         | ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. } => {
-            vec![
-                ResolvedVc::upcast(
-                    NextFontLocalResolvePlugin::new(project_path.clone())
-                        .to_resolved()
-                        .await?,
-                ),
-                ResolvedVc::upcast(module_feature_report_resolve_plugin),
-            ]
+            vec![ResolvedVc::upcast(
+                NextFontLocalResolvePlugin::new(project_path.clone())
+                    .to_resolved()
+                    .await?,
+            )]
         }
         ServerContextType::PagesApi { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {
-            vec![ResolvedVc::upcast(module_feature_report_resolve_plugin)]
+            vec![]
         }
     };
 
