@@ -143,11 +143,16 @@ export function getFullUrl(
 
   if (typeof appPortOrUrl === 'string' && url) {
     const parsedUrl = new URL(fullUrl)
-    const parsedPathQuery = new URL(url, fullUrl)
 
-    parsedUrl.hash = parsedPathQuery.hash
-    parsedUrl.search = parsedPathQuery.search
-    parsedUrl.pathname = parsedPathQuery.pathname
+    // Handle '//' as a special case since it's not a valid relative URL for URL constructor
+    if (url === '//') {
+      parsedUrl.pathname = '//'
+    } else {
+      const parsedPathQuery = new URL(url, fullUrl)
+      parsedUrl.hash = parsedPathQuery.hash
+      parsedUrl.search = parsedPathQuery.search
+      parsedUrl.pathname = parsedPathQuery.pathname
+    }
 
     if (hostname && parsedUrl.hostname === 'localhost') {
       parsedUrl.hostname = hostname

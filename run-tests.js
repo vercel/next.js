@@ -263,7 +263,6 @@ const testFilters = {
   production: new RegExp('^(test/(production|e2e))'),
   unit: new RegExp('^(test/unit|packages/.*/src|packages/next-codemod)'),
   examples: 'examples/',
-  integration: 'test/integration/',
   e2e: 'test/e2e/',
 }
 
@@ -631,9 +630,9 @@ ${ENDGROUP}`)
     ((options.type && options.type !== 'unit') ||
       tests.some((test) => !testFilters.unit.test(test.file)))
   ) {
-    // For isolated next tests (e2e, dev, prod) and integration tests we create
-    // a starter Next.js install to re-use to speed up tests to avoid having to
-    // run `pnpm install` each time.
+    // For isolated next tests (e2e, dev, prod) we create a starter Next.js
+    // install to re-use to speed up tests to avoid having to run `pnpm install`
+    // each time.
     console.log(`${GROUP}Creating shared Next.js install`)
     const reactVersion =
       process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
@@ -969,28 +968,16 @@ ${ENDGROUP}`)
     }
   }
 
-  const directorySemas = new Map()
-
   const results = await Promise.allSettled(
     tests.map(async (test) => {
-      const dirName = path.dirname(test.file)
-      let dirSema = directorySemas.get(dirName)
-
-      // we only restrict 1 test per directory for
-      // legacy integration tests
-      if (/^test[/\\]integration/.test(test.file) && dirSema === undefined) {
-        directorySemas.set(dirName, (dirSema = new Sema(1)))
-      }
-      // TODO: Use explicit resource managment instead of this acquire/release pattern
-      // once CI runs with Node.js 24+.
-      if (dirSema) await dirSema.acquire()
+      // TODO: Use explicit resource management instead of this acquire/release
+      // pattern once CI runs with Node.js 24+.
       await sema.acquire()
 
       try {
         await runTest(test)
       } finally {
         sema.release()
-        if (dirSema) dirSema.release()
       }
     })
   )

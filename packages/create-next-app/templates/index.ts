@@ -1,7 +1,10 @@
 import { install } from "../helpers/install";
 import { runTypegen } from "../helpers/typegen";
 import { copy } from "../helpers/copy";
-import { getPnpmMajorVersion } from "../helpers/get-pkg-manager";
+import {
+  getPackageManagerVersion,
+  getPnpmMajorVersion,
+} from "../helpers/get-pkg-manager";
 
 import { async as glob } from "fast-glob";
 import os from "os";
@@ -211,6 +214,24 @@ export const installTemplate = async ({
   const version = process.env.NEXT_PRIVATE_TEST_VERSION ?? pkg.version;
   const bundlerFlags = bundler === Bundler.Webpack ? " --webpack" : "";
 
+  // When isolated tests pack workspace packages and pass their tarball
+  // paths via `NEXT_TEST_PKG_PATHS` (set by `run-tests.js`), prefer those
+  // paths over `version` so siblings like `next-rspack` and
+  // `eslint-config-next` install from their own tarball — not from the
+  // `next` tarball, which would cause npm to extract `next`'s contents
+  // into the sibling's `node_modules/` entry.
+  const testPkgPaths: Map<string, string> | null = (() => {
+    const env = process.env.NEXT_TEST_PKG_PATHS;
+    if (!env) return null;
+    try {
+      return new Map<string, string>(JSON.parse(env));
+    } catch {
+      return null;
+    }
+  })();
+  const resolvePkgVersion = (name: string): string =>
+    testPkgPaths?.get(name) ?? version;
+
   /** Create a package.json for the new project and write it to disk. */
   const packageJson: any = {
     name: appName,
@@ -229,24 +250,13 @@ export const installTemplate = async ({
     dependencies: {
       react: nextjsReactPeerVersion,
       "react-dom": nextjsReactPeerVersion,
-      next: version,
+      next: resolvePkgVersion("next"),
     },
     devDependencies: {},
   };
 
   if (bundler === Bundler.Rspack) {
-    const NEXT_PRIVATE_TEST_VERSION = process.env.NEXT_PRIVATE_TEST_VERSION;
-    if (
-      NEXT_PRIVATE_TEST_VERSION &&
-      path.isAbsolute(NEXT_PRIVATE_TEST_VERSION)
-    ) {
-      packageJson.dependencies["next-rspack"] = path.resolve(
-        path.dirname(NEXT_PRIVATE_TEST_VERSION),
-        "../next-rspack/packed.tgz",
-      );
-    } else {
-      packageJson.dependencies["next-rspack"] = version;
-    }
+    packageJson.dependencies["next-rspack"] = resolvePkgVersion("next-rspack");
   }
 
   if (reactCompiler) {
@@ -280,7 +290,7 @@ export const installTemplate = async ({
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
       eslint: "^9",
-      "eslint-config-next": version,
+      "eslint-config-next": resolvePkgVersion("eslint-config-next"),
     };
   }
 
@@ -343,6 +353,19 @@ export const installTemplate = async ({
         path.join(root, "pnpm-workspace.yaml"),
         pnpmWorkspaceYaml,
       );
+    }
+  }
+
+  // Pin the package manager version via corepack so the project always uses the
+  // same version the project was created with. This avoids subtle differences
+  // between the pnpm/yarn/bun version on a contributor's PATH and the one used
+  // to scaffold the project (e.g. a pnpm-workspace.yaml written for pnpm v10+
+  // but installed with pnpm v9 on PATH).
+  // See: https://nodejs.org/api/packages.html#packagemanager
+  if (packageManager !== "npm") {
+    const packageManagerVersion = getPackageManagerVersion(packageManager);
+    if (packageManagerVersion) {
+      packageJson.packageManager = `${packageManager}@${packageManagerVersion}`;
     }
   }
 

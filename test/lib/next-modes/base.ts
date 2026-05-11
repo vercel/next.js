@@ -5,6 +5,8 @@ import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef, isNextDeploy, PatchedFileRef } from '../e2e-utils'
 import { ChildProcess } from 'child_process'
+import spawn from 'cross-spawn'
+import { quote as shellQuote } from 'shell-quote'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/dist/trace'
 import webdriver from '../next-webdriver'
@@ -273,6 +275,16 @@ export class NextInstance {
 
         if (skipInstall || skipIsolatedNext) {
           const pkgScripts = (this.packageJson['scripts'] as {}) || {}
+          // Pin the same pnpm version the repo uses so corepack resolves a
+          // consistent pnpm across isolated test dirs. Mirrors the logic in
+          // `create-next-install.js` so skipInstall / skipIsolatedNext test
+          // dirs behave the same as regular ones.
+          const rootPackageManager = require(
+            path.join(__dirname, '../../../package.json')
+          ).packageManager
+          const packageManagerField =
+            (this.packageJson as { packageManager?: string }).packageManager ||
+            rootPackageManager
           await fs.mkdir(this.testDir, { recursive: true })
           await fs.writeFile(
             path.join(this.testDir, 'package.json'),
@@ -283,6 +295,9 @@ export class NextInstance {
                 // Callers can override via packageJson.packageManager.
                 packageManager: ROOT_PACKAGE_MANAGER,
                 ...this.packageJson,
+                ...(packageManagerField && {
+                  packageManager: packageManagerField,
+                }),
                 dependencies: {
                   ...finalDependencies,
                   next:
@@ -545,6 +560,187 @@ export class NextInstance {
     cliOutput: string
   }> {
     throw new Error('Not implemented')
+  }
+
+  /**
+   * Run an arbitrary Next.js CLI command in the isolated test directory.
+   *
+   * Unlike `build()`/`start()`, this does not start or manage the persistent
+   * server lifecycle, so it is suitable for commands like `next info`,
+   * `next telemetry`, `next --help`, `next --version`, `next export`, etc.
+   *
+   * When testing long-running commands (e.g. `next dev` for CLI-only
+   * assertions), pass `instance` to capture the `ChildProcess` and kill it
+   * externally from the test.
+   *
+   * Use in conjunction with `skipStart: true` in `nextTestSetup()` so the
+   * helper does not spawn an internal build/start first.
+   */
+  public async runCommand(
+    args: string[],
+    options: {
+      env?: Record<string, string>
+      cwd?: string
+      onStdout?: (msg: string) => void
+      onStderr?: (msg: string) => void
+      /**
+       * Receives the spawned ChildProcess while it is running, allowing the
+       * caller to kill it externally (e.g. to test signal handling or
+       * long-running commands like `next dev`).
+       */
+      instance?: (childProcess: ChildProcess) => void
+      /**
+       * If true, a non-zero exit code will not reject the promise.
+       * Defaults to true since callers typically want to assert on the exit
+       * code / stderr themselves.
+       */
+      ignoreFail?: boolean
+      /**
+       * Abort signal to terminate the child process early.
+       */
+      signal?: AbortSignal
+    } = {}
+  ): Promise<{
+    exitCode: NodeJS.Signals | number | null
+    code: number | null
+    signal: NodeJS.Signals | null
+    stdout: string
+    stderr: string
+    cliOutput: string
+  }> {
+    const {
+      env,
+      cwd,
+      onStdout,
+      onStderr,
+      instance,
+      ignoreFail = true,
+      signal,
+    } = options
+
+    // Resolve the `next` binary from within the isolated test directory so
+    // that it uses the locally installed version (matching the peer React
+    // version etc.). Spawning the binary directly (rather than via `pnpm`)
+    // also means signals sent to the child are delivered to the Next.js
+    // process without an intermediate wrapper.
+    //
+    // When running with NEXT_SKIP_ISOLATE there is no isolated install, so
+    // fall back to the workspace-level next binary instead (which also
+    // avoids a pnpm wrapper swallowing signals).
+    const localNextBin = path.join(
+      this.testDir,
+      'node_modules',
+      'next',
+      'dist',
+      'bin',
+      'next'
+    )
+    const workspaceNextBin = path.join(
+      __dirname,
+      '..',
+      '..',
+      '..',
+      'node_modules',
+      'next',
+      'dist',
+      'bin',
+      'next'
+    )
+    const nextBin = existsSync(localNextBin) ? localNextBin : workspaceNextBin
+    const spawnArgs = ['node', '--no-deprecation', nextBin, ...args]
+    const spawnOpts: import('child_process').SpawnOptions = {
+      cwd: cwd ?? this.testDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+      env: {
+        ...process.env,
+        ...this.env,
+        ...env,
+        NODE_ENV: (env?.NODE_ENV ?? this.env.NODE_ENV ?? '') as any,
+        __NEXT_TEST_MODE: 'e2e',
+      },
+    }
+
+    require('console').log('running', shellQuote(spawnArgs))
+
+    return new Promise((resolve, reject) => {
+      const child = spawn(spawnArgs[0], spawnArgs.slice(1), spawnOpts)
+
+      let stdout = ''
+      let stderr = ''
+      let cliOutput = ''
+
+      child.stdout!.on('data', (chunk) => {
+        const msg = chunk.toString()
+        stdout += msg
+        cliOutput += msg
+        onStdout?.(msg)
+      })
+      child.stderr!.on('data', (chunk) => {
+        const msg = chunk.toString()
+        stderr += msg
+        cliOutput += msg
+        onStderr?.(msg)
+      })
+
+      let aborted = false
+      const onAbort = () => {
+        aborted = true
+        try {
+          if (child.pid != null) {
+            treeKill(child.pid, 'SIGKILL', () => {})
+          }
+        } catch {}
+      }
+      if (signal) {
+        if (signal.aborted) {
+          onAbort()
+        } else {
+          signal.addEventListener('abort', onAbort, { once: true })
+        }
+      }
+
+      child.on('error', (err) => {
+        if (signal) signal.removeEventListener('abort', onAbort)
+        if (ignoreFail) {
+          resolve({
+            exitCode: 1,
+            code: 1,
+            signal: null,
+            stdout,
+            stderr: stderr + '\nSpawn error: ' + err.message,
+            cliOutput: cliOutput + '\nSpawn error: ' + err.message,
+          })
+        } else {
+          reject(err)
+        }
+      })
+
+      child.on('exit', (code, exitSignal) => {
+        if (signal) signal.removeEventListener('abort', onAbort)
+        const result = {
+          exitCode: exitSignal ?? code,
+          code,
+          signal: exitSignal,
+          stdout,
+          stderr,
+          cliOutput,
+        }
+        if (!ignoreFail && !aborted && code !== 0) {
+          const err = new Error(
+            `\`${shellQuote(spawnArgs)}\` exited with code ${code}${
+              exitSignal ? ` (signal ${exitSignal})` : ''
+            }`
+          )
+          ;(err as any).result = result
+          reject(err)
+          return
+        }
+        resolve(result)
+      })
+
+      instance?.(child)
+    })
   }
 
   public async setup(parentSpan: Span): Promise<void> {
@@ -819,11 +1015,17 @@ export class NextInstance {
   public async browser(
     ...args: Parameters<OmitFirstArgument<typeof webdriver>>
   ): Promise<Playwright> {
-    try {
-      this.throwIfUnavailable()
-    } catch (error) {
-      Error.captureStackTrace(error, this.browser)
-      throw error
+    // When `baseUrl` is provided the test is driving a separate server (proxy,
+    // static-export server, etc.), so we don't require the Next.js server to
+    // be running.
+    const baseUrl = args[1]?.baseUrl
+    if (baseUrl === undefined) {
+      try {
+        this.throwIfUnavailable()
+      } catch (error) {
+        Error.captureStackTrace(error, this.browser)
+        throw error
+      }
     }
     return webdriver(this.url, ...args)
   }

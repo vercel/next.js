@@ -1,5 +1,4 @@
 import { nextTestSetup, isNextStart } from 'e2e-utils'
-import { runNextCommand } from 'next-test-utils'
 import { existsSync } from 'fs'
 import path from 'path'
 
@@ -33,18 +32,14 @@ describe('post-build', () => {
     expect(existsSync(cachePath)).toBe(true)
 
     // Run `next internal post-build` to compact the database
-    const result = await runNextCommand(['internal', 'post-build'], {
-      cwd: next.testDir,
-      stderr: true,
-      stdout: true,
-    })
+    const result = await next.runCommand(['internal', 'post-build'])
 
-    if (result.code !== 0) {
+    if (result.exitCode !== 0) {
       console.log('post-build stdout:', result.stdout)
       console.log('post-build stderr:', result.stderr)
     }
-    expect(result.code).toBe(0)
-    expect(result.stdout + result.stderr).toContain(
+    expect(result.exitCode).toBe(0)
+    expect(result.cliOutput).toContain(
       'Turbopack database compaction complete.'
     )
   })
@@ -61,13 +56,9 @@ describe('post-build', () => {
     )
 
     try {
-      const result = await runNextCommand(['internal', 'post-build'], {
-        cwd: next.testDir,
-        stderr: true,
-        stdout: true,
-      })
-      expect(result.code).toBe(0)
-      expect(result.stdout + result.stderr).toContain('Nothing to do.')
+      const result = await next.runCommand(['internal', 'post-build'])
+      expect(result.exitCode).toBe(0)
+      expect(result.cliOutput).toContain('Nothing to do.')
     } finally {
       // Restore original config
       await next.patchFile(

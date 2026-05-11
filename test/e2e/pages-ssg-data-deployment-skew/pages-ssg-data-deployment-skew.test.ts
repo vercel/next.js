@@ -1,18 +1,11 @@
 import http from 'http'
 import httpProxy from 'http-proxy'
+import type { ChildProcess } from 'child_process'
 import webdriver from 'next-webdriver'
-import {
-  findPort,
-  killApp,
-  launchApp,
-  nextBuild,
-  nextStart,
-} from 'next-test-utils'
+import { findPort, killApp } from 'next-test-utils'
 import { isNextDeploy, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 
-const appDir = __dirname
-
-let proxyPort
+let proxyPort: number
 
 const runTests = (switchDeployment: (bool) => void) => {
   it('index to gsp', async () => {
@@ -50,6 +43,45 @@ const runTests = (switchDeployment: (bool) => void) => {
   })
 }
 
+async function launchChildServer(
+  next: ReturnType<typeof nextTestSetup>['next'],
+  args: string[],
+  env: Record<string, string> = {},
+  readyPattern: RegExp = /- Local:|✓ Ready|Ready in/i
+): Promise<{ child: ChildProcess; exit: Promise<any> }> {
+  let child!: ChildProcess
+  let resolveReady!: () => void
+  let ready = false
+  const readyPromise = new Promise<void>((r) => {
+    resolveReady = () => {
+      if (!ready) {
+        ready = true
+        r()
+      }
+    }
+  })
+
+  const exit = next
+    .runCommand(args, {
+      env,
+      onStdout: (msg) => {
+        if (readyPattern.test(msg)) resolveReady()
+      },
+      onStderr: (msg) => {
+        if (readyPattern.test(msg)) resolveReady()
+      },
+      instance: (p) => {
+        child = p
+      },
+    })
+    .finally(() => {
+      resolveReady()
+    })
+
+  await readyPromise
+  return { child, exit }
+}
+
 describe('pages ssg data deployment skew - hard navigate when a new deployment occurs', () => {
   if (process.platform === 'win32') {
     it('should skip this suite on Windows', () => {})
@@ -58,13 +90,25 @@ describe('pages ssg data deployment skew - hard navigate when a new deployment o
 
   if (isNextDev) {
     describe('development mode', () => {
+      const { next } = nextTestSetup({
+        files: __dirname,
+        skipStart: true,
+      })
+
       let should404Data = false
-      let apps = []
-      let proxyServer
+      let proxyServer: http.Server
+      let devChild: ChildProcess | undefined
+      let devExit: Promise<any> | undefined
 
       beforeAll(async () => {
         const appPort = await findPort()
-        apps.push(await launchApp(appDir, appPort))
+        const { child, exit } = await launchChildServer(next, [
+          'dev',
+          '-p',
+          String(appPort),
+        ])
+        devChild = child
+        devExit = exit
 
         const proxy = httpProxy.createProxyServer({
           target: `http://localhost:${appPort}`,
@@ -78,7 +122,7 @@ describe('pages ssg data deployment skew - hard navigate when a new deployment o
           res.on('error', (e) => {
             require('console').error(e)
           })
-          if (should404Data && req.url.match(/\/_next\/data/)) {
+          if (should404Data && req.url!.match(/\/_next\/data/)) {
             res.statusCode = 404
             return res.end('not found')
           }
@@ -90,9 +134,10 @@ describe('pages ssg data deployment skew - hard navigate when a new deployment o
         })
       })
       afterAll(async () => {
-        for (const app of apps) {
-          await killApp(app)
+        if (devChild) {
+          await killApp(devChild).catch(() => {})
         }
+        await devExit?.catch(() => {})
         proxyServer.close()
       })
 
@@ -114,48 +159,45 @@ describe('pages ssg data deployment skew - hard navigate when a new deployment o
     ])(
       'production mode $name',
       ({ NEXT_DEPLOYMENT_ID1, NEXT_DEPLOYMENT_ID2, OUTPUT_MODE }) => {
+        const { next } = nextTestSetup({
+          files: __dirname,
+          skipStart: true,
+          disableAutoSkewProtection: true,
+        })
+
         let shouldSwitchDeployment = false
-        let apps = []
-        let proxyServer
+        let proxyServer: http.Server
+        const runningChildren: ChildProcess[] = []
+        const runningExits: Promise<any>[] = []
 
         beforeAll(async () => {
-          await nextBuild(appDir, [], {
-            env: {
-              DIST_DIR: '1',
-              NEXT_DEPLOYMENT_ID: NEXT_DEPLOYMENT_ID1,
-              OUTPUT_MODE,
-            },
-            disableAutoSkewProtection: true,
-          })
-          let appPort1 = await findPort()
-          apps.push(
-            await nextStart(appDir, appPort1, {
-              env: {
-                DIST_DIR: '1',
-                NEXT_DEPLOYMENT_ID: NEXT_DEPLOYMENT_ID1,
-                OUTPUT_MODE,
-              },
-              disableAutoSkewProtection: true,
-            })
-          )
+          const env1: Record<string, string> = { DIST_DIR: '1' }
+          if (NEXT_DEPLOYMENT_ID1) env1.NEXT_DEPLOYMENT_ID = NEXT_DEPLOYMENT_ID1
+          if (OUTPUT_MODE) env1.OUTPUT_MODE = OUTPUT_MODE
 
-          await nextBuild(appDir, [], {
-            env: {
-              DIST_DIR: '2',
-              NEXT_DEPLOYMENT_ID: NEXT_DEPLOYMENT_ID2,
-            },
-            disableAutoSkewProtection: true,
-          })
-          let appPort2 = await findPort()
-          apps.push(
-            await nextStart(appDir, appPort2, {
-              env: {
-                DIST_DIR: '2',
-                NEXT_DEPLOYMENT_ID: NEXT_DEPLOYMENT_ID2,
-              },
-              disableAutoSkewProtection: true,
-            })
+          const env2: Record<string, string> = { DIST_DIR: '2' }
+          if (NEXT_DEPLOYMENT_ID2) env2.NEXT_DEPLOYMENT_ID = NEXT_DEPLOYMENT_ID2
+          if (OUTPUT_MODE) env2.OUTPUT_MODE = OUTPUT_MODE
+
+          await next.build({ env: env1 })
+          const appPort1 = await findPort()
+          const first = await launchChildServer(
+            next,
+            ['start', '-p', String(appPort1)],
+            env1
           )
+          runningChildren.push(first.child)
+          runningExits.push(first.exit)
+
+          await next.build({ env: env2 })
+          const appPort2 = await findPort()
+          const second = await launchChildServer(
+            next,
+            ['start', '-p', String(appPort2)],
+            env2
+          )
+          runningChildren.push(second.child)
+          runningExits.push(second.exit)
 
           const proxy1 = httpProxy.createProxyServer({
             target: `http://localhost:${appPort1}`,
@@ -190,9 +232,10 @@ describe('pages ssg data deployment skew - hard navigate when a new deployment o
           })
         })
         afterAll(async () => {
-          for (const app of apps) {
-            await killApp(app)
+          for (const child of runningChildren) {
+            await killApp(child).catch(() => {})
           }
+          await Promise.all(runningExits.map((e) => e.catch(() => {})))
           proxyServer.close()
         })
 
@@ -205,7 +248,7 @@ describe('pages ssg data deployment skew - hard navigate when a new deployment o
 
   describe('header with deployment id', () => {
     const { next } = nextTestSetup({
-      files: appDir,
+      files: __dirname,
       env: {
         // rely on skew protection when deployed
         NEXT_DEPLOYMENT_ID: isNextDeploy ? undefined : 'test-deployment-id',

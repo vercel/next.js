@@ -60,8 +60,6 @@ test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.j
 test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js
 test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx
 test/development/mcp-server/fixtures/compilation-errors-app/app/syntax-error/page.tsx
-# Tested against auto-generated content that isn't formatted
-test/integration/typescript-app-type-declarations/next-env.strictRouteTypes.d.ts
 
 # turbopack crates, disable for some tests and precompiled dependencies.
 /turbopack/crates/*/js/src/compiled
@@ -91,8 +89,6 @@ readme.md
 test/development/app-dir/hmr-symlink/app/symlink-chain/page.tsx
 test/development/app-dir/hmr-symlink/app/symlink-link/page.tsx
 test/development/app-dir/ssr-in-rsc/node_modules/random-react-library
-test/integration/build-trace-extra-entries/app/node_modules/pkg-behind-symlink
-test/integration/edge-runtime-configurable-guards/node_modules/lib
 test/production/app-dir/symbolic-file-links/src/i18n.ts
 test/production/app-dir/symbolic-file-links/src/app/layout.tsx
 test/production/app-dir/symbolic-file-links/src/app/page.tsx

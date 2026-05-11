@@ -461,11 +461,12 @@ const cases: {
 ]
 
 describe('rewrite-headers', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     // TODO: re-enable once changes in infrastructure are merged
     skipDeployment: true,
   })
+  if (skipped) return
 
   describe.each(cases)(
     '$name ($pathname)',
