@@ -31,7 +31,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 25
 
@@ -136,6 +136,7 @@ jobs:
     name: build-next
     uses: ./.github/workflows/build_reusable.yml
     with:
+      needsPlaywright: 'no'
       skipNativeBuild: 'yes'
       stepName: 'build-next'
     secrets: inherit
@@ -147,7 +148,7 @@ jobs:
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
     steps:
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
@@ -158,9 +159,26 @@ jobs:
           corepack enable
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 25
+
+      # Match the reusable workflow's pnpm-store cache path so this setup-only
+      # job does not bottleneck the larger test matrix.
+      - name: Get pnpm store directory
+        if: ${{ runner.environment == 'github-hosted' }}
+        id: get-store-path
+        run: echo STORE_PATH="$(pnpm store path)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        if: ${{ runner.environment == 'github-hosted' }}
+        uses: actions/cache@v5
+        timeout-minutes: 5
+        id: cache-pnpm-store
+        with:
+          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
+          key: pnpm-store-v2-${{ hashFiles('pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       - name: Install dependencies
         run: pnpm install
@@ -193,6 +211,7 @@ jobs:
     needs: ['build-next']
     uses: ./.github/workflows/build_reusable.yml
     with:
+      needsPlaywright: 'no'
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
       afterBuild: |
@@ -205,8 +224,8 @@ jobs:
   validate-docs-links:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
       - name: Setup corepack
@@ -224,6 +243,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      needsPlaywright: 'no'
       afterBuild: pnpm types-and-precompiled
       stepName: 'types-and-precompiled'
     secrets: inherit
@@ -284,7 +304,7 @@ jobs:
     runs-on: ubuntu-latest
     name: ast-grep lint
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: ast-grep lint step
         uses: ast-grep/action@cf62e780f0c88301228978d593a7784427a097a6 # v1.5.0
         with:
@@ -693,6 +713,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      needsPlaywright: 'no'
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-${{ matrix.node }}'
@@ -755,6 +776,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      needsPlaywright: 'no'
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-windows-${{ matrix.node }}'
@@ -1079,8 +1101,6 @@ jobs:
     with:
       browser: 'firefox webkit'
       afterBuild: |
-        pnpm playwright install
-
         # these all run without concurrency because they're heavier
         export TEST_CONCURRENCY=1
         export IS_TURBOPACK_TEST=1

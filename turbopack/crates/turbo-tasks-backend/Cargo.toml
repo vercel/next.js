@@ -60,6 +60,7 @@ turbo-persistence = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
+turbo-tasks-malloc = { workspace = true, default-features = false }
 thread_local = { workspace = true }
 
 [dev-dependencies]
@@ -68,6 +69,7 @@ futures = { workspace = true }
 indoc = { workspace = true }
 regex = { workspace = true }
 tempfile = { workspace = true }
+triomphe = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 rstest = { workspace = true }
 turbo-tasks-testing = { workspace = true }
