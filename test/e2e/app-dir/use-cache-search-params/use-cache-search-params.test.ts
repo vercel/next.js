@@ -8,8 +8,8 @@ import {
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-const getExpectedErrorMessage = () =>
-  `\`searchParams\` cannot be read inside "use cache". Await \`searchParams\` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache`
+const getExpectedErrorMessage = (route: string) =>
+  `Route "${route}": \`searchParams\` was used inside "use cache". Await \`searchParams\` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache`
 
 describe('use-cache-search-params', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -38,7 +38,7 @@ describe('use-cache-search-params', () => {
 
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
-        const expectedErrorMessage = getExpectedErrorMessage()
+        const expectedErrorMessage = getExpectedErrorMessage(route)
 
         expect(errorDescription).toBe(expectedErrorMessage)
 
@@ -74,7 +74,7 @@ describe('use-cache-search-params', () => {
 
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
-        const expectedErrorMessage = getExpectedErrorMessage()
+        const expectedErrorMessage = getExpectedErrorMessage(route)
 
         expect(errorDescription).toBe(expectedErrorMessage)
 
@@ -108,7 +108,7 @@ describe('use-cache-search-params', () => {
 
         const errorDescription = await getRedboxDescription(browser)
 
-        expect(errorDescription).toBe(getExpectedErrorMessage())
+        expect(errorDescription).toBe(getExpectedErrorMessage(route))
       })
     })
 
@@ -125,7 +125,7 @@ describe('use-cache-search-params', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).not.toContain(getExpectedErrorMessage())
+        expect(cliOutput).not.toContain(getExpectedErrorMessage(route))
       })
     })
 
@@ -136,8 +136,8 @@ describe('use-cache-search-params', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E1203",
-         "description": "\`searchParams\` cannot be read inside "use cache". Await \`searchParams\` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+         "code": "E1211",
+         "description": "Route "/search-params-used-generate-metadata": \`searchParams\` was used inside "use cache". Await \`searchParams\` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/search-params-used-generate-metadata/page.tsx (9:17) @ generateMetadata
@@ -157,8 +157,8 @@ describe('use-cache-search-params', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E1203",
-         "description": "\`searchParams\` cannot be read inside "use cache". Await \`searchParams\` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+         "code": "E1211",
+         "description": "Route "/search-params-used-generate-viewport": \`searchParams\` was used inside "use cache". Await \`searchParams\` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": null,
          "label": "Runtime Error",
          "source": "app/search-params-used-generate-viewport/page.tsx (9:17) @ generateViewport
@@ -178,7 +178,13 @@ describe('use-cache-search-params', () => {
     it('should fail the build with errors', async () => {
       const { cliOutput } = await next.build()
 
-      expect(cliOutput).toInclude(getExpectedErrorMessage())
+      expect(cliOutput).toInclude(
+        getExpectedErrorMessage('/search-params-used')
+      )
+
+      expect(cliOutput).toInclude(
+        getExpectedErrorMessage('/search-params-caught')
+      )
 
       expect(cliOutput).toInclude(
         'Error occurred prerendering page "/search-params-used"'
