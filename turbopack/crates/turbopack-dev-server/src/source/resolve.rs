@@ -30,14 +30,14 @@ pub enum ResolveSourceRequestResult {
     HttpProxy(OperationVc<ProxyResult>),
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn content_source_get_routes_operation(
     source: OperationVc<Box<dyn ContentSource>>,
 ) -> Vc<RouteTree> {
     source.connect().get_routes()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn route_tree_get_operation(
     route_tree: ResolvedVc<RouteTree>,
     asset_path: RcStr,
@@ -45,14 +45,14 @@ fn route_tree_get_operation(
     route_tree.get(asset_path)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn get_content_source_content_vary_operation(
     get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
 ) -> Vc<ContentSourceDataVary> {
     get_content.vary()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn get_content_source_content_get_operation(
     get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
     path: RcStr,
