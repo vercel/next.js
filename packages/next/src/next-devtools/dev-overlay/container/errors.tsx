@@ -638,8 +638,8 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           errorType={errorType}
           errorMessage={
             <>
-              Next.js encountered <code>{errorDetails.cause}</code> without an
-              explicit rendering intent.
+              Next.js encountered <code>{errorDetails.cause}</code> while
+              prerendering.
             </>
           }
           onClose={isServerError ? undefined : onClose}
