@@ -2448,8 +2448,9 @@ impl FileContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn hash(&self) -> Result<Vc<u64>> {
-        Ok(Vc::cell(hash_xxh3_hash64(self)))
+    pub fn hash(&self, algorithm: HashAlgorithm) -> Vc<RcStr> {
+        // no_hash_salt
+        Vc::cell(RcStr::from(deterministic_hash("", self, algorithm)))
     }
 
     /// Converts this [`FileContent`] into a [`PersistedFileContent`] by cloning.

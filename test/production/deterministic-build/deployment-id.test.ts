@@ -1,4 +1,4 @@
-import { FileRef, NextInstance, nextTestSetup } from 'e2e-utils'
+import { NextInstance, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import fs from 'fs/promises'
 import { promisify } from 'util'
@@ -7,6 +7,7 @@ import crypto from 'crypto'
 import globOrig from 'glob'
 import { diff } from 'jest-diff'
 const glob = promisify(globOrig)
+import { FILES } from './files'
 
 const IGNORE_CONTENT_NEXT_REGEX = new RegExp(
   [
@@ -178,29 +179,6 @@ async function runTest(
   }
 
   return { run1, run2 }
-}
-
-const FILES = {
-  standard: {
-    app: new FileRef(path.join(__dirname, 'standard', 'app')),
-    pages: new FileRef(path.join(__dirname, 'standard', 'pages')),
-    public: new FileRef(path.join(__dirname, 'standard', 'public')),
-    'instrumentation.ts': new FileRef(
-      path.join(__dirname, 'standard', 'instrumentation.ts')
-    ),
-    'middleware.ts': new FileRef(
-      path.join(__dirname, 'standard', 'middleware.ts')
-    ),
-    'next.config.js': new FileRef(
-      path.join(__dirname, 'standard', 'next.config.js')
-    ),
-  },
-  cacheComponents: {
-    app: new FileRef(path.join(__dirname, 'cache-components', 'app')),
-    'next.config.js': new FileRef(
-      path.join(__dirname, 'cache-components', 'next.config.js')
-    ),
-  },
 }
 
 // Webpack itself isn't deterministic
