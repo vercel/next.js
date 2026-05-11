@@ -161,6 +161,8 @@ pub struct NextConfig {
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     cache_components: Option<bool>,
+
+    adapter_path: Option<RcStr>,
     //
     // These are never used by Turbopack, and potentially non-serializable anyway:
     // cache_life: (),
@@ -2033,6 +2035,11 @@ impl NextConfig {
                 // rootParams should be enabled implicitly in cacheComponents.
                 .unwrap_or(self.cache_components.unwrap_or(false)),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn is_using_adapter(&self) -> Vc<bool> {
+        Vc::cell(self.adapter_path.is_some())
     }
 
     #[turbo_tasks::function]
