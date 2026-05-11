@@ -4,9 +4,16 @@ import {
   getFallbackRouteParams,
   getPlaceholderFallbackRouteParams,
 } from './fallback-params'
+import {
+  createParamsFromClient,
+  createServerParamsForServerSegment,
+} from './params'
 import type { FallbackRouteParam } from '../../build/static-paths/types'
 import type AppPageRouteModule from '../route-modules/app-page/module'
 import type { LoaderTree } from '../lib/app-dir-module'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import { isHangingPromiseRejectionError } from '../dynamic-rendering-utils'
 
 // Helper to create LoaderTree structures for testing
 type TestLoaderTree = [
@@ -658,6 +665,130 @@ describe('getFallbackRouteParams', () => {
 
       result = getFallbackRouteParams('/sidebar/is/real', routeModule)
       expect(result).toBeNull()
+    })
+  })
+})
+
+describe('output export fallback params consumers', () => {
+  function createOutputExportWorkStore() {
+    return {
+      isStaticGeneration: true,
+      page: '/blog/[slug]/page',
+      route: '/blog/[slug]',
+      nextConfigOutput: 'export',
+      afterContext: {} as any,
+      previouslyRevalidatedTags: [],
+      refreshTagsByCacheKind: new Map(),
+      shouldTrackFetchMetrics: false,
+      buildId: 'build-id',
+      cacheComponentsEnabled: true,
+      runInCleanSnapshot: (fn: (...args: Array<any>) => any, ...args: any[]) =>
+        fn(...args),
+      reactServerErrorsByDigest: new Map(),
+    } as any
+  }
+
+  function createPrerenderStore(
+    fallbackParams: NonNullable<
+      ReturnType<typeof createOpaqueFallbackRouteParams>
+    >,
+    rootParams: Record<string, unknown> = {}
+  ) {
+    const controller = new AbortController()
+    return {
+      controller,
+      prerenderStore: {
+        type: 'prerender',
+        phase: 'render',
+        implicitTags: {} as any,
+        revalidate: 0,
+        expire: 0,
+        stale: 0,
+        tags: null,
+        renderSignal: controller.signal,
+        controller,
+        cacheSignal: null,
+        dynamicTracking: null,
+        rootParams,
+        prerenderResumeDataCache: null,
+        renderResumeDataCache: null,
+        hmrRefreshHash: undefined,
+        varyParamsAccumulator: null,
+        fallbackRouteParams: fallbackParams,
+        allowEmptyStaticShell: false,
+      } as any,
+    }
+  }
+
+  it('does not error server params for ancestors that do not receive fallback params', async () => {
+    const fallbackParams = createOpaqueFallbackRouteParams([
+      { paramName: 'slug', paramType: 'dynamic' },
+    ])!
+    const workStore = createOutputExportWorkStore()
+    const { prerenderStore } = createPrerenderStore(fallbackParams)
+
+    await workAsyncStorage.run(workStore, async () => {
+      await workUnitAsyncStorage.run(prerenderStore, async () => {
+        await expect(
+          createServerParamsForServerSegment({}, null, null, false)
+        ).resolves.toEqual({})
+        expect(() =>
+          createServerParamsForServerSegment({}, 'slug', null, false).then(
+            () => null
+          )
+        ).toThrow('output: export')
+      })
+    })
+  })
+
+  it('does not reuse server erroring params promises for client consumers', async () => {
+    const fallbackParams = createOpaqueFallbackRouteParams([
+      { paramName: 'slug', paramType: 'dynamic' },
+    ])!
+    const underlyingParams = {
+      slug: fallbackParams.get('slug')![0],
+    }
+
+    const workStore = createOutputExportWorkStore()
+    const { controller, prerenderStore } = createPrerenderStore(
+      fallbackParams,
+      underlyingParams
+    )
+
+    await workAsyncStorage.run(workStore, async () => {
+      await workUnitAsyncStorage.run(prerenderStore, async () => {
+        const serverParams = createServerParamsForServerSegment(
+          underlyingParams,
+          null,
+          null,
+          false
+        )
+        const clientParams = createParamsFromClient(underlyingParams)
+
+        expect(serverParams).not.toBe(clientParams)
+        expect(() => serverParams.then(() => null)).toThrow('output: export')
+        expect(() => clientParams.then(() => null)).not.toThrow()
+
+        let clientSettled = false
+        clientParams.then(
+          () => {
+            clientSettled = true
+          },
+          () => {
+            clientSettled = true
+          }
+        )
+        await Promise.resolve()
+        expect(clientSettled).toBe(false)
+
+        controller.abort()
+        try {
+          await clientParams
+          throw new Error('Expected client params to reject after abort')
+        } catch (error) {
+          expect(isHangingPromiseRejectionError(error)).toBe(true)
+        }
+      })
     })
   })
 })

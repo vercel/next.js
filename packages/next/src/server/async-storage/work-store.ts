@@ -61,6 +61,7 @@ export type WorkStoreContext = {
     | 'isBuildTimePrerendering'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
+    | 'nextConfigOutput'
   > &
     RequestLifecycleOpts &
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
@@ -125,6 +126,7 @@ export function createWorkStore({
     isStaticGeneration,
     page,
     route: normalizeAppPath(page),
+    nextConfigOutput: renderOpts.nextConfigOutput,
     incrementalCache:
       // we fallback to a global incremental cache for edge-runtime locally
       // so that it can access the fs cache without mocks

@@ -89,6 +89,7 @@ import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import type { PrerenderedRoute } from '../../build/static-paths/types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
+import { isOutputExportDynamicFallbackEnabled } from '../../lib/output-export-dynamic-fallback'
 
 // Load ReactDevOverlay only when needed
 let PagesDevOverlayBridgeImpl: PagesDevOverlayBridgeType
@@ -811,6 +812,9 @@ export default class DevServer extends Server {
               this.nextConfig.experimental.partialFallbacks === true,
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
+            outputExportDynamicFallbacks:
+              this.nextConfig.experimental.outputExportDynamicFallbacks ===
+              true,
           },
           httpAgentOptions,
           locales,
@@ -856,9 +860,19 @@ export default class DevServer extends Server {
               )
             }
 
-            if (
-              !prerenderedRoutes.some((item) => item.pathname === urlPathname)
-            ) {
+            const hasMatchingPrerenderedRoute = prerenderedRoutes.some(
+              (item) => item.pathname === urlPathname
+            )
+            const hasFallbackPrerenderedRoute =
+              isOutputExportDynamicFallbackEnabled(this.nextConfig) &&
+              prerenderedRoutes.some(
+                (item) =>
+                  item.pathname === pathname &&
+                  item.fallbackRouteParams &&
+                  item.fallbackRouteParams.length > 0
+              )
+
+            if (!hasMatchingPrerenderedRoute && !hasFallbackPrerenderedRoute) {
               throw new Error(
                 `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config.`
               )
