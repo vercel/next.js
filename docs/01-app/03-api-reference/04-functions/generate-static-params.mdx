@@ -512,6 +512,8 @@ export default function Page({ params }) {
 
 Notice that the params argument can be accessed synchronously and includes only parent segment params.
 
+> **Good to know:** When a parent dynamic segment is a [root parameter](/docs/app/api-reference/functions/next-root-params), you can also read it inside a nested `generateStaticParams` by calling its getter from the `next/root-params` module.
+
 For type completion, you can make use of the TypeScript `Awaited` helper in combination with either [`Page Props helper`](/docs/app/api-reference/file-conventions/page#page-props-helper) or [`Layout Props helper`](/docs/app/api-reference/file-conventions/layout#layout-props-helper):
 
 ```ts filename="app/products/[category]/[product]/page.tsx" switcher
