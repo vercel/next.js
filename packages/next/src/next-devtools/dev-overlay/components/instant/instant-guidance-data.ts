@@ -464,7 +464,7 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
     'This prevents the page from being prerendered, leading to a slower user experience.',
   'sync-io': '',
   'sync-io-client':
-    'This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.',
+    'This expression can produce a different value each time it is evaluated so it cannot be prerendered in HTML.',
 }
 
 const syncCardsByCause: Record<string, FixCard[]> = {

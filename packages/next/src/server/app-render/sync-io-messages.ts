@@ -32,7 +32,7 @@ function createSyncIOErrorImpl(
 ): Error {
   return new Error(
     `Route "${route}": Next.js encountered ${expression} while prerendering.\n\n` +
-      `This expression produces a unique value on every evaluation so it cannot be prerendered directly.\n\n` +
+      `This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.\n\n` +
       `Ways to fix this:\n` +
       `  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call\n` +
       `  - Prerender and cache the value with \`"use cache"\`\n` +
@@ -71,7 +71,7 @@ export function createSyncIOClientError(
 ): Error {
   return new Error(
     `Route "${route}": Next.js encountered ${expression} in a Client Component.\n\n` +
-      `This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.\n\n` +
+      `This expression can produce a different value each time it is evaluated so it cannot be prerendered in HTML.\n\n` +
       `Ways to fix this:\n` +
       `  - Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
       `  - Move the read into a \`useEffect\` or event handler\n` +

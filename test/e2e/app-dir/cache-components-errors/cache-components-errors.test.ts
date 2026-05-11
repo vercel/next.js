@@ -943,7 +943,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` while prerendering.
 
-                 This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+                 This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -970,7 +970,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` while prerendering.
 
-                 This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+                 This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -999,7 +999,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` while prerendering.
 
-                 This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+                 This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1025,7 +1025,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` while prerendering.
 
-                 This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+                 This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1092,7 +1092,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` while prerendering.
 
-                 This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+                 This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1120,7 +1120,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` while prerendering.
 
-                 This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+                 This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1150,7 +1150,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` while prerendering.
 
-                 This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+                 This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1176,7 +1176,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` while prerendering.
 
-                 This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+                 This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                  Ways to fix this:
                    - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -2031,7 +2031,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.
+                 This expression can produce a different value each time it is evaluated so it cannot be prerendered in HTML.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2057,7 +2057,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.
+                 This expression can produce a different value each time it is evaluated so it cannot be prerendered in HTML.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2085,7 +2085,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.
+                 This expression can produce a different value each time it is evaluated so it cannot be prerendered in HTML.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2110,7 +2110,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.
+                 This expression can produce a different value each time it is evaluated so it cannot be prerendered in HTML.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2313,7 +2313,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.
+                 This expression can produce a different value each time it is evaluated so it cannot be prerendered in HTML.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2339,7 +2339,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.
+                 This expression can produce a different value each time it is evaluated so it cannot be prerendered in HTML.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2367,7 +2367,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.
+                 This expression can produce a different value each time it is evaluated so it cannot be prerendered in HTML.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -2392,7 +2392,7 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
 
-                 This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.
+                 This expression can produce a different value each time it is evaluated so it cannot be prerendered in HTML.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -4691,7 +4691,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4718,7 +4718,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4747,7 +4747,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4773,7 +4773,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4836,7 +4836,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4863,7 +4863,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4892,7 +4892,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4918,7 +4918,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -4981,7 +4981,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5008,7 +5008,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5037,7 +5037,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5063,7 +5063,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5126,7 +5126,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5152,7 +5152,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5180,7 +5180,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5205,7 +5205,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5267,7 +5267,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5294,7 +5294,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5323,7 +5323,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5349,7 +5349,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5411,7 +5411,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5437,7 +5437,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5465,7 +5465,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5490,7 +5490,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5570,7 +5570,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5597,7 +5597,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5625,7 +5625,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5652,7 +5652,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5732,7 +5732,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5759,7 +5759,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5787,7 +5787,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5814,7 +5814,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5894,7 +5894,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5921,7 +5921,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5949,7 +5949,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -5976,7 +5976,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6056,7 +6056,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6083,7 +6083,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6111,7 +6111,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6138,7 +6138,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6218,7 +6218,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6245,7 +6245,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6273,7 +6273,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6300,7 +6300,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6380,7 +6380,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6407,7 +6407,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6435,7 +6435,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6462,7 +6462,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6542,7 +6542,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6569,7 +6569,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6597,7 +6597,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6624,7 +6624,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6704,7 +6704,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6731,7 +6731,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6759,7 +6759,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6786,7 +6786,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6866,7 +6866,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6893,7 +6893,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6921,7 +6921,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -6948,7 +6948,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` while prerendering.
 
-               This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+               This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
                Ways to fix this:
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call

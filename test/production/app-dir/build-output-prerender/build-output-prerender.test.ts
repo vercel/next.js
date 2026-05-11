@@ -73,7 +73,7 @@ describe('build-output-prerender', () => {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
 
-           This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.
+           This expression can produce a different value each time it is evaluated so it cannot be prerendered in HTML.
 
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -97,7 +97,7 @@ describe('build-output-prerender', () => {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
 
-           This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.
+           This expression can produce a different value each time it is evaluated so it cannot be prerendered in HTML.
 
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -212,7 +212,7 @@ describe('build-output-prerender', () => {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
 
-           This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.
+           This expression can produce a different value each time it is evaluated so it cannot be prerendered in HTML.
 
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -230,7 +230,7 @@ describe('build-output-prerender', () => {
            Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
            Error: Route "/server": Next.js encountered \`Math.random()\` while prerendering.
 
-           This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+           This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
            Ways to fix this:
              - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -258,7 +258,7 @@ describe('build-output-prerender', () => {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
 
-           This expression will produce a unique value every time it is evaluated so it cannot be prerendered in HTML.
+           This expression can produce a different value each time it is evaluated so it cannot be prerendered in HTML.
 
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
@@ -277,7 +277,7 @@ describe('build-output-prerender', () => {
            Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
            Error: Route "/server": Next.js encountered \`Math.random()\` while prerendering.
 
-           This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+           This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
            Ways to fix this:
              - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call

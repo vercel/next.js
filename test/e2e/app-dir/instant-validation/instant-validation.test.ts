@@ -765,7 +765,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io": Next.js encountered \`Date.now()\` while prerendering.
 
-         This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+         This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -784,7 +784,7 @@ describe('instant validation', () => {
            11 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
          Error: Route "/suspense-in-root/runtime/invalid-sync-io": Next.js encountered \`Date.now()\` while prerendering.
 
-         This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+         This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -843,7 +843,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered \`Date.now()\` while prerendering.
 
-         This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+         This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -862,7 +862,7 @@ describe('instant validation', () => {
            15 |       <p>Runtime page with sync IO after cookies: {now}</p>
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered \`Date.now()\` while prerendering.
 
-         This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+         This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -881,7 +881,7 @@ describe('instant validation', () => {
            15 |       <p>Runtime page with sync IO after cookies: {now}</p>
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered \`Date.now()\` while prerendering.
 
-         This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+         This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1014,7 +1014,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata": Next.js encountered \`Date.now()\` while prerendering.
 
-         This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+         This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1033,7 +1033,7 @@ describe('instant validation', () => {
            12 |   }
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata": Next.js encountered \`Date.now()\` while prerendering.
 
-         This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+         This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1110,7 +1110,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered \`Date.now()\` while prerendering.
 
-         This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+         This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1129,7 +1129,7 @@ describe('instant validation', () => {
            14 |   }
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered \`Date.now()\` while prerendering.
 
-         This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+         This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
@@ -1148,7 +1148,7 @@ describe('instant validation', () => {
            14 |   }
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered \`Date.now()\` while prerendering.
 
-         This expression produces a unique value on every evaluation so it cannot be prerendered directly.
+         This expression can produce a different value each time it is evaluated so it cannot be prerendered directly.
 
          Ways to fix this:
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call

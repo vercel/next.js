@@ -659,7 +659,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               variant="runtime"
               kind="sync-io"
               cause={errorDetails.cause}
-              explanation="This value can change between renders, so it must be either prerendered or computed later."
+              explanation="This expression can produce a different value each time it is evaluated so it cannot be prerendered directly."
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
