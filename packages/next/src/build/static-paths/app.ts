@@ -828,7 +828,8 @@ export async function buildAppStaticPaths({
 }): Promise<StaticPathsResult> {
   if (
     segments.some((generate) => generate.config?.dynamicParams === true) &&
-    nextConfigOutput === 'export'
+    nextConfigOutput === 'export' &&
+    !isRoutePPREnabled
   ) {
     throw new Error(
       '"dynamicParams: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/app/building-your-application/deploying/static-exports'

@@ -27,6 +27,7 @@ import {
   SSG_FALLBACK_EXPORT_ERROR,
 } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
+import { isOutputExportDynamicFallbackEnabled } from '../lib/output-export-dynamic-fallback'
 import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
@@ -70,6 +71,10 @@ import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference
 import { convertSegmentPathToStaticExportFilename } from '../shared/lib/segment-cache/segment-value-encoding'
 import { getNextBuildDebuggerPortOffset } from '../lib/worker'
 import { getParams } from './helpers/get-params'
+import {
+  emitOutputExportFallbackHtmlFiles,
+  writeOutputExportFallbackHtml,
+} from './helpers/output-export-fallback'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
@@ -876,8 +881,11 @@ async function exportAppImpl(
     }
   }
 
-  // Export mode provide static outputs that are not compatible with PPR mode.
-  if (!options.buildExport && nextConfig.experimental.ppr) {
+  if (
+    !options.buildExport &&
+    nextConfig.experimental.ppr &&
+    !isOutputExportDynamicFallbackEnabled(nextConfig)
+  ) {
     // TODO: add message
     throw new Error('Invariant: PPR cannot be enabled in export mode')
   }
@@ -1017,6 +1025,17 @@ async function exportAppImpl(
         }
       })
     )
+
+    if (isOutputExportDynamicFallbackEnabled(nextConfig)) {
+      const fallbackHtmlPaths = await emitOutputExportFallbackHtmlFiles(
+        prerenderManifest.dynamicRoutes,
+        mapAppRouteToPage,
+        distDir,
+        outDir,
+        subFolders
+      )
+      await writeOutputExportFallbackHtml(outDir, fallbackHtmlPaths)
+    }
   }
 
   if (failedExportAttemptsByPage.size > 0) {
