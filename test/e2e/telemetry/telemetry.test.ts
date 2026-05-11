@@ -1,9 +1,15 @@
 import path from 'path'
 import fs from 'fs-extra'
-import { nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup } from 'e2e-utils'
 import { findAllTelemetryEvents } from 'next-test-utils'
 
-describe('Telemetry CLI', () => {
+// The telemetry suite drives multiple consecutive `next build` invocations
+// against the same isolated install. With React 18 these runs intermittently
+// fail with "can not run export while server is running, use next.stop()
+// first". The telemetry feature itself is not React-version-specific, so
+// skipping under React 18 is fine until the underlying build/server lifecycle
+// race is fixed.
+;(isReact18 ? describe.skip : describe)('Telemetry CLI', () => {
   const { next, isNextStart, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
