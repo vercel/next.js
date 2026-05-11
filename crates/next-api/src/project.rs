@@ -24,7 +24,7 @@ use next_core::{
         get_server_chunking_context_with_client_assets, get_server_compile_time_info,
         get_server_module_options_context, get_server_resolve_options_context,
     },
-    next_telemetry::NextFeatureTelemetry,
+    next_telemetry::ProjectFeatureUsageSummary,
     parse_segment_config_from_source,
     segment_config::ParseSegmentMode,
     util::{NextRuntime, OptionEnvMap},
@@ -35,7 +35,7 @@ use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, NonLocalValue, OperationValue, OperationVc, ReadRef,
-    ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Vc,
+    ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -56,7 +56,6 @@ use turbopack_core::{
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
-    diagnostics::DiagnosticExt,
     environment::NodeJsVersion,
     file_source::FileSource,
     ident::Layer,
@@ -1690,81 +1689,184 @@ impl Project {
         }
     }
 
-    /// Emit a telemetry event corresponding to [webpack configuration telemetry](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
-    /// to detect which feature is enabled.
+    /// Computes the project's feature-usage telemetry summary.
+    ///
+    /// Includes:
+    /// - The SWC target triple (`swc/target/...`, always on).
+    /// - Boolean config and compiler-option flags, mirroring the webpack [`TelemetryPlugin`](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
+    ///   shape.
+    /// - Per-feature-module import counts (e.g. `next/image`, `next/font/google`) computed by
+    ///   walking the whole-app module graph and counting **unique importing modules** per feature.
+    ///   This replaces an earlier `before_resolve` plugin that emitted telemetry per resolve;
+    ///   because Turbopack caches resolves, the earlier approach under-counted to at most one per
+    ///   feature.
+    ///
+    /// Returns `bail!` if the project is not in build mode — `whole_app_module_graphs` drops
+    /// issues in development and the graph may not reflect the full project, so reporting
+    /// telemetry from dev would produce misleading counts.
+    ///
+    /// The returned summary is sorted by feature name for determinism.
     #[turbo_tasks::function]
-    async fn collect_project_feature_telemetry(self: Vc<Self>) -> Result<()> {
-        let emit_event = |feature_name: &str, enabled: bool| {
-            NextFeatureTelemetry::new(feature_name.into(), enabled)
-                .resolved_cell()
-                .emit();
-        };
+    pub async fn project_feature_usage(
+        self: ResolvedVc<Self>,
+    ) -> Result<Vc<ProjectFeatureUsageSummary>> {
+        if !self.next_mode().await?.is_production() {
+            bail!("project_feature_usage() may only be called during `next build`");
+        }
 
-        // First, emit an event for the binary target triple.
-        // This is different to webpack-config; when this is being called,
-        // it is always using SWC so we don't check swc here.
-        emit_event(env!("VERGEN_CARGO_TARGET_TRIPLE"), true);
+        // (public feature specifier, path suffix) pairs. The suffix identifies the resolved
+        // feature module; we match via `module.ident().path.path.ends_with(suffix)`. Mirrors
+        // the webpack `FEATURE_MODULE_MAP` + `FEATURE_MODULE_REGEXP_MAP` in
+        // `packages/next/src/build/webpack/plugins/telemetry-plugin/telemetry-plugin.ts`.
+        //
+        // Font specifiers (`next/font/*`, `@next/font/*`) are matched against the synthesized
+        // `target.css` virtual module produced by the Next.js font loader transform
+        // (`crates/next-custom-transforms/src/transforms/fonts`). That transform rewrites
+        // `import { Inter } from 'next/font/google'` into
+        // `import inter from 'next/font/google/target.css?{...}'` — the original specifier never
+        // appears in the module graph, but the synthesized `target.css` module's path suffix does.
+        // `ident.path.path` does not include the query string (that lives on `ident.query`), so
+        // `ends_with` is the correct matcher here.
+        static FEATURE_MODULE_PATH_SUFFIXES: &[(&str, &str)] = &[
+            ("next/image", "/next/image.js"),
+            ("next/future/image", "/next/future/image.js"),
+            ("next/legacy/image", "/next/legacy/image.js"),
+            ("next/script", "/next/script.js"),
+            ("next/dynamic", "/next/dynamic.js"),
+            ("next/font/google", "/next/font/google/target.css"),
+            ("next/font/local", "/next/font/local/target.css"),
+            ("@next/font/google", "/@next/font/google/target.css"),
+            ("@next/font/local", "/@next/font/local/target.css"),
+        ];
 
-        // Go over config and report enabled features.
-        // [TODO]: useSwcLoader is not being reported as it is not directly corresponds (it checks babel config existence)
-        // need to confirm what we'll do with turbopack.
+        // TODO: useSwcLoader is not being reported as it is not directly corresponds (it checks
+        // babel config existence) — need to confirm what we'll do with turbopack.
         let config = self.next_config();
-
-        emit_event(
-            "skipProxyUrlNormalize",
-            *config.skip_proxy_url_normalize().await?,
-        );
-
-        emit_event(
-            "skipTrailingSlashRedirect",
-            *config.skip_trailing_slash_redirect().await?,
-        );
-        emit_event(
-            "persistentCaching",
-            *self.is_persistent_caching_enabled().await?,
-        );
-
-        emit_event(
-            "modularizeImports",
-            !config.modularize_imports().await?.is_empty(),
-        );
-        emit_event(
-            "transpilePackages",
-            !config.transpile_packages().await?.is_empty(),
-        );
-        emit_event("turbotrace", false);
-
-        // compiler options
         let compiler_options = config.compiler().await?;
-        let swc_relay_enabled = compiler_options.relay.is_some();
-        let styled_components_enabled = compiler_options
-            .styled_components
-            .as_ref()
-            .map(|sc| sc.is_enabled())
-            .unwrap_or_default();
-        let react_remove_properties_enabled = compiler_options
-            .react_remove_properties
-            .as_ref()
-            .map(|rc| rc.is_enabled())
-            .unwrap_or_default();
-        let remove_console_enabled = compiler_options
-            .remove_console
-            .as_ref()
-            .map(|rc| rc.is_enabled())
-            .unwrap_or_default();
-        let emotion_enabled = compiler_options
-            .emotion
-            .as_ref()
-            .map(|e| e.is_enabled())
-            .unwrap_or_default();
+        let mut features: Vec<(RcStr, u32)> = vec![
+            // SWC target triple is prefixed with `swc/target/` to match the webpack
+            // `swc/target/${SWC_TARGET_TRIPLE}` variant in `EventBuildFeatureUsage`.
+            (
+                format!("swc/target/{}", env!("VERGEN_CARGO_TARGET_TRIPLE")).into(),
+                1,
+            ),
+            (
+                rcstr!("skipProxyUrlNormalize"),
+                (*config.skip_proxy_url_normalize().await?) as u32,
+            ),
+            (
+                rcstr!("skipTrailingSlashRedirect"),
+                (*config.skip_trailing_slash_redirect().await?) as u32,
+            ),
+            (
+                rcstr!("modularizeImports"),
+                !config.modularize_imports().await?.is_empty() as u32,
+            ),
+            (
+                rcstr!("transpilePackages"),
+                !config.transpile_packages().await?.is_empty() as u32,
+            ),
+            (rcstr!("swcRelay"), compiler_options.relay.is_some() as u32),
+            (
+                rcstr!("swcStyledComponents"),
+                compiler_options
+                    .styled_components
+                    .as_ref()
+                    .is_some_and(|sc| sc.is_enabled()) as u32,
+            ),
+            (
+                rcstr!("swcReactRemoveProperties"),
+                compiler_options
+                    .react_remove_properties
+                    .as_ref()
+                    .is_some_and(|rc| rc.is_enabled()) as u32,
+            ),
+            (
+                rcstr!("swcRemoveConsole"),
+                compiler_options
+                    .remove_console
+                    .as_ref()
+                    .is_some_and(|rc| rc.is_enabled()) as u32,
+            ),
+            (
+                rcstr!("swcEmotion"),
+                compiler_options
+                    .emotion
+                    .as_ref()
+                    .is_some_and(|e| e.is_enabled()) as u32,
+            ),
+        ];
 
-        emit_event("swcRelay", swc_relay_enabled);
-        emit_event("swcStyledComponents", styled_components_enabled);
-        emit_event("swcReactRemoveProperties", react_remove_properties_enabled);
-        emit_event("swcRemoveConsole", remove_console_enabled);
-        emit_event("swcEmotion", emotion_enabled);
+        // Module-usage counts: two passes over the module graph.
+        //  1. Iterate all nodes, classify each in parallel, keep only feature-module matches.
+        //  2. Walk edges, for each edge whose target is a classified feature module, add the parent
+        //     to that feature's unique-importer set.
+        let module_graph = self.whole_app_module_graphs().await?.full.await?;
 
-        Ok(())
+        let matching: FxHashMap<ResolvedVc<Box<dyn Module>>, &'static str> = module_graph
+            .iter_nodes()
+            .map(async |node| {
+                let ident = node.ident().await?;
+                let path = &ident.path.path;
+                for &(feature, suffix) in FEATURE_MODULE_PATH_SUFFIXES {
+                    if path.ends_with(suffix) {
+                        return Ok(Some((node, feature)));
+                    }
+                }
+                Ok(None)
+            })
+            .try_flat_join()
+            .await?
+            .into_iter()
+            .collect();
+
+        // Collect (feature, parent) pairs for every edge whose target is a feature module.
+        //
+        // We count every such edge regardless of whether the import is eventually tree-shaken.
+        // This matches webpack's `TelemetryPlugin`, which hooks `finishModules` (before DCE).
+        // We could filter via `BindingUsageInfo` to only count edges that survive tree-shaking,
+        // but staying parallel to webpack lets dashboards compare counts across the two bundlers
+        // directly.
+        let mut pairs: FxHashSet<(&'static str, ResolvedVc<Box<dyn Module>>)> =
+            FxHashSet::default();
+        module_graph.traverse_edges_unordered(|parent, node| {
+            if let Some((parent_node, _)) = parent
+                && let Some(&feature) = matching.get(&node)
+            {
+                pairs.insert((feature, parent_node));
+            }
+            Ok(())
+        })?;
+
+        // Dedupe parents by their source location (path + query + fragment), ignoring
+        // `ident().layer` and other modifiers. In Turbopack the same user file often appears as
+        // separate modules per layer (e.g. SSR, client, edge), but webpack counts one "importer"
+        // per source file — this matches that semantics.
+        let parent_source_keys = pairs
+            .into_iter()
+            .map(async |(feature, parent)| {
+                let ident = parent.ident().await?;
+                let key = (
+                    ident.path.path.clone(),
+                    ident.query.clone(),
+                    ident.fragment.clone(),
+                );
+                Ok((feature, key))
+            })
+            .try_join()
+            .await?;
+
+        let mut importers: FxHashMap<&'static str, FxHashSet<(RcStr, RcStr, RcStr)>> =
+            FxHashMap::default();
+        for (feature, key) in parent_source_keys {
+            importers.entry(feature).or_default().insert(key);
+        }
+        for (feature, unique_sources) in importers {
+            features.push((RcStr::from(feature), unique_sources.len() as u32));
+        }
+
+        features.sort_by(|a, b| a.0.cmp(&b.0));
+        Ok(ProjectFeatureUsageSummary { features }.cell())
     }
 
     /// Scans the app/pages directories for entry points files (matching the
@@ -1779,8 +1881,6 @@ impl Project {
         self: Vc<Self>,
         app_route_filter: Option<Vec<RcStr>>,
     ) -> Result<Vc<Entrypoints>> {
-        self.collect_project_feature_telemetry().await?;
-
         let this = self.await?;
         let mut routes = FxIndexMap::default();
         let app_project = self.app_project();

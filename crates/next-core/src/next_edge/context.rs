@@ -27,7 +27,7 @@ use crate::{
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_edge_import_map},
     next_server::context::ServerContextType,
-    next_shared::resolve::{ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin},
+    next_shared::resolve::NextSharedRuntimeResolvePlugin,
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
         free_var_references_with_vercel_system_env_warnings, worker_forwarded_globals,
@@ -109,22 +109,19 @@ pub async fn get_edge_resolve_options_context(
             .to_resolved()
             .await?;
 
-    let mut before_resolve_plugins = vec![ResolvedVc::upcast(
-        ModuleFeatureReportResolvePlugin::new(project_path.clone())
-            .to_resolved()
-            .await?,
-    )];
-    if matches!(
+    let before_resolve_plugins = if matches!(
         ty,
         ServerContextType::Pages { .. }
             | ServerContextType::AppSSR { .. }
             | ServerContextType::AppRSC { .. }
     ) {
-        before_resolve_plugins.push(ResolvedVc::upcast(
+        vec![ResolvedVc::upcast(
             NextFontLocalResolvePlugin::new(project_path.clone())
                 .to_resolved()
                 .await?,
-        ));
+        )]
+    } else {
+        vec![]
     };
 
     let after_resolve_plugins = vec![ResolvedVc::upcast(

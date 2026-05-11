@@ -51,7 +51,7 @@ use crate::{
         get_next_client_resolved_map,
     },
     next_shared::{
-        resolve::{ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin},
+        resolve::NextSharedRuntimeResolvePlugin,
         transforms::{
             emotion::get_emotion_transform_rule,
             react_remove_properties::get_react_remove_properties_transform_rule,
@@ -180,18 +180,11 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
-        before_resolve_plugins: vec![
-            ResolvedVc::upcast(
-                ModuleFeatureReportResolvePlugin::new(project_path.clone())
-                    .to_resolved()
-                    .await?,
-            ),
-            ResolvedVc::upcast(
-                NextFontLocalResolvePlugin::new(project_path.clone())
-                    .to_resolved()
-                    .await?,
-            ),
-        ],
+        before_resolve_plugins: vec![ResolvedVc::upcast(
+            NextFontLocalResolvePlugin::new(project_path.clone())
+                .to_resolved()
+                .await?,
+        )],
         after_resolve_plugins: vec![ResolvedVc::upcast(
             NextSharedRuntimeResolvePlugin::new(project_path.clone())
                 .to_resolved()

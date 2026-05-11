@@ -22,6 +22,7 @@ import type {
 } from './generated-native'
 import type {
   Binding,
+  BuildFeatureUsage,
   CompilationEvent,
   DefineEnv,
   Endpoint,
@@ -730,9 +731,14 @@ function bindingToApi(
       } else {
         return {
           issues: napiEndpoints.issues,
-          diagnostics: napiEndpoints.diagnostics,
         }
       }
+    }
+
+    async featureUsage(): Promise<BuildFeatureUsage[]> {
+      return (await binding.projectFeatureUsage(
+        this._nativeProject
+      )) as BuildFeatureUsage[]
     }
 
     entrypointsSubscribe() {
@@ -750,7 +756,6 @@ function bindingToApi(
           } else {
             yield {
               issues: entrypoints.issues,
-              diagnostics: entrypoints.diagnostics,
             } as TurbopackResult<{}>
           }
         }
@@ -1239,7 +1244,6 @@ function bindingToApi(
       pagesAppEndpoint: new EndpointImpl(entrypoints.pagesAppEndpoint),
       pagesErrorEndpoint: new EndpointImpl(entrypoints.pagesErrorEndpoint),
       issues: entrypoints.issues,
-      diagnostics: entrypoints.diagnostics,
     }
   }
 

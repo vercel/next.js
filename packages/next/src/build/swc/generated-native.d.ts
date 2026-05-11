@@ -483,6 +483,17 @@ export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+/**
+ * Returns the build-feature-usage telemetry summary for this project — the set of
+ * `(featureName, invocationCount)` pairs reported to the Next.js telemetry service.
+ *
+ * Intended to be called once at the end of a build, after `writeAllEntrypointsToDisk`. The
+ * summary is computed by walking the whole-app module graph and is cached by turbo-tasks, so the
+ * call is cheap when the graph is already materialized.
+ */
+export declare function projectFeatureUsage(project: {
+  __napiType: 'Project'
+}): Promise<Array<NapiUsedFeature>>
 export declare function projectGetAllCompilationIssues(project: {
   __napiType: 'Project'
 }): Promise<TurbopackResult>
@@ -564,10 +575,10 @@ export interface NapiSourcePos {
   line: number
   column: number
 }
-export interface NapiDiagnostic {
-  category: RcStr
-  name: RcStr
-  payload: Record<string, string>
+export interface NapiUsedFeature {
+  featureName: RcStr
+  /** How many times it was used, typically this means how often it was imported. */
+  invocationCount: number
 }
 export declare function expandNextJsTemplate(
   content: Buffer,

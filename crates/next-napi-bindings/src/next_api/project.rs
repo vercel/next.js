@@ -34,6 +34,7 @@ use next_api::{
 };
 use next_core::{
     app_structure::find_app_dir,
+    next_telemetry::ProjectFeatureUsageSummary,
     tracing_presets::{
         TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBO_TASKS_TARGETS,
         TRACING_NEXT_TURBOPACK_TARGETS,
@@ -61,7 +62,6 @@ use turbo_tasks_fs::{
 use turbo_unix_path::{get_relative_path_to, sys_to_unix, unix_to_sys};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
-    diagnostics::PlainDiagnostic,
     issue::{IssueFilter, PlainIssue},
     output::{OutputAsset, OutputAssets},
     source_map::{SourceMap, Token},
@@ -85,8 +85,8 @@ use crate::{
             NextTurbopackContext, create_turbo_tasks,
         },
         utils::{
-            DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult, get_diagnostics,
-            get_issues, strongly_consistent_catch_collectables, subscribe,
+            DetachedVc, NapiIssue, NapiUsedFeature, RootTask, TurbopackResult, get_issues,
+            strongly_consistent_catch_collectables, subscribe,
         },
     },
     util::DhatProfilerGuard,
@@ -992,7 +992,6 @@ impl NapiEntrypoints {
 struct EntrypointsWithIssues {
     entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
-    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
@@ -1003,12 +1002,11 @@ async fn get_entrypoints_with_issues_operation(
     let entrypoints_operation =
         EntrypointsOperation::new(project_container_entrypoints_operation(container));
     let filter = issue_filter_from_container(container);
-    let (entrypoints, issues, diagnostics, effects) =
+    let (entrypoints, issues, effects) =
         strongly_consistent_catch_collectables(entrypoints_operation, filter).await?;
     Ok(EntrypointsWithIssues {
         entrypoints,
         issues,
-        diagnostics,
         effects,
     }
     .cell())
@@ -1026,7 +1024,6 @@ fn project_container_entrypoints_operation(
 #[turbo_tasks::value(serialization = "skip")]
 struct OperationResult {
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
-    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
@@ -1034,7 +1031,6 @@ struct OperationResult {
 struct AllWrittenEntrypointsWithIssues {
     entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
-    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
@@ -1420,7 +1416,7 @@ pub async fn project_write_all_entrypoints_to_disk(
         EntrypointsWritePhase::All
     };
 
-    let (mut entrypoints, mut issues, mut diags) = tt
+    let (mut entrypoints, mut issues) = tt
         .run(async move {
             let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
                 container,
@@ -1432,7 +1428,6 @@ pub async fn project_write_all_entrypoints_to_disk(
             let AllWrittenEntrypointsWithIssues {
                 entrypoints,
                 issues,
-                diagnostics,
                 effects,
             } = &*entrypoints_with_issues_op
                 .read_strongly_consistent()
@@ -1444,7 +1439,6 @@ pub async fn project_write_all_entrypoints_to_disk(
             Ok((
                 entrypoints.clone(),
                 issues.iter().cloned().collect::<Vec<_>>(),
-                diagnostics.iter().cloned().collect::<Vec<_>>(),
             ))
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
@@ -1487,7 +1481,7 @@ pub async fn project_write_all_entrypoints_to_disk(
             .await?;
         }
 
-        let (deferred_entrypoints, deferred_issues, deferred_diags) = tt
+        let (deferred_entrypoints, deferred_issues) = tt
             .run(async move {
                 let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
                     container,
@@ -1498,7 +1492,6 @@ pub async fn project_write_all_entrypoints_to_disk(
                 let AllWrittenEntrypointsWithIssues {
                     entrypoints,
                     issues,
-                    diagnostics,
                     effects,
                 } = &*entrypoints_with_issues_op
                     .read_strongly_consistent()
@@ -1510,7 +1503,6 @@ pub async fn project_write_all_entrypoints_to_disk(
                 Ok((
                     entrypoints.clone(),
                     issues.iter().cloned().collect::<Vec<_>>(),
-                    diagnostics.iter().cloned().collect::<Vec<_>>(),
                 ))
             })
             .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
@@ -1520,34 +1512,26 @@ pub async fn project_write_all_entrypoints_to_disk(
             entrypoints = deferred_entrypoints;
         }
         issues.extend(deferred_issues);
-        diags.extend(deferred_diags);
     }
 
-    let (emit_issues, emit_diags) = tt
+    let emit_issues = tt
         .run(async move {
             let emit_result_op = emit_all_output_assets_once_with_issues_operation(
                 container,
                 app_dir_only,
                 has_deferred_entrypoints,
             );
-            let OperationResult {
-                issues,
-                diagnostics,
-                effects,
-            } = &*emit_result_op.read_strongly_consistent().await?;
+            let OperationResult { issues, effects } =
+                &*emit_result_op.read_strongly_consistent().await?;
 
             effects.apply().await?;
 
-            Ok((
-                issues.iter().cloned().collect::<Vec<_>>(),
-                diagnostics.iter().cloned().collect::<Vec<_>>(),
-            ))
+            Ok(issues.iter().cloned().collect::<Vec<_>>())
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;
 
     issues.extend(emit_issues);
-    diags.extend(emit_diags);
 
     Ok(TurbopackResult {
         result: if let Some(entrypoints) = entrypoints {
@@ -1559,7 +1543,6 @@ pub async fn project_write_all_entrypoints_to_disk(
             None
         },
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-        diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
     })
 }
 
@@ -1575,12 +1558,11 @@ async fn get_all_written_entrypoints_with_issues_operation(
         write_phase,
     ));
     let filter = issue_filter_from_container(container);
-    let (entrypoints, issues, diagnostics, effects) =
+    let (entrypoints, issues, effects) =
         strongly_consistent_catch_collectables(entrypoints_operation, filter).await?;
     Ok(AllWrittenEntrypointsWithIssues {
         entrypoints,
         issues,
-        diagnostics,
         effects,
     }
     .cell())
@@ -1659,15 +1641,10 @@ async fn emit_all_output_assets_once_with_issues_operation(
         has_deferred_entrypoints,
     ));
     let filter = issue_filter_from_container(container);
-    let (_, issues, diagnostics, effects) =
+    let (_, issues, effects) =
         strongly_consistent_catch_collectables(entrypoints_operation, filter).await?;
 
-    Ok(OperationResult {
-        issues,
-        diagnostics,
-        effects,
-    }
-    .cell())
+    Ok(OperationResult { issues, effects }.cell())
 }
 
 #[turbo_tasks::function(operation)]
@@ -1737,7 +1714,7 @@ pub async fn project_entrypoints(
 ) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
     let container = project.container;
 
-    let (entrypoints, issues, diags) = project
+    let (entrypoints, issues) = project
         .turbopack_ctx
         .turbo_tasks()
         .run_once(async move {
@@ -1747,13 +1724,12 @@ pub async fn project_entrypoints(
             let EntrypointsWithIssues {
                 entrypoints,
                 issues,
-                diagnostics,
                 effects: _,
             } = &*entrypoints_with_issues_op
                 .read_strongly_consistent()
                 .await?;
 
-            Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
+            Ok((entrypoints.clone(), issues.clone()))
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
@@ -1769,7 +1745,6 @@ pub async fn project_entrypoints(
     Ok(TurbopackResult {
         result,
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-        diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
     })
 }
 
@@ -1790,19 +1765,18 @@ pub fn project_entrypoints_subscribe(
                 let EntrypointsWithIssues {
                     entrypoints,
                     issues,
-                    diagnostics,
                     effects,
                 } = &*entrypoints_with_issues_op
                     .read_strongly_consistent()
                     .await?;
 
                 effects.apply().await?;
-                Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
+                Ok((entrypoints.clone(), issues.clone()))
             }
             .instrument(tracing::info_span!("entrypoints subscription"))
         },
         move |ctx| {
-            let (entrypoints, issues, diags) = ctx.value;
+            let (entrypoints, issues) = ctx.value;
             let result = match entrypoints {
                 Some(entrypoints) => Some(NapiEntrypoints::from_entrypoints_op(
                     &entrypoints,
@@ -1817,7 +1791,6 @@ pub fn project_entrypoints_subscribe(
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))
                     .collect(),
-                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
             }])
         },
     )
@@ -1827,7 +1800,6 @@ pub fn project_entrypoints_subscribe(
 struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
-    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
@@ -1852,12 +1824,10 @@ async fn hmr_update_with_issues_operation(
     let update = update_op.read_strongly_consistent().await?;
     let filter = project.issue_filter();
     let issues = get_issues(update_op, filter).await?;
-    let diagnostics = get_diagnostics(update_op).await?;
     let effects = Arc::new(take_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
         update,
         issues,
-        diagnostics,
         effects,
     }
     .cell())
@@ -1905,7 +1875,6 @@ pub fn project_hmr_events(
                     let HmrUpdateWithIssues {
                         update,
                         issues,
-                        diagnostics,
                         effects,
                     } = &*update;
                     // HACK(bgw): Remove this mark call
@@ -1922,12 +1891,12 @@ pub fn project_hmr_events(
                             state.set(to.clone()).await?;
                         }
                     }
-                    Ok((Some(update.clone()), issues.clone(), diagnostics.clone()))
+                    Ok((Some(update.clone()), issues.clone()))
                 }
             }
         },
         move |ctx| {
-            let (update, issues, diags) = ctx.value;
+            let (update, issues) = ctx.value;
 
             let napi_issues = issues
                 .iter()
@@ -1957,7 +1926,6 @@ pub fn project_hmr_events(
             Ok(vec![TurbopackResult {
                 result: ctx.env.to_js_value(&update)?,
                 issues: napi_issues,
-                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
             }])
         },
     )
@@ -1972,7 +1940,6 @@ struct HmrChunkNames {
 struct HmrChunkNamesWithIssues {
     chunk_names: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
-    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
@@ -1993,12 +1960,10 @@ async fn get_hmr_chunk_names_with_issues_operation(
     let hmr_chunk_names = hmr_chunk_names_op.read_strongly_consistent().await?;
     let filter = issue_filter_from_container(container);
     let issues = get_issues(hmr_chunk_names_op, filter).await?;
-    let diagnostics = get_diagnostics(hmr_chunk_names_op).await?;
     let effects = Arc::new(take_effects(hmr_chunk_names_op).await?);
     Ok(HmrChunkNamesWithIssues {
         chunk_names: hmr_chunk_names,
         issues,
-        diagnostics,
         effects,
     }
     .cell())
@@ -2025,17 +1990,16 @@ pub fn project_hmr_chunk_names_subscribe(
             let HmrChunkNamesWithIssues {
                 chunk_names,
                 issues,
-                diagnostics,
                 effects,
             } = &*hmr_chunk_names_with_issues_op
                 .read_strongly_consistent()
                 .await?;
             effects.apply().await?;
 
-            Ok((chunk_names.clone(), issues.clone(), diagnostics.clone()))
+            Ok((chunk_names.clone(), issues.clone()))
         },
         move |ctx| {
-            let (chunk_names, issues, diagnostics) = ctx.value;
+            let (chunk_names, issues) = ctx.value;
 
             Ok(vec![TurbopackResult {
                 result: HmrChunkNames {
@@ -2044,10 +2008,6 @@ pub fn project_hmr_chunk_names_subscribe(
                 issues: issues
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))
-                    .collect(),
-                diagnostics: diagnostics
-                    .iter()
-                    .map(|d| NapiDiagnostic::from(d))
                     .collect(),
             }])
         },
@@ -2499,20 +2459,17 @@ pub async fn project_write_analyze_data(
     app_dir_only: bool,
 ) -> napi::Result<TurbopackResult<()>> {
     let container = project.container;
-    let (issues, diagnostics) = project
+    let issues = project
         .turbopack_ctx
         .turbo_tasks()
         .run_once(async move {
             let analyze_data_op = write_analyze_data_with_issues_operation(container, app_dir_only);
-            let WriteAnalyzeResult {
-                issues,
-                diagnostics,
-                effects,
-            } = &*analyze_data_op.read_strongly_consistent().await?;
+            let WriteAnalyzeResult { issues, effects } =
+                &*analyze_data_op.read_strongly_consistent().await?;
 
             // Write the files to disk
             effects.apply().await?;
-            Ok((issues.clone(), diagnostics.clone()))
+            Ok(issues.clone())
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
@@ -2520,10 +2477,6 @@ pub async fn project_write_analyze_data(
     Ok(TurbopackResult {
         result: (),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-        diagnostics: diagnostics
-            .iter()
-            .map(|d| NapiDiagnostic::from(d))
-            .collect(),
     })
 }
 
@@ -2550,14 +2503,44 @@ async fn get_all_compilation_issues_operation(
 ) -> Result<Vc<OperationResult>> {
     let inner_op = get_all_compilation_issues_inner_operation(container);
     let filter = issue_filter_from_container(container);
-    let (_, issues, diagnostics, effects) =
-        strongly_consistent_catch_collectables(inner_op, filter).await?;
-    Ok(OperationResult {
-        issues,
-        diagnostics,
-        effects,
-    }
-    .cell())
+    let (_, issues, effects) = strongly_consistent_catch_collectables(inner_op, filter).await?;
+    Ok(OperationResult { issues, effects }.cell())
+}
+
+/// Returns the build-feature-usage telemetry summary for this project — the set of
+/// `(featureName, invocationCount)` pairs reported to the Next.js telemetry service.
+///
+/// Intended to be called once at the end of a build, after `writeAllEntrypointsToDisk`. The
+/// summary is computed by walking the whole-app module graph and is cached by turbo-tasks, so the
+/// call is cheap when the graph is already materialized.
+#[tracing::instrument(level = "info", name = "get project feature usage", skip_all)]
+#[napi]
+pub async fn project_feature_usage(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<Vec<NapiUsedFeature>> {
+    let container = project.container;
+    let summary = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            #[turbo_tasks::function(operation)]
+            async fn project_feature_usage_operation(
+                container: ResolvedVc<ProjectContainer>,
+            ) -> Result<Vc<ProjectFeatureUsageSummary>> {
+                Ok(container.project().project_feature_usage())
+            }
+            project_feature_usage_operation(container)
+                .read_strongly_consistent()
+                .await
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(summary
+        .features
+        .iter()
+        .map(|(name, count)| NapiUsedFeature::new(name.clone(), *count))
+        .collect())
 }
 
 #[tracing::instrument(level = "info", name = "get all compilation issues", skip_all)]
@@ -2566,17 +2549,13 @@ pub async fn project_get_all_compilation_issues(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<TurbopackResult<()>> {
     let container = project.container;
-    let (issues, diagnostics) = project
+    let issues = project
         .turbopack_ctx
         .turbo_tasks()
         .run_once(async move {
             let op = get_all_compilation_issues_operation(container);
-            let OperationResult {
-                issues,
-                diagnostics,
-                effects: _,
-            } = &*op.read_strongly_consistent().await?;
-            Ok((issues.clone(), diagnostics.clone()))
+            let OperationResult { issues, effects: _ } = &*op.read_strongly_consistent().await?;
+            Ok(issues.clone())
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
@@ -2584,10 +2563,6 @@ pub async fn project_get_all_compilation_issues(
     Ok(TurbopackResult {
         result: (),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-        diagnostics: diagnostics
-            .iter()
-            .map(|d| NapiDiagnostic::from(d))
-            .collect(),
     })
 }
 

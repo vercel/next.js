@@ -164,39 +164,34 @@ describe('config telemetry', () => {
         }
       })
 
-      // Turbopack intentionally does not support these events
-      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
-        'emits telemery for usage of image, script & dynamic',
-        async () => {
-          const { stderr } = await nextBuild(appDir, [], {
-            stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: '1' },
-          })
-          const featureUsageEvents = findAllTelemetryEvents(
-            stderr,
-            'NEXT_BUILD_FEATURE_USAGE'
-          )
+      it('emits telemery for usage of image, script & dynamic', async () => {
+        const { stderr } = await nextBuild(appDir, [], {
+          stderr: 'log',
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        })
+        const featureUsageEvents = findAllTelemetryEvents(
+          stderr,
+          'NEXT_BUILD_FEATURE_USAGE'
+        )
 
-          // eslint-disable-next-line jest/no-standalone-expect
-          expect(featureUsageEvents).toEqual(
-            expect.arrayContaining([
-              {
-                featureName: 'next/image',
-                // FIXME: Should be +1 from App Router
-                invocationCount: 2,
-              },
-              {
-                featureName: 'next/script',
-                invocationCount: 1,
-              },
-              {
-                featureName: 'next/dynamic',
-                invocationCount: 1,
-              },
-            ])
-          )
-        }
-      )
+        expect(featureUsageEvents).toEqual(
+          expect.arrayContaining([
+            {
+              featureName: 'next/image',
+              // FIXME: Webpack is missing a reference, Should be +1 from App Router
+              invocationCount: process.env.IS_TURBOPACK_TEST ? 3 : 2,
+            },
+            {
+              featureName: 'next/script',
+              invocationCount: 1,
+            },
+            {
+              featureName: 'next/dynamic',
+              invocationCount: 1,
+            },
+          ])
+        )
+      })
 
       // Turbopack intentionally does not support these events
       ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
@@ -442,32 +437,26 @@ describe('config telemetry', () => {
         ])
       })
 
-      // Turbopack intentionally does not support these events
-      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
-        'emits telemetry for usage of next/legacy/image',
-        async () => {
-          const { stderr } = await nextBuild(appDir, [], {
-            stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: '1' },
-          })
-          const featureUsageEvents = findAllTelemetryEvents(
-            stderr,
-            'NEXT_BUILD_FEATURE_USAGE'
-          )
-          // eslint-disable-next-line jest/no-standalone-expect
-          expect(featureUsageEvents).toContainEqual({
-            // FIXME: Should be +1 from App Router
-            featureName: 'next/legacy/image',
-            invocationCount: 2,
-          })
-          // eslint-disable-next-line jest/no-standalone-expect
-          expect(featureUsageEvents).toContainEqual({
-            featureName: 'next/image',
-            // FIXME: Should be +1 from App Router
-            invocationCount: 2,
-          })
-        }
-      )
+      it('emits telemetry for usage of next/legacy/image', async () => {
+        const { stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        })
+        const featureUsageEvents = findAllTelemetryEvents(
+          stderr,
+          'NEXT_BUILD_FEATURE_USAGE'
+        )
+        expect(featureUsageEvents).toContainEqual({
+          // FIXME: Should be +1 from App Router for webpack
+          featureName: 'next/legacy/image',
+          invocationCount: process.env.IS_TURBOPACK_TEST ? 3 : 2,
+        })
+        expect(featureUsageEvents).toContainEqual({
+          featureName: 'next/image',
+          // FIXME: Should be +1 from App Router for webpack
+          invocationCount: process.env.IS_TURBOPACK_TEST ? 3 : 2,
+        })
+      })
 
       // Turbopack intentionally does not support these events
       ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
@@ -490,72 +479,61 @@ describe('config telemetry', () => {
         }
       )
 
-      // Turbopack intentionally does not support these events
-      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
-        'emits telemetry for transpilePackages',
-        async () => {
-          await fs.rename(
-            path.join(appDir, 'next.config.transpile-packages'),
-            path.join(appDir, 'next.config.js')
-          )
+      it('emits telemetry for transpilePackages', async () => {
+        await fs.rename(
+          path.join(appDir, 'next.config.transpile-packages'),
+          path.join(appDir, 'next.config.js')
+        )
 
-          const { stderr } = await nextBuild(appDir, [], {
-            stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: '1' },
-          })
+        const { stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        })
 
-          await fs.rename(
-            path.join(appDir, 'next.config.js'),
-            path.join(appDir, 'next.config.transpile-packages')
-          )
+        await fs.rename(
+          path.join(appDir, 'next.config.js'),
+          path.join(appDir, 'next.config.transpile-packages')
+        )
 
-          const featureUsageEvents = findAllTelemetryEvents(
-            stderr,
-            'NEXT_BUILD_FEATURE_USAGE'
-          )
-          // eslint-disable-next-line jest/no-standalone-expect
-          expect(featureUsageEvents).toContainEqual({
-            featureName: 'transpilePackages',
-            invocationCount: 1,
-          })
-        }
-      )
+        const featureUsageEvents = findAllTelemetryEvents(
+          stderr,
+          'NEXT_BUILD_FEATURE_USAGE'
+        )
+        expect(featureUsageEvents).toContainEqual({
+          featureName: 'transpilePackages',
+          invocationCount: 1,
+        })
+      })
 
-      // Turbopack intentionally does not support these events
-      ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
-        'emits telemetry for middleware related options',
-        async () => {
-          await fs.rename(
-            path.join(appDir, 'next.config.middleware-options'),
-            path.join(appDir, 'next.config.js')
-          )
+      it('emits telemetry for middleware related options', async () => {
+        await fs.rename(
+          path.join(appDir, 'next.config.middleware-options'),
+          path.join(appDir, 'next.config.js')
+        )
 
-          const { stderr } = await nextBuild(appDir, [], {
-            stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: '1' },
-          })
+        const { stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        })
 
-          await fs.rename(
-            path.join(appDir, 'next.config.js'),
-            path.join(appDir, 'next.config.middleware-options')
-          )
+        await fs.rename(
+          path.join(appDir, 'next.config.js'),
+          path.join(appDir, 'next.config.middleware-options')
+        )
 
-          const featureUsageEvents = findAllTelemetryEvents(
-            stderr,
-            'NEXT_BUILD_FEATURE_USAGE'
-          )
-          // eslint-disable-next-line jest/no-standalone-expect
-          expect(featureUsageEvents).toContainEqual({
-            featureName: 'skipProxyUrlNormalize',
-            invocationCount: 1,
-          })
-          // eslint-disable-next-line jest/no-standalone-expect
-          expect(featureUsageEvents).toContainEqual({
-            featureName: 'skipTrailingSlashRedirect',
-            invocationCount: 1,
-          })
-        }
-      )
+        const featureUsageEvents = findAllTelemetryEvents(
+          stderr,
+          'NEXT_BUILD_FEATURE_USAGE'
+        )
+        expect(featureUsageEvents).toContainEqual({
+          featureName: 'skipProxyUrlNormalize',
+          invocationCount: 1,
+        })
+        expect(featureUsageEvents).toContainEqual({
+          featureName: 'skipTrailingSlashRedirect',
+          invocationCount: 1,
+        })
+      })
 
       it('emits telemetry for default React Compiler options', async () => {
         const { stderr } = await nextBuild(appDir, [], {
