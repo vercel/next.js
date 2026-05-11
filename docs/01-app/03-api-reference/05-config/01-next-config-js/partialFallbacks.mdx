@@ -12,12 +12,12 @@ related:
 
 > **Good to know**: `partialFallbacks` is enabled by default when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled. It has no effect without `cacheComponents`.
 
-[Dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes) that use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) are prerendered at build time for each combination returned. Without `partialFallbacks`, you face a tradeoff:
+[Dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes) that use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) are prerendered at build time for each combination returned. Without `partialFallbacks`, any combination not returned by `generateStaticParams` is rendered at request time, blocking the first visitor until the full render completes. This leaves a tradeoff:
 
-- **Prerender every combination** with `generateStaticParams`: this can lead to longer build times and increased cache write costs.
-- **Skip `generateStaticParams`**: every visitor gets a generic fallback shell with no param-specific content prerendered.
+- **Prerender every combination** with `generateStaticParams`: visitors always get an instant response, but build times and cache write costs grow with the size of the param space.
+- **Prerender a subset** (or skip `generateStaticParams` entirely): builds stay small, but visitors to un-prerendered combinations wait for the request-time render.
 
-[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) with `partialFallbacks` enabled changes this. Instead of blocking until the page is rendered, the visitor gets a **fallback shell** instantly. A fallback shell is prerendered static content where one or more params are unknown at build time.
+[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) with `partialFallbacks` enabled changes this. Instead of blocking, the visitor gets a **fallback shell** instantly. A fallback shell is prerendered static content where one or more params are unknown at build time.
 
 In the background, Next.js uses the param values from the incoming request to try to generate a more specific shell, or a fully static page if possible. Subsequent visitors to that URL then get this **upgraded** version instead of the fallback.
 

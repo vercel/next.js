@@ -130,7 +130,7 @@ export default function ProductPage(props: PageProps<'/[category]/[product]'>) {
 }
 ```
 
-> **Good to know:** You can also use [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) files instead of `<Suspense>` in JSX. They are equivalent, but `<Suspense>` gives you more control over where the boundary sits in the component tree.
+> **Good to know:** You can also use [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) files instead of `<Suspense>` in JSX. `loading.tsx` puts the boundary at the segment edge, while inline `<Suspense>` lets you place it anywhere in the tree.
 
 The data helpers use `'use cache'` at the module level so all exported functions are cached. This lets their results be included in the static shell:
 
