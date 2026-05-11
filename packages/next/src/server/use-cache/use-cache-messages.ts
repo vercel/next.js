@@ -74,15 +74,15 @@ export function createRequestIoInUseCacheError(
   )
 }
 
-export function createCacheTagOutsideUseCacheError(): Error {
+export function createCacheTagOutsideUseCacheError(route: string): Error {
   return new Error(
-    `\`cacheTag()\` can only be called inside a "use cache" function. Learn more: ${CACHE_TAG_API_DOCS}`
+    `Route "${route}": \`cacheTag()\` can only be called inside a "use cache" function. Learn more: ${CACHE_TAG_API_DOCS}`
   )
 }
 
-export function createCacheLifeOutsideUseCacheError(): Error {
+export function createCacheLifeOutsideUseCacheError(route: string): Error {
   return new Error(
-    `\`cacheLife()\` can only be called inside a "use cache" function. Learn more: ${CACHE_LIFE_API_DOCS}`
+    `Route "${route}": \`cacheLife()\` can only be called inside a "use cache" function. Learn more: ${CACHE_LIFE_API_DOCS}`
   )
 }
 

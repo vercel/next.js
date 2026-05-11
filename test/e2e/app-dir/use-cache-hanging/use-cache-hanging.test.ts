@@ -2,8 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-const expectedTimeoutErrorMessage =
-  'Filling a "use cache" entry exceeded `experimental.useCacheTimeout` during prerender. This usually means a request-scoped value (e.g. `params`, `searchParams`, `cookies()`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
+function expectedTimeoutErrorMessage(route: string) {
+  return `Route "${route}": filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means request-scoped data (such as \`params\`, \`searchParams\`, or \`cookies()\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache#build-hangs-cache-timeout`
+}
 
 describe('use-cache-hanging', () => {
   const { next, isNextDev, skipped, isTurbopack } = nextTestSetup({
@@ -24,8 +25,8 @@ describe('use-cache-hanging', () => {
 
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1196",
-           "description": "Filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means a request-scoped value (e.g. \`params\`, \`searchParams\`, \`cookies()\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+           "code": "E1222",
+           "description": "Route "/static": filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means request-scoped data (such as \`params\`, \`searchParams\`, or \`cookies()\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache#build-hangs-cache-timeout",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "app/static/page.tsx (6:1) @ getCachedData
@@ -41,7 +42,8 @@ describe('use-cache-hanging', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+        expect(cliOutput)
+          .toContain(`Error: ${expectedTimeoutErrorMessage('/static')}
     at getCachedData (app/static/page.tsx:6:1)`)
       })
     })
@@ -53,8 +55,8 @@ describe('use-cache-hanging', () => {
 
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1196",
-           "description": "Filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means a request-scoped value (e.g. \`params\`, \`searchParams\`, \`cookies()\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+           "code": "E1222",
+           "description": "Route "/runtime": filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means request-scoped data (such as \`params\`, \`searchParams\`, or \`cookies()\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache#build-hangs-cache-timeout",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "app/runtime/page.tsx (8:1) @ getCachedData
@@ -70,7 +72,8 @@ describe('use-cache-hanging', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+        expect(cliOutput)
+          .toContain(`Error: ${expectedTimeoutErrorMessage('/runtime')}
     at getCachedData (app/runtime/page.tsx:8:1)`)
       })
     })
@@ -85,14 +88,15 @@ describe('use-cache-hanging', () => {
         await retry(() => {
           const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+          expect(cliOutput)
+            .toContain(`Error: ${expectedTimeoutErrorMessage('/static')}
     at getCachedData (app/static/page.tsx:6:1)`)
         }, 20_000)
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1196",
-           "description": "Filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means a request-scoped value (e.g. \`params\`, \`searchParams\`, \`cookies()\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+           "code": "E1222",
+           "description": "Route "/static": filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means request-scoped data (such as \`params\`, \`searchParams\`, or \`cookies()\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache#build-hangs-cache-timeout",
            "environmentLabel": "Server",
            "label": "Console Error",
            "source": "app/static/page.tsx (6:1) @ getCachedData
@@ -118,14 +122,15 @@ describe('use-cache-hanging', () => {
         await retry(() => {
           const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-          expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+          expect(cliOutput)
+            .toContain(`Error: ${expectedTimeoutErrorMessage('/runtime')}
     at getCachedData (app/runtime/page.tsx:8:1)`)
         }, 20_000)
 
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1196",
-           "description": "Filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means a request-scoped value (e.g. \`params\`, \`searchParams\`, \`cookies()\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+           "code": "E1222",
+           "description": "Route "/runtime": filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means request-scoped data (such as \`params\`, \`searchParams\`, or \`cookies()\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache#build-hangs-cache-timeout",
            "environmentLabel": "Server",
            "label": "Console Error",
            "source": "app/runtime/page.tsx (8:1) @ getCachedData
@@ -152,7 +157,9 @@ describe('use-cache-hanging', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).not.toContain(expectedTimeoutErrorMessage)
+        expect(cliOutput).not.toContain(
+          'filling a "use cache" entry exceeded `experimental.useCacheTimeout`'
+        )
       })
     })
   } else {
@@ -166,11 +173,13 @@ describe('use-cache-hanging', () => {
 
         if (isTurbopack) {
           expect(next.cliOutput)
-            .toContain(`Error: ${expectedTimeoutErrorMessage}
+            .toContain(`Error: ${expectedTimeoutErrorMessage('/static')}
     at <unknown> (app/static/page.tsx:6:1)`)
         } else {
           // Webpack production builds don't have source maps by default.
-          expect(next.cliOutput).toContain(expectedTimeoutErrorMessage)
+          expect(next.cliOutput).toContain(
+            expectedTimeoutErrorMessage('/static')
+          )
         }
       })
     })

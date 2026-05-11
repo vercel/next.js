@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import escapeStringRegexp from 'escape-string-regexp'
 import {
   getRedboxDescription,
   getRedboxSource,
@@ -10,8 +9,9 @@ import {
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-const expectedTimeoutErrorMessage =
-  'Filling a "use cache" entry exceeded `experimental.useCacheTimeout` during prerender. This usually means a request-scoped value (e.g. `params`, `searchParams`, `cookies()`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
+function expectedTimeoutErrorMessage(route: string) {
+  return `Route "${route}": filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means request-scoped data (such as \`params\`, \`searchParams\`, or \`cookies()\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache#build-hangs-cache-timeout`
+}
 
 describe('use-cache-hanging-inputs', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -42,7 +42,9 @@ describe('use-cache-hanging-inputs', () => {
         const errorSource = await getRedboxSource(browser)
 
         expect(errorCount).toBe(1)
-        expect(errorDescription).toBe(expectedTimeoutErrorMessage)
+        expect(errorDescription).toBe(
+          expectedTimeoutErrorMessage('/uncached-promise')
+        )
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
@@ -58,7 +60,8 @@ describe('use-cache-hanging-inputs', () => {
            13 |   return ("
         `)
 
-        expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+        expect(cliOutput)
+          .toContain(`Error: ${expectedTimeoutErrorMessage('/uncached-promise')}
     at Foo (app/uncached-promise/page.tsx:10:13)`)
       }, 180_000)
     })
@@ -80,7 +83,9 @@ describe('use-cache-hanging-inputs', () => {
         const errorSource = await getRedboxSource(browser)
 
         expect(errorCount).toBe(1)
-        expect(errorDescription).toBe(expectedTimeoutErrorMessage)
+        expect(errorDescription).toBe(
+          expectedTimeoutErrorMessage('/uncached-promise-nested')
+        )
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
@@ -96,7 +101,8 @@ describe('use-cache-hanging-inputs', () => {
            19 |   return getCachedData(promise)"
         `)
 
-        expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+        expect(cliOutput)
+          .toContain(`Error: ${expectedTimeoutErrorMessage('/uncached-promise-nested')}
     at indirection (app/uncached-promise-nested/page.tsx:16:1)
     at Page (app/uncached-promise-nested/page.tsx:23:22)`)
       }, 180_000)
@@ -122,7 +128,9 @@ describe('use-cache-hanging-inputs', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(errorDescription).toBe(expectedTimeoutErrorMessage)
+        expect(errorDescription).toBe(
+          expectedTimeoutErrorMessage('/bound-args')
+        )
 
         expect(errorSource).toMatchInlineSnapshot(`
          "app/bound-args/page.tsx (13:15) @ Foo
@@ -136,7 +144,8 @@ describe('use-cache-hanging-inputs', () => {
            16 |     return ("
         `)
 
-        expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+        expect(cliOutput)
+          .toContain(`Error: ${expectedTimeoutErrorMessage('/bound-args')}
     at Foo (app/bound-args/page.tsx:13:15)`)
       }, 180_000)
     })
@@ -168,9 +177,18 @@ describe('use-cache-hanging-inputs', () => {
       expect(cliOutput).toInclude(createExpectedBuildErrorMessage('/error'))
       expect(cliOutput).toInclude('Error: kaputt!')
 
-      expect(cliOutput).toIncludeRepeated(
-        escapeStringRegexp(expectedTimeoutErrorMessage),
-        4
+      expect(cliOutput).toInclude(expectedTimeoutErrorMessage('/bound-args'))
+
+      expect(cliOutput).toInclude(
+        expectedTimeoutErrorMessage('/transformed-params/[slug]')
+      )
+
+      expect(cliOutput).toInclude(
+        expectedTimeoutErrorMessage('/uncached-promise')
+      )
+
+      expect(cliOutput).toInclude(
+        expectedTimeoutErrorMessage('/uncached-promise-nested')
       )
 
       expect(cliOutput).toInclude(

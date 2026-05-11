@@ -1,3 +1,4 @@
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { validateTags } from '../lib/patch-fetch'
 import { createCacheTagOutsideUseCacheError } from './use-cache-messages'
@@ -10,6 +11,7 @@ export function cacheTag(...tags: string[]): void {
   }
 
   const workUnitStore = workUnitAsyncStorage.getStore()
+  const workStore = workAsyncStorage.getStore()
 
   switch (workUnitStore?.type) {
     case 'prerender':
@@ -22,7 +24,7 @@ export function cacheTag(...tags: string[]): void {
     case 'unstable-cache':
     case 'generate-static-params':
     case undefined:
-      throw createCacheTagOutsideUseCacheError()
+      throw createCacheTagOutsideUseCacheError(workStore?.route ?? '')
     case 'cache':
     case 'private-cache':
       break

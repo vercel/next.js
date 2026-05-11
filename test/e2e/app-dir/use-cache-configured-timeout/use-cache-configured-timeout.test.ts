@@ -1,8 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
-const expectedTimeoutErrorMessage =
-  'Filling a "use cache" entry exceeded `experimental.useCacheTimeout` during prerender. This usually means a request-scoped value (e.g. `params`, `searchParams`, `cookies()`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
+function expectedTimeoutErrorMessage(route: string) {
+  return `Route "${route}": filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means request-scoped data (such as \`params\`, \`searchParams\`, or \`cookies()\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache#build-hangs-cache-timeout`
+}
 
 describe('use-cache-configured-timeout', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -27,7 +28,9 @@ describe('use-cache-configured-timeout', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).not.toContain(expectedTimeoutErrorMessage)
+        expect(cliOutput).not.toContain(
+          expectedTimeoutErrorMessage('/below-dev-timeout')
+        )
       })
     })
 
@@ -38,8 +41,8 @@ describe('use-cache-configured-timeout', () => {
 
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1196",
-           "description": "Filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means a request-scoped value (e.g. \`params\`, \`searchParams\`, \`cookies()\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+           "code": "E1222",
+           "description": "Route "/above-dev-timeout": filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means request-scoped data (such as \`params\`, \`searchParams\`, or \`cookies()\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/app/api-reference/directives/use-cache#build-hangs-cache-timeout",
            "environmentLabel": null,
            "label": "Runtime Error",
            "source": "app/above-dev-timeout/page.tsx (4:1) @ getCachedData
@@ -55,7 +58,9 @@ describe('use-cache-configured-timeout', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(cliOutput).toContain(expectedTimeoutErrorMessage)
+        expect(cliOutput).toContain(
+          expectedTimeoutErrorMessage('/above-dev-timeout')
+        )
       })
     })
   } else {
@@ -67,7 +72,12 @@ describe('use-cache-configured-timeout', () => {
           // expected
         }
 
-        expect(next.cliOutput).toContain(expectedTimeoutErrorMessage)
+        expect(next.cliOutput).toContain(
+          expectedTimeoutErrorMessage('/below-dev-timeout')
+        )
+        expect(next.cliOutput).toContain(
+          expectedTimeoutErrorMessage('/above-dev-timeout')
+        )
         expect(next.cliOutput).toContain(
           'Error occurred prerendering page "/below-dev-timeout"'
         )

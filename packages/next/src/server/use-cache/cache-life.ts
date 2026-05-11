@@ -83,6 +83,7 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   }
 
   const workUnitStore = workUnitAsyncStorage.getStore()
+  const workStore = workAsyncStorage.getStore()
 
   switch (workUnitStore?.type) {
     case 'prerender':
@@ -95,7 +96,7 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
     case 'unstable-cache':
     case 'generate-static-params':
     case undefined:
-      throw createCacheLifeOutsideUseCacheError()
+      throw createCacheLifeOutsideUseCacheError(workStore?.route ?? '')
     case 'cache':
     case 'private-cache':
       break
@@ -104,7 +105,6 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   }
 
   if (typeof profile === 'string') {
-    const workStore = workAsyncStorage.getStore()
     if (!workStore) {
       throw new Error(
         '`cacheLife()` can only be called during App Router rendering at the moment.'
