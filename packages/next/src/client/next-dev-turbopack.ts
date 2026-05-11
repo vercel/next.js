@@ -37,16 +37,9 @@ initialize({
         __turbopack_load__(c)
       )
 
-      const chunksPromise = Promise.all(chunkPromises).catch((err) =>
+      Promise.all(chunkPromises).catch((err) =>
         console.error('failed to load chunks for page ' + page, err)
       )
-
-      // Expose the chunk-loading promise so the route loader can avoid
-      // timing out a route while its chunks are still being downloaded.
-      // See packages/next/src/client/route-loader.ts.
-      const map = ((self as any).__TURBOPACK_PAGE_CHUNK_PROMISES__ ??=
-        new Map())
-      map.set(page, chunksPromise)
     }
 
     connect({

@@ -22,6 +22,13 @@ window.next = {
 // for the page loader
 declare let __turbopack_load__: any
 
+// Map of page route -> promise that resolves once the page's chunks have
+// finished loading. Populated by `__turbopack_load_page_chunks__` below;
+// consumed by the route loader. The map is created up-front so the route
+// loader can use its presence to detect a Turbopack build.
+const turbopackPageChunkPromises = new Map<string, Promise<unknown>>()
+;(self as any).__TURBOPACK_PAGE_CHUNK_PROMISES__ = turbopackPageChunkPromises
+
 initialize({})
   .then(() => {
     // for the page loader
@@ -37,12 +44,7 @@ initialize({})
         console.error('failed to load chunks for page ' + page, err)
       )
 
-      // Expose the chunk-loading promise so the route loader can avoid
-      // timing out a route while its chunks are still being downloaded.
-      // See packages/next/src/client/route-loader.ts.
-      const map = ((self as any).__TURBOPACK_PAGE_CHUNK_PROMISES__ ??=
-        new Map())
-      map.set(page, chunksPromise)
+      turbopackPageChunkPromises.set(page, chunksPromise)
     }
 
     return hydrate()

@@ -343,17 +343,26 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
           })
         }
 
-        // Don't start counting against the route-loader timeout until
-        // we know all of the route's chunks have been downloaded. For
-        // Turbopack production builds, the script we load is a tiny stub
-        // that asynchronously requests the actual page chunks via
-        // `__turbopack_load_page_chunks__`. Without this gate, a slow
-        // chunk download (slower than ~3.8s) would always trip the
-        // timeout even though the chunks were successfully on the way.
-        let chunksLoadedResolve!: () => void
-        const chunksLoaded = new Promise<void>((resolve) => {
-          chunksLoadedResolve = resolve
-        })
+        // In Turbopack production builds, the page-loader script is a
+        // tiny stub that asynchronously requests the actual page chunks
+        // via `__turbopack_load_page_chunks__`. We need to wait for
+        // those chunks to finish loading before starting the
+        // route-loader timeout; otherwise a slow chunk download
+        // (slower than the ~3.8s timeout) trips the timeout even though
+        // the chunks were successfully on the way.
+        //
+        // `__TURBOPACK_PAGE_CHUNK_PROMISES__` is initialized eagerly in
+        // `next-turbopack.ts` (only). Its presence doubles as a flag
+        // for "this is a Turbopack build"; in webpack production builds
+        // it is undefined and the original behavior is preserved.
+        const turbopackChunkPromises = self.__TURBOPACK_PAGE_CHUNK_PROMISES__
+        let chunksLoaded: Promise<unknown> | undefined
+        let chunksLoadedResolve: (() => void) | undefined
+        if (turbopackChunkPromises) {
+          chunksLoaded = new Promise<void>((resolve) => {
+            chunksLoadedResolve = resolve
+          })
+        }
 
         return resolvePromiseWithTimeout(
           getFilesForRoute(assetPrefix, route)
@@ -362,15 +371,23 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
                 ? Promise.resolve([])
                 : Promise.all(scripts.map(maybeExecuteScript)).then(
                     async () => {
-                      // The Turbopack page-loader stub synchronously
-                      // called `__turbopack_load_page_chunks__`, which
-                      // registered a promise for the asynchronously
-                      // loaded chunks. Wait for those before letting the
-                      // entrypoint timeout start counting.
-                      await self.__TURBOPACK_PAGE_CHUNK_PROMISES__?.get(route)
+                      // The script we just executed synchronously called
+                      // `__turbopack_load_page_chunks__`, which set a
+                      // promise for the asynchronously loaded chunks.
+                      // Wait for those before letting the entrypoint
+                      // timeout start counting.
+                      if (turbopackChunkPromises) {
+                        const chunkPromise = turbopackChunkPromises.get(route)
+                        if (chunkPromise) {
+                          turbopackChunkPromises.delete(route)
+                          await chunkPromise
+                        }
+                      }
                     }
                   )
-              scriptsLoaded.then(chunksLoadedResolve, chunksLoadedResolve)
+              if (chunksLoadedResolve) {
+                scriptsLoaded.finally(chunksLoadedResolve)
+              }
               return Promise.all([
                 scriptsLoaded,
                 Promise.all(css.map(fetchStyleSheet)),
