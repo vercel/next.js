@@ -790,6 +790,42 @@ function resolveInstantStack(
   return slotStacks[0] ?? null
 }
 
+/**
+ * Inspects the component stack of an outlet boundary to discover whether the
+ * user placed a Suspense boundary above the document body, and records the
+ * opt-in on `dynamicValidation.hasSuspenseAboveBody` if so.
+ *
+ * The outlet itself isn't a meaningful source of dynamic — it only resolves
+ * when metadata/viewport are dynamic, which we track via their own boundaries.
+ * However, the outlet renders alongside the page content, so its stack passes
+ * through the user's layout chain (typically reaching into `<body>` via the
+ * root layout). That makes the outlet stack our best opportunity to spot a
+ * Suspense boundary above the body, even when no real body content is dynamic.
+ * Without this, a route whose only dynamic source is `generateViewport()` would
+ * miss the Suspense-above-body opt-in, because the viewport's stack lives in
+ * the head and never sees the user's root layout.
+ *
+ * We deliberately only set `hasSuspenseAboveBody`, not `hasAllowedDynamic`. The
+ * latter tracks whether the body has dynamic content that's been wrapped in
+ * Suspense (i.e., the page is partially dynamic). The outlet rendering tells us
+ * about the structural opt-in for an empty shell, not about the body being
+ * partially dynamic. The distinction matters because dynamic metadata is only
+ * acceptable when the page is partially dynamic (via real body holes), and we
+ * don't want this outlet-based detection to mask that case.
+ */
+function trackOutletSuspenseAboveBody(
+  componentStack: string,
+  dynamicValidation: DynamicValidationState
+): void {
+  if (
+    hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex.test(
+      componentStack
+    )
+  ) {
+    dynamicValidation.hasSuspenseAboveBody = true
+  }
+}
+
 export function trackAllowedDynamicAccess(
   workStore: WorkStore,
   componentStack: string,
@@ -797,7 +833,7 @@ export function trackAllowedDynamicAccess(
   clientDynamic: DynamicTrackingState
 ) {
   if (hasOutletRegex.test(componentStack)) {
-    // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
+    trackOutletSuspenseAboveBody(componentStack, dynamicValidation)
     return
   } else if (hasMetadataRegex.test(componentStack)) {
     dynamicValidation.hasDynamicMetadata = true
@@ -1058,7 +1094,7 @@ export function trackDynamicHoleInRuntimeShell(
   clientDynamic: DynamicTrackingState
 ) {
   if (hasOutletRegex.test(componentStack)) {
-    // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
+    trackOutletSuspenseAboveBody(componentStack, dynamicValidation)
     return
   } else if (hasMetadataRegex.test(componentStack)) {
     const error = addErrorContext(
@@ -1069,9 +1105,6 @@ export function trackDynamicHoleInRuntimeShell(
     dynamicValidation.dynamicMetadata = error
     return
   } else if (hasViewportRegex.test(componentStack)) {
-    // TODO(instant-validation): If the page only has holes caused by runtime data,
-    // we won't find out if there's a suspense-above-body and error for dynamic viewport
-    // even if there is in fact a suspense-above-body
     const error = addErrorContext(
       createDynamicViewportError(workStore.route),
       componentStack,
@@ -1118,7 +1151,7 @@ export function trackDynamicHoleInStaticShell(
   clientDynamic: DynamicTrackingState
 ) {
   if (hasOutletRegex.test(componentStack)) {
-    // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
+    trackOutletSuspenseAboveBody(componentStack, dynamicValidation)
     return
   } else if (hasMetadataRegex.test(componentStack)) {
     const error = addErrorContext(
@@ -1282,10 +1315,19 @@ export function getStaticShellDisallowedDynamicReasons(
   dynamicValidation: DynamicValidationState,
   configAllowsBlocking: boolean
 ): Array<Error> {
-  if (configAllowsBlocking || dynamicValidation.hasSuspenseAboveBody) {
-    // This route has opted into allowing fully dynamic rendering
-    // by including a Suspense boundary above the body. In this case
-    // a lack of a shell is not considered disallowed so we simply return
+  if (
+    configAllowsBlocking ||
+    (dynamicValidation.hasSuspenseAboveBody && prelude !== PreludeState.Full)
+  ) {
+    // This route has opted into allowing fully dynamic rendering by including a
+    // Suspense boundary above the body. In this case a lack of a shell is not
+    // considered disallowed so we simply return.
+    //
+    // When the prelude is Full (e.g., only `generateMetadata` is dynamic and it
+    // can stream in separately), the Suspense-above-body opt-in is not a
+    // documented mitigation — dynamic metadata's mitigation is to make the page
+    // partially dynamic — so we fall through to the per-error checks below
+    // instead of bypassing them.
     return []
   }
 
