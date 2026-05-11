@@ -63,7 +63,7 @@ import { UseCacheDeadlockError, UseCacheTimeoutError } from './use-cache-errors'
 import {
   createNestedUseCacheShortExpireWithoutOuterCacheLifeError,
   createNestedUseCacheZeroRevalidateWithoutOuterCacheLifeError,
-  createUseCachePrivateInsideSharedUseCacheError,
+  createUseCachePrivateInsidePublicUseCacheError,
   createUseCachePrivateInsideUnstableCacheError,
   createUseCachePrivateOutsideRequestContextError,
 } from './use-cache-messages'
@@ -1500,7 +1500,7 @@ export async function cache(
       }
       case 'cache': {
         throw wrapAsInvalidDynamicUsageError(
-          createUseCachePrivateInsideSharedUseCacheError(expression)
+          createUseCachePrivateInsidePublicUseCacheError(expression)
         )
       }
       case 'request':

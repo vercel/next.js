@@ -19,7 +19,7 @@ import { RenderStage } from '../app-render/staged-rendering'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   createConnectionInPrivateUseCacheError,
-  createConnectionInSharedUseCacheError,
+  createConnectionInPublicUseCacheError,
 } from '../use-cache/use-cache-messages'
 
 /**
@@ -58,7 +58,7 @@ export function connection(): Promise<void> {
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'cache': {
-          const error = createConnectionInSharedUseCacheError()
+          const error = createConnectionInPublicUseCacheError()
           Error.captureStackTrace(error, connection)
           applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error

@@ -38,7 +38,7 @@ describe('use-cache-configured-timeout', () => {
 
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E1239",
+           "code": "E1196",
            "description": "Filling a "use cache" entry exceeded \`experimental.useCacheTimeout\` during prerender. This usually means a request-scoped value (e.g. \`params\`, \`searchParams\`, \`cookies()\`) or an unresolved promise was awaited inside the cached function. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": null,
            "label": "Runtime Error",

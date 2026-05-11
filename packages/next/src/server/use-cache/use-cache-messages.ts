@@ -34,7 +34,7 @@ export function createSearchParamsInUseCacheError(): Error {
   )
 }
 
-export function createConnectionInSharedUseCacheError(): Error {
+export function createConnectionInPublicUseCacheError(): Error {
   return new Error(
     `\`connection()\` cannot be called inside "use cache". A cache entry may be produced before a request exists, so it cannot depend on the request lifecycle. Learn more: ${NEXT_REQUEST_IN_USE_CACHE}`
   )
@@ -99,7 +99,7 @@ export function createUseCachePrivateInsideUnstableCacheError(
   )
 }
 
-export function createUseCachePrivateInsideSharedUseCacheError(
+export function createUseCachePrivateInsidePublicUseCacheError(
   expression: string
 ): Error {
   return new Error(
