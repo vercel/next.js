@@ -21,10 +21,10 @@ describe('Cache Components Dev Errors', () => {
     // soft-navigating to the page (see test below).
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E394",
-       "description": "Route "/error" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
+       "code": "E1247",
+       "description": "Next.js encountered Math.random() without an explicit rendering intent.",
        "environmentLabel": "Server",
-       "label": "Console Error",
+       "label": "Instant",
        "source": "app/error/page.tsx (2:23) @ Page
      > 2 |   const random = Math.random()
          |                       ^",
@@ -51,10 +51,10 @@ describe('Cache Components Dev Errors', () => {
     // TODO: React should not include the anon stack in the Owner Stack.
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E394",
-       "description": "Route "/error" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
+       "code": "E1247",
+       "description": "Next.js encountered Math.random() without an explicit rendering intent.",
        "environmentLabel": "Server",
-       "label": "Console Error",
+       "label": "Instant",
        "source": "app/error/page.tsx (2:23) @ Page
      > 2 |   const random = Math.random()
          |                       ^",
@@ -98,7 +98,7 @@ describe('Cache Components Dev Errors', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1164",
+       "code": "E1220",
        "description": "Next.js encountered uncached data during the initial render.",
        "environmentLabel": "Server",
        "label": "Instant",

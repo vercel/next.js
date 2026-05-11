@@ -180,7 +180,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1166",
+           "code": "E1221",
            "description": "Next.js encountered runtime data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -200,10 +200,10 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/static/missing-suspense-around-runtime": Next.js encountered runtime data during the initial render.
 
-         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
          Ways to fix this:
-           - Move the data access into a child component within a <Suspense> boundary
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
@@ -240,7 +240,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1164",
+           "code": "E1220",
            "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -260,11 +260,11 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic": Next.js encountered uncached data during the initial render.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
-           - Move the data access into a child component within a <Suspense> boundary
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -300,7 +300,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1164",
+           "code": "E1220",
            "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -321,11 +321,11 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic": Next.js encountered uncached data during the initial render.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
-           - Move the data access into a child component within a <Suspense> boundary
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -363,7 +363,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1166",
+           "code": "E1221",
            "description": "Next.js encountered runtime data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -383,10 +383,10 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic-layout": Next.js encountered runtime data during the initial render.
 
-         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
          Ways to fix this:
-           - Move the data access into a child component within a <Suspense> boundary
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
@@ -423,7 +423,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1164",
+           "code": "E1220",
            "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -443,11 +443,11 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic-layout": Next.js encountered uncached data during the initial render.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
-           - Move the data access into a child component within a <Suspense> boundary
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -486,7 +486,7 @@ describe('instant validation', () => {
              ],
            },
          ],
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -534,7 +534,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1166",
+           "code": "E1221",
            "description": "Next.js encountered runtime data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -554,10 +554,10 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js encountered runtime data during the initial render.
 
-         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
          Ways to fix this:
-           - Move the data access into a child component within a <Suspense> boundary
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
@@ -629,7 +629,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1166",
+           "code": "E1221",
            "description": "Next.js encountered runtime data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -649,10 +649,10 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/static/suspense-too-high": Next.js encountered runtime data during the initial render.
 
-         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
          Ways to fix this:
-           - Move the data access into a child component within a <Suspense> boundary
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
@@ -692,7 +692,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1164",
+           "code": "E1220",
            "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -713,11 +713,11 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/suspense-too-high": Next.js encountered uncached data during the initial render.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
-           - Move the data access into a child component within a <Suspense> boundary
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -744,10 +744,10 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E394",
-           "description": "Route "/suspense-in-root/runtime/invalid-sync-io" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
+           "code": "E1247",
+           "description": "Next.js encountered Date.now() without an explicit rendering intent.",
            "environmentLabel": "Server",
-           "label": "Console Error",
+           "label": "Instant",
            "source": "app/suspense-in-root/runtime/invalid-sync-io/page.tsx (8:20) @ Page
          >  8 |   const now = Date.now()
               |                    ^",
@@ -763,7 +763,17 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-sync-io" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         "Error: Route "/suspense-in-root/runtime/invalid-sync-io": Next.js encountered \`Date.now()\` without an explicit rendering intent.
+
+         This value can change between renders, so it must be either prerendered or computed later.
+
+         Ways to fix this:
+           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - Prerender and cache the value with \`"use cache"\`
+           - Render the value on the client with \`"use client"\`
+           - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+
+         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at a (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:8:20)
             6 | export default async function Page() {
             7 |   await cookies()
@@ -772,7 +782,17 @@ describe('instant validation', () => {
             9 |   return (
            10 |     <main>
            11 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Error: Route "/suspense-in-root/runtime/invalid-sync-io": Next.js encountered \`Date.now()\` without an explicit rendering intent.
+
+         This value can change between renders, so it must be either prerendered or computed later.
+
+         Ways to fix this:
+           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - Prerender and cache the value with \`"use cache"\`
+           - Render the value on the client with \`"use client"\`
+           - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+
+         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at b (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:8:20)
             6 | export default async function Page() {
             7 |   await cookies()
@@ -802,10 +822,10 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E394",
-           "description": "Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
+           "code": "E1247",
+           "description": "Next.js encountered Date.now() without an explicit rendering intent.",
            "environmentLabel": "Server",
-           "label": "Console Error",
+           "label": "Instant",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx (12:20) @ Page
          > 12 |   const now = Date.now()
               |                    ^",
@@ -821,7 +841,17 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered \`Date.now()\` without an explicit rendering intent.
+
+         This value can change between renders, so it must be either prerendered or computed later.
+
+         Ways to fix this:
+           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - Prerender and cache the value with \`"use cache"\`
+           - Render the value on the client with \`"use client"\`
+           - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+
+         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at a (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
            10 | export default async function Page() {
            11 |   await cookies()
@@ -830,7 +860,17 @@ describe('instant validation', () => {
            13 |   return (
            14 |     <main>
            15 |       <p>Runtime page with sync IO after cookies: {now}</p>
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered \`Date.now()\` without an explicit rendering intent.
+
+         This value can change between renders, so it must be either prerendered or computed later.
+
+         Ways to fix this:
+           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - Prerender and cache the value with \`"use cache"\`
+           - Render the value on the client with \`"use client"\`
+           - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+
+         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at b (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
            10 | export default async function Page() {
            11 |   await cookies()
@@ -839,7 +879,17 @@ describe('instant validation', () => {
            13 |   return (
            14 |     <main>
            15 |       <p>Runtime page with sync IO after cookies: {now}</p>
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent": Next.js encountered \`Date.now()\` without an explicit rendering intent.
+
+         This value can change between renders, so it must be either prerendered or computed later.
+
+         Ways to fix this:
+           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - Prerender and cache the value with \`"use cache"\`
+           - Render the value on the client with \`"use client"\`
+           - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+
+         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at c (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
            10 | export default async function Page() {
            11 |   await cookies()
@@ -875,10 +925,10 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E394",
-           "description": "Route "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
+           "code": "E1247",
+           "description": "Next.js encountered Date.now() without an explicit rendering intent.",
            "environmentLabel": "Server",
-           "label": "Console Error",
+           "label": "Instant",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx (28:20) @ Page
          > 28 |   const now = Date.now()
               |                    ^",
@@ -943,10 +993,10 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E394",
-           "description": "Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
+           "code": "E1247",
+           "description": "Next.js encountered Date.now() without an explicit rendering intent.",
            "environmentLabel": "Server",
-           "label": "Console Error",
+           "label": "Instant",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx (9:20) @ Module.generateMetadata
          >  9 |   const now = Date.now()
               |                    ^",
@@ -962,7 +1012,17 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata": Next.js encountered \`Date.now()\` without an explicit rendering intent.
+
+         This value can change between renders, so it must be either prerendered or computed later.
+
+         Ways to fix this:
+           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - Prerender and cache the value with \`"use cache"\`
+           - Render the value on the client with \`"use client"\`
+           - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+
+         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:9:20)
             7 | export async function generateMetadata() {
             8 |   await cookies()
@@ -971,7 +1031,17 @@ describe('instant validation', () => {
            10 |   return {
            11 |     title: \`Sync IO in metadata: \${now}\`,
            12 |   }
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata": Next.js encountered \`Date.now()\` without an explicit rendering intent.
+
+         This value can change between renders, so it must be either prerendered or computed later.
+
+         Ways to fix this:
+           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - Prerender and cache the value with \`"use cache"\`
+           - Render the value on the client with \`"use client"\`
+           - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+
+         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:9:20)
             7 | export async function generateMetadata() {
             8 |   await cookies()
@@ -1019,10 +1089,10 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E394",
-           "description": "Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
+           "code": "E1247",
+           "description": "Next.js encountered Date.now() without an explicit rendering intent.",
            "environmentLabel": "Server",
-           "label": "Console Error",
+           "label": "Instant",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx (11:20) @ Module.generateMetadata
          > 11 |   const now = Date.now()
               |                    ^",
@@ -1038,7 +1108,17 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered \`Date.now()\` without an explicit rendering intent.
+
+         This value can change between renders, so it must be either prerendered or computed later.
+
+         Ways to fix this:
+           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - Prerender and cache the value with \`"use cache"\`
+           - Render the value on the client with \`"use client"\`
+           - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+
+         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
             9 | export async function generateMetadata() {
            10 |   await cookies()
@@ -1047,7 +1127,17 @@ describe('instant validation', () => {
            12 |   return {
            13 |     title: \`Layout metadata with sync IO: \${now}\`,
            14 |   }
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered \`Date.now()\` without an explicit rendering intent.
+
+         This value can change between renders, so it must be either prerendered or computed later.
+
+         Ways to fix this:
+           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - Prerender and cache the value with \`"use cache"\`
+           - Render the value on the client with \`"use client"\`
+           - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+
+         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
             9 | export async function generateMetadata() {
            10 |   await cookies()
@@ -1056,7 +1146,17 @@ describe('instant validation', () => {
            12 |   return {
            13 |     title: \`Layout metadata with sync IO: \${now}\`,
            14 |   }
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata": Next.js encountered \`Date.now()\` without an explicit rendering intent.
+
+         This value can change between renders, so it must be either prerendered or computed later.
+
+         Ways to fix this:
+           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - Prerender and cache the value with \`"use cache"\`
+           - Render the value on the client with \`"use client"\`
+           - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+
+         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
             9 | export async function generateMetadata() {
            10 |   await cookies()
@@ -1131,7 +1231,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1164",
+           "code": "E1220",
            "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -1152,11 +1252,11 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/static/invalid-loading-above-route-group": Next.js encountered uncached data during the initial render.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
-           - Move the data access into a child component within a <Suspense> boundary
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1195,7 +1295,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1164",
+           "code": "E1220",
            "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -1216,11 +1316,11 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/static/invalid-dynamic-layout-with-loading": Next.js encountered uncached data during the initial render.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
-           - Move the data access into a child component within a <Suspense> boundary
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1272,7 +1372,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1292,10 +1392,10 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic": Next.js encountered runtime data during the initial render.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
@@ -1360,7 +1460,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1380,10 +1480,10 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/invalid-blocking-inside-static": Next.js encountered runtime data during the initial render.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
@@ -1421,7 +1521,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1164",
+             "code": "E1220",
              "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1441,11 +1541,11 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/runtime/invalid-blocking-inside-runtime": Next.js encountered uncached data during the initial render.
 
-           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
              - Cache the data access with \`"use cache"\`
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1485,7 +1585,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1505,10 +1605,10 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route": Next.js encountered runtime data during the initial render.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
@@ -1547,7 +1647,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1567,10 +1667,10 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route/foo": Next.js encountered runtime data during the initial render.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
@@ -1609,7 +1709,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1629,10 +1729,10 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route/bar": Next.js encountered runtime data during the initial render.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
@@ -2262,24 +2362,10 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1165",
-             "description": "Runtime data was accessed inside generateViewport()
-
-           Viewport metadata needs to be available on page load so accessing data that comes from a user Request while producing it prevents Next.js from prerendering an initial UI.cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-           To fix this:
-
-           Remove the Runtime data requirement from generateViewport. This allows Next.js to statically prerender generateViewport() as part of the HTML document, so it's instantly visible to the user.
-
-           or
-
-           Put a <Suspense> around your document <body>.This indicate to Next.js that you are opting into allowing blocking navigations for any page.
-
-           params are usually considered Runtime data but if all params are provided a value using generateStaticParams they can be statically prerendered.
-
-           Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
+             "code": "E1208",
+             "description": "Next.js encountered runtime data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (11:16) @ Module.generateViewport
            > 11 |   await cookies()
                 |                ^",
@@ -2294,7 +2380,16 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/head/invalid-runtime-viewport-in-static": Next.js encountered runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+           "Error: Route "/suspense-in-root/head/invalid-runtime-viewport-in-static": Next.js encountered runtime data in \`generateViewport()\`.
+
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
+
+           Ways to fix this:
+             - Use a static viewport export instead of \`generateViewport()\`
+             - Wrap your document \`<body>\` in \`<Suspense>\`
+             - Set \`export const instant = false\` to allow a blocking route
+
+           Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-runtime-viewport-in-static".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -2327,22 +2422,10 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1167",
-             "description": "Data that blocks navigation was accessed inside generateViewport()
-
-           Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
-
-           To fix this:
-
-           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender generateViewport() as part of the HTML document, so it's instantly visible to the user.
-
-           or
-
-           Put a <Suspense> around your document <body>.This indicate to Next.js that you are opting into allowing blocking navigations for any page.
-
-           Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
+             "code": "E1210",
+             "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (11:19) @ Module.generateViewport
            > 11 |   await connection()
                 |                   ^",
@@ -2357,7 +2440,16 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime": Next.js encountered uncached data such as \`fetch(...)\` or \`connection()\` inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+           "Error: Route "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime": Next.js encountered uncached data in \`generateViewport()\`.
+
+           \`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
+
+           Ways to fix this:
+             - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
+             - Wrap your document \`<body>\` in \`<Suspense>\`
+             - Set \`export const instant = false\` to allow a blocking route
+
+           Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -2428,22 +2520,10 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1167",
-             "description": "Data that blocks navigation was accessed inside generateViewport()
-
-           Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
-
-           To fix this:
-
-           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender generateViewport() as part of the HTML document, so it's instantly visible to the user.
-
-           or
-
-           Put a <Suspense> around your document <body>.This indicate to Next.js that you are opting into allowing blocking navigations for any page.
-
-           Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
+             "code": "E1210",
+             "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/page.tsx (6:23) @ Module.generateViewport
            > 6 | export async function generateViewport(): Promise<Viewport> {
                |                       ^",
@@ -2458,7 +2538,16 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static": Next.js encountered uncached data such as \`fetch(...)\` or \`connection()\` inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+           "Error: Route "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static": Next.js encountered uncached data in \`generateViewport()\`.
+
+           \`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
+
+           Ways to fix this:
+             - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
+             - Wrap your document \`<body>\` in \`<Suspense>\`
+             - Set \`export const instant = false\` to allow a blocking route
+
+           Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -2491,7 +2580,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2511,10 +2600,10 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/route-group-config-only": Next.js encountered runtime data during the initial render.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
@@ -2552,7 +2641,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2572,10 +2661,10 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/route-group-config-and-segment-config": Next.js encountered runtime data during the initial render.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
@@ -2614,7 +2703,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2634,10 +2723,10 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/route-group-segment-config-only": Next.js encountered runtime data during the initial render.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
@@ -2676,7 +2765,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2696,10 +2785,10 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/route-group-config-with-deeper-segment/inner": Next.js encountered runtime data during the initial render.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
@@ -2738,7 +2827,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2758,10 +2847,10 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/route-group-deeper-segment-config/inner": Next.js encountered runtime data during the initial render.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
@@ -2807,7 +2896,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2827,10 +2916,10 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/route-group-shared-boundary": Next.js encountered runtime data during the initial render.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
@@ -2883,7 +2972,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2903,10 +2992,10 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/parallel-group-depths-deep-slot-hole": Next.js encountered runtime data during the initial render.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
@@ -2953,7 +3042,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2973,10 +3062,10 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/parallel-group-depths-shallow-slot-hole": Next.js encountered runtime data during the initial render.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
@@ -3024,7 +3113,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1166",
+           "code": "E1221",
            "description": "Next.js encountered runtime data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -3044,10 +3133,10 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/static-layout-above-runtime-config/inner": Next.js encountered runtime data during the initial render.
 
-         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
          Ways to fix this:
-           - Move the data access into a child component within a <Suspense> boundary
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
@@ -3092,7 +3181,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3143,7 +3232,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3163,10 +3252,10 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/config-depth-preference-slot-wins/deeper/[...rest]": Next.js encountered runtime data during the initial render.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
@@ -3207,7 +3296,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3227,10 +3316,10 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/config-children-preferred": Next.js encountered runtime data during the initial render.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
@@ -3272,7 +3361,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1166",
+             "code": "E1221",
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3410,11 +3499,11 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/disable-validation/disable-dev": Next.js encountered uncached data during the initial render.
 
-           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
              - Cache the data access with \`"use cache"\`
-             - Move the data access into a child component within a <Suspense> boundary
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3450,7 +3539,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1164",
+             "code": "E1220",
              "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",

@@ -409,7 +409,10 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
     let bug_report_url = format!(
         "https://bugs.nextjs.org/search?category=turbopack-error-report&title={}&body={}&labels=Turbopack,Turbopack%20Panic%20Backtrace",
         &urlencoding::encode(&title),
-        &urlencoding::encode(&format!("{}\n\nError message:\n```\n{}\n```", &version_str, &internal_error_str))
+        &urlencoding::encode(&format!(
+            "{}\n\nError message:\n```\n{}\n```",
+            &version_str, &internal_error_str
+        ))
     );
     let bug_report_message = if supports_hyperlinks::supports_hyperlinks() {
         "clicking here.".hyperlink(&bug_report_url)

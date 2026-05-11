@@ -45,7 +45,7 @@ describe('instant validation', () => {
         await browser.elementByCss('main')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1164",
+           "code": "E1220",
            "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",

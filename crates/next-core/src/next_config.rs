@@ -1480,7 +1480,9 @@ pub struct OptionJsonValue(
 );
 
 fn turbopack_config_documentation_link() -> RcStr {
-    rcstr!("https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders")
+    rcstr!(
+        "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders"
+    )
 }
 
 #[turbo_tasks::value(shared)]

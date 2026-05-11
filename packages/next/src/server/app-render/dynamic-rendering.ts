@@ -55,8 +55,8 @@ import {
   createDynamicMetadataError,
   createRuntimeViewportError,
   createDynamicViewportError,
-  disallowedDynamicViewportMessage,
-  disallowedDynamicMetadataMessage,
+  createDynamicOrRuntimeViewportError,
+  createDynamicOrRuntimeMetadataError,
   logBuildDebugHint,
 } from './blocking-route-messages'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -1248,7 +1248,9 @@ export function throwIfDisallowedDynamic(
     // you need to opt into that by adding a Suspense boundary above the body
     // to indicate your are ok with fully dynamic rendering.
     if (dynamicValidation.hasDynamicViewport) {
-      console.error(disallowedDynamicViewportMessage(workStore.route))
+      console.error(
+        createDynamicOrRuntimeViewportError(workStore.route).message
+      )
       throw new StaticGenBailoutError()
     }
 
@@ -1266,7 +1268,9 @@ export function throwIfDisallowedDynamic(
       dynamicValidation.hasAllowedDynamic === false &&
       dynamicValidation.hasDynamicMetadata
     ) {
-      console.error(disallowedDynamicMetadataMessage(workStore.route))
+      console.error(
+        createDynamicOrRuntimeMetadataError(workStore.route).message
+      )
       throw new StaticGenBailoutError()
     }
   }
