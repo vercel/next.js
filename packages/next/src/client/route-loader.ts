@@ -22,6 +22,10 @@ declare global {
     __NEXT_FONT_MANIFEST?: any
     __SUBRESOURCE_INTEGRITY_MANIFEST?: string
     __INTERCEPTION_ROUTE_REWRITE_MANIFEST?: string
+    // Map of page route -> promise that resolves once the page's chunks
+    // have been downloaded. Populated by `__turbopack_load_page_chunks__`
+    // in Turbopack builds; never populated in webpack builds.
+    __TURBOPACK_PAGE_CHUNK_PROMISES__?: Map<string, Promise<unknown>>
   }
 }
 
@@ -339,13 +343,36 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
           })
         }
 
+        // Don't start counting against the route-loader timeout until
+        // we know all of the route's chunks have been downloaded. For
+        // Turbopack production builds, the script we load is a tiny stub
+        // that asynchronously requests the actual page chunks via
+        // `__turbopack_load_page_chunks__`. Without this gate, a slow
+        // chunk download (slower than ~3.8s) would always trip the
+        // timeout even though the chunks were successfully on the way.
+        let chunksLoadedResolve!: () => void
+        const chunksLoaded = new Promise<void>((resolve) => {
+          chunksLoadedResolve = resolve
+        })
+
         return resolvePromiseWithTimeout(
           getFilesForRoute(assetPrefix, route)
             .then(({ scripts, css }) => {
+              const scriptsLoaded = entrypoints.has(route)
+                ? Promise.resolve([])
+                : Promise.all(scripts.map(maybeExecuteScript)).then(
+                    async () => {
+                      // The Turbopack page-loader stub synchronously
+                      // called `__turbopack_load_page_chunks__`, which
+                      // registered a promise for the asynchronously
+                      // loaded chunks. Wait for those before letting the
+                      // entrypoint timeout start counting.
+                      await self.__TURBOPACK_PAGE_CHUNK_PROMISES__?.get(route)
+                    }
+                  )
+              scriptsLoaded.then(chunksLoadedResolve, chunksLoadedResolve)
               return Promise.all([
-                entrypoints.has(route)
-                  ? []
-                  : Promise.all(scripts.map(maybeExecuteScript)),
+                scriptsLoaded,
                 Promise.all(css.map(fetchStyleSheet)),
               ] as const)
             })
@@ -356,7 +383,9 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
               }))
             }),
           markAssetError(new Error(`Route did not complete loading: ${route}`)),
-          devBuildPromise
+          process.env.NODE_ENV === 'development'
+            ? devBuildPromise
+            : chunksLoaded
         )
           .then(({ entrypoint, styles }) => {
             const res: RouteLoaderEntry = Object.assign<
