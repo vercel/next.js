@@ -1,9 +1,10 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
+
 use turbopack_trace_utils::tracing_presets::{
     TRACING_OVERVIEW_TARGETS, TRACING_TURBO_TASKS_TARGETS, TRACING_TURBOPACK_TARGETS,
 };
 
-pub static TRACING_NEXT_OVERVIEW_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
+pub static TRACING_NEXT_OVERVIEW_TARGETS: LazyLock<Vec<&str>> = LazyLock::new(|| {
     [
         &TRACING_OVERVIEW_TARGETS[..],
         &[
@@ -19,7 +20,7 @@ pub static TRACING_NEXT_OVERVIEW_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
     .concat()
 });
 
-pub static TRACING_NEXT_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
+pub static TRACING_NEXT_TARGETS: LazyLock<Vec<&str>> = LazyLock::new(|| {
     [
         &TRACING_NEXT_OVERVIEW_TARGETS[..],
         &[
@@ -33,9 +34,9 @@ pub static TRACING_NEXT_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
     ]
     .concat()
 });
-pub static TRACING_NEXT_TURBOPACK_TARGETS: Lazy<Vec<&str>> =
-    Lazy::new(|| [&TRACING_NEXT_TARGETS[..], &TRACING_TURBOPACK_TARGETS[..]].concat());
-pub static TRACING_NEXT_TURBO_TASKS_TARGETS: Lazy<Vec<&str>> = Lazy::new(|| {
+pub static TRACING_NEXT_TURBOPACK_TARGETS: LazyLock<Vec<&str>> =
+    LazyLock::new(|| [&TRACING_NEXT_TARGETS[..], &TRACING_TURBOPACK_TARGETS[..]].concat());
+pub static TRACING_NEXT_TURBO_TASKS_TARGETS: LazyLock<Vec<&str>> = LazyLock::new(|| {
     [
         &TRACING_NEXT_TURBOPACK_TARGETS[..],
         &TRACING_TURBO_TASKS_TARGETS[..],

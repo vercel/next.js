@@ -51,8 +51,13 @@ impl AsyncLoaderModule {
     }
 
     #[turbo_tasks::function]
-    pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
-        module.ident().with_modifier(rcstr!("async loader"))
+    pub async fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Result<Vc<AssetIdent>> {
+        Ok(module
+            .ident()
+            .owned()
+            .await?
+            .with_modifier(rcstr!("async loader"))
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -258,8 +263,6 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
         module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<AssetIdent>> {
-        let mut ident = self.ident();
-
         let this = self.await?;
 
         let nested_async_availability = this
@@ -279,11 +282,15 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
             this.availability_info.ident().await?
         };
 
-        if let Some(availability_ident) = availability_ident {
-            ident = ident.with_modifier(availability_ident)
-        }
-
-        Ok(ident)
+        Ok(if let Some(availability_ident) = availability_ident {
+            self.ident()
+                .owned()
+                .await?
+                .with_modifier(availability_ident)
+                .into_vc()
+        } else {
+            self.ident()
+        })
     }
 
     #[turbo_tasks::function]

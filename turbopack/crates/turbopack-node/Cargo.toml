@@ -32,7 +32,6 @@ either = { workspace = true, features = ["serde"] }
 futures = { workspace = true }
 futures-retry = { workspace = true }
 indoc = { workspace = true }
-once_cell = { workspace = true }
 owo-colors = { workspace = true }
 parking_lot = { workspace = true }
 regex = { workspace = true }

@@ -96,11 +96,13 @@ describe('instant-nav-panel', () => {
 
   it('should show client nav state after clicking Start and navigating', async () => {
     const targetPage = '/target-page/my-post?search=foo'
-    if (isNextDev && !isTurbopack) {
-      // warmup target page compilation before clicking Start, to avoid extra flakiness.
-      void next.render(targetPage).catch(() => {})
-    }
-    const browser = await next.browser('/')
+    const [browser] = await Promise.all([
+      next.browser('/'),
+      isNextDev && !isTurbopack
+        ? // warmup target page compilation before clicking Start, to avoid extra flakiness.
+          next.render(targetPage).catch(() => {})
+        : null,
+    ])
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
 
@@ -138,11 +140,13 @@ describe('instant-nav-panel', () => {
 
   it('should show loading skeletons during SPA navigation after clicking Start', async () => {
     const targetPage = '/target-page/my-post?search=foo'
-    if (isNextDev && !isTurbopack) {
-      // warmup target page compilation before clicking Start, to avoid extra flakiness.
-      void next.render(targetPage).catch(() => {})
-    }
-    const browser = await next.browser('/')
+    const [browser] = await Promise.all([
+      next.browser('/'),
+      isNextDev && !isTurbopack
+        ? // warmup target page compilation before clicking Start, to avoid extra flakiness.
+          next.render(targetPage).catch(() => {})
+        : null,
+    ])
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
 

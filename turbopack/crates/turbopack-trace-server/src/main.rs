@@ -12,6 +12,7 @@ use rustc_hash::FxHasher;
 use self::{reader::TraceReader, server::serve, store_container::StoreContainer};
 
 mod bottom_up;
+mod chunked_vec;
 mod lazy_sorted_vec;
 mod reader;
 mod self_time_tree;

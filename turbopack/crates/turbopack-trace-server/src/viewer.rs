@@ -5,6 +5,7 @@ use itertools::Itertools;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
+use turbo_rcstr::rcstr;
 
 use crate::{
     server::ViewRect,
@@ -701,7 +702,7 @@ impl Viewer {
                                 Either::Left(span.events().sorted_by_cached_key(|child| {
                                     let (cat, title) = match child {
                                         SpanEventRef::Child { span } => span.nice_name(),
-                                        SpanEventRef::SelfTime { .. } => ("", ""),
+                                        SpanEventRef::SelfTime { .. } => (&rcstr!(""), &rcstr!("")),
                                     };
                                     (title.to_string(), cat.to_string())
                                 }))
@@ -739,7 +740,9 @@ impl Viewer {
                                 Either::Left(span.graph().sorted_by_cached_key(|child| {
                                     let (cat, title) = match child {
                                         SpanGraphEventRef::Child { graph } => graph.nice_name(),
-                                        SpanGraphEventRef::SelfTime { .. } => ("", ""),
+                                        SpanGraphEventRef::SelfTime { .. } => {
+                                            (&rcstr!(""), &rcstr!(""))
+                                        }
                                     };
                                     (title.to_string(), cat.to_string())
                                 }))
@@ -886,7 +889,9 @@ impl Viewer {
                                 Either::Left(span_graph.events().sorted_by_cached_key(|child| {
                                     let (cat, title) = match child {
                                         SpanGraphEventRef::Child { graph } => graph.nice_name(),
-                                        SpanGraphEventRef::SelfTime { .. } => ("", ""),
+                                        SpanGraphEventRef::SelfTime { .. } => {
+                                            (&rcstr!(""), &rcstr!(""))
+                                        }
                                     };
                                     (title.to_string(), cat.to_string())
                                 }))

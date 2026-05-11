@@ -230,6 +230,26 @@ export function eventBuildFeatureUsage(
   }))
 }
 
+/**
+ * Converts aggregated Turbopack feature-usage diagnostics (emitted by the
+ * Rust side from `FeatureUsageTelemetry` and aggregated per-feature by
+ * `get_diagnostics`) into `EVENT_BUILD_FEATURE_USAGE` telemetry events.
+ */
+export function eventBuildFeatureUsageFromTurbopack(
+  diagnostics: ReadonlyArray<{
+    featureName: string
+    invocationCount: number
+  }>
+): Array<{ eventName: string; payload: EventBuildFeatureUsage }> {
+  return diagnostics.map(({ featureName, invocationCount }) => ({
+    eventName: EVENT_BUILD_FEATURE_USAGE,
+    payload: {
+      featureName: featureName as EventBuildFeatureUsage['featureName'],
+      invocationCount,
+    },
+  }))
+}
+
 export const EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS =
   'NEXT_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS'
 

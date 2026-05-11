@@ -779,17 +779,16 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyze_ecmascript_module(self, None)
-    }
-
-    #[turbo_tasks::function]
     pub fn options(&self) -> Vc<EcmascriptOptions> {
         *self.options
     }
 }
 
 impl EcmascriptModuleAsset {
+    pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
+        analyze_ecmascript_module(self, None)
+    }
+
     pub async fn parse(&self) -> Result<Vc<ParseResult>> {
         let options = self.options.await?;
         let node_env = self
@@ -835,12 +834,13 @@ impl Module for EcmascriptModuleAsset {
         let mut ident = self.source.ident().owned().await?;
         if let Some(inner_assets) = self.inner_assets {
             for (name, asset) in inner_assets.await?.iter() {
-                ident.add_asset(name.clone(), asset.ident().to_resolved().await?);
+                ident = ident.with_asset(name.clone(), asset.ident().to_resolved().await?);
             }
         }
-        ident.add_modifier(rcstr!("ecmascript"));
-        ident.layer = Some(self.asset_context.into_trait_ref().await?.layer());
-        Ok(AssetIdent::new(ident))
+        Ok(ident
+            .with_modifier(rcstr!("ecmascript"))
+            .with_layer(self.asset_context.into_trait_ref().await?.layer())
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -868,7 +868,7 @@ impl Module for EcmascriptModuleAsset {
         // Check package.json first, so that we can skip parsing the module if it's marked that way.
         // We need to respect package.json configuration over any static analysis we might do.
         Ok((match *get_side_effect_free_declaration(
-            self.ident().path().owned().await?,
+            self.ident().await?.path.clone(),
             this.side_effect_free_packages.map(|g| *g),
         )
         .await?
@@ -967,8 +967,8 @@ impl EvaluatableAsset for EcmascriptModuleAsset {}
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    fn origin_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
+    async fn origin_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self.source.ident().await?.path.clone().cell())
     }
 
     #[turbo_tasks::function]
@@ -1972,7 +1972,7 @@ async fn process_parse_result(
                         .unwrap_or("".into());
                     let msg = &*turbofmt!(
                         "Could not parse module '{}'\n{error_messages}",
-                        ident.path()
+                        ident.await?.path
                     )
                     .await?;
                     let body = vec![
@@ -2000,9 +2000,11 @@ async fn process_parse_result(
                     }
                 }
                 ParseResult::NotFound => {
-                    let msg =
-                        &*turbofmt!("Could not parse module '{}', file not found", ident.path())
-                            .await?;
+                    let msg = &*turbofmt!(
+                        "Could not parse module '{}', file not found",
+                        ident.await?.path
+                    )
+                    .await?;
                     let body = vec![
                         quote!(
                             "var e = new Error($msg);" as Stmt,

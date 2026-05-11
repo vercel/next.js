@@ -259,7 +259,8 @@ async function exportPageImpl(
       commonRenderOpts.cacheComponents,
       commonRenderOpts.staticPageGenerationTimeout,
       commonRenderOpts.experimental,
-      buildId
+      buildId,
+      deploymentId
     )
   }
 

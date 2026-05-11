@@ -28,7 +28,8 @@ use turbo_tasks::{
 };
 
 pub use crate::run::{
-    Registration, run, run_once, run_once_without_cache_check, run_with_tt, run_without_cache_check,
+    Registration, TestInstance, run, run_once, run_once_without_cache_check, run_with_tt,
+    run_without_cache_check, test_instance,
 };
 
 enum Task {
@@ -71,6 +72,10 @@ impl VcStorage {
                 let result = AssertUnwindSafe(future).catch_unwind().await;
 
                 // Convert the unwind panic to an anyhow error that can be cloned.
+                let result = match result {
+                    Ok(Ok(raw_vc)) => Ok(raw_vc.to_non_local().await),
+                    _ => result,
+                };
                 let result = result
                     .map_err(|any| match any.downcast::<String>() {
                         Ok(owned) => anyhow!(owned),

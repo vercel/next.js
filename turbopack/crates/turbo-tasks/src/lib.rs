@@ -29,6 +29,7 @@ mod id_factory;
 mod invalidation;
 mod join_iter_ext;
 pub mod keyed;
+mod local_task_tracker;
 #[doc(hidden)]
 pub mod macro_helpers;
 mod manager;
@@ -109,7 +110,7 @@ pub use crate::{
     task_execution_reason::TaskExecutionReason,
     trait_ref::TraitRef,
     value::{TransientInstance, TransientValue},
-    value_type::{TraitMethod, TraitType, ValueType, ValueTypePersistence},
+    value_type::{Evictability, TraitMethod, TraitType, ValueType, ValueTypePersistence},
     vc::{
         Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture,
         ResolveOperationVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast,

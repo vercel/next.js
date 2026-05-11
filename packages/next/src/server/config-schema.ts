@@ -176,6 +176,7 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
   resolveExtensions: z.array(z.string()).optional(),
   root: z.string().optional(),
   debugIds: z.boolean().optional(),
+  chunkLoadingGlobal: z.string().optional(),
   ignoreIssue: z
     .array(
       z.object({
@@ -392,6 +393,18 @@ export const experimentalSchema = {
   allowDevelopmentBuild: z.literal(true).optional(),
 
   reactDebugChannel: z.boolean().optional(),
+  instantInsights: z
+    .object({
+      validationLevel: z
+        .enum([
+          'warning',
+          'manual-warning',
+          'experimental-error',
+          'experimental-manual-error',
+        ])
+        .optional(),
+    })
+    .optional(),
   staticGenerationRetryCount: z.number().int().optional(),
   staticGenerationMaxConcurrency: z.number().int().optional(),
   staticGenerationMinPagesPerWorker: z.number().int().optional(),
