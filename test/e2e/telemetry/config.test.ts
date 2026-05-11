@@ -212,36 +212,33 @@ describe('config telemetry', () => {
       }
     })
 
-    // Turbopack intentionally does not support these events
-    ;(isTurbopack ? it.skip : it)(
-      'emits telemery for usage of image, script & dynamic',
-      async () => {
-        const { cliOutput } = await next.build({
-          env: { NEXT_TELEMETRY_DEBUG: '1' },
-        })
-        const featureUsageEvents = findAllTelemetryEvents(
-          cliOutput,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
+    it('emits telemery for usage of image, script & dynamic', async () => {
+      const { cliOutput } = await next.build({
+        env: { NEXT_TELEMETRY_DEBUG: '1' },
+      })
+      const featureUsageEvents = findAllTelemetryEvents(
+        cliOutput,
+        'NEXT_BUILD_FEATURE_USAGE'
+      )
 
-        expect(featureUsageEvents).toEqual(
-          expect.arrayContaining([
-            {
-              featureName: 'next/image',
-              invocationCount: 2,
-            },
-            {
-              featureName: 'next/script',
-              invocationCount: 1,
-            },
-            {
-              featureName: 'next/dynamic',
-              invocationCount: 1,
-            },
-          ])
-        )
-      }
-    )
+      expect(featureUsageEvents).toEqual(
+        expect.arrayContaining([
+          {
+            featureName: 'next/image',
+            // FIXME: Webpack is missing a reference, Should be +1 from App Router
+            invocationCount: isTurbopack ? 3 : 2,
+          },
+          {
+            featureName: 'next/script',
+            invocationCount: 1,
+          },
+          {
+            featureName: 'next/dynamic',
+            invocationCount: 1,
+          },
+        ])
+      )
+    })
 
     // Turbopack intentionally does not support these events
     ;(isTurbopack ? it.skip : it)(
@@ -679,6 +676,7 @@ describe('config telemetry', () => {
     ;(isTurbopack ? it.skip : it)(
       'emits telemetry for useCache directive',
       async () => {
+        // use cache depends on cacheComponents flag
         await fs.rename(
           path.join(next.testDir, 'next.config.use-cache'),
           path.join(next.testDir, 'next.config.js')
