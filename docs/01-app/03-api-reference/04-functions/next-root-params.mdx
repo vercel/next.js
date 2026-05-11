@@ -2,7 +2,7 @@
 title: next/root-params
 nav_title: root-params
 description: API Reference for the next/root-params module that provides access to root-level route parameters.
-version: draft
+version: experimental
 related:
   description: Related API references and conventions.
   links:
@@ -215,6 +215,42 @@ async function getDataWithParams(language) {
 export default async function Page({ params }) {
   const { lang: language } = await params
   const data = await getDataWithParams(language)
+  // ...
+}
+```
+
+## Use in `generateStaticParams` for nested segments
+
+Inside a nested segment's [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), you can read a root parameter directly with its getter, instead of destructuring it from the `params` argument:
+
+```tsx filename="app/[lang]/posts/[slug]/page.tsx" highlight={1,4} switcher
+import { lang } from 'next/root-params'
+
+export async function generateStaticParams() {
+  const language = await lang()
+  const posts = await fetch(
+    `https://api.example.com/posts?lang=${language}`
+  ).then((res) => res.json())
+  return posts.map((post) => ({ slug: post.slug }))
+}
+
+export default async function Page() {
+  // ...
+}
+```
+
+```jsx filename="app/[lang]/posts/[slug]/page.js" highlight={1,4} switcher
+import { lang } from 'next/root-params'
+
+export async function generateStaticParams() {
+  const language = await lang()
+  const posts = await fetch(
+    `https://api.example.com/posts?lang=${language}`
+  ).then((res) => res.json())
+  return posts.map((post) => ({ slug: post.slug }))
+}
+
+export default async function Page() {
   // ...
 }
 ```
