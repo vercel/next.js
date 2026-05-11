@@ -978,7 +978,7 @@ describe('use-cache', () => {
           const expectedErrorMessage = disableJavaScript
             ? 'Failed to load resource: the server responded with a status of 500 (Internal Server Error)'
             : isNextDev
-              ? '`cookies()` cannot be called inside "use cache". Read `cookies()` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
+              ? 'Route "/draft-mode/[mode]": `cookies()` was used inside "use cache". Read `cookies()` outside the cached function and pass the values you need as arguments. Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
               : GENERIC_RSC_ERROR
 
           expect(logs).toMatchObject(
