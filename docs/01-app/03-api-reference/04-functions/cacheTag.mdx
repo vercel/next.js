@@ -98,7 +98,7 @@ export default async function submit() {
 cacheTag('tag-one', 'tag-two')
 ```
 
-- **Limits**: The max length for a custom tag is 256 characters and the max tag items is 128.
+- **Limits**: A single `cacheTag()` call accepts up to 128 tags, and each tag can be up to 256 characters. Tags beyond 128 in one call are dropped with a console warning.
 
 ## Examples
 
