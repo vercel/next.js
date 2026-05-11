@@ -1,7 +1,7 @@
 import path from 'path'
 import fs from 'fs/promises'
 
-const UPLOAD_TRACE_URL = 'https://api.nextjs.org/api/upload-trace'
+const UPLOAD_TRACE_URL = 'https://nextjs.org/api/upload-trace'
 
 // V8 CPU profiles are JSON objects starting with {"nodes":
 const CPUPROFILE_HEADER = Buffer.from('{"nodes":')

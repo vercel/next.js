@@ -3,8 +3,8 @@ use std::{num::NonZeroU8, ptr::NonNull};
 use triomphe::Arc;
 
 use crate::{
-    INLINE_TAG, INLINE_TAG_INIT, LEN_OFFSET, RcStr, STATIC_TAG, TAG_MASK,
-    tagged_value::{MAX_INLINE_LEN, TaggedValue},
+    DYNAMIC_TAG, INLINE_TAG, INLINE_TAG_INIT, LEN_OFFSET, RcStr, STATIC_TAG, TAG_MASK,
+    is_atom_inlineable, tagged_value::TaggedValue,
 };
 
 pub enum Payload {
@@ -56,19 +56,19 @@ pub unsafe fn restore_arc(v: TaggedValue) -> Arc<PrehashedString> {
 /// This can create any kind of [Atom], although this lives in the `dynamic`
 /// module.
 pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
-    let len = text.as_ref().len();
-
-    if len < MAX_INLINE_LEN {
+    let text = text.as_ref();
+    if is_atom_inlineable(text) {
+        let len = text.len();
         // INLINE_TAG ensures this is never zero
         let tag = INLINE_TAG_INIT | ((len as u8) << LEN_OFFSET);
         let mut unsafe_data = TaggedValue::new_tag(tag);
         unsafe {
-            unsafe_data.data_mut()[..len].copy_from_slice(text.as_ref().as_bytes());
+            unsafe_data.data_mut()[..len].copy_from_slice(text.as_bytes());
         }
         return RcStr { unsafe_data };
     }
 
-    let hash = hash_bytes(text.as_ref().as_bytes());
+    let hash = hash_bytes(text.as_bytes());
 
     let prehashed = PrehashedString {
         value: Payload::String(text.into()),
@@ -80,24 +80,28 @@ pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
 /// Construct a new dynamic RcStr from a PrehashedString
 pub(crate) fn new_atom_from_prehashed(prehashed: PrehashedString) -> RcStr {
     let entry: Arc<PrehashedString> = Arc::new(prehashed);
-    let entry = Arc::into_raw(entry);
-
+    let mut entry = Arc::into_raw(entry);
+    debug_assert!(0 == entry as u8 & TAG_MASK);
+    entry = ((entry as usize) | DYNAMIC_TAG as usize) as *mut PrehashedString;
     let ptr: NonNull<PrehashedString> = unsafe {
         // Safety: Arc::into_raw returns a non-null pointer
         NonNull::new_unchecked(entry as *mut _)
     };
-    debug_assert!(0 == ptr.as_ptr() as u8 & TAG_MASK);
+
     RcStr {
         unsafe_data: TaggedValue::new_ptr(ptr),
     }
 }
 
 #[inline(always)]
-pub(crate) fn new_static_atom(string: &'static PrehashedString) -> RcStr {
-    let mut entry = string as *const PrehashedString;
-    debug_assert!(0 == entry as u8 & TAG_MASK);
-    // Tag it as a static pointer
-    entry = ((entry as usize) | STATIC_TAG as usize) as *mut PrehashedString;
+pub(crate) const fn new_static_atom(string: &'static PrehashedString) -> RcStr {
+    let entry = string as *const PrehashedString;
+    const {
+        debug_assert!(align_of::<PrehashedString>() >= 4);
+        // This must be 00, so that we don't have to remove the tag, which we can't since it would
+        // require pointer-integer casts in a const context.
+        debug_assert!(STATIC_TAG == 0b_00);
+    }
     let ptr: NonNull<PrehashedString> = unsafe {
         // Safety: references always return a non-null pointers
         NonNull::new_unchecked(entry as *mut _)
@@ -112,8 +116,8 @@ pub(crate) fn new_static_atom(string: &'static PrehashedString) -> RcStr {
 /// This is primarily useful in constant contexts.
 #[doc(hidden)]
 pub(crate) const fn inline_atom(text: &str) -> Option<RcStr> {
-    let len = text.len();
-    if len < MAX_INLINE_LEN {
+    if is_atom_inlineable(text) {
+        let len = text.len();
         let tag = INLINE_TAG | ((len as u8) << LEN_OFFSET);
         let mut unsafe_data = TaggedValue::new_tag(NonZeroU8::new(tag).unwrap());
 

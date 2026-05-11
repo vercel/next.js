@@ -24,6 +24,14 @@ impl SerializationInvalidator {
         with_turbo_tasks(|tt| tt.invalidate_serialization(self.task));
     }
 
+    /// The task whose serialized form should be re-emitted on the next
+    /// snapshot. Exposed so callers that already hold a `TurboTasksApi`
+    /// reference can fold the serialization-invalidation into a larger
+    /// batch without paying for another `with_turbo_tasks` lookup.
+    pub(crate) fn task(&self) -> TaskId {
+        self.task
+    }
+
     pub(crate) fn new(task_id: TaskId) -> Self {
         Self { task: task_id }
     }

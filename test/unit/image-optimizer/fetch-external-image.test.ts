@@ -5,6 +5,54 @@ import {
 } from 'next/dist/server/image-optimizer'
 
 describe('fetchExternalImage', () => {
+  describe('private IP / SSRF guard', () => {
+    it('should reject a literal private IP hostname with a generic error message', async () => {
+      const fetchMock = jest.fn()
+      global.fetch = fetchMock
+
+      const error = await fetchExternalImage(
+        'http://192.168.0.1/private.jpg',
+        false,
+        50_000_000
+      ).catch((e) => e)
+
+      expect(error).toBeInstanceOf(ImageError)
+      expect((error as ImageError).statusCode).toBe(400)
+      expect((error as ImageError).message).toBe(
+        '"url" parameter is not allowed'
+      )
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('should allow a literal private IP when dangerouslyAllowLocalIP is true', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array([1, 2, 3]))
+            controller.close()
+          },
+        }),
+        headers: {
+          get: jest.fn((header: string) => {
+            if (header === 'Content-Type') return 'image/jpeg'
+            return null
+          }),
+        },
+      })
+
+      const result = await fetchExternalImage(
+        'http://192.168.0.1/private.jpg',
+        true,
+        50_000_000
+      )
+
+      expect(result.buffer).toBeInstanceOf(Buffer)
+      expect(global.fetch).toHaveBeenCalled()
+    })
+  })
+
   describe('response size limit', () => {
     it('should throw error when response has no body', async () => {
       global.fetch = jest.fn().mockResolvedValue({

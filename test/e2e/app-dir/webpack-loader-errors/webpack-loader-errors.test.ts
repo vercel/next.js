@@ -3,11 +3,12 @@ import { retry, waitForRedbox, getRedboxSource } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('webpack-loader-errors', () => {
-  const { next, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     skipStart: true,
   })
+  if (skipped) return
 
   if (!isNextDev) {
     it('should skip in non-dev mode', () => {})
