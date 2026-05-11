@@ -98,7 +98,7 @@ export default async function submit() {
 cacheTag('tag-one', 'tag-two')
 ```
 
-- **Limits**: A single `cacheTag()` call accepts up to 128 tags, each up to 256 characters. Tags longer than 256 characters are skipped, and any tags past the 128th in one call are dropped. Both cases log a console warning.
+- **Limits**: A single `cacheTag()` call accepts up to 128 tags, each with a maximum length of 256 characters. Tags longer than 256 characters are skipped, and any tags past the 128th in one call are dropped. Both cases log a console warning.
 
 ## Examples
 
