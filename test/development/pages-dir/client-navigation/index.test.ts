@@ -7,7 +7,7 @@ import {
   getRedboxTotalErrorCount,
 } from 'next-test-utils'
 import path from 'path'
-import { nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup } from 'e2e-utils'
 
 describe('Client Navigation', () => {
   const { isTurbopack, next, isRspack } = nextTestSetup({
@@ -258,7 +258,6 @@ describe('Client Navigation', () => {
 
   describe('runtime errors', () => {
     it('should show redbox when a client side error is thrown inside a component', async () => {
-      const isReact18 = process.env.NEXT_TEST_REACT_VERSION?.startsWith('18')
       const pageErrors: unknown[] = []
       const browser = await next.browser('/error-inside-browser-page', {
         beforePageLoad: (page) => {
