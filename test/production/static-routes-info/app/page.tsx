@@ -1,4 +1,3 @@
-import './globals.css'
 import { sharedHelper } from '../lib/shared'
 import Counter from '../components/Counter'
 

@@ -170,40 +170,47 @@ describe('next internal static-routes-info', () => {
     const result = await runTool(['--json'])
     const output = JSON.parse(result.stdout) as ToolOutput
 
-    // app-page: has server JS and client JS. The fixture imports a
-    // `'use client'` component so the route's `_client-reference-manifest.js`
-    // includes per-route client chunks for both bundlers (Turbopack
-    // populates `entryJSFiles`, webpack populates `clientModules.chunks`).
-    // This exercises the manifest parser against both bundler outputs and
-    // catches regressions like the old `'] = '` marker that only matched
-    // Turbopack's spaced assignment, missing webpack's `']='` form.
+    // app-page: has server JS, client JS, and client CSS. The fixture
+    // imports a `'use client'` Counter component (which itself imports a
+    // CSS module) so the route's `_client-reference-manifest.js` carries
+    // per-route client chunks for both bundlers (Turbopack populates
+    // `entryJSFiles`, webpack populates `clientModules.chunks`). The
+    // global `globals.css` is imported from `app/layout.tsx`, exercising
+    // the layout-segment entry in `entryCSSFiles`. This catches the
+    // regression where the parser only matched Turbopack's `'] = '`
+    // marker and missed webpack's `']='` form.
     const appPage = getRoute(output, '/')
     expect(appPage.type).toBe('app-page')
     expect(appPage.serverBundled.count).toBeGreaterThan(0)
     expect(appPage.clientJs.count).toBeGreaterThan(0)
-    if (isTurbopack) {
-      // Turbopack also populates entryCSSFiles for the global stylesheet
-      // imported by `app/page.tsx`. Webpack's stylesheet handling currently
-      // doesn't surface in `entryCSSFiles` for this fixture.
-      expect(appPage.clientCss.count).toBeGreaterThan(0)
-    }
+    // Both bundlers populate `entryCSSFiles` with at least globals.css
+    // (from the layout). Turbopack additionally attributes the Counter
+    // CSS module only to routes that transitively import it; webpack
+    // merges all entries' CSS into every route's manifest, so it reports
+    // the same count for every app-page. We only assert "at least one"
+    // here; the next assertion exercises per-route differentiation.
+    expect(appPage.clientCss.count).toBeGreaterThan(0)
 
-    // Client component contribution check. The fixture imports the
-    // `'use client'` Counter component from `/` and `/about`, while
-    // `/no-client` does not import any client component. The routes
-    // that import Counter must ship strictly more client JS than the
-    // one that does not — this proves per-route client JS actually
-    // picks up the client component's chunk(s).
+    // Client component contribution check (Turbopack only). The fixture
+    // imports the `'use client'` Counter component from `/` and `/about`
+    // but not from `/no-client`. On Turbopack, per-route client-reference
+    // manifests are independent, so `/about` ships strictly more client
+    // JS and CSS than `/no-client` — the `Counter.tsx` chunk plus its
+    // `counter.module.css` are only attributed to routes that import them.
     //
-    // Note: webpack tends to inline Counter into a chunk that's shared
-    // by every app-page (so `/` ties with `/no-client` on webpack), but
-    // `/about` always gets its own page chunk that adds bytes either
-    // way. We compare against `/about` to keep the assertion
-    // bundler-agnostic.
-    const noClient = getRoute(output, '/no-client')
-    const about = getRoute(output, '/about')
-    expect(about.clientJs.count).toBeGreaterThan(noClient.clientJs.count)
-    expect(about.clientJs.bytes).toBeGreaterThan(noClient.clientJs.bytes)
+    // Webpack's flight-manifest plugin runs `mergeManifest` across all
+    // app-pages (see `flight-manifest-plugin.ts`'s `mergeManifest`), so
+    // every per-route CRM ends up with the union of every other route's
+    // `clientModules` and `entryCSSFiles`. This makes per-route
+    // attribution impossible on webpack — we skip the assertion there.
+    if (isTurbopack) {
+      const noClient = getRoute(output, '/no-client')
+      const about = getRoute(output, '/about')
+      expect(about.clientJs.count).toBeGreaterThan(noClient.clientJs.count)
+      expect(about.clientJs.bytes).toBeGreaterThan(noClient.clientJs.bytes)
+      expect(about.clientCss.count).toBeGreaterThan(noClient.clientCss.count)
+      expect(about.clientCss.bytes).toBeGreaterThan(noClient.clientCss.bytes)
+    }
 
     // app-route (Node runtime): has server JS, no client JS / CSS.
     const appRoute = getRoute(output, '/api/node')
