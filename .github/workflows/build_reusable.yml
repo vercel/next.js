@@ -185,6 +185,26 @@ jobs:
       # --ipc=host avoids Chromium running out of memory in /dev/shm.
       # --init reaps zombie browser processes properly.
       options: --ipc=host --init
+      env:
+        # The Next.js standalone server template binds to
+        # `process.env.HOSTNAME || '0.0.0.0'` (see
+        # `packages/next/src/build/utils.ts`). Docker auto-sets `HOSTNAME`
+        # to the container ID, which `bash -l` then preserves, so the
+        # standalone server ends up listening on the container hostname
+        # (e.g. `3363ea41c9fa`) instead of `0.0.0.0`. That breaks tests
+        # like `test/production/standalone-mode/**` that fetch
+        # `http://localhost:<port>` and now get `ECONNREFUSED`. Force the
+        # standalone default here so the bound address matches what tests
+        # expect.
+        HOSTNAME: 0.0.0.0
+        # GitHub Actions sets `HOME=/github/home` for container jobs, but
+        # the Microsoft Playwright image ships that directory owned by
+        # `pwuser` (UID 1000). When we run the job as root (the container
+        # default), Firefox refuses to start with: "Firefox is unable to
+        # launch if the $HOME folder isn't owned by the current user."
+        # Microsoft's documented workaround is to point HOME at /root,
+        # which is owned by the user we're actually running as.
+        HOME: /root
 
     defaults:
       run:
@@ -288,15 +308,15 @@ jobs:
         with:
           fetch-depth: 25
 
-      # When running inside the Playwright Docker container we execute as
-      # root (UID 0), but the workspace at $GITHUB_WORKSPACE is mounted from
-      # the host and owned by the host runner UID. `actions/checkout` writes
-      # `safe.directory` to `$HOME/.gitconfig` (HOME=/github/home for JS
-      # actions), but subsequent steps use `bash -leo pipefail` which, as
-      # root, resets HOME to /root and reads /root/.gitconfig instead — so
-      # they hit "fatal: detected dubious ownership". Re-add safe.directory
-      # from a login-shell step so it lands in /root/.gitconfig where the
-      # rest of the job will look for it.
+      # Defense in depth: inside the Playwright container we run as root
+      # and $GITHUB_WORKSPACE is mounted from the host (owned by a
+      # different UID), so Git emits "fatal: detected dubious ownership"
+      # unless `safe.directory` is configured. `actions/checkout` adds it
+      # already, and `container.env: HOME=/root` (set above) makes its
+      # JS-action HOME match the HOME of subsequent `bash -l` steps so
+      # they share the same `/root/.gitconfig`. This step re-adds the
+      # safe.directory from a login shell as a guard against future env
+      # changes that could desync those two HOMEs.
       - name: Mark workspace as safe for Git (Linux container)
         if: ${{ runner.os == 'Linux' }}
         run: |
