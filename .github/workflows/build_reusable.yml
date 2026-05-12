@@ -197,14 +197,14 @@ jobs:
         # standalone default here so the bound address matches what tests
         # expect.
         HOSTNAME: 0.0.0.0
-        # GitHub Actions sets `HOME=/github/home` for container jobs, but
-        # the Microsoft Playwright image ships that directory owned by
-        # `pwuser` (UID 1000). When we run the job as root (the container
-        # default), Firefox refuses to start with: "Firefox is unable to
-        # launch if the $HOME folder isn't owned by the current user."
-        # Microsoft's documented workaround is to point HOME at /root,
-        # which is owned by the user we're actually running as.
-        HOME: /root
+        # Note: we cannot set `HOME` here. GitHub Actions hardcodes
+        # `HOME=/github/home` for every step in a container job and
+        # overrides anything set via `container.env`. The Microsoft
+        # Playwright image ships `/github/home` owned by `pwuser`
+        # (UID 1000), which makes Firefox refuse to launch with
+        # "Firefox is unable to launch if the $HOME folder isn't owned
+        # by the current user." We fix that by chowning `/github/home`
+        # to root in a separate step below.
 
     defaults:
       run:
@@ -233,23 +233,43 @@ jobs:
             echo "found=false" >> $GITHUB_OUTPUT
           fi
 
-      # The Microsoft Playwright container images do not ship `jq` or
-      # `unzip`, but the Install fnm step below uses the
-      # `fnm.vercel.app/install` script which requires `unzip`, and pipes
-      # `fnm env --json` through `jq`. Install both when running as root
-      # (i.e. inside the container). On the host runners these are already
-      # present so this step is a fast no-op.
-      - name: Ensure fnm install dependencies are available (Linux container)
+      # The Microsoft Playwright container images are browser-focused
+      # and do not ship a number of tools we need:
+      #   - `jq` + `unzip`: required by `fnm.vercel.app/install` and the
+      #     `fnm env --json` parse in the next step.
+      #   - `make` + `gcc` + `g++` (via `build-essential`): required by
+      #     `node-gyp` when test fixtures install native modules like
+      #     `node-pty` (used by `test/production/build-spinners`).
+      # Install all of them in one apt invocation when running as root
+      # (i.e. inside the container). On the host runners these are
+      # already present so this step is a fast no-op.
+      - name: Ensure container-only build dependencies are available (Linux)
         if: ${{ runner.os == 'Linux' && steps.check-fnm.outputs.found != 'true' }}
         run: |
           if [ "$(id -u)" = "0" ]; then
             MISSING=()
             command -v jq >/dev/null 2>&1 || MISSING+=(jq)
             command -v unzip >/dev/null 2>&1 || MISSING+=(unzip)
+            command -v make >/dev/null 2>&1 || MISSING+=(build-essential)
             if [ ${#MISSING[@]} -gt 0 ]; then
               apt-get -o DPkg::Lock::Timeout=60 update
               apt-get -o DPkg::Lock::Timeout=60 install -y --no-install-recommends "${MISSING[@]}"
             fi
+          fi
+
+      # GitHub Actions sets `HOME=/github/home` for every step in a
+      # container job and overrides anything set via `container.env`.
+      # The Microsoft Playwright image ships that directory owned by
+      # `pwuser` (UID 1000), and we run as root — so Firefox refuses to
+      # launch with "Firefox is unable to launch if the $HOME folder
+      # isn't owned by the current user". Re-own the directory tree to
+      # the user we're actually executing as. Scoped to root so it's a
+      # no-op on host runners (which run as the `runner` user).
+      - name: Take ownership of /github/home (Linux container)
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          if [ "$(id -u)" = "0" ] && [ -d /github/home ]; then
+            chown -R root:root /github/home
           fi
 
       - name: Install fnm
