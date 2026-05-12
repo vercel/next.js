@@ -152,6 +152,8 @@ Without `generateStaticParams`, param values are unknown during prerendering, ma
 
 With `generateStaticParams`, you provide sample param values that can be used at build time. The build process validates that dynamic content and other runtime APIs are correctly handled, then generates static HTML files for the samples. Pages rendered with runtime params are saved to disk after a successful first request.
 
+Static export has different runtime behavior because there is no server request after the build. By default, dynamic params must be returned from `generateStaticParams`. For experimental fallback support with Cache Components, see [Static Exports](/docs/app/guides/static-exports#dynamic-routes-with-cache-components).
+
 The sections below demonstrate both patterns.
 
 #### Without `generateStaticParams`

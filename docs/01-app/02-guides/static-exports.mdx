@@ -146,6 +146,95 @@ export default function Page() {
 }
 ```
 
+### Dynamic Routes with Cache Components
+
+By default, a static export requires every App Router dynamic route to be known at build time through [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). If you enable [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), you can also opt into experimental dynamic fallback artifacts for params that were not returned by `generateStaticParams`.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  output: 'export',
+  cacheComponents: true,
+  experimental: {
+    outputExportDynamicFallbacks: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export',
+  cacheComponents: true,
+  experimental: {
+    outputExportDynamicFallbacks: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+With `outputExportDynamicFallbacks`, `next build` writes fallback files for dynamic route shapes. A static host can serve regular exported files first, then serve `_fallback.html` for unmatched document requests. The client router uses the exported fallback data for hard loads and client-side navigations.
+
+This is useful when a route has many possible params, but the route can still render from static files and Client Components:
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+import { Suspense } from 'react'
+import BlogPost from './blog-post'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <BlogPost />
+    </Suspense>
+  )
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
+import { Suspense } from 'react'
+import BlogPost from './blog-post'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading...</p>}>
+      <BlogPost />
+    </Suspense>
+  )
+}
+```
+
+```tsx filename="app/blog/[slug]/blog-post.tsx" switcher
+'use client'
+
+import { useParams } from 'next/navigation'
+
+export default function BlogPost() {
+  const { slug } = useParams<{ slug: string }>()
+
+  return <h1>{slug}</h1>
+}
+```
+
+```jsx filename="app/blog/[slug]/blog-post.js" switcher
+'use client'
+
+import { useParams } from 'next/navigation'
+
+export default function BlogPost() {
+  const { slug } = useParams()
+
+  return <h1>{slug}</h1>
+}
+```
+
+You can still return a subset of params from `generateStaticParams`. Those params are prerendered as regular files, while other params use the fallback files.
+
+For params that were not returned by `generateStaticParams`, Server Components cannot `await params`, because there is no server request to resolve those values during a static export. Read the params from Client Components with [`useParams`](/docs/app/api-reference/functions/use-params), or include the values in `generateStaticParams` when the Server Component needs them at build time.
+
 </AppOnly>
 
 <PagesOnly>
@@ -278,7 +367,7 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 <AppOnly>
 
 - [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes) with `dynamicParams: true`
-- [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes) without `generateStaticParams()`
+- [Dynamic Routes](/docs/app/api-reference/file-conventions/dynamic-routes) without `generateStaticParams()`, unless you enable experimental [`outputExportDynamicFallbacks`](/docs/app/api-reference/config/next-config-js/outputExportDynamicFallbacks) with Cache Components
 - [Route Handlers](/docs/app/api-reference/file-conventions/route) that rely on Request
 - [Cookies](/docs/app/api-reference/functions/cookies)
 - [Rewrites](/docs/app/api-reference/config/next-config-js/rewrites)
@@ -358,10 +447,34 @@ server {
 }
 ```
 
+If you use experimental `outputExportDynamicFallbacks`, serve exported files first, then rewrite unmatched document requests to `_fallback.html`. Missing assets should still return `404`, so adapt the rule to your static host:
+
+```nginx filename="nginx.conf"
+server {
+  listen 80;
+  server_name acme.com;
+
+  root /var/www/out;
+
+  location / {
+      try_files $uri $uri.html $uri/ @next_fallback;
+  }
+
+  location @next_fallback {
+      if ($http_accept !~* "text/html") {
+          return 404;
+      }
+
+      rewrite ^ /_fallback.html break;
+  }
+}
+```
+
 ## Version History
 
 | Version   | Changes                                                                                                              |
 | --------- | -------------------------------------------------------------------------------------------------------------------- |
+| `v16.3.0` | Experimental `outputExportDynamicFallbacks` support added for App Router static exports with Cache Components.       |
 | `v14.0.0` | `next export` has been removed in favor of `"output": "export"`                                                      |
 | `v13.4.0` | App Router (Stable) adds enhanced static export support, including using React Server Components and Route Handlers. |
 | `v13.3.0` | `next export` is deprecated and replaced with `"output": "export"`                                                   |

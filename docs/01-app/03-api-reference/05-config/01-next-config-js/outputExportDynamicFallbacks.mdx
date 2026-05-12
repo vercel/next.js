@@ -1,0 +1,79 @@
+---
+title: outputExportDynamicFallbacks
+description: Enable dynamic route fallback files for static exports.
+version: experimental
+related:
+  title: Next Steps
+  description: Learn how dynamic fallbacks fit into static exports.
+  links:
+    - app/guides/static-exports
+    - app/api-reference/file-conventions/dynamic-routes
+    - app/api-reference/config/next-config-js/cacheComponents
+---
+
+`outputExportDynamicFallbacks` lets an App Router static export serve dynamic route params that were not returned by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), as long as the route can be represented by static fallback files and Client Components.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  output: 'export',
+  cacheComponents: true,
+  experimental: {
+    outputExportDynamicFallbacks: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export',
+  cacheComponents: true,
+  experimental: {
+    outputExportDynamicFallbacks: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+## Reference
+
+| Option                         | Type      | Default | Description                                                                 |
+| ------------------------------ | --------- | ------- | --------------------------------------------------------------------------- |
+| `outputExportDynamicFallbacks` | `boolean` | `false` | Emits static fallback files for App Router dynamic routes in static export. |
+
+## Requirements
+
+`outputExportDynamicFallbacks` requires:
+
+- [`output: 'export'`](/docs/app/guides/static-exports)
+- [`cacheComponents: true`](/docs/app/api-reference/config/next-config-js/cacheComponents)
+- App Router dynamic routes
+
+When this option is enabled, Next.js also configures the client router features needed to resolve fallback route data. You do not need to enable those separately.
+
+## Behavior
+
+During `next build`, Next.js emits:
+
+- regular static files for routes and params returned by `generateStaticParams`
+- fallback files for supported dynamic route shapes
+- a root `_fallback.html` document that a static host can serve for unmatched document requests
+
+On a hard load to an unenumerated dynamic URL, the static host serves `_fallback.html`, and the client router resolves the matching fallback route data. During client-side navigation, the router prefetches and reuses the same exported fallback data.
+
+## Limitations
+
+For params that were not returned by `generateStaticParams`, Server Components cannot `await params` during a static export. Use [`useParams`](/docs/app/api-reference/functions/use-params) in a Client Component, or return the param from `generateStaticParams` when the Server Component needs it at build time.
+
+Static export limitations still apply. Request-time server APIs, rewrites, redirects, Proxy, Server Actions, and default Image Optimization require a server and are not supported.
+
+## Version History
+
+| Version   | Changes                                        |
+| --------- | ---------------------------------------------- |
+| `v16.3.0` | `outputExportDynamicFallbacks` was introduced. |
