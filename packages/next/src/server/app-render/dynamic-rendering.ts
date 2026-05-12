@@ -1246,7 +1246,8 @@ export function throwIfDisallowedDynamic(
   workStore: WorkStore,
   prelude: PreludeState,
   dynamicValidation: DynamicValidationState,
-  serverDynamic: DynamicTrackingState
+  serverDynamic: DynamicTrackingState,
+  allowEmptyStaticShell: boolean
 ): void {
   if (serverDynamic.syncDynamicErrorWithStack) {
     logDisallowedDynamicError(
@@ -1256,14 +1257,31 @@ export function throwIfDisallowedDynamic(
     throw new StaticGenBailoutError()
   }
 
-  if (prelude !== PreludeState.Full) {
-    if (dynamicValidation.hasSuspenseAboveBody) {
-      // This route has opted into allowing fully dynamic rendering
-      // by including a Suspense boundary above the body. In this case
-      // a lack of a shell is not considered disallowed so we simply return
-      return
-    }
+  // The dynamic metadata error is a mistake-detection signal. It fires when the
+  // rest of the shell is otherwise fully static apart from metadata, suggesting
+  // the dynamic data access in `generateMetadata` was probably unintentional.
+  // That condition is independent of whether the user or build phase accepted
+  // an empty shell, so we surface it before any opt-in bypass.
+  if (
+    prelude === PreludeState.Full &&
+    dynamicValidation.hasAllowedDynamic === false &&
+    dynamicValidation.hasDynamicMetadata
+  ) {
+    console.error(createDynamicOrRuntimeMetadataError(workStore.route).message)
+    throw new StaticGenBailoutError()
+  }
 
+  // Either flag expresses "this shell is allowed to be empty/blocking":
+  //   - `allowEmptyStaticShell` covers `unstable_instant = false` (user opt-in)
+  //     and the build-phase fallback-shell case.
+  //   - `hasSuspenseAboveBody` is the structural opt-in inside the user's root
+  //     layout.
+  // Treat them as synonyms for the purpose of bypassing shell-failure errors.
+  if (allowEmptyStaticShell || dynamicValidation.hasSuspenseAboveBody) {
+    return
+  }
+
+  if (prelude !== PreludeState.Full) {
     // We didn't have any sync bailouts but there may be user code which
     // blocked the root. We would have captured these during the prerender
     // and can log them here and then terminate the build/validating render
@@ -1296,16 +1314,6 @@ export function throwIfDisallowedDynamic(
       )
       throw new StaticGenBailoutError()
     }
-  } else {
-    if (
-      dynamicValidation.hasAllowedDynamic === false &&
-      dynamicValidation.hasDynamicMetadata
-    ) {
-      console.error(
-        createDynamicOrRuntimeMetadataError(workStore.route).message
-      )
-      throw new StaticGenBailoutError()
-    }
   }
 }
 
@@ -1313,21 +1321,29 @@ export function getStaticShellDisallowedDynamicReasons(
   workStore: WorkStore,
   prelude: PreludeState,
   dynamicValidation: DynamicValidationState,
-  configAllowsBlocking: boolean
+  allowEmptyStaticShell: boolean
 ): Array<Error> {
+  // The dynamic metadata error is a mistake-detection signal. It fires when the
+  // rest of the shell is otherwise fully static apart from metadata, suggesting
+  // the dynamic data access in `generateMetadata` was probably unintentional.
+  // That condition is independent of whether the user or build phase accepted
+  // an empty shell, so we surface it before any opt-in bypass.
   if (
-    configAllowsBlocking ||
-    (dynamicValidation.hasSuspenseAboveBody && prelude !== PreludeState.Full)
+    prelude === PreludeState.Full &&
+    dynamicValidation.hasAllowedDynamic === false &&
+    dynamicValidation.dynamicErrors.length === 0 &&
+    dynamicValidation.dynamicMetadata
   ) {
-    // This route has opted into allowing fully dynamic rendering by including a
-    // Suspense boundary above the body. In this case a lack of a shell is not
-    // considered disallowed so we simply return.
-    //
-    // When the prelude is Full (e.g., only `generateMetadata` is dynamic and it
-    // can stream in separately), the Suspense-above-body opt-in is not a
-    // documented mitigation — dynamic metadata's mitigation is to make the page
-    // partially dynamic — so we fall through to the per-error checks below
-    // instead of bypassing them.
+    return [dynamicValidation.dynamicMetadata]
+  }
+
+  // Either flag expresses "this shell is allowed to be empty/blocking":
+  //   - `allowEmptyStaticShell` covers `unstable_instant = false` (user opt-in)
+  //     and the build-phase fallback-shell case.
+  //   - `hasSuspenseAboveBody` is the structural opt-in inside the user's root
+  //     layout.
+  // Treat them as synonyms for the purpose of bypassing shell-failure errors.
+  if (allowEmptyStaticShell || dynamicValidation.hasSuspenseAboveBody) {
     return []
   }
 
@@ -1349,15 +1365,6 @@ export function getStaticShellDisallowedDynamicReasons(
           `Route "${workStore.route}" did not produce a static shell and Next.js was unable to determine a reason.`
         ),
       ]
-    }
-  } else {
-    // We have a prelude but we might still have dynamic metadata without any other dynamic access
-    if (
-      dynamicValidation.hasAllowedDynamic === false &&
-      dynamicValidation.dynamicErrors.length === 0 &&
-      dynamicValidation.dynamicMetadata
-    ) {
-      return [dynamicValidation.dynamicMetadata]
     }
   }
   // We had a non-empty prelude and there are no dynamic holes
