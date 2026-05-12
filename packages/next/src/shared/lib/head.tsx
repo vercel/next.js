@@ -147,7 +147,7 @@ function reduceComponents(
       return React.cloneElement(c, { key })
     })
 
-  const allowedTags = new Set(['title', 'meta', 'link', 'script', 'style', 'base'])
+  const allowedTags = new Set(['title', 'meta', 'link', 'script', 'style', 'base', 'noscript'])
 
   const filtered = resolved.filter((c) => {
     const t = c.type
