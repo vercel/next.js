@@ -1420,29 +1420,41 @@ async fn insert_instrumentation_client_alias(
         user_file_alternatives,
     );
 
+    let injects = injects
+        .iter()
+        .map(|s| s.as_str())
+        .chain(std::iter::once("private-next-instrumentation-client-user"));
+
     let mut body = String::new();
-    for spec in injects.iter() {
+    for (i, spec) in injects.clone().enumerate() {
         body.push_str(&format!(
-            "require({});\n",
-            serde_json::to_string(spec.as_str())?
+            "const mod_{i} = require({});\n",
+            serde_json::to_string(spec)?
         ));
     }
-    body.push_str("module.exports = require('private-next-instrumentation-client-user');\n");
+    body.push_str("module.exports = { onRouterTransitionStart(url, type) {\n");
+    for (i, _) in injects.enumerate() {
+        body.push_str(&format!(
+            "    mod_{i} && mod_{i}.onRouterTransitionStart && \
+             mod_{i}.onRouterTransitionStart(url, type);\n"
+        ));
+    }
+    body.push_str("}};\n");
 
-    let virtual_path = project_path.join("__next_instrumentation_client.js")?;
     let virtual_source = VirtualSource::new(
-        virtual_path,
+        project_path.join("__next_instrumentation_client.js")?,
         AssetContent::file(FileContent::Content(body.into()).cell()),
     )
     .to_resolved()
     .await?;
 
-    let mapping = ImportMapping::Direct(
-        ResolveResult::source(ResolvedVc::upcast(virtual_source)).resolved_cell(),
-    )
-    .resolved_cell();
-
-    import_map.insert_exact_alias(rcstr!("private-next-instrumentation-client"), mapping);
+    import_map.insert_exact_alias(
+        rcstr!("private-next-instrumentation-client"),
+        ImportMapping::Direct(
+            ResolveResult::source(ResolvedVc::upcast(virtual_source)).resolved_cell(),
+        )
+        .resolved_cell(),
+    );
 
     Ok(())
 }

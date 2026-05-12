@@ -49,6 +49,16 @@ describe('Instrumentation Client Hook', () => {
     })
   })
 
+  function filterNavigationStartLogs(logs: Array<{ message: string }>) {
+    const result = []
+    for (const log of logs) {
+      if (log.message.startsWith('[Router Transition Start]')) {
+        result.push(log.message)
+      }
+    }
+    return result
+  }
+
   describe('onRouterTransitionStart', () => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, 'app-router'),
@@ -128,6 +138,27 @@ describe('Instrumentation Client Hook', () => {
       expect(injectA).toBeLessThanOrEqual(injectB)
       expect(injectB).toBeLessThanOrEqual(userTime)
       expect(userTime).toBeLessThan(hydrationTime)
+    })
+
+    it('still surfaces onRouterTransitionStart from the user instrumentation-client when injects are configured', async () => {
+      const browser = await next.browser('/')
+
+      const linkToSomePage = await browser.elementByCss('a[href="/some-page"]')
+      await linkToSomePage.click()
+      await browser.elementById('some-page')
+
+      const linkToHome = await browser.elementByCss('a[href="/"]')
+      await linkToHome.click()
+      await browser.elementById('home')
+
+      expect(filterNavigationStartLogs(await browser.log())).toEqual([
+        '[Router Transition Start] [push] /some-page a',
+        '[Router Transition Start] [push] /some-page b',
+        '[Router Transition Start] [push] /some-page user',
+        '[Router Transition Start] [push] / a',
+        '[Router Transition Start] [push] / b',
+        '[Router Transition Start] [push] / user',
+      ])
     })
   })
 
