@@ -100,7 +100,7 @@ pub async fn emit_assets(
         path: &FileSystemPath,
         assets: AssetVec,
         node_root: &FileSystemPath,
-    ) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
+    ) -> Result<()> {
         let mut iter = assets.into_iter();
         let first = iter.next().unwrap();
         for next in iter {
@@ -117,7 +117,7 @@ pub async fn emit_assets(
                 .emit();
             }
         }
-        Ok(first)
+        Ok(())
     }
 
     // Use join! instead of try_join! to collect all errors deterministically
@@ -129,14 +129,20 @@ pub async fn emit_assets(
                 let node_root = node_root.clone();
 
                 async move {
-                    let asset = check_duplicates(&path, assets, &node_root).await?;
+                    let asset = *assets.first().unwrap();
                     let span = tracing::info_span!(
                         "emit asset",
                         name = %path.to_string_ref().await?
                     );
-                    async move { emit(*asset).as_side_effect().await }
-                        .instrument(span)
-                        .await
+                    async move {
+                        emit(*asset).as_side_effect().await?;
+                        // This need to be after `emit()`, so the asset is emitted even if this
+                        // method crashes due to eventual consistency.
+                        check_duplicates(&path, assets, &node_root).await?;
+                        Ok(())
+                    }
+                    .instrument(span)
+                    .await
                 }
             })
             .try_join(),
@@ -148,18 +154,22 @@ pub async fn emit_assets(
                 let client_output_path = client_output_path.clone();
 
                 async move {
-                    let asset = check_duplicates(&path, assets, &node_root).await?;
                     let span = tracing::info_span!(
                         "emit asset",
                         name = %path.to_string_ref().await?
                     );
                     async move {
+                        let asset = *assets.first().unwrap();
                         // Client assets are emitted to the client output path, which is
                         // prefixed with _next. We need to rebase them to
                         // remove that prefix.
                         emit_rebase(*asset, client_relative_path, client_output_path)
                             .as_side_effect()
-                            .await
+                            .await?;
+                        // This need to be after `emit_rebase()`, so the asset is emitted even if
+                        // this method crashes due to eventual consistency.
+                        check_duplicates(&path, assets, &node_root).await?;
+                        Ok(())
                     }
                     .instrument(span)
                     .await
