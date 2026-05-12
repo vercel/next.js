@@ -1,5 +1,7 @@
 import { AlignmentLeftIcon } from '../../icons/alignment-left'
 import { ClockRewindIcon } from '../../icons/clock-rewind'
+import { LayoutIcon } from '../../icons/layout'
+import { LightningIcon } from '../../icons/lightning'
 import { StopIcon } from '../../icons/stop'
 import { css } from '../../utils/css'
 import {
@@ -51,6 +53,16 @@ function getCardShortTitle(card: FixCard): string {
 }
 
 function getCardIcon(card: FixCard) {
+  const shortTitle = getCardShortTitle(card)
+
+  if (shortTitle === 'Static') {
+    return <LightningIcon />
+  }
+
+  if (shortTitle === 'Client') {
+    return <LayoutIcon />
+  }
+
   switch (card.color) {
     case 'blue':
       return <ClockRewindIcon />
