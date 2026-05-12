@@ -1124,6 +1124,98 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
     let num_variants = all_lazy_fields.len();
     let num_variants_tok = quote::quote! { #num_variants };
 
+    // Per-variant tag constants. The macro assigns tag = idx + 1 in the
+    // `all_lazy()` order so that tag 0 is reserved as the bincode encode
+    // sentinel. Each constant has the shape `LAZY_TAG_<UPPER>: u8`.
+    let tag_constants: Vec<_> = all_lazy_fields
+        .iter()
+        .enumerate()
+        .map(|(idx, field)| {
+            // Field names are already snake_case so just uppercase them for the
+            // `LAZY_TAG_<UPPER>` constant.
+            let tag_ident = syn::Ident::new(
+                &format!("LAZY_TAG_{}", field.field_name.to_string().to_uppercase()),
+                proc_macro2::Span::call_site(),
+            );
+            let tag = (idx + 1) as u8;
+            let doc = format!(
+                "Tag for the `{}` lazy variant. Used to address its payload in the byte tail.",
+                field.variant_name,
+            );
+            quote! {
+                #[doc = #doc]
+                pub const #tag_ident: u8 = #tag;
+            }
+        })
+        .collect();
+
+    // Per-tag payload size (in bytes), indexed by tag. Slot 0 (the sentinel)
+    // is `0` to keep indexing clean. Used to compute byte offsets when walking
+    // the tail.
+    let size_entries: Vec<_> = all_lazy_fields
+        .iter()
+        .map(|field| {
+            let ty = &field.field_type;
+            quote! { (std::mem::size_of::<#ty>() as u16) }
+        })
+        .collect();
+
+    // Per-tag payload alignment (in bytes), indexed by tag. Slot 0 is `1`.
+    let align_entries: Vec<_> = all_lazy_fields
+        .iter()
+        .map(|field| {
+            let ty = &field.field_type;
+            quote! { (std::mem::align_of::<#ty>() as u8) }
+        })
+        .collect();
+
+    // Per-tag padded payload size. The byte tail places each payload at its
+    // natural alignment starting from the tail's base (which is itself aligned
+    // to the maximum payload alignment); within the tail, between consecutive
+    // payloads we round up to the next multiple of the next payload's
+    // alignment. Since today every variant has alignment 8 and the head ends
+    // on an 8-aligned offset, the padded size collapses to size rounded up to
+    // 8 — but we compute it precisely so future alignment changes don't break.
+    //
+    // We approximate by rounding each individual payload's size up to its own
+    // alignment. This over-pads slightly when a later payload has stricter
+    // alignment than the current one's size would naturally provide, but the
+    // alignment-everywhere-8 invariant makes it exact for today's schema.
+    let padded_size_entries: Vec<_> = all_lazy_fields
+        .iter()
+        .map(|field| {
+            let ty = &field.field_type;
+            quote! {
+                {
+                    let size = std::mem::size_of::<#ty>();
+                    let align = std::mem::align_of::<#ty>();
+                    ((size + align - 1) & !(align - 1)) as u16
+                }
+            }
+        })
+        .collect();
+
+    // Per-category presence-bitmap masks. Bit `tag - 1` is set for variants
+    // belonging to the category. `LAZY_PERSISTENT_MASK` is `LAZY_META_MASK |
+    // LAZY_DATA_MASK`.
+    let mut persistent_mask: u32 = 0;
+    let mut meta_mask: u32 = 0;
+    let mut data_mask: u32 = 0;
+    for (idx, field) in all_lazy_fields.iter().enumerate() {
+        let bit = 1u32 << idx;
+        match field.category {
+            Category::Meta => {
+                meta_mask |= bit;
+                persistent_mask |= bit;
+            }
+            Category::Data => {
+                data_mask |= bit;
+                persistent_mask |= bit;
+            }
+            Category::Transient => {}
+        }
+    }
+
     quote! {
         #[doc = "All lazily-allocated fields stored in a single Vec."]
         #[doc = "Fields are stored directly (unboxed) to avoid allocation overhead."]
@@ -1190,6 +1282,50 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
                 }
             }
         }
+
+        // =====================================================================
+        // Lazy-field tag layout tables.
+        //
+        // Each variant in `LazyField` is assigned a 1-based tag (so tag 0 is
+        // reserved as the bincode encode sentinel). The byte-tail layout
+        // stores payloads packed in tag order. Presence is tracked by a `u32`
+        // bitmap; payload positions are computed from
+        // `LAZY_PADDED_SIZE[tag] for each set bit below the target tag`.
+        //
+        // These constants live at the schema's module level so storage
+        // primitives in `storage_schema.rs` and per-variant accessors emitted
+        // by this macro can both reference them.
+        // =====================================================================
+
+        #(#tag_constants)*
+
+        #[doc = "Number of lazy variants. Tags are `1..=LAZY_N`."]
+        pub const LAZY_N: u8 = #num_variants as u8;
+
+        #[doc = "Compile-time assertion that the bitmap fits in `u32`."]
+        const _: () = assert!(
+            (LAZY_N as usize) <= 32,
+            "lazy_present is u32; schema declares too many lazy variants",
+        );
+
+        #[doc = "Per-tag payload size in bytes. Index 0 is unused (sentinel)."]
+        pub const LAZY_SIZE: [u16; LAZY_N as usize + 1] = [0 #(, #size_entries)*];
+
+        #[doc = "Per-tag payload alignment in bytes. Index 0 is unused (sentinel)."]
+        pub const LAZY_ALIGN: [u8; LAZY_N as usize + 1] = [1 #(, #align_entries)*];
+
+        #[doc = "Per-tag padded payload size (size rounded up to align). Used to"]
+        #[doc = "compute byte offsets into the tail without re-doing alignment math."]
+        pub const LAZY_PADDED_SIZE: [u16; LAZY_N as usize + 1] = [0 #(, #padded_size_entries)*];
+
+        #[doc = "Bitmap of persistent (non-transient) variants. Bit `tag - 1` set."]
+        pub const LAZY_PERSISTENT_MASK: u32 = #persistent_mask;
+
+        #[doc = "Bitmap of meta-category variants. Bit `tag - 1` set."]
+        pub const LAZY_META_MASK: u32 = #meta_mask;
+
+        #[doc = "Bitmap of data-category variants. Bit `tag - 1` set."]
+        pub const LAZY_DATA_MASK: u32 = #data_mask;
     }
 }
 
