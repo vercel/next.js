@@ -1017,6 +1017,12 @@ function formatCount(n: number): string {
 }
 
 function formatCell(stats: CategoryStats): string {
+  // Render empty cells as `-` rather than `0 files / 0 B`. The vast
+  // majority of cells in a typical app have *some* content for every
+  // category — when a cell IS empty (e.g. a route handler ships no client
+  // JS) the placeholder makes the table much easier to scan visually
+  // because non-zero values stand out.
+  if (stats.count === 0 && stats.bytes === 0) return '-'
   return `${formatCount(stats.count)} files / ${formatBytes(stats.bytes)}`
 }
 
@@ -1025,9 +1031,14 @@ function formatCell(stats: CategoryStats): string {
  * `stats` is `null`), otherwise the same `count files / bytes` rendering as
  * the routes table, augmented with the percentage of own count/bytes that
  * the average shared portion represents — e.g. `5 files (83%) / 1.2 MB (40%)`.
+ *
+ * Empty intersections render as `-` for the same readability reason as
+ * `formatCell`. `n/a` (no peers) is preserved separately because it has a
+ * different meaning from "shared with peers but the intersection is empty".
  */
 function formatSharedCell(stats: SharedStats | null): string {
   if (stats == null) return 'n/a'
+  if (stats.count === 0 && stats.bytes === 0) return '-'
   return (
     `${formatCount(stats.count)} files (${Math.round(stats.percentCount)}%)` +
     ` / ${formatBytes(stats.bytes)} (${Math.round(stats.percentBytes)}%)`

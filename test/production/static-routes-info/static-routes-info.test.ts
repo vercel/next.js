@@ -675,15 +675,31 @@ describe('next internal static-routes-info', () => {
     }
   })
 
+  it('markdown should render empty cells as `-` (not `0 files / 0 B`)', async () => {
+    const md = (await runTool([])).stdout
+    // The empty placeholder must appear at least once: middleware ships
+    // no client JS / CSS / maps so its row in the routes table will have
+    // a `-` for those columns. `/pages-static` has no server entries.
+    expect(md).toContain('| -')
+    // It should NOT render `0 files / 0 B` anywhere — every empty cell
+    // is replaced.
+    expect(md).not.toMatch(/0 files\s+\/\s+0 B/)
+  })
+
   it('markdown should include a Shared section', async () => {
     const md = (await runTool([])).stdout
     expect(md).toContain('## Shared')
-    // Routes with no peers should appear as `n/a`.
+    // Routes with no peers should appear as `n/a`. Routes with peers but
+    // no files in a category render as `-` (matching the routes table
+    // placeholder), so `n/a` and `-` are both expected and have distinct
+    // meanings.
     expect(md).toContain('n/a')
     // Shared cells render with both count and byte percentages, e.g.
     // `5 files (100%) / 424 KB (100%)`. This is the marker for the
     // user-visible part of the percent-shared annotation.
     expect(md).toMatch(/\d+ files \(\d+%\) \/ [^|]*\(\d+%\)/)
+    // Empty shared intersections render as `-`, not as `0 files (0%) / 0 B (0%)`.
+    expect(md).not.toMatch(/0 files\s+\(0%\)/)
   })
 
   it('markdown numbers should agree with --json numbers for shared routes', async () => {
