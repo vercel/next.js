@@ -13,6 +13,12 @@ import {
   type GuidanceVariant,
 } from './instant-guidance-data'
 
+export {
+  DOCS_URLS,
+  EXPLANATIONS,
+  SYNC_IO_CLIENT_DOCS,
+  SYNC_IO_DOCS,
+} from './instant-guidance-data'
 export type { GuidanceKind, GuidanceVariant } from './instant-guidance-data'
 
 function getCardShortTitle(card: FixCard): string {
@@ -153,11 +159,26 @@ export function InstantGuidance({
 }
 
 export function InstantExplanation() {
+  return <InstantHeaderExplanation kind="blocking-route" />
+}
+
+export function InstantHeaderExplanation({
+  kind,
+  explanation,
+  docsUrl,
+}: {
+  kind?: GuidanceKind
+  explanation?: string
+  docsUrl?: string
+}) {
+  const resolvedExplanation = explanation || (kind ? EXPLANATIONS[kind] : '')
+  const resolvedDocsUrl = docsUrl || (kind ? DOCS_URLS[kind] : '')
+
   return (
     <p data-nextjs-instant-explanation>
-      {EXPLANATIONS['blocking-route']}{' '}
+      {resolvedExplanation}{' '}
       <a
-        href={DOCS_URLS['blocking-route']}
+        href={resolvedDocsUrl}
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -203,6 +224,8 @@ export const INSTANT_GUIDANCE_STYLES = css`
     border: 1px solid var(--color-gray-200);
     border-bottom: none;
     border-radius: var(--rounded-xl);
+    display: flex;
+    flex-direction: column;
     min-width: 0;
     overflow: hidden;
   }
@@ -265,6 +288,7 @@ export const INSTANT_GUIDANCE_STYLES = css`
   }
 
   [data-nextjs-fix-snippet] {
+    flex: 1;
     font-family: var(--font-stack-monospace);
     font-size: 12px;
     line-height: 1.5;

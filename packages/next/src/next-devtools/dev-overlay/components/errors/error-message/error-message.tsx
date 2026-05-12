@@ -63,7 +63,6 @@ export const styles = `
 
   .nextjs__container_errors_desc {
     margin: 0;
-    margin-left: 4px;
     color: var(--color-red-900);
     font-weight: 500;
     font-size: var(--size-16);
@@ -75,7 +74,6 @@ export const styles = `
 
   .nextjs__container_errors_desc.nextjs__container_errors_desc_instant {
     color: var(--color-gray-1000);
-    margin-left: 0;
   }
 
   .nextjs__container_errors_desc.truncated {

@@ -22,7 +22,10 @@ import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
   InstantExplanation,
+  InstantHeaderExplanation,
   InstantGuidance,
+  SYNC_IO_CLIENT_DOCS,
+  SYNC_IO_DOCS,
   type GuidanceKind,
   type GuidanceVariant,
 } from '../components/instant/instant-guidance'
@@ -577,6 +580,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               </>
             )
           }
+          headerChildren={<InstantHeaderExplanation kind="metadata" />}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
@@ -593,6 +597,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               error={activeError}
               variant={errorDetails.variant}
               kind="metadata"
+              showExplanation={false}
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
@@ -616,6 +621,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               </>
             )
           }
+          headerChildren={<InstantHeaderExplanation kind="viewport" />}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
@@ -632,6 +638,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               error={activeError}
               variant={errorDetails.variant}
               kind="viewport"
+              showExplanation={false}
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
@@ -647,6 +654,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               Next.js encountered <code>{errorDetails.cause}</code> without an
               explicit rendering intent.
             </>
+          }
+          headerChildren={
+            <InstantHeaderExplanation
+              explanation="This value can change between renders, so it must be either prerendered or computed later."
+              docsUrl={SYNC_IO_DOCS[errorDetails.cause]}
+            />
           }
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
@@ -665,7 +678,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               variant="runtime"
               kind="sync-io"
               cause={errorDetails.cause}
-              explanation="This value can change between renders, so it must be either prerendered or computed later."
+              showExplanation={false}
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
@@ -681,6 +694,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               Next.js encountered <code>{errorDetails.cause}</code> in a Client
               Component.
             </>
+          }
+          headerChildren={
+            <InstantHeaderExplanation
+              explanation="This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit."
+              docsUrl={SYNC_IO_CLIENT_DOCS[errorDetails.cause]}
+            />
           }
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
@@ -699,6 +718,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               variant="runtime"
               kind="sync-io-client"
               cause={errorDetails.cause}
+              showExplanation={false}
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>

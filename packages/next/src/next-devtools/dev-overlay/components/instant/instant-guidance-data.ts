@@ -69,7 +69,6 @@ const dynamicCards: FixCard[] = [
     snippets: [
       { text: 'async function getData() {' },
       { text: '  "use cache"', highlight: true },
-      { text: '  return db.query(…)' },
       { text: '}' },
     ],
   },
@@ -111,7 +110,6 @@ const metadataRuntimeCards: FixCard[] = [
     snippets: [
       { text: 'export default async function Page() {' },
       { text: '  await connection()', highlight: true },
-      { text: '  return …' },
       { text: '}' },
     ],
   },
@@ -134,7 +132,6 @@ const metadataDynamicCards: FixCard[] = [
     snippets: [
       { text: 'export default async function Page() {' },
       { text: '  await connection()', highlight: true },
-      { text: '  return …' },
       { text: '}' },
     ],
   },
