@@ -423,7 +423,7 @@ impl Storage {
                 // invariant above. Resolve directly in the held map guard rather than going
                 // through `self.map.get_mut`, which would attempt to re-acquire this shard's
                 // write lock and would also obscure the pairing.
-                let hash = self.map.hasher().hash_one(&key);
+                let hash = self.map.hasher().hash_one(key);
                 if let Some(bucket) = map_guard.find(hash, |(k, _)| *k == key) {
                     // SAFETY: We hold `map_shard`'s write lock for the duration of this
                     // access, so the bucket pointer is valid and no other thread can alias it.
