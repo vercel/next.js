@@ -117,9 +117,9 @@ describe('next internal static-routes-info', () => {
 
     // Every route type from the fixture is represented at least once.
     const types = new Set(output.routes.map((r) => r.type))
-    expect(types).toContain('app-page') // app/page.tsx
+    expect(types).toContain('app-page') // app/page.tsx + app/about/page.tsx
     expect(types).toContain('app-route') // app/api/node/route.ts + app/api/edge/route.ts
-    expect(types).toContain('pages') // pages/pages-ssr.tsx (getServerSideProps)
+    expect(types).toContain('pages') // pages/pages-ssr.tsx + pages/pages-ssr-2.tsx
     expect(types).toContain('pages-static') // pages/pages-static.tsx
     expect(types).toContain('pages-api') // pages/api/hello.ts
     expect(types).toContain('middleware') // middleware.ts
@@ -132,9 +132,11 @@ describe('next internal static-routes-info', () => {
     expect(routes).toEqual(
       expect.arrayContaining([
         '/',
+        '/about',
         '/api/node',
         '/api/edge',
         '/pages-ssr',
+        '/pages-ssr-2',
         '/pages-static',
         '/api/hello',
       ])
@@ -330,7 +332,6 @@ describe('next internal static-routes-info', () => {
 
     // The fixture has exactly one route of each of these types.
     for (const route of [
-      '/pages-ssr', // only pages
       '/pages-static', // only pages-static
       '/api/hello', // only pages-api
     ]) {
@@ -353,10 +354,12 @@ describe('next internal static-routes-info', () => {
     // Routes with at least one peer of the same type:
     //   - app-page: `/`, `/about`, `/_not-found`
     //   - app-route: `/api/node`, `/api/edge`
+    //   - pages: `/pages-ssr`, `/pages-ssr-2`
     const withPeers = output.routes.filter(
-      (r) => r.type === 'app-page' || r.type === 'app-route'
+      (r) =>
+        r.type === 'app-page' || r.type === 'app-route' || r.type === 'pages'
     )
-    expect(withPeers.length).toBeGreaterThanOrEqual(2)
+    expect(withPeers.length).toBeGreaterThanOrEqual(7)
     for (const r of withPeers) {
       for (const cat of ALL_CATEGORIES) {
         expect(r[cat].sharedAvg).not.toBeNull()
@@ -364,6 +367,52 @@ describe('next internal static-routes-info', () => {
         expect(r[cat].sharedAvg!.bytes).toBeLessThanOrEqual(r[cat].bytes)
       }
     }
+  })
+
+  it('--json sharedAvg should observe deliberate chunk sharing across peer routes', async () => {
+    // Both `/pages-ssr` and `/pages-ssr-2` import `lib/shared.ts` and use
+    // the standard Pages Router shared chunks (`_app`, framework, main,
+    // polyfills). They MUST report meaningful sharing. Likewise `/` and
+    // `/about` both import `lib/shared.ts` and share the App Router
+    // root layout + framework chunks.
+    const output = JSON.parse((await runTool(['--json'])).stdout) as ToolOutput
+
+    // Pages Router peers — Pages Router's chunking is deterministic across
+    // both bundlers (build-manifest lists pages chunks explicitly).
+    const ssr1 = getRoute(output, '/pages-ssr')
+    const ssr2 = getRoute(output, '/pages-ssr-2')
+    expect(ssr1.type).toBe('pages')
+    expect(ssr2.type).toBe('pages')
+
+    // At least 3 of the 6 client JS chunks should be shared between the
+    // two pages (framework, main, polyfills, _app — minus per-page entry).
+    expect(ssr1.clientJs.sharedAvg!.count).toBeGreaterThanOrEqual(3)
+    expect(ssr1.clientJs.sharedAvg!.bytes).toBeGreaterThan(0)
+    // Most of the route's client JS comes from shared infra; expect the
+    // shared portion to be a substantial fraction of the total.
+    expect(ssr1.clientJs.sharedAvg!.bytes).toBeGreaterThan(
+      ssr1.clientJs.bytes * 0.5
+    )
+    // Both peers must report the same shared average (commutative).
+    expect(ssr2.clientJs.sharedAvg).toEqual(ssr1.clientJs.sharedAvg)
+
+    // Similarly, server-bundled JS for the two pages should mostly overlap
+    // (Next.js runtime chunks dominate the bundle).
+    expect(ssr1.serverBundled.sharedAvg!.count).toBeGreaterThanOrEqual(3)
+    expect(ssr1.serverBundled.sharedAvg!.bytes).toBeGreaterThan(
+      ssr1.serverBundled.bytes * 0.5
+    )
+
+    // App Router peers — both `/` and `/about` import the same shared lib
+    // and the same root layout, so a substantial share is expected.
+    const root = getRoute(output, '/')
+    const about = getRoute(output, '/about')
+    expect(root.serverBundled.sharedAvg!.bytes).toBeGreaterThan(
+      root.serverBundled.bytes * 0.5
+    )
+    expect(about.serverBundled.sharedAvg!.bytes).toBeGreaterThan(
+      about.serverBundled.bytes * 0.5
+    )
   })
 
   it('--json sharedAvg should match a hand-computed average for app-pages', async () => {
