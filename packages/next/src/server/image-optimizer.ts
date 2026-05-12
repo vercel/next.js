@@ -71,6 +71,7 @@ async function initCacheEntries(
   for (const cacheKey of cacheKeys) {
     try {
       const { expireAt, buffer } = await readFromCacheDir(cacheDir, cacheKey)
+      if (buffer.byteLength === 0) continue
       entries.push({
         key: cacheKey,
         size: buffer.byteLength,
