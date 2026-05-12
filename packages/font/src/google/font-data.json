@@ -1484,7 +1484,7 @@
     "styles": ["normal"],
     "subsets": ["cyrillic", "greek-ext", "latin", "latin-ext"]
   },
-  "BJ Cree": {
+  "BJCree": {
     "weights": ["400", "500", "600", "700"],
     "styles": ["normal"],
     "subsets": ["canadian-aboriginal", "latin"]
@@ -6092,6 +6092,12 @@
     "styles": ["normal", "italic"],
     "axes": [
       {
+        "tag": "MONO",
+        "min": 0,
+        "max": 1,
+        "defaultValue": 1
+      },
+      {
         "tag": "wght",
         "min": 300,
         "max": 800,
@@ -8310,16 +8316,7 @@
   "Libertinus Math": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": [
-      "cyrillic",
-      "cyrillic-ext",
-      "greek",
-      "greek-ext",
-      "latin",
-      "latin-ext",
-      "math",
-      "vietnamese"
-    ]
+    "subsets": []
   },
   "Libertinus Mono": {
     "weights": ["400"],
@@ -11123,7 +11120,7 @@
   "Noto Sans Math": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["cyrillic", "latin", "math"]
+    "subsets": []
   },
   "Noto Sans Mayan Numerals": {
     "weights": ["400"],
@@ -16104,6 +16101,11 @@
       }
     ],
     "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
+  },
+  "STIX Two Math": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
   },
   "STIX Two Text": {
     "weights": ["400", "500", "600", "700", "variable"],
