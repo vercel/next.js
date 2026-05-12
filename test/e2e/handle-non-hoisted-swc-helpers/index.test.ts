@@ -1,45 +1,39 @@
-import { createNext, isNextDev } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
 describe('handle-non-hoisted-swc-helpers', () => {
-  let next: NextInstance
+  const { next } = nextTestSetup({
+    files: {
+      'pages/index.js': `
+        export default function Page() {
+          return <p>hello world</p>
+        }
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/index.js': `
-          export default function Page() {
-            return <p>hello world</p>
-          }
-
-          export function getServerSideProps() {
-            const helper = require('@swc/helpers/_/_object_spread')
-            console.log(helper)
-            return {
-              props: {
-                now: Date.now()
-              }
+        export function getServerSideProps() {
+          const helper = require('@swc/helpers/_/_object_spread')
+          console.log(helper)
+          return {
+            props: {
+              now: Date.now()
             }
           }
-        `,
+        }
+      `,
+    },
+    packageJson: {
+      packageManager: 'npm@10.9.2',
+      scripts: {
+        build: 'next build',
+        dev: 'next dev',
+        start: 'next start',
       },
-      packageJson: {
-        packageManager: 'npm@10.9.2',
-        scripts: {
-          build: 'next build',
-          dev: 'next dev',
-          start: 'next start',
-        },
-      },
-      installCommand:
-        'npm install; mkdir -p node_modules/next/node_modules/@swc; mv node_modules/@swc/helpers node_modules/next/node_modules/@swc/',
-      buildCommand: 'npm run build',
-      startCommand: isNextDev ? 'npm run dev' : 'npm run start',
-      dependencies: {},
-    })
+    },
+    installCommand:
+      'npm install; mkdir -p node_modules/next/node_modules/@swc; mv node_modules/@swc/helpers node_modules/next/node_modules/@swc/',
+    buildCommand: 'npm run build',
+    startCommand: isNextDev ? 'npm run dev' : 'npm run start',
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   it('should work', async () => {
     const html = await renderViaHTTP(next.url, '/')

@@ -1,9 +1,8 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup } from 'e2e-utils'
 
 // FIXME: If NEXT_TEST_REACT_VERSION is set, skip the test for now. Need to address react/compiler-runtime
 // compatibility with React below 19.
 // _describe for cleaner git history.
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 const _describe = isReact18 ? describe.skip : describe
 
 _describe('app-dir - unstable_catchError with react compiler', () => {

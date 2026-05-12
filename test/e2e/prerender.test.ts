@@ -3,8 +3,7 @@ import cookie from 'cookie'
 import cheerio from 'cheerio'
 import { join, sep } from 'path'
 import escapeRegex from 'escape-string-regexp'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, isReact18, nextTestSetup } from 'e2e-utils'
 import {
   waitForRedbox,
   check,
@@ -20,42 +19,35 @@ import {
 import webdriver from 'next-webdriver'
 import stripAnsi from 'strip-ansi'
 
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
-
 describe('Prerender', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'prerender/pages')),
-        'world.txt': new FileRef(join(__dirname, 'prerender/world.txt')),
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'prerender/pages')),
+      'world.txt': new FileRef(join(__dirname, 'prerender/world.txt')),
+    },
+    dependencies: {
+      firebase: '7.14.5',
+    },
+    nextConfig: {
+      async rewrites() {
+        return [
+          {
+            source: '/some-rewrite/:item',
+            destination: '/blog/post-:item',
+          },
+          {
+            source: '/about',
+            destination: '/lang/en/about',
+          },
+          {
+            source: '/blocked-create',
+            destination: '/blocking-fallback/blocked-create',
+          },
+        ]
       },
-      dependencies: {
-        firebase: '7.14.5',
-      },
-      nextConfig: {
-        async rewrites() {
-          return [
-            {
-              source: '/some-rewrite/:item',
-              destination: '/blog/post-:item',
-            },
-            {
-              source: '/about',
-              destination: '/lang/en/about',
-            },
-            {
-              source: '/blocked-create',
-              destination: '/blocking-fallback/blocked-create',
-            },
-          ]
-        },
-      },
-      patchFileDelay: 500,
-    })
+    },
+    patchFileDelay: 500,
   })
-  afterAll(() => next.destroy())
 
   async function waitForCacheWrite(
     prerenderPath = '',
@@ -382,7 +374,6 @@ describe('Prerender', () => {
       ]
 
       for (const toBuild of toBuildBatches) {
-        // eslint-disable-next-line no-loop-func -- we're not accessing `next` after the loop was exited.
         await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
       }
 

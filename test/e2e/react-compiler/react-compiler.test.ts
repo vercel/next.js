@@ -1,9 +1,7 @@
-import { nextTestSetup, FileRef } from 'e2e-utils'
+import { isReact18, nextTestSetup, FileRef } from 'e2e-utils'
 import { waitForRedbox } from 'next-test-utils'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 function normalizeCodeLocInfo(str) {
   return (

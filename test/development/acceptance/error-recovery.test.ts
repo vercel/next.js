@@ -1,11 +1,9 @@
 /* eslint-env jest */
 import { createSandbox } from 'development-sandbox'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, isReact18, nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 import path from 'path'
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('pages/ error recovery', () => {
   const { next, isTurbopack, isRspack } = nextTestSetup({

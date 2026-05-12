@@ -1,19 +1,13 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check, renderViaHTTP, waitFor } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
 describe('fatal-render-error', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(join(__dirname, 'app')),
-      dependencies: {},
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(join(__dirname, 'app')),
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   it('should render page without error correctly', async () => {
     const html = await renderViaHTTP(next.url, '/')

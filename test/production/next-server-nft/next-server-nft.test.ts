@@ -1,9 +1,7 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import fs from 'fs'
 import { NextAdapter } from 'next'
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 function normalizeNFT(base: string, files: string[]): string[] {
   const result = [

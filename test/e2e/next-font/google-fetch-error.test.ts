@@ -1,5 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 
@@ -9,25 +8,21 @@ const mockedGoogleFontResponses = require.resolve(
 
 describe('next/font/google fetch error', () => {
   const isDev = (global as any).isNextDev
-  let next: NextInstance
 
   if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
   }
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'google-fetch-error/pages')),
-      },
-      env: {
-        NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
-      },
-      skipStart: true,
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'google-fetch-error/pages')),
+    },
+    env: {
+      NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
+    },
+    skipStart: true,
   })
-  afterAll(() => next.destroy())
 
   if (isDev) {
     it('should use a fallback font in dev', async () => {

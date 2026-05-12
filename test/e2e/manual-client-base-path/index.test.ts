@@ -1,5 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import httpProxy from 'http-proxy'
 import { join } from 'path'
 import http from 'http'
@@ -13,20 +12,20 @@ describe('manual-client-base-path', () => {
     return
   }
 
-  let next: NextInstance
   let server: http.Server
   let appPort: string
   const basePath = '/docs-proxy'
   const responses = new Set()
 
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'app/pages')),
+      'next.config.js': new FileRef(join(__dirname, 'app/next.config.js')),
+    },
+    dependencies: {},
+  })
+
   beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'app/pages')),
-        'next.config.js': new FileRef(join(__dirname, 'app/next.config.js')),
-      },
-      dependencies: {},
-    })
     const getProxyTarget = (req) => {
       const destination = new URL(next.url)
       const reqUrl = new URL(req.url, 'http://localhost')
@@ -89,7 +88,6 @@ describe('manual-client-base-path', () => {
     appPort = server.address().port
   })
   afterAll(async () => {
-    await next.destroy()
     try {
       server.close()
       responses.forEach((res: any) => res.end?.() || res.close?.())

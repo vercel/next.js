@@ -1,12 +1,13 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { createNext, FileRef } from 'e2e-utils'
-import { isNextStart, NextInstance } from 'e2e-utils'
+import { FileRef, isNextStart, nextTestSetup } from 'e2e-utils'
 import { listClientChunks } from 'next-test-utils'
 
 describe('Middleware Runtime', () => {
-  let next: NextInstance
+  const { next } = nextTestSetup({
+    files: new FileRef(join(__dirname, 'app')),
+  })
   let testPaths: Array<{ testPath: string }> = [
     { testPath: '/file.svg' },
     { testPath: '/vercel copy.svg' },
@@ -28,15 +29,6 @@ describe('Middleware Runtime', () => {
     { testPath: '/pages-glob%2fhello' },
     { testPath: '/pages-glob/hello' },
   ]
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(join(__dirname, 'app')),
-    })
-  })
-  afterAll(async () => {
-    await next.destroy()
-  })
 
   it.each(testPaths)(
     'should match middleware correctly for $testPath',

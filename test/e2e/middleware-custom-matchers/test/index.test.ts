@@ -2,33 +2,27 @@
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { fetchViaHTTP } from 'next-test-utils'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 
 const itif = (condition: boolean) => (condition ? it : it.skip)
 
 const isModeDeploy = process.env.NEXT_TEST_MODE === 'deploy'
 
 describe('Middleware custom matchers', () => {
-  let next: NextInstance
-
   if ((global as any).isNextDeploy && process.env.TEST_NODE_MIDDLEWARE) {
     return it('should skip deploy for now', () => {})
   }
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(join(__dirname, '../app')),
-      overrideFiles: process.env.TEST_NODE_MIDDLEWARE
-        ? {
-            'middleware.js': new FileRef(
-              join(__dirname, '../app/middleware-node.js')
-            ),
-          }
-        : {},
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(join(__dirname, '../app')),
+    overrideFiles: process.env.TEST_NODE_MIDDLEWARE
+      ? {
+          'middleware.js': new FileRef(
+            join(__dirname, '../app/middleware-node.js')
+          ),
+        }
+      : {},
   })
-  afterAll(() => next.destroy())
 
   const runTests = () => {
     it('should match missing header correctly', async () => {

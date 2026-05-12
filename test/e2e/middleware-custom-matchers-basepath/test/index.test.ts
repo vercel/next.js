@@ -4,22 +4,16 @@
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { fetchViaHTTP } from 'next-test-utils'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 
 const itif = (condition: boolean) => (condition ? it : it.skip)
 
 const isModeDeploy = process.env.NEXT_TEST_MODE === 'deploy'
 
 describe('Middleware custom matchers basePath', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(join(__dirname, '../app')),
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(join(__dirname, '../app')),
   })
-  afterAll(() => next.destroy())
 
   // FIXME
   // See https://linear.app/vercel/issue/EC-170/middleware-rewrite-of-nextjs-with-basepath-does-not-work-on-vercel

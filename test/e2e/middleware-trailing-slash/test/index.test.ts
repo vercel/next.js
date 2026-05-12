@@ -3,24 +3,16 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
 
 describe('Middleware Runtime trailing slash', () => {
-  let next: NextInstance
-
-  afterAll(async () => {
-    await next.destroy()
-  })
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
-        'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
-        pages: new FileRef(join(__dirname, '../app/pages')),
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
+      'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
+      pages: new FileRef(join(__dirname, '../app/pages')),
+    },
   })
 
   function runTests() {

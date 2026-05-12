@@ -1,7 +1,6 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
 
 function splitLines(text) {
@@ -31,7 +30,6 @@ async function testRoute(appPort, url, { isStatic, isEdge }) {
 }
 
 describe('Switchable runtime', () => {
-  let next: NextInstance
   let context
 
   if ((global as any).isNextDeploy) {
@@ -40,10 +38,11 @@ describe('Switchable runtime', () => {
     return
   }
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(__dirname),
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(__dirname),
+  })
+
+  beforeAll(() => {
     context = {
       appPort: next.url,
       appDir: next.testDir,
@@ -51,7 +50,6 @@ describe('Switchable runtime', () => {
       stderr: '',
     }
   })
-  afterAll(() => next.destroy())
 
   if ((global as any).isNextDev) {
     describe('Switchable runtime (dev)', () => {

@@ -1,22 +1,16 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import { Playwright } from 'next-webdriver'
 import webdriver from 'next-webdriver'
 import { check } from 'next-test-utils'
 
 describe('app-dir-prefetch-non-iso-url', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
-        app: new FileRef(join(__dirname, 'app')),
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
+      app: new FileRef(join(__dirname, 'app')),
+    },
   })
-  afterAll(() => next.destroy())
 
   it('should go to iso url', async () => {
     let browser: Playwright

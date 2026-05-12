@@ -1,20 +1,20 @@
 import { ChildProcess } from 'child_process'
-import { NextInstance, createNext } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import fs from 'fs-extra'
 import { findPort, initNextServerScript, killApp } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 
 describe('standalone mode: server actions', () => {
-  let next: NextInstance
   let server: ChildProcess
   let appPort: number
 
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+  })
+
   beforeAll(async () => {
-    next = await createNext({
-      files: __dirname,
-      skipStart: true,
-    })
     await next.build()
 
     await fs.move(
@@ -50,8 +50,6 @@ describe('standalone mode: server actions', () => {
   })
 
   afterAll(async () => {
-    await next.destroy()
-
     if (server) {
       await killApp(server)
     }

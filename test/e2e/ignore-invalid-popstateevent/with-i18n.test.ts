@@ -1,6 +1,5 @@
 import { join } from 'path'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
 import webdriver, { Playwright } from 'next-webdriver'
 
@@ -14,18 +13,13 @@ const emitPopsStateEvent = (browser: Playwright, state: HistoryState) =>
   )
 
 describe('i18n: Event with stale state - static route previously was dynamic', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'app/pages')),
-        'next.config.js': new FileRef(join(__dirname, 'app/next.config.js')),
-      },
-      dependencies: {},
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'app/pages')),
+      'next.config.js': new FileRef(join(__dirname, 'app/next.config.js')),
+    },
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   test('Ignore event without query param', async () => {
     const browser = await webdriver(next.url, '/sv/static')

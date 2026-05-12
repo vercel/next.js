@@ -1,18 +1,12 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import fs from 'fs-extra'
 import { join } from 'path'
 
 describe('og-api', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(join(__dirname, 'app')),
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(join(__dirname, 'app')),
   })
-  afterAll(() => next.destroy())
 
   it('should respond from index', async () => {
     const html = await renderViaHTTP(next.url, '/')

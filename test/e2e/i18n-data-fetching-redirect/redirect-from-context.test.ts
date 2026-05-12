@@ -1,28 +1,22 @@
 import { join } from 'path'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 describe('i18n-data-fetching-redirect', () => {
-  let next: NextInstance
-
   // TODO: investigate tests failures on deploy
   if ((global as any).isNextDeploy) {
     it('should skip temporarily', () => {})
     return
   }
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'app/pages')),
-        'next.config.js': new FileRef(join(__dirname, 'app/next.config.js')),
-      },
-      dependencies: {},
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'app/pages')),
+      'next.config.js': new FileRef(join(__dirname, 'app/next.config.js')),
+    },
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   describe('Redirect to locale from context', () => {
     test.each`

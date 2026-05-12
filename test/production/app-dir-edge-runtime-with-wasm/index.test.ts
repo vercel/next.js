@@ -1,6 +1,5 @@
 import path from 'path'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
 const files = {
@@ -38,14 +37,9 @@ const files = {
 }
 
 describe('app-dir edge runtime with wasm', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files,
-    })
+  const { next } = nextTestSetup({
+    files,
   })
-  afterAll(() => next?.destroy())
 
   it('should have built', async () => {
     const html = await renderViaHTTP(next.url, '/')

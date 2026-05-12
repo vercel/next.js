@@ -1,26 +1,21 @@
 import webdriver from 'next-webdriver'
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox } from 'next-test-utils'
 
 describe('basePath + trailingSlash', () => {
-  let next: NextInstance
   const basePath = '/docs'
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: __dirname,
-      nextConfig: {
-        trailingSlash: true,
-        basePath,
-        onDemandEntries: {
-          // Make sure entries are not getting disposed.
-          maxInactiveAge: 1000 * 60 * 60,
-        },
+  const { next } = nextTestSetup({
+    files: __dirname,
+    nextConfig: {
+      trailingSlash: true,
+      basePath,
+      onDemandEntries: {
+        // Make sure entries are not getting disposed.
+        maxInactiveAge: 1000 * 60 * 60,
       },
-    })
+    },
   })
-  afterAll(() => next.destroy())
 
   const runTests = (dev = false) => {
     it('should allow URL query strings without refresh', async () => {

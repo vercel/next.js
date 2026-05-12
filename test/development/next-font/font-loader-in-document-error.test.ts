@@ -1,20 +1,14 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
 describe('font-loader-in-document-error', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'font-loader-in-document/pages')),
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'font-loader-in-document/pages')),
+    },
   })
-  afterAll(() => next.destroy())
 
   test('next/font inside _document', async () => {
     const browser = await webdriver(next.url, '/')
