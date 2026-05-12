@@ -37,33 +37,35 @@ export interface StaticRoutesInfoOptions {
  * the relevant collector(s).
  */
 const CATEGORIES = [
-  'serverBundled',
-  'serverMaps',
-  'serverUnbundled',
   'clientJs',
-  'clientMaps',
   'clientCss',
+  'clientMaps',
+  'serverBundled',
+  'serverUnbundled',
+  'serverMaps',
 ] as const
 type Category = (typeof CATEGORIES)[number]
 
 /** Human-readable column titles, in the same order as CATEGORIES. */
 const CATEGORY_LABELS: Record<Category, string> = {
-  serverBundled: 'Server Bundled JS',
-  serverMaps: 'Server Maps',
-  serverUnbundled: 'Server Unbundled',
   clientJs: 'Client JS',
-  clientMaps: 'Client Maps',
   clientCss: 'Client CSS',
+  clientMaps: 'Client Source Maps',
+  serverBundled: 'Server Bundled JS',
+  serverUnbundled: 'Server Unbundled',
+  serverMaps: 'Server Source Maps',
 }
 
 /**
  * Per-route file sets, one entry per category.
  *
- * Paths are stored as:
- *   - relative to `distDir` for in-distDir files, and
- *   - absolute paths for `serverUnbundled` (which lives outside `distDir`).
+ * Paths are stored either relative to `distDir` (for files that live inside
+ * the build output) or as absolute paths (for files traced outside `distDir`,
+ * e.g. `node_modules` deps in `serverUnbundled`, or .map files traced from
+ * the same place). At measurement time we discriminate via
+ * `path.isAbsolute()` so each category can mix the two.
  *
- * Storing paths consistently lets us deduplicate by string equality both
+ * Storing paths as plain strings lets us deduplicate by string equality both
  * per-route and across routes (for the totals).
  */
 type FileSets = Record<Category, Set<string>>
@@ -92,14 +94,9 @@ interface RouteInfo extends CategoryStatsWithSharedByKey {
 }
 
 function emptyFileSets(): FileSets {
-  return {
-    serverBundled: new Set(),
-    serverMaps: new Set(),
-    serverUnbundled: new Set(),
-    clientJs: new Set(),
-    clientMaps: new Set(),
-    clientCss: new Set(),
-  }
+  const sets = {} as FileSets
+  for (const cat of CATEGORIES) sets[cat] = new Set()
+  return sets
 }
 
 // ---------------------------------------------------------------------------
@@ -294,12 +291,14 @@ function stripNextPrefix(p: string): string {
 
 /**
  * Walk the entry's `.nft.json` (Node File Trace) and partition its files:
- *   - `serverBundled`: .js files that resolve INSIDE distDir (server chunks)
- *   - `serverUnbundled`: any file that resolves OUTSIDE distDir (traced
- *     node_modules and other on-disk deps the server entry needs at runtime)
+ *   - `.map` files → `serverMaps` (regardless of in/out of distDir)
+ *   - other `.js` files inside distDir → `serverBundled` (server chunks)
+ *   - any other file outside distDir → `serverUnbundled` (traced node_modules
+ *     and other on-disk deps the server entry needs at runtime)
  *
- * Skips `.json` manifests and `_client-reference-manifest.js` files since
- * they aren't executable code we want to count as a server JS bundle.
+ * Files inside distDir that are neither `.js` nor `.map` (e.g. `.json`
+ * manifests, `_client-reference-manifest.js`) are skipped — they're either
+ * bundler bookkeeping or already accounted for elsewhere.
  */
 function collectServerEntryFiles(
   distDir: string,
@@ -323,7 +322,15 @@ function collectServerEntryFiles(
     // inside distDir it's a server chunk; if it leaves distDir it's an
     // unbundled trace dep (e.g. ../../../node_modules/...).
     const inDistDirPath = path.normalize(path.join(entryDirRel, relPath))
-    if (inDistDirPath.startsWith('..')) {
+    const outsideDistDir = inDistDirPath.startsWith('..')
+    const isMap = inDistDirPath.endsWith('.map')
+    if (isMap) {
+      // Source maps go into the maps category whether they're in or outside
+      // distDir, so they don't double-count under serverUnbundled.
+      sets.serverMaps.add(
+        outsideDistDir ? path.resolve(entryDirAbs, relPath) : inDistDirPath
+      )
+    } else if (outsideDistDir) {
       sets.serverUnbundled.add(path.resolve(entryDirAbs, relPath))
     } else if (
       inDistDirPath.endsWith('.js') &&
@@ -372,6 +379,9 @@ function parseClientReferenceManifest(filePath: string): {
  * Source: the route's `_client-reference-manifest.js` (entryJSFiles +
  * entryCSSFiles) plus its per-route `build-manifest.json` (rootMainFiles —
  * the shared App Router framework chunks).
+ *
+ * `.map` paths (which shouldn't appear here in current Next.js output but
+ * are filtered defensively) are routed to `clientMaps`.
  */
 function collectAppClientFiles(
   distDir: string,
@@ -387,12 +397,19 @@ function collectAppClientFiles(
   )
   if (crm) {
     for (const chunks of Object.values(crm.entryJSFiles ?? {})) {
-      for (const chunk of chunks) sets.clientJs.add(stripNextPrefix(chunk))
+      for (const chunk of chunks) {
+        const stripped = stripNextPrefix(chunk)
+        if (stripped.endsWith('.map')) sets.clientMaps.add(stripped)
+        else sets.clientJs.add(stripped)
+      }
     }
     for (const cssFiles of Object.values(crm.entryCSSFiles ?? {})) {
       for (const css of cssFiles) {
         const cssPath = typeof css === 'string' ? css : css.path
-        if (cssPath) sets.clientCss.add(stripNextPrefix(cssPath))
+        if (!cssPath) continue
+        const stripped = stripNextPrefix(cssPath)
+        if (stripped.endsWith('.map')) sets.clientMaps.add(stripped)
+        else sets.clientCss.add(stripped)
       }
     }
   }
@@ -401,14 +418,18 @@ function collectAppClientFiles(
   const bm = readJsonFile<{ rootMainFiles?: string[] }>(
     path.join(baseDir, entryBase, 'build-manifest.json')
   )
-  for (const chunk of bm?.rootMainFiles ?? []) sets.clientJs.add(chunk)
+  for (const chunk of bm?.rootMainFiles ?? []) {
+    if (chunk.endsWith('.map')) sets.clientMaps.add(chunk)
+    else sets.clientJs.add(chunk)
+  }
 }
 
 /**
  * Collect client JS for a Pages Router route. The global `build-manifest.json`
  * lists each page's chunks (`pages[route]`), the shared baseline (`/_app`),
  * and `polyfillFiles`. Per-page CSS is not tracked in the Pages build output,
- * so it's not collected here.
+ * so it's not collected here. `.map` paths are routed to `clientMaps`
+ * defensively.
  */
 function collectPagesClientFiles(
   distDir: string,
@@ -425,7 +446,10 @@ function collectPagesClientFiles(
     ...(bm.pages?.[route] ?? []),
     ...(bm.polyfillFiles ?? []),
   ]
-  for (const chunk of chunks) sets.clientJs.add(chunk)
+  for (const chunk of chunks) {
+    if (chunk.endsWith('.map')) sets.clientMaps.add(chunk)
+    else sets.clientJs.add(chunk)
+  }
 }
 
 /**
@@ -441,14 +465,23 @@ function collectPagesClientFiles(
  *
  * Only same-directory relative URLs are followed — `data:` URLs (inline
  * source maps) and absolute URLs are ignored.
+ *
+ * `urlCache` memoizes the trailer read across routes: a chunk shared by N
+ * routes is only opened once.
  */
 function deriveSourceMaps(
   distDir: string,
   source: Set<string>,
-  target: Set<string>
+  target: Set<string>,
+  urlCache: Map<string, string | null>
 ): void {
   for (const f of source) {
-    const mapFromUrl = readSourceMappingURL(path.join(distDir, f))
+    const fullPath = path.isAbsolute(f) ? f : path.join(distDir, f)
+    let mapFromUrl = urlCache.get(fullPath)
+    if (mapFromUrl === undefined) {
+      mapFromUrl = readSourceMappingURL(fullPath)
+      urlCache.set(fullPath, mapFromUrl)
+    }
     if (mapFromUrl) {
       // Resolve relative to the source file's directory, then re-express
       // relative to distDir so paths join consistently.
@@ -463,7 +496,10 @@ function deriveSourceMaps(
     }
     // Fallback: co-located `<file>.map`.
     const adjacent = f + '.map'
-    if (fs.existsSync(path.join(distDir, adjacent))) target.add(adjacent)
+    const adjacentFull = path.isAbsolute(adjacent)
+      ? adjacent
+      : path.join(distDir, adjacent)
+    if (fs.existsSync(adjacentFull)) target.add(adjacent)
   }
 }
 
@@ -507,16 +543,22 @@ function readSourceMappingURL(filePath: string): string | null {
 /**
  * Collect bundled `.js` files for an edge runtime entry. Edge bundles don't
  * have a `.nft.json`; their files are listed inline by middleware-manifest.
- * We filter to `.js` so we don't pick up the manifest .json siblings.
+ * `.map` files are routed to `serverMaps` so they don't pollute the bundle
+ * count; other extensions (manifest .json siblings) are dropped.
  */
 function collectEdgeFiles(files: string[], sets: FileSets): void {
   for (const f of files) {
     if (f.endsWith('.js')) sets.serverBundled.add(f)
+    else if (f.endsWith('.map')) sets.serverMaps.add(f)
   }
 }
 
 /** Collect all 6 file-sets for a single route. */
-function collectFiles(distDir: string, entry: RouteEntry): FileSets {
+function collectFiles(
+  distDir: string,
+  entry: RouteEntry,
+  urlCache: Map<string, string | null>
+): FileSets {
   const sets = emptyFileSets()
 
   switch (entry.type) {
@@ -561,9 +603,9 @@ function collectFiles(distDir: string, entry: RouteEntry): FileSets {
   // Source maps for everything we collected above. Both .js.map and
   // .css.map files are picked up by reading the `sourceMappingURL`
   // trailer of each source file.
-  deriveSourceMaps(distDir, sets.serverBundled, sets.serverMaps)
-  deriveSourceMaps(distDir, sets.clientJs, sets.clientMaps)
-  deriveSourceMaps(distDir, sets.clientCss, sets.clientMaps)
+  deriveSourceMaps(distDir, sets.serverBundled, sets.serverMaps, urlCache)
+  deriveSourceMaps(distDir, sets.clientJs, sets.clientMaps, urlCache)
+  deriveSourceMaps(distDir, sets.clientCss, sets.clientMaps, urlCache)
 
   return sets
 }
@@ -573,23 +615,16 @@ function collectFiles(distDir: string, entry: RouteEntry): FileSets {
 // ---------------------------------------------------------------------------
 
 /**
- * Per-category map from file path -> on-disk size in bytes, or `null` if the
- * path doesn't refer to a regular file (symlink, directory, missing, etc.).
- * Stats are looked up once per unique path, so repeatedly measuring the same
- * file across routes doesn't pay the syscall cost more than once.
+ * File-size cache, keyed by the stored path string (relative to `distDir`
+ * for in-distDir files, absolute otherwise). `null` means the path doesn't
+ * resolve to a regular file (symlink, missing, directory, etc.) and should
+ * be excluded from counts.
+ *
+ * A single shared cache covers all categories: a path appears in only one
+ * category by design, but using one map keeps the API simple and ensures we
+ * stat each unique file at most once across the whole tool run.
  */
-type SizeCache = Record<Category, Map<string, number | null>>
-
-function emptySizeCache(): SizeCache {
-  return {
-    serverBundled: new Map(),
-    serverMaps: new Map(),
-    serverUnbundled: new Map(),
-    clientJs: new Map(),
-    clientMaps: new Map(),
-    clientCss: new Map(),
-  }
-}
+type SizeCache = Map<string, number | null>
 
 /**
  * Stat every unique file across every route's file sets and cache the size.
@@ -597,15 +632,12 @@ function emptySizeCache(): SizeCache {
  * don't re-stat and so they're excluded from later counts.
  */
 function buildSizeCache(distDir: string, allFileSets: FileSets[]): SizeCache {
-  const caches = emptySizeCache()
+  const cache: SizeCache = new Map()
   for (const sets of allFileSets) {
     for (const cat of CATEGORIES) {
-      const cache = caches[cat]
-      // Only `serverUnbundled` stores absolute paths (see FileSets docs).
-      const isAbsolute = cat === 'serverUnbundled'
       for (const f of sets[cat]) {
         if (cache.has(f)) continue
-        const fullPath = isAbsolute ? f : path.join(distDir, f)
+        const fullPath = path.isAbsolute(f) ? f : path.join(distDir, f)
         try {
           const stat = fs.lstatSync(fullPath)
           cache.set(
@@ -618,14 +650,11 @@ function buildSizeCache(distDir: string, allFileSets: FileSets[]): SizeCache {
       }
     }
   }
-  return caches
+  return cache
 }
 
 /** Sum sizes for the files in `set` using the precomputed cache. */
-function measureFromCache(
-  set: Set<string>,
-  cache: Map<string, number | null>
-): CategoryStats {
+function measureFromCache(set: Set<string>, cache: SizeCache): CategoryStats {
   let count = 0
   let bytes = 0
   for (const f of set) {
@@ -638,13 +667,10 @@ function measureFromCache(
   return { count, bytes }
 }
 
-function measureFileSets(
-  sets: FileSets,
-  caches: SizeCache
-): CategoryStatsByKey {
+function measureFileSets(sets: FileSets, cache: SizeCache): CategoryStatsByKey {
   const result = {} as CategoryStatsByKey
   for (const cat of CATEGORIES) {
-    result[cat] = measureFromCache(sets[cat], caches[cat])
+    result[cat] = measureFromCache(sets[cat], cache)
   }
   return result
 }
@@ -662,7 +688,7 @@ function measureSharedAvg(
   routeIndex: number,
   allFileSets: FileSets[],
   routeEntries: RouteEntry[],
-  caches: SizeCache
+  cache: SizeCache
 ): Record<Category, CategoryStats | null> {
   const myType = routeEntries[routeIndex].type
   const peers: number[] = []
@@ -677,7 +703,6 @@ function measureSharedAvg(
       continue
     }
     const mySet = allFileSets[routeIndex][cat]
-    const cache = caches[cat]
     let sumCount = 0
     let sumBytes = 0
     for (const j of peers) {
@@ -815,19 +840,24 @@ export async function staticRoutesInfoCli(
     process.exit(1)
   }
 
-  // Step 1+2: capture per-route files (sets implicitly deduplicate).
+  // Step 1+2: capture per-route files (sets implicitly deduplicate). The
+  // `urlCache` memoizes `sourceMappingURL` reads — a chunk shared by N
+  // routes only opens its file once.
   const routeEntries = discoverRoutes(distDir)
-  const allFileSets = routeEntries.map((entry) => collectFiles(distDir, entry))
+  const urlCache = new Map<string, string | null>()
+  const allFileSets = routeEntries.map((entry) =>
+    collectFiles(distDir, entry, urlCache)
+  )
 
   // Step 3a: stat every unique file once and cache the size, so per-route
   // measurement and shared-avg calculation don't repeat syscalls.
-  const sizeCaches = buildSizeCache(distDir, allFileSets)
+  const sizeCache = buildSizeCache(distDir, allFileSets)
 
   // Step 3b: measure per-route, then sort by total size descending. Each
   // category also carries a `sharedAvg` against its same-type peers.
   const routeInfos: RouteInfo[] = routeEntries.map((entry, i) => {
-    const stats = measureFileSets(allFileSets[i], sizeCaches)
-    const shared = measureSharedAvg(i, allFileSets, routeEntries, sizeCaches)
+    const stats = measureFileSets(allFileSets[i], sizeCache)
+    const shared = measureSharedAvg(i, allFileSets, routeEntries, sizeCache)
     const merged = {} as CategoryStatsWithSharedByKey
     for (const cat of CATEGORIES) {
       merged[cat] = { ...stats[cat], sharedAvg: shared[cat] }
@@ -837,7 +867,7 @@ export async function staticRoutesInfoCli(
   routeInfos.sort((a, b) => totalBytes(b) - totalBytes(a))
 
   // Project-wide totals — union of all route sets, regardless of --limit.
-  const totals = measureFileSets(mergeSets(allFileSets), sizeCaches)
+  const totals = measureFileSets(mergeSets(allFileSets), sizeCache)
 
   const displayRoutes =
     options.limit != null && options.limit > 0

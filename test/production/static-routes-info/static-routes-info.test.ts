@@ -298,12 +298,12 @@ describe('next internal static-routes-info', () => {
     for (const header of [
       'Route',
       'Type',
-      'Server Bundled JS',
-      'Server Maps',
-      'Server Unbundled',
       'Client JS',
-      'Client Maps',
       'Client CSS',
+      'Client Source Maps',
+      'Server Bundled JS',
+      'Server Unbundled',
+      'Server Source Maps',
     ]) {
       expect(out).toContain(header)
     }
