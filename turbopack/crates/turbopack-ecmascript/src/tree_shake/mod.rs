@@ -437,7 +437,7 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
     )
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "skip", eq = "manual")]
 pub(crate) enum SplitResult {
     Ok {
         asset_ident: ResolvedVc<AssetIdent>,
@@ -500,6 +500,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
             eval_context,
             source_map,
             globals,
+            program_source,
             ..
         } => {
             // If the script file is a common js file, we cannot split the module
@@ -563,13 +564,16 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
                 .into_iter()
                 .map(|module| {
                     let program = Program::Module(module);
-                    let eval_context = EvalContext::new(
-                        Some(&program),
-                        eval_context.unresolved_mark,
-                        eval_context.top_level_mark,
-                        eval_context.force_free_values.clone(),
-                        None,
-                    );
+
+                    let eval_context = GLOBALS.set(globals, || {
+                        EvalContext::new(
+                            Some(&program),
+                            eval_context.unresolved_mark,
+                            eval_context.top_level_mark,
+                            eval_context.force_free_values.clone(),
+                            None,
+                        )
+                    });
 
                     ParseResult::resolved_cell(ParseResult::Ok {
                         program,
@@ -578,6 +582,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
                         source_map: source_map.clone(),
                         eval_context,
                         source_mapping_url: None,
+                        program_source: program_source.clone(),
                     })
                 })
                 .collect();
@@ -623,6 +628,7 @@ pub(crate) async fn part_of_module(
                     eval_context,
                     globals,
                     source_map,
+                    program_source,
                     ..
                 } = &*modules[0].await?
                 {
@@ -688,13 +694,15 @@ pub(crate) async fn part_of_module(
                     }));
 
                     let program = Program::Module(module);
-                    let eval_context = EvalContext::new(
-                        Some(&program),
-                        eval_context.unresolved_mark,
-                        eval_context.top_level_mark,
-                        eval_context.force_free_values.clone(),
-                        None,
-                    );
+                    let eval_context = GLOBALS.set(globals, || {
+                        EvalContext::new(
+                            Some(&program),
+                            eval_context.unresolved_mark,
+                            eval_context.top_level_mark,
+                            eval_context.force_free_values.clone(),
+                            None,
+                        )
+                    });
 
                     return Ok(ParseResult::Ok {
                         program,
@@ -703,6 +711,7 @@ pub(crate) async fn part_of_module(
                         globals: globals.clone(),
                         source_map: source_map.clone(),
                         source_mapping_url: None,
+                        program_source: program_source.clone(),
                     }
                     .cell());
                 } else {

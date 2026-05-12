@@ -1,5 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
@@ -10,14 +9,9 @@ import {
 
 // TODO: The error overlay is not closed when restoring the working code.
 describe.skip('next/font build-errors', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(join(__dirname, 'build-errors')),
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(join(__dirname, 'build-errors')),
   })
-  afterAll(() => next.destroy())
 
   it('should show a next/font error when input is wrong', async () => {
     const browser = await webdriver(next.url, '/')

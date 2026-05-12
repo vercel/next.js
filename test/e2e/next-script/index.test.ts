@@ -1,48 +1,43 @@
 import webdriver, { Playwright } from 'next-webdriver'
-import { createNext } from 'e2e-utils'
+import { createNext, nextTestSetup } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('beforeInteractive in document Head', () => {
-  let next: NextInstance
+  const { next } = nextTestSetup({
+    files: {
+      'pages/_document.js': `
+        import { Html, Head, Main, NextScript } from 'next/document'
+        import Script from 'next/script'
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/_document.js': `
-          import { Html, Head, Main, NextScript } from 'next/document'
-          import Script from 'next/script'
-
-          export default function Document() {
-            return (
-              <Html>
-                <Head>
-                  <Script
-                    src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
-                    strategy="beforeInteractive"
-                  ></Script>
-                </Head>
-                <body>
-                  <Main />
-                  <NextScript />
-                </body>
-              </Html>
-            )
-          }
-        `,
-        'pages/index.js': `
-          export default function Home() {
-            return (
-              <>
-                <p>Home page</p>
-              </>
-            )
-          }
-        `,
-      },
-    })
+        export default function Document() {
+          return (
+            <Html>
+              <Head>
+                <Script
+                  src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
+                  strategy="beforeInteractive"
+                ></Script>
+              </Head>
+              <body>
+                <Main />
+                <NextScript />
+              </body>
+            </Html>
+          )
+        }
+      `,
+      'pages/index.js': `
+        export default function Home() {
+          return (
+            <>
+              <p>Home page</p>
+            </>
+          )
+        }
+      `,
+    },
   })
-  afterAll(() => next.destroy())
 
   it('Script is injected server-side', async () => {
     let browser: Playwright
@@ -61,44 +56,39 @@ describe('beforeInteractive in document Head', () => {
 })
 
 describe('beforeInteractive in document body', () => {
-  let next: NextInstance
+  const { next } = nextTestSetup({
+    files: {
+      'pages/_document.js': `
+        import { Html, Head, Main, NextScript } from 'next/document'
+        import Script from 'next/script'
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/_document.js': `
-          import { Html, Head, Main, NextScript } from 'next/document'
-          import Script from 'next/script'
-
-          export default function Document() {
-            return (
-              <Html>
-                <Head />
-                <body>
-                  <Main />
-                  <NextScript />
-                  <Script
-                    src="https://www.google-analytics.com/analytics.js"
-                    strategy="beforeInteractive"
-                  />
-                </body>
-              </Html>
-            )
-          }
-        `,
-        'pages/index.js': `
-          export default function Home() {
-            return (
-              <>
-                <p>Home page</p>
-              </>
-            )
-          }
-        `,
-      },
-    })
+        export default function Document() {
+          return (
+            <Html>
+              <Head />
+              <body>
+                <Main />
+                <NextScript />
+                <Script
+                  src="https://www.google-analytics.com/analytics.js"
+                  strategy="beforeInteractive"
+                />
+              </body>
+            </Html>
+          )
+        }
+      `,
+      'pages/index.js': `
+        export default function Home() {
+          return (
+            <>
+              <p>Home page</p>
+            </>
+          )
+        }
+      `,
+    },
   })
-  afterAll(() => next.destroy())
 
   it('Script is injected server-side', async () => {
     let browser: Playwright
@@ -118,44 +108,39 @@ describe('beforeInteractive in document body', () => {
 })
 
 describe('empty strategy in document Head', () => {
-  let next: NextInstance
+  const { next } = nextTestSetup({
+    files: {
+      'pages/_document.js': `
+        import { Html, Head, Main, NextScript } from 'next/document'
+        import Script from 'next/script'
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/_document.js': `
-          import { Html, Head, Main, NextScript } from 'next/document'
-          import Script from 'next/script'
-
-          export default function Document() {
-            return (
-              <Html>
-                <Head>
-                  <Script
-                    src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
-                  ></Script>
-                </Head>
-                <body>
-                  <Main />
-                  <NextScript />
-                </body>
-              </Html>
-            )
-          }
-        `,
-        'pages/index.js': `
-          export default function Home() {
-            return (
-              <>
-                <p>Home page</p>
-              </>
-            )
-          }
-        `,
-      },
-    })
+        export default function Document() {
+          return (
+            <Html>
+              <Head>
+                <Script
+                  src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
+                ></Script>
+              </Head>
+              <body>
+                <Main />
+                <NextScript />
+              </body>
+            </Html>
+          )
+        }
+      `,
+      'pages/index.js': `
+        export default function Home() {
+          return (
+            <>
+              <p>Home page</p>
+            </>
+          )
+        }
+      `,
+    },
   })
-  afterAll(() => next.destroy())
 
   it('Script is injected server-side', async () => {
     let browser: Playwright
@@ -174,43 +159,38 @@ describe('empty strategy in document Head', () => {
 })
 
 describe('empty strategy in document body', () => {
-  let next: NextInstance
+  const { next } = nextTestSetup({
+    files: {
+      'pages/_document.js': `
+        import { Html, Head, Main, NextScript } from 'next/document'
+        import Script from 'next/script'
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/_document.js': `
-          import { Html, Head, Main, NextScript } from 'next/document'
-          import Script from 'next/script'
-
-          export default function Document() {
-            return (
-              <Html>
-                <Head/>
-                <body>
-                  <Main />
-                  <NextScript />
-                  <Script
-                    src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
-                  />
-                </body>
-              </Html>
-            )
-          }
-        `,
-        'pages/index.js': `
-          export default function Home() {
-            return (
-              <>
-                <p>Home page</p>
-              </>
-            )
-          }
-        `,
-      },
-    })
+        export default function Document() {
+          return (
+            <Html>
+              <Head/>
+              <body>
+                <Main />
+                <NextScript />
+                <Script
+                  src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
+                />
+              </body>
+            </Html>
+          )
+        }
+      `,
+      'pages/index.js': `
+        export default function Home() {
+          return (
+            <>
+              <p>Home page</p>
+            </>
+          )
+        }
+      `,
+    },
   })
-  afterAll(() => next.destroy())
 
   it('Script is injected server-side', async () => {
     let browser: Playwright
@@ -231,12 +211,9 @@ describe('empty strategy in document body', () => {
   'experimental.nextScriptWorkers',
   () => {
     describe('experimental.nextScriptWorkers: false with no Partytown dependency', () => {
-      let next: NextInstance
-
-      beforeAll(async () => {
-        next = await createNext({
-          files: {
-            'pages/index.js': `
+      const { next } = nextTestSetup({
+        files: {
+          'pages/index.js': `
           import Script from 'next/script'
 
           export default function Page() {
@@ -250,10 +227,8 @@ describe('empty strategy in document body', () => {
             )
           }
         `,
-          },
-        })
+        },
       })
-      afterAll(() => next.destroy())
 
       it('Partytown snippet is not injected to head if not enabled in configuration', async () => {
         let browser: Playwright
@@ -273,17 +248,14 @@ describe('empty strategy in document body', () => {
     })
 
     describe('experimental.nextScriptWorkers: true with required Partytown dependency for external script', () => {
-      let next: NextInstance
-
-      beforeAll(async () => {
-        next = await createNext({
-          nextConfig: {
-            experimental: {
-              nextScriptWorkers: true,
-            },
+      const { next } = nextTestSetup({
+        nextConfig: {
+          experimental: {
+            nextScriptWorkers: true,
           },
-          files: {
-            'pages/index.js': `
+        },
+        files: {
+          'pages/index.js': `
           import Script from 'next/script'
 
           export default function Page() {
@@ -297,13 +269,11 @@ describe('empty strategy in document body', () => {
             )
           }
         `,
-          },
-          dependencies: {
-            '@builder.io/partytown': '0.4.2',
-          },
-        })
+        },
+        dependencies: {
+          '@builder.io/partytown': '0.4.2',
+        },
       })
-      afterAll(() => next.destroy())
 
       it('Partytown snippets are injected to head if enabled in configuration', async () => {
         let browser: Playwright
@@ -442,17 +412,14 @@ describe('empty strategy in document body', () => {
     })
 
     describe('experimental.nextScriptWorkers: true with config override', () => {
-      let next: NextInstance
-
-      beforeAll(async () => {
-        next = await createNext({
-          nextConfig: {
-            experimental: {
-              nextScriptWorkers: true,
-            },
+      const { next } = nextTestSetup({
+        nextConfig: {
+          experimental: {
+            nextScriptWorkers: true,
           },
-          files: {
-            'pages/_document.js': `
+        },
+        files: {
+          'pages/_document.js': `
         import Document, { Html, Head, Main, NextScript } from "next/document";
 
         class MyDocument extends Document {
@@ -483,7 +450,7 @@ describe('empty strategy in document body', () => {
 
         export default MyDocument;
         `,
-            'pages/index.js': `
+          'pages/index.js': `
           import Script from 'next/script'
 
           export default function Page() {
@@ -497,13 +464,11 @@ describe('empty strategy in document body', () => {
             )
           }
         `,
-          },
-          dependencies: {
-            '@builder.io/partytown': '0.4.2',
-          },
-        })
+        },
+        dependencies: {
+          '@builder.io/partytown': '0.4.2',
+        },
       })
-      afterAll(() => next.destroy())
 
       it('Partytown config script is overwritten', async () => {
         let browser: Playwright

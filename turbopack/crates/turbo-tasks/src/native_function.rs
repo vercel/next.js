@@ -259,6 +259,8 @@ impl NativeFunction {
     }
 
     /// Executed the function
+    ///
+    /// NOTE: this may return a local vc
     pub fn execute(
         &'static self,
         this: Option<RawVc>,

@@ -135,7 +135,7 @@ describe('middleware-static-rewrite', () => {
 
     it('should revalidate the overview page without replacing it with a 404', async () => {
       const url = new URL('/my-team', 'http://localhost')
-      const rsc = computeCacheBustingSearchParam(
+      const rsc = await computeCacheBustingSearchParam(
         '1',
         '/_head',
         undefined,

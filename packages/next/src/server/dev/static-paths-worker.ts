@@ -57,7 +57,10 @@ export async function loadStaticPaths({
   cacheLifeProfiles,
   nextConfigOutput,
   buildId,
+  deploymentId,
   authInterrupts,
+  useCacheTimeout,
+  staticPageGenerationTimeout,
   sriEnabled,
 }: {
   dir: string
@@ -80,7 +83,10 @@ export async function loadStaticPaths({
   }
   nextConfigOutput: 'standalone' | 'export' | undefined
   buildId: string
+  deploymentId: string
   authInterrupts: boolean
+  useCacheTimeout: number
+  staticPageGenerationTimeout: number
   sriEnabled: boolean
 }): Promise<StaticPathsResult> {
   // this needs to be initialized before loadComponents otherwise
@@ -150,7 +156,10 @@ export async function loadStaticPaths({
       isRoutePPREnabled,
       partialFallbacksEnabled: config.partialFallbacks,
       buildId,
+      deploymentId,
       authInterrupts,
+      useCacheTimeout,
+      staticPageGenerationTimeout,
       rootParamKeys,
     })
   } else if (!components.getStaticPaths) {

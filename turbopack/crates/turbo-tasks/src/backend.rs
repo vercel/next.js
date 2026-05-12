@@ -30,7 +30,7 @@ use turbo_tasks_hash::DeterministicHasher;
 use crate::{
     RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
     TaskPriority, TraitRef, TraitTypeId, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
-    VcValueTrait, VcValueType,
+    ValueTypePersistence, VcValueTrait, VcValueType,
     dyn_task_inputs::{DynTaskInputs, StackDynTaskInputs},
     event::EventListener,
     macro_helpers::NativeFunction,
@@ -258,10 +258,10 @@ impl TypedCellContent {
         let Self(type_id, content) = self;
         let value_type = registry::get_value_type(*type_id);
         type_id.encode(enc)?;
-        if let Some(bincode) = value_type.bincode {
+        if let ValueTypePersistence::Persistable(encode_fn, _) = value_type.persistence {
             if let Some(reference) = &content.0 {
                 true.encode(enc)?;
-                bincode.0(&*reference.0, enc)?;
+                encode_fn(&*reference.0, enc)?;
                 Ok(())
             } else {
                 false.encode(enc)?;
@@ -275,10 +275,10 @@ impl TypedCellContent {
     pub fn decode(dec: &mut TurboBincodeDecoder) -> Result<Self, DecodeError> {
         let type_id = ValueTypeId::decode(dec)?;
         let value_type = registry::get_value_type(type_id);
-        if let Some(bincode) = value_type.bincode {
+        if let ValueTypePersistence::Persistable(_, decode_fn) = value_type.persistence {
             let is_some = bool::decode(dec)?;
             if is_some {
-                let reference = bincode.1(dec)?;
+                let reference = decode_fn(dec)?;
                 return Ok(TypedCellContent(type_id, CellContent(Some(reference))));
             }
         }
@@ -558,6 +558,11 @@ pub trait Backend: Sync + Send {
 
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
+    /// Called when a task's execution finishes.
+    ///
+    /// Returns `Some(priority)` if the task was invalidated again while executing and must be
+    /// re-run. The caller is responsible for re-scheduling the task at the returned priority
+    /// (typically lower than the priority of the just-finished run).
     fn task_execution_completed(
         &self,
         task: TaskId,
@@ -566,7 +571,7 @@ pub trait Backend: Sync + Send {
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> bool;
+    ) -> Option<TaskPriority>;
 
     type BackendJob: Send + 'static;
 
@@ -603,14 +608,8 @@ pub trait Backend: Sync + Send {
         &self,
         current_task: TaskId,
         index: CellId,
-        options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<TypedCellContent> {
-        match self.try_read_task_cell(current_task, index, None, options, turbo_tasks)? {
-            Ok(content) => Ok(content),
-            Err(_) => Ok(TypedCellContent(index.type_id, CellContent(None))),
-        }
-    }
+    ) -> Result<TypedCellContent>;
 
     /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
     /// using it could break cache invalidation.
@@ -643,7 +642,6 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         index: CellId,
-        is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         content_hash: Option<CellHash>,

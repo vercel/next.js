@@ -24,7 +24,7 @@ use crate::{
     utils::unparen,
 };
 
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "skip")]
 #[derive(Debug)]
 pub enum WebpackRuntime {
     Webpack5 {
@@ -233,7 +233,7 @@ pub async fn webpack_runtime(
 
                     return Ok(WebpackRuntime::Webpack5 {
                         chunk_request_expr: value,
-                        context_path: source.ident().path().await?.parent(),
+                        context_path: source.ident().await?.path.parent(),
                     }
                     .cell());
                 }

@@ -256,14 +256,14 @@ async fn handle_declared_export(
     match export {
         EsmExport::ImportedBinding(reference, name, _) => {
             if let ReferencedAsset::Some(module) =
-                *ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
+                ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
             {
                 return Ok(ControlFlow::Continue((*module, name.clone())));
             }
         }
         EsmExport::ImportedNamespace(reference) => {
             if let ReferencedAsset::Some(module) =
-                *ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
+                ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
             {
                 return Ok(ControlFlow::Break(FollowExportsResult {
                     module,
@@ -378,7 +378,7 @@ async fn get_all_export_names(
         .map(|esm_ref| async {
             Ok(
                 if let ReferencedAsset::Some(m) =
-                    *ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
+                    ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
                 {
                     Some(expand_star_exports(**esm_ref, *m))
                 } else {
@@ -445,7 +445,7 @@ pub async fn expand_star_exports(
                 }
                 for esm_ref in exports.star_exports.iter() {
                     if let ReferencedAsset::Some(asset) =
-                        &*ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
+                        &ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
                         && checked_modules.insert(*asset)
                     {
                         queue.push((*esm_ref, *asset, asset.get_exports()));
@@ -598,7 +598,7 @@ impl EsmExports {
             // TODO(PACK-2176): we probably need to handle re-exporting from external
             // modules.
             let ReferencedAsset::Some(asset) =
-                &*ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
+                &ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
             else {
                 continue;
             };
@@ -786,7 +786,7 @@ impl EsmExports {
                                         }
                                     }
                                 },
-                                ReferencedAssetIdent::Module { namespace_ident:_, ctxt:_, export:_ } => {
+                                ReferencedAssetIdent::Module { .. } => {
                                     // Otherwise we need to bind as a getter to preserve the 'liveness' of the other modules bindings.
                                     // TODO: If this becomes important it might be faster to use the runtime to copy PropertyDescriptors across modules
                                     // since that would reduce allocations and optimize access. We could do this by passing the module-id up.

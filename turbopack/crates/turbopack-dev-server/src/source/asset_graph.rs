@@ -28,7 +28,7 @@ struct OutputAssetsMap(
 
 type ExpandedState = State<FxHashSet<RcStr>>;
 
-#[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(serialization = "skip", eq = "manual", cell = "new")]
 pub struct AssetGraphContentSource {
     root_path: FileSystemPath,
     root_assets: ResolvedVc<OutputAssetsSet>,
@@ -193,7 +193,7 @@ fn get_sub_paths(sub_path: &str) -> ([RcStr; 3], usize) {
     (sub_paths_buffer, n)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn all_assets_map_operation(source: ResolvedVc<AssetGraphContentSource>) -> Vc<OutputAssetsMap> {
     source.all_assets_map()
 }
