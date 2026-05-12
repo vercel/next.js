@@ -197,6 +197,19 @@ jobs:
         # standalone default here so the bound address matches what tests
         # expect.
         HOSTNAME: 0.0.0.0
+        # Force Node's `dns.lookup` resolution order back to IPv4-first.
+        # Node 17+ defaults to `verbatim`, which returns addresses in
+        # whatever order `/etc/hosts` lists them. The Docker-managed
+        # `/etc/hosts` inside the Playwright container can list `::1`
+        # before `127.0.0.1` for `localhost`, so a `server.listen(0,
+        # 'localhost', …)` call ends up bound on `::1` while the test's
+        # subsequent `fetch('http://localhost:<port>')` resolves to
+        # `127.0.0.1` and gets ECONNREFUSED (e.g.
+        # `test/e2e/next-analyze/next-analyze.test.ts`). On bare
+        # runners (where `127.0.0.1` is listed first) the historical
+        # `ipv4first` ordering matches the resolved address, so this
+        # also keeps container behaviour aligned with the host runners.
+        NODE_OPTIONS: '--dns-result-order=ipv4first'
         # Note: we cannot set `HOME` here. GitHub Actions hardcodes
         # `HOME=/github/home` for every step in a container job and
         # overrides anything set via `container.env`. The Microsoft
