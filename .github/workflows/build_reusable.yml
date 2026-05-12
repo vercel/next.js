@@ -107,10 +107,15 @@ on:
           the same version as the `playwright` dependency in `package.json`;
           the image ships Chromium/Firefox/WebKit and all system deps
           preinstalled, so the per-job install step is skipped on Linux.
+          Use the `-noble` (Ubuntu 24.04) variant so its glibc (>=2.39)
+          matches the `ubuntu-latest` host runners that build the
+          `next-swc.linux-x64-gnu.node` native binary; an older base (e.g.
+          `-jammy`) fails to dlopen the native binary at runtime with
+          `GLIBC_2.39 not found`.
           Keep in sync with `scripts/check-playwright-image-version.mjs`.
         required: false
         type: string
-        default: 'mcr.microsoft.com/playwright:v1.58.2-jammy'
+        default: 'mcr.microsoft.com/playwright:v1.58.2-noble'
       usePlaywrightContainer:
         description: >
           When 'no', run the job directly on the Linux runner and install
@@ -208,8 +213,8 @@ jobs:
             echo "found=false" >> $GITHUB_OUTPUT
           fi
 
-      # The Microsoft Playwright `*-jammy` container image does not ship
-      # `jq` or `unzip`, but the Install fnm step below uses the
+      # The Microsoft Playwright container images do not ship `jq` or
+      # `unzip`, but the Install fnm step below uses the
       # `fnm.vercel.app/install` script which requires `unzip`, and pipes
       # `fnm env --json` through `jq`. Install both when running as root
       # (i.e. inside the container). On the host runners these are already

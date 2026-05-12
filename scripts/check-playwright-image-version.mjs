@@ -82,6 +82,12 @@ if (!match) {
 }
 
 const [, fullImage, imageVersion] = match
+// Preserve the existing OS suffix (e.g. `-noble`) so a bump only changes
+// the playwright version, not the base OS that ships glibc.
+const suffixMatch = fullImage.match(
+  /^mcr\.microsoft\.com\/playwright:v[^-]+(-[a-z0-9]+)?$/
+)
+const osSuffix = suffixMatch?.[1] ?? '-noble'
 
 if (imageVersion !== playwrightVersion) {
   fail(
@@ -89,7 +95,7 @@ if (imageVersion !== playwrightVersion) {
       `  package.json playwright = ${playwrightVersion}\n` +
       `  ${path.relative(repoRoot, workflowPath)} image = ${fullImage}\n\n` +
       `Update the \`playwrightDockerImage\` default in ${path.relative(repoRoot, workflowPath)} ` +
-      `to \`mcr.microsoft.com/playwright:v${playwrightVersion}-jammy\` (or run the equivalent edit) ` +
+      `to \`mcr.microsoft.com/playwright:v${playwrightVersion}${osSuffix}\` (or run the equivalent edit) ` +
       `so the container has the matching browser binaries baked in.`
   )
 }
