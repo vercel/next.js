@@ -43,8 +43,12 @@ export function CallStack({
 
 export const CALL_STACK_STYLES = css`
   [data-nextjs-call-stack-container] {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
     position: relative;
     margin: 0;
+    padding: 20px 0;
   }
 
   [data-nextjs-call-stack-header] {
