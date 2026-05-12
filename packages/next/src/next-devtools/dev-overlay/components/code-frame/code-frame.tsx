@@ -6,7 +6,9 @@ import { FileDependentIcon } from '../../icons/file-dependent'
 import { FileIcon } from '../../icons/file'
 import {
   formatCodeFrame,
+  getCaretOverlayTextFromCodeFrameLine,
   groupCodeFrameLines,
+  isCaretCodeFrameLine,
   parseLineNumberFromCodeFrameLine,
 } from './parse-code-frame'
 
@@ -34,8 +36,6 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
   })
 
   const fileExtension = stackFrame?.file?.split('.').pop()
-
-  // TODO: make the caret absolute
   return (
     <div data-nextjs-codeframe>
       <div className="code-frame-header">
@@ -65,12 +65,13 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
         <div className="code-frame-lines">
           {parsedLineStates.map(({ line, parsedLine }, lineIndex) => {
             const { lineNumber, isErroredLine } = parsedLine
-            const isCaretLine =
-              !lineNumber &&
-              line.some((entry) => entry.content.includes('^')) &&
-              line.every((entry) => /^[\s|^]*$/.test(entry.content))
+            const nextLine = parsedLineStates[lineIndex + 1]?.line
+            const caretOverlayText =
+              isErroredLine && nextLine
+                ? getCaretOverlayTextFromCodeFrameLine(nextLine)
+                : undefined
 
-            if (isCaretLine) {
+            if (isCaretCodeFrameLine(line)) {
               return null
             }
 
@@ -111,6 +112,9 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
                     </span>
                   )
                 })}
+                {caretOverlayText ? (
+                  <span data-nextjs-codeframe-caret>{caretOverlayText}</span>
+                ) : null}
               </div>
             )
           })}
@@ -220,7 +224,7 @@ export const CODE_FRAME_STYLES = `
     position: relative;
     isolation: isolate;
 
-    > span { 
+    > span:not([data-nextjs-codeframe-caret]) { 
       position: relative;
       z-index: 1;
     }
@@ -234,6 +238,18 @@ export const CODE_FRAME_STYLES = `
       box-shadow: 2px 0 0 0 var(--color-red-900) inset;
       position: absolute;
     }
+  }
+
+  [data-nextjs-codeframe-caret] {
+    position: absolute;
+    bottom: -12px;
+    left: 0;
+    z-index: 2;
+    color: var(--color-red-900) !important;
+    font-weight: 500;
+    line-height: var(--code-frame-line-height);
+    pointer-events: none;
+    white-space: pre;
   }
 
   [data-nextjs-codeframe-line] > span:first-child {

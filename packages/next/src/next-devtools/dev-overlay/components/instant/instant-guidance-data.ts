@@ -25,7 +25,7 @@ export type Snippet = {
 
 const runtimeCards: FixCard[] = [
   {
-    title: 'Show a falback while data loads',
+    title: 'Show a fallback while data loads',
     color: 'purple',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
@@ -73,7 +73,7 @@ const dynamicCards: FixCard[] = [
     ],
   },
   {
-    title: 'Show a falback while data loads',
+    title: 'Show a fallback while data loads',
     color: 'purple',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
