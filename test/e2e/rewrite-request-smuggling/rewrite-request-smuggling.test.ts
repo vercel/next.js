@@ -147,8 +147,9 @@ describe('rewrite-request-smuggling', () => {
       intermediary.once('error', reject)
     })
 
-    next.env.TEST_INTERMEDIARY_PORT = String(intermediaryPort)
-    await next.start()
+    await next.start({
+      env: { TEST_INTERMEDIARY_PORT: String(intermediaryPort) },
+    })
   })
 
   afterAll(async () => {

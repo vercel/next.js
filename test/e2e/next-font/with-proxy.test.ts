@@ -30,8 +30,9 @@ describe('next/font/google with proxy', () => {
       },
     })
 
-    next.env.http_proxy = 'http://localhost:' + PROXY_PORT
-    await next.start()
+    await next.start({
+      env: { http_proxy: 'http://localhost:' + PROXY_PORT },
+    })
   })
   afterAll(() => {
     proxy?.kill('SIGKILL')
