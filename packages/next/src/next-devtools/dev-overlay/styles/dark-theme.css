@@ -97,7 +97,11 @@
   --color-instant-border-blue: rgba(82, 169, 255, 0.45);
   --color-instant-border-purple: rgba(160, 120, 240, 0.45);
   --color-instant-border-red: rgba(255, 99, 105, 0.4);
+  --color-instant-border-amber: rgba(231, 156, 19, 0.5);
+  --color-instant-border-teal: rgba(45, 212, 191, 0.5);
   --color-instant-text-purple: rgb(160, 120, 240);
+  --color-instant-text-amber: rgb(241, 161, 13);
+  --color-instant-text-teal: rgb(45, 212, 191);
 
   /* Turbopack Dark - Temporary */
   --color-turbopack-text-red: #ff6d92;
@@ -208,7 +212,11 @@
     --color-instant-border-blue: rgba(82, 169, 255, 0.45);
     --color-instant-border-purple: rgba(160, 120, 240, 0.45);
     --color-instant-border-red: rgba(255, 99, 105, 0.4);
+    --color-instant-border-amber: rgba(231, 156, 19, 0.5);
+    --color-instant-border-teal: rgba(45, 212, 191, 0.5);
     --color-instant-text-purple: rgb(160, 120, 240);
+    --color-instant-text-amber: rgb(241, 161, 13);
+    --color-instant-text-teal: rgb(45, 212, 191);
 
     /* Turbopack Dark - Temporary */
     --color-turbopack-text-red: #ff6d92;
