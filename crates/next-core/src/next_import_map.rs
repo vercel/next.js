@@ -1428,7 +1428,7 @@ async fn insert_instrumentation_client_alias(
     let mut body = String::new();
     for (i, spec) in injects.clone().enumerate() {
         body.push_str(&format!(
-            "const mod_{i} = require({});\n",
+            "var mod_{i} = require({});\n",
             serde_json::to_string(spec)?
         ));
     }
