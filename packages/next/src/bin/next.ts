@@ -700,4 +700,28 @@ internal
   })
   .usage('[directory] [options]')
 
+internal
+  .command('static-routes-info')
+  .description(
+    'Analyze a built Next.js app and report per-route bundle sizes across server bundled JS, server source maps, server unbundled, client JS, client source maps, and client CSS categories.'
+  )
+  .argument(
+    '[directory]',
+    `A directory containing the built Next.js application. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .option('--json', 'Output as JSON instead of markdown.')
+  .option(
+    '--limit <n>',
+    'Only show the biggest N routes (totals always reflect all routes).',
+    parseInt
+  )
+  .action((directory: string, options: { json?: boolean; limit?: number }) => {
+    return import('../cli/internal/static-routes-info.js').then((mod) =>
+      mod.staticRoutesInfoCli(options, directory)
+    )
+  })
+  .usage('[directory] [options]')
+
 program.parse(process.argv)
