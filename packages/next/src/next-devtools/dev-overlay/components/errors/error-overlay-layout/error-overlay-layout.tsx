@@ -121,7 +121,6 @@ export function ErrorOverlayLayout({
         <ErrorOverlayDialog
           onClose={onClose}
           data-has-footer={hasFooter}
-          footer={hasFooter && <ErrorOverlayFooter errorCode={errorCode} />}
         >
           <Resizer
             ref={dialogResizerRef}
@@ -154,6 +153,7 @@ export function ErrorOverlayLayout({
             </DialogContent>
           </Resizer>
         </ErrorOverlayDialog>
+        {hasFooter && <ErrorOverlayFooter errorCode={errorCode} />}
       </div>
     </ErrorOverlayOverlay>
   )
