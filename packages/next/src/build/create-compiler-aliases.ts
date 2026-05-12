@@ -1,3 +1,4 @@
+import fs from 'fs'
 import path from 'path'
 import * as React from 'react'
 import {
@@ -24,6 +25,55 @@ interface CompilerAliases {
 }
 
 const isReact19 = typeof React.use === 'function'
+
+/**
+ * Generates a virtual module that requires each entry in
+ * `instrumentationClientInject` for side effects, then re-exports the user's
+ * `instrumentation-client.{pageExt}` file (when present). The resulting file is
+ * the resolution target of the `private-next-instrumentation-client` alias.
+ */
+function writeInstrumentationClientVirtualModule({
+  dir,
+  distDir,
+  config,
+}: {
+  dir: string
+  distDir: string
+  config: NextConfigComplete
+}): string {
+  const outPath = path.join(distDir, 'instrumentation-client.js')
+
+  const requires: string[] = []
+  for (const spec of config.instrumentationClientInject) {
+    const resolved =
+      spec.startsWith('./') || spec.startsWith('../')
+        ? path.resolve(dir, spec)
+        : spec
+    requires.push(`require(${JSON.stringify(resolved)});`)
+  }
+
+  let userFile: string | undefined
+  outer: for (const subdir of ['src', '.']) {
+    for (const ext of config.pageExtensions) {
+      const candidate = path.join(dir, subdir, `instrumentation-client.${ext}`)
+      if (fs.existsSync(candidate)) {
+        userFile = candidate
+        break outer
+      }
+    }
+  }
+
+  const body =
+    requires.join('\n') +
+    (requires.length ? '\n' : '') +
+    (userFile
+      ? `module.exports = require(${JSON.stringify(userFile)});\n`
+      : 'module.exports = {};\n')
+
+  fs.mkdirSync(distDir, { recursive: true })
+  fs.writeFileSync(outPath, body)
+  return outPath
+}
 
 export function createWebpackAliases({
   distDir,
@@ -139,8 +189,7 @@ export function createWebpackAliases({
     ...(isClient
       ? {
           'private-next-instrumentation-client': [
-            path.join(dir, 'src', 'instrumentation-client'),
-            path.join(dir, 'instrumentation-client'),
+            writeInstrumentationClientVirtualModule({ dir, distDir, config }),
             'private-next-empty-module',
           ],
 

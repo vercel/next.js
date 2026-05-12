@@ -7,12 +7,13 @@ use next_taskless::{EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
-use turbo_tasks_fs::{FileSystem, FileSystemPath, to_sys_path};
+use turbo_tasks_fs::{FileContent, FileSystem, FileSystemPath, to_sys_path};
 use turbopack_core::{
+    asset::AssetContent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
-        AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, SubpathValue,
+        AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, ResolveResult, SubpathValue,
         node::node_cjs_resolve_options,
         options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
         parse::Request,
@@ -20,6 +21,7 @@ use turbopack_core::{
         resolve,
     },
     source::Source,
+    virtual_source::VirtualSource,
 };
 use turbopack_node::execution_context::ExecutionContext;
 
@@ -231,7 +233,7 @@ pub async fn get_next_client_import_map(
         ClientContextType::Other => {}
     }
 
-    insert_instrumentation_client_alias(&mut import_map, project_path).await?;
+    insert_instrumentation_client_alias(&mut import_map, project_path, next_config).await?;
 
     insert_server_only_error_alias(&mut import_map);
 
@@ -1376,25 +1378,71 @@ fn insert_package_alias(import_map: &mut ImportMap, prefix: &str, package_root: 
     );
 }
 
-/// Handles instrumentation-client.ts bundling logic
+/// Handles instrumentation-client.ts bundling logic.
+///
+/// Resolves the `private-next-instrumentation-client` alias to a virtual module
+/// that first requires each entry of `instrumentationClientInject` for side
+/// effects (in array order) and then re-exports the user's
+/// `instrumentation-client.{pageExt}` file via the
+/// `private-next-instrumentation-client-user` alias.
 async fn insert_instrumentation_client_alias(
     import_map: &mut ImportMap,
     project_path: FileSystemPath,
+    next_config: Vc<NextConfig>,
 ) -> Result<()> {
+    let user_file_alternatives = vec![
+        request_to_import_mapping(project_path.clone(), rcstr!("./src/instrumentation-client")),
+        request_to_import_mapping(
+            project_path.clone(),
+            rcstr!("./src/instrumentation-client.ts"),
+        ),
+        request_to_import_mapping(project_path.clone(), rcstr!("./instrumentation-client")),
+        request_to_import_mapping(project_path.clone(), rcstr!("./instrumentation-client.ts")),
+        ImportMapping::Ignore.resolved_cell(),
+    ];
+
+    let injects = next_config.instrumentation_client_inject().await?;
+
+    if injects.is_empty() {
+        insert_alias_to_alternatives(
+            import_map,
+            rcstr!("private-next-instrumentation-client"),
+            user_file_alternatives,
+        );
+        return Ok(());
+    }
+
+    // The user file is reached through a separate alias so the existing
+    // alternative resolution stays unchanged.
     insert_alias_to_alternatives(
         import_map,
-        rcstr!("private-next-instrumentation-client"),
-        vec![
-            request_to_import_mapping(project_path.clone(), rcstr!("./src/instrumentation-client")),
-            request_to_import_mapping(
-                project_path.clone(),
-                rcstr!("./src/instrumentation-client.ts"),
-            ),
-            request_to_import_mapping(project_path.clone(), rcstr!("./instrumentation-client")),
-            request_to_import_mapping(project_path.clone(), rcstr!("./instrumentation-client.ts")),
-            ImportMapping::Ignore.resolved_cell(),
-        ],
+        rcstr!("private-next-instrumentation-client-user"),
+        user_file_alternatives,
     );
+
+    let mut body = String::new();
+    for spec in injects.iter() {
+        body.push_str(&format!(
+            "require({});\n",
+            serde_json::to_string(spec.as_str())?
+        ));
+    }
+    body.push_str("module.exports = require('private-next-instrumentation-client-user');\n");
+
+    let virtual_path = project_path.join("__next_instrumentation_client.js")?;
+    let virtual_source = VirtualSource::new(
+        virtual_path,
+        AssetContent::file(FileContent::Content(body.into()).cell()),
+    )
+    .to_resolved()
+    .await?;
+
+    let mapping = ImportMapping::Direct(
+        ResolveResult::source(ResolvedVc::upcast(virtual_source)).resolved_cell(),
+    )
+    .resolved_cell();
+
+    import_map.insert_exact_alias(rcstr!("private-next-instrumentation-client"), mapping);
 
     Ok(())
 }
