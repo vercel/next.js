@@ -9,7 +9,7 @@ describe('app-dir assetPrefix full URL', () => {
   })
 
   beforeAll(async () => {
-    const port = next.forcedPort!
+    const port = next.forcedPort
     await next.patchFile(
       'next.config.js',
       `module.exports = { assetPrefix: 'http://localhost:${port}' }`

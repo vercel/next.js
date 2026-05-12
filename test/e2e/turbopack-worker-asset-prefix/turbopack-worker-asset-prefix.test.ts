@@ -38,7 +38,7 @@ describeTurbopack('turbopack-worker-asset-prefix', () => {
     })
 
     beforeAll(async () => {
-      const port = next.forcedPort!
+      const port = next.forcedPort
       await next.patchFile(
         'next.config.js',
         `module.exports = {
@@ -50,7 +50,7 @@ describeTurbopack('turbopack-worker-asset-prefix', () => {
 
     it('Worker URL inherits assetPrefix and the browser rejects construction', async () => {
       const browser = await next.browser('/')
-      const forcedPort = next.forcedPort!
+      const forcedPort = next.forcedPort
 
       await retry(async () => {
         const url = await browser.elementByCss('#worker-ctor-url').text()
@@ -74,7 +74,7 @@ describeTurbopack('turbopack-worker-asset-prefix', () => {
     })
 
     beforeAll(async () => {
-      const port = next.forcedPort!
+      const port = next.forcedPort
       await next.patchFile(
         'next.config.js',
         `module.exports = {
@@ -91,7 +91,7 @@ describeTurbopack('turbopack-worker-asset-prefix', () => {
 
     it('Worker URL uses the override origin and construction succeeds', async () => {
       const browser = await next.browser('/')
-      const forcedPort = next.forcedPort!
+      const forcedPort = next.forcedPort
 
       await retry(async () => {
         const pageOrigin = await browser.elementByCss('#page-origin').text()
@@ -114,7 +114,7 @@ describeTurbopack('turbopack-worker-asset-prefix', () => {
     })
 
     beforeAll(async () => {
-      const port = next.forcedPort!
+      const port = next.forcedPort
       await next.patchFile(
         'next.config.js',
         `module.exports = {
@@ -132,7 +132,7 @@ describeTurbopack('turbopack-worker-asset-prefix', () => {
 
     it('Worker URL is a relative /_next/ URL (resolved same-origin)', async () => {
       const browser = await next.browser('/')
-      const forcedPort = next.forcedPort!
+      const forcedPort = next.forcedPort
 
       await retry(async () => {
         const pageOrigin = await browser.elementByCss('#page-origin').text()
