@@ -5,11 +5,16 @@ import { withShadowPortal } from '../storybook/with-shadow-portal'
 import { lorem } from '../utils/lorem'
 import {
   instantCurrentTimeErrors,
+  instantClientMathRandomErrors,
+  instantCryptoRandomUUIDErrors,
   instantMetadataErrors,
+  instantMetadataUncachedErrors,
+  instantMathRandomErrors,
   instantRuntimeDataErrors,
   instantUncachedDataErrors,
   instantValidationBlockedErrors,
   instantViewportErrors,
+  instantViewportUncachedErrors,
   runtimeErrors,
 } from '../storybook/errors'
 
@@ -126,6 +131,13 @@ export const InstantGenerateViewport: Story = {
   },
 }
 
+export const InstantGenerateViewportUncached: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: instantViewportUncachedErrors,
+  },
+}
+
 export const InstantGenerateMetadata: Story = {
   args: {
     ...Default.args,
@@ -133,10 +145,38 @@ export const InstantGenerateMetadata: Story = {
   },
 }
 
+export const InstantGenerateMetadataUncached: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: instantMetadataUncachedErrors,
+  },
+}
+
 export const InstantCurrentTime: Story = {
   args: {
     ...Default.args,
     runtimeErrors: instantCurrentTimeErrors,
+  },
+}
+
+export const InstantMathRandom: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: instantMathRandomErrors,
+  },
+}
+
+export const InstantCryptoRandomUUID: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: instantCryptoRandomUUIDErrors,
+  },
+}
+
+export const InstantClientMathRandom: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: instantClientMathRandomErrors,
   },
 }
 

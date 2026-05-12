@@ -2,6 +2,7 @@ import { AlignmentLeftIcon } from '../../icons/alignment-left'
 import { ClockRewindIcon } from '../../icons/clock-rewind'
 import { LayoutIcon } from '../../icons/layout'
 import { LightningIcon } from '../../icons/lightning'
+import { RotateClockwiseIcon } from '../../icons/rotate-clockwise'
 import { StopIcon } from '../../icons/stop'
 import { css } from '../../utils/css'
 import {
@@ -61,6 +62,10 @@ function getCardIcon(card: FixCard) {
 
   if (shortTitle === 'Client') {
     return <LayoutIcon />
+  }
+
+  if (shortTitle === 'Defer') {
+    return <RotateClockwiseIcon />
   }
 
   switch (card.color) {

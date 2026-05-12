@@ -439,6 +439,35 @@ export const instantViewportErrors: ReadyRuntimeError[] = [
   },
 ]
 
+export const instantViewportUncachedErrors: ReadyRuntimeError[] = [
+  {
+    id: 107,
+    runtime: true,
+    error: Object.assign(
+      new Error(
+        'Route "/instant/uncached-viewport": Next.js encountered uncached data inside `generateViewport()`. This prevents the page from being prerendered, leading to a slower user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport'
+      ),
+      { __NEXT_ERROR_CODE: 'E1165' }
+    ),
+    frames: createStoryFrames({
+      reason:
+        'Route "/instant/uncached-viewport": Next.js encountered uncached data inside `generateViewport()`.',
+      file: 'app/instant/uncached-viewport/page.tsx',
+      methodName: 'generateViewport',
+      line: 4,
+      column: 20,
+      codeFrame: instantCodeFrame({
+        beforeLine: "import { connection } from 'next/server'",
+        line: 'await fetch("https://example.com/theme")',
+        markerLine: 4,
+        pointerColumn: 18,
+        afterLine: 'return { themeColor: "#000" }',
+      }),
+    }),
+    type: 'runtime',
+  },
+]
+
 export const instantMetadataErrors: ReadyRuntimeError[] = [
   {
     id: 104,
@@ -461,6 +490,35 @@ export const instantMetadataErrors: ReadyRuntimeError[] = [
         line: 'await cookies()',
         markerLine: 5,
         pointerColumn: 14,
+        afterLine: 'return { title: "Hello" }',
+      }),
+    }),
+    type: 'runtime',
+  },
+]
+
+export const instantMetadataUncachedErrors: ReadyRuntimeError[] = [
+  {
+    id: 108,
+    runtime: true,
+    error: Object.assign(
+      new Error(
+        'Route "/instant/uncached-metadata": Next.js encountered uncached data inside `generateMetadata()`. This prevents the page from being prerendered, leading to a slower user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata'
+      ),
+      { __NEXT_ERROR_CODE: 'E1168' }
+    ),
+    frames: createStoryFrames({
+      reason:
+        'Route "/instant/uncached-metadata": Next.js encountered uncached data inside `generateMetadata()`.',
+      file: 'app/instant/uncached-metadata/page.tsx',
+      methodName: 'generateMetadata',
+      line: 5,
+      column: 20,
+      codeFrame: instantCodeFrame({
+        beforeLine: "import { connection } from 'next/server'",
+        line: 'await fetch("https://example.com/meta")',
+        markerLine: 5,
+        pointerColumn: 18,
         afterLine: 'return { title: "Hello" }',
       }),
     }),
@@ -491,6 +549,93 @@ export const instantCurrentTimeErrors: ReadyRuntimeError[] = [
         markerLine: 4,
         pointerColumn: 18,
         afterLine: 'await connection()',
+      }),
+    }),
+    type: 'runtime',
+  },
+]
+
+export const instantMathRandomErrors: ReadyRuntimeError[] = [
+  {
+    id: 109,
+    runtime: true,
+    error: Object.assign(
+      new Error(
+        'Route "/instant/random" used `Math.random()` before accessing either uncached data (e.g. `fetch()`) or awaiting `connection()`. When configured for Runtime prefetching, accessing random values in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-random'
+      ),
+      { __NEXT_ERROR_CODE: 'E1077' }
+    ),
+    frames: createStoryFrames({
+      reason:
+        'Route "/instant/random" used `Math.random()` before accessing either uncached data or awaiting `connection()`.',
+      file: 'app/instant/random/page.tsx',
+      methodName: 'Page',
+      line: 4,
+      column: 22,
+      codeFrame: instantCodeFrame({
+        beforeLine: "import { connection } from 'next/server'",
+        line: 'const id = Math.random()',
+        markerLine: 4,
+        pointerColumn: 20,
+        afterLine: 'await connection()',
+      }),
+    }),
+    type: 'runtime',
+  },
+]
+
+export const instantCryptoRandomUUIDErrors: ReadyRuntimeError[] = [
+  {
+    id: 110,
+    runtime: true,
+    error: Object.assign(
+      new Error(
+        'Route "/instant/crypto" used `crypto.randomUUID()` before accessing either uncached data (e.g. `fetch()`) or awaiting `connection()`. When configured for Runtime prefetching, accessing cryptographic randomness in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-crypto'
+      ),
+      { __NEXT_ERROR_CODE: 'E1079' }
+    ),
+    frames: createStoryFrames({
+      reason:
+        'Route "/instant/crypto" used `crypto.randomUUID()` before accessing either uncached data or awaiting `connection()`.',
+      file: 'app/instant/crypto/page.tsx',
+      methodName: 'Page',
+      line: 4,
+      column: 28,
+      codeFrame: instantCodeFrame({
+        beforeLine: "import { connection } from 'next/server'",
+        line: 'const id = crypto.randomUUID()',
+        markerLine: 4,
+        pointerColumn: 26,
+        afterLine: 'await connection()',
+      }),
+    }),
+    type: 'runtime',
+  },
+]
+
+export const instantClientMathRandomErrors: ReadyRuntimeError[] = [
+  {
+    id: 111,
+    runtime: true,
+    error: Object.assign(
+      new Error(
+        'Route "/instant/client-random": Next.js encountered `Math.random()` inside a Client Component without a Suspense boundary. Without an upstream `<Suspense>` boundary, Next.js has no fallback to prerender in place of this Client Component. Learn more: https://nextjs.org/docs/messages/next-prerender-random-client'
+      ),
+      { __NEXT_ERROR_CODE: 'E1180' }
+    ),
+    frames: createStoryFrames({
+      reason:
+        'Route "/instant/client-random": Next.js encountered `Math.random()` inside a Client Component without a Suspense boundary.',
+      file: 'app/instant/client-random/random-widget.tsx',
+      methodName: 'RandomWidget',
+      line: 4,
+      column: 22,
+      codeFrame: instantCodeFrame({
+        beforeLine: "'use client'",
+        line: 'const value = Math.random()',
+        markerLine: 4,
+        pointerColumn: 20,
+        afterLine: 'return <div>{value}</div>',
       }),
     }),
     type: 'runtime',
