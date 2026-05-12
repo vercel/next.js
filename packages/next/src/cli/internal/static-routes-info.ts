@@ -360,10 +360,18 @@ function collectPagesClientFiles(
 }
 
 /**
- * For each file in `source`, add the co-located `<file>.map` to `target`
- * if one exists on disk. Works for both `.js.map` and `.css.map`. Source
- * maps aren't listed in the manifests, so we derive them by checking for
- * the conventional adjacent file.
+ * For each file in `source`, find its source map (if any) and add it to
+ * `target`. We try two strategies, in order:
+ *
+ *   1. Read the `//# sourceMappingURL=...` trailer that bundlers emit at
+ *      the end of `.js` / `.css` files. This is the most accurate way
+ *      because the URL filename can differ from the source filename
+ *      (e.g. Turbopack hashes `.map` content separately).
+ *   2. If no trailer is present (e.g. tiny "loader" entry files Turbopack
+ *      emits without a comment), fall back to a co-located `<file>.map`.
+ *
+ * Only same-directory relative URLs are followed — `data:` URLs (inline
+ * source maps) and absolute URLs are ignored.
  */
 function deriveSourceMaps(
   distDir: string,
@@ -371,8 +379,59 @@ function deriveSourceMaps(
   target: Set<string>
 ): void {
   for (const f of source) {
-    const map = f + '.map'
-    if (fs.existsSync(path.join(distDir, map))) target.add(map)
+    const mapFromUrl = readSourceMappingURL(path.join(distDir, f))
+    if (mapFromUrl) {
+      // Resolve relative to the source file's directory, then re-express
+      // relative to distDir so paths join consistently.
+      const mapRel = path.normalize(path.join(path.dirname(f), mapFromUrl))
+      if (
+        !mapRel.startsWith('..') &&
+        fs.existsSync(path.join(distDir, mapRel))
+      ) {
+        target.add(mapRel)
+        continue
+      }
+    }
+    // Fallback: co-located `<file>.map`.
+    const adjacent = f + '.map'
+    if (fs.existsSync(path.join(distDir, adjacent))) target.add(adjacent)
+  }
+}
+
+/**
+ * Read the trailing `//# sourceMappingURL=...` (JS) or `/*# sourceMappingURL=... *​/`
+ * (CSS) comment from a file and return the URL, or null if absent or
+ * inline (`data:`).
+ *
+ * We only need to read the tail of the file — the comment is conventionally
+ * the very last line — so reading 4 KiB is more than enough.
+ */
+function readSourceMappingURL(filePath: string): string | null {
+  let fd: number
+  try {
+    fd = fs.openSync(filePath, 'r')
+  } catch {
+    return null
+  }
+  try {
+    const stat = fs.fstatSync(fd)
+    const len = Math.min(stat.size, 4096)
+    const buf = Buffer.alloc(len)
+    fs.readSync(fd, buf, 0, len, stat.size - len)
+    const tail = buf.toString('utf8')
+    // Match either `//# sourceMappingURL=<url>` or
+    //   `/*# sourceMappingURL=<url> */` near the end.
+    const match = tail.match(/[/*]#\s*sourceMappingURL=([^\s'"*]+)/)
+    if (!match) return null
+    const url = match[1]
+    if (url.startsWith('data:')) return null
+    // Skip absolute URLs (http://, https://, /abs).
+    if (/^[a-z]+:\/\//i.test(url) || url.startsWith('/')) return null
+    return url
+  } catch {
+    return null
+  } finally {
+    fs.closeSync(fd)
   }
 }
 
@@ -410,7 +469,8 @@ function collectFiles(distDir: string, entry: RouteEntry): FileSets {
   }
 
   // Source maps for everything we collected above. Both .js.map and
-  // .css.map files are picked up by checking for an adjacent <file>.map.
+  // .css.map files are picked up by reading the `sourceMappingURL`
+  // trailer of each source file.
   deriveSourceMaps(distDir, sets.serverBundled, sets.serverMaps)
   deriveSourceMaps(distDir, sets.clientJs, sets.clientMaps)
   deriveSourceMaps(distDir, sets.clientCss, sets.clientMaps)
