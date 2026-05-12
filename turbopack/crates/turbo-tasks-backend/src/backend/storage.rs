@@ -149,6 +149,18 @@ pub struct Storage {
     ///   Contains a copy of the pre-snapshot state that needs to be persisted.
     /// - `None`: Task was first modified during snapshot mode (not part of current snapshot). Will
     ///   be marked as modified at the beginning of the next snapshot cycle.
+    ///
+    /// Lock Ordering: `snapshots` locks are acquired **after** `map` locks (see the comment on
+    /// `map` below). Holding a `snapshots` shard write lock and then trying to take a `map` shard
+    /// write lock is forbidden — it would deadlock against `track_modification_internal` /
+    /// `SnapshotShardIter::next`, which take map first.
+    ///
+    /// Shard Invariant: `snapshots` is constructed with the same `shard_amount`, the same key
+    /// type (`TaskId`), and the same stateless hasher (`FxBuildHasher`) as `map`. Therefore shard
+    /// index `N` in `snapshots` corresponds exactly to shard index `N` in `map`: any `TaskId`
+    /// present in `snapshots.shards()[N]` (if present in `map` at all) is in `map.shards()[N]`.
+    /// Code that walks both maps in parallel (e.g. `end_snapshot`) relies on this to lock pairs
+    /// of shards by index instead of going through the top-level `DashMap` accessors.
     snapshots: FxDashMap<TaskId, Option<Box<TaskStorage>>>,
     /// The main storage map
     ///
@@ -156,6 +168,11 @@ pub struct Storage {
     /// Because both datastructures are sharded on different keys, the locks are not 'strictly'
     /// ordered but we should treat them as such
     /// Acquiring locks in the opposite order should be defensive
+    ///
+    /// Lock Ordering vs. `snapshots`: `map` locks are acquired **before** `snapshots` locks.
+    /// `track_modification_internal` and `SnapshotShardIter::next` both hold a `map` shard write
+    /// lock (via `StorageWriteGuard` / `map.get_mut`) and then take a `snapshots` shard lock.
+    /// `end_snapshot` must lock in the same order — see the shard-zipping pattern there.
     map: FxDashMap<TaskId, Box<TaskStorage>>,
     /// A shared event notified whenever any task finishes restoring (successfully or not).
     ///
@@ -372,24 +389,57 @@ impl Storage {
         // The snapshots map should be small (only tasks concurrently accessed during snapshot
         // mode). Increment the per-shard modified counts for promoted tasks.
 
-        // Lock Ordering: Note, in track_modification_internal, we modify the snapshots map while
-        // holding a StorageWriteGuard and here we do the opposite.  This is fine because that code
-        // only runs when `snapshot_mode==true` and this loop only runs when it is false.
-        parallel::for_each(self.snapshots.shards(), |shard| {
-            let mut shard_guard = shard.write();
-            for (key, _) in shard_guard.drain() {
-                if let Some(mut inner) = self.map.get_mut(&key) {
-                    self.promote_during_snapshot_flags(&mut inner, self.shard_index(&key));
+        // Lock Ordering: we must acquire `map` shards BEFORE `snapshots` shards, matching the
+        // order used by `track_modification_internal` and `SnapshotShardIter::next`. The
+        // previous implementation drained `snapshots` first and then called `self.map.get_mut`,
+        // which is the opposite order — a concurrent `track_modification` (holding map[N], about
+        // to insert into snapshots[N]) could deadlock against it through the
+        // `snapshot_mode = false` race window.
+        //
+        // Shard pairing: `map` and `snapshots` are constructed with the same `shard_amount`,
+        // same `TaskId` keys, and the same stateless `FxBuildHasher`. Therefore shard `N` in
+        // `snapshots` pairs with shard `N` in `map`: every key drained from `snapshots[N]` (if
+        // it still exists in `map`) lives in `map[N]`. We zip them and lock each pair in order.
+        let map_shards = self.map.shards();
+        let snapshot_shards = self.snapshots.shards();
+        debug_assert_eq!(
+            map_shards.len(),
+            snapshot_shards.len(),
+            "map and snapshots must share shard count for zipped locking; see Shard Invariant on \
+             `snapshots` field"
+        );
+
+        let shard_indices: Vec<usize> = (0..map_shards.len()).collect();
+        parallel::for_each(&shard_indices, |&shard_idx| {
+            let map_shard = &map_shards[shard_idx];
+            let snap_shard = &snapshot_shards[shard_idx];
+
+            // Acquire in documented order: map first, snapshots second.
+            let map_guard = map_shard.write();
+            let mut snap_guard = snap_shard.write();
+
+            for (key, _) in snap_guard.drain() {
+                // The key is in this shard's `map` (or absent entirely), by the shard
+                // invariant above. Resolve directly in the held map guard rather than going
+                // through `self.map.get_mut`, which would attempt to re-acquire this shard's
+                // write lock and would also obscure the pairing.
+                let hash = self.map.hasher().hash_one(key);
+                if let Some(bucket) = map_guard.find(hash, |(k, _)| *k == key) {
+                    // SAFETY: We hold `map_shard`'s write lock for the duration of this
+                    // access, so the bucket pointer is valid and no other thread can alias it.
+                    let (_, shared_value) = unsafe { bucket.as_mut() };
+                    self.promote_during_snapshot_flags(shared_value.get_mut(), shard_idx);
                 }
             }
             // If we are saving a non-trivial amount of memory just clear it out.
-            if shard_guard.capacity() > 1024 {
-                shard_guard.shrink_to(0, |_entry| {
+            if snap_guard.capacity() > 1024 {
+                snap_guard.shrink_to(0, |_entry| {
                     unreachable!("nothing is hashed when resizing an empty shard to zero");
                 });
             }
-            // Safety: shard_guard must outlive the iterator.
-            drop(shard_guard);
+
+            drop(snap_guard);
+            drop(map_guard);
         });
     }
 
