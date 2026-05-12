@@ -133,6 +133,7 @@ export const CODE_FRAME_STYLES = `
     font-size: 13px;
     line-height: var(--code-frame-line-height);
     margin: 0;
+    overflow: hidden;
 
     svg {
       width: var(--size-16);

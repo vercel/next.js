@@ -810,7 +810,6 @@ export const styles = `
     display: flex;
     align-items: start;
     justify-content: space-between;
-    flex-wrap: wrap;
     gap: 12px;
     position: relative;
   }

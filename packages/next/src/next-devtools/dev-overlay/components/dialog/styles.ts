@@ -63,7 +63,7 @@ export const styles = css`
     flex-shrink: 0;
     gap: 4px;
     margin-bottom: 8px;
-    padding: 20px 12px 20px 20px;
+    padding: 20px;
   }
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-body] {
