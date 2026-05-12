@@ -217,58 +217,6 @@ impl FieldInfo {
     }
 
     // =========================================================================
-    // TaskStorage Internal Access Helpers
-    // These generate expressions for use within TaskStorage impl blocks,
-    // operating on `self` directly rather than `self.typed()`.
-    // =========================================================================
-
-    /// Generate the find_lazy extractor closure for this lazy field.
-    ///
-    /// Returns `|f| match f { LazyField::Variant(v) => Some(v), _ => None }`
-    fn lazy_extractor_closure(&self) -> TokenStream {
-        let variant_name = &self.variant_name;
-        quote! {
-            |f| match f {
-                LazyField::#variant_name(v) => Some(v),
-                _ => None,
-            }
-        }
-    }
-
-    /// Generate the lazy field constructor expression.
-    ///
-    /// Returns `LazyField::Variant(value)` or `LazyField::Variant(Default::default())`
-    fn lazy_constructor(&self, value_expr: TokenStream) -> TokenStream {
-        let variant_name = &self.variant_name;
-        quote! { LazyField::#variant_name(#value_expr) }
-    }
-
-    /// Generate a matches closure for get_or_create_lazy.
-    ///
-    /// Returns `|f| matches!(f, LazyField::Variant(_))`
-    fn lazy_matches_closure(&self) -> TokenStream {
-        let variant_name = &self.variant_name;
-        quote! {
-            |f| matches!(f, LazyField::#variant_name(_))
-        }
-    }
-
-    /// Generate an unwrap closure that extracts the inner value from a LazyField variant.
-    ///
-    /// Returns `|f| match f { LazyField::Variant(v) => v, _ => unreachable!() }`
-    ///
-    /// Works for both borrowed and owned contexts (get_or_create_lazy, take_lazy, set_lazy).
-    fn lazy_unwrap_closure(&self) -> TokenStream {
-        let variant_name = &self.variant_name;
-        quote! {
-            |f| match f {
-                LazyField::#variant_name(v) => v,
-                _ => unreachable!(),
-            }
-        }
-    }
-
-    // =========================================================================
     // Method Name Helpers
     // Centralized identifier construction for generated method names.
     // =========================================================================
@@ -1417,24 +1365,45 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
             }
         }
     } else {
-        // Lazy: field is stored in Vec<LazyField>
-        let extractor = field.lazy_extractor_closure();
-        let matches_closure = field.lazy_matches_closure();
-        let unwrap_owned = field.lazy_unwrap_closure();
-        let constructor = field.lazy_constructor(quote! { value });
-
+        // Lazy direct field. Each accessor inlines a per-variant `LazyField`
+        // scan — no closure-taking helpers in between. This keeps the
+        // `LazyField` enum dependency local to the small body of each typed
+        // accessor; switching the underlying lazy storage means rewriting these
+        // bodies one variant at a time, but the public API is untouched.
+        let variant_name = &field.variant_name;
         quote! {
             #vis fn #get_name(&self) -> Option<&#field_type> {
-                self.find_lazy(#extractor)
+                self.lazy_iter().find_map(|f| match f {
+                    LazyField::#variant_name(v) => Some(v),
+                    _ => None,
+                })
             }
 
             #[doc = "Set the field value, returning the old value if present."]
             #vis fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
-                self.set_lazy(#matches_closure, #unwrap_owned, #constructor)
+                if let Some(idx) = self
+                    .lazy_iter()
+                    .position(|f| matches!(f, LazyField::#variant_name(_)))
+                {
+                    let old = self.lazy_replace_at(idx, LazyField::#variant_name(value));
+                    match old {
+                        LazyField::#variant_name(v) => Some(v),
+                        _ => unreachable!(),
+                    }
+                } else {
+                    self.lazy_push(LazyField::#variant_name(value));
+                    None
+                }
             }
 
             #vis fn #take_name(&mut self) -> Option<#field_type> {
-                self.take_lazy(#matches_closure, #unwrap_owned)
+                let idx = self
+                    .lazy_iter()
+                    .position(|f| matches!(f, LazyField::#variant_name(_)))?;
+                match self.lazy_swap_remove(idx) {
+                    LazyField::#variant_name(v) => Some(v),
+                    _ => unreachable!(),
+                }
             }
 
             #[doc = "Get a mutable reference to the field value (if present)."]
@@ -1442,7 +1411,10 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
             #[doc = "Unlike `get_or_create_lazy` for collections, this does NOT allocate"]
             #[doc = "if the field is absent - it returns None instead."]
             #vis fn #get_mut_name(&mut self) -> Option<&mut #field_type> {
-                self.find_lazy_mut(#extractor)
+                self.lazy_iter_mut().find_map(|f| match f {
+                    LazyField::#variant_name(v) => Some(v),
+                    _ => None,
+                })
             }
         }
     }
@@ -1479,30 +1451,45 @@ fn generate_collection_field_accessors(
             }
         }
     } else {
-        // Lazy: use find_lazy / get_or_create_lazy
-        let extractor = field.lazy_extractor_closure();
-        let matches_closure = field.lazy_matches_closure();
-        let unwrap_closure = field.lazy_unwrap_closure();
-        let constructor = field.lazy_constructor(quote! { Default::default() });
-
+        // Lazy collection field. Each accessor inlines a per-variant
+        // `LazyField` scan, mirroring `generate_direct_field_accessors`.
+        let variant_name = &field.variant_name;
         quote! {
             #vis fn #ref_name(&self) -> Option<&#field_type> {
-                self.find_lazy(#extractor)
+                self.lazy_iter().find_map(|f| match f {
+                    LazyField::#variant_name(v) => Some(v),
+                    _ => None,
+                })
             }
 
             #vis fn #mut_name(&mut self) -> &mut #field_type {
-                self.get_or_create_lazy(
-                    #matches_closure,
-                    #unwrap_closure,
-                    || #constructor,
-                )
+                // Resolve the index first (immutable borrow) so we can either
+                // mutate the existing entry or push a fresh default.
+                if let Some(idx) = self
+                    .lazy_iter()
+                    .position(|f| matches!(f, LazyField::#variant_name(_)))
+                {
+                    match self.lazy_slot_mut(idx) {
+                        LazyField::#variant_name(v) => v,
+                        _ => unreachable!(),
+                    }
+                } else {
+                    self.lazy_push(LazyField::#variant_name(Default::default()));
+                    match self.lazy_slot_mut(self.lazy_len() - 1) {
+                        LazyField::#variant_name(v) => v,
+                        _ => unreachable!(),
+                    }
+                }
             }
 
             #vis fn #take_name(&mut self) -> Option<#field_type> {
-                self.take_lazy(
-                    #matches_closure,
-                    #unwrap_closure,
-                )
+                let idx = self
+                    .lazy_iter()
+                    .position(|f| matches!(f, LazyField::#variant_name(_)))?;
+                match self.lazy_swap_remove(idx) {
+                    LazyField::#variant_name(v) => Some(v),
+                    _ => unreachable!(),
+                }
             }
         }
     }
@@ -1816,28 +1803,10 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         quote! {
             #set_expr(value)
         }
-    } else if field.lazy {
-        // For lazy fields, combine equality check and set into one operation to avoid
-        // double-scanning the lazy vec (get_expr scans via find_lazy, then set_expr
-        // scans again via set_lazy).
-        let extractor = field.lazy_extractor_closure();
-        let unwraper = field.lazy_unwrap_closure();
-        let constructor = field.lazy_constructor(quote! { value });
-        quote! {
-            if let Some((idx, old_ref)) = self.typed().find_lazy_ref(#extractor) {
-                if old_ref == &value {
-                    return None;
-                }
-                #track_modification
-                let old = self.typed_mut().lazy_replace_at(idx, #constructor);
-                Some((#unwraper)(old))
-            } else {
-                #track_modification
-                self.typed_mut().lazy_push(#constructor);
-                None
-            }
-        }
     } else {
+        // Equality-check, track, then delegate to TaskStorage's typed `set_*`.
+        // Same shape for inline and lazy direct fields — the latter does its
+        // own single-scan internally now.
         quote! {
             if #get_expr.is_some_and(|old| old == &value) {
                 return None;
@@ -1851,18 +1820,8 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         quote! {
             #take_expr
         }
-    } else if field.lazy {
-        // For lazy fields, combine existence check and take into one operation to avoid
-        // double-scanning the lazy vec (get_expr scans via find_lazy, then take_expr
-        // scans again via take_lazy).
-        let extractor = field.lazy_extractor_closure();
-        let unwraper = field.lazy_unwrap_closure();
-        quote! {
-            let (idx, _) = self.typed().find_lazy_ref(#extractor)?;
-            #track_modification
-            Some(self.typed_mut().lazy_take_at(idx, #unwraper))
-        }
     } else {
+        // Existence check, then delegate to TaskStorage's typed `take_*`.
         quote! {
             if #get_expr.is_some() {
                 #track_modification
@@ -1972,12 +1931,15 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
         add_body = quote! {
             #mut_expr.insert(item)
         };
+        // For transient fields no equality / track_modification guard is
+        // needed. Lazy and inline share the same shape: take old, install new.
+        // `#take_expr` returns `Option<T>` for lazy and `T` for inline; the
+        // `is_option` branch normalizes the outer return shape accordingly.
         set_body = if is_option {
-            let unwraper = field.lazy_unwrap_closure();
-            let matches = field.lazy_matches_closure();
-            let ctor = field.lazy_constructor(quote! {set});
             quote! {
-                self.typed_mut().set_lazy(#matches, #unwraper, #ctor)
+                let old = #take_expr;
+                *#mut_expr = set;
+                old
             }
         } else {
             quote! {
@@ -1991,18 +1953,23 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
         };
     } else {
         // Remove: only track modification if the item exists.
-        // For lazy fields, find the index once and reuse it to avoid double-scanning.
+        // Lazy and inline collection fields share the same code shape, since the
+        // accessor expressions (`#ref_expr`, `#mut_expr`, `#take_expr`) handle
+        // the lookup internally. For lazy collections each scan is a single
+        // per-variant inline match; for inline fields it's a direct field
+        // access. Either way the "double scan" cost of separating the
+        // existence check from the mutation is bounded by the lazy area size
+        // (p99 ≤ 7 entries today).
+
         remove_body = if is_option {
-            let extractor = field.lazy_extractor_closure();
             quote! {
-                let Some((idx, val)) = self.typed().find_lazy_ref(#extractor) else {
-                    return false;
-                };
-                if !val.contains(item) {
+                if !#ref_expr.is_some_and(|val| val.contains(item)) {
                     return false;
                 }
                 #track_modification
-                self.typed_mut().lazy_at_mut(idx, #extractor).remove(item)
+                // We just checked the entry exists, so `#mut_expr`'s
+                // implicit allocate-if-absent path doesn't fire.
+                #mut_expr.remove(item)
             }
         } else {
             quote! {
@@ -2014,25 +1981,13 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
             }
         };
 
-        // Add: only track modification if the item is actually new.
-        // For lazy fields, use find_lazy_ref + lazy_at_mut to avoid double-scanning.
         add_body = if is_option {
-            let extractor = field.lazy_extractor_closure();
-            let ctor = field.lazy_constructor(quote! { set });
             quote! {
-                if let Some((idx, existing)) = self.typed().find_lazy_ref(#extractor) {
-                    if existing.contains(&item) {
-                        return false;
-                    }
-                    #track_modification
-                    self.typed_mut().lazy_at_mut(idx, #extractor).insert(item)
-                } else {
-                    #track_modification
-                    let mut set = <#field_type as Default>::default();
-                    set.insert(item);
-                    self.typed_mut().lazy_push(#ctor);
-                    true
+                if #ref_expr.is_some_and(|existing| existing.contains(&item)) {
+                    return false;
                 }
+                #track_modification
+                #mut_expr.insert(item)
             }
         } else {
             quote! {
@@ -2044,29 +1999,18 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
             }
         };
 
-        if is_option {
-            // For lazy fields, combine guard and set into one operation to avoid
-            // double-scanning the lazy vec (set_guard would scan via find_lazy,
-            // then set_lazy would scan again via position).
-            let extractor = field.lazy_extractor_closure();
-            let unwraper = field.lazy_unwrap_closure();
-            let ctor = field.lazy_constructor(quote! {set});
-            set_body = quote! {
-                if let Some((idx, old_ref)) = self.typed().find_lazy_ref(#extractor) {
-                    if old_ref == &set {
-                        return None;
-                    }
-                    #track_modification
-                    let old = self.typed_mut().lazy_replace_at(idx, #ctor);
-                    Some((#unwraper)(old))
-                } else {
-                    #track_modification
-                    self.typed_mut().lazy_push(#ctor);
-                    None
+        set_body = if is_option {
+            quote! {
+                if #ref_expr.is_some_and(|old| old == &set) {
+                    return None;
                 }
-            };
+                #track_modification
+                let old = #take_expr;
+                *#mut_expr = set;
+                old
+            }
         } else {
-            set_body = quote! {
+            quote! {
                 if #ref_expr == &set {
                     return None;
                 }
@@ -2074,17 +2018,13 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                 let old = #take_expr;
                 *#mut_expr = set;
                 Some(old)
-            };
-        }
+            }
+        };
 
-        // Extend: use peekable iterator to avoid Vec allocation.
-        // For lazy fields, look up the set once via find_lazy_ref to avoid repeated scans.
         extend_body = if is_option {
-            let extractor = field.lazy_extractor_closure();
-            let ctor = field.lazy_constructor(quote! { set });
             quote! {
                 let mut iter = items.into_iter().peekable();
-                if let Some((idx, existing)) = self.typed().find_lazy_ref(#extractor) {
+                if let Some(existing) = #ref_expr {
                     // Skip items already in the set
                     loop {
                         match iter.peek() {
@@ -2093,17 +2033,15 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                             Some(_) => break,
                         }
                     }
-                    // Found a new item - track and extend using the known index
                     #track_modification
-                    self.typed_mut().lazy_at_mut(idx, #extractor).extend(iter);
+                    #mut_expr.extend(iter);
                 } else {
                     // Set doesn't exist yet - if iterator is empty, nothing to do
                     if iter.peek().is_none() {
                         return;
                     }
                     #track_modification
-                    let set: #field_type = iter.collect();
-                    self.typed_mut().lazy_push(#ctor);
+                    #mut_expr.extend(iter);
                 }
             }
         } else {
@@ -2249,22 +2187,23 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         quote! { #ref_expr.get(key) }
     };
 
-    // Generate remove body - for lazy fields, we need to check if the map exists first
-    // without allocating it. For inline fields, we can use the mut_expr directly.
-    // Only track modification if the key exists (check before mutating).
-    // For transient fields, skip guards since track_modification is a no-op.
+    // Generate remove body. Both inline and lazy storage use the same shape
+    // now: check existence via `#ref_expr` (lazy lookup is a single per-variant
+    // inline scan), track if present, then remove. `#mut_expr` for lazy fields
+    // creates an empty entry if absent — but we just checked existence, so the
+    // create path never fires.
     let remove_body = if field.is_transient() {
         quote! {
             #track_modification
             #mut_expr.remove(key)
         }
     } else if is_option {
-        let extractor = field.lazy_extractor_closure();
         quote! {
-            let (idx, val) = self.typed().find_lazy_ref(#extractor)?;
-            val.get(key)?;
+            if !#ref_expr.is_some_and(|m| m.get(key).is_some()) {
+                return None;
+            }
             #track_modification
-            self.typed_mut().lazy_at_mut(idx, #extractor).remove(key)
+            #mut_expr.remove(key)
         }
     } else {
         quote! {
@@ -2373,48 +2312,27 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         }
     };
 
+    // The lazy and inline shapes for `update_with` are now identical: they
+    // both read the old value through `#ref_expr`, compute the new value, and
+    // route to insert/remove via `#mut_expr`. `#mut_expr` for lazy fields
+    // creates an empty entry if absent — exactly what we want when inserting
+    // into a previously-absent map.
     let update_with_body = if field.is_transient() {
         quote! {
             #mut_expr.update_with(key, f)
         }
-    } else if is_option {
-        let extractor = field.lazy_extractor_closure();
-        let constructor = field.lazy_constructor(quote! {new_map});
+    } else {
+        let read_old = if is_option {
+            quote! { #ref_expr.and_then(|m| m.get(&key).copied()) }
+        } else {
+            quote! { #ref_expr.get(&key).copied() }
+        };
         quote! {
-            let (position, old_value) = if let Some((index, map)) = self.typed().find_lazy_ref(#extractor) {
-                // This copy is very cheap
-                (Some(index), map.get(&key).copied())
-            } else {
-                (None, None)
-            };
+            let old_value = #read_old;
             let new_value = f(old_value);
             if old_value != new_value {
                 #track_modification
                 match new_value {
-                    Some(value) => {
-                        if let Some(position) = position {
-                            self.typed_mut().lazy_at_mut(position, #extractor).insert(key, value);
-                        } else {
-                            let mut new_map = CounterMap::default();
-                            new_map.insert(key, value);
-                            self.typed_mut().lazy_push(#constructor);
-                        }
-                    }
-                    None => {
-                        // the position must be available, otherwise `f` would have mapped None to None and thus the != check above would have failed.
-                        self.typed_mut().lazy_at_mut(position.unwrap(), #extractor).remove(&key);
-
-                    }
-                }
-            }
-        }
-    } else {
-        quote! {
-            let old = self.#get_name(&key).copied();
-            let new = f(old);
-            if old != new {
-                #track_modification
-                match new {
                     Some(value) => { #mut_expr.insert(key, value); }
                     None => { #mut_expr.remove(&key); }
                 }
@@ -2573,20 +2491,21 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
         quote! {self.typed_mut().#take_name()}
     };
 
-    // Generate remove body - for lazy fields, avoid allocation if map doesn't exist.
-    // Only track modification if the key exists (check before mutating).
-    // For transient fields, skip guards since track_modification is a no-op.
+    // Generate remove body. Both inline and lazy use the same shape: check
+    // existence via the typed accessor, then route through `#mut_expr`. For
+    // lazy fields `#mut_expr` allocates an empty map if absent — but we just
+    // confirmed an entry exists, so the create path never fires.
     let remove_body = if field.is_transient() {
         quote! {
             #mut_expr.remove(key)
         }
     } else if is_option {
-        let extractor = field.lazy_extractor_closure();
         quote! {
-            let (idx, val) = self.typed().find_lazy_ref(#extractor)?;
-            val.get(key)?;
+            if !#ref_expr.is_some_and(|m| m.get(key).is_some()) {
+                return None;
+            }
             #track_modification
-            self.typed_mut().lazy_at_mut(idx, #extractor).remove(key)
+            #mut_expr.remove(key)
         }
     } else {
         quote! {
@@ -2603,25 +2522,24 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
             #take_expression
         }
     } else if is_option {
-        // For lazy fields, use find_lazy_ref to check existence and emptiness in one scan,
-        // then lazy_take_at to take by known index without re-scanning.
-        let extractor = field.lazy_extractor_closure();
-        let unwraper = field.lazy_unwrap_closure();
+        // Check emptiness via the typed ref accessor, then delegate to
+        // TaskStorage's `take_<name>` (which returns `Option<T>` for lazy
+        // collections — exactly the shape this outer method returns).
         quote! {
-            let (idx, val) = self.typed().find_lazy_ref(#extractor)?;
-            if val.is_empty() {
+            if #ref_expr.is_none_or(|m| m.is_empty()) {
                 return None;
             }
             #track_modification
-            Some(self.typed_mut().lazy_take_at(idx, #unwraper))
+            #take_expression
         }
     } else {
+        // Inline collection: `take_<name>` returns `T`, so wrap.
         quote! {
             if self.#is_empty_name() {
                 return None;
             }
             #track_modification
-            #take_expression
+            Some(#take_expression)
         }
     };
 

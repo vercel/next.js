@@ -600,128 +600,13 @@ impl TaskStorage {
 // =============================================================================
 
 impl TaskStorage {
-    /// Find a lazy field by predicate (immutable).
-    ///
-    /// The `extract` closure should return `Some(&T)` for the matching variant,
-    /// or `None` for non-matching variants.
-    fn find_lazy<T>(&self, extract: impl Fn(&LazyField) -> Option<&T>) -> Option<&T> {
-        self.lazy_iter().find_map(extract)
-    }
-
-    /// Find a lazy field by predicate (mutable).
-    ///
-    /// The `extract` closure should return `Some(&mut T)` for the matching variant,
-    /// or `None` for non-matching variants.
-    fn find_lazy_mut<T>(
-        &mut self,
-        extract: impl Fn(&mut LazyField) -> Option<&mut T>,
-    ) -> Option<&mut T> {
-        self.lazy_iter_mut().find_map(extract)
-    }
-
-    /// Find and extract a lazy field, returning its index and a reference to the inner value.
-    ///
-    /// Combines index lookup and extraction into a single scan. The returned index
-    /// can be used with `lazy_at_mut` for subsequent mutation without re-scanning.
-    fn find_lazy_ref<T>(&self, extract: impl Fn(&LazyField) -> Option<&T>) -> Option<(usize, &T)> {
-        self.lazy_iter()
-            .enumerate()
-            .find_map(|(idx, field)| extract(field).map(|val| (idx, val)))
-    }
-
-    /// Access a lazy field by index (mutable), extracting the inner value.
-    ///
-    /// # Panics
-    /// Panics if `idx` is out of bounds or the extractor returns `None`.
-    fn lazy_at_mut<T>(
-        &mut self,
-        idx: usize,
-        extract: impl FnOnce(&mut LazyField) -> Option<&mut T>,
-    ) -> &mut T {
-        extract(self.lazy_slot_mut(idx)).unwrap()
-    }
-
-    /// Take a lazy field by known index, removing it from the Vec via swap_remove.
-    ///
-    /// # Panics
-    /// Panics if `idx` is out of bounds.
-    fn lazy_take_at<T>(&mut self, idx: usize, extract: impl FnOnce(LazyField) -> T) -> T {
-        extract(self.lazy_swap_remove(idx))
-    }
-
-    /// Get or create a lazy field, returning a mutable reference.
-    ///
-    /// Uses a single `extract` closure that serves as both the matcher (by returning Some/None)
-    /// and the value extractor. The closure is first used to find the field position,
-    /// then to extract the mutable reference.
-    ///
-    /// # Example
-    /// ```ignore
-    /// let deps = storage.get_or_create_lazy(
-    ///     |f| matches!(f, LazyField::OutputDependencies(_)),
-    ///     |f| match f {
-    ///         LazyField::OutputDependencies(v) => v,
-    ///         _ => unreachable!(),
-    ///     },
-    ///     || LazyField::OutputDependencies(Default::default()),
-    /// );
-    /// ```
-    fn get_or_create_lazy<T>(
-        &mut self,
-        matches: impl Fn(&LazyField) -> bool,
-        extract: impl for<'a> FnOnce(&'a mut LazyField) -> &'a mut T,
-        create: impl FnOnce() -> LazyField,
-    ) -> &mut T {
-        // Find the index of matching field (immutable borrow)
-        let idx = self.lazy_iter().position(matches);
-        if let Some(idx) = idx {
-            extract(self.lazy_slot_mut(idx))
-        } else {
-            self.lazy_push(create());
-            extract(self.lazy_slot_mut(self.lazy_len() - 1))
-        }
-    }
-
-    /// Take a lazy field by predicate, removing it from the Vec.
-    ///
-    /// Uses a `matches` predicate to find the field index, then `extract` to
-    /// unwrap the value from the removed field.
-    ///
-    /// Returns `None` if no matching field exists.
-    fn take_lazy<T>(
-        &mut self,
-        matches: impl Fn(&LazyField) -> bool,
-        extract: impl FnOnce(LazyField) -> T,
-    ) -> Option<T> {
-        let idx = self.lazy_iter().position(matches)?;
-        Some(extract(self.lazy_swap_remove(idx)))
-    }
-
-    /// Set a lazy field value, replacing any existing value.
-    ///
-    /// Uses a `matches` predicate to find an existing field. If found, replaces it
-    /// in place and extracts the old value. Otherwise pushes the new value.
-    ///
-    /// Returns the old value if one existed.
-    fn set_lazy<T>(
-        &mut self,
-        matches: impl Fn(&LazyField) -> bool,
-        extract: impl FnOnce(LazyField) -> T,
-        new_value: LazyField,
-    ) -> Option<T> {
-        if let Some(idx) = self.lazy_iter().position(matches) {
-            let old = self.lazy_replace_at(idx, new_value);
-            Some(extract(old))
-        } else {
-            self.lazy_push(new_value);
-            None
-        }
-    }
-
     // =========================================================================
     // Encapsulated access to the lazy storage. These wrap every read/write of
     // `self.lazy` so the underlying container (currently `TinyVec<LazyField>`)
-    // can be replaced with a packed byte-tail layout without touching call sites.
+    // can be replaced with a packed byte-tail layout without touching call
+    // sites. The macro-generated per-variant accessors compose these
+    // primitives to implement typed `get_<name>` / `set_<name>` / etc., which
+    // is the public API used by the rest of the codebase.
     // =========================================================================
 
     /// Append a lazy field. May realloc the underlying storage.
