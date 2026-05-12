@@ -1,4 +1,4 @@
-import type { DebugInfo } from '../../../../../shared/types'
+import type { DebugInfo } from '../../../../shared/types'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 
 import { ErrorOverlayPagination } from '../error-overlay-pagination/error-overlay-pagination'

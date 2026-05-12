@@ -1,10 +1,21 @@
 export type CardColor = 'blue' | 'purple' | 'red' | 'amber' | 'teal'
 
+export type FixCardGroup =
+  | 'stream'
+  | 'prerender'
+  | 'block'
+  | 'cache'
+  | 'static'
+  | 'dynamic'
+  | 'client'
+  | 'defer'
+  | 'measure'
+
 export type FixCard = {
   title: string
+  group: FixCardGroup
   color: CardColor
   snippets: Snippet[]
-  conditional?: boolean
 }
 
 export type SnippetPart = {
@@ -26,6 +37,7 @@ export type Snippet = {
 const runtimeCards: FixCard[] = [
   {
     title: 'Show a fallback while data loads',
+    group: 'stream',
     color: 'purple',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
@@ -35,12 +47,10 @@ const runtimeCards: FixCard[] = [
   },
   {
     title: 'Make route params static',
+    group: 'prerender',
     color: 'blue',
-    conditional: true,
     snippets: [
-      {
-        text: 'async function generateStaticParams() {',
-      },
+      { text: 'export function generateStaticParams() {' },
       {
         text: '  return [{ slug: "…" }]',
         parts: [
@@ -53,11 +63,12 @@ const runtimeCards: FixCard[] = [
   },
   {
     title: 'Allow blocking route',
+    group: 'block',
     color: 'red',
     snippets: [
       { text: 'export const instant = false', highlight: true },
       { text: '' },
-      { text: 'export default async function Page() {' },
+      { text: 'export default function Page() {' },
     ],
   },
 ]
@@ -65,15 +76,17 @@ const runtimeCards: FixCard[] = [
 const dynamicCards: FixCard[] = [
   {
     title: 'Prerender and cache',
+    group: 'cache',
     color: 'blue',
     snippets: [
-      { text: 'async function getData() {' },
+      { text: 'function getData() {' },
       { text: '  "use cache"', highlight: true },
       { text: '}' },
     ],
   },
   {
     title: 'Show a fallback while data loads',
+    group: 'stream',
     color: 'purple',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
@@ -83,11 +96,12 @@ const dynamicCards: FixCard[] = [
   },
   {
     title: 'Allow blocking route',
+    group: 'block',
     color: 'red',
     snippets: [
       { text: 'export const instant = false', highlight: true },
       { text: '' },
-      { text: 'export default async function Page() {' },
+      { text: 'export default function Page() {' },
     ],
   },
 ]
@@ -97,6 +111,7 @@ const dynamicCards: FixCard[] = [
 const metadataRuntimeCards: FixCard[] = [
   {
     title: 'Use static metadata',
+    group: 'static',
     color: 'blue',
     snippets: [
       { text: 'export const metadata = {' },
@@ -106,6 +121,7 @@ const metadataRuntimeCards: FixCard[] = [
   },
   {
     title: 'Render page at request time',
+    group: 'dynamic',
     color: 'purple',
     snippets: [
       { text: 'export default async function Page() {' },
@@ -118,9 +134,10 @@ const metadataRuntimeCards: FixCard[] = [
 const metadataDynamicCards: FixCard[] = [
   {
     title: 'Prerender and cache',
+    group: 'cache',
     color: 'blue',
     snippets: [
-      { text: 'async function generateMetadata() {' },
+      { text: 'export async function generateMetadata() {' },
       { text: '  "use cache"', highlight: true },
       { text: '  return await cms.getPageMeta(…)' },
       { text: '}' },
@@ -128,6 +145,7 @@ const metadataDynamicCards: FixCard[] = [
   },
   {
     title: 'Render page at request time',
+    group: 'dynamic',
     color: 'purple',
     snippets: [
       { text: 'export default async function Page() {' },
@@ -142,6 +160,7 @@ const metadataDynamicCards: FixCard[] = [
 const viewportRuntimeCards: FixCard[] = [
   {
     title: 'Use static viewport',
+    group: 'static',
     color: 'blue',
     snippets: [
       { text: 'export const viewport = {' },
@@ -151,6 +170,7 @@ const viewportRuntimeCards: FixCard[] = [
   },
   {
     title: 'Wrap body in Suspense',
+    group: 'stream',
     color: 'purple',
     snippets: [
       { text: '<Suspense>', highlight: true },
@@ -160,11 +180,12 @@ const viewportRuntimeCards: FixCard[] = [
   },
   {
     title: 'Allow blocking route',
+    group: 'block',
     color: 'red',
     snippets: [
       { text: 'export const instant = false', highlight: true },
       { text: '' },
-      { text: 'export default async function Page() {' },
+      { text: 'export default function Page() {' },
     ],
   },
 ]
@@ -172,9 +193,10 @@ const viewportRuntimeCards: FixCard[] = [
 const viewportDynamicCards: FixCard[] = [
   {
     title: 'Prerender and cache',
+    group: 'cache',
     color: 'blue',
     snippets: [
-      { text: 'async function generateViewport() {' },
+      { text: 'export async function generateViewport() {' },
       { text: '  "use cache"', highlight: true },
       { text: '  return await db.getViewport(…)' },
       { text: '}' },
@@ -182,6 +204,7 @@ const viewportDynamicCards: FixCard[] = [
   },
   {
     title: 'Wrap body in Suspense',
+    group: 'stream',
     color: 'purple',
     snippets: [
       { text: '<Suspense>', highlight: true },
@@ -191,11 +214,12 @@ const viewportDynamicCards: FixCard[] = [
   },
   {
     title: 'Allow blocking route',
+    group: 'block',
     color: 'red',
     snippets: [
       { text: 'export const instant = false', highlight: true },
       { text: '' },
-      { text: 'export default async function Page() {' },
+      { text: 'export default function Page() {' },
     ],
   },
 ]
@@ -205,6 +229,7 @@ const viewportDynamicCards: FixCard[] = [
 const syncMathCards: FixCard[] = [
   {
     title: 'Render at request time',
+    group: 'dynamic',
     color: 'purple',
     snippets: [
       { text: 'await connection()', highlight: true },
@@ -214,9 +239,10 @@ const syncMathCards: FixCard[] = [
   },
   {
     title: 'Prerender and cache',
+    group: 'cache',
     color: 'blue',
     snippets: [
-      { text: 'async function RandomId() {' },
+      { text: 'function RandomId() {' },
       { text: '  "use cache"', highlight: true },
       { text: '  return String(Math.random())' },
       { text: '}' },
@@ -224,6 +250,7 @@ const syncMathCards: FixCard[] = [
   },
   {
     title: 'Render on the client',
+    group: 'client',
     color: 'amber',
     snippets: [
       { text: '"use client"', highlight: true },
@@ -237,6 +264,7 @@ const syncMathCards: FixCard[] = [
 const syncDateCards: FixCard[] = [
   {
     title: 'Render at request time',
+    group: 'dynamic',
     color: 'purple',
     snippets: [
       { text: 'await connection()', highlight: true },
@@ -246,9 +274,10 @@ const syncDateCards: FixCard[] = [
   },
   {
     title: 'Prerender and cache',
+    group: 'cache',
     color: 'blue',
     snippets: [
-      { text: 'async function Timestamp() {' },
+      { text: 'function Timestamp() {' },
       { text: '  "use cache"', highlight: true },
       { text: '  return <time>{Date.now()}</time>' },
       { text: '}' },
@@ -256,6 +285,7 @@ const syncDateCards: FixCard[] = [
   },
   {
     title: 'Render on the client',
+    group: 'client',
     color: 'amber',
     snippets: [
       { text: '"use client"', highlight: true },
@@ -266,8 +296,8 @@ const syncDateCards: FixCard[] = [
   },
   {
     title: 'Measure elapsed time',
+    group: 'measure',
     color: 'teal',
-    conditional: true,
     snippets: [
       { text: 'const start = performance.now()', highlight: true },
       { text: 'doWork()' },
@@ -279,6 +309,7 @@ const syncDateCards: FixCard[] = [
 const syncCryptoCards: FixCard[] = [
   {
     title: 'Render at request time',
+    group: 'dynamic',
     color: 'purple',
     snippets: [
       { text: 'await connection()', highlight: true },
@@ -288,9 +319,10 @@ const syncCryptoCards: FixCard[] = [
   },
   {
     title: 'Prerender and cache',
+    group: 'cache',
     color: 'blue',
     snippets: [
-      { text: 'async function TokenId() {' },
+      { text: 'function TokenId() {' },
       { text: '  "use cache"', highlight: true },
       { text: '  return crypto.randomUUID()' },
       { text: '}' },
@@ -298,6 +330,7 @@ const syncCryptoCards: FixCard[] = [
   },
   {
     title: 'Render on the client',
+    group: 'client',
     color: 'amber',
     snippets: [
       { text: '"use client"', highlight: true },
@@ -313,6 +346,7 @@ const syncCryptoCards: FixCard[] = [
 const syncClientDateCards: FixCard[] = [
   {
     title: 'Wrap in Suspense',
+    group: 'stream',
     color: 'purple',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
@@ -322,6 +356,7 @@ const syncClientDateCards: FixCard[] = [
   },
   {
     title: 'Move into effect or event handler',
+    group: 'defer',
     color: 'amber',
     snippets: [
       { text: 'useEffect(() => {', highlight: true },
@@ -334,6 +369,7 @@ const syncClientDateCards: FixCard[] = [
 const syncClientMathCards: FixCard[] = [
   {
     title: 'Wrap in Suspense',
+    group: 'stream',
     color: 'purple',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
@@ -343,6 +379,7 @@ const syncClientMathCards: FixCard[] = [
   },
   {
     title: 'Move into effect or event handler',
+    group: 'defer',
     color: 'amber',
     snippets: [
       { text: 'useEffect(() => {', highlight: true },
@@ -355,6 +392,7 @@ const syncClientMathCards: FixCard[] = [
 const syncClientCryptoCards: FixCard[] = [
   {
     title: 'Wrap in Suspense',
+    group: 'stream',
     color: 'purple',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
@@ -364,6 +402,7 @@ const syncClientCryptoCards: FixCard[] = [
   },
   {
     title: 'Move into effect or event handler',
+    group: 'defer',
     color: 'amber',
     snippets: [
       { text: 'useEffect(() => {', highlight: true },

@@ -360,22 +360,22 @@ export const instantRuntimeDataErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/instant/runtime-data": Next.js encountered runtime data during the initial render.\n\n`cookies()`, `headers()`, `params`, or `searchParams` accessed outside of `<Suspense>` blocks navigation, leading to a slower user experience.\n\nWays to fix this:\n  - Move the data access into a child component within a <Suspense> boundary\n  - Use `generateStaticParams` to make route params static\n  - Set `export const instant = false` to allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-route'
+        'Route "/01-cookies-body": Next.js encountered runtime data during the initial render.\n\n`cookies()`, `headers()`, `params`, or `searchParams` accessed outside of `<Suspense>` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.\n\nWays to fix this:\n  - Provide a placeholder with `<Suspense fallback={...}>` around the data access\n  - Use `generateStaticParams` to make route params static\n  - Set `export const instant = false` to allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-route'
       ),
-      { __NEXT_ERROR_CODE: 'E1166' }
+      { __NEXT_ERROR_CODE: 'E1221' }
     ),
     frames: createStoryFrames({
       reason:
-        'Route "/instant/runtime-data": Next.js encountered runtime data during the initial render.',
-      file: 'app/instant/runtime-data/page.tsx',
+        'Route "/01-cookies-body": Next.js encountered runtime data during the initial render.',
+      file: 'app/01-cookies-body/page.tsx',
       methodName: 'Page',
-      line: 6,
-      column: 16,
+      line: 4,
+      column: 13,
       codeFrame: instantCodeFrame({
         beforeLine: "import { cookies } from 'next/headers'",
-        line: 'await cookies()',
-        markerLine: 6,
-        pointerColumn: 14,
+        line: 'const c = await cookies()',
+        markerLine: 4,
+        pointerColumn: 11,
       }),
     }),
     type: 'runtime',
@@ -388,22 +388,22 @@ export const instantUncachedDataErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/instant/uncached-data": Next.js encountered uncached data during the initial render.\n\n`fetch(...)` or `connection()` accessed outside of `<Suspense>` blocks navigation, leading to a slower user experience.\n\nWays to fix this:\n  - Cache the data access with `"use cache"`\n  - Move the data access into a child component within a <Suspense> boundary\n  - Set `export const instant = false` to allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-route'
+        'Route "/06-uncached-fetch-body": Next.js encountered uncached data during the initial render.\n\n`fetch(...)` or `connection()` accessed outside of `<Suspense>` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.\n\nWays to fix this:\n  - Cache the data access with `"use cache"`\n  - Provide a placeholder with `<Suspense fallback={...}>` around the data access\n  - Set `export const instant = false` to allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-route'
       ),
-      { __NEXT_ERROR_CODE: 'E1164' }
+      { __NEXT_ERROR_CODE: 'E1220' }
     ),
     frames: createStoryFrames({
       reason:
-        'Route "/instant/uncached-data": Next.js encountered uncached data during the initial render.',
-      file: 'app/instant/uncached-data/page.tsx',
+        'Route "/06-uncached-fetch-body": Next.js encountered uncached data during the initial render.',
+      file: 'app/06-uncached-fetch-body/page.tsx',
       methodName: 'Page',
-      line: 7,
-      column: 22,
+      line: 6,
+      column: 21,
       codeFrame: instantCodeFrame({
-        beforeLine: "import { connection } from 'next/server'",
-        line: 'await fetch("https://example.com/api/data")',
-        markerLine: 7,
-        pointerColumn: 20,
+        beforeLine: 'export default async function Page() {',
+        line: 'const res = await fetch("http://example.com", { cache: "no-store" })',
+        markerLine: 6,
+        pointerColumn: 21,
       }),
     }),
     type: 'runtime',
@@ -416,23 +416,25 @@ export const instantViewportErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/instant/runtime-viewport": Next.js encountered runtime data such as `cookies()`, `headers()`, `params`, or `searchParams` inside `generateViewport`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport'
+        'Route "/14-cookies-in-viewport": Next.js encountered runtime data in `generateViewport()`.\n\n`cookies()`, `headers()`, `params`, or `searchParams` in `generateViewport()` prevents the page from being prerendered, leading to a slower user experience.\n\nWays to fix this:\n  - Use a static viewport export instead of `generateViewport()`\n  - Wrap your document `<body>` in `<Suspense>`\n  - Set `export const instant = false` to allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport'
       ),
-      { __NEXT_ERROR_CODE: 'E1165' }
+      { __NEXT_ERROR_CODE: 'E1208' }
     ),
     frames: createStoryFrames({
       reason:
-        'Route "/instant/runtime-viewport": Next.js encountered runtime data such as `cookies()`, `headers()`, `params`, or `searchParams` inside `generateViewport`.',
-      file: 'app/instant/runtime-viewport/page.tsx',
+        'Route "/14-cookies-in-viewport": Next.js encountered runtime data in `generateViewport()`.',
+      file: 'app/14-cookies-in-viewport/page.tsx',
       methodName: 'generateViewport',
-      line: 4,
-      column: 16,
+      line: 5,
+      column: 13,
       codeFrame: instantCodeFrame({
-        beforeLine: "import { cookies } from 'next/headers'",
-        line: 'await cookies()',
-        markerLine: 4,
-        pointerColumn: 14,
-        afterLine: 'return { themeColor: "black" }',
+        beforeLine:
+          'export async function generateViewport(): Promise<Viewport> {',
+        line: 'const c = await cookies()',
+        markerLine: 5,
+        pointerColumn: 11,
+        afterLine:
+          'return { themeColor: c.getAll().length > 0 ? "#000" : "#fff" }',
       }),
     }),
     type: 'runtime',
@@ -445,23 +447,24 @@ export const instantViewportUncachedErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/instant/uncached-viewport": Next.js encountered uncached data inside `generateViewport()`. This prevents the page from being prerendered, leading to a slower user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport'
+        'Route "/15-fetch-in-viewport": Next.js encountered uncached data in `generateViewport()`.\n\n`fetch(...)` or `connection()` in `generateViewport()` prevents the page from being prerendered, leading to a slower user experience.\n\nWays to fix this:\n  - Cache the viewport data with `"use cache"` in `generateViewport()`\n  - Wrap your document `<body>` in `<Suspense>`\n  - Set `export const instant = false` to allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport'
       ),
-      { __NEXT_ERROR_CODE: 'E1165' }
+      { __NEXT_ERROR_CODE: 'E1210' }
     ),
     frames: createStoryFrames({
       reason:
-        'Route "/instant/uncached-viewport": Next.js encountered uncached data inside `generateViewport()`.',
-      file: 'app/instant/uncached-viewport/page.tsx',
+        'Route "/15-fetch-in-viewport": Next.js encountered uncached data in `generateViewport()`.',
+      file: 'app/15-fetch-in-viewport/page.tsx',
       methodName: 'generateViewport',
-      line: 4,
-      column: 20,
+      line: 8,
+      column: 21,
       codeFrame: instantCodeFrame({
-        beforeLine: "import { connection } from 'next/server'",
-        line: 'await fetch("https://example.com/theme")',
-        markerLine: 4,
-        pointerColumn: 18,
-        afterLine: 'return { themeColor: "#000" }',
+        beforeLine:
+          'export async function generateViewport(): Promise<Viewport> {',
+        line: 'const res = await fetch("http://example.com", { cache: "no-store" })',
+        markerLine: 8,
+        pointerColumn: 21,
+        afterLine: 'return { themeColor: res.ok ? "#000" : "#fff" }',
       }),
     }),
     type: 'runtime',
@@ -474,23 +477,25 @@ export const instantMetadataErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/instant/runtime-metadata": Next.js encountered runtime data such as `cookies()`, `headers()`, `params`, or `searchParams` inside `generateMetadata`, or you have file-based metadata such as icons that depend on dynamic params segments. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata'
+        'Route "/12-cookies-in-metadata": Next.js encountered runtime data in `generateMetadata()`.\n\nThis route\'s metadata is blocked, but the rest of its content can be prerendered. `cookies()`, `headers()`, `params`, or `searchParams` accessed in `generateMetadata()` cause it to run dynamically.\n\nWays to fix this:\n  - Use a static metadata export instead of `generateMetadata()`\n  - Add a dynamic data access (e.g. `await connection()`) to the page to render it at request time\n\nLearn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata'
       ),
-      { __NEXT_ERROR_CODE: 'E1168' }
+      { __NEXT_ERROR_CODE: 'E1230' }
     ),
     frames: createStoryFrames({
       reason:
-        'Route "/instant/runtime-metadata": Next.js encountered runtime data such as `cookies()`, `headers()`, `params`, or `searchParams` inside `generateMetadata`.',
-      file: 'app/instant/runtime-metadata/page.tsx',
+        'Route "/12-cookies-in-metadata": Next.js encountered runtime data in `generateMetadata()`.',
+      file: 'app/12-cookies-in-metadata/page.tsx',
       methodName: 'generateMetadata',
       line: 5,
-      column: 16,
+      column: 13,
       codeFrame: instantCodeFrame({
-        beforeLine: "import { cookies } from 'next/headers'",
-        line: 'await cookies()',
+        beforeLine:
+          'export async function generateMetadata(): Promise<Metadata> {',
+        line: 'const c = await cookies()',
         markerLine: 5,
-        pointerColumn: 14,
-        afterLine: 'return { title: "Hello" }',
+        pointerColumn: 11,
+        // eslint-disable-next-line no-template-curly-in-string -- literal `${…}` is part of the rendered code-frame snippet
+        afterLine: 'return { title: `Cookies: ${c.getAll().length}` }',
       }),
     }),
     type: 'runtime',
@@ -503,23 +508,25 @@ export const instantMetadataUncachedErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/instant/uncached-metadata": Next.js encountered uncached data inside `generateMetadata()`. This prevents the page from being prerendered, leading to a slower user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata'
+        'Route "/13-fetch-in-metadata": Next.js encountered uncached data in `generateMetadata()`.\n\nThis route\'s metadata is blocked, but the rest of its content can be prerendered. `fetch(...)` or `connection()` accessed in `generateMetadata()` cause it to run dynamically.\n\nWays to fix this:\n  - Cache the metadata with `"use cache"` in `generateMetadata()`\n  - Add a dynamic data access (e.g. `await connection()`) to the page to render it at request time\n\nLearn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata'
       ),
-      { __NEXT_ERROR_CODE: 'E1168' }
+      { __NEXT_ERROR_CODE: 'E1231' }
     ),
     frames: createStoryFrames({
       reason:
-        'Route "/instant/uncached-metadata": Next.js encountered uncached data inside `generateMetadata()`.',
-      file: 'app/instant/uncached-metadata/page.tsx',
+        'Route "/13-fetch-in-metadata": Next.js encountered uncached data in `generateMetadata()`.',
+      file: 'app/13-fetch-in-metadata/page.tsx',
       methodName: 'generateMetadata',
-      line: 5,
-      column: 20,
+      line: 8,
+      column: 21,
       codeFrame: instantCodeFrame({
-        beforeLine: "import { connection } from 'next/server'",
-        line: 'await fetch("https://example.com/meta")',
-        markerLine: 5,
-        pointerColumn: 18,
-        afterLine: 'return { title: "Hello" }',
+        beforeLine:
+          'export async function generateMetadata(): Promise<Metadata> {',
+        line: 'const res = await fetch("http://example.com", { cache: "no-store" })',
+        markerLine: 8,
+        pointerColumn: 21,
+        // eslint-disable-next-line no-template-curly-in-string -- literal `${…}` is part of the rendered code-frame snippet
+        afterLine: 'return { title: `Status: ${res.status}` }',
       }),
     }),
     type: 'runtime',
@@ -532,23 +539,23 @@ export const instantCurrentTimeErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/instant/current-time" used `Date.now()` before accessing either uncached data (e.g. `fetch()`) or awaiting `connection()`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time'
+        'Route "/39-date-now-no-instant": Next.js encountered `Date.now()` without an explicit rendering intent.\n\nThis value can change between renders, so it must be either prerendered or computed later.\n\nWays to fix this:\n  - Render at request time by adding a dynamic data access (e.g. `await connection()`) before this call\n  - Prerender and cache the value with `"use cache"`\n  - Render the value on the client with `"use client"`\n  - Measure elapsed time with `performance.now()` instead of `Date.now()`\n\nLearn more: https://nextjs.org/docs/messages/next-prerender-current-time'
       ),
-      { __NEXT_ERROR_CODE: 'E1078' }
+      { __NEXT_ERROR_CODE: 'E1247' }
     ),
     frames: createStoryFrames({
       reason:
-        'Route "/instant/current-time" used `Date.now()` before accessing either uncached data or awaiting `connection()`.',
-      file: 'app/instant/current-time/page.tsx',
+        'Route "/39-date-now-no-instant": Next.js encountered `Date.now()` without an explicit rendering intent.',
+      file: 'app/39-date-now-no-instant/page.tsx',
       methodName: 'Page',
-      line: 4,
-      column: 20,
+      line: 2,
+      column: 17,
       codeFrame: instantCodeFrame({
-        beforeLine: "import { connection } from 'next/server'",
-        line: 'const now = Date.now()',
-        markerLine: 4,
-        pointerColumn: 18,
-        afterLine: 'await connection()',
+        beforeLine: 'export default function Page() {',
+        line: 'const value = Date.now()',
+        markerLine: 2,
+        pointerColumn: 17,
+        afterLine: 'return <p>Now: {value}</p>',
       }),
     }),
     type: 'runtime',
@@ -561,23 +568,23 @@ export const instantMathRandomErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/instant/random" used `Math.random()` before accessing either uncached data (e.g. `fetch()`) or awaiting `connection()`. When configured for Runtime prefetching, accessing random values in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-random'
+        'Route "/38-math-random-no-instant": Next.js encountered `Math.random()` without an explicit rendering intent.\n\nThis value can change between renders, so it must be either prerendered or computed later.\n\nWays to fix this:\n  - Render at request time by adding a dynamic data access (e.g. `await connection()`) before this call\n  - Prerender and cache the value with `"use cache"`\n  - Render the value on the client with `"use client"`\n\nLearn more: https://nextjs.org/docs/messages/next-prerender-random'
       ),
-      { __NEXT_ERROR_CODE: 'E1077' }
+      { __NEXT_ERROR_CODE: 'E1247' }
     ),
     frames: createStoryFrames({
       reason:
-        'Route "/instant/random" used `Math.random()` before accessing either uncached data or awaiting `connection()`.',
-      file: 'app/instant/random/page.tsx',
+        'Route "/38-math-random-no-instant": Next.js encountered `Math.random()` without an explicit rendering intent.',
+      file: 'app/38-math-random-no-instant/page.tsx',
       methodName: 'Page',
-      line: 4,
-      column: 22,
+      line: 2,
+      column: 19,
       codeFrame: instantCodeFrame({
-        beforeLine: "import { connection } from 'next/server'",
-        line: 'const id = Math.random()',
-        markerLine: 4,
-        pointerColumn: 20,
-        afterLine: 'await connection()',
+        beforeLine: 'export default function Page() {',
+        line: 'const value = Math.random()',
+        markerLine: 2,
+        pointerColumn: 19,
+        afterLine: 'return <p>Random: {value}</p>',
       }),
     }),
     type: 'runtime',
@@ -590,23 +597,23 @@ export const instantCryptoRandomUUIDErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/instant/crypto" used `crypto.randomUUID()` before accessing either uncached data (e.g. `fetch()`) or awaiting `connection()`. When configured for Runtime prefetching, accessing cryptographic randomness in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-crypto'
+        'Route "/40-crypto-random-no-instant": Next.js encountered `crypto.randomUUID()` without an explicit rendering intent.\n\nThis value can change between renders, so it must be either prerendered or computed later.\n\nWays to fix this:\n  - Render at request time by adding a dynamic data access (e.g. `await connection()`) before this call\n  - Prerender and cache the value with `"use cache"`\n  - Render the value on the client with `"use client"`\n\nLearn more: https://nextjs.org/docs/messages/next-prerender-crypto'
       ),
-      { __NEXT_ERROR_CODE: 'E1079' }
+      { __NEXT_ERROR_CODE: 'E1247' }
     ),
     frames: createStoryFrames({
       reason:
-        'Route "/instant/crypto" used `crypto.randomUUID()` before accessing either uncached data or awaiting `connection()`.',
-      file: 'app/instant/crypto/page.tsx',
+        'Route "/40-crypto-random-no-instant": Next.js encountered `crypto.randomUUID()` without an explicit rendering intent.',
+      file: 'app/40-crypto-random-no-instant/page.tsx',
       methodName: 'Page',
-      line: 4,
-      column: 28,
+      line: 2,
+      column: 25,
       codeFrame: instantCodeFrame({
-        beforeLine: "import { connection } from 'next/server'",
-        line: 'const id = crypto.randomUUID()',
-        markerLine: 4,
-        pointerColumn: 26,
-        afterLine: 'await connection()',
+        beforeLine: 'export default function Page() {',
+        line: 'const value = crypto.randomUUID()',
+        markerLine: 2,
+        pointerColumn: 25,
+        afterLine: 'return <p>UUID: {value}</p>',
       }),
     }),
     type: 'runtime',
@@ -619,23 +626,23 @@ export const instantClientMathRandomErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/instant/client-random": Next.js encountered `Math.random()` inside a Client Component without a Suspense boundary. Without an upstream `<Suspense>` boundary, Next.js has no fallback to prerender in place of this Client Component. Learn more: https://nextjs.org/docs/messages/next-prerender-random-client'
+        'Route "/44-client-math-random-no-suspense": Next.js encountered `Math.random()` in a Client Component.\n\nThis value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.\n\nWays to fix this:\n  - Wrap the Client Component in `<Suspense fallback={...}>`\n  - Move the read into a `useEffect` or event handler\n\nLearn more: https://nextjs.org/docs/messages/next-prerender-random-client'
       ),
-      { __NEXT_ERROR_CODE: 'E1180' }
+      { __NEXT_ERROR_CODE: 'E1228' }
     ),
     frames: createStoryFrames({
       reason:
-        'Route "/instant/client-random": Next.js encountered `Math.random()` inside a Client Component without a Suspense boundary.',
-      file: 'app/instant/client-random/random-widget.tsx',
-      methodName: 'RandomWidget',
+        'Route "/44-client-math-random-no-suspense": Next.js encountered `Math.random()` in a Client Component.',
+      file: 'app/44-client-math-random-no-suspense/random-display.tsx',
+      methodName: 'RandomDisplay',
       line: 4,
-      column: 22,
+      column: 19,
       codeFrame: instantCodeFrame({
-        beforeLine: "'use client'",
+        beforeLine: 'export function RandomDisplay() {',
         line: 'const value = Math.random()',
         markerLine: 4,
-        pointerColumn: 20,
-        afterLine: 'return <div>{value}</div>',
+        pointerColumn: 19,
+        afterLine: 'return <p>Random: {value}</p>',
       }),
     }),
     type: 'runtime',
@@ -648,23 +655,23 @@ export const instantValidationBlockedErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: Object.assign(
       new Error(
-        'Route "/instant/client-parent": Could not validate `unstable_instant` because a Client Component in a parent segment prevented the page from rendering.'
+        'Route "/28-use-client-with-instant": Could not validate `unstable_instant` because a Client Component in a parent segment prevented the page from rendering.'
       ),
       { __NEXT_ERROR_CODE: 'E1082' }
     ),
     frames: createStoryFrames({
       reason:
-        'Route "/instant/client-parent": Could not validate `unstable_instant` because a Client Component in a parent segment prevented the page from rendering.',
-      file: 'app/instant/client-parent/page.tsx',
+        'Route "/28-use-client-with-instant": Could not validate `unstable_instant` because a Client Component in a parent segment prevented the page from rendering.',
+      file: 'app/28-use-client-with-instant/page.tsx',
       methodName: 'Page',
       line: 3,
-      column: 1,
+      column: 14,
       codeFrame: instantCodeFrame({
-        beforeLine: "import ClientShell from './client-shell'",
+        beforeLine: "'use client'",
         line: "'use client'",
         markerLine: 3,
-        pointerColumn: 1,
-        afterLine: 'export const unstable_instant = true',
+        pointerColumn: 14,
+        afterLine: 'export default function Page() {',
       }),
     }),
     type: 'runtime',

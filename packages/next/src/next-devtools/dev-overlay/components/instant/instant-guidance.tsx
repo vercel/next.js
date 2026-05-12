@@ -12,6 +12,7 @@ import {
   SYNC_IO_DOCS,
   getCards,
   type FixCard,
+  type FixCardGroup,
   type GuidanceKind,
   type GuidanceVariant,
 } from './instant-guidance-data'
@@ -24,59 +25,37 @@ export {
 } from './instant-guidance-data'
 export type { GuidanceKind, GuidanceVariant } from './instant-guidance-data'
 
-function getCardShortTitle(card: FixCard): string {
-  switch (card.title) {
-    case 'Show a fallback while data loads':
-    case 'Wrap in Suspense':
-    case 'Wrap body in Suspense':
-      return 'Stream'
-    case 'Make route params static':
-      return 'Prerender'
-    case 'Allow blocking route':
-      return 'Block'
-    case 'Prerender and cache':
-      return 'Cache'
-    case 'Use static metadata':
-    case 'Use static viewport':
-      return 'Static'
-    case 'Render page at request time':
-    case 'Render at request time':
-      return 'Dynamic'
-    case 'Render on the client':
-      return 'Client'
-    case 'Move into effect or event handler':
-      return 'Defer'
-    case 'Measure elapsed time':
-      return 'Measure'
-    default:
-      return card.title
-  }
+const GROUP_LABELS: Record<FixCardGroup, string> = {
+  stream: 'Stream',
+  prerender: 'Prerender',
+  block: 'Block',
+  cache: 'Cache',
+  static: 'Static',
+  dynamic: 'Dynamic',
+  client: 'Client',
+  defer: 'Defer',
+  measure: 'Measure',
 }
 
-function getCardIcon(card: FixCard) {
-  const shortTitle = getCardShortTitle(card)
-
-  if (shortTitle === 'Static') {
-    return <LightningIcon />
-  }
-
-  if (shortTitle === 'Client') {
-    return <LayoutIcon />
-  }
-
-  if (shortTitle === 'Defer') {
-    return <RotateClockwiseIcon />
-  }
-
-  switch (card.color) {
-    case 'blue':
-      return <ClockRewindIcon />
-    case 'purple':
+function getCardIcon(group: FixCardGroup) {
+  switch (group) {
+    case 'stream':
+    case 'dynamic':
       return <AlignmentLeftIcon />
-    case 'red':
+    case 'prerender':
+    case 'cache':
+    case 'measure':
+      return <ClockRewindIcon />
+    case 'block':
       return <StopIcon />
+    case 'static':
+      return <LightningIcon />
+    case 'client':
+      return <LayoutIcon />
+    case 'defer':
+      return <RotateClockwiseIcon />
     default:
-      return null
+      return group satisfies never
   }
 }
 
@@ -84,36 +63,31 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
   return (
     <div data-nextjs-card-grid>
       {cards.map((card) => (
-        <div
-          data-nextjs-fix-card
-          data-card-color={card.color}
-          data-card-conditional={card.conditional || undefined}
-          key={card.title}
-        >
+        <div data-nextjs-fix-card data-card-color={card.color} key={card.title}>
           <div data-nextjs-fix-card-header>
-            <div data-nextjs-fix-card-icon>{getCardIcon(card)}</div>
+            <div data-nextjs-fix-card-icon>{getCardIcon(card.group)}</div>
             <div data-nextjs-fix-card-header-text>
-              <span data-nextjs-fix-card-title>{getCardShortTitle(card)}</span>
+              <span data-nextjs-fix-card-title>{GROUP_LABELS[card.group]}</span>
               <span data-nextjs-fix-card-description>{card.title}</span>
             </div>
           </div>
           <pre data-nextjs-fix-snippet>
             {card.snippets.map((snippet, i) => (
               <span key={i} data-snippet-line>
-                {snippet.parts
-                  ? snippet.parts.map((part, j) => (
-                      <span
-                        key={j}
-                        data-snippet-highlight={part.highlight ? '' : undefined}
-                      >
-                        {part.text}
-                      </span>
-                    ))
-                  : snippet.highlight
-                    ? (
-                        <span data-snippet-highlight>{snippet.text}</span>
-                      )
-                    : snippet.text}
+                {snippet.parts ? (
+                  snippet.parts.map((part, j) => (
+                    <span
+                      key={j}
+                      data-snippet-highlight={part.highlight ? '' : undefined}
+                    >
+                      {part.text}
+                    </span>
+                  ))
+                ) : snippet.highlight ? (
+                  <span data-snippet-highlight>{snippet.text}</span>
+                ) : (
+                  snippet.text
+                )}
                 {'\n'}
               </span>
             ))}
@@ -192,11 +166,7 @@ export function InstantHeaderExplanation({
   return (
     <p data-nextjs-instant-explanation>
       {resolvedExplanation}{' '}
-      <a
-        href={resolvedDocsUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <a href={resolvedDocsUrl} target="_blank" rel="noopener noreferrer">
         Learn more
       </a>
     </p>
@@ -296,10 +266,6 @@ export const INSTANT_GUIDANCE_STYLES = css`
     line-height: var(--size-16);
     color: var(--color-gray-900);
     text-align: left;
-  }
-
-  [data-card-conditional] [data-nextjs-fix-snippet] {
-    border-style: dashed;
   }
 
   [data-nextjs-fix-snippet] {

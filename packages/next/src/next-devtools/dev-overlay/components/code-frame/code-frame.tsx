@@ -9,6 +9,7 @@ import {
   getCaretOverlayTextFromCodeFrameLine,
   groupCodeFrameLines,
   isCaretCodeFrameLine,
+  isLineNumberPrefixToken,
   parseLineNumberFromCodeFrameLine,
 } from './parse-code-frame'
 
@@ -83,12 +84,17 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
               lineNumberProps['data-nextjs-codeframe-line--errored'] = true
             }
 
+            // Drop leading prefix tokens so every line aligns at the line number.
+            const firstContentIndex = line.findIndex(
+              (entry) => !isLineNumberPrefixToken(entry.content)
+            )
+
             return (
               <div key={`line-${lineIndex}`} {...lineNumberProps}>
                 {line.map((entry, entryIndex) => {
                   if (
-                    entryIndex === 0 &&
-                    (entry.content === ' ' || entry.content === '>')
+                    firstContentIndex !== -1 &&
+                    entryIndex < firstContentIndex
                   ) {
                     return null
                   }
@@ -97,7 +103,9 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
                     <span
                       key={`frame-${entryIndex}`}
                       style={{
-                        color: entry.fg ? `var(--color-${entry.fg})` : undefined,
+                        color: entry.fg
+                          ? `var(--color-${entry.fg})`
+                          : undefined,
                         ...(entry.decoration === 'bold'
                           ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
                             // having longer width than expected on Geist Mono font-weight

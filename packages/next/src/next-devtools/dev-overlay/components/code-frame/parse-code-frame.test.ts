@@ -2,7 +2,6 @@ import {
   formatCodeFrame,
   getCaretOverlayTextFromCodeFrameLine,
   groupCodeFrameLines,
-  parseCaretOffsetFromCodeFrameLine,
   isCaretCodeFrameLine,
   parseLineNumberFromCodeFrameLine,
 } from './parse-code-frame'
@@ -44,11 +43,11 @@ describe('parse line numbers', () => {
       isErroredLine: true,
     })
 
-    // Line of ^ marker
+    // Line of ^ marker — no line number on this line, return undefined.
     expect(
       parseLineNumberFromCodeFrameLine(decodedLines[2], input.stackFrame)
     ).toEqual({
-      lineNumber: '',
+      lineNumber: undefined,
       isErroredLine: false,
     })
   })
@@ -112,8 +111,6 @@ describe('parse line numbers', () => {
     const decodedLines = groupCodeFrameLines(formattedFrame)
 
     expect(isCaretCodeFrameLine(decodedLines[2])).toBe(true)
-    expect(parseCaretOffsetFromCodeFrameLine(decodedLines[2])).toBe(12)
-    expect(parseCaretOffsetFromCodeFrameLine(decodedLines[1])).toBeUndefined()
     expect(getCaretOverlayTextFromCodeFrameLine(decodedLines[2])).toBe(
       '             ^'
     )
