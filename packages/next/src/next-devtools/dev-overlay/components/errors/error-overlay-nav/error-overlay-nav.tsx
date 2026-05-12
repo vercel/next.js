@@ -59,6 +59,7 @@ export const styles = `
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0;
 
     width: 100%;
 
@@ -84,25 +85,6 @@ export const styles = `
     }
   }
 
-  @media (max-width: 600px) {
-    [data-nextjs-error-overlay-nav] {
-      background: var(--background-color);
-      border-radius: var(--next-dialog-radius) var(--next-dialog-radius) 0 0;
-      border: var(--next-dialog-border-width) solid var(--stroke-color);
-      border-bottom: none;
-      overflow: hidden;
-      translate: 0 var(--next-dialog-border-width);
-      
-      .error-overlay-nav-item {
-        border-radius: 0;
-        border: 0;
-
-        &[data-side="left"], &[data-side="right"] {
-          border-radius: 0;
-        }
-      }
-    }
-  }
 `
 
 function NavItem({

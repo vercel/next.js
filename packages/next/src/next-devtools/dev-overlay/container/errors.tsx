@@ -819,6 +819,11 @@ export const styles = `
   .error-overlay-notes-container p {
     white-space: pre-wrap;
   }
+  @media (max-width: 767px) {
+    .nextjs__container_errors__error_title {
+      flex-direction: column-reverse;
+    }
+  }
   .external-link, .external-link:hover {
     color:inherit;
   }

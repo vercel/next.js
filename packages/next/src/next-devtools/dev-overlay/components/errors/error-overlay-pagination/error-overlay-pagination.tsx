@@ -157,8 +157,14 @@ export const styles = `
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     width: fit-content;
+  }
+
+  @media (max-width: 575px) {
+    .error-overlay-pagination {
+      gap: 4px;
+    }
   }
 
   .error-overlay-pagination-count {

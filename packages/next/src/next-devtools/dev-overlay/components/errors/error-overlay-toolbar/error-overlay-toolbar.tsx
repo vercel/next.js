@@ -48,6 +48,12 @@ export const styles = `
     gap: 6px;
   }
 
+  @media (max-width: 575px) {
+    .error-overlay-toolbar {
+      gap: 4px;
+    }
+  }
+
   .nodejs-inspector-button,
   .copy-error-button,
   .docs-link-button {
