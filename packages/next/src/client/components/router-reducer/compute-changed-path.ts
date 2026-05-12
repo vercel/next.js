@@ -4,12 +4,17 @@ import type {
 } from '../../../shared/lib/app-router-types'
 import { INTERCEPTION_ROUTE_MARKERS } from '../../../shared/lib/router/utils/interception-routes'
 import type { Params } from '../../../server/request/params'
+import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import {
   isGroupSegment,
   DEFAULT_SEGMENT_KEY,
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
+import {
+  doesStaticSegmentAppearInURL,
+  parseDynamicParamFromURLPart,
+} from '../../route-params'
 
 const removeLeadingSlash = (segment: string): string => {
   return segment[0] === '/' ? segment.slice(1) : segment
@@ -226,6 +231,23 @@ export function getSelectedParams(
   currentTree: FlightRouterState,
   params: Params = {}
 ): Params {
+  const basePath = process.env.__NEXT_ROUTER_BASEPATH || ''
+  const pathnameParts =
+    typeof window !== 'undefined'
+      ? removePathPrefix(window.location.pathname, basePath)
+          .split('/')
+          .filter((p) => p !== '')
+      : null
+
+  return getSelectedParamsImpl(currentTree, params, pathnameParts, 0)
+}
+
+function getSelectedParamsImpl(
+  currentTree: FlightRouterState,
+  params: Params,
+  pathnameParts: string[] | null,
+  pathnamePartsIndex: number
+): Params {
   const parallelRoutes = currentTree[1]
 
   for (const parallelRoute of Object.values(parallelRoutes)) {
@@ -234,17 +256,47 @@ export function getSelectedParams(
     const segmentValue = isDynamicParameter ? segment[1] : segment
     if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
 
+    let childPathnamePartsIndex = pathnamePartsIndex
+
     // Ensure catchAll and optional catchall are turned into an array
     const isCatchAll =
       isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
 
     if (isCatchAll) {
-      params[segment[0]] = segment[1].split('/')
+      if (pathnameParts !== null && segment[1].startsWith('%%drp:')) {
+        const paramValue = parseDynamicParamFromURLPart(
+          segment[2],
+          pathnameParts,
+          pathnamePartsIndex
+        )
+        params[segment[0]] = paramValue === null ? undefined : paramValue
+      } else {
+        params[segment[0]] = segment[1].split('/')
+      }
+      childPathnamePartsIndex =
+        pathnameParts !== null ? pathnameParts.length : pathnamePartsIndex
     } else if (isDynamicParameter) {
-      params[segment[0]] = segment[1]
+      if (pathnameParts !== null && segment[1].startsWith('%%drp:')) {
+        const paramValue = parseDynamicParamFromURLPart(
+          segment[2],
+          pathnameParts,
+          pathnamePartsIndex
+        )
+        params[segment[0]] = paramValue === null ? undefined : paramValue
+      } else {
+        params[segment[0]] = segment[1]
+      }
+      childPathnamePartsIndex = pathnamePartsIndex + 1
+    } else if (doesStaticSegmentAppearInURL(segmentValue)) {
+      childPathnamePartsIndex = pathnamePartsIndex + 1
     }
 
-    params = getSelectedParams(parallelRoute, params)
+    params = getSelectedParamsImpl(
+      parallelRoute,
+      params,
+      pathnameParts,
+      childPathnamePartsIndex
+    )
   }
 
   return params

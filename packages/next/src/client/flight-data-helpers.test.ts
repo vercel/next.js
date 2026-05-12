@@ -1,8 +1,16 @@
-import { prepareFlightRouterStateForRequest } from './flight-data-helpers'
+import {
+  createInitialRSCPayloadFromFallbackPrerender,
+  doesFilledFallbackFlightDataMatchRenderedPathname,
+  fillInFallbackFlightData,
+  prepareFlightRouterStateForRequest,
+} from './flight-data-helpers'
 import {
   PrefetchHint,
+  type FlightData,
+  type InitialRSCPayload,
   type FlightRouterState,
 } from '../shared/lib/app-router-types'
+import type { NormalizedSearch } from './components/segment-cache/cache-key'
 
 describe('prepareFlightRouterStateForRequest', () => {
   describe('HMR refresh handling', () => {
@@ -296,5 +304,325 @@ describe('prepareFlightRouterStateForRequest', () => {
       expect(sidebarRoute[2]).toBeUndefined() // URL stripped
       expect(sidebarRoute[3]).toBeUndefined() // null marker stripped
     })
+  })
+})
+
+describe('fillInFallbackFlightData', () => {
+  const originalBasePath = process.env.__NEXT_ROUTER_BASEPATH
+
+  afterEach(() => {
+    process.env.__NEXT_ROUTER_BASEPATH = originalBasePath
+  })
+
+  it('replaces deferred route param placeholders in navigation flight data', () => {
+    const flightData = [
+      [
+        'children',
+        'another',
+        'children',
+        ['slug', '%%drp:slug:abc123%%', 'd', null],
+        [
+          '',
+          {
+            children: [
+              'another',
+              {
+                children: [['slug', '%%drp:slug:abc123%%', 'd', null], {}],
+              },
+            ],
+          },
+        ],
+        null,
+        null,
+        false,
+      ],
+    ] as FlightData
+
+    const normalizedFlightData = fillInFallbackFlightData(
+      flightData,
+      '/another/third',
+      '' as NormalizedSearch
+    )
+    const patchedFlightDataPath = normalizedFlightData[0]
+
+    expect(patchedFlightDataPath[3]).toEqual(['slug', 'third', 'd', null])
+    const patchedTree = patchedFlightDataPath[4]
+    expect(patchedTree[0]).toBe('')
+    expect(patchedTree[1].children[0]).toBe('another')
+    expect(patchedTree[1].children[1].children[0]).toEqual([
+      'slug',
+      'third',
+      'd',
+      null,
+    ])
+  })
+
+  it('fills deferred route params after removing basePath', () => {
+    process.env.__NEXT_ROUTER_BASEPATH = '/base'
+    const flightData = [
+      [
+        'children',
+        'another',
+        'children',
+        ['slug', '%%drp:slug:abc123%%', 'd', null],
+        [
+          '',
+          {
+            children: [
+              'another',
+              {
+                children: [['slug', '%%drp:slug:abc123%%', 'd', null], {}],
+              },
+            ],
+          },
+        ],
+        null,
+        null,
+        false,
+      ],
+    ] as FlightData
+
+    const normalizedFlightData = fillInFallbackFlightData(
+      flightData,
+      '/base/another/third',
+      '' as NormalizedSearch
+    )
+    const patchedFlightDataPath = normalizedFlightData[0]
+
+    expect(patchedFlightDataPath[3]).toEqual(['slug', 'third', 'd', null])
+    expect(
+      doesFilledFallbackFlightDataMatchRenderedPathname(
+        normalizedFlightData,
+        '/base/another/third'
+      )
+    ).toBe(true)
+  })
+
+  it('advances catch-all fallback params by all remaining pathname parts', () => {
+    for (const paramType of ['c', 'oc'] as const) {
+      const flightData = [
+        [
+          'children',
+          'docs',
+          'children',
+          ['slug', '%%drp:slug:abc123%%', paramType, null],
+          'children',
+          ['after', '%%drp:after:def456%%', 'd', null],
+          [
+            '',
+            {
+              children: [
+                'docs',
+                {
+                  children: [
+                    ['slug', '%%drp:slug:abc123%%', paramType, null],
+                    {
+                      children: [
+                        ['after', '%%drp:after:def456%%', 'd', null],
+                        {},
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+          null,
+          null,
+          false,
+        ],
+      ] as FlightData
+
+      const normalizedFlightData = fillInFallbackFlightData(
+        flightData,
+        '/docs/a/b/c',
+        '' as NormalizedSearch
+      )
+      const patchedFlightDataPath = normalizedFlightData[0]
+
+      expect(patchedFlightDataPath[3]).toEqual([
+        'slug',
+        'a/b/c',
+        paramType,
+        null,
+      ])
+      expect(patchedFlightDataPath[5]).toEqual(['after', '', 'd', null])
+
+      const patchedTree = patchedFlightDataPath[6]
+      expect(patchedTree[1].children[1].children[0]).toEqual([
+        'slug',
+        'a/b/c',
+        paramType,
+        null,
+      ])
+      expect(patchedTree[1].children[1].children[1].children[0]).toEqual([
+        'after',
+        '',
+        'd',
+        null,
+      ])
+    }
+  })
+})
+
+describe('createInitialRSCPayloadFromFallbackPrerender', () => {
+  it('preserves the trailing flight tuple fields while filling fallback params', () => {
+    const fallbackInitialRSCPayload: InitialRSCPayload = {
+      b: 'build-id',
+      c: ['', 'another', '%%drp:slug:abc123%%'],
+      q: '',
+      i: false,
+      f: [
+        [
+          [
+            '',
+            {
+              children: [
+                'another',
+                {
+                  children: [['slug', '%%drp:slug:abc123%%', 'd', null], {}],
+                },
+              ],
+            },
+          ],
+          null,
+          'head-node',
+          true,
+        ],
+      ],
+      m: new Set(),
+      G: [(() => null) as any, undefined],
+      S: false,
+      h: null,
+    }
+
+    const response = new Response(null, {
+      headers: { 'x-nextjs-rewritten-path': '/another/third' },
+    })
+
+    const payload = createInitialRSCPayloadFromFallbackPrerender(
+      response,
+      fallbackInitialRSCPayload,
+      new URL('https://example.com/another/third')
+    )
+
+    const patchedTree = payload.f[0][0]
+    expect(patchedTree[0]).toBe('')
+    expect(patchedTree[1].children[0]).toBe('another')
+    expect(patchedTree[1].children[1].children[0]).toEqual([
+      'slug',
+      'third',
+      'd',
+      null,
+    ])
+    expect(payload.f[0][1]).toBeNull()
+    expect(payload.f[0][2]).toBe('head-node')
+    expect(payload.f[0][3]).toBe(true)
+  })
+
+  it('prefers rewritten headers over the rendered URL override', () => {
+    const fallbackInitialRSCPayload: InitialRSCPayload = {
+      b: 'build-id',
+      c: ['', 'docs', '%%drp:slug:abc123%%'],
+      q: '',
+      i: false,
+      f: [
+        [
+          [
+            '',
+            {
+              children: [
+                'docs',
+                {
+                  children: [['slug', '%%drp:slug:abc123%%', 'd', null], {}],
+                },
+              ],
+            },
+          ],
+          null,
+          'head-node',
+          false,
+        ],
+      ],
+      m: new Set(),
+      G: [(() => null) as any, undefined],
+      S: false,
+      h: null,
+    }
+
+    const response = new Response(null, {
+      headers: {
+        'x-nextjs-rewritten-path': '/docs/rewritten',
+        'x-nextjs-rewritten-query': 'from=fetch',
+      },
+    })
+
+    const payload = createInitialRSCPayloadFromFallbackPrerender(
+      response,
+      fallbackInitialRSCPayload,
+      new URL('https://example.com/docs/original?from=document')
+    )
+
+    const patchedTree = payload.f[0][0]
+    expect(patchedTree[1].children[0]).toBe('docs')
+    expect(patchedTree[1].children[1].children[0]).toEqual([
+      'slug',
+      'rewritten',
+      'd',
+      null,
+    ])
+    expect(payload.q).toBe('?from=fetch')
+    expect(payload.c.join('/')).toBe('/docs/original?from=document')
+  })
+
+  it('falls back to the rendered URL override when no rewritten headers are present', () => {
+    const fallbackInitialRSCPayload: InitialRSCPayload = {
+      b: 'build-id',
+      c: ['', 'docs', '%%drp:slug:abc123%%'],
+      q: '',
+      i: false,
+      f: [
+        [
+          [
+            '',
+            {
+              children: [
+                'docs',
+                {
+                  children: [['slug', '%%drp:slug:abc123%%', 'd', null], {}],
+                },
+              ],
+            },
+          ],
+          null,
+          'head-node',
+          false,
+        ],
+      ],
+      m: new Set(),
+      G: [(() => null) as any, undefined],
+      S: false,
+      h: null,
+    }
+
+    const response = new Response(null, {
+      headers: {},
+    })
+
+    const payload = createInitialRSCPayloadFromFallbackPrerender(
+      response,
+      fallbackInitialRSCPayload,
+      new URL('https://example.com/docs/original?from=document')
+    )
+
+    const patchedTree = payload.f[0][0]
+    expect(patchedTree[1].children[0]).toBe('docs')
+    expect(patchedTree[1].children[1].children[0]).toEqual([
+      'slug',
+      'original',
+      'd',
+      null,
+    ])
+    expect(payload.q).toBe('?from=document')
   })
 })

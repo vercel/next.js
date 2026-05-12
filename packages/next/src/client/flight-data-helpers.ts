@@ -10,6 +10,8 @@ import type {
 } from '../shared/lib/app-router-types'
 import { PAGE_SEGMENT_KEY } from '../shared/lib/segment'
 import type { NormalizedSearch } from './components/segment-cache/cache-key'
+import { extractPathFromFlightRouterState } from './components/router-reducer/compute-changed-path'
+import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import {
   NEXT_REWRITTEN_PATH_HEADER,
   NEXT_REWRITTEN_QUERY_HEADER,
@@ -23,6 +25,12 @@ import {
   getRenderedSearch,
 } from './route-params'
 import { createHrefFromUrl } from './components/router-reducer/create-href-from-url'
+import { normalizePathTrailingSlash } from './normalize-trailing-slash'
+
+function removeConfiguredBasePath(pathname: string): string {
+  const basePath = process.env.__NEXT_ROUTER_BASEPATH || ''
+  return basePath ? removePathPrefix(pathname, basePath) : pathname
+}
 
 export type NormalizedFlightData = {
   /**
@@ -141,12 +149,60 @@ export function fillInFallbackFlightData<T extends FlightData>(
     return flightData
   }
 
-  const pathnameParts = getPathnameParts(renderedPathname)
+  const pathnameParts = getPathnameParts(
+    removeConfiguredBasePath(renderedPathname)
+  )
   const filledFlightData = flightData.map((flightDataPath) =>
     fillInFallbackFlightDataPath(flightDataPath, renderedSearch, pathnameParts)
   ) as FlightDataPath[]
 
   return filledFlightData as T
+}
+
+export function fillInAndValidateFallbackFlightData<T extends FlightData>(
+  flightData: T,
+  renderedPathname: string,
+  renderedSearch: NormalizedSearch
+): T | null {
+  const filledFlightData = fillInFallbackFlightData(
+    flightData,
+    renderedPathname,
+    renderedSearch
+  )
+  return doesFilledFallbackFlightDataMatchRenderedPathname(
+    filledFlightData,
+    renderedPathname
+  )
+    ? filledFlightData
+    : null
+}
+
+export function doesFilledFallbackFlightDataMatchRenderedPathname(
+  flightData: FlightData,
+  renderedPathname: string
+): boolean {
+  if (typeof flightData === 'string') {
+    return true
+  }
+
+  const normalizedRenderedPathname = normalizePathTrailingSlash(
+    removeConfiguredBasePath(renderedPathname)
+  )
+
+  return flightData.some((flightDataPath) => {
+    const { tree } = getFlightDataPartsFromPath(flightDataPath)
+    const extractedPath = extractPathFromFlightRouterState(tree)
+    const extractedPathname = extractedPath === '' ? '/' : extractedPath
+
+    if (extractedPathname == null) {
+      return false
+    }
+
+    return (
+      normalizePathTrailingSlash(extractedPathname) ===
+      normalizedRenderedPathname
+    )
+  })
 }
 
 function fillInFallbackFlightDataPath(

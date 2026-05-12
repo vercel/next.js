@@ -2,8 +2,15 @@ import type { InitialRSCPayload } from '../shared/lib/app-router-types'
 import { callServer } from './app-call-server'
 import { findSourceMapURL } from './app-find-source-map-url'
 import { processFetch } from './components/router-reducer/fetch-server-response'
-import { createInitialRSCPayloadFromFallbackPrerender } from './flight-data-helpers'
-import { fetchOutputExportFallbackResponse } from './output-export-fallback'
+import {
+  createInitialRSCPayloadFromFallbackPrerender,
+  doesFilledFallbackFlightDataMatchRenderedPathname,
+} from './flight-data-helpers'
+import {
+  fetchOutputExportFallbackResponse,
+  fetchOutputExportNotFoundDataResponse,
+  fetchOutputExportNotFoundResponse,
+} from './output-export-fallback'
 
 type DebugChannel =
   | { readable?: ReadableStream; writable?: WritableStream }
@@ -47,14 +54,37 @@ export async function createOutputExportFallbackInitialResponse({
     credentials: 'same-origin',
   })
 
-  if (fallbackResult === null) {
-    throw new Error(
-      `Could not find an output export fallback for "${renderedUrl.pathname}".`
+  if (fallbackResult !== null) {
+    const fallbackPayload = await decodeFallbackPrerenderPayload(
+      Promise.resolve(fallbackResult.response),
+      renderedUrl,
+      createFromFetch,
+      debugChannel
     )
+
+    if (
+      doesFilledFallbackFlightDataMatchRenderedPathname(
+        fallbackPayload.f,
+        renderedUrl.pathname
+      )
+    ) {
+      return fallbackPayload
+    }
   }
 
+  // If the fallback route shape does not match the requested URL, prefer a
+  // visible not-found result over hydrating a shell with params from the wrong
+  // route.
+  const notFoundResult =
+    (await fetchOutputExportNotFoundDataResponse(renderedUrl, {
+      credentials: 'same-origin',
+    })) ??
+    (await fetchOutputExportNotFoundResponse(renderedUrl, {
+      credentials: 'same-origin',
+    }))
+
   return decodeFallbackPrerenderPayload(
-    Promise.resolve(fallbackResult.response),
+    Promise.resolve(notFoundResult.response),
     renderedUrl,
     createFromFetch,
     debugChannel
@@ -63,7 +93,7 @@ export async function createOutputExportFallbackInitialResponse({
 
 async function decodeFallbackPrerenderPayload(
   responsePromise: Promise<Response>,
-  renderedUrl: URL | undefined,
+  renderedUrl: URL,
   createFromFetch: CreateFromFetch,
   debugChannel: DebugChannel
 ): Promise<InitialRSCPayload> {

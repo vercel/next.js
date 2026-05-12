@@ -8,6 +8,7 @@ import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { RSC_CONTENT_TYPE_HEADER } from './components/app-router-headers'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
 type OutputExportFallbackRouteManifest = {
   version: 1
@@ -64,6 +65,33 @@ function getOutputExportCandidatePrefixes(pathname: string): string[] {
 export function getOutputExportFallbackCandidates(pathname: string): string[] {
   return getOutputExportCandidatePrefixes(pathname).map((prefix) =>
     getOutputExportFallbackPath(prefix)
+  )
+}
+
+function getOutputExportNotFoundPath(prefix: string): string {
+  return prefix.length > 0 ? `/${prefix}/_not-found` : '/_not-found'
+}
+
+export function getOutputExportNotFoundCandidates(pathname: string): string[] {
+  return getOutputExportCandidatePrefixes(pathname).map((prefix) =>
+    getOutputExportNotFoundPath(prefix)
+  )
+}
+
+export function getConfiguredOutputExportNotFoundCandidate(
+  pathname: string
+): string {
+  const configuredPath = normalizeOutputExportRouteDirectory(
+    normalizePathTrailingSlash(
+      addPathPrefix('/_not-found', process.env.__NEXT_ROUTER_BASEPATH || '')
+    )
+  )
+
+  return (
+    getOutputExportNotFoundCandidates(pathname).find(
+      (candidate) =>
+        normalizeOutputExportRouteDirectory(candidate) === configuredPath
+    ) ?? getOutputExportNotFoundPath('')
   )
 }
 
@@ -143,6 +171,20 @@ async function fetchOutputExportFallbackRouteManifest(
   return routeManifestPromise
 }
 
+function getOutputExportDataCandidates(url: URL): URL[] {
+  const direct = addOutputExportDataSuffix(url)
+
+  if (url.pathname.endsWith('/')) {
+    return [direct]
+  }
+
+  const trailingSlashUrl = new URL(url)
+  trailingSlashUrl.pathname = `${trailingSlashUrl.pathname}/`
+  const trailingSlash = addOutputExportDataSuffix(trailingSlashUrl)
+
+  return [direct, trailingSlash]
+}
+
 function getConfiguredOutputExportDataUrl(
   url: URL,
   prefersTrailingSlash: boolean
@@ -157,6 +199,27 @@ function getConfiguredOutputExportDataUrl(
     configuredUrl.pathname = `${configuredUrl.pathname}/`
   }
   return addOutputExportDataSuffix(configuredUrl)
+}
+
+function normalizeOutputExportRouteDirectory(pathname: string): string {
+  if (pathname === '/') {
+    return ''
+  }
+  return pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
+}
+
+async function fetchOutputExportDataResult(
+  renderedUrl: URL,
+  init?: RequestInit
+): Promise<Response | null> {
+  for (const dataUrl of getOutputExportDataCandidates(renderedUrl)) {
+    const response = await fetchOutputExportDataResponseByUrl(dataUrl, init)
+    if (response !== null) {
+      return response
+    }
+  }
+
+  return null
 }
 
 async function fetchConfiguredOutputExportDataResult(
@@ -215,6 +278,52 @@ async function fetchOutputExportDataResponseByUrl(
     status: response.status,
     statusText: response.statusText,
   })
+}
+
+export async function fetchOutputExportNotFoundDataResponse(
+  renderedUrl: URL,
+  init?: RequestInit
+): Promise<OutputExportFallbackResponseResult | null> {
+  for (const candidate of getOutputExportNotFoundCandidates(
+    renderedUrl.pathname
+  )) {
+    const candidateUrl = new URL(renderedUrl)
+    candidateUrl.pathname = candidate
+
+    const result = await fetchOutputExportDataResult(candidateUrl, init)
+    if (result !== null) {
+      return {
+        response: result,
+        renderedUrl,
+        fallbackUrl: candidateUrl,
+      }
+    }
+  }
+
+  return null
+}
+
+export async function fetchOutputExportNotFoundResponse(
+  renderedUrl: URL,
+  init?: RequestInit
+): Promise<OutputExportFallbackResponseResult> {
+  // The raw fallback should preserve the configured app root (for example a
+  // basePath) without probing deeper missing prefixes that may be served by an
+  // HTML fallback document instead of the RSC not-found payload.
+  const candidateUrl = new URL(renderedUrl)
+  candidateUrl.pathname = getConfiguredOutputExportNotFoundCandidate(
+    renderedUrl.pathname
+  )
+  const configuredDataUrl = getConfiguredOutputExportDataUrl(
+    candidateUrl,
+    renderedUrl.pathname.endsWith('/')
+  )
+
+  return {
+    response: await fetch(configuredDataUrl, init),
+    renderedUrl,
+    fallbackUrl: candidateUrl,
+  }
 }
 
 export async function fetchOutputExportFallbackResponse(
