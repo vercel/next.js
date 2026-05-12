@@ -51,13 +51,16 @@ type AutoMap<K, V, const I: usize> = auto_hash_map::AutoMap<K, V, BuildHasherDef
 ///
 /// This struct defines all storage fields for a task. The `#[task_storage]` macro
 /// transforms this schema into the actual implementation:
-/// - `TaskStorage` struct with inline and lazy field storage
-/// - `LazyField` enum for lazy-allocated fields
-/// - `TaskFlags` bitfield for boolean flags
-/// - Accessor methods and traits
+/// - `TaskStorage` struct with inline fields plus a `LazyTail` byte buffer.
+/// - `LAZY_TAG_<NAME>` constants and `LAZY_SIZE` / `LAZY_ALIGN` / `LAZY_PADDED_SIZE` tables for
+///   tag-driven payload access.
+/// - `TaskFlags` bitfield for boolean flags.
+/// - Per-variant typed accessor methods plus the `TaskStorageAccessors` trait.
 ///
-/// Fields are stored lazily in `TinyVec<LazyField>` by default for memory efficiency.
-/// Fields with `inline` are stored directly on TaskStorage (for hot-path access).
+/// Non-inline fields ("lazy") live as packed payloads in `lazy_tail`'s byte
+/// buffer, indexed by tag. A presence bitmap on `LazyTail` tells the macro-
+/// generated accessors which payloads are currently stored. Fields with the
+/// `inline` attribute live directly on `TaskStorage` for hot-path access.
 ///
 /// Note: This struct is consumed by the macro and does not appear in the output.
 #[task_storage]
@@ -1682,16 +1685,22 @@ mod tests {
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn test_schema_size() {
+        // After the byte-tail layout swap, `TaskStorage` is still 128 B —
+        // the previous `TinyVec<LazyField, _>` slot (16 B) was replaced by
+        // `LazyTail` (also 16 B; `present: u32 | len: u16 | cap: u16 |
+        // ptr: NonNull<u8>`). Per-task discriminant savings come from how
+        // payloads are now packed in the tail, not the head footprint.
         assert_eq!(
             size_of::<TaskStorage>(),
             128,
-            "TaskStorage size changed! Run print_schema_sizes and update this test."
+            "TaskStorage size changed! Inspect Rust's struct layout to find why.",
         );
-        // `LazyField` is 48 B = 40 B largest payload + 8 B discriminant.
+        // `LazyTail` is 16 B (4 + 2 + 2 + 8). Same slot size as the old
+        // `TinyVec<LazyField, _>`, so the head doesn't grow.
         assert_eq!(
-            size_of::<LazyField>(),
-            48,
-            "LazyField size changed! Run print_schema_sizes and update this test."
+            size_of::<LazyTail>(),
+            16,
+            "LazyTail size changed! Inspect Rust's struct layout to find why.",
         );
     }
 }

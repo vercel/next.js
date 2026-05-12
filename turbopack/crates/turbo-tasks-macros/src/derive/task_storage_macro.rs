@@ -1014,119 +1014,21 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
     }
 }
 
-/// Generate the LazyField enum containing all lazy fields
+/// Generate the lazy-field tag tables and per-tag dispatch functions.
+///
+/// The previous `LazyField` enum is gone — payloads live directly in
+/// `LazyTail`'s byte buffer addressed by tag — so this generator emits only
+/// the schema-level constants and the unsafe dispatch helpers consumed by
+/// `LazyTail`-aware code in `storage_schema.rs`.
 fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
     let all_lazy_fields: Vec<_> = grouped_fields.all_lazy().collect();
 
-    // If no lazy_vec fields, don't generate the enum
+    // Nothing to emit if the schema has no lazy fields.
     if all_lazy_fields.is_empty() {
         return quote! {};
     }
 
-    // Generate enum variants
-    let variants: Vec<_> = all_lazy_fields
-        .iter()
-        .map(|field| {
-            let variant_name = &field.variant_name;
-            let field_type = &field.field_type;
-            quote! {
-                #variant_name(#field_type)
-            }
-        })
-        .collect();
-
-    // Generate is_empty method arms
-    let is_empty_arms: Vec<_> = all_lazy_fields
-        .iter()
-        .map(|field| {
-            let variant_name = &field.variant_name;
-            // For collection types, check if empty; for direct types, presence means non-empty
-            match field.storage_type {
-                StorageType::Direct => {
-                    // For direct types, presence of the variant means it's non-empty
-                    // (the Vec<LazyField> provides optionality, not Option<T>)
-                    quote! {
-                        LazyField::#variant_name(_) => false
-                    }
-                }
-                _ => {
-                    // For collection types, delegate to is_empty()
-                    quote! {
-                        LazyField::#variant_name(v) => v.is_empty()
-                    }
-                }
-            }
-        })
-        .collect();
-
-    // Or-pattern lists for `is_persistent` / `is_meta`. Because `all_lazy()`
-    // returns variants grouped by category (transient, then meta, then data),
-    // these lists cover contiguous runs of the enum, giving LLVM the clearest
-    // shape to lower each predicate to a single integer range check on the
-    // discriminant tag.
-    let persistent_patterns: Vec<_> = all_lazy_fields
-        .iter()
-        .filter(|f| !f.is_transient())
-        .map(|f| {
-            let variant_name = &f.variant_name;
-            quote! { LazyField::#variant_name(_) }
-        })
-        .collect();
-    let meta_patterns: Vec<_> = all_lazy_fields
-        .iter()
-        .filter(|f| f.category == Category::Meta)
-        .map(|f| {
-            let variant_name = &f.variant_name;
-            quote! { LazyField::#variant_name(_) }
-        })
-        .collect();
-    let data_patterns: Vec<_> = all_lazy_fields
-        .iter()
-        .filter(|f| f.category == Category::Data)
-        .map(|f| {
-            let variant_name = &f.variant_name;
-            quote! { LazyField::#variant_name(_) }
-        })
-        .collect();
-
-    // `matches!(self, ... | ... )` requires at least one pattern. Fall back to
-    // `false` if the schema has no variants in a given category.
-    let is_persistent_body = if persistent_patterns.is_empty() {
-        quote! { false }
-    } else {
-        quote! { matches!(self, #(#persistent_patterns)|*) }
-    };
-    let is_meta_body = if meta_patterns.is_empty() {
-        quote! { false }
-    } else {
-        quote! { matches!(self, #(#meta_patterns)|*) }
-    };
-    let is_data_body = if data_patterns.is_empty() {
-        quote! { false }
-    } else {
-        quote! { matches!(self, #(#data_patterns)|*) }
-    };
-
-    // (discriminant, is_meta, is_data) arms for the restore prescan — each
-    // variant maps to its position in the enum definition (used as a
-    // fixed-size array offset) paired with its category bits. Transient
-    // variants have both category bits false; persistent variants set
-    // exactly one. `is_meta || is_data` therefore doubles as `is_persistent`.
-    let index_and_category_arms: Vec<_> = all_lazy_fields
-        .iter()
-        .enumerate()
-        .map(|(idx, field)| {
-            let variant_name = &field.variant_name;
-            let idx = idx as u8;
-            let is_meta = field.category == Category::Meta;
-            let is_data = field.category == Category::Data;
-            quote! {
-                LazyField::#variant_name(_) => (#idx, #is_meta, #is_data)
-            }
-        })
-        .collect();
     let num_variants = all_lazy_fields.len();
-    let num_variants_tok = quote::quote! { #num_variants };
 
     // Per-variant tag constants. The macro assigns tag = idx + 1 in the
     // `all_lazy()` order so that tag 0 is reserved as the bincode encode
@@ -1257,80 +1159,14 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         .collect();
 
     quote! {
-        #[doc = "All lazily-allocated fields stored in a single Vec."]
-        #[doc = "Fields are stored directly (unboxed) to avoid allocation overhead."]
-        #[automatically_derived]
-        #[derive(Debug, Clone, PartialEq, turbo_tasks::ShrinkToFit)]
-        #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
-        pub enum LazyField {
-            #(#variants),*
-        }
-
-        #[automatically_derived]
-        impl LazyField {
-            #[doc = "Total number of LazyField variants."]
-            pub const NUM_VARIANTS: usize = #num_variants_tok;
-
-            #[doc = "Returns true if this field is empty (can be removed from the Vec)"]
-            pub fn is_empty(&self) -> bool {
-                match self {
-                    #(#is_empty_arms),*
-                }
-            }
-
-            #[doc = "Returns true if this field should be persisted (not transient)."]
-            #[doc = ""]
-            #[doc = "Variants are sorted so persistent variants form a contiguous"]
-            #[doc = "range; LLVM can lower this `matches!` to a single integer"]
-            #[doc = "compare on the discriminant tag."]
-            #[inline]
-            pub fn is_persistent(&self) -> bool {
-                #is_persistent_body
-            }
-
-            #[doc = "Returns true if this field belongs to the meta category."]
-            #[doc = ""]
-            #[doc = "Meta variants form a contiguous range between the transient"]
-            #[doc = "prefix and the data suffix; expect a range-check lowering."]
-            #[inline]
-            pub fn is_meta(&self) -> bool {
-                #is_meta_body
-            }
-
-            #[doc = "Returns true if this field belongs to the data category."]
-            #[doc = ""]
-            #[doc = "Data variants form the trailing contiguous range of the"]
-            #[doc = "enum; expect a range-check lowering."]
-            #[inline]
-            pub fn is_data(&self) -> bool {
-                #is_data_body
-            }
-
-            #[doc = "Variant index paired with its category bits."]
-            #[doc = ""]
-            #[doc = "Index is the variant's position in the LazyField enum"]
-            #[doc = "definition, usable as an array offset of size `NUM_VARIANTS`."]
-            #[doc = "The two bools report the variant's category: transient"]
-            #[doc = "variants have both false, persistent variants set exactly"]
-            #[doc = "one (so `is_meta || is_data` is equivalent to `is_persistent`)."]
-            #[doc = "Used by the restore prescan to answer both \"where does this"]
-            #[doc = "variant live?\" and \"which category's residue does it count"]
-            #[doc = "toward?\" in a single match."]
-            const fn index_and_category(&self) -> (u8, bool, bool) {
-                match self {
-                    #(#index_and_category_arms),*
-                }
-            }
-        }
-
         // =====================================================================
         // Lazy-field tag layout tables.
         //
-        // Each variant in `LazyField` is assigned a 1-based tag (so tag 0 is
-        // reserved as the bincode encode sentinel). The byte-tail layout
-        // stores payloads packed in tag order. Presence is tracked by a `u32`
-        // bitmap; payload positions are computed from
-        // `LAZY_PADDED_SIZE[tag] for each set bit below the target tag`.
+        // Each lazy variant in the schema is assigned a 1-based tag (so tag 0
+        // is reserved as the bincode encode sentinel). The byte-tail layout
+        // (see `LazyTail`) stores payloads packed in tag order. Presence is
+        // tracked by a `u32` bitmap; payload positions are computed from
+        // `LAZY_PADDED_SIZE[tag]` for each set bit below the target tag.
         //
         // These constants live at the schema's module level so storage
         // primitives in `storage_schema.rs` and per-variant accessors emitted
