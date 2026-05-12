@@ -1,9 +1,8 @@
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox, renderViaHTTP, check } from 'next-test-utils'
-import { NextInstance } from 'e2e-utils'
 
 const customDocumentGipContent = `\
 import { Html, Main, NextScript, Head } from 'next/document'
@@ -29,28 +28,23 @@ const basePath = process.env.TEST_BASE_PATH || ''
 const srcPrefix = process.env.TEST_SRC_DIR ? 'src/' : ''
 
 describe('next/dynamic', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        [`${srcPrefix}/components`]: new FileRef(join(__dirname, 'components')),
-        [`${srcPrefix}/pages`]: new FileRef(join(__dirname, 'pages')),
-        ...(process.env.TEST_CUSTOMIZED_DOCUMENT === '1' && {
-          [`${srcPrefix}/pages/_document.js`]: customDocumentGipContent,
+  const { next } = nextTestSetup({
+    files: {
+      [`${srcPrefix}/components`]: new FileRef(join(__dirname, 'components')),
+      [`${srcPrefix}/pages`]: new FileRef(join(__dirname, 'pages')),
+      ...(process.env.TEST_CUSTOMIZED_DOCUMENT === '1' && {
+        [`${srcPrefix}/pages/_document.js`]: customDocumentGipContent,
+      }),
+      // When it's not turbopack and babel is enabled, we add a .babelrc file.
+      ...(!process.env.IS_TURBOPACK_TEST &&
+        process.env.TEST_BABEL === '1' && {
+          '.babelrc': `{ "presets": ["next/babel"] }`,
         }),
-        // When it's not turbopack and babel is enabled, we add a .babelrc file.
-        ...(!process.env.IS_TURBOPACK_TEST &&
-          process.env.TEST_BABEL === '1' && {
-            '.babelrc': `{ "presets": ["next/babel"] }`,
-          }),
-      },
-      nextConfig: {
-        basePath,
-      },
-    })
+    },
+    nextConfig: {
+      basePath,
+    },
   })
-  afterAll(() => next.destroy())
 
   async function get$(path, query?: any) {
     const html = await renderViaHTTP(next.url, path, query)
