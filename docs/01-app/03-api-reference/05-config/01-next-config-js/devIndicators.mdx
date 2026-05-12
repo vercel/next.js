@@ -5,16 +5,29 @@ description: Configuration options for the on-screen indicator that gives contex
 
 `devIndicators` allows you to configure the on-screen indicator that gives context about the current route you're viewing during development.
 
-```ts filename="Types"
-  devIndicators: false | {
-    position?: 'bottom-right'
-    | 'bottom-left'
-    | 'top-right'
-    | 'top-left', // defaults to 'bottom-left',
+Open `next.config.ts` and set `position` to choose where the indicator renders. The default is `bottom-left`.
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  devIndicators: {
+    position: 'bottom-right', // 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right'
   },
+}
+
+export default nextConfig
 ```
 
-Setting `devIndicators` to `false` will hide the indicator, however Next.js will continue to surface any build or runtime errors that were encountered.
+To hide the indicator entirely, set `devIndicators` to `false`. Next.js will still surface any compile or runtime errors that were encountered.
+
+```ts filename="next.config.ts"
+const nextConfig: NextConfig = {
+  devIndicators: false,
+}
+
+export default nextConfig
+```
 
 ## Troubleshooting
 
