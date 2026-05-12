@@ -360,9 +360,10 @@ function collectPagesClientFiles(
 }
 
 /**
- * For each `.js` in `source`, add the co-located `.js.map` to `target` if
- * one exists on disk. Source maps aren't listed in the manifests, so we
- * derive them by checking for the conventional adjacent file.
+ * For each file in `source`, add the co-located `<file>.map` to `target`
+ * if one exists on disk. Works for both `.js.map` and `.css.map`. Source
+ * maps aren't listed in the manifests, so we derive them by checking for
+ * the conventional adjacent file.
  */
 function deriveSourceMaps(
   distDir: string,
@@ -408,9 +409,11 @@ function collectFiles(distDir: string, entry: RouteEntry): FileSets {
       entry satisfies never
   }
 
-  // Source maps for everything we collected above.
+  // Source maps for everything we collected above. Both .js.map and
+  // .css.map files are picked up by checking for an adjacent <file>.map.
   deriveSourceMaps(distDir, sets.serverBundled, sets.serverMaps)
   deriveSourceMaps(distDir, sets.clientJs, sets.clientMaps)
+  deriveSourceMaps(distDir, sets.clientCss, sets.clientMaps)
 
   return sets
 }
