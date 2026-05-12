@@ -280,6 +280,10 @@ async function createForwardedActionResponse(
 
       return new FlightRenderResult(response.body!)
     } else {
+      // TODO: When the forwarded worker returns an action-not-found 404
+      // (NEXT_ACTION_NOT_FOUND_HEADER), pass that header and status through
+      // so the client throws UnrecognizedActionError instead of the generic
+      // "An unexpected response was received from the server" error.
       // Since we aren't consuming the response body, we cancel it to avoid memory leaks
       response.body?.cancel()
     }
@@ -508,25 +512,6 @@ export function parseHostHeader(
       : undefined
 }
 
-/**
- * Returns a peer worker pathname to forward a Server Action POST when the
- * strict manifest lookup misses the current page. When the request was already
- * forwarded once (`x-action-forwarded`), returns `undefined` so the handler
- * falls through to lenient module resolution instead of forwarding in a loop.
- *
- * @see https://github.com/vercel/next.js/issues/84504
- */
-export function selectPeerWorkerForForwarding(
-  actionId: string | null | undefined,
-  page: string,
-  actionWasForwarded: boolean
-): string | undefined {
-  if (!actionId || actionWasForwarded) {
-    return undefined
-  }
-  return selectWorkerForForwarding(actionId, page)
-}
-
 type ServerActionsConfig = {
   bodySizeLimit?: SizeLimit
   allowedOrigins?: string[]
@@ -725,24 +710,26 @@ export async function handleAction({
 
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
 
-  const forwardedWorker = selectPeerWorkerForForwarding(
-    actionId,
-    page,
-    actionWasForwarded
-  )
+  // Only attempt to forward if this request has not already been forwarded.
+  // Otherwise middleware that rewrites the action POST can cause the receiving
+  // worker to forward again, looping indefinitely.
+  if (actionId && !actionWasForwarded) {
+    const forwardedWorker = selectWorkerForForwarding(actionId, page)
 
-  // If forwardedWorker is truthy, it means there isn't a worker for the action
-  // in the current handler, so we forward the request to a worker that has the action.
-  if (forwardedWorker) {
-    return {
-      type: 'done',
-      result: await createForwardedActionResponse(
-        req,
-        res,
-        host,
-        forwardedWorker,
-        ctx.renderOpts.basePath
-      ),
+    // If forwardedWorker is truthy, it means there isn't a worker for the
+    // action in the current handler, so we forward the request to a worker that
+    // has the action.
+    if (forwardedWorker) {
+      return {
+        type: 'done',
+        result: await createForwardedActionResponse(
+          req,
+          res,
+          host,
+          forwardedWorker,
+          ctx.renderOpts.basePath
+        ),
+      }
     }
   }
 
