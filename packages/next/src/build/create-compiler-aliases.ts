@@ -1,6 +1,7 @@
-import fs from 'fs'
 import path from 'path'
+import { stringify as stringifyQuery } from 'querystring'
 import * as React from 'react'
+import type { InstrumentationClientLoaderOptions } from './webpack/loaders/next-instrumentation-client-loader'
 import {
   DOT_NEXT_ALIAS,
   PAGES_DIR_ALIAS,
@@ -27,52 +28,17 @@ interface CompilerAliases {
 const isReact19 = typeof React.use === 'function'
 
 /**
- * Generates a virtual module that requires each entry in
- * `instrumentationClientInject` for side effects, then re-exports the user's
- * `instrumentation-client.{pageExt}` file (when present). The resulting file is
- * the resolution target of the `private-next-instrumentation-client` alias.
+ * Builds the loader-only request string that resolves to the synthetic module
+ * exposed via the `private-next-instrumentation-client` alias. The loader emits
+ * `require()` calls for each `instrumentationClientInject` entry, followed by a
+ * re-export of `private-next-instrumentation-client-user` (the user's
+ * `instrumentation-client.{pageExt}` file, when present).
  */
-function writeInstrumentationClientVirtualModule({
-  dir,
-  distDir,
-  config,
-}: {
-  dir: string
-  distDir: string
-  config: NextConfigComplete
-}): string {
-  const outPath = path.join(distDir, 'instrumentation-client.js')
-
-  const requires: string[] = []
-  for (const spec of config.instrumentationClientInject) {
-    const resolved =
-      spec.startsWith('./') || spec.startsWith('../')
-        ? path.resolve(dir, spec)
-        : spec
-    requires.push(`require(${JSON.stringify(resolved)});`)
+function instrumentationClientLoaderRequest(injects: string[]): string {
+  const options: InstrumentationClientLoaderOptions = {
+    injects: JSON.stringify(injects),
   }
-
-  let userFile: string | undefined
-  outer: for (const subdir of ['src', '.']) {
-    for (const ext of config.pageExtensions) {
-      const candidate = path.join(dir, subdir, `instrumentation-client.${ext}`)
-      if (fs.existsSync(candidate)) {
-        userFile = candidate
-        break outer
-      }
-    }
-  }
-
-  const body =
-    requires.join('\n') +
-    (requires.length ? '\n' : '') +
-    (userFile
-      ? `module.exports = require(${JSON.stringify(userFile)});\n`
-      : 'module.exports = {};\n')
-
-  fs.mkdirSync(distDir, { recursive: true })
-  fs.writeFileSync(outPath, body)
-  return outPath
+  return `next-instrumentation-client-loader?${stringifyQuery(options)}!`
 }
 
 export function createWebpackAliases({
@@ -188,8 +154,18 @@ export function createWebpackAliases({
     [ROOT_DIR_ALIAS]: dir,
     ...(isClient
       ? {
-          'private-next-instrumentation-client': [
-            writeInstrumentationClientVirtualModule({ dir, distDir, config }),
+          // `private-next-instrumentation-client` resolves to a loader-emitted
+          // synthetic module that requires each `instrumentationClientInject`
+          // entry for side effects and then re-exports the user's
+          // `instrumentation-client.{pageExt}` file (via the
+          // `private-next-instrumentation-client-user` alias below).
+          'private-next-instrumentation-client':
+            instrumentationClientLoaderRequest(
+              config.instrumentationClientInject
+            ),
+          'private-next-instrumentation-client-user': [
+            path.join(dir, 'src', 'instrumentation-client'),
+            path.join(dir, 'instrumentation-client'),
             'private-next-empty-module',
           ],
 

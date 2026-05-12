@@ -1360,6 +1360,7 @@ export default async function getBaseWebpackConfig(
         'error-loader',
         'next-swc-loader',
         'next-client-pages-loader',
+        'next-instrumentation-client-loader',
         'next-image-loader',
         'next-metadata-image-loader',
         'next-style-loader',
