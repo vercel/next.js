@@ -170,16 +170,21 @@ describe('next internal static-routes-info', () => {
     const result = await runTool(['--json'])
     const output = JSON.parse(result.stdout) as ToolOutput
 
-    // app-page: has server JS. Per-route client JS / CSS for App Router
-    // pages is read from `entryJSFiles` / `entryCSSFiles` in the
-    // `_client-reference-manifest.js`, which Turbopack populates but
-    // webpack does not (matching the existing `route-bundle-stats.ts`
-    // behavior). The tool reports 0 for webpack.
+    // app-page: has server JS and client JS. The fixture imports a
+    // `'use client'` component so the route's `_client-reference-manifest.js`
+    // includes per-route client chunks for both bundlers (Turbopack
+    // populates `entryJSFiles`, webpack populates `clientModules.chunks`).
+    // This exercises the manifest parser against both bundler outputs and
+    // catches regressions like the old `'] = '` marker that only matched
+    // Turbopack's spaced assignment, missing webpack's `']='` form.
     const appPage = getRoute(output, '/')
     expect(appPage.type).toBe('app-page')
     expect(appPage.serverBundled.count).toBeGreaterThan(0)
+    expect(appPage.clientJs.count).toBeGreaterThan(0)
     if (isTurbopack) {
-      expect(appPage.clientJs.count).toBeGreaterThan(0)
+      // Turbopack also populates entryCSSFiles for the global stylesheet
+      // imported by `app/page.tsx`. Webpack's stylesheet handling currently
+      // doesn't surface in `entryCSSFiles` for this fixture.
       expect(appPage.clientCss.count).toBeGreaterThan(0)
     }
 

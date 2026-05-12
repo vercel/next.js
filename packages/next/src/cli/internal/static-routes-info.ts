@@ -344,15 +344,32 @@ function collectServerEntryFiles(
 /**
  * Read a `_client-reference-manifest.js` file and extract the JSON blob.
  *
- * The file is a JS module that assigns a JSON object to a global, e.g.
- *   globalThis.__RSC_MANIFEST["/page"] = {...};
+ * The file is a JS module that assigns a JSON object to a global. The exact
+ * shape varies by bundler:
  *
- * Rather than evaluate the JS, slice the substring after `"] = "` and
- * parse it as JSON.
+ *   Turbopack (with optional suffix that re-writes `clientModules[k] = val`
+ *   when a deployment ID is set):
+ *     globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {};
+ *     globalThis.__RSC_MANIFEST["/page"] = {...};
+ *     for (const key in globalThis.__RSC_MANIFEST["/page"].clientModules) {
+ *       globalThis.__RSC_MANIFEST["/page"].clientModules[key] = val;
+ *       ...
+ *     }
+ *
+ *   Webpack (no spaces around `=`, single line):
+ *     globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["/page"]={...};
+ *
+ * Rather than evaluating user-bundled code, find the FIRST
+ * `globalThis.__RSC_MANIFEST[<entry>] = {` (allowing optional whitespace
+ * around `=`) and balance-walk the `{...}` that follows. This skips both
+ * the `MANIFEST = MANIFEST || {}` boilerplate (no `[<entry>]`) and the
+ * Turbopack suffix's `MANIFEST[<entry>].clientModules[k] = val` (which has
+ * `].clientModules`, not `]=`, after the entry's `]`).
  */
 function parseClientReferenceManifest(filePath: string): {
   entryJSFiles?: Record<string, string[]>
   entryCSSFiles?: Record<string, Array<string | { path: string }>>
+  clientModules?: Record<string, { chunks?: unknown[] }>
 } | null {
   let content: string
   try {
@@ -360,28 +377,82 @@ function parseClientReferenceManifest(filePath: string): {
   } catch {
     return null
   }
-  const marker = '] = '
-  const idx = content.indexOf(marker)
-  if (idx === -1) return null
-  const jsonStr = content
-    .slice(idx + marker.length)
-    .trimEnd()
-    .replace(/;$/, '')
-  try {
-    return JSON.parse(jsonStr)
-  } catch {
-    return null
+  // Match `globalThis.__RSC_MANIFEST[<key>]<ws>=<ws>` immediately followed
+  // by `{`. Lookahead keeps the regex's match end positioned at `{`.
+  const m = /globalThis\.__RSC_MANIFEST\s*\[[^\]]*\]\s*=\s*(?=\{)/.exec(content)
+  if (!m) return null
+  const start = m.index + m[0].length
+  // Walk balanced braces, ignoring `{` / `}` inside string literals so a
+  // CSS path like "{foo}" inside JSON doesn't break the count.
+  let depth = 0
+  let inString = false
+  let quote = ''
+  let escape = false
+  for (let i = start; i < content.length; i++) {
+    const ch = content[i]
+    if (inString) {
+      if (escape) {
+        escape = false
+      } else if (ch === '\\') {
+        escape = true
+      } else if (ch === quote) {
+        inString = false
+      }
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      inString = true
+      quote = ch
+    } else if (ch === '{') {
+      depth++
+    } else if (ch === '}') {
+      depth--
+      if (depth === 0) {
+        try {
+          return JSON.parse(content.slice(start, i + 1))
+        } catch {
+          return null
+        }
+      }
+    }
   }
+  return null
+}
+
+/**
+ * Add a chunk path to the right client-side category. Strips a `?dpl=...`
+ * (or any other) query suffix that webpack appends, then dispatches by
+ * extension. Returns true if the path looked like a real asset (had an
+ * extension we recognize) — used by the webpack `clientModules` walker
+ * below to filter out chunk IDs.
+ */
+function addClientChunk(rawPath: string, sets: FileSets): boolean {
+  // Some manifests append `?dpl=ID` to chunk URLs.
+  const cleaned = stripNextPrefix(rawPath).split('?')[0]
+  if (cleaned.endsWith('.map')) sets.clientMaps.add(cleaned)
+  else if (cleaned.endsWith('.css')) sets.clientCss.add(cleaned)
+  else if (cleaned.endsWith('.js')) sets.clientJs.add(cleaned)
+  else return false
+  return true
 }
 
 /**
  * Collect client JS chunks and CSS files for an App Router page/route.
- * Source: the route's `_client-reference-manifest.js` (entryJSFiles +
- * entryCSSFiles) plus its per-route `build-manifest.json` (rootMainFiles —
- * the shared App Router framework chunks).
+ * Source priority:
+ *   1. `entryJSFiles` from the route's `_client-reference-manifest.js`
+ *      (Turbopack-only field — explicit list of all JS files needed for
+ *      the entry's segments).
+ *   2. As a fallback, walk `clientModules[*].chunks` (the canonical client-
+ *      reference list, populated by both bundlers). This picks up the
+ *      chunks for any actual `'use client'` components imported by the
+ *      route. Note webpack interleaves chunkIds with file names — the
+ *      extension filter in `addClientChunk` skips the IDs.
  *
- * `.map` paths (which shouldn't appear here in current Next.js output but
- * are filtered defensively) are routed to `clientMaps`.
+ * Plus `entryCSSFiles` for CSS, and the per-route `build-manifest.json`
+ * (Turbopack only) for shared App Router root chunks.
+ *
+ * `.map` paths are routed to `clientMaps`, `.css` to `clientCss`, `.js` to
+ * `clientJs` — anything else is dropped.
  */
 function collectAppClientFiles(
   distDir: string,
@@ -396,32 +467,38 @@ function collectAppClientFiles(
     path.join(baseDir, `${entryBase}_client-reference-manifest.js`)
   )
   if (crm) {
-    for (const chunks of Object.values(crm.entryJSFiles ?? {})) {
-      for (const chunk of chunks) {
-        const stripped = stripNextPrefix(chunk)
-        if (stripped.endsWith('.map')) sets.clientMaps.add(stripped)
-        else sets.clientJs.add(stripped)
+    if (crm.entryJSFiles) {
+      // Turbopack: explicit per-segment chunk list.
+      for (const chunks of Object.values(crm.entryJSFiles)) {
+        for (const chunk of chunks) addClientChunk(chunk, sets)
+      }
+    } else if (crm.clientModules) {
+      // Webpack: no entryJSFiles — walk clientModules. Each entry's
+      // `chunks` array is `[chunkId, fileName, chunkId, fileName, ...]`
+      // (alternating). `addClientChunk` filters by extension so chunkIds
+      // (which have no extension) are dropped automatically.
+      for (const mod of Object.values(crm.clientModules)) {
+        for (const chunk of mod.chunks ?? []) {
+          if (typeof chunk === 'string') addClientChunk(chunk, sets)
+        }
       }
     }
     for (const cssFiles of Object.values(crm.entryCSSFiles ?? {})) {
       for (const css of cssFiles) {
         const cssPath = typeof css === 'string' ? css : css.path
-        if (!cssPath) continue
-        const stripped = stripNextPrefix(cssPath)
-        if (stripped.endsWith('.map')) sets.clientMaps.add(stripped)
-        else sets.clientCss.add(stripped)
+        if (cssPath) addClientChunk(cssPath, sets)
       }
     }
   }
 
-  // Per-route build-manifest contributes the shared App Router root chunks.
-  const bm = readJsonFile<{ rootMainFiles?: string[] }>(
-    path.join(baseDir, entryBase, 'build-manifest.json')
+  // Add the App Router framework / main-app chunks shared across every
+  // app-page. Both bundlers list them in the global `build-manifest.json`
+  // under `rootMainFiles`. Turbopack also writes a per-route
+  // `build-manifest.json` containing the same files; webpack does not.
+  const globalBm = readJsonFile<{ rootMainFiles?: string[] }>(
+    path.join(distDir, 'build-manifest.json')
   )
-  for (const chunk of bm?.rootMainFiles ?? []) {
-    if (chunk.endsWith('.map')) sets.clientMaps.add(chunk)
-    else sets.clientJs.add(chunk)
-  }
+  for (const chunk of globalBm?.rootMainFiles ?? []) addClientChunk(chunk, sets)
 }
 
 /**
@@ -582,15 +659,13 @@ function collectFiles(
         collectEdgeFiles(entry.runtime.files, sets)
       }
       // Client-side: pages-router uses the global build-manifest;
-      // app-router uses the per-route _client-reference-manifest plus its
-      // own per-route build-manifest. App-router edge handlers don't ship
-      // client JS (no separate serverEntry to look up), so we skip.
+      // app-router pages use the per-route _client-reference-manifest plus
+      // shared `rootMainFiles` from the global build-manifest. App-router
+      // route handlers (`app-route`) and edge runtime entries don't ship
+      // client JS — skip client collection there.
       if (entry.type === 'pages') {
         collectPagesClientFiles(distDir, entry.route, sets)
-      } else if (
-        (entry.type === 'app-page' || entry.type === 'app-route') &&
-        entry.runtime.kind === 'node'
-      ) {
+      } else if (entry.type === 'app-page' && entry.runtime.kind === 'node') {
         collectAppClientFiles(distDir, entry.runtime.serverEntry, sets)
       }
       break
