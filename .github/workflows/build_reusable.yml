@@ -272,6 +272,31 @@ jobs:
             chown -R root:root /github/home
           fi
 
+      # Make Next.js's `is-docker` check return false inside the
+      # Playwright container so persistent storage is used for build
+      # artifacts.
+      #
+      # `packages/next/src/server/cache-dir.ts` short-circuits
+      # `getStorageDirectory()` to `undefined` when `isDockerFunction()`
+      # returns true, which forces `generatePreviewKeys` /
+      # server-action encryption-key generation to mint a fresh random
+      # key on every `next build`. That ephemeral-storage assumption is
+      # correct for the Vercel cold-start model but it breaks tests
+      # that assert determinism between two consecutive builds in the
+      # same workspace (e.g. `test/production/deterministic-build`,
+      # `test/production/app-dir/server-action-period-hash`). The
+      # `is-docker` package only checks `/.dockerenv` and `/proc/self/cgroup`
+      # for the string "docker"; on Ubuntu 24.04 (cgroups v2) the cgroup
+      # file does not contain that string, so deleting `/.dockerenv` is
+      # enough to make the detection return false. This is scoped to
+      # root so it's a no-op on host runners.
+      - name: Disable in-container Docker detection (Linux container)
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          if [ "$(id -u)" = "0" ] && [ -e /.dockerenv ]; then
+            rm -f /.dockerenv
+          fi
+
       - name: Install fnm
         if: steps.check-fnm.outputs.found != 'true'
         run: |
