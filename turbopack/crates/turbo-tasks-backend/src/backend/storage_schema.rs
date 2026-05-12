@@ -599,13 +599,43 @@ impl TaskStorage {
 // TaskStorage helper methods
 // =============================================================================
 
+/// Opaque owning container for the lazy field area, returned by
+/// [`TaskStorage::take_lazy_contents`]. Callers can iterate it (to merge entries
+/// one-by-one) or hand it back to [`TaskStorage::lazy_extend_owned`] for a
+/// bulk move. The type is intentionally opaque so callers don't depend on the
+/// underlying storage representation.
+pub(crate) struct LazyContents(turbo_tasks::TinyVec<LazyField, { LazyField::NUM_VARIANTS as u8 }>);
+
+impl LazyContents {
+    /// Number of present lazy fields.
+    #[allow(dead_code)] // used by upcoming bitmap-layout implementation
+    pub(crate) fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Whether the container holds no fields.
+    #[allow(dead_code)] // used by upcoming bitmap-layout implementation
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+impl IntoIterator for LazyContents {
+    type Item = LazyField;
+    type IntoIter = <turbo_tasks::TinyVec<LazyField, { LazyField::NUM_VARIANTS as u8 }>
+        as IntoIterator>::IntoIter;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 impl TaskStorage {
     /// Find a lazy field by predicate (immutable).
     ///
     /// The `extract` closure should return `Some(&T)` for the matching variant,
     /// or `None` for non-matching variants.
     fn find_lazy<T>(&self, extract: impl Fn(&LazyField) -> Option<&T>) -> Option<&T> {
-        self.lazy.iter().find_map(extract)
+        self.lazy_iter().find_map(extract)
     }
 
     /// Find a lazy field by predicate (mutable).
@@ -616,7 +646,7 @@ impl TaskStorage {
         &mut self,
         extract: impl Fn(&mut LazyField) -> Option<&mut T>,
     ) -> Option<&mut T> {
-        self.lazy.iter_mut().find_map(extract)
+        self.lazy_iter_mut().find_map(extract)
     }
 
     /// Find and extract a lazy field, returning its index and a reference to the inner value.
@@ -624,8 +654,7 @@ impl TaskStorage {
     /// Combines index lookup and extraction into a single scan. The returned index
     /// can be used with `lazy_at_mut` for subsequent mutation without re-scanning.
     fn find_lazy_ref<T>(&self, extract: impl Fn(&LazyField) -> Option<&T>) -> Option<(usize, &T)> {
-        self.lazy
-            .iter()
+        self.lazy_iter()
             .enumerate()
             .find_map(|(idx, field)| extract(field).map(|val| (idx, val)))
     }
@@ -639,7 +668,7 @@ impl TaskStorage {
         idx: usize,
         extract: impl FnOnce(&mut LazyField) -> Option<&mut T>,
     ) -> &mut T {
-        extract(&mut self.lazy[idx]).unwrap()
+        extract(self.lazy_slot_mut(idx)).unwrap()
     }
 
     /// Take a lazy field by known index, removing it from the Vec via swap_remove.
@@ -647,7 +676,7 @@ impl TaskStorage {
     /// # Panics
     /// Panics if `idx` is out of bounds.
     fn lazy_take_at<T>(&mut self, idx: usize, extract: impl FnOnce(LazyField) -> T) -> T {
-        extract(self.lazy.swap_remove(idx))
+        extract(self.lazy_swap_remove(idx))
     }
 
     /// Get or create a lazy field, returning a mutable reference.
@@ -674,12 +703,12 @@ impl TaskStorage {
         create: impl FnOnce() -> LazyField,
     ) -> &mut T {
         // Find the index of matching field (immutable borrow)
-        let idx = self.lazy.iter().position(matches);
+        let idx = self.lazy_iter().position(matches);
         if let Some(idx) = idx {
-            extract(&mut self.lazy[idx])
+            extract(self.lazy_slot_mut(idx))
         } else {
-            self.lazy.push(create());
-            extract(self.lazy.last_mut().unwrap())
+            self.lazy_push(create());
+            extract(self.lazy_slot_mut(self.lazy_len() - 1))
         }
     }
 
@@ -694,8 +723,8 @@ impl TaskStorage {
         matches: impl Fn(&LazyField) -> bool,
         extract: impl FnOnce(LazyField) -> T,
     ) -> Option<T> {
-        let idx = self.lazy.iter().position(matches)?;
-        Some(extract(self.lazy.swap_remove(idx)))
+        let idx = self.lazy_iter().position(matches)?;
+        Some(extract(self.lazy_swap_remove(idx)))
     }
 
     /// Set a lazy field value, replacing any existing value.
@@ -710,13 +739,111 @@ impl TaskStorage {
         extract: impl FnOnce(LazyField) -> T,
         new_value: LazyField,
     ) -> Option<T> {
-        if let Some(idx) = self.lazy.iter().position(matches) {
-            let old = std::mem::replace(&mut self.lazy[idx], new_value);
+        if let Some(idx) = self.lazy_iter().position(matches) {
+            let old = self.lazy_replace_at(idx, new_value);
             Some(extract(old))
         } else {
-            self.lazy.push(new_value);
+            self.lazy_push(new_value);
             None
         }
+    }
+
+    // =========================================================================
+    // Encapsulated access to the lazy storage. These wrap every read/write of
+    // `self.lazy` so the underlying container (currently `TinyVec<LazyField>`)
+    // can be replaced with a packed byte-tail layout without touching call sites.
+    // =========================================================================
+
+    /// Append a lazy field. May realloc the underlying storage.
+    pub(crate) fn lazy_push(&mut self, value: LazyField) {
+        self.lazy.push(value);
+    }
+
+    /// Replace the value at a known index, returning the old value.
+    pub(crate) fn lazy_replace_at(&mut self, idx: usize, value: LazyField) -> LazyField {
+        std::mem::replace(&mut self.lazy[idx], value)
+    }
+
+    /// Read-only iteration over present lazy fields.
+    pub(crate) fn lazy_iter(&self) -> std::slice::Iter<'_, LazyField> {
+        self.lazy.iter()
+    }
+
+    /// Mutable iteration over present lazy fields.
+    pub(crate) fn lazy_iter_mut(&mut self) -> std::slice::IterMut<'_, LazyField> {
+        self.lazy.iter_mut()
+    }
+
+    /// Number of present lazy fields.
+    pub(crate) fn lazy_len(&self) -> usize {
+        self.lazy.len()
+    }
+
+    /// Swap-remove a lazy field at the given index, returning it. O(1).
+    pub(crate) fn lazy_swap_remove(&mut self, idx: usize) -> LazyField {
+        self.lazy.swap_remove(idx)
+    }
+
+    /// Drop entries in place that fail the predicate. Preserves order of remaining
+    /// entries up to the precision the underlying container offers.
+    pub(crate) fn lazy_retain_mut(&mut self, f: impl FnMut(&mut LazyField) -> bool) {
+        self.lazy.retain_mut(f);
+    }
+
+    /// Take ownership of the entire lazy area of `self`, leaving it empty.
+    ///
+    /// Returns an opaque container that exposes only iteration; callers feed it
+    /// to `lazy_extend_owned` or iterate to merge entries individually. Keeping
+    /// the type opaque (`LazyContents`) means callers don't depend on the
+    /// underlying `TinyVec` storage.
+    pub(crate) fn take_lazy_contents(&mut self) -> LazyContents {
+        LazyContents(std::mem::take(&mut self.lazy))
+    }
+
+    /// Bulk-append the contents of `other` to `self`'s lazy area.
+    pub(crate) fn lazy_extend_owned(&mut self, other: LazyContents) {
+        self.lazy.extend_exact(other.0);
+    }
+
+    /// Shrink the lazy storage to fit its current contents.
+    pub(crate) fn lazy_shrink_to_fit(&mut self) {
+        self.lazy.shrink_to_fit();
+    }
+
+    /// Cleanup loop: visit each entry in turn (with its index), and `swap_remove`
+    /// it when the predicate returns `false`. The index passed to the predicate
+    /// reflects the current position after any prior swap_removes, matching the
+    /// behavior of a `while i < lazy.len()` / `swap_remove(i)` loop.
+    pub(crate) fn lazy_cleanup<F: FnMut(&mut LazyField) -> bool>(&mut self, mut keep: F) {
+        let mut i = 0;
+        while i < self.lazy.len() {
+            if keep(&mut self.lazy[i]) {
+                i += 1;
+            } else {
+                self.lazy.swap_remove(i);
+            }
+        }
+    }
+
+    /// "Are all lazy data fields empty?" — used by eviction predicates.
+    pub(crate) fn all_lazy_data_empty_or_absent(&self) -> bool {
+        self.lazy.iter().all(|f| !f.is_data() || f.is_empty())
+    }
+
+    /// "Are all lazy meta fields empty?" — used by eviction predicates.
+    pub(crate) fn all_lazy_meta_empty_or_absent(&self) -> bool {
+        self.lazy.iter().all(|f| !f.is_meta() || f.is_empty())
+    }
+
+    /// "Are all transient lazy fields empty?" — used by eviction predicates.
+    pub(crate) fn all_transient_lazy_empty(&self) -> bool {
+        self.lazy.iter().all(|f| f.is_persistent() || f.is_empty())
+    }
+
+    /// Access a lazy field by raw index without an extractor. Used in restore
+    /// merge arms that need to mutate the existing residue when a slot is found.
+    pub(crate) fn lazy_slot_mut(&mut self, idx: usize) -> &mut LazyField {
+        &mut self.lazy[idx]
     }
 
     /// Encode fields for the specified category
@@ -769,7 +896,7 @@ impl TaskStorage {
         };
         if should_track_activeness {
             let activeness = ActivenessState::new_root(root_type, task_id);
-            self.lazy.push(LazyField::Activeness(activeness));
+            self.lazy_push(LazyField::Activeness(activeness));
         }
 
         // Set the task as scheduled so it can be executed

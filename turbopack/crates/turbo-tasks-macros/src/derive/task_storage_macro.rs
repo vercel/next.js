@@ -1852,11 +1852,11 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
                     return None;
                 }
                 #track_modification
-                let old = std::mem::replace(&mut self.typed_mut().lazy[idx], #constructor);
+                let old = self.typed_mut().lazy_replace_at(idx, #constructor);
                 Some((#unwraper)(old))
             } else {
                 #track_modification
-                self.typed_mut().lazy.push(#constructor);
+                self.typed_mut().lazy_push(#constructor);
                 None
             }
         }
@@ -2053,7 +2053,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                     #track_modification
                     let mut set = <#field_type as Default>::default();
                     set.insert(item);
-                    self.typed_mut().lazy.push(#ctor);
+                    self.typed_mut().lazy_push(#ctor);
                     true
                 }
             }
@@ -2080,11 +2080,11 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                         return None;
                     }
                     #track_modification
-                    let old = std::mem::replace(&mut self.typed_mut().lazy[idx], #ctor);
+                    let old = self.typed_mut().lazy_replace_at(idx, #ctor);
                     Some((#unwraper)(old))
                 } else {
                     #track_modification
-                    self.typed_mut().lazy.push(#ctor);
+                    self.typed_mut().lazy_push(#ctor);
                     None
                 }
             };
@@ -2126,7 +2126,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                     }
                     #track_modification
                     let set: #field_type = iter.collect();
-                    self.typed_mut().lazy.push(#ctor);
+                    self.typed_mut().lazy_push(#ctor);
                 }
             }
         } else {
@@ -2420,7 +2420,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                         } else {
                             let mut new_map = CounterMap::default();
                             new_map.insert(key, value);
-                            self.typed_mut().lazy.push(#constructor);
+                            self.typed_mut().lazy_push(#constructor);
                         }
                     }
                     None => {
@@ -2816,22 +2816,14 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
             // Clean up inline collection fields (always present, not in lazy vec)
             #(#inline_cleanups)*
 
-            // swap_retain pattern: iterate with manual index, swap_remove to delete
-            let mut i = 0;
-            while i < typed.lazy.len() {
-                let keep = match &mut typed.lazy[i] {
-                    #(#match_arms)*
-                    // Fields without cleanup attributes - keep as-is
-                    _ => true,
-                };
-                if keep {
-                    i += 1;
-                } else {
-                    typed.lazy.swap_remove(i);
-                }
-            }
+            // Walk lazy entries, dropping any that fail the cleanup predicate.
+            typed.lazy_cleanup(|f| match f {
+                #(#match_arms)*
+                // Fields without cleanup attributes - keep as-is
+                _ => true,
+            });
 
-            typed.lazy.shrink_to_fit();
+            typed.lazy_shrink_to_fit();
         }
     }
 }
@@ -2911,7 +2903,7 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
             #[inline]
             fn is_empty_data(&self) -> bool {
                 self.flags.persisted_data_bits() == 0
-                    && self.lazy.iter().all(|f| !f.is_data() || f.is_empty())
+                    && self.all_lazy_data_empty_or_absent()
                     #(&& #inline_data_checks)*
             }
 
@@ -2920,7 +2912,7 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
             #[inline]
             fn is_empty_meta(&self) -> bool {
                 self.flags.persisted_meta_bits() == 0
-                    && self.lazy.iter().all(|f| !f.is_meta() || f.is_empty())
+                    && self.all_lazy_meta_empty_or_absent()
                     #(&& #inline_meta_checks)*
             }
 
@@ -2932,7 +2924,7 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
             fn is_empty_transient(&self) -> bool {
                 // Transient flag bits are everything outside `PERSISTED_MASK`.
                 (self.flags.bits() & !TaskFlags::PERSISTED_MASK) == 0
-                    && self.lazy.iter().all(|f| f.is_persistent() || f.is_empty())
+                    && self.all_transient_lazy_empty()
                     #(&& #inline_transient_checks)*
             }
 
@@ -2990,7 +2982,7 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
                 // are either fully removed (non-filter_transient) or scanned for
                 // transient residue (filter_transient), dropping the variant only if
                 // it becomes empty.
-                self.lazy.retain_mut(|f| {
+                self.lazy_retain_mut(|f| {
                     if !f.is_persistent() {
                         // Transient variants normally stay put, but drop
                         // empty ones. They accumulate as zombies when cells
@@ -3009,7 +3001,7 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
                         _ => false,
                     }
                 });
-                self.lazy.shrink_to_fit();
+                self.lazy_shrink_to_fit();
                 if __has_residue {
                     // Some `filter_transient` field kept transient entries;
                     // the entry must stay regardless of what other state is
@@ -3528,7 +3520,7 @@ fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
 
     quote! {
         // Encode each persistent lazy field in this category
-        for field in &self.lazy {
+        for field in self.lazy_iter() {
             match field {
                 #(#encode_arms)*
                 _ => {} // Skip fields not in this category
@@ -3574,7 +3566,7 @@ fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
                     ));
                 }
             };
-            self.lazy.push(field);
+            self.lazy_push(field);
         }
     }
 }
@@ -3594,7 +3586,7 @@ fn gen_clone_lazy_arms_for_category(
 ) -> Vec<TokenStream> {
     gen_lazy_match_arms(grouped_fields.persistent_lazy(category), |_, field| {
         let variant_name = &field.variant_name;
-        quote! { snapshot.lazy.push(LazyField::#variant_name(data.clone())); }
+        quote! { snapshot.lazy_push(LazyField::#variant_name(data.clone())); }
     })
 }
 
@@ -3693,8 +3685,8 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 // Clone all persistent lazy fields (both meta and data).
                 // (No pre-`reserve`: the schema has ≤24 lazy fields, so at most 3 grows
                 // (0→4→8→16→24) total — cheaper than complicating the public API surface
-                // of `TinyVec`.)
-                for field in &self.lazy {
+                // of the underlying lazy storage.)
+                for field in self.lazy_iter() {
                     match field {
                         #(#clone_data_lazy_arms)*
                         #(#clone_meta_lazy_arms)*
@@ -3737,22 +3729,28 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
             ///
             /// `self` may contain transient residue left behind by `drop_partial`;
             /// `filter_transient` fields are merged rather than overwritten.
-            fn restore_meta_from(&mut self, source: TaskStorage) {
+            fn restore_meta_from(&mut self, mut source: TaskStorage) {
+                // Take the lazy area first while `source` is still a fully-owned
+                // value. The inline-field assignments below move other fields out
+                // of `source`, leaving it partially moved — borrowing `&mut source`
+                // for `take_lazy_contents` after that wouldn't compile.
+                let source_lazy = source.take_lazy_contents();
+
                 // Inline meta fields
                 #(#restore_meta_inline)*
 
                 #restore_meta_flags
 
-                // `source.lazy` contains only persistent meta variants. If
+                // `source_lazy` contains only persistent meta variants. If
                 // `self.lazy` has no persistent meta residue we can bulk-extend
                 // regardless of transient or data residue — those can't collide
                 // with the incoming meta variants. Otherwise build the index
                 // and merge each source variant in O(1).
-                let (any_meta, _any_data, index) = Self::build_lazy_index(&self.lazy);
+                let (any_meta, _any_data, index) = self.build_lazy_index();
                 if !any_meta {
-                    self.lazy.extend_exact(source.lazy);
+                    self.lazy_extend_owned(source_lazy);
                 } else {
-                    for field in source.lazy {
+                    for field in source_lazy {
                         debug_assert!(field.is_persistent() && field.is_meta());
                         self.restore_lazy_field(field, &index);
                     }
@@ -3763,20 +3761,23 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
             ///
             /// `self` may contain transient residue left behind by `drop_partial`;
             /// `filter_transient` fields are merged rather than overwritten.
-            fn restore_data_from(&mut self, source: TaskStorage) {
+            fn restore_data_from(&mut self, mut source: TaskStorage) {
+                // Take the lazy area first (see restore_meta_from for rationale).
+                let source_lazy = source.take_lazy_contents();
+
                 // Inline data fields
                 #(#restore_data_inline)*
 
                 #restore_data_flags
 
-                // Mirror image of `restore_meta_from`: `source.lazy` contains
+                // Mirror image of `restore_meta_from`: `source_lazy` contains
                 // only persistent data variants, so meta or transient residue
                 // in `self.lazy` is never a collision risk.
-                let (_any_meta, any_data, index) = Self::build_lazy_index(&self.lazy);
+                let (_any_meta, any_data, index) = self.build_lazy_index();
                 if !any_data {
-                    self.lazy.extend_exact(source.lazy);
+                    self.lazy_extend_owned(source_lazy);
                 } else {
-                    for field in source.lazy {
+                    for field in source_lazy {
                         debug_assert!(field.is_persistent() && field.is_data());
                         self.restore_lazy_field(field, &index);
                     }
@@ -3796,17 +3797,20 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
             /// so the data bit staying false lets meta restore stay on the
             /// bulk-extend fast path.
             ///
+            /// Build a discriminant → position lookup table over the present
+            /// lazy fields, plus per-category "any persistent residue?" bits.
+            ///
             /// `u8::MAX` marks "variant not present" in the index. Relies on
-            /// `lazy.len() < 255`, which is trivially true (at most
-            /// `LazyField::NUM_VARIANTS` entries, well under 255).
+            /// the lazy area holding at most `LazyField::NUM_VARIANTS` entries,
+            /// well under 255.
             fn build_lazy_index(
-                lazy: &[LazyField],
+                &self,
             ) -> (bool, bool, [u8; LazyField::NUM_VARIANTS]) {
-                debug_assert!(lazy.len() < u8::MAX as usize);
                 let mut index = [u8::MAX; LazyField::NUM_VARIANTS];
                 let mut any_meta = false;
                 let mut any_data = false;
-                for (i, f) in lazy.iter().enumerate() {
+                for (i, f) in self.lazy_iter().enumerate() {
+                    debug_assert!(i < u8::MAX as usize);
                     let (d, is_meta, is_data) = f.index_and_category();
                     index[d as usize] = i as u8;
                     any_meta |= is_meta;
@@ -3829,7 +3833,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 match incoming {
                     #(#merge_lazy_arms)*
                     _ => {
-                        self.lazy.push(incoming);
+                        self.lazy_push(incoming);
                     }
                 }
             }
@@ -3853,13 +3857,13 @@ fn gen_restore_lazy_merge_arm(field: &FieldInfo, discriminant: u8) -> TokenStrea
         LazyField::#variant_name(incoming) => {
             let slot = index[#discriminant as usize];
             if slot != u8::MAX {
-                let residue = match &mut self.lazy[slot as usize] {
+                let residue = match self.lazy_slot_mut(slot as usize) {
                     LazyField::#variant_name(v) => v,
                     _ => unreachable!(),
                 };
                 residue.merge_restore(incoming);
             } else {
-                self.lazy.push(LazyField::#variant_name(incoming));
+                self.lazy_push(LazyField::#variant_name(incoming));
             }
         }
     }

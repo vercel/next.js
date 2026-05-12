@@ -15,8 +15,11 @@ use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{FxDashMap, TaskId, backend::CachedTaskTypeArc, event::Event, parallel};
 
 use crate::{
-    backend::storage_schema::{
-        DropPartialOutcome, KeyEvictability, TaskStorage, UnevictableReason, ValueEvictability,
+    backend::{
+        storage_schema::{
+            DropPartialOutcome, KeyEvictability, TaskStorage, UnevictableReason, ValueEvictability,
+        },
+        task_storage_box::TaskStorageBox,
     },
     backing_storage::SnapshotItem,
     database::key_value_database::KeySpace,
@@ -161,7 +164,7 @@ pub struct Storage {
     /// present in `snapshots.shards()[N]` (if present in `map` at all) is in `map.shards()[N]`.
     /// Code that walks both maps in parallel (e.g. `end_snapshot`) relies on this to lock pairs
     /// of shards by index instead of going through the top-level `DashMap` accessors.
-    snapshots: FxDashMap<TaskId, Option<Box<TaskStorage>>>,
+    snapshots: FxDashMap<TaskId, Option<TaskStorageBox>>,
     /// The main storage map
     ///
     /// Lock Ordering: Task creation acquires a `task_cache` lock and then inserts into this map.
@@ -173,7 +176,7 @@ pub struct Storage {
     /// `track_modification_internal` and `SnapshotShardIter::next` both hold a `map` shard write
     /// lock (via `StorageWriteGuard` / `map.get_mut`) and then take a `snapshots` shard lock.
     /// `end_snapshot` must lock in the same order — see the shard-zipping pattern there.
-    map: FxDashMap<TaskId, Box<TaskStorage>>,
+    map: FxDashMap<TaskId, TaskStorageBox>,
     /// A shared event notified whenever any task finishes restoring (successfully or not).
     ///
     /// Threads waiting for another thread's in-progress restore subscribe to this event,
@@ -452,7 +455,7 @@ impl Storage {
     pub fn access_mut(&self, key: TaskId) -> StorageWriteGuard<'_> {
         let inner = match self.map.entry(key) {
             dashmap::mapref::entry::Entry::Occupied(e) => e.into_ref(),
-            dashmap::mapref::entry::Entry::Vacant(e) => e.insert(Box::new(TaskStorage::new())),
+            dashmap::mapref::entry::Entry::Vacant(e) => e.insert(TaskStorageBox::new()),
         };
         StorageWriteGuard {
             storage: self,
@@ -465,7 +468,7 @@ impl Storage {
         key1: TaskId,
         key2: TaskId,
     ) -> (StorageWriteGuard<'_>, StorageWriteGuard<'_>) {
-        let (a, b) = get_multiple_mut(&self.map, key1, key2, || Box::new(TaskStorage::new()));
+        let (a, b) = get_multiple_mut(&self.map, key1, key2, TaskStorageBox::new);
         (
             StorageWriteGuard {
                 storage: self,
@@ -621,7 +624,7 @@ impl Storage {
 
 pub struct StorageWriteGuard<'a> {
     storage: &'a Storage,
-    inner: RefMut<'a, TaskId, Box<TaskStorage>>,
+    inner: RefMut<'a, TaskId, TaskStorageBox>,
 }
 
 impl StorageWriteGuard<'_> {
@@ -694,13 +697,14 @@ impl StorageWriteGuard<'_> {
                 if !flags.any_modified_during_snapshot() {
                     // Snapshot all non-transient fields, carrying the modified bits into
                     // the copy so the iterator knows which categories to persist.
-                    let mut snapshot = self.inner.clone_snapshot();
+                    let mut snapshot =
+                        TaskStorageBox::from_boxed(Box::new(self.inner.clone_snapshot()));
                     snapshot.flags.set_data_modified(flags.data_modified());
                     snapshot.flags.set_meta_modified(flags.meta_modified());
                     snapshot.flags.set_new_task(flags.new_task());
                     self.storage
                         .snapshots
-                        .insert(*self.inner.key(), Some(Box::new(snapshot)));
+                        .insert(*self.inner.key(), Some(snapshot));
                 }
                 self.inner
                     .flags

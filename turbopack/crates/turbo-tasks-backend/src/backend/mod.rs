@@ -4,6 +4,7 @@ mod operation;
 mod snapshot_coordinator;
 mod storage;
 pub mod storage_schema;
+mod task_storage_box;
 
 use std::{
     borrow::Cow,
