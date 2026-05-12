@@ -3,7 +3,8 @@ import { headers } from 'next/headers'
 import assert from 'node:assert/strict'
 
 export const unstable_instant: Instant = {
-  samples: [
+  level: 'experimental-error',
+  unstable_samples: [
     {
       headers: [['x-test-header', 'testValue']],
     },

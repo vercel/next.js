@@ -8,7 +8,7 @@ use turbopack_ecmascript::chunk::EcmascriptChunkContent;
 
 use super::content_entry::EcmascriptBrowserChunkContentEntries;
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 pub(super) struct EcmascriptBrowserChunkVersion {
     pub(super) chunk_path: String,
     pub(super) entries_hashes: FxIndexMap<ModuleId, u64>,

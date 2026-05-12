@@ -176,6 +176,7 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
   resolveExtensions: z.array(z.string()).optional(),
   root: z.string().optional(),
   debugIds: z.boolean().optional(),
+  chunkLoadingGlobal: z.string().optional(),
   ignoreIssue: z
     .array(
       z.object({
@@ -362,6 +363,7 @@ export const experimentalSchema = {
   turbopackRemoveUnusedImports: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),
   turbopackScopeHoisting: z.boolean().optional(),
+  turbopackWorkerAssetPrefix: z.string().optional(),
   turbopackClientSideNestedAsyncChunking: z.boolean().optional(),
   turbopackServerSideNestedAsyncChunking: z.boolean().optional(),
   turbopackImportTypeBytes: z.boolean().optional(),
@@ -391,6 +393,18 @@ export const experimentalSchema = {
   allowDevelopmentBuild: z.literal(true).optional(),
 
   reactDebugChannel: z.boolean().optional(),
+  instantInsights: z
+    .object({
+      validationLevel: z
+        .enum([
+          'warning',
+          'manual-warning',
+          'experimental-error',
+          'experimental-manual-error',
+        ])
+        .optional(),
+    })
+    .optional(),
   staticGenerationRetryCount: z.number().int().optional(),
   staticGenerationMaxConcurrency: z.number().int().optional(),
   staticGenerationMinPagesPerWorker: z.number().int().optional(),
@@ -398,6 +412,7 @@ export const experimentalSchema = {
   serverComponentsHmrCache: z.boolean().optional(),
   authInterrupts: z.boolean().optional(),
   useCache: z.boolean().optional(),
+  useCacheTimeout: z.number().positive().optional(),
   useNodeStreams: z.boolean().optional(),
   slowModuleDetection: z
     .object({
@@ -429,6 +444,7 @@ export const experimentalSchema = {
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
     adapterPath: z.string().optional(),
+    agentRules: z.boolean().optional(),
     allowedDevOrigins: z.array(z.string()).optional(),
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),

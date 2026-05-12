@@ -346,13 +346,13 @@ fn bench_against_node_nft_inner(input: CaseInput) {
     });
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip", evict = "never")]
 struct NodeFileTraceResult {
     rebased: ResolvedVc<RebasedAsset>,
     effects: Effects,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn node_file_trace_operation(
     package_root: RcStr,
     input: RcStr,
@@ -768,12 +768,12 @@ impl std::str::FromStr for CaseInput {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn asset_path_operation(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Vc<FileSystemPath> {
     asset.path()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn print_graph_operation(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
     let mut visited = HashSet::new();
     let mut queue = Vec::new();

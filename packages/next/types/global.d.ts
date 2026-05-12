@@ -81,6 +81,23 @@ interface TurbopackHotApi {
   readonly data: Record<string, unknown>
 }
 
+interface ImportMetaGlobOptions {
+  /** Import modules eagerly (synchronously). Default: `false`. */
+  eager?: boolean
+  /**
+   * Named export to select from each matched module.
+   * Use `'default'` for the default export, or `'*'` for the full namespace.
+   */
+  import?: string
+  /**
+   * Query string to append to each import request (e.g. `'?raw'`, `'?url'`).
+   * Can also be an object whose key-value pairs are serialized to a query string.
+   */
+  query?: string | Record<string, string | boolean>
+  /** Override the base path used for resolving patterns and keying results. */
+  base?: string
+}
+
 interface ImportMeta {
   /**
    * The HMR API for ESM modules when using Turbopack.
@@ -88,6 +105,29 @@ interface ImportMeta {
    * Only available in development mode.
    */
   turbopackHot?: TurbopackHotApi
+
+  /**
+   * Import multiple modules at once using glob patterns (Turbopack only).
+   *
+   * @example
+   * // Lazy (default) — values are thunks: () => Promise<Module>
+   * const modules = import.meta.glob('./dir/*.js')
+   *
+   * // Eager — values are module objects
+   * const modules = import.meta.glob('./dir/*.js', { eager: true })
+   */
+  glob(
+    pattern: string | string[],
+    options: ImportMetaGlobOptions & { eager: true }
+  ): Record<string, unknown>
+  glob(
+    pattern: string | string[],
+    options?: ImportMetaGlobOptions & { eager?: false | undefined }
+  ): Record<string, () => Promise<unknown>>
+  glob(
+    pattern: string | string[],
+    options?: ImportMetaGlobOptions
+  ): Record<string, unknown> | Record<string, () => Promise<unknown>>
 }
 
 interface Window {

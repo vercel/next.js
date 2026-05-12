@@ -50,7 +50,7 @@ pub struct NextDynamicGraphs(Vec<ResolvedVc<NextDynamicGraph>>);
 
 #[turbo_tasks::value_impl]
 impl NextDynamicGraphs {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn new_operation(
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
@@ -71,7 +71,7 @@ impl NextDynamicGraphs {
         Ok(Self(next_dynamic).cell())
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         // TODO get rid of this function once everything inside of
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
@@ -248,7 +248,7 @@ pub struct ServerActionsGraphs(Vec<ResolvedVc<ServerActionsGraph>>);
 
 #[turbo_tasks::value_impl]
 impl ServerActionsGraphs {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn new_operation(
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
@@ -269,7 +269,7 @@ impl ServerActionsGraphs {
         Ok(Self(server_actions).cell())
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         // TODO get rid of this function once everything inside of
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
@@ -426,7 +426,7 @@ pub struct ClientReferencesGraphs(Vec<ResolvedVc<ClientReferencesGraph>>);
 
 #[turbo_tasks::value_impl]
 impl ClientReferencesGraphs {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn new_operation(
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
@@ -447,7 +447,7 @@ impl ClientReferencesGraphs {
         Ok(Self(client_references).cell())
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         // TODO get rid of this function once everything inside of
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
@@ -719,13 +719,13 @@ impl Issue for CssGlobalImportIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        let parent_path = self.parent_module.ident().path().owned().await?;
-        let module_path = self.module.ident().path().owned().await?;
-        let relative_import_location = parent_path.parent();
+        let parent_ident = self.parent_module.ident().await?;
+        let module_ident = self.module.ident().await?;
+        let relative_import_location = parent_ident.path.parent();
 
-        let import_path = match relative_import_location.get_relative_path_to(&module_path) {
+        let import_path = match relative_import_location.get_relative_path_to(&module_ident.path) {
             Some(path) => path,
-            None => module_path.path.clone(),
+            None => module_ident.path.path.clone(),
         };
         let cleaned_import_path =
             if import_path.ends_with(".scss.css") || import_path.ends_with(".sass.css") {
@@ -742,7 +742,7 @@ impl Issue for CssGlobalImportIssue {
             )),
             StyledString::Line(vec![
                 StyledString::Text(rcstr!("Location: ")),
-                StyledString::Code(parent_path.path.clone()),
+                StyledString::Code(parent_ident.path.path.clone()),
             ]),
             StyledString::Line(vec![
                 StyledString::Text(rcstr!("Import path: ")),
@@ -756,7 +756,7 @@ impl Issue for CssGlobalImportIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.parent_module.ident().path().owned().await
+        Ok(self.parent_module.ident().await?.path.clone())
     }
 
     fn stage(&self) -> IssueStage {
@@ -840,7 +840,8 @@ async fn validate_pages_css_imports_individual(
     candidates
         .into_iter()
         .map(async |issue| {
-            let path = issue.module.ident().path().await?;
+            let ident = issue.module.ident().await?;
+            let path = &ident.path;
             // We allow imports of global CSS files which are inside of `node_modules`.
             // We also allow data URL CSS imports (e.g. `data:text/css,...`) since they
             // are mostly tooling-generated and co-located with the importing components

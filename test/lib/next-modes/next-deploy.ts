@@ -295,6 +295,16 @@ export class NextDeployInstance extends NextInstance {
     }
     const vercelEnv = { ...process.env }
 
+    // The Vercel CLI uses @vercel/detect-agent to detect when it's running
+    // under an AI coding agent (Claude Code, Cursor, Codex, …) and, when it
+    // does, switches `vercel deploy` stdout from a plain URL to a JSON
+    // manifest intended for AI consumption — which breaks
+    // `new URL(deployRes.stdout)` below. The CLI honors an explicit
+    // `--non-interactive=false` as an override of the agent default, and the
+    // JSON-vs-plain decision keys off `client.nonInteractive`, so passing
+    // the flag is enough to force plain-URL output for both link and deploy.
+    vercelFlags.push('--non-interactive=false')
+
     // If the token is available in the environment, use it as the token in the
     // environment.
     if (TEST_TOKEN) {

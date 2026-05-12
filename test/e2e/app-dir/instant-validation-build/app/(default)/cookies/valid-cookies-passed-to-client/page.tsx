@@ -3,7 +3,8 @@ import { cookies } from 'next/headers'
 import { ClientChild } from './client'
 
 export const unstable_instant: Instant = {
-  samples: [
+  level: 'experimental-error',
+  unstable_samples: [
     {
       cookies: [{ name: 'testCookie', value: 'testValue' }],
     },

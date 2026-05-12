@@ -2,11 +2,11 @@ use std::{
     borrow::Cow,
     fmt::Write,
     path::{MAIN_SEPARATOR, Path},
+    sync::LazyLock,
 };
 
 use anyhow::Result;
 use const_format::concatcp;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Deserialize;
 use turbo_tasks::{ReadRef, Vc};
@@ -15,7 +15,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
-    PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
+    PROJECT_FILESYSTEM_NAME_STR, SOURCE_URL_PROTOCOL_STR,
     source_map::{GenerateSourceMap, SourceMap},
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
@@ -34,8 +34,8 @@ pub async fn apply_source_mapping(
     project_dir: FileSystemPath,
     formatting_mode: FormattingMode,
 ) -> Result<Cow<'_, str>> {
-    static STACK_TRACE_LINE: Lazy<Regex> =
-        Lazy::new(|| Regex::new("\n    at (?:(.+) \\()?(.+):(\\d+):(\\d+)\\)?").unwrap());
+    static STACK_TRACE_LINE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new("\n    at (?:(.+) \\()?(.+):(\\d+):(\\d+)\\)?").unwrap());
 
     let mut it = STACK_TRACE_LINE.captures_iter(text).peekable();
     if it.peek().is_none() {
@@ -236,9 +236,9 @@ async fn resolve_source_mapping(
         TraceResult::Found(frame) => {
             let lib_code = frame.file.contains("/node_modules/");
             if let Some(project_path) = frame.file.strip_prefix(concatcp!(
-                SOURCE_URL_PROTOCOL,
+                SOURCE_URL_PROTOCOL_STR,
                 "///[",
-                PROJECT_FILESYSTEM_NAME,
+                PROJECT_FILESYSTEM_NAME_STR,
                 "]/"
             )) {
                 let fs_path = project_dir.join(project_path)?;

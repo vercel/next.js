@@ -5,6 +5,7 @@ use std::{
 };
 
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use turbo_rcstr::RcStr;
 
 use crate::{
     FxIndexMap,
@@ -36,7 +37,7 @@ impl<'a> SpanGraphRef<'a> {
         unsafe { SpanId::new_unchecked((self.first_span().index << 1) | 1) }
     }
 
-    pub fn nice_name(&self) -> (&str, &str) {
+    pub fn nice_name(&self) -> (&RcStr, &RcStr) {
         if self.count() == 1 {
             self.first_span().nice_name()
         } else {

@@ -51,7 +51,7 @@ pub(crate) struct TaggedValue {
 
 impl TaggedValue {
     #[inline(always)]
-    pub fn new_ptr<T>(value: NonNull<T>) -> Self {
+    pub const fn new_ptr<T>(value: NonNull<T>) -> Self {
         #[cfg(any(
             target_pointer_width = "32",
             target_pointer_width = "16",

@@ -8,6 +8,7 @@ import {
 } from 'react-server-dom-webpack/client'
 
 import { InvariantError } from '../../../shared/lib/invariant-error'
+import { fetch } from '../segment-cache/fetch'
 import type {
   FlightRouterState,
   InitialRSCPayload,
@@ -17,7 +18,6 @@ import type {
 import {
   type NEXT_ROUTER_PREFETCH_HEADER,
   type NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
-  type NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_URL,
@@ -109,7 +109,6 @@ export type RequestHeaders = {
   'Next-Test-Fetch-Priority'?: RequestInit['priority']
   [NEXT_HTML_REQUEST_ID_HEADER]?: string // dev-only
   [NEXT_REQUEST_ID_HEADER]?: string // dev-only
-  [NEXT_INSTANT_PREFETCH_HEADER]?: '1' // testing API only
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
@@ -532,7 +531,7 @@ export async function createFetch<T>(
   // search param to it. This should not leak outside of this function, so we
   // track them separately.
   let fetchUrl = new URL(url)
-  setCacheBustingSearchParam(fetchUrl, headers)
+  await setCacheBustingSearchParam(fetchUrl, headers)
   let processed = fetch(fetchUrl, fetchOptions).then(processFetch)
   let fetchPromise = processed.then(({ response }) => response)
 
@@ -602,7 +601,7 @@ export async function createFetch<T>(
       // fetch again.
       // TODO: We should abort the previous request.
       fetchUrl = new URL(responseUrl)
-      setCacheBustingSearchParam(fetchUrl, headers)
+      await setCacheBustingSearchParam(fetchUrl, headers)
       processed = fetch(fetchUrl, fetchOptions).then(processFetch)
       fetchPromise = processed.then(({ response }) => response)
       flightResponsePromise = shouldImmediatelyDecode

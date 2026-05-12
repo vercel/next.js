@@ -51,7 +51,7 @@ use crate::{
         get_next_client_resolved_map,
     },
     next_shared::{
-        resolve::{ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin},
+        resolve::NextSharedRuntimeResolvePlugin,
         transforms::{
             emotion::get_emotion_transform_rule,
             react_remove_properties::get_react_remove_properties_transform_rule,
@@ -180,18 +180,11 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
-        before_resolve_plugins: vec![
-            ResolvedVc::upcast(
-                ModuleFeatureReportResolvePlugin::new(project_path.clone())
-                    .to_resolved()
-                    .await?,
-            ),
-            ResolvedVc::upcast(
-                NextFontLocalResolvePlugin::new(project_path.clone())
-                    .to_resolved()
-                    .await?,
-            ),
-        ],
+        before_resolve_plugins: vec![ResolvedVc::upcast(
+            NextFontLocalResolvePlugin::new(project_path.clone())
+                .to_resolved()
+                .await?,
+        )],
         after_resolve_plugins: vec![ResolvedVc::upcast(
             NextSharedRuntimeResolvePlugin::new(project_path.clone())
                 .to_resolved()
@@ -477,10 +470,12 @@ pub struct ClientChunkingContextOptions {
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub debug_ids: Vc<bool>,
+    pub worker_asset_prefix: Vc<Option<RcStr>>,
     pub should_use_absolute_url_references: Vc<bool>,
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
     pub cross_origin: Vc<CrossOrigin>,
+    pub chunk_loading_global: Vc<Option<RcStr>>,
 }
 
 #[turbo_tasks::function]
@@ -504,10 +499,12 @@ pub async fn get_client_chunking_context(
         scope_hoisting,
         nested_async_chunking,
         debug_ids,
+        worker_asset_prefix,
         should_use_absolute_url_references,
         css_url_suffix,
         hash_salt,
         cross_origin,
+        chunk_loading_global,
     } = options;
 
     let next_mode = mode.await?;
@@ -544,6 +541,7 @@ pub async fn get_client_chunking_context(
     .unused_references(unused_references.to_resolved().await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .debug_ids(*debug_ids.await?)
+    .worker_asset_prefix(worker_asset_prefix.owned().await?)
     .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
@@ -552,6 +550,10 @@ pub async fn get_client_chunking_context(
         suffix: AssetSuffix::Inferred,
         static_suffix: css_url_suffix.to_resolved().await?,
     });
+
+    if let Some(g) = &*chunk_loading_global.await? {
+        builder = builder.chunk_loading_global(g.clone());
+    }
 
     if next_mode.is_development() {
         builder = builder

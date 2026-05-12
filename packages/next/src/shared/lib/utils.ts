@@ -99,6 +99,7 @@ export type NEXT_DATA = {
   err?: Error & {
     statusCode?: number
     source?: typeof COMPILER_NAMES.server | typeof COMPILER_NAMES.edgeServer
+    __NEXT_ERROR_CODE?: string
   }
   gsp?: boolean
   gssp?: boolean

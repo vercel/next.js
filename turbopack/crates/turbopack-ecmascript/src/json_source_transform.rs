@@ -58,13 +58,12 @@ impl SourceTransform for JsonSourceTransform {
         _asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<Box<dyn Source>>> {
         let this = self.await?;
-        let ident = source.ident();
-        let path = ident.path().await?;
+        let ident = source.ident().owned().await?;
         let content = source.content().file_content();
 
         // Parse the JSON to validate it and get the data
         let data = content.parse_json().await?;
-        let (code, extension) = match &*data {
+        let (code, rename_pattern) = match &*data {
             FileJsonContent::Content(data) => {
                 let data_str = data.to_string();
 
@@ -76,14 +75,14 @@ impl SourceTransform for JsonSourceTransform {
                 );
                 code.push_str("\"use turbopack no side effects\";\n");
 
-                let extension = if this.use_esm {
+                let rename_pattern = if this.use_esm {
                     // Spec-compliant ESM: only default export
                     code.push_str("export default ");
-                    "mjs"
+                    "*.[json].mjs"
                 } else {
                     // Webpack-compatible CommonJS: allows named property imports
                     code.push_str("module.exports = ");
-                    "cjs"
+                    "*.[json].cjs"
                 };
                 // For large JSON files, wrap in JSON.parse for better performance
                 // https://v8.dev/blog/cost-of-javascript-2019#json
@@ -95,9 +94,9 @@ impl SourceTransform for JsonSourceTransform {
                     code.push_str(&data_str);
                 }
                 code.push_str(";\n");
-                code.push_str(&inline_source_map_comment(&path.path, &data_str));
+                code.push_str(&inline_source_map_comment(&ident.path.path, &data_str));
 
-                (code, extension)
+                (code, rename_pattern)
             }
             FileJsonContent::Unparsable(e) => {
                 let resolved_source = source.to_resolved().await?;
@@ -105,7 +104,7 @@ impl SourceTransform for JsonSourceTransform {
 
                 CodeGenerationIssue {
                     severity: IssueSeverity::Error,
-                    path: ident.path().owned().await?,
+                    path: ident.path.clone(),
                     title: StyledString::Text(rcstr!("Unable to make a module from invalid JSON"))
                         .resolved_cell(),
                     message: StyledString::Text(e.message.clone()).resolved_cell(),
@@ -118,17 +117,20 @@ impl SourceTransform for JsonSourceTransform {
                     "Unable to make a module from invalid JSON: {}",
                     e.message
                 ))?;
-                (format!("throw new Error({js_error_message});"), "js")
+                (
+                    format!("throw new Error({js_error_message});"),
+                    "*.[json].js",
+                )
             }
             FileJsonContent::NotFound => {
                 // This is basically impossible since we wouldn't be called if the module
                 // doesn't exist but some kind of eventual consistency situation is
                 // possible where we resolve the file and then it disappears, so bail is appropriate
-                bail!("JSON file not found: {:?}", path);
+                bail!("JSON file not found: {:?}", ident.path);
             }
         };
 
-        let new_ident = ident.rename_as(format!("{}.[json].{}", path.path, extension).into());
+        let new_ident = ident.rename_as(rename_pattern).into_vc();
 
         Ok(Vc::upcast(VirtualSource::new_with_ident(
             new_ident,

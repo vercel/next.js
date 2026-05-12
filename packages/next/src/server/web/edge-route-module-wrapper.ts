@@ -124,13 +124,26 @@ export class EdgeRouteModuleWrapper {
         onClose: closeController.onClose.bind(closeController),
         onAfterTaskError: undefined,
         cacheComponents: !!process.env.__NEXT_CACHE_COMPONENTS,
+        // Edge runtime doesn't run instant validation; the level value is
+        // irrelevant here.
+        // TODO: Remove validationLevel and other global config from renderOpts
+        validationLevel: 'warning',
         experimental: {
           authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
+          // Edge runtime doesn't support Cache Components, so this value is
+          // never read. 0 is a sentinel: if something ever reads it, the cache
+          // fill will time out immediately and surface the bug.
+          useCacheTimeout: 0,
         },
         cacheLifeProfiles: nextConfig.cacheLife,
+        // Edge runtime doesn't do static generation, so this value does not
+        // apply here. 0 is a sentinel: if something ever reads it, it'll
+        // surface loudly instead of silently using a misleading default.
+        staticPageGenerationTimeout: 0,
       },
       sharedContext: {
         buildId: '', // TODO: Populate this properly.
+        deploymentId: '', // TODO: Populate this properly.
       },
     }
 
