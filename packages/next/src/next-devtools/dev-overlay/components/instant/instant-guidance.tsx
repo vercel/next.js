@@ -82,13 +82,7 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
           </div>
           <pre data-nextjs-fix-snippet>
             {card.snippets.map((snippet, i) => (
-              <span
-                key={i}
-                data-snippet-line
-                data-snippet-highlight={
-                  !snippet.parts && snippet.highlight ? '' : undefined
-                }
-              >
+              <span key={i} data-snippet-line>
                 {snippet.parts
                   ? snippet.parts.map((part, j) => (
                       <span
@@ -98,7 +92,11 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
                         {part.text}
                       </span>
                     ))
-                  : snippet.text}
+                  : snippet.highlight
+                    ? (
+                        <span data-snippet-highlight>{snippet.text}</span>
+                      )
+                    : snippet.text}
                 {'\n'}
               </span>
             ))}

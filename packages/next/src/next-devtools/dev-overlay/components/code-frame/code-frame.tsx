@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { HotlinkedText } from '../hot-linked-text'
 import { getStackFrameFile, type StackFrame } from '../../../shared/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
-import { ExternalIcon } from '../../icons/external'
+import { FileDependentIcon } from '../../icons/file-dependent'
 import { FileIcon } from '../../icons/file'
 import {
   formatCodeFrame,
@@ -57,9 +57,7 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
             data-with-open-in-editor-link-source-file
             onClick={open}
           >
-            <span className="code-frame-icon" data-icon="right">
-              <ExternalIcon width={16} height={16} />
-            </span>
+            <FileDependentIcon />
           </button>
         </p>
       </div>
@@ -67,6 +65,14 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
         <div className="code-frame-lines">
           {parsedLineStates.map(({ line, parsedLine }, lineIndex) => {
             const { lineNumber, isErroredLine } = parsedLine
+            const isCaretLine =
+              !lineNumber &&
+              line.some((entry) => entry.content.includes('^')) &&
+              line.every((entry) => /^[\s|^]*$/.test(entry.content))
+
+            if (isCaretLine) {
+              return null
+            }
 
             const lineNumberProps: Record<string, string | boolean> = {}
             if (lineNumber) {
@@ -78,24 +84,33 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
 
             return (
               <div key={`line-${lineIndex}`} {...lineNumberProps}>
-                {line.map((entry, entryIndex) => (
-                  <span
-                    key={`frame-${entryIndex}`}
-                    style={{
-                      color: entry.fg ? `var(--color-${entry.fg})` : undefined,
-                      ...(entry.decoration === 'bold'
-                        ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
-                          // having longer width than expected on Geist Mono font-weight
-                          // above 600, hence a temporary fix is to use 500 for bold.
-                          { fontWeight: 500 }
-                        : entry.decoration === 'italic'
-                          ? { fontStyle: 'italic' }
-                          : undefined),
-                    }}
-                  >
-                    {entry.content}
-                  </span>
-                ))}
+                {line.map((entry, entryIndex) => {
+                  if (
+                    entryIndex === 0 &&
+                    (entry.content === ' ' || entry.content === '>')
+                  ) {
+                    return null
+                  }
+
+                  return (
+                    <span
+                      key={`frame-${entryIndex}`}
+                      style={{
+                        color: entry.fg ? `var(--color-${entry.fg})` : undefined,
+                        ...(entry.decoration === 'bold'
+                          ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
+                            // having longer width than expected on Geist Mono font-weight
+                            // above 600, hence a temporary fix is to use 500 for bold.
+                            { fontWeight: 500 }
+                          : entry.decoration === 'italic'
+                            ? { fontStyle: 'italic' }
+                            : undefined),
+                      }}
+                    >
+                      {entry.content}
+                    </span>
+                  )
+                })}
               </div>
             )
           })}
@@ -108,14 +123,14 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
 export const CODE_FRAME_STYLES = `
   [data-nextjs-codeframe] {
     --code-frame-padding: 12px;
-    --code-frame-line-height: var(--size-16);
+    --code-frame-line-height: 20px;
     background-color: var(--color-background-200);
     color: var(--color-gray-1000);
     text-overflow: ellipsis;
     border: 1px solid var(--color-gray-400);
-    border-radius: 8px;
+    border-radius: var(--rounded-xl);
     font-family: var(--font-stack-monospace);
-    font-size: var(--size-12);
+    font-size: 13px;
     line-height: var(--code-frame-line-height);
     margin: 0;
 
@@ -130,8 +145,24 @@ export const CODE_FRAME_STYLES = `
     padding: var(--code-frame-padding);
   }
 
+  .code-frame-pre {
+    background: var(--color-background-100) !important;
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--rounded-xl);
+    border-bottom: none;
+    margin-left: -1px !important;
+    width: calc(100% + 2px);
+    max-width: calc(100% + 2px) !important;
+  }
+
   .code-frame-link svg {
+    display: block;
     flex-shrink: 0;
+  }
+
+  [data-with-open-in-editor-link-source-file] svg {
+    width: 14px;
+    height: 14px;
   }
 
   .code-frame-lines {
@@ -139,6 +170,7 @@ export const CODE_FRAME_STYLES = `
   }
 
   .code-frame-link [data-text] {
+    font-size: 12px;
     text-align: left;
   }
 
@@ -146,10 +178,14 @@ export const CODE_FRAME_STYLES = `
     width: 100%;
     transition: background 100ms ease-out;
     border-radius: 8px 8px 0 0;
-    border-bottom: 1px solid var(--color-gray-400);
   }
 
   [data-with-open-in-editor-link-source-file] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
     padding: 4px;
     margin-left: auto;
     border-radius: var(--rounded-full);
@@ -199,6 +235,15 @@ export const CODE_FRAME_STYLES = `
     }
   }
 
+  [data-nextjs-codeframe-line] > span:first-child {
+    color: var(--color-gray-alpha-700) !important;
+  }
+
+  [data-nextjs-codeframe-line][data-nextjs-codeframe-line--errored="true"]
+    > span:first-child {
+    color: var(--color-gray-alpha-1000) !important;
+  }
+
 
   [data-nextjs-codeframe] > * {
     margin: 0;
@@ -214,10 +259,6 @@ export const CODE_FRAME_STYLES = `
     padding-bottom: 8px;
     padding-right: 8px;
   }
-  .code-frame-link [data-icon='right'] {
-    margin-left: auto;
-  }
-
   .code-frame-pre {
     overflow-x: auto;
     overflow-y: hidden;

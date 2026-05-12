@@ -17,5 +17,6 @@ export const DIALOG_BODY_STYLES = `
   [data-nextjs-dialog-body] {
     padding-left: 20px;
     padding-right: 20px;
+    padding-bottom: 20px;
   }
 `
