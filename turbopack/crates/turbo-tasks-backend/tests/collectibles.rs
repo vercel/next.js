@@ -165,7 +165,7 @@ async fn taking_collectibles_with_resolve() {
 #[turbo_tasks::value(transparent)]
 struct Collectibles(AutoSet<ResolvedVc<Box<dyn ValueToString>>>);
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn my_collecting_function() -> Result<Vc<Thing>> {
     let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!(""));
     let result_vc = result_op.connect();
@@ -174,7 +174,7 @@ async fn my_collecting_function() -> Result<Vc<Thing>> {
     Ok(result_vc)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn my_collecting_function_indirect() -> Result<Vc<Thing>> {
     let result_op = my_collecting_function();
     let result_vc = result_op.connect();
@@ -186,7 +186,7 @@ async fn my_collecting_function_indirect() -> Result<Vc<Thing>> {
     Ok(result_vc)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn my_multi_emitting_function() -> Result<Vc<Thing>> {
     my_transitive_emitting_function(rcstr!(""), rcstr!("a"))
         .connect()
@@ -198,14 +198,14 @@ async fn my_multi_emitting_function() -> Result<Vc<Thing>> {
     Ok(Thing::cell(Thing(0)))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn my_transitive_emitting_function(key: RcStr, key2: RcStr) -> Result<Vc<Thing>> {
     let _ = key2;
     my_emitting_function(key).await?;
     Ok(Thing::cell(Thing(0)))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn my_transitive_emitting_function_collectibles(
     key: RcStr,
     key2: RcStr,
@@ -216,7 +216,7 @@ fn my_transitive_emitting_function_collectibles(
     ))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn my_transitive_emitting_function_with_child_scope(
     key: RcStr,
     key2: RcStr,
@@ -248,7 +248,7 @@ fn my_transitive_emitting_function_with_thing(key: RcStr, _thing: Vc<Thing>) -> 
     Ok(())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn my_transitive_emitting_function_with_resolve(key: RcStr) -> Result<()> {
     let _ = my_transitive_emitting_function_with_thing(key, get_thing(0));
     Ok(())

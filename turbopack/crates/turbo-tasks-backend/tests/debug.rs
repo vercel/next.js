@@ -10,7 +10,7 @@ use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn dbg_operation(value: ResolvedVc<Box<dyn ValueDebug>>) -> anyhow::Result<Vc<RcStr>> {
     let trait_ref = value.into_trait_ref().await?;
     let s = trait_ref.dbg().await?;

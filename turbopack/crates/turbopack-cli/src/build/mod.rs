@@ -180,13 +180,13 @@ impl TurbopackBuildBuilder {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn extract_effects_operation(op: OperationVc<()>) -> Result<Vc<Effects>> {
     let _ = op.resolve().strongly_consistent().await?;
     Ok(take_effects(op).await?.cell())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn build_internal(
     project_dir: RcStr,
     root_dir: RcStr,

@@ -22,7 +22,7 @@ use turbopack_core::{
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
     let _ = op.resolve().strongly_consistent().await?;
     Ok(take_effects(op).await?.cell())

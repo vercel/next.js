@@ -219,7 +219,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         effects: Effects,
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn run_inner_operation(
         resource: RcStr,
         snapshot_mode: IssueSnapshotMode,
@@ -237,7 +237,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
 
     /// Wrapper operation that collects all effects (including snapshot issue file writes) from
     /// [`run_inner_operation`].
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn run_inner_operation_with_effects(
         resource: RcStr,
         snapshot_mode: IssueSnapshotMode,
@@ -358,7 +358,7 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     .cell())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<Vc<RunTestResult>> {
     let PreparedTest {
         path,

@@ -220,7 +220,7 @@ async fn endpoint_output_assets_operation(
     Ok(*output.connect().await?.output_assets)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn endpoint_write_to_disk_operation(
     endpoint: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<EndpointOutputPaths>> {
@@ -231,7 +231,7 @@ pub async fn endpoint_write_to_disk_operation(
     })
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn endpoint_server_changed_operation(
     endpoint: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<Completion>> {
@@ -242,7 +242,7 @@ pub async fn endpoint_server_changed_operation(
     })
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn endpoint_client_changed_operation(
     endpoint: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<Completion>> {

@@ -363,7 +363,7 @@ mod tests {
                 rooted_sources: Vec<Option<String>>,
             }
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn resolve_source_map_sources_operation()
             -> anyhow::Result<Vc<SourceMapSourcesOutput>> {
                 let sys_root = if cfg!(windows) {

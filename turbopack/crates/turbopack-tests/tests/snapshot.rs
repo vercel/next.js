@@ -222,7 +222,7 @@ async fn run(resource: PathBuf) -> Result<()> {
         noop_backing_storage(),
     ));
     tt.run_once(async move {
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn inner_operation(resource: RcStr) -> Result<Vc<()>> {
             let out_op = run_test_operation(resource);
             let out_vc = out_op
@@ -243,7 +243,7 @@ async fn run(resource: PathBuf) -> Result<()> {
             Ok(Vc::cell(()))
         }
 
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn extract_effects(op: OperationVc<()>) -> Result<Vc<Effects>> {
             let _ = op.resolve().strongly_consistent().await?;
             Ok(take_effects(op).await?.cell())
@@ -262,7 +262,7 @@ async fn run(resource: PathBuf) -> Result<()> {
     Ok(())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let test_path = canonicalize(&resource)?;
     assert!(test_path.exists(), "{resource} does not exist");

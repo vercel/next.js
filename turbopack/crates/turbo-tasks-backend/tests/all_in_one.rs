@@ -25,7 +25,7 @@ async fn test_all_in_one() {
     .unwrap()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn test_all_in_one_operation(nonce: u32) -> Result<Vc<()>> {
     let _ = nonce; // ensure the nonce is part of our cache key
 

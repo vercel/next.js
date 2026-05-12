@@ -485,7 +485,7 @@ pub mod tests {
             .unwrap();
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub async fn run_leaves_test_operation() -> Result<()> {
         let fs = VirtualFileSystem::new();
         let virtual_path = fs.root().await?.join("foo.js")?;
@@ -622,7 +622,7 @@ pub mod tests {
         .unwrap();
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub async fn run_rule_condition_tree_test_operation() -> Result<()> {
         let fs = VirtualFileSystem::new();
         let virtual_path = fs.root().await?.join("foo.js")?;

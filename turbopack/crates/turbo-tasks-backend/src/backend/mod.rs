@@ -61,8 +61,8 @@ use crate::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext,
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
             LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard, TaskType,
-            connect_children, get_aggregation_number, get_uppers, is_root_node,
-            make_task_dirty_internal, prepare_new_children,
+            connect_children, get_aggregation_number, get_uppers, make_task_dirty_internal,
+            prepare_new_children,
         },
         snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
         storage::Storage,
@@ -519,36 +519,21 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         if matches!(options.consistency, ReadConsistency::Strong) {
-            // Ensure it's an root node
-            loop {
-                let aggregation_number = get_aggregation_number(&task);
-                if is_root_node(aggregation_number) {
-                    break;
-                }
+            if task
+                .get_persistent_task_type()
+                .is_some_and(|t| !t.native_fn.is_root)
+            {
                 drop(task);
                 drop(reader_task);
-                {
-                    let _span = tracing::trace_span!(
-                        "make root node for strongly consistent read",
-                        task = self.debug_get_task_description(task_id)
+                panic!(
+                    "Strongly consistent read of non-root task {} (reader: {}). The `root` \
+                     attribute is missing on the task.",
+                    self.debug_get_task_description(task_id),
+                    reader.map_or_else(
+                        || "unknown".to_string(),
+                        |r| self.debug_get_task_description(r)
                     )
-                    .entered();
-                    AggregationUpdateQueue::run(
-                        AggregationUpdateJob::UpdateAggregationNumber {
-                            task_id,
-                            base_aggregation_number: u32::MAX,
-                            distance: None,
-                        },
-                        &mut ctx,
-                    );
-                }
-                (task, reader_task) = if let Some(reader_id) = need_reader_task {
-                    // TODO(sokra): see comment above
-                    let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-                    (task, Some(reader))
-                } else {
-                    (ctx.task(task_id, TaskDataCategory::All), None)
-                }
+                );
             }
 
             let is_dirty = task.is_dirty();
@@ -1973,6 +1958,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             immutable = tracing::field::Empty,
             new_output = tracing::field::Empty,
             output_dependents = tracing::field::Empty,
+            aggregation_number = tracing::field::Empty,
             stale = tracing::field::Empty,
         )
         .entered();
@@ -2217,7 +2203,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         if has_children {
             // Prepare all new children
-            prepare_new_children(task_id, &mut task, &new_children, &mut queue);
+            let _aggregation_number =
+                prepare_new_children(task_id, &mut task, &new_children, &mut queue);
+
+            #[cfg(feature = "trace_task_details")]
+            span.record("aggregation_number", _aggregation_number);
 
             // Filter actual new children
             old_edges.extend(
@@ -2948,22 +2938,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut collectibles = AutoMap::default();
         {
             let mut task = ctx.task(task_id, TaskDataCategory::All);
-            // Ensure it's an root node
-            loop {
-                let aggregation_number = get_aggregation_number(&task);
-                if is_root_node(aggregation_number) {
-                    break;
-                }
+            if task
+                .get_persistent_task_type()
+                .is_some_and(|t| !t.native_fn.is_root)
+            {
                 drop(task);
-                AggregationUpdateQueue::run(
-                    AggregationUpdateJob::UpdateAggregationNumber {
-                        task_id,
-                        base_aggregation_number: u32::MAX,
-                        distance: None,
-                    },
-                    &mut ctx,
+                panic!(
+                    "Reading collectibles of non-root task {} (reader: {}). The `root` attribute \
+                     is missing on the task.",
+                    self.debug_get_task_description(task_id),
+                    reader_id.map_or_else(
+                        || "unknown".to_string(),
+                        |r| self.debug_get_task_description(r)
+                    )
                 );
-                task = ctx.task(task_id, TaskDataCategory::All);
             }
             for (collectible, count) in task.iter_aggregated_collectibles() {
                 if *count > 0 && collectible.collectible_type == collectible_type {

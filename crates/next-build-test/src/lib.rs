@@ -49,7 +49,7 @@ pub async fn main_inner(
 
     tracing::info!("collecting endpoints");
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     fn project_entrypoints_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Entrypoints> {
         project.entrypoints()
     }
@@ -248,7 +248,7 @@ pub async fn render_routes(
 async fn endpoint_write_to_disk_with_apply(
     endpoint: ResolvedVc<Box<dyn Endpoint>>,
 ) -> Result<ReadRef<EndpointOutputPaths>> {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     fn inner_operation(endpoint: ResolvedVc<Box<dyn Endpoint>>) -> Vc<EndpointOutputPaths> {
         // we must wrap this in an operation so we can get the Effects collectibles
         endpoint_write_to_disk(*endpoint)
@@ -260,7 +260,7 @@ async fn endpoint_write_to_disk_with_apply(
         effects: Effects,
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub async fn inner_operation_with_effects(
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
     ) -> Result<Vc<WithEffects>> {
@@ -291,7 +291,7 @@ async fn hmr(
     tracing::info!("HMR...");
     let session = TransientInstance::new(());
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     fn project_hmr_chunk_names_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Vec<RcStr>> {
         project.hmr_chunk_names(HmrTarget::Client)
     }

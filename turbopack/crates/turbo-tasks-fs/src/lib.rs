@@ -2952,7 +2952,7 @@ mod tests {
 
     use super::*;
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
         let _ = op.resolve().strongly_consistent().await?;
         Ok(take_effects(op).await?.cell())
@@ -3060,7 +3060,7 @@ mod tests {
         .unwrap();
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn assert_try_from_sys_path_operation(sys_root: RcStr) -> anyhow::Result<()> {
         let sys_root = Path::new(sys_root.as_str());
         let fs_vc = DiskFileSystem::new(
@@ -3163,7 +3163,7 @@ mod tests {
         use super::extract_effects_operation;
         use crate::{DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkType};
 
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn test_write_link_effect_operation(
             fs: ResolvedVc<DiskFileSystem>,
             path: FileSystemPath,
@@ -3273,7 +3273,7 @@ mod tests {
         const STRESS_TARGET_COUNT: usize = 20;
         const STRESS_SYMLINK_COUNT: usize = 16;
 
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
             DiskFileSystem::new(rcstr!("test"), Vc::cell(fs_root))
         }
@@ -3285,7 +3285,7 @@ mod tests {
             }
         }
 
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn write_symlink_stress_batch(
             fs: ResolvedVc<DiskFileSystem>,
             symlinks_dir: FileSystemPath,
@@ -3450,7 +3450,7 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read() {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
                 let fs = DiskFileSystem::new_with_denied_paths(
                     rcstr!("test"),
@@ -3513,7 +3513,7 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read_dir() {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
                 let fs = DiskFileSystem::new_with_denied_paths(
                     rcstr!("test"),
@@ -3575,7 +3575,7 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read_glob() {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
                 let fs = DiskFileSystem::new_with_denied_paths(
                     rcstr!("test"),
@@ -3641,7 +3641,7 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_write() {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn write_file_operation(
                 path: FileSystemPath,
                 contents: RcStr,
@@ -3656,7 +3656,7 @@ mod tests {
 
             /// Writes the allowed file and captures effects to be applied at
             /// the top level.
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn write_allowed_file_operation(
                 root: RcStr,
                 denied_path: RcStr,
@@ -3675,7 +3675,7 @@ mod tests {
                 Ok(take_effects(write_op).await?.cell())
             }
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn test_denied_writes_operation(
                 root: RcStr,
                 denied_path: RcStr,

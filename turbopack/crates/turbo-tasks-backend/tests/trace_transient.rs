@@ -35,7 +35,7 @@ async fn test_trace_transient() {
     assert!(message.contains(&EXPECTED_TRACE.to_string()));
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn test_trace_transient_operation(
     arg1: ResolvedVc<()>,
     arg2: ResolvedVc<u16>,

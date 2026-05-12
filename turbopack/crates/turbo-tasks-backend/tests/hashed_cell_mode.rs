@@ -45,14 +45,14 @@ struct ConsumeResult {
     random: u32,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn create_state_operation() -> Vc<Step> {
     Step(State::new(0)).cell()
 }
 
 /// Produces a HashedValue from a state. The noise field changes each execution
 /// but does not affect hash or equality.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn produce_hashed(input: ResolvedVc<Step>) -> Result<Vc<HashedValue>> {
     let value = *input.await?.get();
     let noise = EXECUTION_COUNTER.fetch_add(1, Ordering::Relaxed) as u64;
@@ -60,7 +60,7 @@ async fn produce_hashed(input: ResolvedVc<Step>) -> Result<Vc<HashedValue>> {
 }
 
 /// Consumes the HashedValue and records a random number to detect re-execution.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn consume_hashed(input: ResolvedVc<Step>) -> Result<Vc<ConsumeResult>> {
     let hashed = produce_hashed(input).connect();
     let v = hashed.await?;

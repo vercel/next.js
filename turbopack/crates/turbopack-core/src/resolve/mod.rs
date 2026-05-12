@@ -3761,7 +3761,7 @@ mod tests {
             #[turbo_tasks::value(transparent)]
             struct ResolveRelativeRequestOutput(Vec<(String, String)>);
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn resolve_relative_request_operation(
                 path: RcStr,
                 pattern: Pattern,
@@ -3911,7 +3911,7 @@ mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn run_test() -> Result<Vc<DupCheckResult>> {
             let m_a = make_module(rcstr!("a.js")).to_resolved().await?;
             let m_b = make_module(rcstr!("b.js")).to_resolved().await?;
@@ -3948,7 +3948,7 @@ mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn run_test() -> Result<Vc<DupCheckResult>> {
             let m = make_module(rcstr!("a.js")).to_resolved().await?;
 
@@ -3981,7 +3981,7 @@ mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn run_test() -> Result<Vc<DupCheckResult>> {
             let m = make_module(rcstr!("a.js")).to_resolved().await?;
 
@@ -4024,7 +4024,7 @@ mod tests {
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn run_test() -> Result<Vc<DupCheckResult>> {
             let m_a = make_module(rcstr!("a.js")).to_resolved().await?;
             let m_b = make_module(rcstr!("b.js")).to_resolved().await?;

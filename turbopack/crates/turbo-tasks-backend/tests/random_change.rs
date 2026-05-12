@@ -48,7 +48,7 @@ struct ValueContainer {
     state: State<i32>,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn make_state_operation() -> Vc<ValueContainer> {
     ValueContainer {
         state: State::new(0),
@@ -56,7 +56,7 @@ fn make_state_operation() -> Vc<ValueContainer> {
     .cell()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn func2_operation(input: ResolvedVc<ValueContainer>) -> Result<Vc<Value>> {
     let state = input.await?;
     let value = state.state.get();
@@ -64,7 +64,7 @@ async fn func2_operation(input: ResolvedVc<ValueContainer>) -> Result<Vc<Value>>
     Ok(func(*input, -*value))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn func_operation(input: ResolvedVc<ValueContainer>) -> Vc<Value> {
     func(*input, 0)
 }

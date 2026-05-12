@@ -181,6 +181,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         let is_self_used = default.as_ref().map(is_self_used).unwrap_or(false);
+        let is_root = func_args.root.is_some();
         let Some(turbo_fn) = TurboFn::new(
             sig,
             DefinitionContext::ValueTrait,
@@ -216,7 +217,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 is_method: turbo_fn.is_method(),
                 is_self_used,
                 filter_trait_call_args: turbo_fn.filter_trait_call_args(),
-                is_root: false,
+                is_root,
             };
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
@@ -232,6 +233,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     method_name: #method_name_str,
                     default_method: Some(&#native_function_ident),
                     index: #index,
+                    is_root: #is_root,
                 },
             });
             default_methods.push(quote! { Some(&#native_function_ident) });
@@ -269,6 +271,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     method_name: #method_name_str,
                     default_method: None,
                     index: #index,
+                    is_root: #is_root,
                 },
             });
             default_methods.push(quote! { None });

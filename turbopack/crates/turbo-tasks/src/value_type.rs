@@ -271,6 +271,24 @@ turbo_registry!("Value", ValueType);
 // Single-threaded during Lazy init.
 pub(crate) fn register_all_trait_methods(_: &[&'static ValueType]) {
     for entry in inventory::iter::<CollectableTraitMethods> {
+        for (i, impl_method) in entry.methods.iter().enumerate() {
+            let trait_method = &entry.trait_type.methods[i];
+            if trait_method.is_root != impl_method.is_root {
+                let attr = if trait_method.is_root {
+                    "the trait method has `#[turbo_tasks::function(root)]` but the impl does not"
+                } else {
+                    "the impl has `#[turbo_tasks::function(root)]` but the trait method does not"
+                };
+                panic!(
+                    "`root` attribute mismatch on `{}::{}` for `{}`: {}. The `root` attribute \
+                     must match between trait and impl methods.",
+                    trait_method.trait_name,
+                    trait_method.method_name,
+                    entry.value_type.ty.name,
+                    attr,
+                );
+            }
+        }
         entry
             .value_type
             .register_trait(entry.trait_type, entry.methods);
@@ -285,6 +303,9 @@ pub struct TraitMethod {
     pub trait_name: &'static str,
     pub method_name: &'static str,
     pub default_method: Option<&'static NativeFunction>,
+    /// Whether the trait method declared `#[turbo_tasks::function(root)]`. All impls of a trait
+    /// method must agree on this attribute (enforced at registration time).
+    pub is_root: bool,
 }
 impl Hash for TraitMethod {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

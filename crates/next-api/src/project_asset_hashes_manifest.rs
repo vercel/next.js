@@ -133,7 +133,7 @@ pub async fn expand_outputs(
 
 #[turbo_tasks::value_impl]
 impl Asset for AssetHashesManifestAsset {
-    #[turbo_tasks::function(root)]
+    #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let output_assets = expand_outputs(*self.project, self.asset_root.clone()).await?;
 
