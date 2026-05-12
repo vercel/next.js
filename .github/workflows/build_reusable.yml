@@ -101,6 +101,25 @@ on:
         required: false
         type: string
         default: 'yes'
+      playwrightDockerImage:
+        description: >
+          Docker image to use on Linux runners that need Playwright. Pinned to
+          the same version as the `playwright` dependency in `package.json`;
+          the image ships Chromium/Firefox/WebKit and all system deps
+          preinstalled, so the per-job install step is skipped on Linux.
+          Keep in sync with `scripts/check-playwright-image-version.mjs`.
+        required: false
+        type: string
+        default: 'mcr.microsoft.com/playwright:v1.58.2-jammy'
+      usePlaywrightContainer:
+        description: >
+          When 'no', run the job directly on the Linux runner and install
+          Playwright at runtime instead of wrapping the job in
+          `playwrightDockerImage`. Use this for jobs that need tooling not
+          shipped in the container image (e.g. `rustup` for the wasm tests).
+        required: false
+        type: string
+        default: 'yes'
 env:
   NAPI_CLI_VERSION: 2.18.4
   TURBO_VERSION: 2.9.4
@@ -150,6 +169,18 @@ jobs:
     timeout-minutes: ${{ inputs.timeout_minutes }}
     runs-on: ${{ fromJson(inputs.runs_on_labels) }}
 
+    # Run inside Microsoft's prebuilt Playwright image on Linux when the job
+    # actually needs browsers, so the per-job "Install Playwright browsers"
+    # step (download + apt-based `--with-deps`) disappears entirely. When the
+    # expression evaluates to '', GitHub Actions runs the job directly on the
+    # runner (Windows jobs, build-only jobs, and any job that opts out via
+    # `needsPlaywright: 'no'` or `skipInstallBuild: 'yes'`).
+    container:
+      image: ${{ (inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows')) && inputs.playwrightDockerImage || '' }}
+      # --ipc=host avoids Chromium running out of memory in /dev/shm.
+      # --init reaps zombie browser processes properly.
+      options: --ipc=host --init
+
     defaults:
       run:
         shell: bash -leo pipefail {0}
@@ -175,6 +206,18 @@ jobs:
           else
             echo "fnm not found."
             echo "found=false" >> $GITHUB_OUTPUT
+          fi
+
+      # The Microsoft Playwright `*-jammy` container image does not ship
+      # `jq`, but the Install fnm step below pipes `fnm env --json` through
+      # it. Install jq when running as root (i.e. inside the container) so
+      # subsequent steps work. On the host runners jq is already present.
+      - name: Ensure jq is available (Linux container)
+        if: ${{ runner.os == 'Linux' && steps.check-fnm.outputs.found != 'true' }}
+        run: |
+          if [ "$(id -u)" = "0" ] && ! command -v jq >/dev/null 2>&1; then
+            apt-get -o DPkg::Lock::Timeout=60 update
+            apt-get -o DPkg::Lock::Timeout=60 install -y --no-install-recommends jq
           fi
 
       - name: Install fnm
@@ -233,9 +276,12 @@ jobs:
         with:
           fetch-depth: 25
 
-      # Cache pnpm store on GitHub-hosted runners (self-hosted runners have their own persistent storage)
+      # Cache pnpm store on GitHub-hosted runners (self-hosted runners have
+      # their own persistent storage). Also fire inside the Playwright
+      # container since the container filesystem is always ephemeral, even
+      # when the host runner is persistent.
       - name: Get pnpm store directory
-        if: ${{ runner.environment == 'github-hosted' }}
+        if: ${{ runner.environment == 'github-hosted' || (inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows')) }}
         id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
 
@@ -308,7 +354,7 @@ jobs:
         # risk caching an incomplete store
         # If keep conditions in sync breaks, we can split into restore and save
         # steps where saving runs based on the outcome of the install step
-        if: ${{ runner.environment == 'github-hosted' && (inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes') }}
+        if: ${{ (runner.environment == 'github-hosted' || (inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows'))) && (inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes') }}
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         timeout-minutes: 5
         id: cache-pnpm-store
@@ -328,15 +374,37 @@ jobs:
       - run: ANALYZE=1 pnpm build
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
+      # Linux test jobs run inside `inputs.playwrightDockerImage` (see the
+      # `container:` block above), which ships Chromium/Firefox/WebKit plus
+      # all system deps at `/ms-playwright`. We only need to verify the layout
+      # matches expectations so a mismatched image fails loudly here instead
+      # of mid-test.
+      - name: Verify preinstalled Playwright browsers
+        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' && inputs.usePlaywrightContainer != 'no' && runner.os != 'Windows' }}
+        run: |
+          echo "PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-<unset>}"
+          if [ ! -d /ms-playwright ]; then
+            echo "::error::Expected /ms-playwright to exist inside the Playwright container (image: ${{ inputs.playwrightDockerImage }}). Did the image tag drift from package.json?"
+            exit 1
+          fi
+          ls /ms-playwright
+          pnpm playwright --version
+
+      # Fallback path used when:
+      #   - The runner is Windows (no Linux container), or
+      #   - The job opted out via `usePlaywrightContainer: 'no'` because it
+      #     needs tooling not shipped in the container image (e.g. rustup).
+      # The stamp file at `$HOME/.cache/playwright-deps-*` lets persistent
+      # self-hosted runners skip the slow `--with-deps` step on subsequent
+      # jobs.
       - name: Install Playwright browsers
-        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' }}
+        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' && (runner.os == 'Windows' || inputs.usePlaywrightContainer == 'no') }}
         run: |
           PW_VERSION=$(pnpm playwright --version 2>/dev/null || echo "unknown")
           CACHE_DIR="$HOME/.cache"
           VERSION_FILE="$CACHE_DIR/playwright-version"
           STAMP="$CACHE_DIR/playwright-deps-$(echo "${{ inputs.browser }}" | tr ' ' '-')"
 
-          # Clear stamp files when Playwright version changes
           if [ -f "$VERSION_FILE" ] && [ "$(cat "$VERSION_FILE")" != "$PW_VERSION" ]; then
             echo "Playwright version changed ($(cat "$VERSION_FILE") -> $PW_VERSION), clearing stamps"
             rm -f "$CACHE_DIR"/playwright-deps-*
