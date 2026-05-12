@@ -2523,7 +2523,7 @@ pub async fn project_feature_usage(
         .turbopack_ctx
         .turbo_tasks()
         .run_once(async move {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn project_feature_usage_operation(
                 container: ResolvedVc<ProjectContainer>,
             ) -> Result<Vc<ProjectFeatureUsageSummary>> {

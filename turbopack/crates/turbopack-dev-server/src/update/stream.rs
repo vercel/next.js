@@ -103,7 +103,7 @@ fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn versioned_content_update_operation(
     content: ResolvedVc<Box<dyn VersionedContent>>,
     from: ResolvedVc<Box<dyn Version>>,
@@ -111,7 +111,7 @@ fn versioned_content_update_operation(
     content.update(*from)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_update_stream_item_operation(
     resource: RcStr,
     from: ResolvedVc<VersionState>,

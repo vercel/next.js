@@ -77,7 +77,7 @@ fn get_content_source_content_get_operation(
 /// TODO: The callers of this function now read this operation using strong consistency. This may
 /// have re-introduced performance issues that were solved in
 /// <https://github.com/vercel/turborepo/pull/5360>.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn resolve_source_request(
     source: OperationVc<Box<dyn ContentSource>>,
     request: TransientInstance<SourceRequest>,
