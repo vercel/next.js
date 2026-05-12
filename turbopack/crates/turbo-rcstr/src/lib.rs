@@ -99,15 +99,12 @@ unsafe impl Sync for RcStr {}
 
 // Marks a payload that is stored in an Arc
 const DYNAMIC_TAG: u8 = 0b_10;
-const PREHASHED_STRING_LOCATION: u8 = 0b_0;
 // Marks a payload that has been leaked since it has a static lifetime
 const STATIC_TAG: u8 = 0b_00;
 // The payload is stored inline
 const INLINE_TAG: u8 = 0b_01; // len in upper nybble
-const INLINE_LOCATION: u8 = 0b_1;
 const INLINE_TAG_INIT: NonZeroU8 = NonZeroU8::new(INLINE_TAG).unwrap();
 const TAG_MASK: u8 = 0b_11;
-const LOCATION_MASK: u8 = 0b_1;
 // For inline tags the length is stored in the upper 4 bits of the tag byte
 const LEN_OFFSET: usize = 4;
 const LEN_MASK: u8 = 0xf0;
@@ -116,10 +113,6 @@ impl RcStr {
     #[inline(always)]
     fn tag(&self) -> u8 {
         self.unsafe_data.tag_byte() & TAG_MASK
-    }
-    #[inline(always)]
-    fn location(&self) -> u8 {
-        self.unsafe_data.tag_byte() & LOCATION_MASK
     }
 
     #[inline(never)]
@@ -133,7 +126,7 @@ impl RcStr {
     }
 
     fn inline_as_str(&self) -> &str {
-        debug_assert!(self.location() == INLINE_LOCATION);
+        debug_assert!(self.tag() == INLINE_TAG);
         let len = (self.unsafe_data.tag_byte() & LEN_MASK) >> LEN_OFFSET;
         let src = self.unsafe_data.data();
         unsafe { std::str::from_utf8_unchecked(&src[..(len as usize)]) }
@@ -329,18 +322,19 @@ impl From<RcStr> for PathBuf {
 impl Clone for RcStr {
     #[inline(always)]
     fn clone(&self) -> Self {
-        let alias = self.unsafe_data;
-        // We only need to increment the ref count for DYNAMIC_TAG values
+        // We only need to increment the ref count for DYNAMIC_TAG values.
         // For STATIC_TAG and INLINE_TAG we can just copy the value.
-        if alias.tag_byte() & TAG_MASK == DYNAMIC_TAG {
+        if self.tag() == DYNAMIC_TAG {
             unsafe {
-                let arc = dynamic::restore_arc(alias);
+                let arc = dynamic::restore_arc(self.unsafe_data);
                 forget(arc.clone());
                 forget(arc);
             }
         }
 
-        RcStr { unsafe_data: alias }
+        RcStr {
+            unsafe_data: self.unsafe_data,
+        }
     }
 }
 
@@ -357,21 +351,21 @@ impl PartialEq for RcStr {
         if self.unsafe_data == other.unsafe_data {
             return true;
         }
-        // They can still be equal if they are both stored on the heap (STATIC or DYNAMIC).
-        // NOTE: it is never possible for an inline storage string to compare equal to a heap
-        // allocated string, the construction routines separate the strings based on length.
-        if self.location() != PREHASHED_STRING_LOCATION
-            || other.location() != PREHASHED_STRING_LOCATION
-        {
+        // If either side is inline, they can't be equal: an inline string is always shorter than
+        // any heap-allocated one (construction splits on length), and two inline strings would
+        // have been caught by the `unsafe_data == unsafe_data` check above.
+        if self.tag() == INLINE_TAG || other.tag() == INLINE_TAG {
             return false;
         }
+
+        // slow path compare precomputed hashes and string refs
         let (l_hash, l_str) = unsafe { heap_hash_and_str(self) };
         let (r_hash, r_str) = unsafe { heap_hash_and_str(other) };
         l_hash == r_hash && l_str == r_str
     }
 }
 
-/// Caller must ensure `s.location() == PREHASHED_STRING_LOCATION`.
+/// Caller must ensure `s.tag()` is `STATIC_TAG` or `DYNAMIC_TAG`.
 #[inline]
 unsafe fn heap_hash_and_str(s: &RcStr) -> (u64, &str) {
     match s.tag() {
@@ -403,13 +397,16 @@ impl Ord for RcStr {
 
 impl Hash for RcStr {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        match self.location() {
-            PREHASHED_STRING_LOCATION => {
-                let (h, _) = unsafe { heap_hash_and_str(self) };
-                state.write_u64(h);
+        match self.tag() {
+            STATIC_TAG => {
+                state.write_u64(unsafe { deref_static(self.unsafe_data).hash });
                 state.write_u8(0xff); // matches the implementation of the `str` Hash impl
             }
-            INLINE_LOCATION => {
+            DYNAMIC_TAG => {
+                state.write_u64(unsafe { deref_dynamic(self.unsafe_data).hash });
+                state.write_u8(0xff); // matches the implementation of the `str` Hash impl
+            }
+            INLINE_TAG => {
                 self.inline_as_str().hash(state);
             }
             _ => unsafe { debug_unreachable!() },
@@ -487,11 +484,8 @@ impl Drop for RcStr {
     fn drop(&mut self) {
         match self.tag() {
             DYNAMIC_TAG => unsafe { drop(dynamic::restore_arc(self.unsafe_data)) },
-            STATIC_TAG => {
-                // do nothing, these are never deallocated
-            }
-            INLINE_TAG => {
-                // do nothing, these payloads need no drop logic
+            INLINE_TAG | STATIC_TAG => {
+                // no-ops
             }
             _ => unsafe { debug_unreachable!() },
         }
