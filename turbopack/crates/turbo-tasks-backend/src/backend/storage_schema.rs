@@ -25,14 +25,14 @@ use std::{
 use parking_lot::Mutex;
 use rustc_hash::FxHasher;
 use turbo_tasks::{
-    CellId, SharedReference, TaskExecutionReason, TaskId, TinyVec, TraitTypeId, ValueTypeId,
+    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
     backend::{CachedTaskTypeArc, CellHash, TransientTaskType},
     event::Event,
     task_storage,
 };
 
 use crate::{
-    backend::{cell_data::CellData, counter_map::CounterMap},
+    backend::{cell_data::CellData, counter_map::CounterMap, lazy_tail::LazyTail},
     data::{
         ActivenessState, AggregationNumber, CellDependency, CollectibleRef, CollectiblesRef,
         Dirtyness, InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType,
@@ -599,70 +599,97 @@ impl TaskStorage {
 // TaskStorage helper methods
 // =============================================================================
 
+// `TaskStorage` derives `Default`, so we cannot also derive `Drop`. Hand-write
+// it to walk `lazy_tail.present` and drop each payload via the schema's
+// per-tag dispatch before `LazyTail`'s field-level Drop frees the buffer.
+//
+// Field-level drops run after this body returns, in declaration order. The
+// `lazy_tail` field is last, so its Drop sees `present = 0, len = 0` and
+// only has to dealloc the buffer.
+impl Drop for TaskStorage {
+    fn drop(&mut self) {
+        let mut bits = self.lazy_tail.present;
+        while bits != 0 {
+            let bit_idx = bits.trailing_zeros();
+            let tag = (bit_idx + 1) as u8;
+            // SAFETY: `tag` is in `1..=LAZY_N` (its bit was set), and the
+            // bytes at the computed offset are a live payload whose type
+            // matches the schema's tag → type mapping.
+            unsafe {
+                let offset = LazyTail::sum_padded_sizes(
+                    self.lazy_tail.present & ((1u32 << bit_idx) - 1),
+                    &LAZY_PADDED_SIZE,
+                );
+                let ptr = self.lazy_tail.ptr.as_ptr().add(offset);
+                lazy_drop_dispatch(tag, ptr);
+            }
+            bits &= bits - 1;
+        }
+        // Mark as empty so `LazyTail::drop` doesn't try to do anything
+        // beyond deallocating the buffer.
+        self.lazy_tail.present = 0;
+        self.lazy_tail.len = 0;
+    }
+}
+
 impl TaskStorage {
     // =========================================================================
-    // Encapsulated access to the lazy storage. These wrap every read/write of
-    // `self.lazy` so the underlying container (currently `TinyVec<LazyField>`)
-    // can be replaced with a packed byte-tail layout without touching call
-    // sites. The macro-generated per-variant accessors compose these
-    // primitives to implement typed `get_<name>` / `set_<name>` / etc., which
-    // is the public API used by the rest of the codebase.
+    // Encapsulated access to the lazy storage. Only operations needed beyond
+    // the per-variant typed accessors live here; per-variant access goes
+    // straight through `self.lazy_tail`.
     // =========================================================================
-
-    /// Append a lazy field. May realloc the underlying storage.
-    pub(crate) fn lazy_push(&mut self, value: LazyField) {
-        self.lazy.push(value);
-    }
-
-    /// Replace the value at a known index, returning the old value.
-    pub(crate) fn lazy_replace_at(&mut self, idx: usize, value: LazyField) -> LazyField {
-        std::mem::replace(&mut self.lazy[idx], value)
-    }
-
-    /// Read-only iteration over present lazy fields.
-    pub(crate) fn lazy_iter(&self) -> std::slice::Iter<'_, LazyField> {
-        self.lazy.iter()
-    }
-
-    /// Mutable iteration over present lazy fields.
-    pub(crate) fn lazy_iter_mut(&mut self) -> std::slice::IterMut<'_, LazyField> {
-        self.lazy.iter_mut()
-    }
-
-    /// Number of present lazy fields.
-    pub(crate) fn lazy_len(&self) -> usize {
-        self.lazy.len()
-    }
-
-    /// Swap-remove a lazy field at the given index, returning it. O(1).
-    pub(crate) fn lazy_swap_remove(&mut self, idx: usize) -> LazyField {
-        self.lazy.swap_remove(idx)
-    }
 
     /// Shrink the lazy storage to fit its current contents.
     pub(crate) fn lazy_shrink_to_fit(&mut self) {
-        self.lazy.shrink_to_fit();
+        use turbo_tasks::ShrinkToFit;
+        self.lazy_tail.shrink_to_fit();
     }
 
     /// "Are all lazy data fields empty?" — used by eviction predicates.
+    ///
+    /// Returns true iff every data-category variant present in the lazy area
+    /// reports `is_empty()` via the schema's per-tag dispatch.
     pub(crate) fn all_lazy_data_empty_or_absent(&self) -> bool {
-        self.lazy.iter().all(|f| !f.is_data() || f.is_empty())
+        self.all_lazy_in_mask_empty(LAZY_DATA_MASK)
     }
 
     /// "Are all lazy meta fields empty?" — used by eviction predicates.
     pub(crate) fn all_lazy_meta_empty_or_absent(&self) -> bool {
-        self.lazy.iter().all(|f| !f.is_meta() || f.is_empty())
+        self.all_lazy_in_mask_empty(LAZY_META_MASK)
     }
 
     /// "Are all transient lazy fields empty?" — used by eviction predicates.
     pub(crate) fn all_transient_lazy_empty(&self) -> bool {
-        self.lazy.iter().all(|f| f.is_persistent() || f.is_empty())
+        // Transient variants are the bits NOT in `LAZY_PERSISTENT_MASK`.
+        self.all_lazy_in_mask_empty(!LAZY_PERSISTENT_MASK)
     }
 
-    /// Access a lazy field by raw index without an extractor. Used in restore
-    /// merge arms that need to mutate the existing residue when a slot is found.
-    pub(crate) fn lazy_slot_mut(&mut self, idx: usize) -> &mut LazyField {
-        &mut self.lazy[idx]
+    /// Walk every present tag whose bit is set in `mask` and return `true`
+    /// only if all of those payloads report `is_empty()` via the schema's
+    /// per-tag dispatch.
+    fn all_lazy_in_mask_empty(&self, mask: u32) -> bool {
+        let mut bits = self.lazy_tail.present & mask;
+        while bits != 0 {
+            let bit_idx = bits.trailing_zeros();
+            let tag = (bit_idx + 1) as u8;
+            // SAFETY: `tag` is in `1..=LAZY_N` (its bit was set in
+            // `present`), and the byte at the computed offset is a live
+            // payload whose type the schema's `lazy_is_empty_dispatch`
+            // matches by tag.
+            let is_empty = unsafe {
+                let offset = LazyTail::sum_padded_sizes(
+                    self.lazy_tail.present & ((1u32 << bit_idx) - 1),
+                    &LAZY_PADDED_SIZE,
+                );
+                let ptr = self.lazy_tail.ptr.as_ptr().add(offset);
+                lazy_is_empty_dispatch(tag, ptr)
+            };
+            if !is_empty {
+                return false;
+            }
+            bits &= bits - 1;
+        }
+        true
     }
 
     /// Encode fields for the specified category
@@ -715,7 +742,16 @@ impl TaskStorage {
         };
         if should_track_activeness {
             let activeness = ActivenessState::new_root(root_type, task_id);
-            self.lazy_push(LazyField::Activeness(activeness));
+            // SAFETY: `LAZY_TAG_ACTIVENESS` is the schema tag for
+            // `ActivenessState`. This is a freshly-created task whose lazy
+            // tail does not yet contain an Activeness entry.
+            unsafe {
+                self.lazy_tail.install::<ActivenessState>(
+                    LAZY_TAG_ACTIVENESS,
+                    activeness,
+                    &LAZY_PADDED_SIZE,
+                );
+            }
         }
 
         // Set the task as scheduled so it can be executed

@@ -1,5 +1,6 @@
 mod cell_data;
 mod counter_map;
+pub(crate) mod lazy_tail;
 mod operation;
 mod snapshot_coordinator;
 mod storage;
