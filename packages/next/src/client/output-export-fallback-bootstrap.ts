@@ -30,6 +30,11 @@ type OutputExportFallbackState = {
   isFallback: boolean
 }
 
+type OutputExportFallbackInitialResponse = {
+  initialRSCPayload: InitialRSCPayload
+  staticExportFallbackPathname: string | null
+}
+
 declare global {
   interface Window {
     __NEXT_EXPORT_FALLBACK?: boolean
@@ -48,7 +53,7 @@ export async function createOutputExportFallbackInitialResponse({
 }: {
   createFromFetch: CreateFromFetch
   debugChannel: DebugChannel
-}): Promise<InitialRSCPayload> {
+}): Promise<OutputExportFallbackInitialResponse> {
   const renderedUrl = new URL(window.location.href)
   const fallbackResult = await fetchOutputExportFallbackResponse(renderedUrl, {
     credentials: 'same-origin',
@@ -68,7 +73,10 @@ export async function createOutputExportFallbackInitialResponse({
         renderedUrl.pathname
       )
     ) {
-      return fallbackPayload
+      return {
+        initialRSCPayload: fallbackPayload,
+        staticExportFallbackPathname: fallbackResult.fallbackUrl.pathname,
+      }
     }
   }
 
@@ -83,12 +91,15 @@ export async function createOutputExportFallbackInitialResponse({
       credentials: 'same-origin',
     }))
 
-  return decodeFallbackPrerenderPayload(
-    Promise.resolve(notFoundResult.response),
-    renderedUrl,
-    createFromFetch,
-    debugChannel
-  )
+  return {
+    initialRSCPayload: await decodeFallbackPrerenderPayload(
+      Promise.resolve(notFoundResult.response),
+      renderedUrl,
+      createFromFetch,
+      debugChannel
+    ),
+    staticExportFallbackPathname: notFoundResult.fallbackUrl.pathname,
+  }
 }
 
 async function decodeFallbackPrerenderPayload(

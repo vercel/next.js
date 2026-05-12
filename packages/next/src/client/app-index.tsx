@@ -54,7 +54,7 @@ let offlineNavigationFallbackBootstrap: ReturnType<
 >
 if (process.env.__NEXT_OFFLINE_NAVIGATIONS) {
   offlineNavigationBootstrap =
-    (require('./offline-navigation-bootstrap') as typeof import('./offline-navigation-bootstrap'))
+    require('./offline-navigation-bootstrap') as typeof import('./offline-navigation-bootstrap')
   offlineNavigationFallbackBootstrap =
     offlineNavigationBootstrap.createOfflineNavigationFallbackBootstrap()
 } else {
@@ -285,6 +285,7 @@ if (
 }
 
 let initialServerResponse: Promise<InitialRSCPayload>
+let initialStaticExportFallbackPathname: string | null = null
 if (instantTestStaticFetch) {
   // Instant Navigation Testing API: hydrate from the static RSC payload
   // fetch kicked off by an injected <script> tag, instead of the inline
@@ -314,10 +315,14 @@ if (instantTestStaticFetch) {
   // This must be checked before __NEXT_CLIENT_RESUME because _fallback.html may
   // be based on a PPR shell that also sets __NEXT_CLIENT_RESUME. Export fallback
   // boot always fetches the RSC payload for the requested route.
-  initialServerResponse =
-    outputExportFallbackBootstrap.createOutputExportFallbackInitialResponse({
+  initialServerResponse = outputExportFallbackBootstrap
+    .createOutputExportFallbackInitialResponse({
       createFromFetch,
       debugChannel,
+    })
+    .then(({ initialRSCPayload, staticExportFallbackPathname }) => {
+      initialStaticExportFallbackPathname = staticExportFallbackPathname
+      return initialRSCPayload
     })
 } else if (offlineNavigationFallbackBootstrap) {
   initialServerResponse =
@@ -460,6 +465,7 @@ export async function hydrate(
       initialRSCPayload,
       initialFlightStreamForCache,
       location: window.location,
+      staticExportFallbackPathname: initialStaticExportFallbackPathname,
     }),
     instrumentationHooks
   )

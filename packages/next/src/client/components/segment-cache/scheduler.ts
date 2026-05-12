@@ -615,10 +615,9 @@ function pingRoute(now: number, task: PrefetchTask): PrefetchTaskExitStatus {
     // Note that we don't need to prefetch any of the segment data. Just the
     // route tree.
     //
-    // TODO: This is a temporary solution; the plan is to replace this by adding
-    // a wildcard lookup method to the TupleMap implementation. This is
-    // non-trivial to implement because it needs to account for things like
-    // fallback route entries, hence this temporary workaround.
+    // Keep this as an explicit searchless prefetch instead of a wildcard cache
+    // lookup. Route entries are keyed by the exact URL shape, and static export
+    // fallback route entries need to participate in that same key space.
     const url = new URL(key.pathname, location.origin)
     const keyWithoutSearch = createCacheKey(url.href, key.nextUrl)
     const routeWithoutSearch = readOrCreateRouteCacheEntry(
@@ -707,6 +706,11 @@ function pingRootRouteTree(
     case EntryStatus.Fulfilled: {
       if (task.phase !== PrefetchPhase.Segments) {
         // Do not prefetch segment data until we've entered the segment phase.
+        return PrefetchTaskExitStatus.Done
+      }
+      if (route.hasInlinedSegments) {
+        // Segment data was already written into the cache during route
+        // fulfillment. Skip the per-segment fetch phase.
         return PrefetchTaskExitStatus.Done
       }
       // Recursively fill in the segment tree.
@@ -903,7 +907,8 @@ function pingStaticHead(
     entry: readOrCreateSegmentCacheEntry(
       now,
       FetchStrategy.PPR,
-      route.metadata
+      route.metadata,
+      route.staticExportFallbackPathname
     ),
     parent: null,
   }
@@ -1263,7 +1268,12 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
   let refetchMarker: 'refetch' | 'inside-shared-layout' | null =
     refetchMarkerContext === null ? 'inside-shared-layout' : null
 
-  const segment = readOrCreateSegmentCacheEntry(now, task.fetchStrategy, tree)
+  const segment = readOrCreateSegmentCacheEntry(
+    now,
+    task.fetchStrategy,
+    tree,
+    route.staticExportFallbackPathname
+  )
   switch (segment.status) {
     case EntryStatus.Empty: {
       // This segment is not cached. Add a refetch marker so the server knows
@@ -1373,7 +1383,8 @@ function pingRouteTreeAndIncludeDynamicData(
     // always use runtime prefetching (via `export const prefetch`), and those should check for
     // entries that include search params.
     fetchStrategy,
-    tree
+    tree,
+    route.staticExportFallbackPathname
   )
 
   let spawnedSegment: PendingSegmentCacheEntry | null = null
@@ -1422,7 +1433,12 @@ function pingRouteTreeAndIncludeDynamicData(
             break
           }
         }
-        spawnedSegment = pingFullSegmentRevalidation(now, tree, fetchStrategy)
+        spawnedSegment = pingFullSegmentRevalidation(
+          now,
+          route,
+          tree,
+          fetchStrategy
+        )
       }
       break
     }
@@ -1436,7 +1452,12 @@ function pingRouteTreeAndIncludeDynamicData(
           fetchStrategy
         )
       ) {
-        spawnedSegment = pingFullSegmentRevalidation(now, tree, fetchStrategy)
+        spawnedSegment = pingFullSegmentRevalidation(
+          now,
+          route,
+          tree,
+          fetchStrategy
+        )
       }
       break
     }
@@ -1656,7 +1677,12 @@ function accumulateSegmentBundle(
     }
   }
 
-  const segment = readOrCreateSegmentCacheEntry(now, task.fetchStrategy, tree)
+  const segment = readOrCreateSegmentCacheEntry(
+    now,
+    task.fetchStrategy,
+    tree,
+    route.staticExportFallbackPathname
+  )
 
   if (
     process.env.__NEXT_PREFETCH_INLINING &&
@@ -1682,7 +1708,8 @@ function accumulateSegmentBundle(
       entry: readOrCreateSegmentCacheEntry(
         now,
         FetchStrategy.PPR,
-        route.metadata
+        route.metadata,
+        route.staticExportFallbackPathname
       ),
       parent: parentBundle,
     }
@@ -1722,13 +1749,15 @@ function finishStaticBundleOnRuntimeBailout(
 
 function pingFullSegmentRevalidation(
   now: number,
+  route: FulfilledRouteCacheEntry,
   tree: RouteTree,
   fetchStrategy: FetchStrategy.Full | FetchStrategy.PPRRuntime
 ): PendingSegmentCacheEntry | null {
   const revalidatingSegment = readOrCreateRevalidatingSegmentEntry(
     now,
     fetchStrategy,
-    tree
+    tree,
+    route.staticExportFallbackPathname
   )
   if (revalidatingSegment.status === EntryStatus.Empty) {
     // During a Full/PPRRuntime prefetch, a single dynamic request is made for all the

@@ -317,6 +317,7 @@ function navigateUsingPrefetchedRouteTree(
     data: null,
     head: null,
     dynamicStaleAt: computeDynamicStaleAt(now, UnknownDynamicStaleTime),
+    staticExportFallbackPathname: route.staticExportFallbackPathname,
   }
   return navigateToKnownRoute(
     now,
@@ -407,6 +408,7 @@ async function navigateToUnknownRoute(
     flightData,
     canonicalUrl,
     renderedSearch,
+    staticExportFallbackPathname,
     couldBeIntercepted,
     supportsPerSegmentPrefetching,
     dynamicStaleTime,
@@ -424,7 +426,8 @@ async function navigateToUnknownRoute(
     currentFlightRouterState,
     flightData,
     renderedSearch,
-    dynamicStaleTime
+    dynamicStaleTime,
+    staticExportFallbackPathname
   )
 
   // Learn the route pattern so we can predict it for future navigations.
@@ -444,7 +447,8 @@ async function navigateToUnknownRoute(
       couldBeIntercepted,
       createHrefFromUrl(canonicalUrl),
       supportsPerSegmentPrefetching,
-      false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
+      false, // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
+      { staticExportFallbackPathname }
     )
 
     if (staticStageData !== null) {
@@ -467,7 +471,8 @@ async function navigateToUnknownRoute(
             staleAt,
             currentFlightRouterState,
             renderedSearch,
-            isResponsePartial
+            isResponsePartial,
+            staticExportFallbackPathname
           )
         })
         .catch(() => {
@@ -481,7 +486,8 @@ async function navigateToUnknownRoute(
         now,
         runtimePrefetchStream,
         currentFlightRouterState,
-        renderedSearch
+        renderedSearch,
+        staticExportFallbackPathname
       )
         .then((processed) => {
           if (processed !== null) {
@@ -743,6 +749,7 @@ export type NavigationSeed = {
   data: CacheNodeSeedData | null
   head: HeadData | null
   dynamicStaleAt: number
+  staticExportFallbackPathname: string | null
 }
 
 export function convertServerPatchToFullTree(
@@ -750,7 +757,8 @@ export function convertServerPatchToFullTree(
   currentTree: FlightRouterState,
   flightData: Array<NormalizedFlightData> | null,
   renderedSearch: string,
-  dynamicStaleTimeSeconds: number
+  dynamicStaleTimeSeconds: number,
+  staticExportFallbackPathname: string | null = null
 ): NavigationSeed {
   // During a client navigation or prefetch, the server sends back only a patch
   // for the parts of the tree that have changed.
@@ -816,6 +824,7 @@ export function convertServerPatchToFullTree(
     renderedSearch,
     head,
     dynamicStaleAt: computeDynamicStaleAt(now, dynamicStaleTimeSeconds),
+    staticExportFallbackPathname,
   }
 }
 

@@ -4,5 +4,5 @@ import { useParams } from 'next/navigation'
 
 export default function SlugClient() {
   const params = useParams()
-  return <h1>{params.slug}</h1>
+  return <h1 id="slug">{params.slug}</h1>
 }
