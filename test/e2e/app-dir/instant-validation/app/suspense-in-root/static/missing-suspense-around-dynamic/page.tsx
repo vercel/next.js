@@ -1,6 +1,6 @@
 import { connection } from 'next/server'
 
-export const unstable_instant = true
+export const unstable_instant = { level: 'experimental-error' }
 
 export default async function Page() {
   await connection()

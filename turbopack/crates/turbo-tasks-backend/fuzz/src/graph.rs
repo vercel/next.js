@@ -1,9 +1,8 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use anyhow::Result;
 use arbitrary::Arbitrary;
 use bincode::{Decode, Encode};
-use once_cell::sync::Lazy;
 use turbo_tasks::{self, NonLocalValue, State, TaskInput, TurboTasks, Vc, trace::TraceRawVcs};
 use turbo_tasks_malloc::TurboMalloc;
 
@@ -81,7 +80,7 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
-static RUNTIME: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
+static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .on_thread_stop(|| {

@@ -483,6 +483,17 @@ export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+/**
+ * Returns the build-feature-usage telemetry summary for this project — the set of
+ * `(featureName, invocationCount)` pairs reported to the Next.js telemetry service.
+ *
+ * Intended to be called once at the end of a build, after `writeAllEntrypointsToDisk`. The
+ * summary is computed by walking the whole-app module graph and is cached by turbo-tasks, so the
+ * call is cheap when the graph is already materialized.
+ */
+export declare function projectFeatureUsage(project: {
+  __napiType: 'Project'
+}): Promise<Array<NapiUsedFeature>>
 export declare function projectGetAllCompilationIssues(project: {
   __napiType: 'Project'
 }): Promise<TurbopackResult>
@@ -491,7 +502,10 @@ export declare function projectGetAllCompilationIssues(project: {
  *
  * The `path` should point to the `<distDir>/cache/turbopack` directory.
  */
-export declare function turbopackDatabaseCompact(path: string): Promise<void>
+export declare function turbopackDatabaseCompact(
+  path: string,
+  nextVersion: string
+): Promise<void>
 /**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *
@@ -561,10 +575,10 @@ export interface NapiSourcePos {
   line: number
   column: number
 }
-export interface NapiDiagnostic {
-  category: RcStr
-  name: RcStr
-  payload: Record<string, string>
+export interface NapiUsedFeature {
+  featureName: RcStr
+  /** How many times it was used, typically this means how often it was imported. */
+  invocationCount: number
 }
 export declare function expandNextJsTemplate(
   content: Buffer,
@@ -616,8 +630,11 @@ export interface TraceQueryOptions {
   parent?: string
   /** When `true` (default), aggregate child spans with the same name. */
   aggregated?: boolean
-  /** Sort mode: `"value"` for duration descending, `"name"` for alphabetical. Omit for execution order. */
-  sort?: 'value' | 'name'
+  /**
+   * Sort mode: `"value"` for duration descending, `"name"` for alphabetical.
+   * Omit for execution order (no sorting).
+   */
+  sort?: string
   /** Optional substring search query applied to span name/category. */
   search?: string
   /** 1-based page number. Default `1`. */

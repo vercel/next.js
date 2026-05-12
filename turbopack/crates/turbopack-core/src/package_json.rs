@@ -32,7 +32,7 @@ impl Deref for PackageJson {
     }
 }
 
-#[turbo_tasks::value(transparent, serialization = "none")]
+#[turbo_tasks::value(transparent, serialization = "skip")]
 pub struct OptionPackageJson(Option<PackageJson>);
 
 /// Reads a package.json file (if it exists). If the file is unparsable, it
@@ -82,7 +82,7 @@ impl Issue for PackageJsonIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().owned().await
+        self.source.file_path().await
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {

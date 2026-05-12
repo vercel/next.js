@@ -25,6 +25,7 @@ import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-p
 import * as React from 'react'
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
+import { installUseCacheProbe } from './use-cache-probe-pool'
 import { join as pathJoin } from 'path'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
@@ -214,6 +215,13 @@ export default class DevServer extends Server {
         }
       )
     }
+
+    installUseCacheProbe({
+      distDir: this.distDir,
+      buildId: this.buildId,
+      deploymentId: this.deploymentId,
+      nextConfig: this.nextConfig,
+    })
   }
 
   protected override getServerComponentsHmrCache() {
@@ -818,7 +826,11 @@ export default class DevServer extends Server {
           cacheMaxMemorySize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
           buildId: this.buildId,
+          deploymentId: this.deploymentId,
           authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
+          useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
+          staticPageGenerationTimeout:
+            this.nextConfig.staticPageGenerationTimeout,
           sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),
         })
         return pathsResult

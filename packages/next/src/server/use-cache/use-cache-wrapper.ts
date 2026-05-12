@@ -38,6 +38,7 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 
 import {
+  applyOwnerStack,
   getRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
@@ -58,7 +59,7 @@ import { DYNAMIC_EXPIRE, RUNTIME_PREFETCH_DYNAMIC_STALE } from './constants'
 import { NEXT_CACHE_ROOT_PARAM_TAG_ID } from '../../lib/constants'
 import type { CacheHandler } from '../lib/cache-handlers/types'
 import { getCacheHandler } from './handlers'
-import { UseCacheTimeoutError } from './use-cache-errors'
+import { UseCacheDeadlockError, UseCacheTimeoutError } from './use-cache-errors'
 import {
   createHangingInputAbortSignal,
   postponeWithTracking,
@@ -86,6 +87,10 @@ interface PrivateCacheContext {
     | PrerenderStoreModernRuntime
   readonly skipPropagation: boolean
   readonly outerOwnerStack: string | undefined
+  /** The `'use cache'` function's server reference id (second arg of `cache()`). */
+  readonly functionId: string
+  /** The cache handler kind (first arg of `cache()`, e.g. 'default'). */
+  readonly handlerKind: string
 }
 
 interface PublicCacheContext {
@@ -97,11 +102,15 @@ interface PublicCacheContext {
   >
   readonly skipPropagation: boolean
   readonly outerOwnerStack: string | undefined
+  /** The `'use cache'` function's server reference id (second arg of `cache()`). */
+  readonly functionId: string
+  /** The cache handler kind (first arg of `cache()`, e.g. 'default'). */
+  readonly handlerKind: string
 }
 
 type CacheContext = PrivateCacheContext | PublicCacheContext
 
-type CacheKeyParts =
+export type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
   | [buildId: string, id: string, args: unknown[], hmrRefreshHash: string]
 
@@ -451,7 +460,8 @@ function generateCacheEntry(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
+  timeoutError: UseCacheTimeoutError,
+  deadlockError: UseCacheDeadlockError | undefined
 ) {
   // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
   // generation cannot read anything from the context we're currently executing which
@@ -465,7 +475,8 @@ function generateCacheEntry(
     clientReferenceManifest,
     encodedArguments,
     fn,
-    timeoutError
+    timeoutError,
+    deadlockError
   )
 }
 
@@ -475,7 +486,8 @@ function generateCacheEntryWithRestoredWorkStore(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
+  timeoutError: UseCacheTimeoutError,
+  deadlockError: UseCacheDeadlockError | undefined
 ) {
   // Since we cleared the AsyncLocalStorage we need to restore the workStore.
   // Note: We explicitly don't restore the RequestStore nor the PrerenderStore.
@@ -492,7 +504,8 @@ function generateCacheEntryWithRestoredWorkStore(
     clientReferenceManifest,
     encodedArguments,
     fn,
-    timeoutError
+    timeoutError,
+    deadlockError
   )
 }
 
@@ -628,13 +641,36 @@ function assertDefaultCacheLife(
   }
 }
 
+// The maximum time we allow a `'use cache'` entry to fill. After this, we
+// assume the fill is stalled — either on hanging input to the cached function,
+// or on hanging I/O inside of it — and de-opt with an error.
+//
+// For prerender, the effective value is clamped to 90% of the configured
+// `staticPageGenerationTimeout` so the cache-fill error surfaces before the
+// build worker kills the page. In dev (`request`), the configured
+// `experimental.useCacheTimeout` is used straight.
+function getUseCacheFillTimeoutMs(
+  workStore: WorkStore,
+  workUnitStoreType: 'prerender' | 'prerender-runtime' | 'request'
+): number {
+  const { useCacheTimeout, staticPageGenerationTimeout } = workStore
+
+  const effectiveTimeout =
+    workUnitStoreType === 'request'
+      ? useCacheTimeout
+      : Math.min(useCacheTimeout, staticPageGenerationTimeout * 0.9)
+
+  return effectiveTimeout * 1000
+}
+
 function generateCacheEntryWithCacheContext(
   workStore: WorkStore,
   cacheContext: CacheContext,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
+  timeoutError: UseCacheTimeoutError,
+  deadlockError: UseCacheDeadlockError | undefined
 ) {
   if (!workStore.cacheLifeProfiles) {
     throw new InvariantError('cacheLifeProfiles should always be provided.')
@@ -659,7 +695,8 @@ function generateCacheEntryWithCacheContext(
       clientReferenceManifest,
       encodedArguments,
       fn,
-      timeoutError
+      timeoutError,
+      deadlockError
     )
   )
 }
@@ -962,7 +999,8 @@ async function generateCacheEntryImpl(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
+  timeoutError: UseCacheTimeoutError,
+  deadlockError: UseCacheDeadlockError | undefined
 ): Promise<GenerateCacheEntryResult> {
   const temporaryReferences = createServerTemporaryReferenceSet()
   const outerWorkUnitStore = cacheContext.outerWorkUnitStore
@@ -1051,18 +1089,19 @@ async function generateCacheEntryImpl(
   )
 
   let stream: ReadableStream<Uint8Array>
+  let devTimeoutAbortController: AbortController | undefined
 
   switch (outerWorkUnitStore.type) {
     case 'prerender-runtime':
     case 'prerender':
       const timeoutAbortController = new AbortController()
-      // If we're prerendering, we give you 50 seconds to fill a cache entry.
-      // Otherwise we assume you stalled on hanging input and de-opt. This needs
-      // to be lower than just the general timeout of 60 seconds.
-      const timer = setTimeout(() => {
-        workStore.invalidDynamicUsageError = timeoutError
-        timeoutAbortController.abort(timeoutError)
-      }, 50000)
+      const timer = setTimeout(
+        () => {
+          workStore.invalidDynamicUsageError = timeoutError
+          timeoutAbortController.abort(timeoutError)
+        },
+        getUseCacheFillTimeoutMs(workStore, outerWorkUnitStore.type)
+      )
 
       const dynamicAccessAbortSignal =
         dynamicAccessAsyncStorage.getStore()?.abortController.signal
@@ -1127,18 +1166,93 @@ async function generateCacheEntryImpl(
       }
       break
     case 'request':
-      // If we're filling caches for a staged render, make sure that
-      // it takes at least a task, so we'll always notice a cache miss between stages.
-      //
-      // TODO(restart-on-cache-miss): This is suboptimal.
-      // Ideally we wouldn't need to restart for microtasky caches,
-      // but the current logic for omitting short-lived caches only works correctly
-      // if we do a second render, so that's the best we can do until we refactor that.
-      if (
-        process.env.NODE_ENV === 'development' &&
-        outerWorkUnitStore.cacheSignal
-      ) {
+      // TODO: We should just check if the render is abandonable. This is
+      // relevant in restart-on-cache-miss in general, so when we implement that
+      // for cached navs, it'll also be needed in prod
+      if (process.env.__NEXT_DEV_SERVER && outerWorkUnitStore.cacheSignal) {
+        // If we're filling caches for a staged render, make sure that it takes
+        // at least a task, so we'll always notice a cache miss between stages.
+        //
+        // TODO(restart-on-cache-miss): This is suboptimal. Ideally we wouldn't
+        // need to restart for microtasky caches, but the current logic for
+        // omitting short-lived caches only works correctly if we do a second
+        // render, so that's the best we can do until we refactor that.
         await new Promise((resolve) => setTimeout(resolve))
+
+        // Start a cache-fill timeout so a hanging `'use cache'` entry surfaces
+        // the same error in dev as during prerender. Cleared when
+        // pendingCacheResult settles.
+        //
+        // Only skip the timeout when we're exactly in the Dynamic stage. That
+        // mirrors prerender, where caches guarded by e.g. `await connection()`
+        // aren't executed at all. We can't use `< RenderStage.Dynamic` here
+        // because `RenderStage.Abandoned` is numerically higher than Dynamic,
+        // but semantically it means the initial prospective render was aborted
+        // while caches are still pending — the outer flow then awaits
+        // `cacheSignal.cacheReady()`, so we need the timer to break a potential
+        // deadlock.
+        const stagedRendering = outerWorkUnitStore.stagedRendering
+        if (stagedRendering?.currentStage !== RenderStage.Dynamic) {
+          const devRenderAbortController = new AbortController()
+          const fillTimeoutMs = getUseCacheFillTimeoutMs(
+            workStore,
+            outerWorkUnitStore.type
+          )
+          const fillDeadlineAt = performance.now() + fillTimeoutMs
+          const devRenderTimeoutTimer = setTimeout(() => {
+            workStore.invalidDynamicUsageError = timeoutError
+            devRenderAbortController.abort(timeoutError)
+          }, fillTimeoutMs)
+
+          devTimeoutAbortController = new AbortController()
+          devTimeoutAbortController.signal.addEventListener(
+            'abort',
+            () => {
+              clearTimeout(devRenderTimeoutTimer)
+            },
+            { once: true }
+          )
+
+          stream = renderToReadableStream(
+            resultPromise,
+            clientReferenceManifest.clientModules,
+            {
+              environmentName: 'Cache',
+              filterStackFrame,
+              signal: devRenderAbortController.signal,
+              temporaryReferences,
+              onError: handleError,
+            }
+          )
+
+          // `require` (rather than a top-level import) so the bundler can
+          // tree-shake the probe scheduler out of the production runtime, where
+          // this whole dev-server-gated branch is dead code.
+          const { setupProbeScheduler } =
+            require('./use-cache-probe-scheduler') as typeof import('./use-cache-probe-scheduler')
+          stream = setupProbeScheduler({
+            workStore,
+            outerRequestStore: outerWorkUnitStore,
+            cacheContext,
+            encodedArguments,
+            fillDeadlineAt,
+            stream,
+            abortSignal: AbortSignal.any([
+              devRenderAbortController.signal,
+              devTimeoutAbortController.signal,
+            ]),
+            onProbeCompleted() {
+              const error =
+                deadlockError ??
+                new InvariantError(
+                  '`deadlockError` should be constructed inside `cache()` before reaching the probe scheduler.'
+                )
+              workStore.invalidDynamicUsageError = error
+              devRenderAbortController.abort(error)
+            },
+          })
+          break
+        }
       }
     // fallthrough
     case 'prerender-ppr':
@@ -1171,7 +1285,9 @@ async function generateCacheEntryImpl(
     innerCacheStore,
     startTime,
     errors
-  )
+  ).finally(() => {
+    devTimeoutAbortController?.abort()
+  })
 
   if (process.env.NODE_ENV === 'development') {
     // Name the stream for React DevTools.
@@ -1298,32 +1414,48 @@ export async function cache(
 ) {
   const isPrivate = kind === 'private'
 
-  // Private caches are currently only stored in the Resume Data Cache (RDC),
-  // and not in cache handlers.
-  const cacheHandler = isPrivate ? undefined : getCacheHandler(kind)
-
-  if (!isPrivate && !cacheHandler) {
-    throw new Error('Unknown cache handler: ' + kind)
-  }
-
-  const timeoutError = new UseCacheTimeoutError()
-  Error.captureStackTrace(timeoutError, cache)
-
-  const wrapAsInvalidDynamicUsageError = (
-    error: Error,
-    workStore: WorkStore
-  ) => {
-    Error.captureStackTrace(error, cache)
-    workStore.invalidDynamicUsageError ??= error
-
-    return error
-  }
-
   const workStore = workAsyncStorage.getStore()
   if (workStore === undefined) {
     throw new Error(
       '"use cache" cannot be used outside of App Router. Expected a WorkStore.'
     )
+  }
+
+  // Two cases skip the cache handler lookup:
+  //   - Private caches go to the Resume Data Cache (RDC), not cache handlers.
+  //   - Probe re-executions short-circuit further down before any handler is
+  //     consulted, so the dev-server's hang-detection worker can boot without
+  //     registering handlers at all.
+  let cacheHandler: CacheHandler | undefined
+  if (!isPrivate && workStore.useCacheProbeMode === undefined) {
+    cacheHandler = getCacheHandler(kind)
+    if (!cacheHandler) {
+      throw new Error('Unknown cache handler: ' + kind)
+    }
+  }
+
+  const timeoutError = new UseCacheTimeoutError()
+  Error.captureStackTrace(timeoutError, cache)
+  applyOwnerStack(timeoutError)
+
+  // Only ever thrown by the dev-server's hang-detection probe.
+  // `Error.captureStackTrace` has to run while `cache()` is still on the
+  // synchronous stack, otherwise the user's `'use cache'` invocation frames
+  // would already be gone — that's why the construction sits up here rather
+  // than next to the trigger that actually consumes it. The `__NEXT_DEV_SERVER`
+  // gate lets the error class drop out of the production runtime bundle.
+  let deadlockError: UseCacheDeadlockError | undefined
+  if (process.env.__NEXT_DEV_SERVER) {
+    deadlockError = new UseCacheDeadlockError()
+    Error.captureStackTrace(deadlockError, cache)
+    applyOwnerStack(deadlockError)
+  }
+
+  const wrapAsInvalidDynamicUsageError = (error: Error) => {
+    Error.captureStackTrace(error, cache)
+    workStore.invalidDynamicUsageError ??= error
+
+    return error
   }
 
   const workUnitStore = workUnitAsyncStorage.getStore()
@@ -1375,8 +1507,7 @@ export async function cache(
           new Error(
             // TODO: Add a link to an error documentation page when we have one.
             `${expression} must not be used within \`unstable_cache()\`.`
-          ),
-          workStore
+          )
         )
       }
       case 'cache': {
@@ -1384,8 +1515,7 @@ export async function cache(
           new Error(
             // TODO: Add a link to an error documentation page when we have one.
             `${expression} must not be used within "use cache". It can only be nested inside of another ${expression}.`
-          ),
-          workStore
+          )
         )
       }
       case 'request':
@@ -1396,6 +1526,8 @@ export async function cache(
           outerWorkUnitStore: workUnitStore,
           skipPropagation: false,
           outerOwnerStack,
+          functionId: id,
+          handlerKind: kind,
         }
         break
       case 'generate-static-params':
@@ -1403,8 +1535,7 @@ export async function cache(
           new Error(
             // TODO: Add a link to an error documentation page when we have one.
             `${expression} cannot be used outside of a request context.`
-          ),
-          workStore
+          )
         )
       default:
         workUnitStore satisfies never
@@ -1436,6 +1567,8 @@ export async function cache(
           outerWorkUnitStore: workUnitStore,
           skipPropagation: false,
           outerOwnerStack,
+          functionId: id,
+          handlerKind: kind,
         }
         break
       default:
@@ -1454,7 +1587,7 @@ export async function cache(
   // safely reuse the results across builds yet. In the meantime we add the buildId to the
   // arguments as a seed to ensure they're not reused. Remove this once Action IDs hash
   // the implementation.
-  const buildId = workStore.buildId
+  const buildId = workStore.deploymentId || workStore.buildId
 
   // In dev mode, when the HMR refresh hash is set, we include it in the
   // cache key. This ensures that cache entries are not reused when server
@@ -1689,6 +1822,67 @@ export async function cache(
       return workUnitStore satisfies never
   }
 
+  // Probe path: we're running inside a pooled worker spawned by the dev
+  // server to check whether a stalled cache fill would complete in an
+  // isolated module scope. Skip the RDC / cache-handler / leader-election
+  // machinery, call `generateCacheEntry` (same as a real cold fill), drain
+  // the returned stream via `pendingCacheResult`, and apply the probe's own
+  // timeout. The caller only cares whether the fill resolves; the result
+  // value is discarded.
+  //
+  // Gated on `__NEXT_DEV_SERVER` so the entire branch — including its
+  // `generateCacheEntry` call site and the threading of
+  // `deadlockError` — drops out of the production runtime
+  // bundle.
+  if (process.env.__NEXT_DEV_SERVER && workStore.useCacheProbeMode) {
+    // Both public and private caches probe via the same path. The worker
+    // reconstructs real `headers` / `cookies` / `draftMode` from the
+    // forwarded request snapshot, so private caches that legitimately read
+    // those work in the probe just like in the real fill.
+    const probeTimeoutMs = workStore.useCacheProbeMode.timeoutMs
+    // The deadlock error never gets thrown from inside the worker: the
+    // worker's outer store has `cacheSignal: undefined`, so
+    // `generateCacheEntryImpl` skips the dev-request branch and the idle
+    // probe is never set up.
+    const result = await generateCacheEntry(
+      workStore,
+      cacheContext,
+      clientReferenceManifest,
+      encodedCacheKeyParts,
+      fn,
+      timeoutError,
+      undefined
+    )
+    if (result.type === 'prerender-dynamic') {
+      // Unreachable in the probe: outer store is `'request'`-typed, which
+      // never produces this variant.
+      throw new InvariantError(
+        'Unexpected `prerender-dynamic` result in `use cache` probe mode.'
+      )
+    }
+    // We don't consume the returned stream — `pendingCacheResult` is what
+    // completes when `collectResult` has drained `savedStream`. Cancel the
+    // unused copy so it doesn't buffer forever.
+    result.stream.cancel().catch(() => {})
+    let probeTimeoutTimer: ReturnType<typeof setTimeout> | undefined
+    try {
+      await Promise.race([
+        result.pendingCacheResult,
+        new Promise<never>((_, reject) => {
+          probeTimeoutTimer = setTimeout(
+            () => reject(timeoutError),
+            probeTimeoutMs
+          )
+        }),
+      ])
+    } finally {
+      if (probeTimeoutTimer !== undefined) {
+        clearTimeout(probeTimeoutTimer)
+      }
+    }
+    return
+  }
+
   const serializedCacheKey =
     typeof encodedCacheKeyParts === 'string'
       ? // Fast path for the simple case for simple inputs. We let the CacheHandler
@@ -1785,8 +1979,7 @@ export async function cache(
               if (rdcResult.entry.revalidate === 0) {
                 if (rdcResult.hasExplicitRevalidate === false) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheZeroRevalidateErrorMessage),
-                    workStore
+                    new Error(nestedCacheZeroRevalidateErrorMessage)
                   )
                 }
                 debug?.(
@@ -1797,8 +1990,7 @@ export async function cache(
               } else {
                 if (rdcResult.hasExplicitExpire === false) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheShortExpireErrorMessage),
-                    workStore
+                    new Error(nestedCacheShortExpireErrorMessage)
                   )
                 }
                 debug?.(
@@ -1835,8 +2027,7 @@ export async function cache(
                   rdcResult.hasExplicitRevalidate === false
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheZeroRevalidateErrorMessage),
-                    workStore
+                    new Error(nestedCacheZeroRevalidateErrorMessage)
                   )
                 }
                 if (
@@ -1844,8 +2035,7 @@ export async function cache(
                   rdcResult.hasExplicitExpire === false
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheShortExpireErrorMessage),
-                    workStore
+                    new Error(nestedCacheShortExpireErrorMessage)
                   )
                 }
                 // We delay the cache here so that it doesn't resolve in the static task --
@@ -2436,7 +2626,8 @@ export async function cache(
             clientReferenceManifest,
             encodedCacheKeyParts,
             fn,
-            timeoutError
+            timeoutError,
+            deadlockError
           )
 
           if (result.type === 'prerender-dynamic') {
@@ -2571,45 +2762,55 @@ export async function cache(
             // If this is stale, and we're not in a prerender (i.e. this is
             // dynamic render), then we should warm up the cache with a fresh
             // revalidated entry.
-            const result = await generateCacheEntry(
+            const revalidateCacheHandlerKey = cacheHandlerKey
+            const revalidatePromise = generateCacheEntry(
               workStore,
               // The background revalidation preserves the outer store for
               // reading (e.g. implicitTags) but skips propagation of cache life
               // and tags back to the outer scope.
               {
-                kind: cacheContext.kind,
-                outerWorkUnitStore: cacheContext.outerWorkUnitStore,
+                ...cacheContext,
                 skipPropagation: true,
-                outerOwnerStack: cacheContext.outerOwnerStack,
               },
               clientReferenceManifest,
               encodedCacheKeyParts,
               fn,
-              timeoutError
+              timeoutError,
+              deadlockError
             )
+              .then(async (result) => {
+                if (result.type === 'cached') {
+                  const { stream: ignoredStream, pendingCacheResult } = result
 
-            if (result.type === 'cached') {
-              const { stream: ignoredStream, pendingCacheResult } = result
+                  const savedCacheResult = saveToResumeDataCache(
+                    prerenderResumeDataCache,
+                    serializedCacheKey,
+                    pendingCacheResult
+                  )
 
-              const savedCacheResult = saveToResumeDataCache(
-                prerenderResumeDataCache,
-                serializedCacheKey,
-                pendingCacheResult
-              )
+                  if (cacheHandler) {
+                    saveToCacheHandler(
+                      cacheHandler,
+                      workStore,
+                      id,
+                      serializedCacheKey,
+                      savedCacheResult,
+                      rootParams
+                    )
+                  }
 
-              if (cacheHandler) {
-                saveToCacheHandler(
-                  cacheHandler,
-                  workStore,
-                  id,
-                  serializedCacheKey,
-                  savedCacheResult,
-                  rootParams
+                  await ignoredStream.cancel()
+                }
+              })
+              .catch((error) => {
+                debug?.(
+                  'background cache revalidation failed for',
+                  revalidateCacheHandlerKey,
+                  error
                 )
-              }
-
-              await ignoredStream.cancel()
-            }
+              })
+            workStore.pendingRevalidateWrites ??= []
+            workStore.pendingRevalidateWrites.push(revalidatePromise)
           }
         }
       }

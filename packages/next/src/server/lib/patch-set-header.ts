@@ -1,7 +1,11 @@
 import { getRequestMeta, type NextIncomingMessage } from '../request-meta'
 
+const PATCHED_SET_HEADER = Symbol('next.patchSetHeaderWithCookieSupport')
+
 type PatchableResponse = {
   setHeader(key: string, value: string | string[]): PatchableResponse
+  headersSent?: boolean
+  [PATCHED_SET_HEADER]?: true
 }
 
 /**
@@ -15,7 +19,16 @@ export function patchSetHeaderWithCookieSupport(
   req: NextIncomingMessage,
   res: PatchableResponse
 ) {
+  if (res[PATCHED_SET_HEADER]) {
+    return
+  }
+
   const setHeader = res.setHeader.bind(res)
+
+  Object.defineProperty(res, PATCHED_SET_HEADER, {
+    value: true,
+  })
+
   res.setHeader = (
     name: string,
     value: string | string[]

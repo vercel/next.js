@@ -223,7 +223,7 @@ pub trait FileSystem: ValueToString {
     /// Returns the path to the root of the file system.
     #[turbo_tasks::function]
     fn root(self: ResolvedVc<Self>) -> Vc<FileSystemPath> {
-        FileSystemPath::new_normalized(self, RcStr::default()).cell()
+        FileSystemPath::new_normalized_unchecked(self, RcStr::default()).cell()
     }
     #[turbo_tasks::function]
     fn read(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<FileContent>;
@@ -501,9 +501,14 @@ impl DiskFileSystemInner {
     }
 }
 
+/// `DiskFileSystem` carries serializable fields (`name`, `root`,
+/// `denied_paths`) inside `DiskFileSystemInner` alongside session-scoped
+/// state (the `notify` watcher, invalidator maps, weak `TurboTasksApi`,
+/// etc.) This is important to maintain invariants in a session and ensure invalidations work, so we
+/// never evict this data.
 #[derive(Clone, ValueToString)]
 #[value_to_string(self.inner.name)]
-#[turbo_tasks::value(cell = "new", eq = "manual")]
+#[turbo_tasks::value(cell = "new", eq = "manual", evict = "never")]
 pub struct DiskFileSystem {
     inner: Arc<DiskFileSystemInner>,
 }
@@ -885,9 +890,12 @@ impl FileSystem for DiskFileSystem {
             let target_string = RcStr::from(relative_to_root_path.to_string_lossy());
             (
                 target_string.clone(),
-                FileSystemPath::new_normalized(fs_path.fs().to_resolved().await?, target_string)
-                    .get_type()
-                    .await?,
+                FileSystemPath::new_normalized_unchecked(
+                    fs_path.fs().to_resolved().await?,
+                    target_string,
+                )
+                .get_type()
+                .await?,
             )
         } else {
             let link_path_string_cow = link_path.to_string_lossy();
@@ -945,14 +953,13 @@ impl FileSystem for DiskFileSystem {
 
         impl Effect for WriteEffect {
             type Error = AnyhowWrapper;
-            type Value = u128;
 
-            fn key(&self) -> Vec<u8> {
-                self.full_path.as_os_str().as_encoded_bytes().to_vec()
+            fn key(&self) -> Box<[u8]> {
+                self.full_path.as_os_str().as_encoded_bytes().into()
             }
 
-            fn value(&self) -> &u128 {
-                &self.content_hash
+            fn value_hash(&self) -> u128 {
+                self.content_hash
             }
 
             fn state_storage(&self) -> &EffectStateStorage {
@@ -1121,14 +1128,13 @@ impl FileSystem for DiskFileSystem {
 
         impl Effect for WriteLinkEffect {
             type Error = AnyhowWrapper;
-            type Value = u128;
 
-            fn key(&self) -> Vec<u8> {
-                self.full_path.as_os_str().as_encoded_bytes().to_vec()
+            fn key(&self) -> Box<[u8]> {
+                self.full_path.as_os_str().as_encoded_bytes().into()
             }
 
-            fn value(&self) -> &u128 {
-                &self.content_hash
+            fn value_hash(&self) -> u128 {
+                self.content_hash
             }
 
             fn state_storage(&self) -> &EffectStateStorage {
@@ -1594,7 +1600,7 @@ impl FileSystemPath {
     /// Create a new FileSystemPath from a path within a FileSystem. The
     /// /-separated path is expected to be already normalized (this is asserted
     /// in dev mode).
-    fn new_normalized(fs: ResolvedVc<Box<dyn FileSystem>>, path: RcStr) -> Self {
+    pub fn new_normalized_unchecked(fs: ResolvedVc<Box<dyn FileSystem>>, path: RcStr) -> Self {
         // On Windows, the path must be converted to a unix path before creating. But on
         // Unix, backslashes are a valid char in file names, and the path can be
         // provided by the user, so we allow it.
@@ -1614,7 +1620,7 @@ impl FileSystemPath {
     /// "." segments, but it must not leave the root of the filesystem.
     pub fn join(&self, path: &str) -> Result<Self> {
         if let Some(path) = join_path(&self.path, path) {
-            Ok(Self::new_normalized(self.fs, path.into()))
+            Ok(Self::new_normalized_unchecked(self.fs, path.into()))
         } else {
             bail!(
                 "FileSystemPath(\"{}\").join(\"{}\") leaves the filesystem root",
@@ -1633,7 +1639,7 @@ impl FileSystemPath {
                 path,
             )
         }
-        Ok(Self::new_normalized(
+        Ok(Self::new_normalized_unchecked(
             self.fs,
             format!("{}{}", self.path, path).into(),
         ))
@@ -1650,12 +1656,12 @@ impl FileSystemPath {
             )
         }
         if let (path, Some(ext)) = self.split_extension() {
-            return Ok(Self::new_normalized(
+            return Ok(Self::new_normalized_unchecked(
                 self.fs,
                 format!("{path}{appending}.{ext}").into(),
             ));
         }
-        Ok(Self::new_normalized(
+        Ok(Self::new_normalized_unchecked(
             self.fs,
             format!("{}{}", self.path, appending).into(),
         ))
@@ -1669,7 +1675,8 @@ impl FileSystemPath {
         #[cfg(target_os = "windows")]
         let path = path.replace('\\', "/");
 
-        join_path(&self.path, &path).map(|p| Self::new_normalized(self.fs, RcStr::from(p)))
+        join_path(&self.path, &path)
+            .map(|p| Self::new_normalized_unchecked(self.fs, RcStr::from(p)))
     }
 
     /// Similar to [FileSystemPath::try_join], but returns [`None`] when the new path would leave
@@ -1679,7 +1686,7 @@ impl FileSystemPath {
         if let Some(p) = join_path(&self.path, path)
             && p.starts_with(&*self.path)
         {
-            return Some(Self::new_normalized(self.fs, RcStr::from(p)));
+            return Some(Self::new_normalized_unchecked(self.fs, RcStr::from(p)));
         }
         None
     }
@@ -1719,7 +1726,7 @@ impl FileSystemPath {
     /// extension.
     pub fn with_extension(&self, extension: &str) -> FileSystemPath {
         let (path_without_extension, _) = self.split_extension();
-        Self::new_normalized(
+        Self::new_normalized_unchecked(
             self.fs,
             // Like `Path::with_extension` and `PathBuf::set_extension`, if the extension is empty,
             // we remove the extension altogether.
@@ -1873,7 +1880,7 @@ impl FileSystemPath {
         if path.is_empty() {
             return self.clone();
         }
-        FileSystemPath::new_normalized(self.fs, RcStr::from(get_parent_path(path)))
+        FileSystemPath::new_normalized_unchecked(self.fs, RcStr::from(get_parent_path(path)))
     }
 
     // It is important that get_type uses read_dir and not stat/metadata.
@@ -2441,8 +2448,9 @@ impl FileContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn hash(&self) -> Result<Vc<u64>> {
-        Ok(Vc::cell(hash_xxh3_hash64(self)))
+    pub fn hash(&self, algorithm: HashAlgorithm) -> Vc<RcStr> {
+        // no_hash_salt
+        Vc::cell(RcStr::from(deterministic_hash("", self, algorithm)))
     }
 
     /// Converts this [`FileContent`] into a [`PersistedFileContent`] by cloning.
@@ -2478,7 +2486,7 @@ impl FileContent {
 }
 
 /// A file's content interpreted as a JSON value.
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "skip")]
 pub enum FileJsonContent {
     Content(Value),
     Unparsable(Box<UnparsableJson>),
@@ -2549,7 +2557,7 @@ impl FileLine {
     }
 }
 
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "skip")]
 pub enum FileLinesContent {
     Lines(#[turbo_tasks(trace_ignore)] Vec<FileLine>),
     Unparsable,
@@ -2781,7 +2789,7 @@ async fn read_dir(path: FileSystemPath) -> Result<Vc<DirectoryContent>> {
                     RcStr::from(format!("{dir_path}/{name}"))
                 };
 
-                let entry_path = FileSystemPath::new_normalized(fs, path);
+                let entry_path = FileSystemPath::new_normalized_unchecked(fs, path);
                 let entry = match entry {
                     RawDirectoryEntry::File => DirectoryEntry::File(entry_path),
                     RawDirectoryEntry::Directory => DirectoryEntry::Directory(entry_path),
@@ -2973,7 +2981,7 @@ mod tests {
                 .to_resolved()
                 .await?;
 
-            let path_txt = FileSystemPath::new_normalized(fs, rcstr!("foo/bar.txt"));
+            let path_txt = FileSystemPath::new_normalized_unchecked(fs, rcstr!("foo/bar.txt"));
 
             let path_json = path_txt.with_extension("json");
             assert_eq!(&*path_json.path, "foo/bar.json");
@@ -2984,7 +2992,7 @@ mod tests {
             let path_new_ext = path_no_ext.with_extension("json");
             assert_eq!(&*path_new_ext.path, "foo/bar.json");
 
-            let path_no_slash_txt = FileSystemPath::new_normalized(fs, rcstr!("bar.txt"));
+            let path_no_slash_txt = FileSystemPath::new_normalized_unchecked(fs, rcstr!("bar.txt"));
 
             let path_no_slash_json = path_no_slash_txt.with_extension("json");
             assert_eq!(path_no_slash_json.path.as_str(), "bar.json");
@@ -3008,19 +3016,19 @@ mod tests {
                 .to_resolved()
                 .await?;
 
-            let path = FileSystemPath::new_normalized(fs, rcstr!(""));
+            let path = FileSystemPath::new_normalized_unchecked(fs, rcstr!(""));
             assert_eq!(path.file_stem(), None);
 
-            let path = FileSystemPath::new_normalized(fs, rcstr!("foo/bar.txt"));
+            let path = FileSystemPath::new_normalized_unchecked(fs, rcstr!("foo/bar.txt"));
             assert_eq!(path.file_stem(), Some("bar"));
 
-            let path = FileSystemPath::new_normalized(fs, rcstr!("bar.txt"));
+            let path = FileSystemPath::new_normalized_unchecked(fs, rcstr!("bar.txt"));
             assert_eq!(path.file_stem(), Some("bar"));
 
-            let path = FileSystemPath::new_normalized(fs, rcstr!("foo/bar"));
+            let path = FileSystemPath::new_normalized_unchecked(fs, rcstr!("foo/bar"));
             assert_eq!(path.file_stem(), Some("bar"));
 
-            let path = FileSystemPath::new_normalized(fs, rcstr!("foo/.bar"));
+            let path = FileSystemPath::new_normalized_unchecked(fs, rcstr!("foo/.bar"));
             assert_eq!(path.file_stem(), Some(".bar"));
 
             anyhow::Ok(())

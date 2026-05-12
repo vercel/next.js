@@ -684,6 +684,8 @@ export async function isPageStatic({
   pageType,
   cacheComponents,
   authInterrupts,
+  useCacheTimeout,
+  staticPageGenerationTimeout,
   originalAppPath,
   isrFlushToDisk,
   cacheMaxMemorySize,
@@ -694,6 +696,7 @@ export async function isPageStatic({
   pprConfig,
   partialFallbacksEnabled,
   buildId,
+  deploymentId,
   clientAssetToken,
   sriEnabled,
 }: {
@@ -702,6 +705,8 @@ export async function isPageStatic({
   distDir: string
   cacheComponents: boolean
   authInterrupts: boolean
+  useCacheTimeout: number
+  staticPageGenerationTimeout: number
   configFileName: string
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   locales?: readonly string[]
@@ -722,6 +727,7 @@ export async function isPageStatic({
   pprConfig: ExperimentalPPRConfig | undefined
   partialFallbacksEnabled: boolean
   buildId: string
+  deploymentId: string
   clientAssetToken: string
   sriEnabled: boolean
 }): Promise<PageIsStaticResult> {
@@ -874,6 +880,8 @@ export async function isPageStatic({
               route,
               cacheComponents,
               authInterrupts,
+              useCacheTimeout,
+              staticPageGenerationTimeout,
               segments,
               distDir,
               requestHeaders: {},
@@ -886,6 +894,7 @@ export async function isPageStatic({
               isRoutePPREnabled,
               partialFallbacksEnabled,
               buildId,
+              deploymentId,
               rootParamKeys,
             }))
         }

@@ -55,8 +55,8 @@ import {
   createDynamicMetadataError,
   createRuntimeViewportError,
   createDynamicViewportError,
-  disallowedDynamicViewportMessage,
-  disallowedDynamicMetadataMessage,
+  createDynamicOrRuntimeViewportError,
+  createDynamicOrRuntimeMetadataError,
   logBuildDebugHint,
 } from './blocking-route-messages'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -1248,7 +1248,9 @@ export function throwIfDisallowedDynamic(
     // you need to opt into that by adding a Suspense boundary above the body
     // to indicate your are ok with fully dynamic rendering.
     if (dynamicValidation.hasDynamicViewport) {
-      console.error(disallowedDynamicViewportMessage(workStore.route))
+      console.error(
+        createDynamicOrRuntimeViewportError(workStore.route).message
+      )
       throw new StaticGenBailoutError()
     }
 
@@ -1266,7 +1268,9 @@ export function throwIfDisallowedDynamic(
       dynamicValidation.hasAllowedDynamic === false &&
       dynamicValidation.hasDynamicMetadata
     ) {
-      console.error(disallowedDynamicMetadataMessage(workStore.route))
+      console.error(
+        createDynamicOrRuntimeMetadataError(workStore.route).message
+      )
       throw new StaticGenBailoutError()
     }
   }
@@ -1318,13 +1322,27 @@ export function getStaticShellDisallowedDynamicReasons(
   return []
 }
 
+/**
+ * `errors` are validation failures that should be surfaced immediately.
+ * `deferredFallback` carries a missing-boundary explanation that the caller
+ * should hold back until *every* validation depth has been tried — a missing
+ * boundary often just means a parent layout intentionally omitted a slot, and
+ * a different depth's validation may surface a more meaningful error.
+ */
+export type NavigationValidationResult =
+  // instances that block instant navigation
+  | Array<Error>
+  // validation was blocked with zero or more reasons
+  | Error
+  | AggregateError
+
 export function getNavigationDisallowedDynamicReasons(
   workStore: WorkStore,
   prelude: PreludeState,
   dynamicValidation: InstantValidationState,
   validationSampleTracking: InstantValidationSampleTracking | null,
   boundaryState: ValidationBoundaryTracking
-): Array<Error> {
+): NavigationValidationResult {
   // If we have errors related to missing samples, those should take precedence over everything else.
   if (validationSampleTracking) {
     const { missingSampleErrors } = validationSampleTracking
@@ -1338,30 +1356,6 @@ export function getNavigationDisallowedDynamicReasons(
     return validationPreventingErrors
   }
 
-  if (!allRequiredBoundariesRendered(boundaryState)) {
-    const { thrownErrorsOutsideBoundary } = dynamicValidation
-    const rootInstantStack = dynamicValidation.slotStacks[0]
-    if (thrownErrorsOutsideBoundary.length === 0) {
-      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.`
-      const error = rootInstantStack !== null ? rootInstantStack() : new Error()
-      error.name = 'Error'
-      error.message = message
-      return [error]
-    } else if (thrownErrorsOutsideBoundary.length === 1) {
-      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.`
-      const error = rootInstantStack !== null ? rootInstantStack() : new Error()
-      error.name = 'Error'
-      error.message = message
-      return [error, thrownErrorsOutsideBoundary[0] as Error]
-    } else {
-      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to one of the following errors.`
-      const error = rootInstantStack !== null ? rootInstantStack() : new Error()
-      error.name = 'Error'
-      error.message = message
-      return [error, ...(thrownErrorsOutsideBoundary as Error[])]
-    }
-  }
-
   // NOTE: We don't care about Suspense above body here,
   // we're only concerned with the validation boundary
   if (prelude !== PreludeState.Full) {
@@ -1370,18 +1364,17 @@ export function getNavigationDisallowedDynamicReasons(
       return dynamicErrors
     }
 
-    if (prelude === PreludeState.Empty) {
-      // If a client component suspended prevented us from rendering a shell
-      // but didn't block validation, we don't require a prelude.
-      if (dynamicValidation.hasAllowedClientDynamicAboveBoundary) {
-        return []
-      }
-      // If we ever get this far then we messed up the tracking of invalid dynamic.
-      return [
-        new InvariantError(
-          `Route "${workStore.route}" failed to render during instant validation and Next.js was unable to determine a reason.`
-        ),
-      ]
+    if (
+      prelude === PreludeState.Empty &&
+      !dynamicValidation.hasAllowedClientDynamicAboveBoundary &&
+      allRequiredBoundariesRendered(boundaryState)
+    ) {
+      // If we ever get this far then we messed up the tracking of invalid
+      // dynamic. (When boundaries are missing the deferred fallback below
+      // will surface a more useful error.)
+      return new InvariantError(
+        `Route "${workStore.route}" failed to render during instant validation and Next.js was unable to determine a reason.`
+      )
     }
   } else {
     const dynamicErrors = dynamicValidation.dynamicErrors
@@ -1396,6 +1389,43 @@ export function getNavigationDisallowedDynamicReasons(
       return [dynamicValidation.dynamicMetadata]
     }
   }
+
+  // Missing boundaries on their own aren't a strong signal — a parent
+  // layout may legitimately omit a slot. Defer this so the caller can
+  // try shallower validation depths first; if every depth comes up
+  // empty we still want to surface this so the user is made aware that
+  // validation didn't complete. When we add a markers API, the
+  // marker-based variant of this check can become strict again.
+  if (!allRequiredBoundariesRendered(boundaryState)) {
+    const { thrownErrorsOutsideBoundary } = dynamicValidation
+    const rootInstantStack = dynamicValidation.slotStacks[0]
+    if (thrownErrorsOutsideBoundary.length === 0) {
+      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.`
+      const error = rootInstantStack !== null ? rootInstantStack() : new Error()
+      error.name = 'Error'
+      error.message = message
+      return error
+    } else if (thrownErrorsOutsideBoundary.length === 1) {
+      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.`
+      const error = rootInstantStack !== null ? rootInstantStack() : new Error()
+      error.name = 'Error'
+      error.message = message
+      return new AggregateError([
+        error,
+        thrownErrorsOutsideBoundary[0] as Error,
+      ])
+    } else {
+      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to one of the following errors.`
+      const error = rootInstantStack !== null ? rootInstantStack() : new Error()
+      error.name = 'Error'
+      error.message = message
+      return new AggregateError([
+        error,
+        ...(thrownErrorsOutsideBoundary as Error[]),
+      ])
+    }
+  }
+
   // We had a non-empty prelude and there are no dynamic holes
   return []
 }
