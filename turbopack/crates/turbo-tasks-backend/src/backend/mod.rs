@@ -2353,6 +2353,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) {
         debug_assert!(!output_dependent_tasks.is_empty());
 
+        #[cfg(feature = "trace_task_dirty")]
+        let task_description = self.debug_get_task_description(task_id);
+
         if output_dependent_tasks.len() > 1 {
             ctx.prepare_tasks(
                 output_dependent_tasks
@@ -2365,6 +2368,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         fn process_output_dependents(
             ctx: &mut impl ExecuteContext<'_>,
             task_id: TaskId,
+            #[cfg(feature = "trace_task_dirty")] task_description: &str,
             dependent_task_id: TaskId,
             queue: &mut AggregationUpdateQueue,
         ) {
@@ -2405,7 +2409,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 dependent_task_id,
                 make_stale,
                 #[cfg(feature = "trace_task_dirty")]
-                TaskDirtyCause::OutputChange { task_id },
+                TaskDirtyCause::OutputChange {
+                    task_description: task_description.to_string(),
+                },
                 queue,
                 ctx,
             );
@@ -2419,6 +2425,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let _ = scope_and_block(chunks.len(), |scope| {
                 for chunk in chunks {
                     let child_ctx = ctx.child_context();
+                    #[cfg(feature = "trace_task_dirty")]
+                    let task_description = &task_description;
                     scope.spawn(move || {
                         let mut ctx = child_ctx.create();
                         let mut queue = AggregationUpdateQueue::new();
@@ -2426,6 +2434,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             process_output_dependents(
                                 &mut ctx,
                                 task_id,
+                                #[cfg(feature = "trace_task_dirty")]
+                                task_description,
                                 dependent_task_id,
                                 &mut queue,
                             )
@@ -2437,7 +2447,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         } else {
             let mut queue = AggregationUpdateQueue::new();
             for dependent_task_id in output_dependent_tasks {
-                process_output_dependents(ctx, task_id, dependent_task_id, &mut queue);
+                process_output_dependents(
+                    ctx,
+                    task_id,
+                    #[cfg(feature = "trace_task_dirty")]
+                    &task_description,
+                    dependent_task_id,
+                    &mut queue,
+                );
             }
             queue.execute(ctx);
         }
