@@ -265,7 +265,7 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
         TracedAsset::new(module).to_resolved().await?,
     )])
     .await?;
-    paths.push(module.ident().path().await?.path.clone());
+    paths.push(module.ident().await?.path.path.clone());
 
     Ok(Vc::cell(paths))
 }

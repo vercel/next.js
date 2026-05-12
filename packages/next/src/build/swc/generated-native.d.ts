@@ -491,7 +491,10 @@ export declare function projectGetAllCompilationIssues(project: {
  *
  * The `path` should point to the `<distDir>/cache/turbopack` directory.
  */
-export declare function turbopackDatabaseCompact(path: string): Promise<void>
+export declare function turbopackDatabaseCompact(
+  path: string,
+  nextVersion: string
+): Promise<void>
 /**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *

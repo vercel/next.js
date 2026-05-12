@@ -602,7 +602,7 @@ impl ModuleGraphImportTracer {
             .await?
             .modules
             .iter()
-            .map(|(&module, _)| async move { Ok((module.ident().path().owned().await?, module)) })
+            .map(|(&module, _)| async move { Ok((module.ident().await?.path.clone(), module)) })
             .try_join()
             .await?;
         let mut map: FxHashMap<FileSystemPath, Vec<ResolvedVc<Box<dyn Module>>>> =
@@ -2498,7 +2498,7 @@ pub mod tests {
     impl Module for MockModule {
         #[turbo_tasks::function]
         fn ident(&self) -> Vc<AssetIdent> {
-            AssetIdent::from_path(self.path.clone())
+            AssetIdent::from_path(self.path.clone()).into_vc()
         }
 
         #[turbo_tasks::function]

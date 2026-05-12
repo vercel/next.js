@@ -696,6 +696,7 @@ export async function isPageStatic({
   pprConfig,
   partialFallbacksEnabled,
   buildId,
+  deploymentId,
   clientAssetToken,
   sriEnabled,
 }: {
@@ -726,6 +727,7 @@ export async function isPageStatic({
   pprConfig: ExperimentalPPRConfig | undefined
   partialFallbacksEnabled: boolean
   buildId: string
+  deploymentId: string
   clientAssetToken: string
   sriEnabled: boolean
 }): Promise<PageIsStaticResult> {
@@ -892,6 +894,7 @@ export async function isPageStatic({
               isRoutePPREnabled,
               partialFallbacksEnabled,
               buildId,
+              deploymentId,
               rootParamKeys,
             }))
         }

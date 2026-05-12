@@ -15,7 +15,7 @@ pub struct SpecifiedModuleTypeIssue {
 #[turbo_tasks::value_impl]
 impl Issue for SpecifiedModuleTypeIssue {
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().owned().await
+        self.source.file_path().await
     }
 
     async fn title(&self) -> Result<StyledString> {

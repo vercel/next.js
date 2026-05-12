@@ -209,8 +209,6 @@ export function discoverKnownRoute(
   const tree = routeTree
 
   const pathnameParts = pathname.split('/').filter((p) => p !== '')
-  const firstPart = pathnameParts.length > 0 ? pathnameParts[0] : null
-  const remainingParts = pathnameParts.length > 0 ? pathnameParts.slice(1) : []
 
   if (pendingEntry !== null) {
     // Fulfill the pending entry first
@@ -232,8 +230,8 @@ export function discoverKnownRoute(
     discoverKnownRoutePart(
       knownRouteTreeRoot,
       tree,
-      firstPart,
-      remainingParts,
+      pathnameParts,
+      0,
       fulfilledEntry,
       now,
       pathname,
@@ -253,8 +251,8 @@ export function discoverKnownRoute(
   return discoverKnownRoutePart(
     knownRouteTreeRoot,
     tree,
-    firstPart,
-    remainingParts,
+    pathnameParts,
+    0,
     null,
     now,
     pathname,
@@ -265,6 +263,38 @@ export function discoverKnownRoute(
     canonicalUrl,
     supportsPerSegmentPrefetching,
     hasDynamicRewrite
+  )
+}
+
+/**
+ * Bail out of populating the known route tree when discovery detects that the
+ * URL doesn't match the route structure (a rewrite). The route entry is still
+ * inserted into the cache for direct lookup — we just don't store it as a
+ * pattern, since the URL and the tree describe different shapes.
+ */
+function handleMismatchDueToRewrite(
+  existingEntry: FulfilledRouteCacheEntry | null,
+  now: number,
+  pathname: string,
+  nextUrl: string | null,
+  fullTree: RouteTree,
+  metadataVaryPath: PageVaryPath,
+  couldBeIntercepted: boolean,
+  canonicalUrl: string,
+  supportsPerSegmentPrefetching: boolean
+): FulfilledRouteCacheEntry {
+  if (existingEntry !== null) {
+    return existingEntry
+  }
+  return writeRouteIntoCache(
+    now,
+    pathname as NormalizedPathname,
+    nextUrl,
+    fullTree,
+    metadataVaryPath,
+    couldBeIntercepted,
+    canonicalUrl,
+    supportsPerSegmentPrefetching
   )
 }
 
@@ -308,8 +338,8 @@ function discoverDynamicChild(
 function discoverKnownRoutePart(
   parentKnownRoutePart: KnownRoutePart,
   routeTree: RouteTree,
-  urlPart: string | null,
-  remainingParts: string[],
+  pathnameParts: readonly string[],
+  partIndex: number,
   existingEntry: FulfilledRouteCacheEntry | null,
   // These are passed through unchanged for entry creation at the leaf
   now: number,
@@ -323,38 +353,82 @@ function discoverKnownRoutePart(
   hasDynamicRewrite: boolean
 ): FulfilledRouteCacheEntry {
   const segment = routeTree.segment
-
-  let segmentAppearsInURL: boolean
-  let paramName: string | null = null
-  let paramType: DynamicParamTypesShort | null = null
-  let staticSiblings: readonly string[] | null = null
-
-  if (typeof segment === 'string') {
-    segmentAppearsInURL = doesStaticSegmentAppearInURL(segment)
-  } else {
-    // Dynamic segment tuple: [paramName, paramCacheKey, paramType, staticSiblings]
-    paramName = segment[0]
-    paramType = segment[2]
-    staticSiblings = segment[3]
-    segmentAppearsInURL = true
-  }
+  const urlPart =
+    partIndex < pathnameParts.length ? pathnameParts[partIndex] : null
 
   let knownRoutePart: KnownRoutePart = parentKnownRoutePart
-  let nextUrlPart: string | null = urlPart
-  let nextRemainingParts: string[] = remainingParts
+  let nextPartIndex = partIndex
 
-  if (segmentAppearsInURL) {
-    // Check for mismatch: if this is a static segment, the URL part must match
-    if (paramName === null && urlPart !== segment) {
-      // URL doesn't match route structure (likely a rewrite).
-      // Don't populate the known route tree, just write the route into the
-      // cache and return immediately.
-      if (existingEntry !== null) {
-        return existingEntry
+  if (typeof segment === 'string') {
+    if (doesStaticSegmentAppearInURL(segment)) {
+      // A visible static segment must consume exactly one URL part that
+      // equals the segment. If the URL is exhausted or the URL part doesn't
+      // match, the URL doesn't fit the route shape — the response was
+      // rewrite-affected. Bail out.
+      if (urlPart === null || urlPart !== segment) {
+        return handleMismatchDueToRewrite(
+          existingEntry,
+          now,
+          pathname,
+          nextUrl,
+          fullTree,
+          metadataVaryPath,
+          couldBeIntercepted,
+          canonicalUrl,
+          supportsPerSegmentPrefetching
+        )
       }
-      return writeRouteIntoCache(
+
+      if (parentKnownRoutePart.staticChildren === null) {
+        parentKnownRoutePart.staticChildren = new Map()
+      }
+      let existingChild = parentKnownRoutePart.staticChildren.get(urlPart)
+      if (existingChild === undefined) {
+        existingChild = createEmptyPart()
+        parentKnownRoutePart.staticChildren.set(urlPart, existingChild)
+      }
+      knownRoutePart = existingChild
+
+      // Advance to next URL part.
+      nextPartIndex = partIndex + 1
+    }
+    // else: Transparent segment (route group, __PAGE__, etc.)
+    // Stay at the same known route part, don't advance URL parts
+  } else {
+    // Dynamic segment tuple: [paramName, paramCacheKey, paramType, staticSiblings]
+    const paramName: string = segment[0]
+    const paramType: DynamicParamTypesShort = segment[2]
+    const staticSiblings: readonly string[] | null = segment[3]
+
+    if (paramType !== 'oc' && urlPart === null) {
+      // Every dynamic segment except the optional catch-all (`[[...param]]`)
+      // must consume at least one URL part at runtime. If discovery reached
+      // this segment with no URL parts left to consume, the URL doesn't fit
+      // the route shape — the response was rewrite-affected. Bail out.
+      return handleMismatchDueToRewrite(
+        existingEntry,
         now,
-        pathname as NormalizedPathname,
+        pathname,
+        nextUrl,
+        fullTree,
+        metadataVaryPath,
+        couldBeIntercepted,
+        canonicalUrl,
+        supportsPerSegmentPrefetching
+      )
+    }
+
+    if (
+      staticSiblings !== null &&
+      urlPart !== null &&
+      staticSiblings.includes(urlPart)
+    ) {
+      // The route tree says this is a dynamic sibling, but the canonical URL
+      // is a known static sibling. This is a mismatch.
+      return handleMismatchDueToRewrite(
+        existingEntry,
+        now,
+        pathname,
         nextUrl,
         fullTree,
         metadataVaryPath,
@@ -365,51 +439,39 @@ function discoverKnownRoutePart(
     }
 
     // URL matches route structure. Build the known route tree.
-    if (paramName !== null && paramType !== null) {
-      // Dynamic segment
-      knownRoutePart = discoverDynamicChild(
-        parentKnownRoutePart,
-        paramName,
-        paramType
-      )
+    knownRoutePart = discoverDynamicChild(
+      parentKnownRoutePart,
+      paramName,
+      paramType
+    )
 
-      // Record static siblings as placeholder parts.
-      // IMPORTANT: We use the null vs Map distinction to track whether
-      // siblings are known at this level:
-      // - staticChildren: null = siblings unknown (can't safely match dynamic)
-      // - staticChildren: Map = siblings known (even if empty)
-      // This matters in dev mode where webpack may not know all siblings yet.
-      if (staticSiblings !== null) {
-        // Siblings are known - ensure we have a Map (even if empty)
-        if (parentKnownRoutePart.staticChildren === null) {
-          parentKnownRoutePart.staticChildren = new Map()
-        }
-        for (const sibling of staticSiblings) {
-          if (!parentKnownRoutePart.staticChildren.has(sibling)) {
-            parentKnownRoutePart.staticChildren.set(sibling, createEmptyPart())
-          }
-        }
-      }
-    } else {
-      // Static segment
+    // Record static siblings as placeholder parts.
+    // IMPORTANT: We use the null vs Map distinction to track whether
+    // siblings are known at this level:
+    // - staticChildren: null = siblings unknown (can't safely match dynamic)
+    // - staticChildren: Map = siblings known (even if empty)
+    // This matters in dev mode where webpack may not know all siblings yet.
+    if (staticSiblings !== null) {
+      // Siblings are known - ensure we have a Map (even if empty)
       if (parentKnownRoutePart.staticChildren === null) {
         parentKnownRoutePart.staticChildren = new Map()
       }
-      let existingChild = parentKnownRoutePart.staticChildren.get(urlPart!)
-      if (existingChild === undefined) {
-        existingChild = createEmptyPart()
-        parentKnownRoutePart.staticChildren.set(urlPart!, existingChild)
+      for (const sibling of staticSiblings) {
+        if (!parentKnownRoutePart.staticChildren.has(sibling)) {
+          parentKnownRoutePart.staticChildren.set(sibling, createEmptyPart())
+        }
       }
-      knownRoutePart = existingChild
     }
 
-    // Advance to next URL part
-    nextUrlPart = remainingParts.length > 0 ? remainingParts[0] : null
-    nextRemainingParts =
-      remainingParts.length > 0 ? remainingParts.slice(1) : []
+    // Advance to next URL part. Catch-all segments (`[...param]` and
+    // `[[...param]]`) absorb every remaining URL part at runtime (see
+    // `matchKnownRoutePart`, which slices the rest of `pathnameParts`).
+    if (paramType === 'c' || paramType === 'oc') {
+      nextPartIndex = pathnameParts.length
+    } else {
+      nextPartIndex = partIndex + 1
+    }
   }
-  // else: Transparent segment (route group, __PAGE__, etc.)
-  // Stay at the same known route part, don't advance URL parts
 
   // Recurse into child routes. A route tree can have multiple parallel routes
   // (e.g., @modal alongside children). Each parallel route is a separate
@@ -429,8 +491,8 @@ function discoverKnownRoutePart(
       const result = discoverKnownRoutePart(
         knownRoutePart,
         childRouteTree,
-        nextUrlPart,
-        nextRemainingParts,
+        pathnameParts,
+        nextPartIndex,
         existingEntry,
         now,
         pathname,
@@ -451,12 +513,27 @@ function discoverKnownRoutePart(
     }
     // Defensive fallback: no children returned a result. This shouldn't happen
     // for valid route trees, but handle it gracefully.
-    if (existingEntry !== null) {
-      return existingEntry
-    }
-    return writeRouteIntoCache(
+    return handleMismatchDueToRewrite(
+      existingEntry,
       now,
-      pathname as NormalizedPathname,
+      pathname,
+      nextUrl,
+      fullTree,
+      metadataVaryPath,
+      couldBeIntercepted,
+      canonicalUrl,
+      supportsPerSegmentPrefetching
+    )
+  }
+
+  // Reached a page node (`__PAGE__` leaf). If there are still URL parts
+  // left to consume, the route tree is shorter than the URL, which means
+  // the URL doesn't match the route structure (likely a rewrite).
+  if (nextPartIndex < pathnameParts.length) {
+    return handleMismatchDueToRewrite(
+      existingEntry,
+      now,
+      pathname,
       nextUrl,
       fullTree,
       metadataVaryPath,

@@ -14,10 +14,6 @@ describe('Middleware Runtime', () => {
 
   const isNodeMiddleware = Boolean(process.env.TEST_NODE_MIDDLEWARE)
 
-  if (isNodeMiddleware && (global as any).isNextDeploy) {
-    return it('should skip deploy for node middleware for now', () => {})
-  }
-
   const setup = ({ i18n }: { i18n: boolean }) => {
     afterAll(async () => {
       await next.destroy()
@@ -765,6 +761,23 @@ describe('Middleware Runtime', () => {
         `/_next/data/${next.buildId}${i18n ? '/en' : ''}/send-url.json`
       )
       expect(res.headers.get('req-url-path')).toEqual('/send-url')
+
+      if (i18n) {
+        expect(res.headers.get('req-url-pathname')).toEqual('/send-url')
+        expect(res.headers.get('req-url-locale')).toEqual('en')
+
+        const defaultLocaleRes = await fetchViaHTTP(
+          next.url,
+          `/_next/data/${next.buildId}/send-url.json`
+        )
+        expect(defaultLocaleRes.headers.get('req-url-path')).toEqual(
+          '/send-url'
+        )
+        expect(defaultLocaleRes.headers.get('req-url-pathname')).toEqual(
+          '/send-url'
+        )
+        expect(defaultLocaleRes.headers.get('req-url-locale')).toEqual('en')
+      }
     })
 
     it('should keep non data requests in their original shape', async () => {
@@ -791,6 +804,18 @@ describe('Middleware Runtime', () => {
       expect(dataRes.headers.get('x-nextjs-matched-path')).toEqual(
         `${i18n ? '/en' : ''}/ssr-page-2`
       )
+
+      if (i18n) {
+        const defaultLocaleDataRes = await fetchViaHTTP(
+          next.url,
+          `/_next/data/${next.buildId}/ssr-page.json`
+        )
+        const defaultLocaleJson = await defaultLocaleDataRes.json()
+        expect(defaultLocaleJson.pageProps.message).toEqual('Bye Cruel World')
+        expect(defaultLocaleDataRes.headers.get('x-nextjs-matched-path')).toBe(
+          '/en/ssr-page-2'
+        )
+      }
     })
 
     it(`hard-navigates when the data request failed`, async () => {

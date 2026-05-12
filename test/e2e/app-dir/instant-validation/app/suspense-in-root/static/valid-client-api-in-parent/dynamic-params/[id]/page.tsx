@@ -1,6 +1,7 @@
 export const unstable_instant = {
+  level: 'experimental-error',
   // `usePathname` will error if we don't have a sample for `[id]`.
-  samples: [{ params: { id: '123' } }],
+  unstable_samples: [{ params: { id: '123' } }],
 }
 
 export default function Page() {
