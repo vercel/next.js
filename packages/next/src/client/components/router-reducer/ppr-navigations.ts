@@ -245,10 +245,14 @@ function updateCacheNodeOnNavigation(
   parentRefreshState: RefreshState | null,
   accumulation: NavigationRequestAccumulation
 ): NavigationTask | null {
-  // Check if this segment matches the one in the previous route.
+  // Check if this segment matches the one in the previous route. A
+  // search-param-only difference at a page segment falls through to the
+  // matched branch — the CacheNode is rebuilt (so data refetches), but the
+  // bfcacheId carries forward as if the segment had matched.
   const oldSegment = oldRouterState[0]
   const newSegment = createSegmentFromRouteTree(newRouteTree)
-  if (!matchSegment(newSegment, oldSegment)) {
+  const segmentMatchKind = compareSegments(newSegment, oldSegment)
+  if (segmentMatchKind === SegmentMatchKind.Change) {
     // This segment does not match the previous route. We're now entering the
     // new part of the target route. Switch to the "create" path.
     if (
@@ -347,7 +351,11 @@ function updateCacheNodeOnNavigation(
     oldCacheNode !== undefined &&
     !shouldRefreshDynamicData &&
     // During a same-page navigation, we always refetch the page segments
-    !(isLeafSegment && isSamePageNavigation)
+    !(isLeafSegment && isSamePageNavigation) &&
+    // A search-param-only change is treated as a refresh of the page segment.
+    // The internal cache key of the data is different, but the identity of
+    // the node in the route tree is the same.
+    segmentMatchKind !== SegmentMatchKind.SearchParamOnlyChange
   ) {
     // Reuse the existing CacheNode
     const dropPrefetchRsc = false
@@ -364,18 +372,34 @@ function updateCacheNodeOnNavigation(
       newMetadataVaryPath,
       seedHead,
       freshness,
-      seedDynamicStaleAt
+      seedDynamicStaleAt,
+      // Carry forward the existing bfcacheId when there's a prior CacheNode:
+      // even though the data is being refreshed, the state identity of the
+      // route hasn't changed. Otherwise (no prior node) mint a fresh one.
+      oldCacheNode !== undefined
+        ? oldCacheNode.bfcacheId
+        : generateBFCacheId(freshness)
     )
     newCacheNode = result.cacheNode
     needsDynamicRequest = result.needsDynamicRequest
 
-    // Carry forward the old node's scrollRef. This preserves scroll
-    // intent when a prior navigation's cache node is replaced by a
-    // refresh before the scroll handler has had a chance to fire —
-    // e.g. when router.push() and router.refresh() are called in the
-    // same startTransition batch.
-    if (oldCacheNode !== undefined) {
-      newCacheNode.scrollRef = oldCacheNode.scrollRef
+    // Scroll handling
+    if (
+      isLeafSegment &&
+      segmentMatchKind === SegmentMatchKind.SearchParamOnlyChange
+    ) {
+      // Special case: A search param change mostly acts the same as a
+      // refresh, except it does trigger a scroll.
+      accumulateScrollRef(freshness, newCacheNode, accumulation)
+    } else {
+      // Normal case: This is a refresh of an existing segment. Carry forward
+      // the old node's scrollRef. This preserves scroll intent when a prior
+      // navigation's CacheNode is replaced by a refresh before the scroll
+      // handler has had a chance to fire — e.g. when router.push() and
+      // router.refresh() are called in the same startTransition batch.
+      if (oldCacheNode !== undefined) {
+        newCacheNode.scrollRef = oldCacheNode.scrollRef
+      }
     }
   }
 
@@ -636,7 +660,10 @@ function createCacheNodeOnNavigation(
     newMetadataVaryPath,
     seedHead,
     freshness,
-    seedDynamicStaleAt
+    seedDynamicStaleAt,
+    // This segment was not part of the previous route, so mint a fresh
+    // bfcacheId.
+    generateBFCacheId(freshness)
   )
   const newCacheNode = result.cacheNode
   const needsDynamicRequest = result.needsDynamicRequest
@@ -879,11 +906,14 @@ function reuseSharedCacheNode(
   // Clone the CacheNode that was already present in the previous tree.
   // Carry forward the scrollRef so scroll intent from a prior navigation
   // survives tree rebuilds (e.g. push + refresh in the same batch).
+  // Carry forward the bfcacheId so shared-layout segments retain stable
+  // identity across navigations.
   return createCacheNode(
     existingCacheNode.rsc,
     dropPrefetchRsc ? null : existingCacheNode.prefetchRsc,
     existingCacheNode.head,
     dropPrefetchRsc ? null : existingCacheNode.prefetchHead,
+    existingCacheNode.bfcacheId,
     existingCacheNode.scrollRef
   )
 }
@@ -895,7 +925,8 @@ function createCacheNodeForSegment(
   metadataVaryPath: PageVaryPath | null,
   seedHead: HeadData | null,
   freshness: FreshnessPolicy,
-  dynamicStaleAt: number
+  dynamicStaleAt: number,
+  bfcacheId: number
 ): { cacheNode: CacheNode; needsDynamicRequest: boolean } {
   // Construct a new CacheNode using data from the BFCache, the client's
   // Segment Cache, or seeded from a server response.
@@ -927,12 +958,17 @@ function createCacheNodeForSegment(
         tree.varyPath
       )
       if (bfcacheEntry !== null) {
+        // A regular navigation that happens to read cached data is still a
+        // fresh navigation, so we use the caller-supplied bfcacheId — the
+        // BFCacheEntry's id is only restored on history-traversal
+        // navigations.
         return {
           cacheNode: createCacheNode(
             bfcacheEntry.rsc,
             bfcacheEntry.prefetchRsc,
             bfcacheEntry.head,
-            bfcacheEntry.prefetchHead
+            bfcacheEntry.prefetchHead,
+            bfcacheId
           ),
           needsDynamicRequest: false,
         }
@@ -967,7 +1003,8 @@ function createCacheNodeForSegment(
         prefetchRsc,
         head,
         prefetchHead,
-        dynamicStaleAt
+        dynamicStaleAt,
+        bfcacheId
       )
       if (isPage && metadataVaryPath !== null) {
         writeHeadToBFCache(
@@ -975,11 +1012,18 @@ function createCacheNodeForSegment(
           metadataVaryPath,
           head,
           prefetchHead,
-          dynamicStaleAt
+          dynamicStaleAt,
+          bfcacheId
         )
       }
       return {
-        cacheNode: createCacheNode(rsc, prefetchRsc, head, prefetchHead),
+        cacheNode: createCacheNode(
+          rsc,
+          prefetchRsc,
+          head,
+          prefetchHead,
+          bfcacheId
+        ),
         needsDynamicRequest: false,
       }
     }
@@ -1000,12 +1044,16 @@ function createCacheNodeForSegment(
         const oldRscDidResolve =
           !isDeferredRsc(oldRsc) || oldRsc.status !== 'pending'
         const dropPrefetchRsc = oldRscDidResolve
+        // Restore the bfcacheId from the cached entry so that back/forward
+        // navigations preserve the original id, regardless of whether
+        // `cacheComponents` Activity preservation is enabled.
         return {
           cacheNode: createCacheNode(
             bfcacheEntry.rsc,
             dropPrefetchRsc ? null : bfcacheEntry.prefetchRsc,
             bfcacheEntry.head,
-            dropPrefetchRsc ? null : bfcacheEntry.prefetchHead
+            dropPrefetchRsc ? null : bfcacheEntry.prefetchHead,
+            bfcacheEntry.bfcacheId
           ),
           needsDynamicRequest: false,
         }
@@ -1208,7 +1256,8 @@ function createCacheNodeForSegment(
       prefetchRsc,
       head,
       prefetchHead,
-      dynamicStaleAt
+      dynamicStaleAt,
+      bfcacheId
     )
     if (isPage && metadataVaryPath !== null) {
       writeHeadToBFCache(
@@ -1216,13 +1265,14 @@ function createCacheNodeForSegment(
         metadataVaryPath,
         head,
         prefetchHead,
-        dynamicStaleAt
+        dynamicStaleAt,
+        bfcacheId
       )
     }
   }
 
   return {
-    cacheNode: createCacheNode(rsc, prefetchRsc, head, prefetchHead),
+    cacheNode: createCacheNode(rsc, prefetchRsc, head, prefetchHead, bfcacheId),
     // TODO: We should store this field on the CacheNode itself. I think we can
     // probably unify NavigationTask, CacheNode, and DeferredRsc into a
     // single type. Or at least CacheNode and DeferredRsc.
@@ -1236,6 +1286,7 @@ function createCacheNode(
   prefetchRsc: React.ReactNode | null,
   head: React.ReactNode | null,
   prefetchHead: HeadData | null,
+  bfcacheId: number,
   scrollRef: ScrollRef | null = null
 ): CacheNode {
   return {
@@ -1245,7 +1296,54 @@ function createCacheNode(
     prefetchHead,
     slots: null,
     scrollRef,
+    bfcacheId,
   }
+}
+
+// Globally-unique counter for fresh bfcacheIds. Incremented every time a new
+// CacheNode is created on the client. The id surfaces to user code as a
+// string via `useRouter().bfcacheId`.
+let nextBFCacheId = 0
+
+function generateBFCacheId(freshness: FreshnessPolicy): number {
+  // Server-side rendering and the initial client-side hydration tree both
+  // use a fixed sentinel so they reconcile cleanly across hydration. The
+  // counter only advances on real client-side navigations after hydration.
+  if (typeof window === 'undefined') return 0
+  if (freshness === FreshnessPolicy.Hydration) return 0
+  return ++nextBFCacheId
+}
+
+const enum SegmentMatchKind {
+  // Two segments are equivalent: the CacheNode can be reused as-is.
+  Match,
+  // The segments differ in the parts that determine the route (segment kind,
+  // dynamic param value, etc.). The CacheNode must be created fresh.
+  Change,
+  // Two page segments differ only in their search params. Conceptually this
+  // is a refresh of the current page rather than a navigation to a new
+  // route — search params don't contribute to the LayoutRouter state key,
+  // and they shouldn't change the bfcacheId either. The CacheNode is rebuilt
+  // (so data refetches) but the bfcacheId carries forward.
+  SearchParamOnlyChange,
+}
+
+function compareSegments(
+  newSegment: Segment,
+  oldSegment: Segment
+): SegmentMatchKind {
+  if (matchSegment(newSegment, oldSegment)) {
+    return SegmentMatchKind.Match
+  }
+  if (
+    typeof newSegment === 'string' &&
+    typeof oldSegment === 'string' &&
+    newSegment.startsWith(PAGE_SEGMENT_KEY) &&
+    oldSegment.startsWith(PAGE_SEGMENT_KEY)
+  ) {
+    return SegmentMatchKind.SearchParamOnlyChange
+  }
+  return SegmentMatchKind.Change
 }
 
 // Represents whether the previuos navigation resulted in a route tree mismatch.

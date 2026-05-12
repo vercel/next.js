@@ -34,6 +34,11 @@ export type BFCacheEntry = {
   head: React.ReactNode | null
   prefetchHead: React.ReactNode | null
 
+  // The bfcacheId of the CacheNode that wrote this entry. Restored on
+  // history-traversal navigations so that `useRouter().bfcacheId` is stable
+  // across back/forward, even without `cacheComponents` Activity preservation.
+  bfcacheId: number
+
   ref: UnknownMapEntry | null
   size: number
   // The time at which this data was received. Used to compute the stale time
@@ -64,7 +69,8 @@ export function writeToBFCache(
   prefetchRsc: React.ReactNode,
   head: React.ReactNode,
   prefetchHead: React.ReactNode,
-  dynamicStaleAt: number
+  dynamicStaleAt: number,
+  bfcacheId: number
 ): void {
   if (typeof window === 'undefined') {
     return
@@ -78,6 +84,8 @@ export function writeToBFCache(
     // SegmentCacheEntry. The head has its own separate cache entry.
     head,
     prefetchHead,
+
+    bfcacheId,
 
     ref: null,
     // TODO: This is just a heuristic. Getting the actual size of the segment
@@ -104,10 +112,20 @@ export function writeHeadToBFCache(
   varyPath: SegmentVaryPath,
   head: React.ReactNode,
   prefetchHead: React.ReactNode,
-  dynamicStaleAt: number
+  dynamicStaleAt: number,
+  bfcacheId: number
 ): void {
   // Read the special "segment" that represents the head data.
-  writeToBFCache(now, varyPath, head, prefetchHead, null, null, dynamicStaleAt)
+  writeToBFCache(
+    now,
+    varyPath,
+    head,
+    prefetchHead,
+    null,
+    null,
+    dynamicStaleAt,
+    bfcacheId
+  )
 }
 
 /**
