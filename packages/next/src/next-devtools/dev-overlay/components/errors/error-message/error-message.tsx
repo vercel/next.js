@@ -81,6 +81,17 @@ export const styles = `
     overflow: hidden;
   }
 
+  .nextjs__container_errors_desc code {
+    font-family: var(--font-stack-monospace);
+    font-weight: 500;
+    line-height: 20px;
+    color: var(--color-gray-1000);
+    padding: 2px 6px;
+    background: var(--color-background-200);
+    border: 1px solid var(--color-gray-200);
+    border-radius: 6px;
+  }
+
   .nextjs__container_errors_gradient_overlay {
     position: absolute;
     bottom: 0;
