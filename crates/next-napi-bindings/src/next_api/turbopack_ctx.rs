@@ -256,6 +256,8 @@ pub fn create_turbo_tasks(
                 }),
                 dependency_tracking,
                 num_workers: Some(tokio::runtime::Handle::current().metrics().num_workers()),
+                evict_after_snapshot: std::env::var("TURBO_ENGINE_EVICT_AFTER_SNAPSHOT")
+                    .is_ok_and(|v| v == "1" || v == "true"),
                 ..Default::default()
             },
             Either::Left(backing_storage),
@@ -407,7 +409,10 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
     let bug_report_url = format!(
         "https://bugs.nextjs.org/search?category=turbopack-error-report&title={}&body={}&labels=Turbopack,Turbopack%20Panic%20Backtrace",
         &urlencoding::encode(&title),
-        &urlencoding::encode(&format!("{}\n\nError message:\n```\n{}\n```", &version_str, &internal_error_str))
+        &urlencoding::encode(&format!(
+            "{}\n\nError message:\n```\n{}\n```",
+            &version_str, &internal_error_str
+        ))
     );
     let bug_report_message = if supports_hyperlinks::supports_hyperlinks() {
         "clicking here.".hyperlink(&bug_report_url)

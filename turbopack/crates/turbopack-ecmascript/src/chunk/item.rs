@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 use turbo_rcstr::{RcStr, rcstr};
@@ -240,6 +241,7 @@ impl EcmascriptChunkItemWithAsyncInfo {
     ) -> Result<EcmascriptChunkItemWithAsyncInfo> {
         let ChunkItemWithAsyncModuleInfo {
             chunk_item,
+            chunk_type: _,
             module: _,
             async_info,
         } = chunk_item;
@@ -255,23 +257,18 @@ impl EcmascriptChunkItemWithAsyncInfo {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_trait]
 pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
-    #[turbo_tasks::function]
-    fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent>;
-
     /// Fetches the content of the chunk item with async module info.
     /// When `estimated` is true, it's ok to provide an estimated content, since it's only used for
     /// compute the chunking. When `estimated` is true, this function should not invoke other
     /// chunking operations that would cause cycles.
-    #[turbo_tasks::function]
-    fn content_with_async_module_info(
-        self: Vc<Self>,
-        _async_module_info: Option<Vc<AsyncModuleInfo>>,
-        _estimated: bool,
-    ) -> Vc<EcmascriptChunkItemContent> {
-        self.content()
-    }
+    async fn content_with_async_module_info(
+        &self,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+        estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>>;
 }
 
 pub trait EcmascriptChunkItemExt {
@@ -295,13 +292,18 @@ async fn module_factory_with_code_generation_issue(
     chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
 ) -> Result<Vc<PersistedCode>> {
-    let content = match chunk_item
-        .content_with_async_module_info(async_module_info, false)
-        .await
-    {
-        Ok(item) => item.module_factory().await,
-        Err(err) => Err(err),
-    };
+    async fn get_content(
+        chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Result<ResolvedVc<PersistedCode>> {
+        let chunk_item_ref = chunk_item.into_trait_ref().await?;
+        let content = chunk_item_ref
+            .content_with_async_module_info(async_module_info, false)
+            .await?
+            .await?;
+        content.module_factory().await
+    }
+    let content = get_content(chunk_item, async_module_info).await;
     Ok(match content {
         Ok(factory) => *factory,
         Err(error) => {
@@ -372,7 +374,6 @@ impl ChunkItem for EcmascriptModuleChunkItem {
             .chunk_item_content_ident(*self.chunking_context, *self.module_graph)
     }
 
-    #[turbo_tasks::function]
     fn ty(&self) -> Vc<Box<dyn ChunkType>> {
         Vc::upcast(Vc::<EcmascriptChunkType>::default())
     }
@@ -382,7 +383,6 @@ impl ChunkItem for EcmascriptModuleChunkItem {
         Vc::upcast(*self.module)
     }
 
-    #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         *self.chunking_context
     }
@@ -397,25 +397,19 @@ impl OutputAssetsReference for EcmascriptModuleChunkItem {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for EcmascriptModuleChunkItem {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<EcmascriptChunkItemContent> {
-        self.module
-            .chunk_item_content(*self.chunking_context, *self.module_graph, None, false)
-    }
-
-    #[turbo_tasks::function]
-    fn content_with_async_module_info(
+    async fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,
-    ) -> Vc<EcmascriptChunkItemContent> {
-        self.module.chunk_item_content(
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        Ok(self.module.chunk_item_content(
             *self.chunking_context,
             *self.module_graph,
             async_module_info,
             estimated,
-        )
+        ))
     }
 }

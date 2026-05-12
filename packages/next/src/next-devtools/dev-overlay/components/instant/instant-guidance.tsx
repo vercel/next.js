@@ -1,83 +1,18 @@
 import { css } from '../../utils/css'
+import {
+  DOCS_URLS,
+  EXPLANATIONS,
+  SYNC_IO_DOCS,
+  SYNC_IO_CLIENT_DOCS,
+  getCards,
+  type FixCard,
+  type GuidanceKind,
+  type GuidanceVariant,
+} from './instant-guidance-data'
 
-const DOCS = 'https://nextjs.org/docs/messages/blocking-route'
+export type { GuidanceKind, GuidanceVariant } from './instant-guidance-data'
 
-type CardColor = 'blue' | 'purple' | 'red'
-
-type FixCard = {
-  title: string
-  color: CardColor
-  snippets: Snippet[]
-  conditional?: boolean
-}
-
-type Snippet = {
-  text: string
-  highlight?: boolean
-}
-
-const runtimeCards: FixCard[] = [
-  {
-    title: 'Move within Suspense',
-    color: 'purple',
-    snippets: [
-      { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <DataChild />' },
-      { text: '</Suspense>', highlight: true },
-    ],
-  },
-  {
-    title: 'Make route params static',
-    color: 'blue',
-    conditional: true,
-    snippets: [
-      { text: 'export async function' },
-      { text: '  generateStaticParams() {', highlight: true },
-      { text: '  return [{ slug: "…" }]' },
-      { text: '}' },
-    ],
-  },
-  {
-    title: 'Allow blocking route',
-    color: 'red',
-    snippets: [
-      { text: 'export const instant = false', highlight: true },
-      { text: '' },
-      { text: 'export default async function Page() {' },
-    ],
-  },
-]
-
-const dynamicCards: FixCard[] = [
-  {
-    title: 'Cache dynamic data',
-    color: 'blue',
-    snippets: [
-      { text: 'async function getData() {' },
-      { text: '  "use cache"', highlight: true },
-      { text: '  return db.query(…)' },
-      { text: '}' },
-    ],
-  },
-  {
-    title: 'Move within Suspense',
-    color: 'purple',
-    snippets: [
-      { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <DataChild />' },
-      { text: '</Suspense>', highlight: true },
-    ],
-  },
-  {
-    title: 'Allow blocking route',
-    color: 'red',
-    snippets: [
-      { text: 'export const instant = false', highlight: true },
-      { text: '' },
-      { text: 'export default async function Page() {' },
-    ],
-  },
-]
+// ── Components ────────────────────────────────────
 
 function CardGrid({ cards }: { cards: FixCard[] }) {
   return (
@@ -94,9 +29,20 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
               <span
                 key={i}
                 data-snippet-line
-                data-snippet-highlight={s.highlight || undefined}
+                data-snippet-highlight={
+                  !s.parts && s.highlight ? '' : undefined
+                }
               >
-                {s.text}
+                {s.parts
+                  ? s.parts.map((p, j) => (
+                      <span
+                        key={j}
+                        data-snippet-highlight={p.highlight ? '' : undefined}
+                      >
+                        {p.text}
+                      </span>
+                    ))
+                  : s.text}
                 {'\n'}
               </span>
             ))}
@@ -110,19 +56,38 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
 
 export function InstantGuidance({
   variant,
+  kind = 'blocking-route',
+  explanation,
+  cause,
 }: {
-  variant: 'runtime' | 'navigation'
+  variant: GuidanceVariant
+  kind?: GuidanceKind
+  explanation?: string
+  cause?: string
 }) {
-  const cards = variant === 'navigation' ? dynamicCards : runtimeCards
+  const cards = getCards(kind, variant, cause)
+  let docsUrl: string
+  if (kind === 'sync-io' && cause) {
+    docsUrl = SYNC_IO_DOCS[cause] || DOCS_URLS[kind]
+  } else if (kind === 'sync-io-client' && cause) {
+    docsUrl = SYNC_IO_CLIENT_DOCS[cause] || DOCS_URLS[kind]
+  } else {
+    docsUrl = DOCS_URLS[kind]
+  }
+  const defaultExplanation = explanation || EXPLANATIONS[kind]
 
   return (
     <div data-nextjs-instant-guidance>
-      <p data-nextjs-instant-explanation>
-        This blocks navigation, leading to a slower user experience.{' '}
-        <a href={DOCS} target="_blank" rel="noopener noreferrer">
-          Learn more
-        </a>
-      </p>
+      {defaultExplanation || docsUrl ? (
+        <p data-nextjs-instant-explanation>
+          {defaultExplanation ? <>{defaultExplanation} </> : null}
+          {docsUrl ? (
+            <a href={docsUrl} target="_blank" rel="noopener noreferrer">
+              Learn more
+            </a>
+          ) : null}
+        </p>
+      ) : null}
 
       <p data-nextjs-instant-fix-heading>Ways to fix this:</p>
 
@@ -219,25 +184,43 @@ export const INSTANT_GUIDANCE_STYLES = css`
     border-color: var(--color-instant-border-red);
   }
 
+  [data-card-color='amber'] [data-nextjs-fix-snippet] {
+    border-color: var(--color-instant-border-amber);
+  }
+
+  [data-card-color='teal'] [data-nextjs-fix-snippet] {
+    border-color: var(--color-instant-border-teal);
+  }
+
   [data-snippet-line] {
     display: block;
     color: var(--color-gray-800);
   }
 
-  [data-snippet-line][data-snippet-highlight] {
+  [data-nextjs-fix-snippet] [data-snippet-highlight] {
     color: var(--color-gray-1000);
     font-weight: 500;
   }
 
-  [data-card-color='blue'] [data-snippet-line][data-snippet-highlight] {
+  [data-card-color='blue'] [data-nextjs-fix-snippet] [data-snippet-highlight] {
     color: var(--color-blue-800);
   }
 
-  [data-card-color='purple'] [data-snippet-line][data-snippet-highlight] {
+  [data-card-color='purple']
+    [data-nextjs-fix-snippet]
+    [data-snippet-highlight] {
     color: var(--color-instant-text-purple);
   }
 
-  [data-card-color='red'] [data-snippet-line][data-snippet-highlight] {
+  [data-card-color='red'] [data-nextjs-fix-snippet] [data-snippet-highlight] {
     color: var(--color-red-800);
+  }
+
+  [data-card-color='amber'] [data-nextjs-fix-snippet] [data-snippet-highlight] {
+    color: var(--color-instant-text-amber);
+  }
+
+  [data-card-color='teal'] [data-nextjs-fix-snippet] [data-snippet-highlight] {
+    color: var(--color-instant-text-teal);
   }
 `

@@ -1,25 +1,19 @@
 import path from 'path'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 
 describe('transpile packages', () => {
-  let next: NextInstance
-
   if ((global as any).isNextDeploy) {
     it('should skip for deploy mode for now', () => {})
     return
   }
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(path.join(__dirname, './npm')),
-      dependencies: {
-        sass: 'latest',
-      },
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(path.join(__dirname, './npm')),
+    dependencies: {
+      sass: 'latest',
+    },
   })
-  afterAll(() => next.destroy())
 
   const { isNextDeploy } = global as any
   if (isNextDeploy) {
