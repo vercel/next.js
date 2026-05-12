@@ -98,6 +98,20 @@ interface CategoryStats {
 }
 
 /**
+ * Shared-with-peers stats. `count` and `bytes` are the average size of the
+ * intersection of this route's files with each peer route's files (a "peer"
+ * is another route of the same `type`). `percentCount` and `percentBytes`
+ * are the same values expressed as a fraction of this route's own
+ * `count` / `bytes`, in 0..100 — i.e. "what percentage of this route's
+ * files / bytes are, on average, also shipped by a peer". Both are 0 when
+ * the route's own value is 0 (degenerate case where the average is 0/0).
+ */
+interface SharedStats extends CategoryStats {
+  percentCount: number
+  percentBytes: number
+}
+
+/**
  * Per-route stats for one category, plus the average size of the intersection
  * with peer routes (other routes of the same type). `sharedAvg` is `null` when
  * the route has no peers (i.e. it's the only route of its type), since the
@@ -108,7 +122,7 @@ interface CategoryStats {
  * relative to `distDir` (so traced node_modules deps appear as `../...`).
  */
 interface CategoryStatsWithShared extends CategoryStats {
-  sharedAvg: CategoryStats | null
+  sharedAvg: SharedStats | null
   files?: string[]
 }
 
@@ -1008,10 +1022,37 @@ function formatCell(stats: CategoryStats): string {
 
 /**
  * Cell for the "Shared" table: returns "n/a" if a route has no peers (i.e.
- * `stats` is `null`), otherwise the same `count files / bytes` rendering.
+ * `stats` is `null`), otherwise the same `count files / bytes` rendering as
+ * the routes table, augmented with the percentage of own count/bytes that
+ * the average shared portion represents — e.g. `5 files (83%) / 1.2 MB (40%)`.
  */
-function formatSharedCell(stats: CategoryStats | null): string {
-  return stats == null ? 'n/a' : formatCell(stats)
+function formatSharedCell(stats: SharedStats | null): string {
+  if (stats == null) return 'n/a'
+  return (
+    `${formatCount(stats.count)} files (${Math.round(stats.percentCount)}%)` +
+    ` / ${formatBytes(stats.bytes)} (${Math.round(stats.percentBytes)}%)`
+  )
+}
+
+/**
+ * Compute the percent-shared annotation for a (own, sharedAvg) pair.
+ * Returns `null` unchanged when the route has no peers; otherwise extends
+ * the raw {count, bytes} averages with `percentCount` and `percentBytes`.
+ * Avoids 0/0 by returning 0 when own.count or own.bytes is 0 (the
+ * intersection of an empty set with anything is also 0, so 0% is a
+ * coherent answer rather than NaN).
+ */
+function annotateShared(
+  own: CategoryStats,
+  shared: CategoryStats | null
+): SharedStats | null {
+  if (shared == null) return null
+  return {
+    count: shared.count,
+    bytes: shared.bytes,
+    percentCount: own.count > 0 ? (shared.count / own.count) * 100 : 0,
+    percentBytes: own.bytes > 0 ? (shared.bytes / own.bytes) * 100 : 0,
+  }
 }
 
 /** Render a fixed-width markdown table — pads each cell to align columns. */
@@ -1120,7 +1161,10 @@ export async function staticRoutesInfoCli(
     const shared = measureSharedAvg(i, allFileSets, routeEntries, sizeCache)
     const merged = {} as CategoryStatsWithSharedByKey
     for (const cat of CATEGORIES) {
-      merged[cat] = { ...stats[cat], sharedAvg: shared[cat] }
+      merged[cat] = {
+        ...stats[cat],
+        sharedAvg: annotateShared(stats[cat], shared[cat]),
+      }
       if (options.files) {
         merged[cat].files = fileListFor(distDir, allFileSets[i][cat], sizeCache)
       }

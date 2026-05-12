@@ -6,8 +6,13 @@ interface CategoryStats {
   bytes: number
 }
 
+interface SharedStats extends CategoryStats {
+  percentCount: number
+  percentBytes: number
+}
+
 interface CategoryStatsWithShared extends CategoryStats {
-  sharedAvg: CategoryStats | null
+  sharedAvg: SharedStats | null
   files?: string[]
 }
 
@@ -450,6 +455,20 @@ describe('next internal static-routes-info', () => {
         expect(r[cat].sharedAvg).not.toBeNull()
         expect(r[cat].sharedAvg!.count).toBeLessThanOrEqual(r[cat].count)
         expect(r[cat].sharedAvg!.bytes).toBeLessThanOrEqual(r[cat].bytes)
+        // percentCount / percentBytes are always between 0 and 100
+        // inclusive (sharedAvg cannot exceed own).
+        expect(r[cat].sharedAvg!.percentCount).toBeGreaterThanOrEqual(0)
+        expect(r[cat].sharedAvg!.percentCount).toBeLessThanOrEqual(100)
+        expect(r[cat].sharedAvg!.percentBytes).toBeGreaterThanOrEqual(0)
+        expect(r[cat].sharedAvg!.percentBytes).toBeLessThanOrEqual(100)
+        // Percentages are exactly the ratio of sharedAvg to own (or 0 when
+        // own is 0). Use a small epsilon for floating-point.
+        const expectedPctCount =
+          r[cat].count > 0 ? (r[cat].sharedAvg!.count / r[cat].count) * 100 : 0
+        const expectedPctBytes =
+          r[cat].bytes > 0 ? (r[cat].sharedAvg!.bytes / r[cat].bytes) * 100 : 0
+        expect(r[cat].sharedAvg!.percentCount).toBeCloseTo(expectedPctCount, 8)
+        expect(r[cat].sharedAvg!.percentBytes).toBeCloseTo(expectedPctBytes, 8)
       }
     }
   })
@@ -478,8 +497,11 @@ describe('next internal static-routes-info', () => {
     expect(ssr1.clientJs.sharedAvg!.bytes).toBeGreaterThan(
       ssr1.clientJs.bytes * 0.5
     )
-    // Both peers must report the same shared average (commutative).
-    expect(ssr2.clientJs.sharedAvg).toEqual(ssr1.clientJs.sharedAvg)
+    // Raw intersection count/bytes are commutative (intersection is
+    // symmetric). Percentages are NOT commutative because they're divided
+    // by each route's own count/bytes, which can differ between peers.
+    expect(ssr2.clientJs.sharedAvg!.count).toBe(ssr1.clientJs.sharedAvg!.count)
+    expect(ssr2.clientJs.sharedAvg!.bytes).toBe(ssr1.clientJs.sharedAvg!.bytes)
 
     // Similarly, server-bundled JS for the two pages should mostly overlap
     // (Next.js runtime chunks dominate the bundle).
@@ -658,6 +680,10 @@ describe('next internal static-routes-info', () => {
     expect(md).toContain('## Shared')
     // Routes with no peers should appear as `n/a`.
     expect(md).toContain('n/a')
+    // Shared cells render with both count and byte percentages, e.g.
+    // `5 files (100%) / 424 KB (100%)`. This is the marker for the
+    // user-visible part of the percent-shared annotation.
+    expect(md).toMatch(/\d+ files \(\d+%\) \/ [^|]*\(\d+%\)/)
   })
 
   it('markdown numbers should agree with --json numbers for shared routes', async () => {
