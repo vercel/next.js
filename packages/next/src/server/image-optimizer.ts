@@ -70,6 +70,7 @@ async function initCacheEntries(
   for (const cacheKey of cacheKeys) {
     try {
       const { expireAt, buffer } = await readFromCacheDir(cacheDir, cacheKey)
+      if (buffer.byteLength === 0) continue // skip 0-byte corrupt/incomplete cache files
       entries.push({
         key: cacheKey,
         size: buffer.byteLength,
@@ -634,6 +635,11 @@ export class ImageOptimizerCache {
       const now = Date.now()
       const { maxAge, expireAt, etag, upstreamEtag, buffer, extension } =
         await readFromCacheDir(this.cacheDir, cacheKey)
+
+      if (buffer.byteLength === 0) {
+        // 0-byte file is a corrupt/incomplete write — treat as cache miss
+        return null
+      }
 
       // Promote entry in LRU (mark as recently used)
       const lru = await this.cacheDiskLRU
