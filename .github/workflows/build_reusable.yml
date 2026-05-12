@@ -283,6 +283,22 @@ jobs:
         with:
           fetch-depth: 25
 
+      # When running inside the Playwright Docker container we execute as
+      # root (UID 0), but the workspace at $GITHUB_WORKSPACE is mounted from
+      # the host and owned by the host runner UID. `actions/checkout` writes
+      # `safe.directory` to `$HOME/.gitconfig` (HOME=/github/home for JS
+      # actions), but subsequent steps use `bash -leo pipefail` which, as
+      # root, resets HOME to /root and reads /root/.gitconfig instead — so
+      # they hit "fatal: detected dubious ownership". Re-add safe.directory
+      # from a login-shell step so it lands in /root/.gitconfig where the
+      # rest of the job will look for it.
+      - name: Mark workspace as safe for Git (Linux container)
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          if [ "$(id -u)" = "0" ]; then
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          fi
+
       # Cache pnpm store on GitHub-hosted runners (self-hosted runners have
       # their own persistent storage). Also fire inside the Playwright
       # container since the container filesystem is always ephemeral, even
