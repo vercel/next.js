@@ -387,7 +387,7 @@ app/
 
 In this example, `lang` is the only root parameter. The `page.tsx` directly under the root layout has no `slug` at all. The blog and store branches both define `slug`, but with different segment types (`[slug]` vs `[...slug]`). Each route only knows about its own route parameters. The same name can have different types, different meanings, or not exist at all depending on the route. This is why route parameters below the root layout are accessed through the `params` prop rather than as global getters.
 
-The exception is [multiple root layouts](#multiple-root-layouts). When different root layouts define different route parameters, the getter functions include `undefined` in their return type to account for routes where a given parameter may not exist. Navigating between routes in different root layouts is a full-page (MPA) navigation, so the root parameters resolve once per root layout and remain stable for every route rendered underneath it.
+The exception is [multiple root layouts](#multiple-root-layouts). When different root layouts define different route parameters, the getter functions include `undefined` in their return type to account for routes where a given parameter may not exist.
 
 ## Version History
 
