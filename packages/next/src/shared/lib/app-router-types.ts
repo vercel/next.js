@@ -60,6 +60,18 @@ export type CacheNode = {
    * layout segment).
    */
   scrollRef: ScrollRef | null
+
+  /**
+   * Globally-unique identifier minted from a monotonic counter when the
+   * CacheNode is freshly created. Surfaced to user code as a string via
+   * `useRouter().bfcacheId` and intended to be used as a React `key` to
+   * opt out of Activity-based state preservation on fresh navigations.
+   *
+   * Preserved when the CacheNode is reused (shared layouts, refresh,
+   * search/hash-only navigations) or restored from the BFCache during a
+   * back/forward navigation.
+   */
+  bfcacheId: number
 }
 
 /**

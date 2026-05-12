@@ -797,6 +797,7 @@ export async function buildAppStaticPaths({
   isRoutePPREnabled = false,
   partialFallbacksEnabled = false,
   buildId,
+  deploymentId,
   rootParamKeys,
 }: {
   dir: string
@@ -822,6 +823,7 @@ export async function buildAppStaticPaths({
   isRoutePPREnabled: boolean
   partialFallbacksEnabled?: boolean
   buildId: string
+  deploymentId: string
   rootParamKeys: readonly string[]
 }): Promise<StaticPathsResult> {
   if (
@@ -866,6 +868,10 @@ export async function buildAppStaticPaths({
       staticPageGenerationTimeout,
       supportsDynamicResponse: true,
       cacheComponents,
+      // generateStaticParams evaluation doesn't render pages, so instant
+      // validation never runs here. The level value is irrelevant.
+      // TODO: remove validationLevel and other global config out of renderOpts
+      validationLevel: 'warning',
       experimental: {
         authInterrupts,
         useCacheTimeout,
@@ -875,6 +881,7 @@ export async function buildAppStaticPaths({
       onAfterTaskError: afterRunner.context.onTaskError,
     },
     buildId,
+    deploymentId,
     previouslyRevalidatedTags: [],
   })
 
