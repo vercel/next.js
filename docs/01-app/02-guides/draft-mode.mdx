@@ -213,3 +213,67 @@ export default async function Page() {
 ```
 
 If you access the draft Route Handler (with `secret` and `slug`) from your headless CMS or manually using the URL, you should now be able to see the draft content. And, if you update your draft without publishing, you should be able to view the draft.
+
+## Draft Mode with Cache Components
+
+When using [caching directives](/docs/app/api-reference/directives/use-cache), Draft Mode forces all cached functions and components to produce fresh results on every request. You do not need to add any special handling to your caching code.
+
+When Draft Mode is enabled:
+
+- All functions and components under a caching directive scope re-execute on every request instead of serving from cache.
+- Results are not saved to the cache, so draft requests do not pollute cached content.
+- `fetch()` calls inside cached scopes use the original `fetch` implementation directly, without the Next.js fetch cache.
+- Response headers are set to `private, no-cache, no-store, max-age=0, must-revalidate`.
+
+You can read if Draft Mode is enabled inside a caching directive scope, so you can conditionally fetch draft or published content:
+
+```tsx filename="app/post/[slug]/page.tsx" switcher
+import { draftMode } from 'next/headers'
+
+async function Post({ slug }: { slug: string }) {
+  'use cache'
+
+  const { isEnabled } = await draftMode()
+
+  // Fetch draft or published content based on draft mode status
+  const post = isEnabled
+    ? await fetchDraftPost(slug)
+    : await fetchPublishedPost(slug)
+
+  return (
+    <article>
+      <h1>{post.title}</h1>
+      <div>{post.content}</div>
+    </article>
+  )
+}
+```
+
+```jsx filename="app/post/[slug]/page.js" switcher
+import { draftMode } from 'next/headers'
+
+async function Post({ slug }) {
+  'use cache'
+
+  const { isEnabled } = await draftMode()
+
+  // Fetch draft or published content based on draft mode status
+  const post = isEnabled
+    ? await fetchDraftPost(slug)
+    : await fetchPublishedPost(slug)
+
+  return (
+    <article>
+      <h1>{post.title}</h1>
+      <div>{post.content}</div>
+    </article>
+  )
+}
+```
+
+> **Good to know:**
+>
+> - You can await the `draftMode()` promise inside a caching directive scope to read `isEnabled`, but other runtime APIs like `cookies()` and `headers()` are not allowed and will throw an error, even when Draft Mode is active. (The [`"use cache: private"`](/docs/app/api-reference/directives/use-cache-private) directive does allow access to `cookies()` and `headers()`.)
+> - You cannot call `draftMode().enable()` or `draftMode().disable()` inside a caching directive scope. Draft Mode can only be toggled in [Route Handlers](/docs/app/api-reference/file-conventions/route) or [Server Actions](/docs/app/getting-started/mutating-data).
+
+If your cached function needs values from `cookies()` or `headers()`, read them outside the caching directive scope and [pass them as arguments](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions).
