@@ -5,9 +5,9 @@ describe('action forward loop prevention', () => {
     files: __dirname,
   })
 
-  it('does not loop when a rewrite sends the action POST to a route that does not bundle it', async () => {
+  it('renders the action-not-found error when a rewrite sends the action POST to a route that does not bundle it', async () => {
     const browser = await next.browser('/with-action')
     await browser.elementById('run-action').click()
-    await browser.waitForElementByCss('#action-error')
+    await browser.waitForElementByCss('#action-not-found-error')
   })
 })

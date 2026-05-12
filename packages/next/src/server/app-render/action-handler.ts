@@ -279,14 +279,20 @@ async function createForwardedActionResponse(
       }
 
       return new FlightRenderResult(response.body!)
-    } else {
-      // TODO: When the forwarded worker returns an action-not-found 404
-      // (NEXT_ACTION_NOT_FOUND_HEADER), pass that header and status through
-      // so the client throws UnrecognizedActionError instead of the generic
-      // "An unexpected response was received from the server" error.
-      // Since we aren't consuming the response body, we cancel it to avoid memory leaks
-      response.body?.cancel()
     }
+
+    // Pass the action-not-found marker through so the client throws
+    // UnrecognizedActionError instead of a generic "unexpected response".
+    if (response.headers.get(NEXT_ACTION_NOT_FOUND_HEADER) === '1') {
+      response.body?.cancel()
+      res.setHeader(NEXT_ACTION_NOT_FOUND_HEADER, '1')
+      res.setHeader('content-type', 'text/plain')
+      res.statusCode = 404
+      return RenderResult.fromStatic('Server action not found.', 'text/plain')
+    }
+
+    // Since we aren't consuming the response body, we cancel it to avoid memory leaks
+    response.body?.cancel()
   } catch (err) {
     // we couldn't stream the forwarded response, so we'll just return an empty response
     console.error(`failed to forward action response`, err)
