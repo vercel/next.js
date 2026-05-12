@@ -267,8 +267,80 @@ async function startBrowserWithFakeClock(url: string) {
 - Advancing the clock doesn't trigger IntersectionObserver — only viewport changes do
 - `setFixedTime` does NOT fire pending `setTimeout`/`setInterval` callbacks
 
+## Diagnosing Hangs (Watchdog)
+
+When an `act` scope hangs, the test would normally fail with Jest's opaque 60-second timeout (`Exceeded timeout of 60000 ms for a test.`) which gives no hint about where the hang happened. `act` ships with an opt-in watchdog that, when enabled, periodically writes a diagnostic to **stderr** describing exactly which phase of `act` is stuck and which RSC fetches (if any) are in flight.
+
+> **The watchdog is off by default.** Enable it for the test run via `ROUTER_ACT_WATCHDOG_MS=<ms>`. Slow CI jobs can have legitimately long phases (e.g. cold compile), so always-on warnings would be noise; the diagnostic is meant to be turned on while actively investigating a flake.
+
+### Sample output
+
+```
+[router-act #2] scope blocked for 10000ms (threshold 10000ms)
+  phase: wait-fetch-result (stuck 9874ms)
+  phase meta: {"url":"http://localhost:43091/prefetch-auto/foobar?_rsc=..."}
+  in-flight RSC fetches (1):
+    - http://localhost:43091/prefetch-auto/foobar?_rsc=... (9920ms)
+  call site:
+    at Object.<anonymous> (test/e2e/app-dir/app-prefetch/prefetching.test.ts:312:9)
+    ...
+```
+
+The output identifies:
+
+- **scope id** (`#2`): in nested `act` calls, this disambiguates which scope is stuck.
+- **phase**: which `await` inside `act` is blocked. See [Phase names](#phase-names).
+- **phase meta**: phase-specific details (e.g., the URL being fulfilled).
+- **in-flight RSC fetches**: requests that have started against the server but not yet returned a response. A long-running fetch here means the server (not Playwright/the client) is the bottleneck.
+- **call site**: the test source location that called `act`, so you can map a CI failure back to the exact test scope.
+
+### Phase names
+
+| Phase                             | What it's awaiting                                               |
+| --------------------------------- | ---------------------------------------------------------------- |
+| `scope`                           | The user-provided async function passed to `act`.                |
+| `wait-first-request`              | Up to 500ms for the first router request to be initiated.        |
+| `wait-idle-callback-after-scope`  | A `requestIdleCallback` after the scope returns.                 |
+| `wait-pending-checks-after-scope` | The async route-handler checks for the requests so far.          |
+| `wait-fetch-result`               | The server response for an intercepted request.                  |
+| `fulfill-response`                | Playwright fulfilling the intercepted response back to the page. |
+| `wait-browser-finished`           | The browser finishing reading the fulfilled response body.       |
+| `wait-redirect`                   | A redirect's follow-up request to settle.                        |
+| `wait-idle-callback-loop`         | A `requestIdleCallback` between batches of router requests.      |
+| `wait-pending-checks-loop`        | Async route-handler checks between batches.                      |
+| `cleanup`                         | Removing route handlers / framedetached listener.                |
+
+### Common patterns to look for
+
+- **`phase: scope`, no in-flight fetches**: the hang is inside the user-provided function. The most common cause is calling `link.click()` or `elementByCss()` on something that never becomes actionable (e.g. a detached element). Look at the captured call site to find which `act` call is stuck.
+- **`phase: scope`, in-flight fetches > 0 with large elapsed times**: the server isn't responding. Likely the dev server is slow, the page is making a streaming request that never finishes, or a stalled upstream fetch.
+- **`phase: wait-fetch-result` or `wait-browser-finished`**: same as above — the server hasn't returned a response, or the browser hasn't drained the response body. Check the URL in `phase meta`.
+- **`phase: wait-idle-callback-*`**: rare, but possible if the browser's idle callback queue is jammed. See the `waitForIdleCallback` retry comment in `router-act.ts`.
+- **`phase: cleanup`**: `page.unroute()` is hanging — usually only happens when the page context has been torn down externally.
+
+### Configuration
+
+The watchdog is **off by default**. Opt in by setting `ROUTER_ACT_WATCHDOG_MS` to the threshold (in ms) before the first diagnostic is emitted:
+
+```bash
+# Enable; diagnostic fires once an `act` phase has been stuck this long.
+ROUTER_ACT_WATCHDOG_MS=5000
+
+# (optional) re-emit interval while still stuck. Default 5000 ms.
+ROUTER_ACT_WATCHDOG_INTERVAL_MS=2000
+```
+
+`ROUTER_ACT_WATCHDOG_MS=0` or unset = disabled (no overhead, no stderr noise). For active flake investigation, a value of `2000`–`5000` is a good starting point — well below Jest's 60s timeout, so you get multiple data points across the hang.
+
+`scripts/repro-flake.mjs` enables the watchdog automatically (defaults to `--watchdog 5000`) so you don't need to set it manually when looping a test for flake reproduction.
+
+### Reading the diagnostic from a CI log
+
+Look for `[router-act #` in the failed-test stderr. There is usually more than one warning emitted before Jest finally times out, which lets you confirm whether the phase stayed stuck the entire time (real deadlock) or rotated through several phases (slow but progressing).
+
 ## Reference
 
 - `createRouterAct`: `test/lib/router-act.ts`
+- Watchdog unit tests: `test/unit/router-act-watchdog.test.ts`
 - `LinkAccordion`: `test/e2e/app-dir/segment-cache/staleness/components/link-accordion.tsx`
 - Example tests: `test/e2e/app-dir/segment-cache/staleness/`

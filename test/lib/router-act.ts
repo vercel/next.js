@@ -21,6 +21,70 @@ type PendingRSCRequest = {
 
 let currentBatch: Batch | null = null
 
+// Diagnostic instrumentation for `act`. When enabled and `act` blocks longer
+// than the configured threshold, a periodic watchdog dumps the current
+// phase, the URLs of any in-flight RSC fetches, and the call site to
+// stderr. This pinpoints the source of CI hangs without having to wait for
+// Jest's 60s test timeout to fire (which produces an opaque error message).
+//
+// **Off by default** — opt in with `ROUTER_ACT_WATCHDOG_MS=<ms>`. Slow CI
+// jobs can take longer than typical local timing for healthy reasons, so
+// always-on warnings produce noise; the diagnostic should be enabled only
+// when actively investigating flakiness (e.g. via `scripts/repro-flake.mjs`,
+// which sets the env var automatically).
+//
+// Configurable via env vars:
+//   ROUTER_ACT_WATCHDOG_MS=<ms>   threshold before a warning is emitted.
+//                                 Default 0 (disabled).
+//   ROUTER_ACT_WATCHDOG_INTERVAL_MS=<ms>  re-emit warning every N ms while
+//                                         still stuck. Default 5000.
+type PhaseName =
+  | 'scope'
+  | 'wait-first-request'
+  | 'wait-idle-callback-after-scope'
+  | 'wait-pending-checks-after-scope'
+  | 'wait-fetch-result'
+  | 'fulfill-response'
+  | 'wait-browser-finished'
+  | 'wait-redirect'
+  | 'wait-idle-callback-loop'
+  | 'wait-pending-checks-loop'
+  | 'cleanup'
+
+const WATCHDOG_THRESHOLD_MS = (() => {
+  const raw = process.env.ROUTER_ACT_WATCHDOG_MS
+  if (raw === undefined) return 0
+  const parsed = parseInt(raw, 10)
+  return Number.isFinite(parsed) ? parsed : 0
+})()
+
+const WATCHDOG_REPEAT_MS = (() => {
+  const raw = process.env.ROUTER_ACT_WATCHDOG_INTERVAL_MS
+  if (raw === undefined) return 5_000
+  const parsed = parseInt(raw, 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5_000
+})()
+
+// Hard timeout (ms) for `browserResponse.finished()` calls. This Playwright
+// API is known to occasionally never resolve (see usage site for details).
+// Set to 0 to disable the timeout (the call will then wait until Jest's
+// own test timeout fires).
+const BROWSER_FINISHED_TIMEOUT_MS = (() => {
+  const raw = process.env.ROUTER_ACT_BROWSER_FINISHED_TIMEOUT_MS
+  if (raw === undefined) return 30_000
+  const parsed = parseInt(raw, 10)
+  return Number.isFinite(parsed) ? parsed : 30_000
+})()
+
+// Write watchdog diagnostics directly to stderr so they always reach the CI
+// job log regardless of how the test runner / framework may have patched the
+// `console` global.
+function emitWatchdogDiagnostic(message: string) {
+  process.stderr.write(message + '\n')
+}
+
+let nextScopeId = 1
+
 type ExpectedResponseConfig = {
   includes: string
   block?: boolean | 'reject'
@@ -134,6 +198,62 @@ export function createRouterAct(
       Error.captureStackTrace(error, act)
     }
 
+    // Phase tracking + in-flight fetch tracking for the watchdog diagnostic.
+    // Every major `await` inside this scope is bracketed by a `setPhase()`
+    // call so the watchdog can report exactly where the scope is stuck.
+    const scopeId = nextScopeId++
+    type InFlightFetch = { url: string; startedAt: number }
+    const inFlightFetches = new Set<InFlightFetch>()
+    let currentPhase: {
+      name: PhaseName
+      startedAt: number
+      meta?: Record<string, unknown>
+    } = { name: 'scope', startedAt: Date.now() }
+    let lastWarnAtElapsedMs = 0
+
+    const setPhase = (name: PhaseName, meta?: Record<string, unknown>) => {
+      currentPhase = { name, startedAt: Date.now(), meta }
+      lastWarnAtElapsedMs = 0
+    }
+    const trackFetch = (url: string): (() => void) => {
+      const tracker: InFlightFetch = { url, startedAt: Date.now() }
+      inFlightFetches.add(tracker)
+      return () => {
+        inFlightFetches.delete(tracker)
+      }
+    }
+    const formatStackHead = (stack: string | undefined): string => {
+      if (!stack) return '<no stack available>'
+      const lines = stack.split('\n')
+      // Skip the leading "Error" line; show the first ~5 user frames.
+      return lines.slice(1, 6).join('\n')
+    }
+    const dumpDiagnostics = (reason: string): void => {
+      const phaseElapsed = Date.now() - currentPhase.startedAt
+      const out: string[] = []
+      out.push(`[router-act #${scopeId}] ${reason}`)
+      out.push(`  phase: ${currentPhase.name} (stuck ${phaseElapsed}ms)`)
+      if (currentPhase.meta) {
+        out.push(`  phase meta: ${JSON.stringify(currentPhase.meta)}`)
+      }
+      if (inFlightFetches.size > 0) {
+        out.push(`  in-flight RSC fetches (${inFlightFetches.size}):`)
+        for (const fetch of inFlightFetches) {
+          out.push(`    - ${fetch.url} (${Date.now() - fetch.startedAt}ms)`)
+        }
+      } else {
+        out.push(`  in-flight RSC fetches: 0`)
+      }
+      out.push(`  call site:`)
+      out.push(formatStackHead(error.stack))
+      emitWatchdogDiagnostic(out.join('\n'))
+    }
+
+    // The watchdog timer is allocated below, just before the try/finally
+    // block that owns its cleanup, so it can never leak when early validation
+    // throws.
+    let watchdogTimer: ReturnType<typeof setInterval> | null = null
+
     let expectedResponses: Array<ExpectedResponseConfig> | null
     let forbiddenResponses: Array<ExpectedResponseConfig> | null = null
     let shouldBlockAll = false
@@ -217,39 +337,45 @@ export function createRouterAct(
         if (isRouterRequest) {
           // This request was initiated by the Next.js Router. Intercept it and
           // add it to the current batch.
+          const requestUrl = request.url()
           pendingRequests.add({
-            url: request.url(),
+            url: requestUrl,
             route,
             // `act` controls the timing of when responses reach the client,
             // but it should not affect the timing of when requests reach the
             // server; we pass the request to the server the immediately.
             result: (async () => {
-              let originalResponse: Playwright.APIResponse
+              const untrackFetch = trackFetch(requestUrl)
               try {
-                originalResponse = await page.request.fetch(request, {
-                  maxRedirects: 0,
-                })
-              } catch (fetchError) {
-                error.message =
-                  fetchError instanceof Error
-                    ? fetchError.message
-                    : String(fetchError)
-                throw error
-              }
+                let originalResponse: Playwright.APIResponse
+                try {
+                  originalResponse = await page.request.fetch(request, {
+                    maxRedirects: 0,
+                  })
+                } catch (fetchError) {
+                  error.message =
+                    fetchError instanceof Error
+                      ? fetchError.message
+                      : String(fetchError)
+                  throw error
+                }
 
-              // WORKAROUND:
-              // intercepting responses with 'Transfer-Encoding: chunked' (used for streaming)
-              // seems to be problematic sometimes, making the browser error with `net::ERR_INCOMPLETE_CHUNKED_ENCODING`.
-              // In particular, this seems to happen when blocking a streaming navigation response. (but not always)
-              // Playwright buffers the whole body anyway, so we can remove the header to sidestep this.
-              const headers = originalResponse.headers()
-              delete headers['transfer-encoding']
+                // WORKAROUND:
+                // intercepting responses with 'Transfer-Encoding: chunked' (used for streaming)
+                // seems to be problematic sometimes, making the browser error with `net::ERR_INCOMPLETE_CHUNKED_ENCODING`.
+                // In particular, this seems to happen when blocking a streaming navigation response. (but not always)
+                // Playwright buffers the whole body anyway, so we can remove the header to sidestep this.
+                const headers = originalResponse.headers()
+                delete headers['transfer-encoding']
 
-              return {
-                text: await originalResponse.text(),
-                body: await originalResponse.body(),
-                headers,
-                status: originalResponse.status(),
+                return {
+                  text: await originalResponse.text(),
+                  body: await originalResponse.body(),
+                  headers,
+                  status: originalResponse.status(),
+                }
+              } finally {
+                untrackFetch()
               }
             })(),
             didProcess: false,
@@ -301,12 +427,39 @@ export function createRouterAct(
     currentBatch = batch
     await page.route('**/*', routeHandler)
     page.on('framedetached', hardNavigationHandler)
+
+    if (WATCHDOG_THRESHOLD_MS > 0) {
+      // Pick a check cadence that adapts to the threshold so very low
+      // thresholds (used by unit tests) still trigger, while normal use
+      // (threshold 10s+) doesn't spin too aggressively.
+      const checkIntervalMs = Math.min(
+        1_000,
+        Math.max(Math.floor(WATCHDOG_THRESHOLD_MS / 2), 50)
+      )
+      watchdogTimer = setInterval(() => {
+        const elapsed = Date.now() - currentPhase.startedAt
+        if (
+          elapsed >= WATCHDOG_THRESHOLD_MS &&
+          elapsed - lastWarnAtElapsedMs >= WATCHDOG_REPEAT_MS
+        ) {
+          dumpDiagnostics(
+            `scope blocked for ${elapsed}ms (threshold ${WATCHDOG_THRESHOLD_MS}ms)`
+          )
+          lastWarnAtElapsedMs = elapsed
+        }
+      }, checkIntervalMs)
+      // Don't keep the process alive on the watchdog timer.
+      watchdogTimer.unref?.()
+    }
+
     try {
       // Call the user-provided scope function
+      setPhase('scope')
       const returnValue = await scope()
 
       // Wait until the first request is initiated, up to some timeout.
       if (expectedResponses !== null && batch.pendingRequests.size === 0) {
+        setPhase('wait-first-request')
         await new Promise<void>((resolve, reject) => {
           const timerId = setTimeout(() => {
             error.message = 'Timed out waiting for a request to be initiated.'
@@ -328,11 +481,13 @@ export function createRouterAct(
       // We use requestIdleCallback to schedule the task because that's
       // guaranteed to fire after any IntersectionObserver events, which the
       // router uses to track the visibility of links.
+      setPhase('wait-idle-callback-after-scope')
       await waitForIdleCallback()
 
       // Checking whether a request needs to be intercepted is an async
       // operation, so we need to wait for all the checks to complete before
       // checking whether the queue is empty.
+      setPhase('wait-pending-checks-after-scope')
       await waitForPendingRequestChecks()
 
       // Because responding to one request may unblock additional requests,
@@ -350,6 +505,7 @@ export function createRouterAct(
           const url = item.url
 
           let shouldBlock = false
+          setPhase('wait-fetch-result', { url })
           const fulfilled = await item.result
           if (item.didProcess) {
             // This response was already processed by an inner `act` call.
@@ -493,6 +649,7 @@ ${fulfilled.body}
           } else {
             if (route !== null) {
               const request = route.request()
+              setPhase('fulfill-response', { url, status: fulfilled.status })
               await route.fulfill({
                 body: fulfilled.body,
                 headers: fulfilled.headers,
@@ -503,13 +660,51 @@ ${fulfilled.body}
                 // For error responses (>= 400), the browser may not consume the body
                 // in the same way, so we skip waiting for finished() to avoid hanging
                 if (fulfilled.status < 400) {
-                  await browserResponse.finished()
+                  setPhase('wait-browser-finished', { url })
+                  // `browserResponse.finished()` is known to occasionally
+                  // never resolve — most commonly when the test triggered a
+                  // navigation inside the same `act` scope, which can leave
+                  // Playwright's response-finished tracking orphaned as the
+                  // document transitions. Without a timeout this would hang
+                  // until Jest's 60s test timeout fires, producing an opaque
+                  // error. Fail fast with a labeled error instead.
+                  //
+                  // Configurable via ROUTER_ACT_BROWSER_FINISHED_TIMEOUT_MS
+                  // (default 30000; set to 0 to disable).
+                  if (BROWSER_FINISHED_TIMEOUT_MS > 0) {
+                    let timer: ReturnType<typeof setTimeout> | null = null
+                    try {
+                      await Promise.race([
+                        browserResponse.finished(),
+                        new Promise<never>((_, reject) => {
+                          timer = setTimeout(() => {
+                            error.message =
+                              `browserResponse.finished() did not resolve ` +
+                              `within ${BROWSER_FINISHED_TIMEOUT_MS}ms for ` +
+                              `${url}.\n\n` +
+                              `This usually means the test triggered a ` +
+                              `navigation inside the same \`act\` scope as ` +
+                              `the response being awaited. Move the ` +
+                              `navigation outside of \`act\` (see the ` +
+                              `router-act SKILL on "Navigating and waiting ` +
+                              `for render in the same act scope").`
+                            reject(error)
+                          }, BROWSER_FINISHED_TIMEOUT_MS)
+                        }),
+                      ])
+                    } finally {
+                      if (timer !== null) clearTimeout(timer)
+                    }
+                  } else {
+                    await browserResponse.finished()
+                  }
                 }
               }
             }
           }
 
           if (fulfilled.status === 307 || fulfilled.status === 308) {
+            setPhase('wait-redirect', { url })
             // When fulfilling a redirect, for some reason, the page.route()
             // handler installed earlier will not intercept the
             // redirect request. Install a one-off event listener to wait for
@@ -566,8 +761,10 @@ ${fulfilled.body}
         // network throttled, the next request is issued either directly within
         // the task of the previous request's completion event, or in the
         // microtask queue of that event.
+        setPhase('wait-idle-callback-loop')
         await waitForIdleCallback()
 
+        setPhase('wait-pending-checks-loop')
         await waitForPendingRequestChecks()
       }
 
@@ -618,9 +815,16 @@ ${fulfilled.body}
       return returnValue
     } finally {
       // Clean up
+      setPhase('cleanup')
       currentBatch = prevBatch
-      await page.unroute('**/*', routeHandler)
-      page.off('framedetached', hardNavigationHandler)
+      try {
+        await page.unroute('**/*', routeHandler)
+      } finally {
+        page.off('framedetached', hardNavigationHandler)
+        if (watchdogTimer !== null) {
+          clearInterval(watchdogTimer)
+        }
+      }
     }
   }
 

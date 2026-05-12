@@ -329,17 +329,27 @@ describe('app dir - prefetching', () => {
       { includes: 'Loading Prefetch Auto' }
     )
 
-    // Click the link to navigate - should trigger dynamic data fetch
-    const loadingText = await act(
-      async () => {
-        await link.click()
-        return browser.elementByCss('#loading-text').text()
-      },
-      { includes: 'prefetch-auto-page-data' }
-    )
-    expect(loadingText).toBe('Loading Prefetch Auto')
+    // Click the link to navigate. The loading state is already in the
+    // prefetch cache, so it should render immediately without waiting for
+    // the dynamic data fetch.
+    //
+    // NOTE: do not wrap this in `act`. Triggering a navigation and then
+    // reading destination content in the same `act` scope races against
+    // Playwright's internal response-finished tracking, and intermittently
+    // causes `browserResponse.finished()` to never resolve for the
+    // dynamic-data RSC request — which would surface as a 60s Jest timeout.
+    // The dynamic data fetch is awaited via `waitForElementByCss` below.
+    const beforeClick = Date.now()
+    await link.click()
+    const loadingText = await browser.elementByCss('#loading-text').text()
+    const afterLoadingText = Date.now()
 
-    // Wait for final data to appear
+    expect(loadingText).toBe('Loading Prefetch Auto')
+    // Sanity-check the original assertion of this test: the loading state
+    // was served from the prefetch cache, not after a network round-trip.
+    expect(afterLoadingText - beforeClick).toBeLessThan(1000)
+
+    // Wait for the dynamic data to arrive and replace the loading state.
     await browser.waitForElementByCss('#prefetch-auto-page-data')
   })
 
