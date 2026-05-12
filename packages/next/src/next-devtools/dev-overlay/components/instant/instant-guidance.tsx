@@ -17,7 +17,7 @@ export type { GuidanceKind, GuidanceVariant } from './instant-guidance-data'
 
 function getCardShortTitle(card: FixCard): string {
   switch (card.title) {
-    case 'Provide a placeholder with Suspense':
+    case 'Show a falback while data loads':
     case 'Wrap in Suspense':
     case 'Wrap body in Suspense':
       return 'Stream'

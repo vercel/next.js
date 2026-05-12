@@ -25,7 +25,7 @@ export type Snippet = {
 
 const runtimeCards: FixCard[] = [
   {
-    title: 'Provide a placeholder with Suspense',
+    title: 'Show a falback while data loads',
     color: 'purple',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
@@ -38,14 +38,8 @@ const runtimeCards: FixCard[] = [
     color: 'blue',
     conditional: true,
     snippets: [
-      { text: 'export async function' },
       {
-        text: '  generateStaticParams() {',
-        parts: [
-          { text: '  ' },
-          { text: 'generateStaticParams()', highlight: true },
-          { text: ' {' },
-        ],
+        text: 'async function generateStaticParams() {',
       },
       {
         text: '  return [{ slug: "…" }]',
@@ -80,7 +74,7 @@ const dynamicCards: FixCard[] = [
     ],
   },
   {
-    title: 'Provide a placeholder with Suspense',
+    title: 'Show a falback while data loads',
     color: 'purple',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },

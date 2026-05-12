@@ -791,7 +791,6 @@ export const styles = `
     align-items: start;
     justify-content: space-between;
     flex-wrap: wrap;
-    margin-bottom: 14px;
     gap: 12px;
     position: relative;
   }

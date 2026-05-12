@@ -26,7 +26,6 @@ import {
 } from '../dialog/header'
 import { ErrorOverlayDialogBody, DIALOG_BODY_STYLES } from '../dialog/body'
 import { OVERLAY_STYLES, ErrorOverlayOverlay } from '../overlay/overlay'
-import { ErrorOverlayBottomStack } from '../error-overlay-bottom-stack'
 import type { ErrorBaseProps } from '../error-overlay/error-overlay'
 import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 import { EnvironmentNameLabel } from '../environment-name-label/environment-name-label'
@@ -154,11 +153,6 @@ export function ErrorOverlayLayout({
               <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
             </DialogContent>
           </Resizer>
-
-          <ErrorOverlayBottomStack
-            errorCount={errorCount}
-            activeIdx={activeIdx ?? 0}
-          />
         </ErrorOverlayDialog>
       </div>
     </ErrorOverlayOverlay>
