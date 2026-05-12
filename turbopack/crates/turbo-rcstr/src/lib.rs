@@ -32,7 +32,10 @@ use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 use crate::{
-    dynamic::{deref_from, hash_bytes, new_atom, new_atom_from_prehashed, new_static_atom},
+    dynamic::{
+        DynamicPrehashedString, deref_dynamic, deref_static, hash_bytes, new_atom,
+        new_atom_from_prehashed, new_static_atom,
+    },
     tagged_value::{MAX_INLINE_LEN, TaggedValue},
 };
 
@@ -121,9 +124,10 @@ impl RcStr {
 
     #[inline(never)]
     pub fn as_str(&self) -> &str {
-        match self.location() {
-            PREHASHED_STRING_LOCATION => self.prehashed_string_as_str(),
-            INLINE_LOCATION => self.inline_as_str(),
+        match self.tag() {
+            STATIC_TAG => unsafe { deref_static(self.unsafe_data).value },
+            DYNAMIC_TAG => unsafe { &deref_dynamic(self.unsafe_data).value },
+            INLINE_TAG => self.inline_as_str(),
             _ => unsafe { debug_unreachable!() },
         }
     }
@@ -133,12 +137,6 @@ impl RcStr {
         let len = (self.unsafe_data.tag_byte() & LEN_MASK) >> LEN_OFFSET;
         let src = self.unsafe_data.data();
         unsafe { std::str::from_utf8_unchecked(&src[..(len as usize)]) }
-    }
-
-    // Extract the str reference from a string stored in a PrehashedString
-    fn prehashed_string_as_str(&self) -> &str {
-        debug_assert!(self.location() == PREHASHED_STRING_LOCATION);
-        unsafe { dynamic::deref_from(self.unsafe_data).value.as_str() }
     }
 
     /// Returns an owned mutable [`String`].
@@ -154,12 +152,13 @@ impl RcStr {
                 // convert `self` into `arc`
                 let arc = unsafe { dynamic::restore_arc(ManuallyDrop::new(self).unsafe_data) };
                 match Arc::try_unwrap(arc) {
-                    Ok(v) => v.value.into_string(),
-                    Err(arc) => arc.value.as_str().to_string(),
+                    // `String::from(Box<str>)` reuses the boxed allocation, so this is O(1).
+                    Ok(v) => String::from(v.value),
+                    Err(arc) => arc.value.to_string(),
                 }
             }
             INLINE_TAG => self.inline_as_str().to_string(),
-            STATIC_TAG => self.prehashed_string_as_str().to_string(),
+            STATIC_TAG => unsafe { deref_static(self.unsafe_data).value.to_string() },
             _ => unsafe { debug_unreachable!() },
         }
     }
@@ -179,13 +178,13 @@ impl RcStr {
             let hash = hash_bytes(s.as_bytes());
             // Check the static table
             if let Some(entries) = STATIC_TABLE.get(&hash)
-                && let Some(static_phs) = entries.iter().find(|phs| phs.value.as_str() == s)
+                && let Some(static_phs) = entries.iter().find(|phs| phs.value == s)
             {
                 new_static_atom(static_phs)
             } else {
-                new_atom_from_prehashed(PrehashedString {
+                new_atom_from_prehashed(DynamicPrehashedString {
                     hash,
-                    value: dynamic::Payload::String(s.into()),
+                    value: s.into(),
                 })
             }
         } else {
@@ -358,17 +357,33 @@ impl PartialEq for RcStr {
         if self.unsafe_data == other.unsafe_data {
             return true;
         }
-        // They can still be equal if they are both stored on the heap
-        match (self.location(), other.location()) {
-            (PREHASHED_STRING_LOCATION, PREHASHED_STRING_LOCATION) => {
-                let l = unsafe { deref_from(self.unsafe_data) };
-                let r = unsafe { deref_from(other.unsafe_data) };
-                l.hash == r.hash && l.value == r.value
-            }
-            // NOTE: it is never possible for an inline storage string to compare equal to a dynamic
-            // allocated string, the construction routines separate the strings based on length.
-            _ => false,
+        // They can still be equal if they are both stored on the heap (STATIC or DYNAMIC).
+        // NOTE: it is never possible for an inline storage string to compare equal to a heap
+        // allocated string, the construction routines separate the strings based on length.
+        if self.location() != PREHASHED_STRING_LOCATION
+            || other.location() != PREHASHED_STRING_LOCATION
+        {
+            return false;
         }
+        let (l_hash, l_str) = unsafe { heap_hash_and_str(self) };
+        let (r_hash, r_str) = unsafe { heap_hash_and_str(other) };
+        l_hash == r_hash && l_str == r_str
+    }
+}
+
+/// Caller must ensure `s.location() == PREHASHED_STRING_LOCATION`.
+#[inline]
+unsafe fn heap_hash_and_str(s: &RcStr) -> (u64, &str) {
+    match s.tag() {
+        STATIC_TAG => {
+            let p = unsafe { deref_static(s.unsafe_data) };
+            (p.hash, p.value)
+        }
+        DYNAMIC_TAG => {
+            let p = unsafe { deref_dynamic(s.unsafe_data) };
+            (p.hash, &p.value)
+        }
+        _ => unsafe { debug_unreachable!() },
     }
 }
 
@@ -390,8 +405,8 @@ impl Hash for RcStr {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self.location() {
             PREHASHED_STRING_LOCATION => {
-                let l = unsafe { deref_from(self.unsafe_data) };
-                state.write_u64(l.hash);
+                let (h, _) = unsafe { heap_hash_and_str(self) };
+                state.write_u64(h);
                 state.write_u8(0xff); // matches the implementation of the `str` Hash impl
             }
             INLINE_LOCATION => {
@@ -497,16 +512,16 @@ pub const fn is_atom_inlineable(s: &str) -> bool {
 
 #[doc(hidden)]
 #[inline(always)]
-pub const fn from_static(s: &'static PrehashedString) -> RcStr {
+pub const fn from_static(s: &'static StaticPrehashedString) -> RcStr {
     dynamic::new_static_atom(s)
 }
 #[doc(hidden)]
-pub use dynamic::PrehashedString;
+pub use dynamic::StaticPrehashedString;
 
 #[doc(hidden)]
-pub const fn make_const_prehashed_string(text: &'static str) -> PrehashedString {
-    PrehashedString {
-        value: dynamic::Payload::Ref(text),
+pub const fn make_const_prehashed_string(text: &'static str) -> StaticPrehashedString {
+    StaticPrehashedString {
+        value: text,
         hash: hash_bytes(text.as_bytes()),
     }
 }
@@ -517,7 +532,7 @@ pub use inventory;
 
 /// Wrapper for collecting `rcstr!` static constants via `inventory`.
 #[doc(hidden)]
-pub struct StaticRcStr(pub &'static PrehashedString);
+pub struct StaticRcStr(pub &'static StaticPrehashedString);
 
 inventory::collect!(StaticRcStr);
 
@@ -535,21 +550,21 @@ macro_rules! __rcstr_inventory_submit {
     };
 }
 
-/// Read-only lookup table mapping precomputed hash -> static PrehashedString.
+/// Read-only lookup table mapping precomputed hash -> static StaticPrehashedString.
 /// Built once on first access from all `rcstr!` constants collected by `inventory`.
 ///
 /// Multiple `rcstr!` calls with the same string content will each submit to
 /// inventory, but we deduplicate by content here so only one entry per unique
 /// string is stored.
 static STATIC_TABLE: LazyLock<
-    HashMap<u64, SmallVec<[&'static PrehashedString; 1]>, FxBuildHasher>,
+    HashMap<u64, SmallVec<[&'static StaticPrehashedString; 1]>, FxBuildHasher>,
 > = LazyLock::new(|| {
-    let mut map: HashMap<u64, SmallVec<[&'static PrehashedString; 1]>, FxBuildHasher> =
+    let mut map: HashMap<u64, SmallVec<[&'static StaticPrehashedString; 1]>, FxBuildHasher> =
         HashMap::with_hasher(FxBuildHasher);
     for StaticRcStr(phs) in inventory::iter::<StaticRcStr> {
-        if phs.value.as_str().len() <= MAX_INLINE_LEN {
+        if phs.value.len() <= MAX_INLINE_LEN {
             // This is rare, but possible if our macro cannot determine the length of the string at
-            // macro time we may end up with a wasted PrehashedString submitted to inventory.
+            // macro time we may end up with a wasted StaticPrehashedString submitted to inventory.
 
             // Just skip it
             continue;
@@ -558,10 +573,7 @@ static STATIC_TABLE: LazyLock<
         // Deduplicate: skip if an entry with the same string content exists
         // Mostly linkers will merge static strings but this isn't guaranteed so we cannot just rely
         // on pointer equality.
-        if !entries
-            .iter()
-            .any(|e| e.value.as_str() == phs.value.as_str())
-        {
+        if !entries.iter().any(|e| e.value == phs.value) {
             entries.push(phs);
         }
     }
