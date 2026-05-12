@@ -209,15 +209,22 @@ jobs:
           fi
 
       # The Microsoft Playwright `*-jammy` container image does not ship
-      # `jq`, but the Install fnm step below pipes `fnm env --json` through
-      # it. Install jq when running as root (i.e. inside the container) so
-      # subsequent steps work. On the host runners jq is already present.
-      - name: Ensure jq is available (Linux container)
+      # `jq` or `unzip`, but the Install fnm step below uses the
+      # `fnm.vercel.app/install` script which requires `unzip`, and pipes
+      # `fnm env --json` through `jq`. Install both when running as root
+      # (i.e. inside the container). On the host runners these are already
+      # present so this step is a fast no-op.
+      - name: Ensure fnm install dependencies are available (Linux container)
         if: ${{ runner.os == 'Linux' && steps.check-fnm.outputs.found != 'true' }}
         run: |
-          if [ "$(id -u)" = "0" ] && ! command -v jq >/dev/null 2>&1; then
-            apt-get -o DPkg::Lock::Timeout=60 update
-            apt-get -o DPkg::Lock::Timeout=60 install -y --no-install-recommends jq
+          if [ "$(id -u)" = "0" ]; then
+            MISSING=()
+            command -v jq >/dev/null 2>&1 || MISSING+=(jq)
+            command -v unzip >/dev/null 2>&1 || MISSING+=(unzip)
+            if [ ${#MISSING[@]} -gt 0 ]; then
+              apt-get -o DPkg::Lock::Timeout=60 update
+              apt-get -o DPkg::Lock::Timeout=60 install -y --no-install-recommends "${MISSING[@]}"
+            fi
           fi
 
       - name: Install fnm
