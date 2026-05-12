@@ -7,6 +7,7 @@ import globOrig from 'glob'
 import express from 'express'
 import http from 'http'
 import { createReadStream } from 'fs'
+import type { Socket } from 'net'
 import {
   waitForRedbox,
   getRedboxHeader,
@@ -57,7 +58,15 @@ export async function buildAndStartOutputExportServer(
 
   const app = express()
   const server = http.createServer(app)
+  const sockets = new Set<Socket>()
   const fallbackHtml = join(outDir, '_fallback.html')
+
+  server.on('connection', (socket) => {
+    sockets.add(socket)
+    socket.on('close', () => {
+      sockets.delete(socket)
+    })
+  })
 
   app.use((req, _res, nextHandler) => {
     requests.push(req.url || '/')
@@ -91,7 +100,10 @@ export async function buildAndStartOutputExportServer(
     port,
     getRequests,
     clearRequests,
-    stopOrKill: () => stopApp(server),
+    stopOrKill: async () => {
+      sockets.forEach((socket) => socket.destroy())
+      await stopApp(server)
+    },
   }
 }
 
