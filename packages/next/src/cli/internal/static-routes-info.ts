@@ -386,12 +386,20 @@ function collectServerEntryFiles(
  *   Webpack (no spaces around `=`, single line):
  *     globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["/page"]={...};
  *
- * Rather than evaluating user-bundled code, find the FIRST
- * `globalThis.__RSC_MANIFEST[<entry>] = {` (allowing optional whitespace
- * around `=`) and balance-walk the `{...}` that follows. This skips both
- * the `MANIFEST = MANIFEST || {}` boilerplate (no `[<entry>]`) and the
- * Turbopack suffix's `MANIFEST[<entry>].clientModules[k] = val` (which has
- * `].clientModules`, not `]=`, after the entry's `]`).
+ * Rather than evaluating user-bundled code, locate the FIRST
+ * `globalThis.__RSC_MANIFEST[` occurrence (which is always the entry-key
+ * assignment — the `MANIFEST = MANIFEST || {}` boilerplate has no `[`
+ * after the global). Then properly walk the JS string literal that holds
+ * the entry name (handling escapes), so route names containing `]` —
+ * e.g. dynamic segments like `[teamSlug]` or route groups inside dynamic
+ * params — don't terminate the bracket early. After the closing `]` we
+ * expect `=` then `{`, and balance-walk the object body.
+ *
+ * Returns `null` only when the file doesn't exist (a normal case for
+ * server entries that have no client-reference manifest, e.g. middleware
+ * or non-app routes). Any structural surprise — manifest header missing,
+ * unterminated string/object, or invalid JSON — throws so we never
+ * silently undercount client JS/CSS.
  */
 function parseClientReferenceManifest(filePath: string): {
   entryJSFiles?: Record<string, string[]>
@@ -404,18 +412,70 @@ function parseClientReferenceManifest(filePath: string): {
   } catch {
     return null
   }
-  // Match `globalThis.__RSC_MANIFEST[<key>]<ws>=<ws>` immediately followed
-  // by `{`. Lookahead keeps the regex's match end positioned at `{`.
-  const m = /globalThis\.__RSC_MANIFEST\s*\[[^\]]*\]\s*=\s*(?=\{)/.exec(content)
-  if (!m) return null
-  const start = m.index + m[0].length
-  // Walk balanced braces, ignoring `{` / `}` inside string literals so a
-  // CSS path like "{foo}" inside JSON doesn't break the count.
+
+  const ANCHOR = 'globalThis.__RSC_MANIFEST['
+  const anchorIdx = content.indexOf(ANCHOR)
+  if (anchorIdx === -1) {
+    throw new Error(
+      `Could not find 'globalThis.__RSC_MANIFEST[' in ${filePath}; client reference manifest format may have changed.`
+    )
+  }
+
+  // Walk a JS string literal starting at `i` (which must point at the
+  // opening quote). Returns the index just past the closing quote.
+  const skipString = (i: number): number => {
+    const quote = content[i]
+    if (quote !== '"' && quote !== "'") {
+      throw new Error(
+        `Expected string literal as entry name in ${filePath} at offset ${i}, got ${JSON.stringify(content[i])}.`
+      )
+    }
+    i++
+    let escape = false
+    while (i < content.length) {
+      const ch = content[i]
+      if (escape) {
+        escape = false
+      } else if (ch === '\\') {
+        escape = true
+      } else if (ch === quote) {
+        return i + 1
+      }
+      i++
+    }
+    throw new Error(`Unterminated entry-name string literal in ${filePath}.`)
+  }
+
+  // Skip whitespace forward from `i` and assert the next char is `expected`.
+  const expectChar = (i: number, expected: string): number => {
+    while (i < content.length && /\s/.test(content[i])) i++
+    if (content[i] !== expected) {
+      throw new Error(
+        `Expected '${expected}' after entry name in ${filePath} at offset ${i}, got ${JSON.stringify(content[i] ?? '<eof>')}.`
+      )
+    }
+    return i + 1
+  }
+
+  // After `globalThis.__RSC_MANIFEST[` walk: <string> ] = {
+  let i = skipString(anchorIdx + ANCHOR.length)
+  i = expectChar(i, ']')
+  i = expectChar(i, '=')
+  while (i < content.length && /\s/.test(content[i])) i++
+  if (content[i] !== '{') {
+    throw new Error(
+      `Expected '{' after 'globalThis.__RSC_MANIFEST[...] =' in ${filePath} at offset ${i}, got ${JSON.stringify(content[i] ?? '<eof>')}.`
+    )
+  }
+
+  // Balance-walk `{...}`, ignoring `{` / `}` inside string literals so a
+  // CSS path like "{foo}" inside JSON doesn't throw the count off.
+  const start = i
   let depth = 0
   let inString = false
   let quote = ''
   let escape = false
-  for (let i = start; i < content.length; i++) {
+  for (; i < content.length; i++) {
     const ch = content[i]
     if (inString) {
       if (escape) {
@@ -435,15 +495,18 @@ function parseClientReferenceManifest(filePath: string): {
     } else if (ch === '}') {
       depth--
       if (depth === 0) {
+        const body = content.slice(start, i + 1)
         try {
-          return JSON.parse(content.slice(start, i + 1))
-        } catch {
-          return null
+          return JSON.parse(body)
+        } catch (err) {
+          throw new Error(
+            `Failed to parse JSON body of ${filePath}: ${(err as Error).message}`
+          )
         }
       }
     }
   }
-  return null
+  throw new Error(`Unterminated JSON object in ${filePath}.`)
 }
 
 /**

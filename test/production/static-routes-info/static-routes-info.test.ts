@@ -153,6 +153,16 @@ describe('next internal static-routes-info', () => {
     // is now reported as `app-route` (peer of /api/node).
     expect(getRoute(output, '/api/edge').type).toBe('app-route')
 
+    // /items/[itemId] sits inside a `(group)` route group AND has a
+    // dynamic segment. The internal client-reference manifest entry name
+    // contains unescaped `]` characters, which a naïve `[^\]]*` regex
+    // would terminate early. This route forces the parser to walk a JS
+    // string literal correctly across `]`s.
+    const dyn = getRoute(output, '/items/[itemId]')
+    expect(dyn.type).toBe('app-page')
+    expect(dyn.serverBundled.count).toBeGreaterThan(0)
+    expect(dyn.clientJs.count).toBeGreaterThan(0)
+
     // Each category on each route is well-formed.
     for (const r of output.routes) {
       for (const cat of ALL_CATEGORIES) {
