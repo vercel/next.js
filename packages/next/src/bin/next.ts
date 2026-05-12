@@ -714,14 +714,32 @@ internal
   .option('--json', 'Output as JSON instead of markdown.')
   .option(
     '--limit <n>',
-    'Only show the biggest N routes (totals always reflect all routes).',
+    'Only show the first N routes after sorting (totals always reflect all routes).',
     parseInt
   )
-  .action((directory: string, options: { json?: boolean; limit?: number }) => {
-    return import('../cli/internal/static-routes-info.js').then((mod) =>
-      mod.staticRoutesInfoCli(options, directory)
-    )
-  })
+  .option(
+    '--sort <key>',
+    'Sort routes by: name (default, ascending), or one of client, client-js, client-css, client-map, server, server-bundled-js, server-unbundled, server-map, total (descending).'
+  )
+  .option(
+    '--files',
+    'Include the list of files (relative to the output directory) per category in the JSON output. Requires --json.'
+  )
+  .action(
+    (
+      directory: string,
+      options: {
+        json?: boolean
+        limit?: number
+        sort?: string
+        files?: boolean
+      }
+    ) => {
+      return import('../cli/internal/static-routes-info.js').then((mod) =>
+        mod.staticRoutesInfoCli(options, directory)
+      )
+    }
+  )
   .usage('[directory] [options]')
 
 program.parse(process.argv)

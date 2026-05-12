@@ -23,7 +23,29 @@ import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 export interface StaticRoutesInfoOptions {
   json?: boolean
   limit?: number
+  sort?: string
+  files?: boolean
 }
+
+/**
+ * Available `--sort` keys. `name` sorts ascending alphabetically by route;
+ * every other key is a numeric byte-total and sorts descending (biggest
+ * first). Composite keys (`client`, `server`, `total`) sum across multiple
+ * categories — see `sortValue` for the exact mapping.
+ */
+const SORT_KEYS = [
+  'name',
+  'client',
+  'client-js',
+  'client-css',
+  'client-map',
+  'server',
+  'server-bundled-js',
+  'server-unbundled',
+  'server-map',
+  'total',
+] as const
+type SortKey = (typeof SORT_KEYS)[number]
 
 // ---------------------------------------------------------------------------
 // Categories
@@ -80,12 +102,17 @@ interface CategoryStats {
  * with peer routes (other routes of the same type). `sharedAvg` is `null` when
  * the route has no peers (i.e. it's the only route of its type), since the
  * average is undefined.
+ *
+ * `files` is only populated when the user passes `--files` and lists every
+ * path that contributed to `count`/`bytes`, in alphabetical order, expressed
+ * relative to `distDir` (so traced node_modules deps appear as `../...`).
  */
 interface CategoryStatsWithShared extends CategoryStats {
   sharedAvg: CategoryStats | null
+  files?: string[]
 }
 
-type CategoryStatsByKey = Record<Category, CategoryStats>
+type CategoryStatsByKey = Record<Category, CategoryStats & { files?: string[] }>
 type CategoryStatsWithSharedByKey = Record<Category, CategoryStatsWithShared>
 
 interface RouteInfo extends CategoryStatsWithSharedByKey {
@@ -820,6 +847,83 @@ function totalBytes(stats: CategoryStatsByKey): number {
   return sum
 }
 
+/**
+ * Compute the byte total a route should be ordered by, for a given sort key.
+ * `name` is special-cased by the caller; every other key returns a numeric
+ * total that sorts descending.
+ */
+function sortValue(r: RouteInfo, key: Exclude<SortKey, 'name'>): number {
+  switch (key) {
+    case 'client':
+      return r.clientJs.bytes + r.clientCss.bytes
+    case 'client-js':
+      return r.clientJs.bytes
+    case 'client-css':
+      return r.clientCss.bytes
+    case 'client-map':
+      return r.clientMaps.bytes
+    case 'server':
+      return r.serverBundled.bytes + r.serverUnbundled.bytes
+    case 'server-bundled-js':
+      return r.serverBundled.bytes
+    case 'server-unbundled':
+      return r.serverUnbundled.bytes
+    case 'server-map':
+      return r.serverMaps.bytes
+    case 'total':
+      return totalBytes(r)
+    default:
+      key satisfies never
+      throw new Error(`unreachable sort key: ${key as string}`)
+  }
+}
+
+/**
+ * Sort `routes` in-place by the given key. `name` sorts ascending
+ * alphabetically; every other key sorts descending by byte total, with a
+ * stable tiebreaker on the route name (so two routes with identical sizes
+ * always appear in the same order).
+ */
+function sortRoutes(routes: RouteInfo[], key: SortKey): void {
+  if (key === 'name') {
+    routes.sort((a, b) => a.route.localeCompare(b.route))
+    return
+  }
+  routes.sort(
+    (a, b) =>
+      sortValue(b, key) - sortValue(a, key) || a.route.localeCompare(b.route)
+  )
+}
+
+/**
+ * Convert an internal path to one expressed relative to `distDir`. Paths
+ * already relative are passed through; absolute paths (traced node_modules
+ * deps) are rewritten so the output JSON is independent of the user's
+ * absolute filesystem layout.
+ */
+function toDistRelative(distDir: string, p: string): string {
+  return path.isAbsolute(p) ? path.relative(distDir, p) : p
+}
+
+/**
+ * Sorted, dist-relative file list for a single category, used when
+ * `--files` is enabled. Entries with `null` in the size cache (symlinks,
+ * directories, missing files) are filtered out so the list stays in sync
+ * with `count` (which excludes them too). Sorting keeps JSON output
+ * deterministic across runs / platforms.
+ */
+function fileListFor(
+  distDir: string,
+  set: Set<string>,
+  sizeCache: SizeCache
+): string[] {
+  const out: string[] = []
+  for (const p of set) {
+    if (sizeCache.get(p) != null) out.push(toDistRelative(distDir, p))
+  }
+  return out.sort()
+}
+
 // ---------------------------------------------------------------------------
 // Output
 // ---------------------------------------------------------------------------
@@ -903,6 +1007,23 @@ export async function staticRoutesInfoCli(
   options: StaticRoutesInfoOptions,
   directory: string | undefined
 ): Promise<void> {
+  // Validate options up front so we fail fast with a clear error before
+  // doing any expensive work (loading config, reading manifests).
+  const sortKey: SortKey = options.sort
+    ? (SORT_KEYS as readonly string[]).includes(options.sort)
+      ? (options.sort as SortKey)
+      : (() => {
+          console.error(
+            `Error: invalid --sort key '${options.sort}'. Valid keys: ${SORT_KEYS.join(', ')}.`
+          )
+          process.exit(1)
+        })()
+    : 'name'
+  if (options.files && !options.json) {
+    console.error('Error: --files requires --json.')
+    process.exit(1)
+  }
+
   const dir = path.resolve(directory ?? process.cwd())
   const config = await loadConfig(PHASE_PRODUCTION_BUILD, dir)
   const distDir = path.join(dir, config.distDir)
@@ -928,21 +1049,31 @@ export async function staticRoutesInfoCli(
   // measurement and shared-avg calculation don't repeat syscalls.
   const sizeCache = buildSizeCache(distDir, allFileSets)
 
-  // Step 3b: measure per-route, then sort by total size descending. Each
-  // category also carries a `sharedAvg` against its same-type peers.
+  // Step 3b: measure per-route. Each category also carries a `sharedAvg`
+  // against its same-type peers; under `--files` it also carries the
+  // dist-relative file list that contributed to the metric.
   const routeInfos: RouteInfo[] = routeEntries.map((entry, i) => {
     const stats = measureFileSets(allFileSets[i], sizeCache)
     const shared = measureSharedAvg(i, allFileSets, routeEntries, sizeCache)
     const merged = {} as CategoryStatsWithSharedByKey
     for (const cat of CATEGORIES) {
       merged[cat] = { ...stats[cat], sharedAvg: shared[cat] }
+      if (options.files) {
+        merged[cat].files = fileListFor(distDir, allFileSets[i][cat], sizeCache)
+      }
     }
     return { route: entry.route, type: entry.type, ...merged }
   })
-  routeInfos.sort((a, b) => totalBytes(b) - totalBytes(a))
+  sortRoutes(routeInfos, sortKey)
 
   // Project-wide totals — union of all route sets, regardless of --limit.
-  const totals = measureFileSets(mergeSets(allFileSets), sizeCache)
+  const mergedSets = mergeSets(allFileSets)
+  const totals = measureFileSets(mergedSets, sizeCache)
+  if (options.files) {
+    for (const cat of CATEGORIES) {
+      totals[cat].files = fileListFor(distDir, mergedSets[cat], sizeCache)
+    }
+  }
 
   const displayRoutes =
     options.limit != null && options.limit > 0

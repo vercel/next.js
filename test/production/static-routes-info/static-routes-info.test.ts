@@ -8,6 +8,11 @@ interface CategoryStats {
 
 interface CategoryStatsWithShared extends CategoryStats {
   sharedAvg: CategoryStats | null
+  files?: string[]
+}
+
+interface CategoryStatsWithFiles extends CategoryStats {
+  files?: string[]
 }
 
 interface RouteInfo {
@@ -22,12 +27,12 @@ interface RouteInfo {
 }
 
 interface Totals {
-  serverBundled: CategoryStats
-  serverMaps: CategoryStats
-  serverUnbundled: CategoryStats
-  clientJs: CategoryStats
-  clientMaps: CategoryStats
-  clientCss: CategoryStats
+  serverBundled: CategoryStatsWithFiles
+  serverMaps: CategoryStatsWithFiles
+  serverUnbundled: CategoryStatsWithFiles
+  clientJs: CategoryStatsWithFiles
+  clientMaps: CategoryStatsWithFiles
+  clientCss: CategoryStatsWithFiles
 }
 
 interface ToolOutput {
@@ -107,6 +112,8 @@ describe('next internal static-routes-info', () => {
     expect(out).toContain('static-routes-info')
     expect(out).toContain('--json')
     expect(out).toContain('--limit')
+    expect(out).toContain('--sort')
+    expect(out).toContain('--files')
   })
 
   it('--json should report all expected route types', async () => {
@@ -281,29 +288,68 @@ describe('next internal static-routes-info', () => {
     expect(output.totals.clientJs.bytes).toBeLessThan(perRouteSum('clientJs'))
   })
 
-  it('--json routes should be sorted by total size descending', async () => {
+  it('--json routes should be sorted alphabetically by name by default', async () => {
     const result = await runTool(['--json'])
     const output = JSON.parse(result.stdout) as ToolOutput
 
-    const totalBytes = (r: RouteInfo) =>
-      r.serverBundled.bytes +
-      r.serverMaps.bytes +
-      r.serverUnbundled.bytes +
-      r.clientJs.bytes +
-      r.clientMaps.bytes +
-      r.clientCss.bytes
-
     for (let i = 1; i < output.routes.length; i++) {
-      expect(totalBytes(output.routes[i - 1])).toBeGreaterThanOrEqual(
-        totalBytes(output.routes[i])
-      )
+      // localeCompare is what the tool uses internally; comparing with `<=`
+      // here would be wrong for unicode-aware ordering.
+      expect(
+        output.routes[i - 1].route.localeCompare(output.routes[i].route)
+      ).toBeLessThanOrEqual(0)
     }
   })
 
+  it.each([
+    ['client-js', (r: RouteInfo) => r.clientJs.bytes],
+    ['client-css', (r: RouteInfo) => r.clientCss.bytes],
+    ['client-map', (r: RouteInfo) => r.clientMaps.bytes],
+    ['client', (r: RouteInfo) => r.clientJs.bytes + r.clientCss.bytes],
+    ['server-bundled-js', (r: RouteInfo) => r.serverBundled.bytes],
+    ['server-unbundled', (r: RouteInfo) => r.serverUnbundled.bytes],
+    ['server-map', (r: RouteInfo) => r.serverMaps.bytes],
+    [
+      'server',
+      (r: RouteInfo) => r.serverBundled.bytes + r.serverUnbundled.bytes,
+    ],
+    [
+      'total',
+      (r: RouteInfo) =>
+        r.serverBundled.bytes +
+        r.serverMaps.bytes +
+        r.serverUnbundled.bytes +
+        r.clientJs.bytes +
+        r.clientMaps.bytes +
+        r.clientCss.bytes,
+    ],
+  ] as const)(
+    '--sort %s should order routes descending by that metric',
+    async (key, metric) => {
+      const result = await runTool(['--json', '--sort', key])
+      expect(result.code).toBe(0)
+      const output = JSON.parse(result.stdout) as ToolOutput
+
+      for (let i = 1; i < output.routes.length; i++) {
+        expect(metric(output.routes[i - 1])).toBeGreaterThanOrEqual(
+          metric(output.routes[i])
+        )
+      }
+    }
+  )
+
+  it('--sort with an invalid key should error', async () => {
+    const result = await runTool(['--json', '--sort', 'bogus'])
+    expect(result.code).not.toBe(0)
+    expect(result.stderr).toContain("invalid --sort key 'bogus'")
+  })
+
   it('--limit should keep only the top N routes; totals reflect all routes', async () => {
-    const full = JSON.parse((await runTool(['--json'])).stdout) as ToolOutput
+    const full = JSON.parse(
+      (await runTool(['--json', '--sort', 'total'])).stdout
+    ) as ToolOutput
     const limited = JSON.parse(
-      (await runTool(['--json', '--limit', '2'])).stdout
+      (await runTool(['--json', '--sort', 'total', '--limit', '2'])).stdout
     ) as ToolOutput
 
     expect(limited.routes).toHaveLength(2)
@@ -498,5 +544,62 @@ describe('next internal static-routes-info', () => {
     // sanity check that markdown rendering uses the same data as JSON.
     const ssr = getRoute(output, '/pages-ssr')
     expect(md).toContain(`${ssr.serverBundled.count} files`)
+  })
+
+  it('--files without --json should error', async () => {
+    const result = await runTool(['--files'])
+    expect(result.code).not.toBe(0)
+    expect(result.stderr).toContain('--files requires --json')
+  })
+
+  it('--files --json should add a sorted, dist-relative file list per category', async () => {
+    const result = await runTool(['--json', '--files'])
+    expect(result.code).toBe(0)
+    const output = JSON.parse(result.stdout) as ToolOutput
+
+    const root = getRoute(output, '/')
+    for (const cat of ALL_CATEGORIES) {
+      const files = root[cat].files
+      expect(Array.isArray(files)).toBe(true)
+      expect(files!.length).toBe(root[cat].count)
+      // Files are sorted ascending and deduplicated.
+      const sorted = [...files!].sort()
+      expect(files).toEqual(sorted)
+      expect(new Set(files).size).toBe(files!.length)
+    }
+
+    // Bundled JS chunks live inside distDir, so their paths must be plain
+    // relative (no leading `..`). Traced node_modules deps land in
+    // serverUnbundled and are expressed as `../...` from distDir — at
+    // least one such path must appear there.
+    for (const f of root.serverBundled.files!) {
+      expect(f.startsWith('..')).toBe(false)
+    }
+    if (root.serverUnbundled.files!.length > 0) {
+      expect(root.serverUnbundled.files!.some((f) => f.startsWith('..'))).toBe(
+        true
+      )
+    }
+
+    // Totals also expose file lists; their length must match totals.count
+    // (which reflects the union across every route).
+    for (const cat of ALL_CATEGORIES) {
+      expect(output.totals[cat].files).toBeDefined()
+      expect(output.totals[cat].files!.length).toBe(output.totals[cat].count)
+    }
+  })
+
+  it('--json without --files should NOT include the files field', async () => {
+    const result = await runTool(['--json'])
+    expect(result.code).toBe(0)
+    const output = JSON.parse(result.stdout) as ToolOutput
+    for (const r of output.routes) {
+      for (const cat of ALL_CATEGORIES) {
+        expect(r[cat]).not.toHaveProperty('files')
+      }
+    }
+    for (const cat of ALL_CATEGORIES) {
+      expect(output.totals[cat]).not.toHaveProperty('files')
+    }
   })
 })
