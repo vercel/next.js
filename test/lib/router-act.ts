@@ -65,17 +65,6 @@ const WATCHDOG_REPEAT_MS = (() => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 5_000
 })()
 
-// Hard timeout (ms) for `browserResponse.finished()` calls. This Playwright
-// API is known to occasionally never resolve (see usage site for details).
-// Set to 0 to disable the timeout (the call will then wait until Jest's
-// own test timeout fires).
-const BROWSER_FINISHED_TIMEOUT_MS = (() => {
-  const raw = process.env.ROUTER_ACT_BROWSER_FINISHED_TIMEOUT_MS
-  if (raw === undefined) return 30_000
-  const parsed = parseInt(raw, 10)
-  return Number.isFinite(parsed) ? parsed : 30_000
-})()
-
 // Write watchdog diagnostics directly to stderr so they always reach the CI
 // job log regardless of how the test runner / framework may have patched the
 // `console` global.
@@ -661,43 +650,7 @@ ${fulfilled.body}
                 // in the same way, so we skip waiting for finished() to avoid hanging
                 if (fulfilled.status < 400) {
                   setPhase('wait-browser-finished', { url })
-                  // `browserResponse.finished()` is known to occasionally
-                  // never resolve — most commonly when the test triggered a
-                  // navigation inside the same `act` scope, which can leave
-                  // Playwright's response-finished tracking orphaned as the
-                  // document transitions. Without a timeout this would hang
-                  // until Jest's 60s test timeout fires, producing an opaque
-                  // error. Fail fast with a labeled error instead.
-                  //
-                  // Configurable via ROUTER_ACT_BROWSER_FINISHED_TIMEOUT_MS
-                  // (default 30000; set to 0 to disable).
-                  if (BROWSER_FINISHED_TIMEOUT_MS > 0) {
-                    let timer: ReturnType<typeof setTimeout> | null = null
-                    try {
-                      await Promise.race([
-                        browserResponse.finished(),
-                        new Promise<never>((_, reject) => {
-                          timer = setTimeout(() => {
-                            error.message =
-                              `browserResponse.finished() did not resolve ` +
-                              `within ${BROWSER_FINISHED_TIMEOUT_MS}ms for ` +
-                              `${url}.\n\n` +
-                              `This usually means the test triggered a ` +
-                              `navigation inside the same \`act\` scope as ` +
-                              `the response being awaited. Move the ` +
-                              `navigation outside of \`act\` (see the ` +
-                              `router-act SKILL on "Navigating and waiting ` +
-                              `for render in the same act scope").`
-                            reject(error)
-                          }, BROWSER_FINISHED_TIMEOUT_MS)
-                        }),
-                      ])
-                    } finally {
-                      if (timer !== null) clearTimeout(timer)
-                    }
-                  } else {
-                    await browserResponse.finished()
-                  }
+                  await browserResponse.finished()
                 }
               }
             }
