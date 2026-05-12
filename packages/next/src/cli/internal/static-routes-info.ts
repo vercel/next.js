@@ -204,9 +204,18 @@ function discoverEdgeRoutes(distDir: string): RouteEntry[] {
   }>(path.join(distDir, 'server', 'middleware-manifest.json'))
   if (!manifest?.functions) return []
 
+  // App Router edge route handlers appear in middleware-manifest under their
+  // internal key (e.g. `/api/edge/route`). Map them to the user-facing URL
+  // (e.g. `/api/edge`) when an app-path-routes-manifest entry exists; for
+  // pages-router edge handlers and middleware itself, the key is already the
+  // public path so we leave it alone.
+  const appPathRoutesManifest = readJsonFile<Record<string, string>>(
+    path.join(distDir, 'app-path-routes-manifest.json')
+  )
+
   return Object.entries(manifest.functions).map(([page, def]) => ({
     type: 'edge-function' as const,
-    route: page,
+    route: appPathRoutesManifest?.[page] ?? page,
     files: def.files,
   }))
 }
