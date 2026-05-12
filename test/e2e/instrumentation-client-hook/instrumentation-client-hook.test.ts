@@ -102,6 +102,35 @@ describe('Instrumentation Client Hook', () => {
     })
   })
 
+  describe('instrumentationClientInject', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'inject'),
+    })
+
+    it('runs each injected entry before the user instrumentation-client and before hydration, in array order', async () => {
+      const browser = await next.browser('/')
+
+      const order = await browser.eval(`window.__INJECT_ORDER`)
+      expect(order).toEqual(['a', 'b', 'user'])
+
+      const injectA = await browser.eval(`window.__INJECT_A_EXECUTED_AT`)
+      const injectB = await browser.eval(`window.__INJECT_B_EXECUTED_AT`)
+      const userTime = await browser.eval(
+        `window.__INSTRUMENTATION_CLIENT_EXECUTED_AT`
+      )
+      const hydrationTime = await browser.eval(`window.__NEXT_HYDRATED_AT`)
+
+      expect(injectA).toBeDefined()
+      expect(injectB).toBeDefined()
+      expect(userTime).toBeDefined()
+      expect(hydrationTime).toBeDefined()
+
+      expect(injectA).toBeLessThanOrEqual(injectB)
+      expect(injectB).toBeLessThanOrEqual(userTime)
+      expect(userTime).toBeLessThan(hydrationTime)
+    })
+  })
+
   describe('HMR in development mode', () => {
     const { next, isNextDev } = nextTestSetup({
       files: path.join(__dirname, 'app-router'),
