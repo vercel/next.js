@@ -1,17 +1,11 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 import { check } from 'next-test-utils'
 
 describe('useSelectedLayoutSegment(s)', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(__dirname),
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(__dirname),
   })
-  afterAll(() => next.destroy())
 
   let browser: Awaited<ReturnType<typeof webdriver>>
   beforeEach(async () => {

@@ -97,7 +97,7 @@ pub enum TaskDirtyCause {
         value_type: turbo_tasks::ValueTypeId,
     },
     OutputChange {
-        task_id: TaskId,
+        task_description: String,
     },
     CollectiblesChange {
         collectible_type: turbo_tasks::TraitTypeId,
@@ -106,31 +106,18 @@ pub enum TaskDirtyCause {
     Unknown,
 }
 
+// NOTE: `TaskDirtyCause` is formatted for tracing inside `make_task_dirty_internal`, which
+// already holds the dependent task's `StorageWriteGuard`. The `Display` impl below must NOT
+// acquire any task guard — doing so would take a second map shard write lock with no ordering
+// guarantee against the first and two concurrent invalidations of each other's outputs would
+// form a classic hold-and-wait deadlock on the dashmap. `OutputChange::task_description` is
+// therefore filled at the call site (before any guard is held) and only formatted here.
+// The `TaskLockCounter` debug-assert that normally catches this kind of nested acquire is
+// `cfg(debug_assertions)`-only, so release builds hang silently.
 #[cfg(feature = "trace_task_dirty")]
-struct TaskDirtyCauseInContext<'l> {
-    cause: &'l TaskDirtyCause,
-    task_description: String,
-}
-
-#[cfg(feature = "trace_task_dirty")]
-impl<'l> TaskDirtyCauseInContext<'l> {
-    fn new(cause: &'l TaskDirtyCause, ctx: &'l mut impl ExecuteContext<'_>) -> Self {
-        Self {
-            cause,
-            task_description: match cause {
-                TaskDirtyCause::OutputChange { task_id } => ctx
-                    .task(*task_id, TaskDataCategory::Data)
-                    .get_task_description(),
-                _ => String::new(),
-            },
-        }
-    }
-}
-
-#[cfg(feature = "trace_task_dirty")]
-impl std::fmt::Display for TaskDirtyCauseInContext<'_> {
+impl std::fmt::Display for TaskDirtyCause {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.cause {
+        match self {
             TaskDirtyCause::InitialDirty => write!(f, "initial dirty"),
             TaskDirtyCause::CellChange { value_type, keys } => {
                 if keys.is_empty() {
@@ -161,8 +148,8 @@ impl std::fmt::Display for TaskDirtyCauseInContext<'_> {
                     turbo_tasks::registry::get_value_type(*value_type).ty.name
                 )
             }
-            TaskDirtyCause::OutputChange { .. } => {
-                write!(f, "task {} output changed", self.task_description)
+            TaskDirtyCause::OutputChange { task_description } => {
+                write!(f, "task {task_description} output changed")
             }
             TaskDirtyCause::CollectiblesChange { collectible_type } => {
                 write!(
@@ -208,10 +195,7 @@ pub fn make_task_dirty_internal(
     #[cfg(any(debug_assertions, feature = "verify_immutable"))]
     if task.immutable() {
         #[cfg(feature = "trace_task_dirty")]
-        let extra_info = format!(
-            " Invalidation cause: {}",
-            TaskDirtyCauseInContext::new(&cause, ctx)
-        );
+        let extra_info = format!(" Invalidation cause: {cause}");
         #[cfg(not(feature = "trace_task_dirty"))]
         let extra_info = "";
 
@@ -234,7 +218,7 @@ pub fn make_task_dirty_internal(
             "make task stale",
             task_id = display(task_id),
             name = task_name,
-            cause = %TaskDirtyCauseInContext::new(&cause, ctx)
+            cause = %cause
         )
         .entered();
         *stale = true;
@@ -247,7 +231,7 @@ pub fn make_task_dirty_internal(
                 "task already dirty",
                 task_id = display(task_id),
                 name = task_name,
-                cause = %TaskDirtyCauseInContext::new(&cause, ctx)
+                cause = %cause
             )
             .entered();
             // already dirty
@@ -273,7 +257,7 @@ pub fn make_task_dirty_internal(
                 let _span = tracing::trace_span!(
                     "session-dependent task already dirty",
                     name = task_name,
-                    cause = %TaskDirtyCauseInContext::new(&cause, ctx)
+                    cause = %cause
                 )
                 .entered();
                 // already dirty
@@ -305,7 +289,7 @@ pub fn make_task_dirty_internal(
         "make task dirty",
         task_id = display(task_id),
         name = task_name,
-        cause = %TaskDirtyCauseInContext::new(&cause, ctx)
+        cause = %cause
     )
     .entered();
 

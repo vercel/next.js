@@ -1,6 +1,5 @@
 import path from 'path'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { createNext, FileRef, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -15,22 +14,17 @@ import stripAnsi from 'strip-ansi'
       return
     }
 
-    let next: NextInstance
-
     if (isDev) {
       describe('page.js', () => {
         describe('root layout in app', () => {
-          beforeAll(async () => {
-            next = await createNext({
-              files: {
-                app: new FileRef(path.join(__dirname, 'app')),
-                'next.config.js': new FileRef(
-                  path.join(__dirname, 'next.config.js')
-                ),
-              },
-            })
+          const { next } = nextTestSetup({
+            files: {
+              app: new FileRef(path.join(__dirname, 'app')),
+              'next.config.js': new FileRef(
+                path.join(__dirname, 'next.config.js')
+              ),
+            },
           })
-          afterAll(() => next.destroy())
 
           it('create root layout', async () => {
             const outputIndex = next.cliOutput.length
@@ -67,17 +61,14 @@ import stripAnsi from 'strip-ansi'
         })
 
         describe('root layout in route group', () => {
-          beforeAll(async () => {
-            next = await createNext({
-              files: {
-                app: new FileRef(path.join(__dirname, 'app-group-layout')),
-                'next.config.js': new FileRef(
-                  path.join(__dirname, 'next.config.js')
-                ),
-              },
-            })
+          const { next } = nextTestSetup({
+            files: {
+              app: new FileRef(path.join(__dirname, 'app-group-layout')),
+              'next.config.js': new FileRef(
+                path.join(__dirname, 'next.config.js')
+              ),
+            },
           })
-          afterAll(() => next.destroy())
 
           it('create root layout', async () => {
             const outputIndex = next.cliOutput.length
@@ -115,19 +106,14 @@ import stripAnsi from 'strip-ansi'
         })
 
         describe('find available dir', () => {
-          beforeAll(async () => {
-            next = await createNext({
-              files: {
-                app: new FileRef(
-                  path.join(__dirname, 'app-find-available-dir')
-                ),
-                'next.config.js': new FileRef(
-                  path.join(__dirname, 'next.config.js')
-                ),
-              },
-            })
+          const { next } = nextTestSetup({
+            files: {
+              app: new FileRef(path.join(__dirname, 'app-find-available-dir')),
+              'next.config.js': new FileRef(
+                path.join(__dirname, 'next.config.js')
+              ),
+            },
           })
-          afterAll(() => next.destroy())
 
           it('create root layout', async () => {
             const outputIndex = next.cliOutput.length
@@ -166,19 +152,16 @@ import stripAnsi from 'strip-ansi'
       })
 
       describe('page.tsx', () => {
-        beforeAll(async () => {
-          next = await createNext({
-            files: {
-              'app/page.tsx': new FileRef(
-                path.join(__dirname, 'app/route/page.js')
-              ),
-              'next.config.js': new FileRef(
-                path.join(__dirname, 'next.config.js')
-              ),
-            },
-          })
+        const { next } = nextTestSetup({
+          files: {
+            'app/page.tsx': new FileRef(
+              path.join(__dirname, 'app/route/page.js')
+            ),
+            'next.config.js': new FileRef(
+              path.join(__dirname, 'next.config.js')
+            ),
+          },
         })
-        afterAll(() => next.destroy())
 
         it('create root layout', async () => {
           const outputIndex = next.cliOutput.length

@@ -230,7 +230,7 @@ async fn eviction_dependency_chain() {
 #[turbo_tasks::value(transparent)]
 struct Step(State<u32>);
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn create_state(initial: u32) -> Vc<Step> {
     Step(State::new(initial)).cell()
 }
@@ -241,7 +241,7 @@ struct Output {
     random: u32,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn compute(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
     let value = *input.await?.get();
     Ok(Output {
@@ -259,7 +259,7 @@ async fn double(input: ResolvedVc<Step>) -> Result<Vc<u32>> {
 }
 
 /// Outer function that depends on `double`
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn compute_chain(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
     let doubled = double(input);
     let value = *doubled.connect().await?;
@@ -274,25 +274,25 @@ async fn compute_chain(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
 // Deep chain helpers — each layer reads the previous layer's output
 // =========================================================================
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn add_one(input: ResolvedVc<Step>) -> Result<Vc<u32>> {
     let value = *input.await?.get();
     Ok(Vc::cell(value + 1))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn times_three(input: ResolvedVc<u32>) -> Result<Vc<u32>> {
     let value = *input.await?;
     Ok(Vc::cell(value * 3))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn plus_ten(input: ResolvedVc<u32>) -> Result<Vc<u32>> {
     let value = *input.await?;
     Ok(Vc::cell(value + 10))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn deep_chain(input: ResolvedVc<Step>) -> Result<Vc<Output>> {
     // input → add_one → times_three → plus_ten → Output
     // For input=10: (10+1)*3+10 = 43
@@ -324,7 +324,7 @@ struct SessionCounter {
 /// Because this task is only resolved (not directly read) by the top-level
 /// transient task, it has no transient dependents and is eligible for eviction
 /// consideration — but should be blocked by the session-stateful flag.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn create_session_counter(initial: u32) -> Vc<SessionCounter> {
     SessionCounter { count: initial }.cell()
 }
@@ -333,7 +333,7 @@ fn create_session_counter(initial: u32) -> Vc<SessionCounter> {
 /// doesn't need to resolve it directly (which would add a transient dependent
 /// edge to create_session_counter, preventing us from testing the
 /// session-stateful eviction gate).
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn read_session_counter(initial: u32) -> Result<Vc<Output>> {
     let counter = create_session_counter(initial)
         .resolve()
@@ -465,14 +465,14 @@ async fn eviction_transient_reader_invalidated() {
 
 /// Adds an offset to a value — the offset parameter makes each call a unique
 /// memoized task, creating truly independent intermediate tasks for fan-out.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn add_offset(input: ResolvedVc<Step>, offset: u32) -> Result<Vc<u32>> {
     let value = *input.await?.get();
     Ok(Vc::cell(value.wrapping_add(offset)))
 }
 
 /// Multiplies by a factor — unique per factor argument.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn multiply(input: ResolvedVc<u32>, factor: u32) -> Result<Vc<u32>> {
     let value = *input.await?;
     Ok(Vc::cell(value.wrapping_mul(factor)))
@@ -482,7 +482,7 @@ async fn multiply(input: ResolvedVc<u32>, factor: u32) -> Result<Vc<u32>> {
 /// single state. Each chain uses unique arguments (offset/factor) so they
 /// produce distinct memoized tasks — `width * 2` intermediate persistent tasks
 /// that are candidates for eviction.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn fan_out(input: ResolvedVc<Step>, width: u32) -> Result<Vc<u32>> {
     let mut total = 0u32;
     for i in 0..width {
@@ -626,7 +626,7 @@ fn create_session_alive() -> Vc<SessionAlive> {
 /// run_once — and is eligible for the eviction sweep. The `Step` input
 /// gives us a knob to invalidate this reader (forcing re-read of the
 /// writer's cell) without invalidating `create_session_alive` itself.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn read_session_alive_id(state: ResolvedVc<Step>) -> Result<Vc<AlivePtr>> {
     let _state = *state.await?.get();
     let v = create_session_alive().resolve().await?;

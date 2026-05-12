@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup } from 'e2e-utils'
 import {
   getRedboxDescription,
   retry,
@@ -6,8 +6,6 @@ import {
   waitForRedbox,
 } from 'next-test-utils'
 import type { Page, Request } from 'playwright'
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('javascript-urls', () => {
   const { next, isNextDev } = nextTestSetup({

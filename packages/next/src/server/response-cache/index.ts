@@ -295,6 +295,14 @@ export default class ResponseCache implements ResponseCacheBase {
       }
     )
 
+    if (this.minimal_mode && response?.cacheControl) {
+      const cacheKey = createCacheKey(key, invocationID)
+      this.cache.set(cacheKey, {
+        entry: response,
+        expiresAt: Date.now() + this.ttl,
+      })
+    }
+
     return toResponseCacheEntry(response)
   }
 
@@ -362,9 +370,7 @@ export default class ResponseCache implements ResponseCacheBase {
         context.isFallback,
         responseGenerator,
         previousIncrementalCacheEntry,
-        resolved,
-        undefined,
-        context.invocationID
+        resolved
       )
 
       // Handle null response
@@ -417,8 +423,7 @@ export default class ResponseCache implements ResponseCacheBase {
     responseGenerator: ResponseGenerator,
     previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null,
     hasResolved: boolean,
-    waitUntil?: (prom: Promise<any>) => void,
-    invocationID?: string
+    waitUntil?: (prom: Promise<any>) => void
   ) {
     return this.revalidateBatcher.batch(key, () => {
       const promise = this.handleRevalidate(
@@ -428,8 +433,7 @@ export default class ResponseCache implements ResponseCacheBase {
         isFallback,
         responseGenerator,
         previousIncrementalCacheEntry,
-        hasResolved,
-        invocationID
+        hasResolved
       )
 
       // We need to ensure background revalidates are passed to waitUntil.
@@ -446,8 +450,7 @@ export default class ResponseCache implements ResponseCacheBase {
     isFallback: boolean,
     responseGenerator: ResponseGenerator,
     previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null,
-    hasResolved: boolean,
-    invocationID: string | undefined
+    hasResolved: boolean
   ) {
     try {
       // Generate the response cache entry using the response generator.
@@ -467,24 +470,14 @@ export default class ResponseCache implements ResponseCacheBase {
       })
 
       // We want to persist the result only if it has a cache control value
-      // defined.
-      if (incrementalResponseCacheEntry.cacheControl) {
-        if (this.minimal_mode) {
-          // Set TTL expiration for cache hit validation. Entries are validated
-          // by invocationID when available, with TTL as a fallback for providers
-          // that don't send x-invocation-id. Memory is managed by LRU eviction.
-          const cacheKey = createCacheKey(key, invocationID)
-          this.cache.set(cacheKey, {
-            entry: incrementalResponseCacheEntry,
-            expiresAt: Date.now() + this.ttl,
-          })
-        } else {
-          await incrementalCache.set(key, incrementalResponseCacheEntry.value, {
-            cacheControl: incrementalResponseCacheEntry.cacheControl,
-            isRoutePPREnabled,
-            isFallback,
-          })
-        }
+      // defined. The minimal mode LRU write is handled in get() so that
+      // every caller — including batched invocations — populates the cache.
+      if (incrementalResponseCacheEntry.cacheControl && !this.minimal_mode) {
+        await incrementalCache.set(key, incrementalResponseCacheEntry.value, {
+          cacheControl: incrementalResponseCacheEntry.cacheControl,
+          isRoutePPREnabled,
+          isFallback,
+        })
       }
 
       return incrementalResponseCacheEntry
