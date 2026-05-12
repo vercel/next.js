@@ -268,6 +268,7 @@ export const experimentalSchema = {
   largePageDataBytes: z.number().optional(),
   linkNoTouchStart: z.boolean().optional(),
   manualClientBasePath: z.boolean().optional(),
+  runtimeBasePath: z.boolean().optional(),
   middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
   proxyPrefetch: z.enum(['strict', 'flexible']).optional(),
   middlewareClientMaxBodySize: zSizeLimit.optional(),

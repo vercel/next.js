@@ -807,7 +807,11 @@ export default class Router implements BaseRouter {
     const autoExportDynamic =
       isDynamicRoute(pathname) && self.__NEXT_DATA__.autoExport
 
-    this.basePath = process.env.__NEXT_ROUTER_BASEPATH || ''
+    this.basePath = process.env.__NEXT_RUNTIME_BASE_PATH_ENABLED
+      ? self.__NEXT_DATA__.basePath ||
+        process.env.__NEXT_ROUTER_BASEPATH ||
+        ''
+      : process.env.__NEXT_ROUTER_BASEPATH || ''
     this.sub = subscription
     this.clc = null
     this._wrapApp = wrapApp

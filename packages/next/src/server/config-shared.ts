@@ -513,6 +513,23 @@ export interface ExperimentalConfig {
   proxyPrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
+   * Read the basePath from the `x-base-path` request header at runtime instead
+   * of taking it from `next.config.js` at build time.
+   *
+   * When enabled:
+   * - The server reads `x-base-path` from the incoming request, uses it for
+   *   the duration of the render, and writes it into `__NEXT_DATA__.basePath`.
+   * - The client picks the value up from `__NEXT_DATA__.basePath` and uses
+   *   it for every `addBasePath` / `removeBasePath` call (Link, router.push,
+   *   `_next/data` URLs, page chunk URLs).
+   *
+   * Intended for multi-tenant apps where a single Next.js deployment serves
+   * several sites that live behind different URL prefixes on the same host
+   * (e.g. `/site-a/*`, `/site-b/*`), with an edge function rewriting the URI
+   * and injecting `x-base-path` per request.
+   */
+  runtimeBasePath?: boolean
+  /**
    * CSS Chunking strategy. Defaults to `true` ("loose" mode), which guesses dependencies
    * between CSS files to keep ordering of them.
    * An alternative is 'strict', which will try to keep correct ordering as
@@ -1933,6 +1950,7 @@ export const defaultConfig = Object.freeze({
     proxyPrefetch: 'flexible',
     optimisticClientCache: true,
     manualClientBasePath: false,
+    runtimeBasePath: false,
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||

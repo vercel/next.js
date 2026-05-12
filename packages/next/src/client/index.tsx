@@ -33,6 +33,7 @@ import { ImageConfigContext } from '../shared/lib/image-config-context.shared-ru
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
+import { setClientRuntimeBasePath } from '../shared/lib/router/utils/runtime-base-path'
 import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
 import {
   adaptForAppRouterInstance,
@@ -204,6 +205,10 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
     document.getElementById('__NEXT_DATA__')!.textContent!
   )
   window.__NEXT_DATA__ = initialData
+
+  if (process.env.__NEXT_RUNTIME_BASE_PATH_ENABLED) {
+    setClientRuntimeBasePath(initialData.basePath || '')
+  }
 
   defaultLocale = initialData.defaultLocale
   const prefix: string = initialData.assetPrefix || ''

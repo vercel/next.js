@@ -113,6 +113,12 @@ export type NEXT_DATA = {
   scriptLoader?: any[]
   isPreview?: boolean
   notFoundSrcPage?: string
+  /**
+   * Per-request basePath when `experimental.runtimeBasePath` is enabled.
+   * The client reads this on hydration and uses it for all subsequent
+   * URL building (Link, router navigation, `_next/data` fetches).
+   */
+  basePath?: string
 }
 
 /**

@@ -107,6 +107,24 @@ import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
 import { getScriptNonceFromHeader } from './app-render/get-script-nonce-from-header'
+import {
+  getRuntimeBasePath,
+  runWithRuntimeBasePath,
+} from '../shared/lib/router/utils/runtime-base-path'
+
+const RUNTIME_BASE_PATH_HEADER = 'x-base-path'
+
+function readRuntimeBasePathHeader(req: IncomingMessage): string {
+  const raw = req.headers[RUNTIME_BASE_PATH_HEADER]
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (!value) return ''
+  const trimmed = value.trim()
+  if (!trimmed || trimmed === '/') return ''
+  const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+  return withLeadingSlash.endsWith('/')
+    ? withLeadingSlash.slice(0, -1)
+    : withLeadingSlash
+}
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -1520,6 +1538,9 @@ export async function renderToHTMLImpl(
         notFoundSrcPage && process.env.__NEXT_DEV_SERVER
           ? notFoundSrcPage
           : undefined,
+      basePath: process.env.__NEXT_RUNTIME_BASE_PATH_ENABLED
+        ? getRuntimeBasePath() || undefined
+        : undefined,
     },
     nonce,
     buildManifest: filteredBuildManifest,
@@ -1630,14 +1651,20 @@ export const renderToHTML: PagesRender = (
   sharedContext,
   renderContext
 ) => {
-  return renderToHTMLImpl(
-    req,
-    res,
-    pathname,
-    query,
-    renderOpts,
-    renderOpts,
-    sharedContext,
-    renderContext
-  )
+  const invoke = () =>
+    renderToHTMLImpl(
+      req,
+      res,
+      pathname,
+      query,
+      renderOpts,
+      renderOpts,
+      sharedContext,
+      renderContext
+    )
+
+  if (process.env.__NEXT_RUNTIME_BASE_PATH_ENABLED) {
+    return runWithRuntimeBasePath(readRuntimeBasePathHeader(req), invoke)
+  }
+  return invoke()
 }

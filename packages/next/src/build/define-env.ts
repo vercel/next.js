@@ -224,6 +224,8 @@ export function getDefineEnv({
         }),
     'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH':
       config.experimental.manualClientBasePath ?? false,
+    'process.env.__NEXT_RUNTIME_BASE_PATH_ENABLED':
+      config.experimental.runtimeBasePath ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME': JSON.stringify(
       isNaN(Number(config.experimental.staleTimes?.dynamic))
         ? 0
