@@ -188,6 +188,23 @@ describe('next internal static-routes-info', () => {
       expect(appPage.clientCss.count).toBeGreaterThan(0)
     }
 
+    // Client component contribution check. The fixture imports the
+    // `'use client'` Counter component from `/` and `/about`, while
+    // `/no-client` does not import any client component. The routes
+    // that import Counter must ship strictly more client JS than the
+    // one that does not — this proves per-route client JS actually
+    // picks up the client component's chunk(s).
+    //
+    // Note: webpack tends to inline Counter into a chunk that's shared
+    // by every app-page (so `/` ties with `/no-client` on webpack), but
+    // `/about` always gets its own page chunk that adds bytes either
+    // way. We compare against `/about` to keep the assertion
+    // bundler-agnostic.
+    const noClient = getRoute(output, '/no-client')
+    const about = getRoute(output, '/about')
+    expect(about.clientJs.count).toBeGreaterThan(noClient.clientJs.count)
+    expect(about.clientJs.bytes).toBeGreaterThan(noClient.clientJs.bytes)
+
     // app-route (Node runtime): has server JS, no client JS / CSS.
     const appRoute = getRoute(output, '/api/node')
     expect(appRoute.type).toBe('app-route')
