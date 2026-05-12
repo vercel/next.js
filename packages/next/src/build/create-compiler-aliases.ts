@@ -1,7 +1,5 @@
 import path from 'path'
-import { stringify as stringifyQuery } from 'querystring'
 import * as React from 'react'
-import type { InstrumentationClientLoaderOptions } from './webpack/loaders/next-instrumentation-client-loader'
 import {
   DOT_NEXT_ALIAS,
   PAGES_DIR_ALIAS,
@@ -28,18 +26,15 @@ interface CompilerAliases {
 const isReact19 = typeof React.use === 'function'
 
 /**
- * Builds the loader-only request string that resolves to the synthetic module
- * exposed via the `private-next-instrumentation-client` alias. The loader emits
- * `require()` calls for each `instrumentationClientInject` entry, followed by a
- * re-export of `private-next-instrumentation-client-user` (the user's
- * `instrumentation-client.{pageExt}` file, when present).
+ * Absolute path to the placeholder file that `private-next-instrumentation-client`
+ * resolves to. Its contents are replaced at build time by
+ * `next-instrumentation-client-loader` via a `module.rules` entry in
+ * `webpack-config.ts`.
  */
-function instrumentationClientLoaderRequest(injects: string[]): string {
-  const options: InstrumentationClientLoaderOptions = {
-    injects: JSON.stringify(injects),
-  }
-  return `next-instrumentation-client-loader?${stringifyQuery(options)}!`
-}
+const INSTRUMENTATION_CLIENT_STUB_PATH = path.join(
+  NEXT_PROJECT_ROOT,
+  'dist/build/webpack/loaders/instrumentation-client-stub.js'
+)
 
 export function createWebpackAliases({
   distDir,
@@ -154,15 +149,16 @@ export function createWebpackAliases({
     [ROOT_DIR_ALIAS]: dir,
     ...(isClient
       ? {
-          // `private-next-instrumentation-client` resolves to a loader-emitted
-          // synthetic module that requires each `instrumentationClientInject`
-          // entry for side effects and then re-exports the user's
-          // `instrumentation-client.{pageExt}` file (via the
-          // `private-next-instrumentation-client-user` alias below).
+          // `private-next-instrumentation-client` resolves to a placeholder
+          // file whose contents are replaced at build time by
+          // `next-instrumentation-client-loader` (registered via a
+          // `module.rules` entry in webpack-config.ts). The emitted module
+          // requires each `instrumentationClientInject` entry for side effects,
+          // then re-exports the user's `instrumentation-client.{pageExt}` file
+          // (resolved through the `private-next-instrumentation-client-user`
+          // alias below).
           'private-next-instrumentation-client':
-            instrumentationClientLoaderRequest(
-              config.instrumentationClientInject
-            ),
+            INSTRUMENTATION_CLIENT_STUB_PATH,
           'private-next-instrumentation-client-user': [
             path.join(dir, 'src', 'instrumentation-client'),
             path.join(dir, 'instrumentation-client'),

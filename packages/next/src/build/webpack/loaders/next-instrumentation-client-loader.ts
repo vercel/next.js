@@ -1,3 +1,4 @@
+import { promisify } from 'util'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 /**
@@ -12,44 +13,60 @@ export type InstrumentationClientLoaderOptions = {
 
 const NextInstrumentationClientLoader: webpack.LoaderDefinitionFunction<InstrumentationClientLoaderOptions> =
   function () {
+    const callback = this.async()
     const { injects: injectsStringified } = this.getOptions()
     const injects = JSON.parse(injectsStringified || '[]') as string[]
 
     // No injects: the alias is a transparent passthrough to the user's
     // `instrumentation-client.{pageExt}` (or the empty module fallback).
     if (injects.length === 0) {
-      return `module.exports = require('private-next-instrumentation-client-user');\n`
+      callback(
+        null,
+        `module.exports = require('private-next-instrumentation-client-user');\n`
+      )
+      return
     }
 
-    injects.push('private-next-instrumentation-client-user')
+    // Resolve each inject specifier against the project root so the emitted
+    // `require()` calls don't get resolved relative to the stub's location
+    // inside `node_modules/next/`. Bare specifiers (npm package names) are
+    // resolved against the project's `node_modules`.
+    const resolve = promisify(this.resolve)
+    const rootContext = this.rootContext
 
-    // Capture each module's exports so we can compose their
-    // `onRouterTransitionStart` hooks. Side effects still run on `require()`,
-    // in array order, before the user file is evaluated.
-    const lines: string[] = []
-    injects.forEach((spec, i) => {
-      lines.push(`var mod_${i} = require(${JSON.stringify(spec)});`)
-    })
+    Promise.all(injects.map((spec) => resolve(rootContext, spec)))
+      .then((resolvedInjects) => {
+        const allModules = [
+          ...resolvedInjects,
+          'private-next-instrumentation-client-user',
+        ]
 
-    // Compose a single `onRouterTransitionStart` that fans out to every
-    // module's hook (when exported), in array order, with the user file's hook
-    // running last.
-    const hookCalls = injects
-      .map(
-        (_, i) =>
-          `    mod_${i} && mod_${i}.onRouterTransitionStart && mod_${i}.onRouterTransitionStart(url, type);`
-      )
-      .join('\n')
+        const lines: string[] = []
+        allModules.forEach((spec, i) => {
+          lines.push(`var mod_${i} = require(${JSON.stringify(spec)});`)
+        })
 
-    lines.push(
-      `module.exports = {`,
-      `  onRouterTransitionStart: function (url, type) {`,
-      `    ${hookCalls}`,
-      `  },`,
-      `};`
-    )
+        // Compose a single `onRouterTransitionStart` that fans out to every
+        // module's hook (when exported), in array order, with the user file's
+        // hook running last.
+        const hookCalls = allModules
+          .map(
+            (_, i) =>
+              `    mod_${i} && mod_${i}.onRouterTransitionStart && mod_${i}.onRouterTransitionStart(url, type);`
+          )
+          .join('\n')
 
-    return lines.join('\n') + '\n'
+        lines.push(
+          `module.exports = {`,
+          `  onRouterTransitionStart: function (url, type) {`,
+          hookCalls,
+          `  },`,
+          `};`
+        )
+
+        callback(null, lines.join('\n') + '\n')
+      })
+      .catch((err) => callback(err))
   }
 
 export default NextInstrumentationClientLoader
