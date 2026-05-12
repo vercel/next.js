@@ -1,8 +1,18 @@
 /**
- * CLI command for analyzing a built Next.js app's route bundle sizes.
- * Reads manifests and .nft.json trace files statically without running the app.
+ * `next internal static-routes-info` — analyzes a built Next.js app and
+ * reports per-route bundle sizes statically (without running the app).
  *
- * Usage: next internal static-routes-info [directory] [--json] [--limit N]
+ * The analysis is split into three steps so it's easy to swap in different
+ * chunking strategies later:
+ *
+ *   1. Capture: for each route, collect a set of files that belong to it,
+ *      partitioned into 6 disjoint categories.
+ *   2. Deduplicate: per-route sets are already deduplicated (Set<>), and we
+ *      union them across routes for project-wide totals.
+ *   3. Measure: stat each unique file path to get { count, bytes }.
+ *
+ * Output is markdown by default, or JSON with `--json`. `--limit N` keeps
+ * only the top N routes (totals always reflect all routes).
  */
 
 import fs from 'fs'
@@ -15,56 +25,113 @@ export interface StaticRoutesInfoOptions {
   limit?: number
 }
 
+// ---------------------------------------------------------------------------
+// Categories
+// ---------------------------------------------------------------------------
+
+/**
+ * The 6 file categories we partition each route's files into. Each file is
+ * placed into exactly one category to avoid double-counting.
+ *
+ * To add a new category, extend this tuple, add a label below, and update
+ * the relevant collector(s).
+ */
+const CATEGORIES = [
+  'serverBundled',
+  'serverMaps',
+  'serverUnbundled',
+  'clientJs',
+  'clientMaps',
+  'clientCss',
+] as const
+type Category = (typeof CATEGORIES)[number]
+
+/** Human-readable column titles, in the same order as CATEGORIES. */
+const CATEGORY_LABELS: Record<Category, string> = {
+  serverBundled: 'Server Bundled JS',
+  serverMaps: 'Server Maps',
+  serverUnbundled: 'Server Unbundled',
+  clientJs: 'Client JS',
+  clientMaps: 'Client Maps',
+  clientCss: 'Client CSS',
+}
+
+/**
+ * Per-route file sets, one entry per category.
+ *
+ * Paths are stored as:
+ *   - relative to `distDir` for in-distDir files, and
+ *   - absolute paths for `serverUnbundled` (which lives outside `distDir`).
+ *
+ * Storing paths consistently lets us deduplicate by string equality both
+ * per-route and across routes (for the totals).
+ */
+type FileSets = Record<Category, Set<string>>
+
 interface CategoryStats {
   count: number
   bytes: number
 }
 
-interface RouteInfo {
+type CategoryStatsByKey = Record<Category, CategoryStats>
+
+interface RouteInfo extends CategoryStatsByKey {
   route: string
   type: string
-  serverBundled: CategoryStats
-  serverMaps: CategoryStats
-  serverUnbundled: CategoryStats
-  clientJs: CategoryStats
-  clientMaps: CategoryStats
-  clientCss: CategoryStats
 }
 
-interface FileSets {
-  /** Paths relative to distDir */
-  serverBundled: Set<string>
-  /** Paths relative to distDir */
-  serverMaps: Set<string>
-  /** Absolute on-disk paths (outside distDir) */
-  serverUnbundled: Set<string>
-  /** Paths relative to distDir */
-  clientJs: Set<string>
-  /** Paths relative to distDir */
-  clientMaps: Set<string>
-  /** Paths relative to distDir */
-  clientCss: Set<string>
-}
-
-interface RouteEntry {
-  /** URL path shown to users, e.g. "/streaming/chunkstorm" */
-  route: string
-  /**
-   * One of: "app-page" | "app-route" | "pages" | "pages-api" |
-   * "pages-static" | "edge-function"
-   */
-  type: string
-  /**
-   * Path relative to distDir/server, e.g. "app/streaming/chunkstorm/page.js".
-   * Empty for "pages-static". For "edge-function" this is a special encoded
-   * marker `__edge__:<json-array-of-files>`.
-   */
-  serverEntry: string
+function emptyFileSets(): FileSets {
+  return {
+    serverBundled: new Set(),
+    serverMaps: new Set(),
+    serverUnbundled: new Set(),
+    clientJs: new Set(),
+    clientMaps: new Set(),
+    clientCss: new Set(),
+  }
 }
 
 // ---------------------------------------------------------------------------
 // Route discovery
 // ---------------------------------------------------------------------------
+
+/**
+ * One discovered route. Discriminated by `type`; the additional fields
+ * carry whatever the file collector needs to find this route's files.
+ */
+type RouteEntry =
+  /**
+   * Server-rendered Pages or App route. `serverEntry` is the path of the
+   * .js bundle relative to `distDir/server`, e.g. `app/page.js`.
+   */
+  | {
+      type: 'app-page' | 'app-route' | 'pages' | 'pages-api'
+      route: string
+      serverEntry: string
+    }
+  /** Statically pre-rendered Pages page. Only ships client JS. */
+  | { type: 'pages-static'; route: string }
+  /**
+   * Edge route handler / function. `files` comes directly from
+   * `middleware-manifest.json#functions[page].files`.
+   */
+  | { type: 'edge-function'; route: string; files: string[] }
+
+/**
+ * Pages Router infrastructure entries we never report as routes.
+ * `_app` / `_document` / `_error` aren't really routes, and `404` / `500`
+ * are HTML-only error pages.
+ */
+const SKIP_PAGES_ENTRIES = new Set<string>([
+  '/_app',
+  '/_document',
+  '/_error',
+  '/404',
+  '/500',
+])
+
+/** App Router infrastructure entries we never report as routes. */
+const SKIP_APP_ENTRIES = new Set<string>(['/_global-error/page'])
 
 function readJsonFile<T>(filePath: string): T | null {
   try {
@@ -74,70 +141,74 @@ function readJsonFile<T>(filePath: string): T | null {
   }
 }
 
-const SKIP_PAGES_ENTRIES = new Set([
-  '/_app',
-  '/_document',
-  '/_error',
-  '/404',
-  '/500',
-])
-
-const SKIP_APP_ENTRIES = new Set(['/_global-error/page'])
-
 function discoverRoutes(distDir: string): RouteEntry[] {
-  const routes: RouteEntry[] = []
+  return [
+    ...discoverPagesRoutes(distDir),
+    ...discoverAppRoutes(distDir),
+    ...discoverEdgeRoutes(distDir),
+  ]
+}
 
-  // ── Pages Router ──────────────────────────────────────────────────────────
-  const pagesManifest = readJsonFile<Record<string, string>>(
+function discoverPagesRoutes(distDir: string): RouteEntry[] {
+  const manifest = readJsonFile<Record<string, string>>(
     path.join(distDir, 'server', 'pages-manifest.json')
   )
-  if (pagesManifest) {
-    for (const [route, entry] of Object.entries(pagesManifest)) {
-      if (SKIP_PAGES_ENTRIES.has(route)) continue
-      if (entry.endsWith('.js')) {
-        const type = route.startsWith('/api/') ? 'pages-api' : 'pages'
-        routes.push({ route, type, serverEntry: entry })
-      } else if (entry.endsWith('.html')) {
-        // Statically pre-rendered Pages Router page — no server JS bundle, but
-        // it still ships client JS via build-manifest.json.
-        routes.push({ route, type: 'pages-static', serverEntry: '' })
-      }
+  if (!manifest) return []
+
+  const routes: RouteEntry[] = []
+  for (const [route, entry] of Object.entries(manifest)) {
+    if (SKIP_PAGES_ENTRIES.has(route)) continue
+    if (entry.endsWith('.js')) {
+      routes.push({
+        type: route.startsWith('/api/') ? 'pages-api' : 'pages',
+        route,
+        serverEntry: entry,
+      })
+    } else if (entry.endsWith('.html')) {
+      // Statically pre-rendered page — no server JS bundle, but still ships
+      // client JS via build-manifest.json.
+      routes.push({ type: 'pages-static', route })
     }
   }
+  return routes
+}
 
-  // ── App Router ─────────────────────────────────────────────────────────────
+function discoverAppRoutes(distDir: string): RouteEntry[] {
   const appPathsManifest = readJsonFile<Record<string, string>>(
     path.join(distDir, 'server', 'app-paths-manifest.json')
   )
+  if (!appPathsManifest) return []
+
+  // Maps internal entry keys (e.g. "/blog/[slug]/page") to their URL path
+  // ("/blog/[slug]"). Optional — falls back to the internal key if missing.
   const appPathRoutesManifest = readJsonFile<Record<string, string>>(
     path.join(distDir, 'app-path-routes-manifest.json')
   )
-  if (appPathsManifest) {
-    for (const [internalKey, entry] of Object.entries(appPathsManifest)) {
-      if (SKIP_APP_ENTRIES.has(internalKey)) continue
-      if (!entry.endsWith('.js')) continue
-      const routeUrl = appPathRoutesManifest?.[internalKey] ?? internalKey
-      const type = internalKey.endsWith('/route') ? 'app-route' : 'app-page'
-      routes.push({ route: routeUrl, type, serverEntry: entry })
-    }
-  }
 
-  // ── Middleware / Edge functions ────────────────────────────────────────────
-  const middlewareManifest = readJsonFile<{
-    functions?: Record<string, { files: string[]; name: string; page: string }>
-  }>(path.join(distDir, 'server', 'middleware-manifest.json'))
-  if (middlewareManifest?.functions) {
-    for (const [page, def] of Object.entries(middlewareManifest.functions)) {
-      // Use a placeholder serverEntry; edge function files are read separately
-      routes.push({
-        route: page,
-        type: 'edge-function',
-        serverEntry: `__edge__:${JSON.stringify(def.files)}`,
-      })
-    }
+  const routes: RouteEntry[] = []
+  for (const [internalKey, entry] of Object.entries(appPathsManifest)) {
+    if (SKIP_APP_ENTRIES.has(internalKey)) continue
+    if (!entry.endsWith('.js')) continue
+    routes.push({
+      type: internalKey.endsWith('/route') ? 'app-route' : 'app-page',
+      route: appPathRoutesManifest?.[internalKey] ?? internalKey,
+      serverEntry: entry,
+    })
   }
-
   return routes
+}
+
+function discoverEdgeRoutes(distDir: string): RouteEntry[] {
+  const manifest = readJsonFile<{
+    functions?: Record<string, { files: string[] }>
+  }>(path.join(distDir, 'server', 'middleware-manifest.json'))
+  if (!manifest?.functions) return []
+
+  return Object.entries(manifest.functions).map(([page, def]) => ({
+    type: 'edge-function' as const,
+    route: page,
+    files: def.files,
+  }))
 }
 
 // ---------------------------------------------------------------------------
@@ -145,9 +216,63 @@ function discoverRoutes(distDir: string): RouteEntry[] {
 // ---------------------------------------------------------------------------
 
 /**
- * Parse the JSON blob from a _client-reference-manifest.js file.
- * The file looks like:
- *   globalThis.__RSC_MANIFEST["..."] = {...};
+ * Strip the `_next/` URL prefix that some manifests use (with or without a
+ * leading slash) so all client paths are consistently relative to `distDir`.
+ */
+function stripNextPrefix(p: string): string {
+  return p.replace(/^\/?_next\//, '')
+}
+
+/**
+ * Walk the entry's `.nft.json` (Node File Trace) and partition its files:
+ *   - `serverBundled`: .js files that resolve INSIDE distDir (server chunks)
+ *   - `serverUnbundled`: any file that resolves OUTSIDE distDir (traced
+ *     node_modules and other on-disk deps the server entry needs at runtime)
+ *
+ * Skips `.json` manifests and `_client-reference-manifest.js` files since
+ * they aren't executable code we want to count as a server JS bundle.
+ */
+function collectServerEntryFiles(
+  distDir: string,
+  serverEntry: string,
+  sets: FileSets
+): void {
+  const entryRel = path.join('server', serverEntry) // e.g. server/app/page.js
+  const entryDirRel = path.dirname(entryRel) // e.g. server/app
+  const entryDirAbs = path.join(distDir, entryDirRel)
+
+  // The entry .js is always part of the bundle, even if no nft.json exists.
+  sets.serverBundled.add(entryRel)
+
+  const nft = readJsonFile<{ files: string[] }>(
+    path.join(distDir, entryRel + '.nft.json')
+  )
+  if (!nft?.files) return
+
+  for (const relPath of nft.files) {
+    // Resolve relative to the entry's dir. If the normalized result stays
+    // inside distDir it's a server chunk; if it leaves distDir it's an
+    // unbundled trace dep (e.g. ../../../node_modules/...).
+    const inDistDirPath = path.normalize(path.join(entryDirRel, relPath))
+    if (inDistDirPath.startsWith('..')) {
+      sets.serverUnbundled.add(path.resolve(entryDirAbs, relPath))
+    } else if (
+      inDistDirPath.endsWith('.js') &&
+      !inDistDirPath.endsWith('_client-reference-manifest.js')
+    ) {
+      sets.serverBundled.add(inDistDirPath)
+    }
+  }
+}
+
+/**
+ * Read a `_client-reference-manifest.js` file and extract the JSON blob.
+ *
+ * The file is a JS module that assigns a JSON object to a global, e.g.
+ *   globalThis.__RSC_MANIFEST["/page"] = {...};
+ *
+ * Rather than evaluate the JS, slice the substring after `"] = "` and
+ * parse it as JSON.
  */
 function parseClientReferenceManifest(filePath: string): {
   entryJSFiles?: Record<string, string[]>
@@ -174,171 +299,135 @@ function parseClientReferenceManifest(filePath: string): {
 }
 
 /**
- * Collect all 6 file-sets for a single route by reading nft.json and manifests.
- * All server/client paths are relative to distDir; unbundled paths are absolute.
+ * Collect client JS chunks and CSS files for an App Router page/route.
+ * Source: the route's `_client-reference-manifest.js` (entryJSFiles +
+ * entryCSSFiles) plus its per-route `build-manifest.json` (rootMainFiles —
+ * the shared App Router framework chunks).
  */
-function collectFiles(distDir: string, entry: RouteEntry): FileSets {
-  const sets: FileSets = {
-    serverBundled: new Set(),
-    serverMaps: new Set(),
-    serverUnbundled: new Set(),
-    clientJs: new Set(),
-    clientMaps: new Set(),
-    clientCss: new Set(),
-  }
-
-  // ── Edge functions ──────────────────────────────────────────────────────────
-  if (entry.type === 'edge-function') {
-    const files: string[] = JSON.parse(
-      entry.serverEntry.slice('__edge__:'.length)
-    )
-    for (const f of files) {
-      if (f.endsWith('.js')) {
-        sets.serverBundled.add(f)
-      }
-    }
-    deriveServerMaps(distDir, sets)
-    return sets
-  }
-
-  // ── Static HTML page (Pages Router) ────────────────────────────────────────
-  if (entry.type === 'pages-static') {
-    collectPagesClientJs(distDir, entry, sets)
-    deriveClientMaps(distDir, sets)
-    return sets
-  }
-
-  // ── Server entry + nft.json ─────────────────────────────────────────────────
-  const entryRelToDistDir = path.join('server', entry.serverEntry) // e.g. server/app/page.js
-  const entryDirRelToDistDir = path.dirname(entryRelToDistDir) // e.g. server/app
-  const entryDirAbsolute = path.join(distDir, entryDirRelToDistDir)
-
-  sets.serverBundled.add(entryRelToDistDir)
-
-  const nftPath = path.join(distDir, entryRelToDistDir + '.nft.json')
-  if (fs.existsSync(nftPath)) {
-    const nft = readJsonFile<{ files: string[] }>(nftPath)
-    if (nft?.files) {
-      for (const relPath of nft.files) {
-        const normalizedRelToDistDir = path.normalize(
-          path.join(entryDirRelToDistDir, relPath)
-        )
-        if (normalizedRelToDistDir.startsWith('..')) {
-          // Outside distDir → unbundled
-          const absPath = path.resolve(entryDirAbsolute, relPath)
-          sets.serverUnbundled.add(absPath)
-        } else if (
-          normalizedRelToDistDir.endsWith('.js') &&
-          !normalizedRelToDistDir.endsWith('_client-reference-manifest.js')
-        ) {
-          // Within distDir, real JS chunk → bundled
-          sets.serverBundled.add(normalizedRelToDistDir)
-        }
-        // .json manifests and _client-reference-manifest.js → skip
-      }
-    }
-  }
-
-  deriveServerMaps(distDir, sets)
-
-  // ── Client JS / CSS (App Router) ────────────────────────────────────────────
-  if (entry.type === 'app-page' || entry.type === 'app-route') {
-    const entryBase = path.basename(entry.serverEntry, '.js')
-    const crmPath = path.join(
-      distDir,
-      'server',
-      path.dirname(entry.serverEntry),
-      `${entryBase}_client-reference-manifest.js`
-    )
-    const crm = parseClientReferenceManifest(crmPath)
-    if (crm) {
-      // Client JS from entryJSFiles
-      for (const chunks of Object.values(crm.entryJSFiles ?? {})) {
-        for (const chunk of chunks) {
-          sets.clientJs.add(chunk.replace(/^\/?_next\//, ''))
-        }
-      }
-      // Client CSS from entryCSSFiles
-      for (const cssFiles of Object.values(crm.entryCSSFiles ?? {})) {
-        for (const css of cssFiles) {
-          const p =
-            typeof css === 'string'
-              ? css.replace(/^\/?_next\//, '')
-              : css.path.replace(/^\/?_next\//, '')
-          if (p) sets.clientCss.add(p)
-        }
-      }
-    }
-
-    // rootMainFiles from per-route build-manifest
-    const bmPath = path.join(
-      distDir,
-      'server',
-      path.dirname(entry.serverEntry),
-      entryBase,
-      'build-manifest.json'
-    )
-    const bm = readJsonFile<{ rootMainFiles?: string[] }>(bmPath)
-    for (const chunk of bm?.rootMainFiles ?? []) {
-      sets.clientJs.add(chunk)
-    }
-  }
-
-  // ── Client JS (Pages Router pages) ─────────────────────────────────────────
-  if (entry.type === 'pages') {
-    collectPagesClientJs(distDir, entry, sets)
-  }
-
-  // Client source maps
-  deriveClientMaps(distDir, sets)
-
-  return sets
-}
-
-function collectPagesClientJs(
+function collectAppClientFiles(
   distDir: string,
-  entry: RouteEntry,
+  serverEntry: string,
   sets: FileSets
 ): void {
-  const globalBm = readJsonFile<{
+  const entryDir = path.dirname(serverEntry)
+  const entryBase = path.basename(serverEntry, '.js')
+  const baseDir = path.join(distDir, 'server', entryDir)
+
+  const crm = parseClientReferenceManifest(
+    path.join(baseDir, `${entryBase}_client-reference-manifest.js`)
+  )
+  if (crm) {
+    for (const chunks of Object.values(crm.entryJSFiles ?? {})) {
+      for (const chunk of chunks) sets.clientJs.add(stripNextPrefix(chunk))
+    }
+    for (const cssFiles of Object.values(crm.entryCSSFiles ?? {})) {
+      for (const css of cssFiles) {
+        const cssPath = typeof css === 'string' ? css : css.path
+        if (cssPath) sets.clientCss.add(stripNextPrefix(cssPath))
+      }
+    }
+  }
+
+  // Per-route build-manifest contributes the shared App Router root chunks.
+  const bm = readJsonFile<{ rootMainFiles?: string[] }>(
+    path.join(baseDir, entryBase, 'build-manifest.json')
+  )
+  for (const chunk of bm?.rootMainFiles ?? []) sets.clientJs.add(chunk)
+}
+
+/**
+ * Collect client JS for a Pages Router route. The global `build-manifest.json`
+ * lists each page's chunks (`pages[route]`), the shared baseline (`/_app`),
+ * and `polyfillFiles`. Per-page CSS is not tracked in the Pages build output,
+ * so it's not collected here.
+ */
+function collectPagesClientFiles(
+  distDir: string,
+  route: string,
+  sets: FileSets
+): void {
+  const bm = readJsonFile<{
     pages?: Record<string, string[]>
     polyfillFiles?: string[]
   }>(path.join(distDir, 'build-manifest.json'))
-  if (!globalBm) return
-  const appChunks = globalBm.pages?.['/_app'] ?? []
-  const pageChunks = globalBm.pages?.[entry.route] ?? []
-  const polyfills = globalBm.polyfillFiles ?? []
-  for (const chunk of [...appChunks, ...pageChunks, ...polyfills]) {
-    sets.clientJs.add(chunk)
+  if (!bm) return
+  const chunks = [
+    ...(bm.pages?.['/_app'] ?? []),
+    ...(bm.pages?.[route] ?? []),
+    ...(bm.polyfillFiles ?? []),
+  ]
+  for (const chunk of chunks) sets.clientJs.add(chunk)
+}
+
+/**
+ * For each `.js` in `source`, add the co-located `.js.map` to `target` if
+ * one exists on disk. Source maps aren't listed in the manifests, so we
+ * derive them by checking for the conventional adjacent file.
+ */
+function deriveSourceMaps(
+  distDir: string,
+  source: Set<string>,
+  target: Set<string>
+): void {
+  for (const f of source) {
+    const map = f + '.map'
+    if (fs.existsSync(path.join(distDir, map))) target.add(map)
   }
 }
 
-function deriveClientMaps(distDir: string, sets: FileSets): void {
-  for (const f of sets.clientJs) {
-    const mapPath = f + '.map'
-    if (fs.existsSync(path.join(distDir, mapPath))) {
-      sets.clientMaps.add(mapPath)
-    }
-  }
-}
+/** Collect all 6 file-sets for a single route. */
+function collectFiles(distDir: string, entry: RouteEntry): FileSets {
+  const sets = emptyFileSets()
 
-function deriveServerMaps(distDir: string, sets: FileSets): void {
-  for (const f of sets.serverBundled) {
-    const mapPath = f + '.map'
-    if (fs.existsSync(path.join(distDir, mapPath))) {
-      sets.serverMaps.add(mapPath)
-    }
+  switch (entry.type) {
+    case 'edge-function':
+      // Edge functions have no separate trace file — the bundle files are
+      // listed directly in middleware-manifest.json.
+      for (const f of entry.files) {
+        if (f.endsWith('.js')) sets.serverBundled.add(f)
+      }
+      break
+    case 'pages-static':
+      collectPagesClientFiles(distDir, entry.route, sets)
+      break
+    case 'pages':
+      collectServerEntryFiles(distDir, entry.serverEntry, sets)
+      collectPagesClientFiles(distDir, entry.route, sets)
+      break
+    case 'pages-api':
+      collectServerEntryFiles(distDir, entry.serverEntry, sets)
+      break
+    case 'app-page':
+    case 'app-route':
+      collectServerEntryFiles(distDir, entry.serverEntry, sets)
+      collectAppClientFiles(distDir, entry.serverEntry, sets)
+      break
+    default:
+      // Exhaustiveness check — TS will error here if a new RouteEntry
+      // variant is added without a matching case.
+      entry satisfies never
   }
+
+  // Source maps for everything we collected above.
+  deriveSourceMaps(distDir, sets.serverBundled, sets.serverMaps)
+  deriveSourceMaps(distDir, sets.clientJs, sets.clientMaps)
+
+  return sets
 }
 
 // ---------------------------------------------------------------------------
 // Measurement
 // ---------------------------------------------------------------------------
 
+/**
+ * Stat each path in the set, summing bytes and counting files. Symlinks and
+ * non-files (directories, etc.) are skipped — `distDir/node_modules/...`
+ * symlinks for example shouldn't be counted as files.
+ */
 function measureSet(
   distDir: string,
   fileSet: Set<string>,
-  isAbsolute = false
+  isAbsolute: boolean
 ): CategoryStats {
   let count = 0
   let bytes = 0
@@ -350,52 +439,43 @@ function measureSet(
       bytes += stat.size
       count++
     } catch {
-      // File not found or inaccessible — skip silently
+      // Ignore missing/inaccessible files.
     }
   }
   return { count, bytes }
 }
 
-function measureFileSets(
-  distDir: string,
-  sets: FileSets
-): Omit<RouteInfo, 'route' | 'type'> {
+function measureFileSets(distDir: string, sets: FileSets): CategoryStatsByKey {
   return {
-    serverBundled: measureSet(distDir, sets.serverBundled),
-    serverMaps: measureSet(distDir, sets.serverMaps),
+    serverBundled: measureSet(distDir, sets.serverBundled, false),
+    serverMaps: measureSet(distDir, sets.serverMaps, false),
+    // Only `serverUnbundled` stores absolute paths (see FileSets docs).
     serverUnbundled: measureSet(distDir, sets.serverUnbundled, true),
-    clientJs: measureSet(distDir, sets.clientJs),
-    clientMaps: measureSet(distDir, sets.clientMaps),
-    clientCss: measureSet(distDir, sets.clientCss),
+    clientJs: measureSet(distDir, sets.clientJs, false),
+    clientMaps: measureSet(distDir, sets.clientMaps, false),
+    clientCss: measureSet(distDir, sets.clientCss, false),
   }
 }
 
-// ---------------------------------------------------------------------------
-// Totals
-// ---------------------------------------------------------------------------
-
+/** Union of all per-route file sets. Used to compute project-wide totals. */
 function mergeSets(all: FileSets[]): FileSets {
-  const merged: FileSets = {
-    serverBundled: new Set(),
-    serverMaps: new Set(),
-    serverUnbundled: new Set(),
-    clientJs: new Set(),
-    clientMaps: new Set(),
-    clientCss: new Set(),
-  }
-  for (const s of all) {
-    for (const f of s.serverBundled) merged.serverBundled.add(f)
-    for (const f of s.serverMaps) merged.serverMaps.add(f)
-    for (const f of s.serverUnbundled) merged.serverUnbundled.add(f)
-    for (const f of s.clientJs) merged.clientJs.add(f)
-    for (const f of s.clientMaps) merged.clientMaps.add(f)
-    for (const f of s.clientCss) merged.clientCss.add(f)
+  const merged = emptyFileSets()
+  for (const sets of all) {
+    for (const cat of CATEGORIES) {
+      for (const f of sets[cat]) merged[cat].add(f)
+    }
   }
   return merged
 }
 
+function totalBytes(stats: CategoryStatsByKey): number {
+  let sum = 0
+  for (const cat of CATEGORIES) sum += stats[cat].bytes
+  return sum
+}
+
 // ---------------------------------------------------------------------------
-// Formatting
+// Output
 // ---------------------------------------------------------------------------
 
 function formatBytes(n: number): string {
@@ -408,107 +488,39 @@ function formatCell(stats: CategoryStats): string {
   return `${stats.count} files / ${formatBytes(stats.bytes)}`
 }
 
-function totalBytes(info: Omit<RouteInfo, 'route' | 'type'>): number {
-  return (
-    info.serverBundled.bytes +
-    info.serverMaps.bytes +
-    info.serverUnbundled.bytes +
-    info.clientJs.bytes +
-    info.clientMaps.bytes +
-    info.clientCss.bytes
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Output
-// ---------------------------------------------------------------------------
-
-function printMarkdown(
-  routes: RouteInfo[],
-  totals: Omit<RouteInfo, 'route' | 'type'>
-): void {
-  const headers = [
-    'Route',
-    'Type',
-    'Server Bundled JS',
-    'Server Maps',
-    'Server Unbundled',
-    'Client JS',
-    'Client Maps',
-    'Client CSS',
-  ]
-
-  const rows: string[][] = routes.map((r) => [
-    r.route,
-    r.type,
-    formatCell(r.serverBundled),
-    formatCell(r.serverMaps),
-    formatCell(r.serverUnbundled),
-    formatCell(r.clientJs),
-    formatCell(r.clientMaps),
-    formatCell(r.clientCss),
-  ])
-
-  const colWidths = headers.map((h, i) =>
+/** Render a fixed-width markdown table — pads each cell to align columns. */
+function renderMarkdownTable(headers: string[], rows: string[][]): string {
+  const widths = headers.map((h, i) =>
     Math.max(h.length, ...rows.map((r) => r[i].length))
   )
-
-  const header =
-    '| ' + headers.map((h, i) => h.padEnd(colWidths[i])).join(' | ') + ' |'
-  const divider = '| ' + colWidths.map((w) => '-'.repeat(w)).join(' | ') + ' |'
-
-  console.log('## Routes\n')
-  console.log(header)
-  console.log(divider)
-  for (const row of rows) {
-    console.log(
-      '| ' + row.map((cell, i) => cell.padEnd(colWidths[i])).join(' | ') + ' |'
-    )
-  }
-
-  // Totals table
-  const totalHeaders = [
-    '',
-    'Server Bundled JS',
-    'Server Maps',
-    'Server Unbundled',
-    'Client JS',
-    'Client Maps',
-    'Client CSS',
-  ]
-  const totalRow = [
-    '**Total**',
-    formatCell(totals.serverBundled),
-    formatCell(totals.serverMaps),
-    formatCell(totals.serverUnbundled),
-    formatCell(totals.clientJs),
-    formatCell(totals.clientMaps),
-    formatCell(totals.clientCss),
-  ]
-  const totalColWidths = totalHeaders.map((h, i) =>
-    Math.max(h.length, totalRow[i].length)
-  )
-
-  console.log('\n## Totals\n')
-  console.log(
-    '| ' +
-      totalHeaders.map((h, i) => h.padEnd(totalColWidths[i])).join(' | ') +
-      ' |'
-  )
-  console.log(
-    '| ' + totalColWidths.map((w) => '-'.repeat(w)).join(' | ') + ' |'
-  )
-  console.log(
-    '| ' +
-      totalRow.map((cell, i) => cell.padEnd(totalColWidths[i])).join(' | ') +
-      ' |'
-  )
+  const formatRow = (cells: string[]) =>
+    '| ' + cells.map((c, i) => c.padEnd(widths[i])).join(' | ') + ' |'
+  const divider = '| ' + widths.map((w) => '-'.repeat(w)).join(' | ') + ' |'
+  return [formatRow(headers), divider, ...rows.map(formatRow)].join('\n')
 }
 
-function printJson(
-  routes: RouteInfo[],
-  totals: Omit<RouteInfo, 'route' | 'type'>
-): void {
+function printMarkdown(routes: RouteInfo[], totals: CategoryStatsByKey): void {
+  const categoryHeaders = CATEGORIES.map((c) => CATEGORY_LABELS[c])
+
+  const routeRows = routes.map((r) => [
+    r.route,
+    r.type,
+    ...CATEGORIES.map((c) => formatCell(r[c])),
+  ])
+  console.log('## Routes\n')
+  console.log(
+    renderMarkdownTable(['Route', 'Type', ...categoryHeaders], routeRows)
+  )
+
+  const totalsRow = [
+    '**Total**',
+    ...CATEGORIES.map((c) => formatCell(totals[c])),
+  ]
+  console.log('\n## Totals\n')
+  console.log(renderMarkdownTable(['', ...categoryHeaders], [totalsRow]))
+}
+
+function printJson(routes: RouteInfo[], totals: CategoryStatsByKey): void {
   console.log(JSON.stringify({ routes, totals }, null, 2))
 }
 
@@ -521,42 +533,32 @@ export async function staticRoutesInfoCli(
   directory: string | undefined
 ): Promise<void> {
   const dir = path.resolve(directory ?? process.cwd())
-
-  // Load Next.js config to find distDir
   const config = await loadConfig(PHASE_PRODUCTION_BUILD, dir)
   const distDir = path.join(dir, config.distDir)
 
-  // Verify the build exists
-  const buildIdPath = path.join(distDir, 'BUILD_ID')
-  if (!fs.existsSync(buildIdPath)) {
+  // BUILD_ID is the standard sentinel that a Next.js build completed.
+  if (!fs.existsSync(path.join(distDir, 'BUILD_ID'))) {
     console.error(
       `Error: No build found at ${distDir}. Run \`next build\` first.`
     )
     process.exit(1)
   }
 
-  // Discover all routes
+  // Step 1+2: capture per-route files (sets implicitly deduplicate).
   const routeEntries = discoverRoutes(distDir)
+  const allFileSets = routeEntries.map((entry) => collectFiles(distDir, entry))
 
-  // Collect and measure files for each route
-  const allFileSets: FileSets[] = []
-  const routeInfos: RouteInfo[] = []
-
-  for (const entry of routeEntries) {
-    const fileSets = collectFiles(distDir, entry)
-    allFileSets.push(fileSets)
-    const measured = measureFileSets(distDir, fileSets)
-    routeInfos.push({ route: entry.route, type: entry.type, ...measured })
-  }
-
-  // Sort by total bytes descending
+  // Step 3: measure per-route, then sort by total size descending.
+  const routeInfos: RouteInfo[] = routeEntries.map((entry, i) => ({
+    route: entry.route,
+    type: entry.type,
+    ...measureFileSets(distDir, allFileSets[i]),
+  }))
   routeInfos.sort((a, b) => totalBytes(b) - totalBytes(a))
 
-  // Compute totals from ALL routes (before applying --limit)
-  const mergedSets = mergeSets(allFileSets)
-  const totals = measureFileSets(distDir, mergedSets)
+  // Project-wide totals — union of all route sets, regardless of --limit.
+  const totals = measureFileSets(distDir, mergeSets(allFileSets))
 
-  // Apply --limit
   const displayRoutes =
     options.limit != null && options.limit > 0
       ? routeInfos.slice(0, options.limit)
