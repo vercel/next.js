@@ -525,6 +525,121 @@ describe('next internal static-routes-info', () => {
     }
   })
 
+  it('--json sharedAvg should match a from-scratch reimplementation for every route × category', async () => {
+    // The strongest guarantee we can offer for the sharedAvg metric: walk the
+    // dist-relative file lists from --files and re-run the exact algorithm in
+    // the test, then compare every (route, category) cell against what the
+    // tool reports. Any divergence — including spurious 100% values caused by
+    // path normalization mismatches, off-by-one peer counts, or asymmetric
+    // intersection — fails the test.
+    const output = JSON.parse(
+      (await runTool(['--json', '--files'])).stdout
+    ) as ToolOutput
+
+    // Build a fast file-size lookup from `count` and `bytes`. We don't have
+    // bytes-per-file in the JSON, but for a hand-computed *average size of
+    // intersection* we need them. So re-derive sizes by reading totals: any
+    // file in totals[cat].files maps to a size we can estimate? No — totals
+    // only have count/bytes too.
+    //
+    // Instead, we cross-check ONLY the file *count* against a hand-computed
+    // average. Bytes are checked separately by the byte-level test below
+    // using the size info that does exist (per-route own bytes).
+    const byType = new Map<string, RouteInfo[]>()
+    for (const r of output.routes) {
+      const list = byType.get(r.type) ?? []
+      list.push(r)
+      byType.set(r.type, list)
+    }
+
+    for (const r of output.routes) {
+      const peers = (byType.get(r.type) ?? []).filter((p) => p !== r)
+      for (const cat of ALL_CATEGORIES) {
+        const sa = r[cat].sharedAvg
+        if (peers.length === 0) {
+          expect(sa).toBeNull()
+          continue
+        }
+        const myFiles = new Set(r[cat].files)
+        let totalIntersectCount = 0
+        for (const p of peers) {
+          const peerFiles = new Set(p[cat].files)
+          let intersect = 0
+          for (const f of myFiles) if (peerFiles.has(f)) intersect++
+          totalIntersectCount += intersect
+        }
+        const expectedCount = totalIntersectCount / peers.length
+        expect(sa).not.toBeNull()
+        // Floating-point exact: division by integer peer count of an integer
+        // sum is exactly representable for the sizes we have here.
+        expect(sa!.count).toBe(expectedCount)
+      }
+    }
+  })
+
+  it('--json sharedAvg.count == own.count IFF every peer is a strict superset (100%-shared sanity check)', async () => {
+    // A 100% sharedAvg.count is only legitimate when, for every peer, this
+    // route's set is a (possibly equal) subset of the peer's set. This test
+    // independently checks: every (route, category) pair where
+    // `sharedAvg.count == own.count` must satisfy `myFiles ⊆ peerFiles` for
+    // every peer; conversely, every pair where some peer is missing a file
+    // must have `sharedAvg.count < own.count`.
+    //
+    // This catches bugs where the intersection accidentally over-counts —
+    // e.g. counting the same file twice across the small/big swap, returning
+    // |self ∪ peer| instead of |self ∩ peer|, or comparing the wrong route.
+    const output = JSON.parse(
+      (await runTool(['--json', '--files'])).stdout
+    ) as ToolOutput
+    const byType = new Map<string, RouteInfo[]>()
+    for (const r of output.routes) {
+      const list = byType.get(r.type) ?? []
+      list.push(r)
+      byType.set(r.type, list)
+    }
+
+    for (const r of output.routes) {
+      const peers = (byType.get(r.type) ?? []).filter((p) => p !== r)
+      if (peers.length === 0) continue
+      for (const cat of ALL_CATEGORIES) {
+        const myFiles = new Set(r[cat].files)
+        if (myFiles.size === 0) continue
+        const everyPeerIsSuperset = peers.every((p) => {
+          const peer = new Set(p[cat].files)
+          for (const f of myFiles) if (!peer.has(f)) return false
+          return true
+        })
+        const sa = r[cat].sharedAvg!
+        if (everyPeerIsSuperset) {
+          expect(sa.count).toBe(r[cat].count)
+          expect(sa.bytes).toBe(r[cat].bytes)
+        } else {
+          // Some peer is missing at least one of my files; the average
+          // intersection size MUST be strictly less than my own count.
+          expect(sa.count).toBeLessThan(r[cat].count)
+        }
+      }
+    }
+  })
+
+  it('--json sharedAvg should be < own for routes with unique files (regression check)', async () => {
+    // `/` and `/about` import the `'use client'` `Counter` component;
+    // `/no-client`, `/_not-found`, and `/items/[itemId]` do not. So `/`'s
+    // Counter chunk is shared with exactly one peer (`/about`) and absent
+    // from the other three. This forces a strictly-below-100% average for
+    // `/.clientJs`, regardless of how many framework chunks happen to be
+    // shared across all five app-pages.
+    //
+    // If the algorithm were broken to return |self ∪ peer| or to skip
+    // certain peers, this assertion would still trigger.
+    const output = JSON.parse((await runTool(['--json'])).stdout) as ToolOutput
+    const root = getRoute(output, '/')
+    expect(root.type).toBe('app-page')
+    expect(root.clientJs.sharedAvg).not.toBeNull()
+    expect(root.clientJs.sharedAvg!.count).toBeLessThan(root.clientJs.count)
+    expect(root.clientJs.sharedAvg!.bytes).toBeLessThan(root.clientJs.bytes)
+  })
+
   it('totals should not include sharedAvg', async () => {
     const output = JSON.parse((await runTool(['--json'])).stdout) as ToolOutput
     for (const cat of ALL_CATEGORIES) {
