@@ -203,12 +203,38 @@ Runtime cache behavior depends on your hosting environment:
 
 | Environment     | Runtime Caching Behavior                                                                                                                                          |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Serverless**  | Cache entries typically don't persist across requests (each request can be a different instance). Build-time caching works normally.                              |
+| **Serverless**  | Cache entries typically don't persist across requests (each request can be a different instance), or during revalidation. Build-time caching works normally.      |
 | **Self-hosted** | Cache entries persist across requests. Control cache size with [`cacheMaxMemorySize`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath). |
+
+For example, in a serverless environment, a cached function shared by two pages executes on each static shell revalidation, whereas in self-hosted or environments with persistent memory, the cached output is reused if it's still fresh.
 
 If the default in-memory cache isn't enough, consider **[`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** which allows platforms to provide a dedicated cache handler (like Redis or KV database). This helps reduce hits against data sources not scaled to your total traffic, though it comes with costs (storage, network latency, platform fees).
 
 Very rarely, for compliance requirements or when you can't refactor your code to pass runtime data as arguments to a `use cache` scope, you might need [`use cache: private`](/docs/app/api-reference/directives/use-cache-private).
+
+### Draft Mode
+
+When [Draft Mode](/docs/app/guides/draft-mode) is enabled, all cached functions and components re-execute on every request, and results are not saved to the cache. This ensures draft content is always fresh without requiring any changes to your caching code.
+
+You can read `isEnabled` from [`draftMode()`](/docs/app/api-reference/functions/draft-mode) inside a `use cache` scope, however, other runtime APIs like `cookies()` and `headers()` are not allowed, even when Draft Mode is active. See [Passing runtime values to cached functions](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions) for the recommended pattern.
+
+```tsx filename="app/components/content.tsx"
+import { draftMode } from 'next/headers'
+
+async function Content() {
+  'use cache'
+
+  const { isEnabled } = await draftMode()
+  const url = isEnabled
+    ? 'https://draft.example.com/content'
+    : 'https://production.example.com/content'
+
+  const data = await fetch(url)
+  return <article>{/* ... */}</article>
+}
+```
+
+Calling `enable()` or `disable()` inside a caching directive scope will also throw an error. Draft Mode can only be toggled in [Route Handlers](/docs/app/api-reference/file-conventions/route) or [Server Actions](/docs/app/getting-started/mutating-data).
 
 ### React.cache isolation
 
