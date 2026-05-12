@@ -429,7 +429,7 @@ pub mod tests {
             noop_backing_storage(),
         ));
         tt.run_once(async move {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn output_name_operation() -> anyhow::Result<Vc<RcStr>> {
                 let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
                 let root = fs.root().owned().await?;

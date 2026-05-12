@@ -464,7 +464,7 @@ pub struct ProjectContainer {
 
 #[turbo_tasks::value_impl]
 impl ProjectContainer {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub fn new_operation(name: RcStr, dev: bool) -> Result<Vc<Self>> {
         Ok(ProjectContainer {
             name,
@@ -481,17 +481,17 @@ impl ProjectContainer {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn project_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Project> {
     project.project()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn project_fs_operation(project: ResolvedVc<Project>) -> Vc<DiskFileSystem> {
     project.project_fs()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn output_fs_operation(project: ResolvedVc<Project>) -> Vc<DiskFileSystem> {
     project.project_fs()
 }
@@ -606,7 +606,7 @@ impl ProjectContainer {
             }
             this.options_state.set(Some(options));
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             fn project_from_container_operation(
                 container: OperationVc<ProjectContainer>,
             ) -> Vc<Project> {
@@ -654,7 +654,7 @@ impl ProjectContainer {
             // to upgrade the `ResolvedVc` to an `OperationVc`. This is mostly okay
             // because we can assume the `ProjectContainer` was originally resolved with
             // strong consistency, and is rarely updated.
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             fn project_container_operation_hack(
                 container: ResolvedVc<ProjectContainer>,
             ) -> Vc<ProjectContainer> {
@@ -1508,7 +1508,7 @@ impl Project {
 
     /// Computes the whole app module graph, dropping issues in development mode so that
     /// individual routes don't each report every issue from the shared graph.
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     pub async fn whole_app_module_graphs(
         self: ResolvedVc<Self>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
@@ -2408,7 +2408,7 @@ impl Project {
         // sessions.
         let _ = session;
 
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn hmr_version_operation(
             this: ResolvedVc<Project>,
             chunk_name: RcStr,
@@ -2726,7 +2726,7 @@ async fn any_output_changed(
     Ok(Vc::<Completions>::cell(completions).completed())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn all_assets_from_entries_operation(
     operation: OperationVc<OutputAssets>,
 ) -> Result<Vc<ExpandedOutputAssets>> {

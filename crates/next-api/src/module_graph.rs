@@ -50,7 +50,7 @@ pub struct NextDynamicGraphs(Vec<ResolvedVc<NextDynamicGraph>>);
 
 #[turbo_tasks::value_impl]
 impl NextDynamicGraphs {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn new_operation(
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
@@ -71,7 +71,7 @@ impl NextDynamicGraphs {
         Ok(Self(next_dynamic).cell())
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         // TODO get rid of this function once everything inside of
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
@@ -248,7 +248,7 @@ pub struct ServerActionsGraphs(Vec<ResolvedVc<ServerActionsGraph>>);
 
 #[turbo_tasks::value_impl]
 impl ServerActionsGraphs {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn new_operation(
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
@@ -269,7 +269,7 @@ impl ServerActionsGraphs {
         Ok(Self(server_actions).cell())
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         // TODO get rid of this function once everything inside of
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
@@ -426,7 +426,7 @@ pub struct ClientReferencesGraphs(Vec<ResolvedVc<ClientReferencesGraph>>);
 
 #[turbo_tasks::value_impl]
 impl ClientReferencesGraphs {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn new_operation(
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
@@ -447,7 +447,7 @@ impl ClientReferencesGraphs {
         Ok(Self(client_references).cell())
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         // TODO get rid of this function once everything inside of
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed

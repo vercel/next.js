@@ -1218,7 +1218,7 @@ pub async fn emit_assets_into_dir(
     Ok(())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn emit_assets_into_dir_operation(
     assets: ResolvedVc<ExpandedOutputAssets>,
     output_dir: FileSystemPath,

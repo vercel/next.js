@@ -119,7 +119,7 @@ struct WrittenEndpointWithIssues {
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_written_endpoint_with_issues_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
@@ -222,7 +222,7 @@ impl PartialEq for EndpointIssuesAndDiags {
 
 impl Eq for EndpointIssuesAndDiags {}
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn subscribe_issues_and_diags_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
     should_include_issues: bool,
