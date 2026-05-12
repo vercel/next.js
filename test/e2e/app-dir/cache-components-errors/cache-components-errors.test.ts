@@ -388,6 +388,150 @@ describe('Cache Components Errors', () => {
       }
     })
 
+    describe('Dynamic Metadata - Static Route With Suspense Above Body', () => {
+      const pathname = '/dynamic-metadata-static-with-suspense-above-body'
+
+      if (isNextDev) {
+        it('should show a collapsed redbox error', async () => {
+          const browser = await next.browser(pathname)
+
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "code": "E1231",
+             "description": "Next.js encountered uncached data in generateMetadata().",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/dynamic-metadata-static-with-suspense-above-body/page.tsx (2:9) @ Module.generateMetadata
+           > 2 |   await new Promise((r) => setTimeout(r, 0))
+               |         ^",
+             "stack": [
+               "Module.generateMetadata app/dynamic-metadata-static-with-suspense-above-body/page.tsx (2:9)",
+             ],
+           }
+          `)
+        })
+      } else {
+        it('should error the build because Suspense above body is not a documented mitigation for dynamic generateMetadata', async () => {
+          try {
+            await prerender(pathname)
+          } catch {
+            // we expect the build to fail
+          }
+
+          const output = getPrerenderOutput(
+            next.cliOutput.slice(cliOutputLength),
+            { isMinified: !isDebugPrerender }
+          )
+
+          if (isDebugPrerender) {
+            expect(output).toMatchInlineSnapshot(`
+             "Route "/dynamic-metadata-static-with-suspense-above-body": Next.js encountered uncached or runtime data in \`generateMetadata()\`.
+
+             This route's metadata is blocked, but the rest of its content can be prerendered.
+
+             Ways to fix this:
+               - Use a static metadata export instead of \`generateMetadata()\`
+               - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time
+
+             Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+             Error occurred prerendering page "/dynamic-metadata-static-with-suspense-above-body". Read more: https://nextjs.org/docs/messages/prerender-error
+
+             > Export encountered errors on 1 path:
+             	/dynamic-metadata-static-with-suspense-above-body/page: /dynamic-metadata-static-with-suspense-above-body"
+            `)
+          } else {
+            expect(output).toMatchInlineSnapshot(`
+             "Route "/dynamic-metadata-static-with-suspense-above-body": Next.js encountered uncached or runtime data in \`generateMetadata()\`.
+
+             This route's metadata is blocked, but the rest of its content can be prerendered.
+
+             Ways to fix this:
+               - Use a static metadata export instead of \`generateMetadata()\`
+               - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time
+
+             Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+             Error occurred prerendering page "/dynamic-metadata-static-with-suspense-above-body". Read more: https://nextjs.org/docs/messages/prerender-error
+             Export encountered an error on /dynamic-metadata-static-with-suspense-above-body/page: /dynamic-metadata-static-with-suspense-above-body, exiting the build."
+            `)
+          }
+        })
+      }
+    })
+
+    describe('Dynamic Metadata - Static Route With instant = false', () => {
+      const pathname = '/dynamic-metadata-static-with-instant-false'
+
+      if (isNextDev) {
+        it('should show a collapsed redbox error', async () => {
+          const browser = await next.browser(pathname)
+
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "code": "E1231",
+             "description": "Next.js encountered uncached data in generateMetadata().",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/dynamic-metadata-static-with-instant-false/page.tsx (4:9) @ Module.generateMetadata
+           > 4 |   await new Promise((r) => setTimeout(r, 0))
+               |         ^",
+             "stack": [
+               "Module.generateMetadata app/dynamic-metadata-static-with-instant-false/page.tsx (4:9)",
+             ],
+           }
+          `)
+        })
+      } else {
+        it('should error the build because instant = false is not a documented mitigation for dynamic generateMetadata', async () => {
+          try {
+            await prerender(pathname)
+          } catch {
+            // we expect the build to fail
+          }
+
+          const output = getPrerenderOutput(
+            next.cliOutput.slice(cliOutputLength),
+            { isMinified: !isDebugPrerender }
+          )
+
+          if (isDebugPrerender) {
+            expect(output).toMatchInlineSnapshot(`
+             "Route "/dynamic-metadata-static-with-instant-false": Next.js encountered uncached or runtime data in \`generateMetadata()\`.
+
+             This route's metadata is blocked, but the rest of its content can be prerendered.
+
+             Ways to fix this:
+               - Use a static metadata export instead of \`generateMetadata()\`
+               - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time
+
+             Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+             Error occurred prerendering page "/dynamic-metadata-static-with-instant-false". Read more: https://nextjs.org/docs/messages/prerender-error
+
+             > Export encountered errors on 1 path:
+             	/dynamic-metadata-static-with-instant-false/page: /dynamic-metadata-static-with-instant-false"
+            `)
+          } else {
+            expect(output).toMatchInlineSnapshot(`
+             "Route "/dynamic-metadata-static-with-instant-false": Next.js encountered uncached or runtime data in \`generateMetadata()\`.
+
+             This route's metadata is blocked, but the rest of its content can be prerendered.
+
+             Ways to fix this:
+               - Use a static metadata export instead of \`generateMetadata()\`
+               - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`
+               - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time
+
+             Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+             Error occurred prerendering page "/dynamic-metadata-static-with-instant-false". Read more: https://nextjs.org/docs/messages/prerender-error
+             Export encountered an error on /dynamic-metadata-static-with-instant-false/page: /dynamic-metadata-static-with-instant-false, exiting the build."
+            `)
+          }
+        })
+      }
+    })
+
     describe('Dynamic Metadata - Dynamic Route', () => {
       const pathname = '/dynamic-metadata-dynamic-route'
 
@@ -482,6 +626,44 @@ describe('Cache Components Errors', () => {
                Error occurred prerendering page "/dynamic-viewport-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
                Export encountered an error on /dynamic-viewport-static-route/page: /dynamic-viewport-static-route, exiting the build."
               `)
+          }
+        })
+      }
+    })
+
+    describe('Dynamic Viewport - Static Route With Suspense Above Body', () => {
+      const pathname = '/dynamic-viewport-static-with-suspense'
+
+      if (isNextDev) {
+        it('should not show a collapsed redbox error', async () => {
+          const browser = await next.browser(pathname)
+          await waitForNoErrorToast(browser)
+        })
+      } else {
+        it('should not error the build when generateViewport is dynamic and the root layout wraps body in Suspense', async () => {
+          try {
+            await prerender(pathname)
+          } catch (error) {
+            throw new Error('expected build not to fail', { cause: error })
+          }
+        })
+      }
+    })
+
+    describe('Dynamic Viewport - Static Route With instant = false', () => {
+      const pathname = '/dynamic-viewport-static-with-instant-false'
+
+      if (isNextDev) {
+        it('should not show a collapsed redbox error', async () => {
+          const browser = await next.browser(pathname)
+          await waitForNoErrorToast(browser)
+        })
+      } else {
+        it('should not error the build when generateViewport is dynamic and the page opts into blocking via instant = false', async () => {
+          try {
+            await prerender(pathname)
+          } catch (error) {
+            throw new Error('expected build not to fail', { cause: error })
           }
         })
       }

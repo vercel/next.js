@@ -6012,8 +6012,6 @@ async function validateStagedShell(
       workStore,
       preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
       dynamicValidation,
-      // TODO(instant-validation): if allowEmptyStaticShell is true (likely due to blocking configs),
-      // we should probably just skip this altogether
       allowEmptyStaticShell
     )
   } catch (thrownValue) {
@@ -6023,8 +6021,6 @@ async function validateStagedShell(
       workStore,
       PreludeState.Errored,
       dynamicValidation,
-      // TODO(instant-validation): if allowEmptyStaticShell is true (likely due to blocking configs),
-      // we should probably just skip this altogether
       allowEmptyStaticShell
     )
 
@@ -7843,17 +7839,13 @@ async function prerenderToStream(
       const { prelude, preludeIsEmpty } =
         await processPreludeOp(unprocessedPrelude)
 
-      // If we've disabled throwing on empty static shell, then we don't need to
-      // track any dynamic access that occurs above the suspense boundary because
-      // we'll do so in the route shell.
-      if (!allowEmptyStaticShell) {
-        throwIfDisallowedDynamic(
-          workStore,
-          preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
-          dynamicValidation,
-          serverDynamicTracking
-        )
-      }
+      throwIfDisallowedDynamic(
+        workStore,
+        preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
+        dynamicValidation,
+        serverDynamicTracking,
+        allowEmptyStaticShell
+      )
 
       const getServerInsertedHTML = makeGetServerInsertedHTML({
         polyfills,
