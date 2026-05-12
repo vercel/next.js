@@ -599,36 +599,6 @@ impl TaskStorage {
 // TaskStorage helper methods
 // =============================================================================
 
-/// Opaque owning container for the lazy field area, returned by
-/// [`TaskStorage::take_lazy_contents`]. Callers can iterate it (to merge entries
-/// one-by-one) or hand it back to [`TaskStorage::lazy_extend_owned`] for a
-/// bulk move. The type is intentionally opaque so callers don't depend on the
-/// underlying storage representation.
-pub(crate) struct LazyContents(turbo_tasks::TinyVec<LazyField, { LazyField::NUM_VARIANTS as u8 }>);
-
-impl LazyContents {
-    /// Number of present lazy fields.
-    #[allow(dead_code)] // used by upcoming bitmap-layout implementation
-    pub(crate) fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Whether the container holds no fields.
-    #[allow(dead_code)] // used by upcoming bitmap-layout implementation
-    pub(crate) fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-}
-
-impl IntoIterator for LazyContents {
-    type Item = LazyField;
-    type IntoIter = <turbo_tasks::TinyVec<LazyField, { LazyField::NUM_VARIANTS as u8 }>
-        as IntoIterator>::IntoIter;
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
 impl TaskStorage {
     /// Find a lazy field by predicate (immutable).
     ///
@@ -784,45 +754,9 @@ impl TaskStorage {
         self.lazy.swap_remove(idx)
     }
 
-    /// Drop entries in place that fail the predicate. Preserves order of remaining
-    /// entries up to the precision the underlying container offers.
-    pub(crate) fn lazy_retain_mut(&mut self, f: impl FnMut(&mut LazyField) -> bool) {
-        self.lazy.retain_mut(f);
-    }
-
-    /// Take ownership of the entire lazy area of `self`, leaving it empty.
-    ///
-    /// Returns an opaque container that exposes only iteration; callers feed it
-    /// to `lazy_extend_owned` or iterate to merge entries individually. Keeping
-    /// the type opaque (`LazyContents`) means callers don't depend on the
-    /// underlying `TinyVec` storage.
-    pub(crate) fn take_lazy_contents(&mut self) -> LazyContents {
-        LazyContents(std::mem::take(&mut self.lazy))
-    }
-
-    /// Bulk-append the contents of `other` to `self`'s lazy area.
-    pub(crate) fn lazy_extend_owned(&mut self, other: LazyContents) {
-        self.lazy.extend_exact(other.0);
-    }
-
     /// Shrink the lazy storage to fit its current contents.
     pub(crate) fn lazy_shrink_to_fit(&mut self) {
         self.lazy.shrink_to_fit();
-    }
-
-    /// Cleanup loop: visit each entry in turn (with its index), and `swap_remove`
-    /// it when the predicate returns `false`. The index passed to the predicate
-    /// reflects the current position after any prior swap_removes, matching the
-    /// behavior of a `while i < lazy.len()` / `swap_remove(i)` loop.
-    pub(crate) fn lazy_cleanup<F: FnMut(&mut LazyField) -> bool>(&mut self, mut keep: F) {
-        let mut i = 0;
-        while i < self.lazy.len() {
-            if keep(&mut self.lazy[i]) {
-                i += 1;
-            } else {
-                self.lazy.swap_remove(i);
-            }
-        }
     }
 
     /// "Are all lazy data fields empty?" — used by eviction predicates.
