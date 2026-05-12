@@ -73,9 +73,20 @@ interface CategoryStats {
   bytes: number
 }
 
-type CategoryStatsByKey = Record<Category, CategoryStats>
+/**
+ * Per-route stats for one category, plus the average size of the intersection
+ * with peer routes (other routes of the same type). `sharedAvg` is `null` when
+ * the route has no peers (i.e. it's the only route of its type), since the
+ * average is undefined.
+ */
+interface CategoryStatsWithShared extends CategoryStats {
+  sharedAvg: CategoryStats | null
+}
 
-interface RouteInfo extends CategoryStatsByKey {
+type CategoryStatsByKey = Record<Category, CategoryStats>
+type CategoryStatsWithSharedByKey = Record<Category, CategoryStatsWithShared>
+
+interface RouteInfo extends CategoryStatsWithSharedByKey {
   route: string
   type: string
 }
@@ -101,21 +112,28 @@ function emptyFileSets(): FileSets {
  */
 type RouteEntry =
   /**
-   * Server-rendered Pages or App route. `serverEntry` is the path of the
-   * .js bundle relative to `distDir/server`, e.g. `app/page.js`.
+   * Server-rendered Pages or App route. The `runtime` field describes how
+   * its bundle is laid out:
+   *   - `node`: a `.js` server entry plus a sibling `.nft.json` listing all
+   *     runtime dependencies (the standard production bundle).
+   *   - `edge`: no `.nft.json` — the bundle's chunks are listed directly
+   *     in `middleware-manifest.json#functions[].files`.
    */
   | {
       type: 'app-page' | 'app-route' | 'pages' | 'pages-api'
       route: string
-      serverEntry: string
+      runtime:
+        | { kind: 'node'; serverEntry: string }
+        | { kind: 'edge'; files: string[] }
     }
   /** Statically pre-rendered Pages page. Only ships client JS. */
   | { type: 'pages-static'; route: string }
   /**
-   * Edge route handler / function. `files` comes directly from
-   * `middleware-manifest.json#functions[page].files`.
+   * Edge middleware (the `middleware.ts` file). Sourced from
+   * `middleware-manifest.json#middleware[].files`. There's at most one
+   * middleware per project, but the manifest format supports several keys.
    */
-  | { type: 'edge-function'; route: string; files: string[] }
+  | { type: 'middleware'; route: string; files: string[] }
 
 /**
  * Pages Router infrastructure entries we never report as routes.
@@ -141,15 +159,40 @@ function readJsonFile<T>(filePath: string): T | null {
   }
 }
 
+interface MiddlewareManifestEntry {
+  files: string[]
+  page?: string
+  name?: string
+}
+
+interface MiddlewareManifest {
+  functions?: Record<string, MiddlewareManifestEntry>
+  middleware?: Record<string, MiddlewareManifestEntry>
+}
+
 function discoverRoutes(distDir: string): RouteEntry[] {
+  const middlewareManifest = readJsonFile<MiddlewareManifest>(
+    path.join(distDir, 'server', 'middleware-manifest.json')
+  )
+  // Edge route handlers (per-route runtime: 'edge') live in `functions`.
+  // Their key matches either an app-paths-manifest internal key (e.g.
+  // `/api/edge/route`) or a pages-manifest route (e.g. `/api/edge` for
+  // pages-router edge APIs). We use these inside the pages/app discovery
+  // below to pick `runtime: edge` instead of node and get the bundled-file
+  // list from middleware-manifest rather than `.nft.json`.
+  const edgeFunctions = middlewareManifest?.functions ?? {}
+
   return [
-    ...discoverPagesRoutes(distDir),
-    ...discoverAppRoutes(distDir),
-    ...discoverEdgeRoutes(distDir),
+    ...discoverPagesRoutes(distDir, edgeFunctions),
+    ...discoverAppRoutes(distDir, edgeFunctions),
+    ...discoverMiddleware(middlewareManifest?.middleware ?? {}),
   ]
 }
 
-function discoverPagesRoutes(distDir: string): RouteEntry[] {
+function discoverPagesRoutes(
+  distDir: string,
+  edgeFunctions: Record<string, MiddlewareManifestEntry>
+): RouteEntry[] {
   const manifest = readJsonFile<Record<string, string>>(
     path.join(distDir, 'server', 'pages-manifest.json')
   )
@@ -158,11 +201,20 @@ function discoverPagesRoutes(distDir: string): RouteEntry[] {
   const routes: RouteEntry[] = []
   for (const [route, entry] of Object.entries(manifest)) {
     if (SKIP_PAGES_ENTRIES.has(route)) continue
-    if (entry.endsWith('.js')) {
+    const isApi = route.startsWith('/api/')
+    const edge = edgeFunctions[route]
+    if (edge) {
+      // Edge runtime — bundle files come from middleware-manifest, not nft.
       routes.push({
-        type: route.startsWith('/api/') ? 'pages-api' : 'pages',
+        type: isApi ? 'pages-api' : 'pages',
         route,
-        serverEntry: entry,
+        runtime: { kind: 'edge', files: edge.files },
+      })
+    } else if (entry.endsWith('.js')) {
+      routes.push({
+        type: isApi ? 'pages-api' : 'pages',
+        route,
+        runtime: { kind: 'node', serverEntry: entry },
       })
     } else if (entry.endsWith('.html')) {
       // Statically pre-rendered page — no server JS bundle, but still ships
@@ -173,7 +225,10 @@ function discoverPagesRoutes(distDir: string): RouteEntry[] {
   return routes
 }
 
-function discoverAppRoutes(distDir: string): RouteEntry[] {
+function discoverAppRoutes(
+  distDir: string,
+  edgeFunctions: Record<string, MiddlewareManifestEntry>
+): RouteEntry[] {
   const appPathsManifest = readJsonFile<Record<string, string>>(
     path.join(distDir, 'server', 'app-paths-manifest.json')
   )
@@ -188,34 +243,39 @@ function discoverAppRoutes(distDir: string): RouteEntry[] {
   const routes: RouteEntry[] = []
   for (const [internalKey, entry] of Object.entries(appPathsManifest)) {
     if (SKIP_APP_ENTRIES.has(internalKey)) continue
-    if (!entry.endsWith('.js')) continue
-    routes.push({
-      type: internalKey.endsWith('/route') ? 'app-route' : 'app-page',
-      route: appPathRoutesManifest?.[internalKey] ?? internalKey,
-      serverEntry: entry,
-    })
+    const type = internalKey.endsWith('/route') ? 'app-route' : 'app-page'
+    const route = appPathRoutesManifest?.[internalKey] ?? internalKey
+    const edge = edgeFunctions[internalKey]
+    if (edge) {
+      // Edge runtime — turbopack writes a placeholder entry value (e.g.
+      // `app-edge-has-no-entrypoint`) here, while webpack writes a real .js
+      // path; either way the actual bundle files come from the
+      // middleware-manifest entry.
+      routes.push({
+        type,
+        route,
+        runtime: { kind: 'edge', files: edge.files },
+      })
+    } else if (entry.endsWith('.js')) {
+      routes.push({
+        type,
+        route,
+        runtime: { kind: 'node', serverEntry: entry },
+      })
+    }
   }
   return routes
 }
 
-function discoverEdgeRoutes(distDir: string): RouteEntry[] {
-  const manifest = readJsonFile<{
-    functions?: Record<string, { files: string[] }>
-  }>(path.join(distDir, 'server', 'middleware-manifest.json'))
-  if (!manifest?.functions) return []
-
-  // App Router edge route handlers appear in middleware-manifest under their
-  // internal key (e.g. `/api/edge/route`). Map them to the user-facing URL
-  // (e.g. `/api/edge`) when an app-path-routes-manifest entry exists; for
-  // pages-router edge handlers and middleware itself, the key is already the
-  // public path so we leave it alone.
-  const appPathRoutesManifest = readJsonFile<Record<string, string>>(
-    path.join(distDir, 'app-path-routes-manifest.json')
-  )
-
-  return Object.entries(manifest.functions).map(([page, def]) => ({
-    type: 'edge-function' as const,
-    route: appPathRoutesManifest?.[page] ?? page,
+function discoverMiddleware(
+  middleware: Record<string, MiddlewareManifestEntry>
+): RouteEntry[] {
+  // The middleware manifest keys an entry by `/` for the project's
+  // `middleware.ts`. We use the entry's `name` (e.g. "middleware") as the
+  // displayed route, since `/` would collide with an app-page at "/".
+  return Object.entries(middleware).map(([key, def]) => ({
+    type: 'middleware' as const,
+    route: def.name ?? key,
     files: def.files,
   }))
 }
@@ -444,32 +504,53 @@ function readSourceMappingURL(filePath: string): string | null {
   }
 }
 
+/**
+ * Collect bundled `.js` files for an edge runtime entry. Edge bundles don't
+ * have a `.nft.json`; their files are listed inline by middleware-manifest.
+ * We filter to `.js` so we don't pick up the manifest .json siblings.
+ */
+function collectEdgeFiles(files: string[], sets: FileSets): void {
+  for (const f of files) {
+    if (f.endsWith('.js')) sets.serverBundled.add(f)
+  }
+}
+
 /** Collect all 6 file-sets for a single route. */
 function collectFiles(distDir: string, entry: RouteEntry): FileSets {
   const sets = emptyFileSets()
 
   switch (entry.type) {
-    case 'edge-function':
-      // Edge functions have no separate trace file — the bundle files are
-      // listed directly in middleware-manifest.json.
-      for (const f of entry.files) {
-        if (f.endsWith('.js')) sets.serverBundled.add(f)
-      }
+    case 'middleware':
+      // Middleware always runs in the edge runtime; same shape as edge
+      // route handlers (inline files list).
+      collectEdgeFiles(entry.files, sets)
       break
     case 'pages-static':
       collectPagesClientFiles(distDir, entry.route, sets)
       break
     case 'pages':
-      collectServerEntryFiles(distDir, entry.serverEntry, sets)
-      collectPagesClientFiles(distDir, entry.route, sets)
-      break
     case 'pages-api':
-      collectServerEntryFiles(distDir, entry.serverEntry, sets)
-      break
     case 'app-page':
     case 'app-route':
-      collectServerEntryFiles(distDir, entry.serverEntry, sets)
-      collectAppClientFiles(distDir, entry.serverEntry, sets)
+      // Server bundle: node entries are traced via .nft.json; edge entries
+      // list their bundle files directly in the middleware-manifest.
+      if (entry.runtime.kind === 'node') {
+        collectServerEntryFiles(distDir, entry.runtime.serverEntry, sets)
+      } else {
+        collectEdgeFiles(entry.runtime.files, sets)
+      }
+      // Client-side: pages-router uses the global build-manifest;
+      // app-router uses the per-route _client-reference-manifest plus its
+      // own per-route build-manifest. App-router edge handlers don't ship
+      // client JS (no separate serverEntry to look up), so we skip.
+      if (entry.type === 'pages') {
+        collectPagesClientFiles(distDir, entry.route, sets)
+      } else if (
+        (entry.type === 'app-page' || entry.type === 'app-route') &&
+        entry.runtime.kind === 'node'
+      ) {
+        collectAppClientFiles(distDir, entry.runtime.serverEntry, sets)
+      }
       break
     default:
       // Exhaustiveness check — TS will error here if a new RouteEntry
@@ -492,41 +573,134 @@ function collectFiles(distDir: string, entry: RouteEntry): FileSets {
 // ---------------------------------------------------------------------------
 
 /**
- * Stat each path in the set, summing bytes and counting files. Symlinks and
- * non-files (directories, etc.) are skipped — `distDir/node_modules/...`
- * symlinks for example shouldn't be counted as files.
+ * Per-category map from file path -> on-disk size in bytes, or `null` if the
+ * path doesn't refer to a regular file (symlink, directory, missing, etc.).
+ * Stats are looked up once per unique path, so repeatedly measuring the same
+ * file across routes doesn't pay the syscall cost more than once.
  */
-function measureSet(
-  distDir: string,
-  fileSet: Set<string>,
-  isAbsolute: boolean
+type SizeCache = Record<Category, Map<string, number | null>>
+
+function emptySizeCache(): SizeCache {
+  return {
+    serverBundled: new Map(),
+    serverMaps: new Map(),
+    serverUnbundled: new Map(),
+    clientJs: new Map(),
+    clientMaps: new Map(),
+    clientCss: new Map(),
+  }
+}
+
+/**
+ * Stat every unique file across every route's file sets and cache the size.
+ * Symlinks and non-files (directories, etc.) are recorded as `null` so we
+ * don't re-stat and so they're excluded from later counts.
+ */
+function buildSizeCache(distDir: string, allFileSets: FileSets[]): SizeCache {
+  const caches = emptySizeCache()
+  for (const sets of allFileSets) {
+    for (const cat of CATEGORIES) {
+      const cache = caches[cat]
+      // Only `serverUnbundled` stores absolute paths (see FileSets docs).
+      const isAbsolute = cat === 'serverUnbundled'
+      for (const f of sets[cat]) {
+        if (cache.has(f)) continue
+        const fullPath = isAbsolute ? f : path.join(distDir, f)
+        try {
+          const stat = fs.lstatSync(fullPath)
+          cache.set(
+            f,
+            stat.isFile() && !stat.isSymbolicLink() ? stat.size : null
+          )
+        } catch {
+          cache.set(f, null)
+        }
+      }
+    }
+  }
+  return caches
+}
+
+/** Sum sizes for the files in `set` using the precomputed cache. */
+function measureFromCache(
+  set: Set<string>,
+  cache: Map<string, number | null>
 ): CategoryStats {
   let count = 0
   let bytes = 0
-  for (const f of fileSet) {
-    const fullPath = isAbsolute ? f : path.join(distDir, f)
-    try {
-      const stat = fs.lstatSync(fullPath)
-      if (!stat.isFile() || stat.isSymbolicLink()) continue
-      bytes += stat.size
+  for (const f of set) {
+    const size = cache.get(f)
+    if (size != null) {
       count++
-    } catch {
-      // Ignore missing/inaccessible files.
+      bytes += size
     }
   }
   return { count, bytes }
 }
 
-function measureFileSets(distDir: string, sets: FileSets): CategoryStatsByKey {
-  return {
-    serverBundled: measureSet(distDir, sets.serverBundled, false),
-    serverMaps: measureSet(distDir, sets.serverMaps, false),
-    // Only `serverUnbundled` stores absolute paths (see FileSets docs).
-    serverUnbundled: measureSet(distDir, sets.serverUnbundled, true),
-    clientJs: measureSet(distDir, sets.clientJs, false),
-    clientMaps: measureSet(distDir, sets.clientMaps, false),
-    clientCss: measureSet(distDir, sets.clientCss, false),
+function measureFileSets(
+  sets: FileSets,
+  caches: SizeCache
+): CategoryStatsByKey {
+  const result = {} as CategoryStatsByKey
+  for (const cat of CATEGORIES) {
+    result[cat] = measureFromCache(sets[cat], caches[cat])
   }
+  return result
+}
+
+/**
+ * For each category, compute the average size of the intersection of this
+ * route's files with each peer route's files (a "peer" is another route of
+ * the same `type`). Returns `null` per category if there are no peers.
+ *
+ * Files counted multiple times across peers contribute to the average each
+ * time — e.g. if a chunk is shared with all 5 peers, it contributes 5×size
+ * to the sum, then we divide by 5 to get the average.
+ */
+function measureSharedAvg(
+  routeIndex: number,
+  allFileSets: FileSets[],
+  routeEntries: RouteEntry[],
+  caches: SizeCache
+): Record<Category, CategoryStats | null> {
+  const myType = routeEntries[routeIndex].type
+  const peers: number[] = []
+  for (let j = 0; j < routeEntries.length; j++) {
+    if (j !== routeIndex && routeEntries[j].type === myType) peers.push(j)
+  }
+
+  const result = {} as Record<Category, CategoryStats | null>
+  for (const cat of CATEGORIES) {
+    if (peers.length === 0) {
+      result[cat] = null
+      continue
+    }
+    const mySet = allFileSets[routeIndex][cat]
+    const cache = caches[cat]
+    let sumCount = 0
+    let sumBytes = 0
+    for (const j of peers) {
+      const peerSet = allFileSets[j][cat]
+      // Iterate the smaller set and probe the larger; saves work when sizes
+      // differ a lot (e.g. an empty serverUnbundled vs a big one).
+      const [small, big] =
+        mySet.size <= peerSet.size ? [mySet, peerSet] : [peerSet, mySet]
+      for (const f of small) {
+        if (!big.has(f)) continue
+        const size = cache.get(f)
+        if (size != null) {
+          sumCount++
+          sumBytes += size
+        }
+      }
+    }
+    result[cat] = {
+      count: sumCount / peers.length,
+      bytes: sumBytes / peers.length,
+    }
+  }
+  return result
 }
 
 /** Union of all per-route file sets. Used to compute project-wide totals. */
@@ -553,11 +727,24 @@ function totalBytes(stats: CategoryStatsByKey): number {
 function formatBytes(n: number): string {
   if (n >= 1024 * 1024) return (n / (1024 * 1024)).toFixed(2) + ' MB'
   if (n >= 1024) return (n / 1024).toFixed(2) + ' KB'
-  return n + ' B'
+  return Math.round(n) + ' B'
+}
+
+/** File counts can be fractional in averages — print 1 decimal in that case. */
+function formatCount(n: number): string {
+  return Number.isInteger(n) ? `${n}` : n.toFixed(1)
 }
 
 function formatCell(stats: CategoryStats): string {
-  return `${stats.count} files / ${formatBytes(stats.bytes)}`
+  return `${formatCount(stats.count)} files / ${formatBytes(stats.bytes)}`
+}
+
+/**
+ * Cell for the "Shared" table: returns "n/a" if a route has no peers (i.e.
+ * `stats` is `null`), otherwise the same `count files / bytes` rendering.
+ */
+function formatSharedCell(stats: CategoryStats | null): string {
+  return stats == null ? 'n/a' : formatCell(stats)
 }
 
 /** Render a fixed-width markdown table — pads each cell to align columns. */
@@ -582,6 +769,18 @@ function printMarkdown(routes: RouteInfo[], totals: CategoryStatsByKey): void {
   console.log('## Routes\n')
   console.log(
     renderMarkdownTable(['Route', 'Type', ...categoryHeaders], routeRows)
+  )
+
+  // Shared (averaged across peers of same type) — printed in the same row
+  // order as the routes table. Routes with no peers show `n/a`.
+  const sharedRows = routes.map((r) => [
+    r.route,
+    r.type,
+    ...CATEGORIES.map((c) => formatSharedCell(r[c].sharedAvg)),
+  ])
+  console.log('\n## Shared (avg per other route of same type)\n')
+  console.log(
+    renderMarkdownTable(['Route', 'Type', ...categoryHeaders], sharedRows)
   )
 
   const totalsRow = [
@@ -620,16 +819,25 @@ export async function staticRoutesInfoCli(
   const routeEntries = discoverRoutes(distDir)
   const allFileSets = routeEntries.map((entry) => collectFiles(distDir, entry))
 
-  // Step 3: measure per-route, then sort by total size descending.
-  const routeInfos: RouteInfo[] = routeEntries.map((entry, i) => ({
-    route: entry.route,
-    type: entry.type,
-    ...measureFileSets(distDir, allFileSets[i]),
-  }))
+  // Step 3a: stat every unique file once and cache the size, so per-route
+  // measurement and shared-avg calculation don't repeat syscalls.
+  const sizeCaches = buildSizeCache(distDir, allFileSets)
+
+  // Step 3b: measure per-route, then sort by total size descending. Each
+  // category also carries a `sharedAvg` against its same-type peers.
+  const routeInfos: RouteInfo[] = routeEntries.map((entry, i) => {
+    const stats = measureFileSets(allFileSets[i], sizeCaches)
+    const shared = measureSharedAvg(i, allFileSets, routeEntries, sizeCaches)
+    const merged = {} as CategoryStatsWithSharedByKey
+    for (const cat of CATEGORIES) {
+      merged[cat] = { ...stats[cat], sharedAvg: shared[cat] }
+    }
+    return { route: entry.route, type: entry.type, ...merged }
+  })
   routeInfos.sort((a, b) => totalBytes(b) - totalBytes(a))
 
   // Project-wide totals — union of all route sets, regardless of --limit.
-  const totals = measureFileSets(distDir, mergeSets(allFileSets))
+  const totals = measureFileSets(mergeSets(allFileSets), sizeCaches)
 
   const displayRoutes =
     options.limit != null && options.limit > 0

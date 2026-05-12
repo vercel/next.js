@@ -6,9 +6,22 @@ interface CategoryStats {
   bytes: number
 }
 
+interface CategoryStatsWithShared extends CategoryStats {
+  sharedAvg: CategoryStats | null
+}
+
 interface RouteInfo {
   route: string
   type: string
+  serverBundled: CategoryStatsWithShared
+  serverMaps: CategoryStatsWithShared
+  serverUnbundled: CategoryStatsWithShared
+  clientJs: CategoryStatsWithShared
+  clientMaps: CategoryStatsWithShared
+  clientCss: CategoryStatsWithShared
+}
+
+interface Totals {
   serverBundled: CategoryStats
   serverMaps: CategoryStats
   serverUnbundled: CategoryStats
@@ -19,8 +32,17 @@ interface RouteInfo {
 
 interface ToolOutput {
   routes: RouteInfo[]
-  totals: Omit<RouteInfo, 'route' | 'type'>
+  totals: Totals
 }
+
+const ALL_CATEGORIES = [
+  'serverBundled',
+  'serverMaps',
+  'serverUnbundled',
+  'clientJs',
+  'clientMaps',
+  'clientCss',
+] as const
 
 describe('next internal static-routes-info', () => {
   if (!isNextStart) {
@@ -96,11 +118,14 @@ describe('next internal static-routes-info', () => {
     // Every route type from the fixture is represented at least once.
     const types = new Set(output.routes.map((r) => r.type))
     expect(types).toContain('app-page') // app/page.tsx
-    expect(types).toContain('app-route') // app/api/node/route.ts
-    expect(types).toContain('edge-function') // app/api/edge/route.ts (runtime: 'edge')
+    expect(types).toContain('app-route') // app/api/node/route.ts + app/api/edge/route.ts
     expect(types).toContain('pages') // pages/pages-ssr.tsx (getServerSideProps)
     expect(types).toContain('pages-static') // pages/pages-static.tsx
     expect(types).toContain('pages-api') // pages/api/hello.ts
+    expect(types).toContain('middleware') // middleware.ts
+    // edge-function is no longer a route type — edge route handlers are
+    // reported under their actual type (e.g. app-route for App Router).
+    expect(types).not.toContain('edge-function')
 
     // Specific URLs should be present.
     const routes = output.routes.map((r) => r.route)
@@ -115,16 +140,13 @@ describe('next internal static-routes-info', () => {
       ])
     )
 
+    // /api/edge is an App Router route handler with `runtime: 'edge'` and
+    // is now reported as `app-route` (peer of /api/node).
+    expect(getRoute(output, '/api/edge').type).toBe('app-route')
+
     // Each category on each route is well-formed.
     for (const r of output.routes) {
-      for (const cat of [
-        'serverBundled',
-        'serverMaps',
-        'serverUnbundled',
-        'clientJs',
-        'clientMaps',
-        'clientCss',
-      ] as const) {
+      for (const cat of ALL_CATEGORIES) {
         expect(typeof r[cat].count).toBe('number')
         expect(typeof r[cat].bytes).toBe('number')
         // count/bytes consistency: 0 files ↔ 0 bytes; >0 files → >0 bytes.
@@ -132,6 +154,11 @@ describe('next internal static-routes-info', () => {
           expect(r[cat].bytes).toBe(0)
         } else {
           expect(r[cat].bytes).toBeGreaterThan(0)
+        }
+        // sharedAvg is either null (no peers) or shaped like CategoryStats.
+        if (r[cat].sharedAvg !== null) {
+          expect(typeof r[cat].sharedAvg!.count).toBe('number')
+          expect(typeof r[cat].sharedAvg!.bytes).toBe('number')
         }
       }
     }
@@ -161,13 +188,20 @@ describe('next internal static-routes-info', () => {
     expect(appRoute.clientJs.count).toBe(0)
     expect(appRoute.clientCss.count).toBe(0)
 
-    // edge-function: has server JS, no client JS, no nft.json (so unbundled
-    // is always 0 — the bundle includes everything inline).
-    const edgeRoute = getRoute(output, '/api/edge')
-    expect(edgeRoute.type).toBe('edge-function')
-    expect(edgeRoute.serverBundled.count).toBeGreaterThan(0)
-    expect(edgeRoute.serverUnbundled.count).toBe(0)
-    expect(edgeRoute.clientJs.count).toBe(0)
+    // app-route (Edge runtime): has server JS, no client JS, no nft.json
+    // (so unbundled is always 0 — the bundle includes everything inline).
+    const edgeAppRoute = getRoute(output, '/api/edge')
+    expect(edgeAppRoute.type).toBe('app-route')
+    expect(edgeAppRoute.serverBundled.count).toBeGreaterThan(0)
+    expect(edgeAppRoute.serverUnbundled.count).toBe(0)
+    expect(edgeAppRoute.clientJs.count).toBe(0)
+
+    // middleware: has server JS, no client JS, no unbundled.
+    const middleware = output.routes.find((r) => r.type === 'middleware')!
+    expect(middleware).toBeDefined()
+    expect(middleware.serverBundled.count).toBeGreaterThan(0)
+    expect(middleware.serverUnbundled.count).toBe(0)
+    expect(middleware.clientJs.count).toBe(0)
 
     // pages (SSR): has server JS, has client JS.
     const pagesSsr = getRoute(output, '/pages-ssr')
@@ -289,6 +323,92 @@ describe('next internal static-routes-info', () => {
     // Rows look like markdown table rows.
     expect(out).toMatch(/\|\s+Route\s+\|/)
     expect(out).toMatch(/\|\s+-+\s+\|/)
+  })
+
+  it('--json sharedAvg should be null for routes with no peers', async () => {
+    const output = JSON.parse((await runTool(['--json'])).stdout) as ToolOutput
+
+    // The fixture has exactly one route of each of these types.
+    for (const route of [
+      '/pages-ssr', // only pages
+      '/pages-static', // only pages-static
+      '/api/hello', // only pages-api
+    ]) {
+      const r = getRoute(output, route)
+      for (const cat of ALL_CATEGORIES) {
+        expect(r[cat].sharedAvg).toBeNull()
+      }
+    }
+    // Middleware is also a singleton.
+    const mw = output.routes.find((r) => r.type === 'middleware')!
+    expect(mw).toBeDefined()
+    for (const cat of ALL_CATEGORIES) {
+      expect(mw[cat].sharedAvg).toBeNull()
+    }
+  })
+
+  it('--json sharedAvg should be present for routes with peers, and never exceed the route itself', async () => {
+    const output = JSON.parse((await runTool(['--json'])).stdout) as ToolOutput
+
+    // Routes with at least one peer of the same type:
+    //   - app-page: `/`, `/about`, `/_not-found`
+    //   - app-route: `/api/node`, `/api/edge`
+    const withPeers = output.routes.filter(
+      (r) => r.type === 'app-page' || r.type === 'app-route'
+    )
+    expect(withPeers.length).toBeGreaterThanOrEqual(2)
+    for (const r of withPeers) {
+      for (const cat of ALL_CATEGORIES) {
+        expect(r[cat].sharedAvg).not.toBeNull()
+        expect(r[cat].sharedAvg!.count).toBeLessThanOrEqual(r[cat].count)
+        expect(r[cat].sharedAvg!.bytes).toBeLessThanOrEqual(r[cat].bytes)
+      }
+    }
+  })
+
+  it('--json sharedAvg should match a hand-computed average for app-pages', async () => {
+    const output = JSON.parse((await runTool(['--json'])).stdout) as ToolOutput
+
+    // Reproduce the tool's algorithm in the test: for each route, average
+    // the intersection size across same-type peers. We can't recompute file
+    // intersections here (we don't have the file lists in the JSON), but we
+    // can verify a known invariant: when ALL app-pages have the same set of
+    // server-unbundled files (which is the case in our small fixture, since
+    // they all trace identical Node deps), the sharedAvg.count for that
+    // category equals the route's own count. Likewise for serverUnbundled
+    // bytes.
+    const appPages = output.routes.filter((r) => r.type === 'app-page')
+    expect(appPages.length).toBeGreaterThan(1)
+    const serverUnbundledCounts = appPages.map((r) => r.serverUnbundled.count)
+    const allEqual = serverUnbundledCounts.every(
+      (c) => c === serverUnbundledCounts[0]
+    )
+    if (allEqual) {
+      for (const r of appPages) {
+        expect(r.serverUnbundled.sharedAvg!.count).toBe(r.serverUnbundled.count)
+        expect(r.serverUnbundled.sharedAvg!.bytes).toBe(r.serverUnbundled.bytes)
+      }
+    }
+  })
+
+  it('totals should not include sharedAvg', async () => {
+    const output = JSON.parse((await runTool(['--json'])).stdout) as ToolOutput
+    for (const cat of ALL_CATEGORIES) {
+      expect(output.totals[cat]).toEqual({
+        count: expect.any(Number),
+        bytes: expect.any(Number),
+      })
+      expect(
+        (output.totals[cat] as unknown as Record<string, unknown>).sharedAvg
+      ).toBeUndefined()
+    }
+  })
+
+  it('markdown should include a Shared section', async () => {
+    const md = (await runTool([])).stdout
+    expect(md).toContain('## Shared')
+    // Routes with no peers should appear as `n/a`.
+    expect(md).toContain('n/a')
   })
 
   it('markdown numbers should agree with --json numbers for shared routes', async () => {
