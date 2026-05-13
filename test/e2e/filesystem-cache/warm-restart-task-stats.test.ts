@@ -23,7 +23,7 @@ interface TaskFunctionStatistics {
 }
 type TaskStats = Record<string, TaskFunctionStatistics>
 
-const STATS_RELATIVE_PATH = '.next/cache/warm-restart-task-stats.json'
+const STATS_RELATIVE_PATH = '.next/warm-restart-task-stats.json'
 
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'warm-restart task statistics',
@@ -33,6 +33,12 @@ const STATS_RELATIVE_PATH = '.next/cache/warm-restart-task-stats.json'
       'TURBO_ENGINE_IGNORE_DIRTY=1',
       'TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS=1000',
       `NEXT_TURBOPACK_TASK_STATISTICS=${STATS_RELATIVE_PATH}`,
+      // The task-statistics file is written by an `on_exit` handler in the
+      // napi binding. In dev that handler only runs if the child process
+      // gets a chance to clean up (i.e. SIGTERM, not SIGKILL). The parent
+      // `next dev` process gives the child 100ms by default before
+      // escalating to SIGKILL — bump that so the on-exit handler can flush.
+      'NEXT_EXIT_TIMEOUT_MS=30000',
     ].join(' ')
 
     const { skipped, next } = nextTestSetup({
@@ -65,8 +71,12 @@ const STATS_RELATIVE_PATH = '.next/cache/warm-restart-task-stats.json'
       if (isNextDev) {
         // Persistent cache snapshot is on a 1s idle timer; give it room.
         await waitFor(3000)
+        // SIGTERM (not the harness default SIGKILL) so the dev server gets
+        // to run its cleanup, which is what flushes the task-stats file.
+        await next.stop('SIGTERM')
+      } else {
+        await next.stop()
       }
-      await next.stop()
     }
 
     async function readMissedTaskNames(): Promise<string[]> {
@@ -81,15 +91,6 @@ const STATS_RELATIVE_PATH = '.next/cache/warm-restart-task-stats.json'
       // against the JSON parser's object iteration order.
       misses.sort()
       return misses
-    }
-
-    async function removeStatsFile() {
-      const absPath = path.join(next.testDir, STATS_RELATIVE_PATH)
-      try {
-        await fs.unlink(absPath)
-      } catch {
-        // not present yet; fine
-      }
     }
 
     if (isNextDev) {
@@ -111,15 +112,25 @@ const STATS_RELATIVE_PATH = '.next/cache/warm-restart-task-stats.json'
         await runDevCycle()
         await stop()
 
-        // Cycle 2: warm. Truncate the stats so we only see misses from this
-        // run.
-        await removeStatsFile()
+        // Cycle 2: warm.
         await next.start()
         await runDevCycle()
         await stop()
 
         const missed = await readMissedTaskNames()
-        expect(missed).toMatchInlineSnapshot()
+        expect(missed).toMatchInlineSnapshot(`
+         [
+           "<dyn turbopack_core::version::VersionedContent>::update",
+           "<turbopack_browser::ecmascript::list::content::EcmascriptDevChunkListContent as dyn turbopack_core::version::VersionedContent>::update",
+           "<turbopack_nodejs::ecmascript::node::content::EcmascriptBuildNodeChunkContent as dyn turbopack_core::version::VersionedContent>::update",
+           "next_api::project::Project::hmr_update",
+           "next_api::project::Project::hmr_version_state",
+           "next_napi_bindings::next_api::project::hmr_update_with_issues_operation",
+           "next_napi_bindings::next_api::project::project_hmr_update_operation",
+           "turbopack_browser::ecmascript::list::update::update_chunk_list",
+           "turbopack_core::version::VersionState::get",
+         ]
+        `)
       }, 180_000)
     } else {
       it('snapshot of tasks with cache misses on warm build', async () => {
@@ -127,7 +138,6 @@ const STATS_RELATIVE_PATH = '.next/cache/warm-restart-task-stats.json'
         // The build is cycle 1. We stop the server (we don't care about it)
         // and run a second build manually for the warm measurement.
         await stop()
-        await removeStatsFile()
 
         const result = await (next as any).build()
         if (result.exitCode !== 0) {
@@ -135,7 +145,7 @@ const STATS_RELATIVE_PATH = '.next/cache/warm-restart-task-stats.json'
         }
 
         const missed = await readMissedTaskNames()
-        expect(missed).toMatchInlineSnapshot()
+        expect(missed).toMatchInlineSnapshot(`[]`)
       }, 240_000)
     }
   }
