@@ -1,6 +1,6 @@
 import http from 'http'
-import type { AddressInfo } from 'net'
 import { nextTestSetup } from 'e2e-utils'
+import { findPort } from 'next-test-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 
 describe('testmode', () => {
@@ -139,20 +139,17 @@ describe('testmode', () => {
 
   describe('passthrough body', () => {
     it('forwards request body when handler returns continue', async () => {
-      let resolveBody!: (body: string) => void
-      const bodyReceived = new Promise<string>((resolve) => {
-        resolveBody = resolve
-      })
-      const echoServer = http.createServer((req, res) => {
+      const receivedBodies: string[] = []
+      const port = await findPort()
+      const echoServer = http.createServer(async (req, res) => {
         const chunks: Buffer[] = []
-        req.on('data', (chunk) => chunks.push(chunk))
-        req.on('end', () => {
-          resolveBody(Buffer.concat(chunks).toString('utf-8'))
-          res.end()
-        })
+        for await (const chunk of req) {
+          chunks.push(chunk as Buffer)
+        }
+        receivedBodies.push(Buffer.concat(chunks).toString('utf-8'))
+        res.end()
       })
-      await new Promise<void>((r) => echoServer.listen(0, '127.0.0.1', r))
-      const { port } = echoServer.address() as AddressInfo
+      await new Promise<void>((r) => echoServer.listen(port, '127.0.0.1', r))
       const echoUrl = `http://127.0.0.1:${port}/`
 
       // Replace the default proxy from the outer beforeEach with one that
@@ -167,7 +164,7 @@ describe('testmode', () => {
         `/api/post-passthrough?target=${encodeURIComponent(echoUrl)}`
       )
 
-      expect(await bodyReceived).toEqual('{"message":"hello"}')
+      expect(receivedBodies).toEqual(['{"message":"hello"}'])
       echoServer.close()
     })
   })
