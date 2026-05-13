@@ -5,7 +5,7 @@ mod operation;
 mod snapshot_coordinator;
 mod storage;
 pub mod storage_schema;
-pub(crate) mod task_storage_box;
+pub(crate) mod task_storage;
 
 use std::{
     borrow::Cow,
@@ -68,7 +68,7 @@ use crate::{
         },
         snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
         storage::Storage,
-        storage_schema::{TaskStorage, TaskStorageAccessors},
+        storage_schema::{TaskStorageAccessors, TaskStorageInner},
     },
     backing_storage::{BackingStorage, SnapshotItem, SnapshotMeta, compute_task_type_hash},
     data::{
@@ -1050,7 +1050,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 self.meta_count += 1;
             }
 
-            fn add_counts(&mut self, storage: &TaskStorage) {
+            fn add_counts(&mut self, storage: &TaskStorageInner) {
                 let counts = storage.meta_counts();
                 self.upper_count += counts.upper;
                 self.collectibles_count += counts.collectibles;
@@ -1069,7 +1069,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
 
             /// Returns the task name used as the stats grouping key.
-            fn task_name(storage: &TaskStorage) -> String {
+            fn task_name(storage: &TaskStorageInner) -> String {
                 storage
                     .get_persistent_task_type()
                     .map(|t| t.to_string())
@@ -1145,9 +1145,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // For tasks accessed during snapshot mode, a frozen copy was made and its `modified`
         // flags were copied from the live task at snapshot creation time, reflecting which
         // categories were dirtied before the snapshot was taken.
-        let process = |task_id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
+        let process = |task_id: TaskId,
+                       inner: &TaskStorageInner,
+                       buffer: &mut TurboBincodeBuffer| {
             let encode_category = |task_id: TaskId,
-                                   data: &TaskStorage,
+                                   data: &TaskStorageInner,
                                    category: SpecificTaskDataCategory,
                                    buffer: &mut TurboBincodeBuffer|
              -> Option<TurboBincodeBuffer> {
@@ -3764,7 +3766,7 @@ fn far_future() -> Instant {
 /// spurious `Result` threading throughout the encode path.
 fn encode_task_data(
     task: TaskId,
-    data: &TaskStorage,
+    data: &TaskStorageInner,
     category: SpecificTaskDataCategory,
     scratch_buffer: &mut TurboBincodeBuffer,
 ) -> Result<TurboBincodeBuffer> {
@@ -3773,7 +3775,7 @@ fn encode_task_data(
     data.encode(category, &mut encoder)?;
 
     if cfg!(feature = "verify_serialization") {
-        crate::backend::task_storage_box::TaskStorageBox::new()
+        crate::backend::task_storage::TaskStorage::new()
             .decode(
                 category,
                 &mut new_turbo_bincode_decoder(&scratch_buffer[..]),

@@ -1,21 +1,21 @@
-//! `TaskStorageBox`: thin owning pointer to a heap allocation that contains
-//! both the [`TaskStorage`] head and the byte-packed tail holding lazy-field
+//! `TaskStorage`: thin owning pointer to a heap allocation that contains
+//! both the [`TaskStorageInner`] head and the byte-packed tail holding lazy-field
 //! payloads.
 //!
 //! Allocation layout:
 //!
 //! ```text
-//! offset 0:                       TaskStorage { inline head fields, flags, lazy_tail metadata }
-//! offset size_of::<TaskStorage>: [u8; tail_cap] — payloads in tag order
+//! offset 0:                       TaskStorageInner { inline head fields, flags, lazy_tail metadata }
+//! offset size_of::<TaskStorageInner>: [u8; tail_cap] — payloads in tag order
 //! ```
 //!
-//! `TaskStorage`'s alignment is ≥ 8 (it transitively contains `Arc`/`Box`
-//! fields), and `size_of::<TaskStorage>()` is a multiple of that alignment,
+//! `TaskStorageInner`'s alignment is ≥ 8 (it transitively contains `Arc`/`Box`
+//! fields), and `size_of::<TaskStorageInner>()` is a multiple of that alignment,
 //! so the tail base is always aligned for every payload type. A
-//! `debug_assert!` in [`TaskStorageBox::new`] enforces this.
+//! `debug_assert!` in [`TaskStorage::new`] enforces this.
 //!
 //! Growing the allocation requires updating the owning pointer, which is
-//! why this type exists — `&mut TaskStorage` alone can't relocate.
+//! why this type exists — `&mut TaskStorageInner` alone can't relocate.
 
 use std::{
     alloc::{Layout, alloc, dealloc, handle_alloc_error, realloc},
@@ -28,34 +28,34 @@ use turbo_tasks::ShrinkToFit;
 
 use crate::backend::{
     lazy_tail::TAIL_BUFFER_ALIGN,
-    storage_schema::{LAZY_MAX_ALIGN, LAZY_PADDED_SIZE, TaskStorage, lazy_drop_dispatch},
+    storage_schema::{LAZY_MAX_ALIGN, LAZY_PADDED_SIZE, TaskStorageInner, lazy_drop_dispatch},
 };
 
-/// Owning thin pointer to a heap allocation containing the [`TaskStorage`]
+/// Owning thin pointer to a heap allocation containing the [`TaskStorageInner`]
 /// head and its byte-packed lazy tail.
 ///
-/// Same machine-word footprint as a plain `Box<TaskStorage>`, so DashMap
+/// Same machine-word footprint as a plain `Box<TaskStorageInner>`, so DashMap
 /// entries stay 8 B + key.
-pub struct TaskStorageBox {
-    ptr: NonNull<TaskStorage>,
+pub struct TaskStorage {
+    ptr: NonNull<TaskStorageInner>,
 }
 
 // SAFETY: We own the unified allocation; no one else can observe these bytes
 // while we hold a unique reference. The lazy-tail payloads are only
 // interpreted through typed accessors carrying SAFETY contracts.
-// `TaskStorage: Send + Sync` is the natural derive.
-unsafe impl Send for TaskStorageBox {}
-unsafe impl Sync for TaskStorageBox {}
+// `TaskStorageInner: Send + Sync` is the natural derive.
+unsafe impl Send for TaskStorage {}
+unsafe impl Sync for TaskStorage {}
 
-impl TaskStorageBox {
-    /// Allocate a fresh `TaskStorageBox` with no lazy payloads installed.
+impl TaskStorage {
+    /// Allocate a fresh `TaskStorage` with no lazy payloads installed.
     /// The initial allocation is sized to the head only — the first lazy
     /// install triggers a grow.
     pub fn new() -> Self {
         Self::with_tail_capacity(0)
     }
 
-    /// Allocate a fresh `TaskStorageBox` with the given initial tail
+    /// Allocate a fresh `TaskStorage` with the given initial tail
     /// capacity. Useful when the caller knows several lazy fields will be
     /// installed (e.g. decode) and wants to skip the small-grow steps.
     pub fn with_tail_capacity(tail_cap: u16) -> Self {
@@ -66,12 +66,12 @@ impl TaskStorageBox {
         if raw.is_null() {
             handle_alloc_error(layout);
         }
-        let head_ptr = raw as *mut TaskStorage;
+        let head_ptr = raw as *mut TaskStorageInner;
         // SAFETY: `head_ptr` is a fresh, properly-aligned allocation of at
-        // least `size_of::<TaskStorage>()` bytes. We write the default
+        // least `size_of::<TaskStorageInner>()` bytes. We write the default
         // value, then bump `tail_cap` to reflect the allocated capacity.
         unsafe {
-            head_ptr.write(TaskStorage::default());
+            head_ptr.write(TaskStorageInner::default());
             (*head_ptr).lazy_tail.cap = tail_cap;
         }
         Self {
@@ -80,19 +80,19 @@ impl TaskStorageBox {
         }
     }
 
-    /// Compute the `Layout` of a `TaskStorageBox` with `tail_cap` tail bytes.
+    /// Compute the `Layout` of a `TaskStorage` with `tail_cap` tail bytes.
     #[inline]
     fn layout(tail_cap: u16) -> Layout {
-        let head_size = std::mem::size_of::<TaskStorage>();
-        let align = std::mem::align_of::<TaskStorage>();
+        let head_size = std::mem::size_of::<TaskStorageInner>();
+        let align = std::mem::align_of::<TaskStorageInner>();
         debug_assert!(
             align >= LAZY_MAX_ALIGN,
-            "TaskStorage alignment ({align}) must be ≥ LAZY_MAX_ALIGN ({LAZY_MAX_ALIGN}) so the \
-             tail starts at a valid offset for every payload",
+            "TaskStorageInner alignment ({align}) must be ≥ LAZY_MAX_ALIGN ({LAZY_MAX_ALIGN}) so \
+             the tail starts at a valid offset for every payload",
         );
         debug_assert!(
             head_size % LAZY_MAX_ALIGN == 0,
-            "size_of::<TaskStorage>() ({head_size}) must be a multiple of LAZY_MAX_ALIGN \
+            "size_of::<TaskStorageInner>() ({head_size}) must be a multiple of LAZY_MAX_ALIGN \
              ({LAZY_MAX_ALIGN}) so the tail base is aligned for every payload",
         );
         debug_assert_eq!(
@@ -113,7 +113,7 @@ impl TaskStorageBox {
     /// valid initialized bytes.
     #[inline]
     pub(crate) fn tail_ptr_mut(&mut self) -> *mut u8 {
-        let head_size = std::mem::size_of::<TaskStorage>();
+        let head_size = std::mem::size_of::<TaskStorageInner>();
         // SAFETY: see `tail_ptr`.
         unsafe { (self.ptr.as_ptr() as *mut u8).add(head_size) }
     }
@@ -205,22 +205,22 @@ impl TaskStorageBox {
         if tail_cap == 0 || tail_len == tail_cap {
             return;
         }
-        let head_size = std::mem::size_of::<TaskStorage>();
+        let head_size = std::mem::size_of::<TaskStorageInner>();
         let target_total =
             turbo_tasks_malloc::TurboMalloc::good_size(head_size + tail_len as usize);
         let current_bin = turbo_tasks_malloc::TurboMalloc::good_size(head_size + tail_cap as usize);
         if target_total >= current_bin {
             return;
         }
-        // SAFETY: `&mut self` excludes any outstanding `&mut TaskStorage`
+        // SAFETY: `&mut self` excludes any outstanding `&mut TaskStorageInner`
         // reference into the allocation.
         unsafe { self.realloc_to_total(target_total) };
     }
 
     /// Read-only access to the head.
     #[inline]
-    pub(crate) fn head(&self) -> &TaskStorage {
-        // SAFETY: `self.ptr` points to a properly-initialized `TaskStorage`
+    pub(crate) fn head(&self) -> &TaskStorageInner {
+        // SAFETY: `self.ptr` points to a properly-initialized `TaskStorageInner`
         // for the lifetime of `self`.
         unsafe { self.ptr.as_ref() }
     }
@@ -231,7 +231,7 @@ impl TaskStorageBox {
     /// Caller must not call a method that may reallocate while holding the
     /// returned reference — the realloc would invalidate it.
     #[inline]
-    pub(crate) unsafe fn head_mut(&mut self) -> &mut TaskStorage {
+    pub(crate) unsafe fn head_mut(&mut self) -> &mut TaskStorageInner {
         // SAFETY: see `head`; `&mut self` gives exclusive access.
         unsafe { self.ptr.as_mut() }
     }
@@ -240,11 +240,11 @@ impl TaskStorageBox {
     /// capacity. Uses `mi_good_size` to pre-round to the allocator bin.
     ///
     /// # Safety
-    /// No outstanding `&mut TaskStorage` may exist (we relocate the
+    /// No outstanding `&mut TaskStorageInner` may exist (we relocate the
     /// allocation, which would invalidate it).
     unsafe fn grow_to(&mut self, min_tail_bytes: usize) {
         debug_assert!(min_tail_bytes > self.head().lazy_tail.cap as usize);
-        let head_size = std::mem::size_of::<TaskStorage>();
+        let head_size = std::mem::size_of::<TaskStorageInner>();
         let target_total = turbo_tasks_malloc::TurboMalloc::good_size(head_size + min_tail_bytes);
         // SAFETY: caller contract.
         unsafe { self.realloc_to_total(target_total) };
@@ -254,10 +254,10 @@ impl TaskStorageBox {
     /// updating `self.ptr` and the head's `lazy_tail.cap`.
     ///
     /// # Safety
-    /// No outstanding `&mut TaskStorage` may exist.
+    /// No outstanding `&mut TaskStorageInner` may exist.
     unsafe fn realloc_to_total(&mut self, new_total: usize) {
-        let head_size = std::mem::size_of::<TaskStorage>();
-        let align = std::mem::align_of::<TaskStorage>();
+        let head_size = std::mem::size_of::<TaskStorageInner>();
+        let align = std::mem::align_of::<TaskStorageInner>();
         let old_tail_cap = self.head().lazy_tail.cap as usize;
         let old_total = head_size + old_tail_cap;
         let new_tail_cap = new_total - head_size;
@@ -277,42 +277,42 @@ impl TaskStorageBox {
             handle_alloc_error(new_layout);
         }
         // SAFETY: realloc returned non-null with `new_total` bytes available.
-        self.ptr = unsafe { NonNull::new_unchecked(new_raw as *mut TaskStorage) };
+        self.ptr = unsafe { NonNull::new_unchecked(new_raw as *mut TaskStorageInner) };
         // SAFETY: just relocated; update the recorded capacity.
         unsafe { self.head_mut().lazy_tail.cap = new_tail_cap as u16 };
     }
 }
 
-impl Default for TaskStorageBox {
+impl Default for TaskStorage {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Deref for TaskStorageBox {
-    type Target = TaskStorage;
+impl Deref for TaskStorage {
+    type Target = TaskStorageInner;
     #[inline]
-    fn deref(&self) -> &TaskStorage {
+    fn deref(&self) -> &TaskStorageInner {
         self.head()
     }
 }
 
-impl DerefMut for TaskStorageBox {
+impl DerefMut for TaskStorage {
     #[inline]
-    fn deref_mut(&mut self) -> &mut TaskStorage {
-        // SAFETY: returning `&mut TaskStorage` is only invalid if the
+    fn deref_mut(&mut self) -> &mut TaskStorageInner {
+        // SAFETY: returning `&mut TaskStorageInner` is only invalid if the
         // caller subsequently triggers a realloc. Methods that may realloc
-        // take `&mut self` (TaskStorageBox), which would borrow-conflict
-        // with the outstanding `&mut TaskStorage`.
+        // take `&mut self` (TaskStorage), which would borrow-conflict
+        // with the outstanding `&mut TaskStorageInner`.
         unsafe { self.head_mut() }
     }
 }
 
-impl Drop for TaskStorageBox {
+impl Drop for TaskStorage {
     fn drop(&mut self) {
         // 1. Walk `lazy_tail.present`, drop each payload via the schema's per-tag dispatch.
         let mut bits = self.head().lazy_tail.present;
-        let head_size = std::mem::size_of::<TaskStorage>();
+        let head_size = std::mem::size_of::<TaskStorageInner>();
         while bits != 0 {
             let bit_idx = bits.trailing_zeros();
             let tag = (bit_idx + 1) as u8;
@@ -328,8 +328,8 @@ impl Drop for TaskStorageBox {
             bits &= bits - 1;
         }
 
-        // 2. Clear the bitmap so `TaskStorage`'s field-level Drop (which we're about to trigger via
-        //    `drop_in_place`) doesn't try to re-interpret the bytes.
+        // 2. Clear the bitmap so `TaskStorageInner`'s field-level Drop (which we're about to
+        //    trigger via `drop_in_place`) doesn't try to re-interpret the bytes.
         // SAFETY: we're about to drop the head; no outstanding borrows.
         unsafe {
             let head = self.head_mut();
@@ -342,7 +342,7 @@ impl Drop for TaskStorageBox {
         unsafe { std::ptr::drop_in_place(self.ptr.as_ptr()) };
 
         // 4. Dealloc the unified buffer.
-        let align = std::mem::align_of::<TaskStorage>();
+        let align = std::mem::align_of::<TaskStorageInner>();
         // We zeroed `lazy_tail.cap` in step 2? No — we only cleared
         // `present` and `len`. `cap` is still valid for dealloc.
         // Actually we did NOT zero cap above. Re-read it from the head.
@@ -350,7 +350,7 @@ impl Drop for TaskStorageBox {
         // even after `drop_in_place` — `drop_in_place` doesn't overwrite,
         // it just runs destructors that don't touch primitive fields.
         let tail_cap = unsafe { (*self.ptr.as_ptr()).lazy_tail.cap as usize };
-        let total = std::mem::size_of::<TaskStorage>() + tail_cap;
+        let total = std::mem::size_of::<TaskStorageInner>() + tail_cap;
         // SAFETY: we allocated with this layout (`total`, `align`).
         let layout = unsafe { Layout::from_size_align_unchecked(total, align) };
         // SAFETY: `self.ptr` was obtained from a prior alloc with this
@@ -359,15 +359,15 @@ impl Drop for TaskStorageBox {
     }
 }
 
-impl fmt::Debug for TaskStorageBox {
+impl fmt::Debug for TaskStorage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("TaskStorageBox").field(self.head()).finish()
+        f.debug_tuple("TaskStorage").field(self.head()).finish()
     }
 }
 
-impl ShrinkToFit for TaskStorageBox {
+impl ShrinkToFit for TaskStorage {
     fn shrink_to_fit(&mut self) {
-        // First let the inline-field shrinks run via the head (`TaskStorage`
+        // First let the inline-field shrinks run via the head (`TaskStorageInner`
         // has its own `ShrinkToFit` derive that visits the inline
         // collections). The macro-emitted `cleanup_after_execution`
         // separately calls those — this only matters when someone calls

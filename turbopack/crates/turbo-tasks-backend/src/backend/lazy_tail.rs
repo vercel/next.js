@@ -1,4 +1,4 @@
-//! Bitmap + byte-counter record for `TaskStorage`'s lazy fields.
+//! Bitmap + byte-counter record for `TaskStorageInner`'s lazy fields.
 //!
 //! Each lazy variant is assigned a 1-based tag at macro time (see
 //! `LAZY_TAG_*` constants). A presence bitmap (`present`) records which tags
@@ -8,9 +8,9 @@
 //!
 //! `LazyTail` is just the bookkeeping (presence bitmap + used/allocated
 //! byte counts). The byte buffer itself lives directly after the
-//! `TaskStorage` head in the same heap allocation managed by
-//! [`crate::backend::task_storage_box::TaskStorageBox`]. None of
-//! `LazyTail`'s methods own or reallocate that buffer — `TaskStorageBox`
+//! `TaskStorageInner` head in the same heap allocation managed by
+//! [`crate::backend::task_storage::TaskStorage`]. None of
+//! `LazyTail`'s methods own or reallocate that buffer — `TaskStorage`
 //! does the alloc/dealloc/realloc, then passes a `tail_base: *mut u8`
 //! pointer into `LazyTail`'s typed methods so they can read/write payloads.
 
@@ -24,8 +24,8 @@ use crate::backend::storage_schema::LAZY_PADDED_SIZE;
 pub(crate) const TAIL_BUFFER_ALIGN: usize = 8;
 
 /// Presence bitmap + length/capacity counters for the lazy-payload byte
-/// buffer. The buffer itself lives in `TaskStorageBox`'s allocation, just
-/// past the end of the `TaskStorage` head — `LazyTail` only carries the
+/// buffer. The buffer itself lives in `TaskStorage`'s allocation, just
+/// past the end of the `TaskStorageInner` head — `LazyTail` only carries the
 /// metadata needed to interpret that buffer.
 ///
 /// Laid out as `(present, len, cap)` under explicit `#[repr(C)]`. Total size
@@ -58,7 +58,7 @@ impl std::fmt::Debug for LazyTail {
 
 impl ShrinkToFit for LazyTail {
     /// `LazyTail` doesn't own the buffer, so it has nothing to shrink itself.
-    /// `TaskStorageBox::shrink_to_fit` does the actual realloc.
+    /// `TaskStorage::shrink_to_fit` does the actual realloc.
     fn shrink_to_fit(&mut self) {}
 }
 
@@ -118,7 +118,7 @@ impl LazyTail {
     ///
     /// # Safety
     /// Same as [`Self::find`]; caller has exclusive access via the `&mut`
-    /// chain from `TaskStorageBox`.
+    /// chain from `TaskStorage`.
     #[inline]
     pub(crate) unsafe fn find_mut<T>(&self, tag: u8, tail_base: *mut u8) -> Option<&mut T> {
         let offset = self.offset_of(tag)?;

@@ -1,7 +1,8 @@
 //! Task Storage Schema Definition
 //!
-//! This module defines the complete schema for task storage using the TaskStorage derive macro.
-//! The schema covers all CachedDataItem variants with appropriate storage types and categories.
+//! This module defines the complete schema for task storage using the TaskStorageInner derive
+//! macro. The schema covers all CachedDataItem variants with appropriate storage types and
+//! categories.
 //!
 //! # Storage Types (`storage = "..."`)
 //!
@@ -34,7 +35,7 @@ use turbo_tasks::{
 use crate::{
     backend::{
         cell_data::CellData, counter_map::CounterMap, lazy_tail::LazyTail,
-        task_storage_box::TaskStorageBox,
+        task_storage::TaskStorage,
     },
     data::{
         ActivenessState, AggregationNumber, CellDependency, CollectibleRef, CollectiblesRef,
@@ -54,7 +55,7 @@ type AutoMap<K, V, const I: usize> = auto_hash_map::AutoMap<K, V, BuildHasherDef
 ///
 /// This struct defines all storage fields for a task. The `#[task_storage]` macro
 /// transforms this schema into the actual implementation:
-/// - `TaskStorage` struct with inline fields plus a `LazyTail` byte buffer.
+/// - `TaskStorageInner` struct with inline fields plus a `LazyTail` byte buffer.
 /// - `LAZY_TAG_<NAME>` constants and `LAZY_SIZE` / `LAZY_ALIGN` / `LAZY_PADDED_SIZE` tables for
 ///   tag-driven payload access.
 /// - `TaskFlags` bitfield for boolean flags.
@@ -63,7 +64,7 @@ type AutoMap<K, V, const I: usize> = auto_hash_map::AutoMap<K, V, BuildHasherDef
 /// Non-inline fields ("lazy") live as packed payloads in `lazy_tail`'s byte
 /// buffer, indexed by tag. A presence bitmap on `LazyTail` tells the macro-
 /// generated accessors which payloads are currently stored. Fields with the
-/// `inline` attribute live directly on `TaskStorage` for hot-path access.
+/// `inline` attribute live directly on `TaskStorageInner` for hot-path access.
 ///
 /// Note: This struct is consumed by the macro and does not appear in the output.
 #[task_storage]
@@ -517,10 +518,10 @@ pub enum KeyEvictability {
     Unevictable,
 }
 
-impl TaskStorage {
+impl TaskStorageInner {
     /// Determine the evictability level of this task based on its flags.
     ///
-    /// This checks only the flags on the TaskStorage itself. The caller
+    /// This checks only the flags on the TaskStorageInner itself. The caller
     /// must additionally check that the task is not transient (via TaskId).
     pub fn evictability(&self) -> (KeyEvictability, ValueEvictability) {
         let flags = &self.flags;
@@ -530,8 +531,9 @@ impl TaskStorage {
         } else {
             match &self.head.persistent_task_type {
                 None => KeyEvictability::Unevictable,
-                // strong_count == 1: only this TaskStorage holds this Arc, so no task_cache entry
-                // references it. It must have been already evicted on a prior cycle.
+                // strong_count == 1: only this TaskStorageInner holds this Arc, so no task_cache
+                // entry references it. It must have been already evicted on a prior
+                // cycle.
                 Some(arc) if arc.count() == 1 => KeyEvictability::AlreadyEvicted,
                 Some(_) => KeyEvictability::Evictable,
             }
@@ -602,19 +604,19 @@ impl TaskStorage {
 }
 
 // =============================================================================
-// TaskStorage helper methods
+// TaskStorageInner helper methods
 // =============================================================================
 
-// `TaskStorage` does NOT implement `Drop` — its `lazy_tail` field is just
+// `TaskStorageInner` does NOT implement `Drop` — its `lazy_tail` field is just
 // metadata (presence bitmap + len + cap) and the byte buffer it describes
-// lives in the same allocation as the surrounding `TaskStorageBox`.
-// `TaskStorageBox::drop` walks the bitmap, runs per-tag drop dispatch on
+// lives in the same allocation as the surrounding `TaskStorage`.
+// `TaskStorage::drop` walks the bitmap, runs per-tag drop dispatch on
 // each payload, then drops the head and deallocates the unified buffer.
-// A stack-constructed `TaskStorage` (e.g. inside `TaskStorageBox::new`'s
+// A stack-constructed `TaskStorageInner` (e.g. inside `TaskStorage::new`'s
 // initialization step) always has `tail_cap == 0` and no live payloads, so
 // the auto-derived field drops are correct.
 
-impl TaskStorage {
+impl TaskStorageInner {
     // =========================================================================
     // Encapsulated access to the lazy storage. Only operations needed beyond
     // the per-variant typed accessors live here; per-variant access goes
@@ -645,12 +647,13 @@ impl TaskStorage {
     /// per-tag dispatch.
     fn all_lazy_in_mask_empty(&self, mask: u32) -> bool {
         let mut bits = self.lazy_tail.present & mask;
-        // Tail bytes live immediately after the `TaskStorage` head in the
-        // surrounding `TaskStorageBox` allocation.
-        // SAFETY: caller's `&self` proves the surrounding `TaskStorageBox`
+        // Tail bytes live immediately after the `TaskStorageInner` head in the
+        // surrounding `TaskStorage` allocation.
+        // SAFETY: caller's `&self` proves the surrounding `TaskStorage`
         // allocation is live; tail is valid for `lazy_tail.cap` bytes.
         let tail_base = unsafe {
-            (self as *const TaskStorage as *const u8).add(std::mem::size_of::<TaskStorage>())
+            (self as *const TaskStorageInner as *const u8)
+                .add(std::mem::size_of::<TaskStorageInner>())
         };
         while bits != 0 {
             let bit_idx = bits.trailing_zeros();
@@ -685,7 +688,7 @@ impl TaskStorage {
         }
     }
 
-    // `decode(...)` lives on `TaskStorageBox` (see the impl block below)
+    // `decode(...)` lives on `TaskStorage` (see the impl block below)
     // because `decode_meta` / `decode_data` install lazy payloads, which
     // may grow the underlying buffer.
 
@@ -693,7 +696,7 @@ impl TaskStorage {
     ///
     /// This sets up the activeness state for root/once tasks.
     /// Called when creating transient tasks via `create_transient_task`.
-    // `init_transient_task` lives on `TaskStorageBox` (see the impl block
+    // `init_transient_task` lives on `TaskStorage` (see the impl block
     // below) because it installs lazy payloads (`Activeness`,
     // `transient_task_type`, `InProgress`), which may grow the underlying
     // buffer.
@@ -713,8 +716,8 @@ impl TaskStorage {
     }
 }
 
-impl TaskStorageBox {
-    /// Decode fields for the specified category. Lives on `TaskStorageBox`
+impl TaskStorage {
+    /// Decode fields for the specified category. Lives on `TaskStorage`
     /// because installing lazy payloads from the wire may need to grow the
     /// underlying buffer.
     pub fn decode<D: bincode::de::Decoder>(
@@ -733,7 +736,7 @@ impl TaskStorageBox {
     ///
     /// This sets up the activeness state for root/once tasks. Called when
     /// creating transient tasks via `create_transient_task`. Lives on
-    /// `TaskStorageBox` because it installs lazy payloads (`Activeness`,
+    /// `TaskStorage` because it installs lazy payloads (`Activeness`,
     /// `transient_task_type`, `InProgress`), which may grow the underlying
     /// buffer.
     pub fn init_transient_task(
@@ -941,7 +944,7 @@ mod tests {
 
     #[test]
     fn test_accessors() {
-        let mut storage = TaskStorageBox::new();
+        let mut storage = TaskStorage::new();
 
         // Inline direct fields (Option-wrapped)
         assert_eq!(storage.get_output(), None);
@@ -1002,7 +1005,7 @@ mod tests {
 
     #[test]
     fn test_flag_fields() {
-        let mut storage = TaskStorageBox::new();
+        let mut storage = TaskStorage::new();
 
         // Test that flags are default false
         assert!(!storage.flags.invalidator());
@@ -1034,7 +1037,7 @@ mod tests {
         assert_eq!(TaskFlags::PERSISTED_MASK, 0b111); // 3 persisted flags
 
         // Test set_persisted_bits preserves transient flags
-        let mut storage2 = TaskStorageBox::new();
+        let mut storage2 = TaskStorage::new();
         storage2.flags.set_current_session_clean(true); // Set transient flag
         storage2.flags.set_persisted_bits(0b100); // Set immutable only
         assert!(storage2.flags.immutable());
@@ -1046,7 +1049,7 @@ mod tests {
     #[test]
     fn test_internal_state_flags() {
         // Test the new internal state flags (formerly InnerStorageState)
-        let mut storage = TaskStorageBox::new();
+        let mut storage = TaskStorage::new();
 
         // All internal state flags should be default false
         assert!(!storage.flags.meta_restored());
@@ -1111,7 +1114,7 @@ mod tests {
 
     #[test]
     fn test_encode_decode_meta_roundtrip() {
-        let mut original = TaskStorageBox::new();
+        let mut original = TaskStorage::new();
 
         // Set inline meta fields via accessor methods
         original.set_aggregation_number(AggregationNumber {
@@ -1146,7 +1149,7 @@ mod tests {
         }
 
         // Decode into new storage
-        let mut decoded = TaskStorageBox::new();
+        let mut decoded = TaskStorage::new();
         // Set transient flag before decode to verify it's preserved
         decoded.flags.set_current_session_clean(true);
 
@@ -1206,7 +1209,7 @@ mod tests {
 
     #[test]
     fn test_encode_decode_data_roundtrip() {
-        let mut original = TaskStorageBox::new();
+        let mut original = TaskStorage::new();
 
         // Set inline data field via accessor methods
         original
@@ -1250,7 +1253,7 @@ mod tests {
         }
 
         // Decode into new storage
-        let mut decoded = TaskStorageBox::new();
+        let mut decoded = TaskStorage::new();
 
         {
             let mut decoder = new_decoder(&buffer);
@@ -1297,7 +1300,7 @@ mod tests {
     #[test]
     fn test_encode_decode_empty_storage() {
         // Test that empty storage can be encoded/decoded
-        let original = TaskStorageBox::new();
+        let original = TaskStorage::new();
 
         // Encode meta
         let mut meta_buffer = turbo_bincode::TurboBincodeBuffer::new();
@@ -1318,7 +1321,7 @@ mod tests {
         }
 
         // Decode meta
-        let mut decoded = TaskStorageBox::new();
+        let mut decoded = TaskStorage::new();
         {
             let mut decoder = new_decoder(&meta_buffer);
             decoded
@@ -1362,7 +1365,7 @@ mod tests {
     /// persistent portion back in without clobbering the residue.
     #[test]
     fn drop_partial_retains_transient_residue_data() {
-        let mut storage = TaskStorageBox::new();
+        let mut storage = TaskStorage::new();
 
         // Mix persistent and transient references in a filter_transient data field.
         storage.output_dependent_mut().insert(persistent_task(1));
@@ -1403,7 +1406,7 @@ mod tests {
 
         // Simulate a restore from disk: source has the persistent entries only
         // (transient ones would have been filtered during encode).
-        let mut source = TaskStorageBox::new();
+        let mut source = TaskStorage::new();
         source.output_dependent_mut().insert(persistent_task(1));
         source.output_dependent_mut().insert(persistent_task(2));
 
@@ -1421,7 +1424,7 @@ mod tests {
     /// restore.
     #[test]
     fn drop_partial_retains_transient_residue_meta() {
-        let mut storage = TaskStorageBox::new();
+        let mut storage = TaskStorage::new();
 
         storage.upper_mut().insert(persistent_task(1), 1);
         storage.upper_mut().insert(transient_task(2), 1);
@@ -1448,7 +1451,7 @@ mod tests {
         assert!(storage.flags.data_restored());
 
         // Restore persistent meta fields.
-        let mut source = TaskStorageBox::new();
+        let mut source = TaskStorage::new();
         source.upper_mut().insert(persistent_task(1), 1);
         source.children_mut().insert(persistent_task(100));
 
@@ -1467,7 +1470,7 @@ mod tests {
     /// field to default — this is the hot path we optimized for.
     #[test]
     fn drop_partial_resets_fields_without_transients() {
-        let mut storage = TaskStorageBox::new();
+        let mut storage = TaskStorage::new();
 
         storage.output_dependent_mut().insert(persistent_task(1));
         storage.output_dependent_mut().insert(persistent_task(2));
@@ -1492,7 +1495,7 @@ mod tests {
     /// had been dropped.
     #[test]
     fn drop_partial_clears_persisted_flags_so_is_empty() {
-        let mut storage = TaskStorageBox::new();
+        let mut storage = TaskStorage::new();
         storage.flags.set_data_restored(true);
         storage.flags.set_meta_restored(true);
         storage.flags.set_invalidator(true);
@@ -1519,7 +1522,7 @@ mod tests {
     /// transient at encode time).
     #[test]
     fn drop_partial_retains_transient_output() {
-        let mut storage = TaskStorageBox::new();
+        let mut storage = TaskStorage::new();
         storage.set_output(OutputValue::Output(transient_task(1)));
         storage.flags.set_data_restored(true);
         storage.flags.set_meta_restored(true);
@@ -1542,7 +1545,7 @@ mod tests {
     // ==========================================================================
 
     mod cell_data_drop_partial {
-        //! End-to-end: verify `TaskStorage::drop_partial` dispatches to
+        //! End-to-end: verify `TaskStorageInner::drop_partial` dispatches to
         //! `CellData::drop_partial`, and that `restore_data_from` merges the
         //! retained residue with incoming persistent entries instead of
         //! clobbering it. The per-variant partitioning is covered in
@@ -1582,7 +1585,7 @@ mod tests {
 
         #[test]
         fn drop_partial_retains_non_recoverable_entries() {
-            let mut storage = TaskStorageBox::new();
+            let mut storage = TaskStorage::new();
             storage
                 .cell_data_mut()
                 .insert(keepable_cell(0), dummy_ref());
@@ -1605,7 +1608,7 @@ mod tests {
 
         #[test]
         fn drop_partial_removes_variant_when_all_recoverable() {
-            let mut storage = TaskStorageBox::new();
+            let mut storage = TaskStorage::new();
             storage
                 .cell_data_mut()
                 .insert(keepable_cell(0), dummy_ref());
@@ -1625,7 +1628,7 @@ mod tests {
 
         #[test]
         fn restore_merges_residue_with_incoming() {
-            let mut storage = TaskStorageBox::new();
+            let mut storage = TaskStorage::new();
             storage
                 .cell_data_mut()
                 .insert(keepable_cell(0), dummy_ref());
@@ -1641,7 +1644,7 @@ mod tests {
             assert_eq!(storage.cell_data().unwrap().len(), 1);
 
             // Simulate a restore: disk had only the persistable entry.
-            let mut source = TaskStorageBox::new();
+            let mut source = TaskStorage::new();
             source.cell_data_mut().insert(keepable_cell(0), dummy_ref());
 
             storage.restore_data_from(source);
@@ -1656,7 +1659,7 @@ mod tests {
 
         #[test]
         fn drop_partial_meta_does_not_touch_cell_data() {
-            let mut storage = TaskStorageBox::new();
+            let mut storage = TaskStorage::new();
             storage
                 .cell_data_mut()
                 .insert(keepable_cell(0), dummy_ref());
@@ -1682,23 +1685,23 @@ mod tests {
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn test_schema_size() {
-        // After inlining the lazy-tail byte buffer into TaskStorageBox's
+        // After inlining the lazy-tail byte buffer into TaskStorage's
         // allocation, `LazyTail` only carries the bitmap + len + cap
         // metadata (8 B, down from 16 B). The buffer lives in the same
-        // heap allocation as TaskStorage, accessed via raw pointer
-        // arithmetic from `(self as *const TaskStorage).add(size_of::<TaskStorage>())`.
+        // heap allocation as TaskStorageInner, accessed via raw pointer
+        // arithmetic from `(self as *const TaskStorageInner).add(size_of::<TaskStorageInner>())`.
         assert_eq!(
             size_of::<TaskStorageHead>(),
             112,
             "TaskStorageHead size changed! Inspect Rust's struct layout to find why.",
         );
         assert_eq!(
-            size_of::<TaskStorage>(),
+            size_of::<TaskStorageInner>(),
             128,
-            "TaskStorage size changed! Inspect Rust's struct layout to find why.",
+            "TaskStorageInner size changed! Inspect Rust's struct layout to find why.",
         );
         // `LazyTail` is 8 B (`u32 present + u16 len + u16 cap`). The byte
-        // buffer lives in TaskStorageBox's allocation, accessed via raw
+        // buffer lives in TaskStorage's allocation, accessed via raw
         // pointer arithmetic from the head's address.
         assert_eq!(
             size_of::<LazyTail>(),

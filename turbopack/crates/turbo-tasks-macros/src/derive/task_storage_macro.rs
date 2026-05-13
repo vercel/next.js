@@ -5,7 +5,7 @@ use syn::{
     spanned::Spanned,
 };
 
-/// Derives the TaskStorage trait and generates optimized storage structures.
+/// Derives the TaskStorageInner trait and generates optimized storage structures.
 pub fn task_storage(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     task_storage_impl(input.into()).into()
 }
@@ -54,7 +54,7 @@ struct FieldInfo {
     storage_type: StorageType,
     category: Category,
     /// If true, field is lazily allocated in Vec<LazyField> (the default).
-    /// If false (marked with `inline`), field is stored directly on TaskStorage.
+    /// If false (marked with `inline`), field is stored directly on TaskStorageInner.
     lazy: bool,
     /// If true, filter out values that reference transient tasks during encoding.
     /// For direct fields: skip encoding if value.is_transient() returns true.
@@ -70,7 +70,7 @@ struct FieldInfo {
     /// Immutable tasks don't re-execute, so dependency tracking fields are not needed.
     drop_on_completion_if_immutable: bool,
     /// If true, the macro dispatches to `FieldType::drop_partial(&mut v) -> bool`
-    /// in the generated `TaskStorage::drop_partial` lazy retain_mut arm instead
+    /// in the generated `TaskStorageInner::drop_partial` lazy retain_mut arm instead
     /// of the default wholesale reset. The method's `bool` return signals whether
     /// residue remains (`true` keeps the variant). On restore, the incoming
     /// persistent entries are merged into the residue via `extend`, so the field
@@ -143,20 +143,20 @@ impl FieldInfo {
 
     /// Generate expression for immutable collection access.
     ///
-    /// Delegates to TaskStorage accessor methods:
+    /// Delegates to TaskStorageInner accessor methods:
     /// - For inline fields: `self.typed().{field_name}()` yields `&T`
     /// - For lazy fields: `self.typed().{field_name}()` yields `Option<&T>`
     ///
     /// Note: This is for collection types (AutoSet, CounterMap, AutoMap), not Direct fields.
     fn collection_ref_expr(&self) -> TokenStream {
         let field_name = &self.field_name;
-        // Both inline and lazy have accessor methods generated on TaskStorage
+        // Both inline and lazy have accessor methods generated on TaskStorageInner
         quote! { self.typed().#field_name() }
     }
 
     /// Generate expression for mutable collection access (allocates for lazy fields).
     ///
-    /// Delegates to TaskStorage accessor methods:
+    /// Delegates to TaskStorageInner accessor methods:
     /// - For inline fields: `self.typed_mut().{field_name}_mut()` yields `&mut T`
     /// - For lazy fields: `self.typed_mut().{field_name}_mut()` yields `&mut T` (allocates if
     ///   needed)
@@ -164,7 +164,7 @@ impl FieldInfo {
     /// Note: This is for collection types (AutoSet, CounterMap, AutoMap), not Direct fields.
     fn collection_mut_expr(&self) -> TokenStream {
         let field_name_mut = self.mut_ident();
-        // Both inline and lazy have accessor methods generated on TaskStorage
+        // Both inline and lazy have accessor methods generated on TaskStorageInner
         quote! { self.typed_mut().#field_name_mut() }
     }
 
@@ -183,7 +183,7 @@ impl FieldInfo {
 
     /// Generate expression to get a Direct field value (returns `Option<&T>`).
     ///
-    /// Delegates to TaskStorage accessor method `get_{field}()`.
+    /// Delegates to TaskStorageInner accessor method `get_{field}()`.
     fn direct_get_expr(&self) -> TokenStream {
         let get_name = self.get_ident();
         quote! { self.typed().#get_name() }
@@ -191,7 +191,7 @@ impl FieldInfo {
 
     /// Generate expression to set a Direct field value.
     ///
-    /// Delegates to TaskStorage accessor method `set_{field}(value)`.
+    /// Delegates to TaskStorageInner accessor method `set_{field}(value)`.
     /// For inline: returns `Option<T>` (old value)
     /// For lazy: returns `()` (no return value from current impl)
     fn direct_set_expr(&self) -> TokenStream {
@@ -201,7 +201,7 @@ impl FieldInfo {
 
     /// Generate expression to take a Direct field value.
     ///
-    /// Delegates to TaskStorage accessor method `take_{field}()`.
+    /// Delegates to TaskStorageInner accessor method `take_{field}()`.
     fn direct_take_expr(&self) -> TokenStream {
         let take_name = self.take_ident();
         quote! { self.typed_mut().#take_name() }
@@ -209,7 +209,7 @@ impl FieldInfo {
 
     /// Generate expression to get a mutable reference to a Direct field value.
     ///
-    /// Delegates to TaskStorage accessor method `get_{field}_mut()`.
+    /// Delegates to TaskStorageInner accessor method `get_{field}_mut()`.
     /// Only available for lazy Direct fields (inline fields can use set/take).
     fn direct_get_mut_expr(&self) -> TokenStream {
         let get_mut_name = self.get_mut_ident();
@@ -751,7 +751,7 @@ fn gen_clone_inline_fields<'a>(fields: impl Iterator<Item = &'a FieldInfo>) -> V
 
 fn gen_restore_inline_field(field: &FieldInfo) -> TokenStream {
     let field_name = &field.field_name;
-    // `TaskStorage` implements `Drop`, so we cannot partially move out of
+    // `TaskStorageInner` implements `Drop`, so we cannot partially move out of
     // `source.head` here. Use `std::mem::take` instead — `source` is
     // consumed by the surrounding `restore_*_from` and its remaining fields
     // will be properly dropped by Rust's struct destructor.
@@ -803,7 +803,7 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
     // Generate LazyField enum for lazy fields
     let lazy_field_enum = generate_lazy_field_enum(grouped_fields);
 
-    // Generate the unified TaskStorage struct
+    // Generate the unified TaskStorageInner struct
     let typed_storage_struct = generate_typed_storage_struct(grouped_fields);
 
     // Generate accessor methods
@@ -831,7 +831,7 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
         // Generated LazyField enum
         #lazy_field_enum
 
-        // Generated TaskStorage struct (unified)
+        // Generated TaskStorageInner struct (unified)
         #typed_storage_struct
 
         // Generated accessor methods
@@ -1252,7 +1252,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
     }
 }
 
-/// Generate the unified TaskStorage struct, plus a private `TaskStorageHead`
+/// Generate the unified TaskStorageInner struct, plus a private `TaskStorageHead`
 /// that groups the schema-declared inline fields. Splitting inline fields out
 /// is preparation for moving the lazy-tail byte buffer into the same heap
 /// allocation as the head (step 3 of the storage refactor): once the byte
@@ -1260,7 +1260,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
 /// region" of the allocation, with the tail bytes living immediately after.
 ///
 /// For now `Head` is just an organizational grouping that derives `Default`
-/// and `Debug` so `TaskStorage`'s own derives continue to work.
+/// and `Debug` so `TaskStorageInner`'s own derives continue to work.
 fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream {
     let has_lazy = grouped_fields.has_lazy();
     let has_flags = grouped_fields.has_flags();
@@ -1277,10 +1277,10 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
         })
         .collect();
 
-    // Flags bitfield: lives directly on TaskStorage (not in head) because
+    // Flags bitfield: lives directly on TaskStorageInner (not in head) because
     // many call sites — both macro emission and hand-written backend code —
     // read/write flags as `task.flags.method()` without going through a
-    // typed accessor. Keeping it at the TaskStorage level avoids touching
+    // typed accessor. Keeping it at the TaskStorageInner level avoids touching
     // every one of those.
     let flags_field = if has_flags {
         quote! {
@@ -1292,8 +1292,8 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
     };
 
     // Bitmap + heap buffer for lazy payloads. Also lives directly on
-    // TaskStorage; step 3 will collapse its `ptr` field by inlining the
-    // bytes into TaskStorage's allocation.
+    // TaskStorageInner; step 3 will collapse its `ptr` field by inlining the
+    // bytes into TaskStorageInner's allocation.
     let lazy_field = if has_lazy {
         quote! {
             #[doc = "Bitmap + heap buffer holding the lazy-field payloads in tag order."]
@@ -1309,7 +1309,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
     quote! {
         #[doc = "The schema's inline fields grouped into one struct."]
         #[doc = ""]
-        #[doc = "Lives on [`TaskStorage`] as `head`. Step 3 of the storage refactor"]
+        #[doc = "Lives on [`TaskStorageInner`] as `head`. Step 3 of the storage refactor"]
         #[doc = "will exploit the boundary at `size_of::<TaskStorageHead>()` to lay"]
         #[doc = "out the lazy-field byte tail in the same allocation."]
         #[automatically_derived]
@@ -1328,14 +1328,14 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
         #[automatically_derived]
         #[derive(Debug, Default, turbo_tasks::ShrinkToFit)]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
-        pub struct TaskStorage {
+        pub struct TaskStorageInner {
             pub(crate) head: TaskStorageHead,
             #flags_field
             #lazy_field
         }
 
         #[automatically_derived]
-        impl TaskStorage {
+        impl TaskStorageInner {
             pub fn new() -> Self {
                 Self::default()
             }
@@ -1348,8 +1348,8 @@ fn generate_accessor_methods(grouped_fields: &GroupedFields) -> TokenStream {
     let mut box_methods = TokenStream::new();
 
     // Generate accessor methods. Read-only and non-grow mutations live on
-    // `TaskStorage`; grow-capable mutations (lazy `set_<name>` / `<name>_mut`
-    // that may install a new payload) live on `TaskStorageBox` since only
+    // `TaskStorageInner`; grow-capable mutations (lazy `set_<name>` / `<name>_mut`
+    // that may install a new payload) live on `TaskStorage` since only
     // the owning pointer can reallocate the unified head+tail buffer.
     for field in grouped_fields.all_fields() {
         let (on_storage, on_box) = generate_field_accessors_split(field);
@@ -1359,27 +1359,27 @@ fn generate_accessor_methods(grouped_fields: &GroupedFields) -> TokenStream {
 
     quote! {
         #[automatically_derived]
-        impl TaskStorage {
+        impl TaskStorageInner {
             #storage_methods
         }
 
         #[automatically_derived]
-        impl crate::backend::task_storage_box::TaskStorageBox {
+        impl crate::backend::task_storage::TaskStorage {
             #box_methods
         }
     }
 }
 
-/// Generate accessor methods on TaskStorage for a field.
+/// Generate accessor methods on TaskStorageInner for a field.
 ///
 /// Works for both inline and lazy fields. Uses FieldInfo helpers to generate
 /// the appropriate access patterns. Returns `(on_storage, on_box)`:
 ///
-/// - `on_storage` is emitted in `impl TaskStorage` and holds the read-only / non-grow accessors
-///   (`get_{field}`, `take_{field}`, inline mutations).
-/// - `on_box` is emitted in `impl TaskStorageBox` and holds grow-capable accessors (`set_{field}`
-///   and `{field}_mut` for lazy fields whose install path may need to reallocate the unified
-///   head+tail buffer).
+/// - `on_storage` is emitted in `impl TaskStorageInner` and holds the read-only / non-grow
+///   accessors (`get_{field}`, `take_{field}`, inline mutations).
+/// - `on_box` is emitted in `impl TaskStorage` and holds grow-capable accessors (`set_{field}` and
+///   `{field}_mut` for lazy fields whose install path may need to reallocate the unified head+tail
+///   buffer).
 fn generate_field_accessors_split(field: &FieldInfo) -> (TokenStream, TokenStream) {
     let field_name = &field.field_name;
     let field_type = &field.field_type;
@@ -1390,14 +1390,14 @@ fn generate_field_accessors_split(field: &FieldInfo) -> (TokenStream, TokenStrea
             generate_collection_field_accessors_split(field, field_name, field_type)
         }
         StorageType::Flag => {
-            // Flag fields have accessors generated on TaskFlags, not TaskStorage
+            // Flag fields have accessors generated on TaskFlags, not TaskStorageInner
             unreachable!("Flag fields should not reach generate_field_accessors")
         }
     }
 }
 
 /// Generate Direct field accessors. Returns `(on_storage, on_box)`:
-/// the methods that go in `impl TaskStorage` and `impl TaskStorageBox`
+/// the methods that go in `impl TaskStorageInner` and `impl TaskStorage`
 /// respectively. Lazy-direct `set_<name>` lives on the box because it may
 /// install a new payload, which may need to grow the unified allocation.
 fn generate_direct_field_accessors_split(field: &FieldInfo) -> (TokenStream, TokenStream) {
@@ -1464,7 +1464,7 @@ fn generate_direct_field_accessors_split(field: &FieldInfo) -> (TokenStream, Tok
         (storage, quote! {})
     } else {
         // Lazy direct field. Read / take / get-mut-if-present go on
-        // `TaskStorage`; `set_<name>` goes on `TaskStorageBox` since it may
+        // `TaskStorageInner`; `set_<name>` goes on `TaskStorage` since it may
         // install a new payload (which may reallocate the buffer).
         let tag_ident = syn::Ident::new(
             &format!("LAZY_TAG_{}", field.field_name.to_string().to_uppercase()),
@@ -1474,11 +1474,11 @@ fn generate_direct_field_accessors_split(field: &FieldInfo) -> (TokenStream, Tok
             #vis fn #get_name(&self) -> Option<&#field_type> {
                 // SAFETY: `#tag_ident` is the schema tag for `#field_type`.
                 // `tail_ptr` here is computed from the head pointer plus
-                // `size_of::<TaskStorage>()`, which is valid for
+                // `size_of::<TaskStorageInner>()`, which is valid for
                 // `lazy_tail.cap` bytes (zero when no allocation).
                 unsafe {
-                    let tail_base = (self as *const TaskStorage as *const u8)
-                        .add(std::mem::size_of::<TaskStorage>());
+                    let tail_base = (self as *const TaskStorageInner as *const u8)
+                        .add(std::mem::size_of::<TaskStorageInner>());
                     self.lazy_tail.find::<#field_type>(#tag_ident, tail_base)
                 }
             }
@@ -1486,8 +1486,8 @@ fn generate_direct_field_accessors_split(field: &FieldInfo) -> (TokenStream, Tok
             #vis fn #take_name(&mut self) -> Option<#field_type> {
                 // SAFETY: see `#get_name`. `take` only shrinks the tail.
                 unsafe {
-                    let tail_base = (self as *mut TaskStorage as *mut u8)
-                        .add(std::mem::size_of::<TaskStorage>());
+                    let tail_base = (self as *mut TaskStorageInner as *mut u8)
+                        .add(std::mem::size_of::<TaskStorageInner>());
                     self.lazy_tail.take::<#field_type>(#tag_ident, tail_base)
                 }
             }
@@ -1499,8 +1499,8 @@ fn generate_direct_field_accessors_split(field: &FieldInfo) -> (TokenStream, Tok
                 // SAFETY: same as `#get_name`. Mutation in place doesn't
                 // change `lazy_tail.len`, so no realloc is needed.
                 unsafe {
-                    let tail_base = (self as *mut TaskStorage as *mut u8)
-                        .add(std::mem::size_of::<TaskStorage>());
+                    let tail_base = (self as *mut TaskStorageInner as *mut u8)
+                        .add(std::mem::size_of::<TaskStorageInner>());
                     self.lazy_tail.find_mut::<#field_type>(#tag_ident, tail_base)
                 }
             }
@@ -1519,8 +1519,8 @@ fn generate_direct_field_accessors_split(field: &FieldInfo) -> (TokenStream, Tok
     }
 }
 
-/// Generate collection field accessors split between TaskStorage and
-/// TaskStorageBox. The lazy `<field>_mut` accessor goes on the box because
+/// Generate collection field accessors split between TaskStorageInner and
+/// TaskStorage. The lazy `<field>_mut` accessor goes on the box because
 /// installing a default-constructed collection (when absent) may need to
 /// grow the unified buffer.
 fn generate_collection_field_accessors_split(
@@ -1554,8 +1554,8 @@ fn generate_collection_field_accessors_split(
         };
         (storage, quote! {})
     } else {
-        // Lazy collection field. Read / take stay on TaskStorage; the
-        // grow-capable `<name>_mut()` lives on TaskStorageBox.
+        // Lazy collection field. Read / take stay on TaskStorageInner; the
+        // grow-capable `<name>_mut()` lives on TaskStorage.
         let tag_ident = syn::Ident::new(
             &format!("LAZY_TAG_{}", field.field_name.to_string().to_uppercase()),
             proc_macro2::Span::call_site(),
@@ -1564,8 +1564,8 @@ fn generate_collection_field_accessors_split(
             #vis fn #ref_name(&self) -> Option<&#field_type> {
                 // SAFETY: `#tag_ident` is the schema tag for `#field_type`.
                 unsafe {
-                    let tail_base = (self as *const TaskStorage as *const u8)
-                        .add(std::mem::size_of::<TaskStorage>());
+                    let tail_base = (self as *const TaskStorageInner as *const u8)
+                        .add(std::mem::size_of::<TaskStorageInner>());
                     self.lazy_tail.find::<#field_type>(#tag_ident, tail_base)
                 }
             }
@@ -1573,8 +1573,8 @@ fn generate_collection_field_accessors_split(
             #vis fn #take_name(&mut self) -> Option<#field_type> {
                 // SAFETY: see `#ref_name`. `take` only shrinks.
                 unsafe {
-                    let tail_base = (self as *mut TaskStorage as *mut u8)
-                        .add(std::mem::size_of::<TaskStorage>());
+                    let tail_base = (self as *mut TaskStorageInner as *mut u8)
+                        .add(std::mem::size_of::<TaskStorageInner>());
                     self.lazy_tail.take::<#field_type>(#tag_ident, tail_base)
                 }
             }
@@ -1614,28 +1614,28 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
     quote! {
         #[doc = "Trait for typed storage accessors."]
         #[doc = ""]
-        #[doc = "This trait is auto-generated by the TaskStorage macro."]
+        #[doc = "This trait is auto-generated by the TaskStorageInner macro."]
         #[doc = "Implementors only need to provide `typed()`, `typed_mut()`, `track_modification()`,"]
         #[doc = "and `check_access()` methods, and all accessor methods are provided automatically."]
         #[doc = ""]
         #[doc = "This is designed to work with TaskGuard."]
         #[automatically_derived]
         pub trait TaskStorageAccessors {
-            #[doc = "Access the owning `TaskStorageBox` (read-only)."]
+            #[doc = "Access the owning `TaskStorage` (read-only)."]
             #[doc = ""]
             #[doc = "Returns the owning pointer so that callers needing to grow the"]
             #[doc = "underlying allocation (step 3 of the storage refactor) have access"]
-            #[doc = "to it. Most accessor calls go through `Deref<Target = TaskStorage>`"]
-            #[doc = "on `TaskStorageBox`, so callsites read like `self.typed().<field>()`"]
+            #[doc = "to it. Most accessor calls go through `Deref<Target = TaskStorageInner>`"]
+            #[doc = "on `TaskStorage`, so callsites read like `self.typed().<field>()`"]
             #[doc = "regardless of whether the method lives on the box or the inner."]
-            fn typed(&self) -> &crate::backend::task_storage_box::TaskStorageBox;
+            fn typed(&self) -> &crate::backend::task_storage::TaskStorage;
 
-            #[doc = "Access the owning `TaskStorageBox` (mutable)."]
+            #[doc = "Access the owning `TaskStorage` (mutable)."]
             #[doc = ""]
             #[doc = "Note: This does NOT track modifications. Call `track_modification()` separately"]
             #[doc = "when the data actually changes. This split allows generated accessors to"]
             #[doc = "only track modifications when actual changes occur."]
-            fn typed_mut(&mut self) -> &mut crate::backend::task_storage_box::TaskStorageBox;
+            fn typed_mut(&mut self) -> &mut crate::backend::task_storage::TaskStorage;
 
             #[doc = "Track that a modification occurred for the given category."]
             #[doc = ""]
@@ -1679,7 +1679,7 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
 ///
 /// Uses `FieldInfo` helpers to generate the correct access patterns:
 /// - For inline: direct field access via `self.typed().field` / `self.typed_mut().field`
-/// - For lazy: delegates to TaskStorage accessors
+/// - For lazy: delegates to TaskStorageInner accessors
 fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
     let field_type = &field.field_type;
     let check_access = field.check_access_call();
@@ -1688,7 +1688,7 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
 
     match field.storage_type {
         StorageType::Direct => {
-            // Direct storage delegates to TaskStorage accessor methods
+            // Direct storage delegates to TaskStorageInner accessor methods
             generate_direct_accessors(field)
         }
         StorageType::AutoSet => {
@@ -1820,7 +1820,7 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
 
 /// Generate Direct field accessors for TaskStorageAccessors trait.
 ///
-/// Uses `FieldInfo` helpers to delegate to TaskStorage accessor methods,
+/// Uses `FieldInfo` helpers to delegate to TaskStorageInner accessor methods,
 /// which handle the inline/lazy difference internally.
 ///
 /// Generates methods:
@@ -1834,7 +1834,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
     let check_access = field.check_access_call();
     let track_modification = field.track_modification_call();
 
-    // Use FieldInfo helpers for TaskStorage delegation
+    // Use FieldInfo helpers for TaskStorageInner delegation
     let get_expr = field.direct_get_expr();
     let set_expr = field.direct_set_expr();
     let take_expr = field.direct_take_expr();
@@ -1860,7 +1860,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         if field.is_transient() {
             let get_mut_name = field.get_mut_ident();
             if field.is_inline() {
-                // Inline fields live on `TaskStorage::head`.
+                // Inline fields live on `TaskStorageInner::head`.
                 let field_name = &field.field_name;
                 if field.use_default {
                     // For fields with default semantics, always return Some(&mut self.field)
@@ -1907,7 +1907,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
             #set_expr(value)
         }
     } else {
-        // Equality-check, track, then delegate to TaskStorage's typed `set_*`.
+        // Equality-check, track, then delegate to TaskStorageInner's typed `set_*`.
         // Same shape for inline and lazy direct fields — the latter does its
         // own single-scan internally now.
         quote! {
@@ -1924,7 +1924,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
             #take_expr
         }
     } else {
-        // Existence check, then delegate to TaskStorage's typed `take_*`.
+        // Existence check, then delegate to TaskStorageInner's typed `take_*`.
         quote! {
             if #get_expr.is_some() {
                 #track_modification
@@ -1968,7 +1968,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
 ///
 /// Uses `FieldInfo` helpers to generate the correct access patterns:
 /// - For inline: direct field access via `self.typed().field` / `self.typed_mut().field`
-/// - For lazy: delegates to TaskStorage accessors
+/// - For lazy: delegates to TaskStorageInner accessors
 ///
 /// Generates methods with `_item` suffix to distinguish single-item operations
 /// from potential bulk operations: `add_X_item`, `remove_X_item`, `has_X_item`
@@ -2227,7 +2227,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
 ///
 /// Uses `FieldInfo` helpers to generate the correct access patterns:
 /// - For inline: direct field access via `self.typed().field` / `self.typed_mut().field`
-/// - For lazy: delegates to TaskStorage accessors via `self.typed().field()` /
+/// - For lazy: delegates to TaskStorageInner accessors via `self.typed().field()` /
 ///   `self.typed_mut().field_mut()`
 ///
 /// Generates methods for:
@@ -2521,7 +2521,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 ///
 /// Uses `FieldInfo` helpers to generate the correct access patterns:
 /// - For inline: direct field access via `self.typed().field` / `self.typed_mut().field`
-/// - For lazy: delegates to TaskStorage accessors
+/// - For lazy: delegates to TaskStorageInner accessors
 ///
 /// Generates methods (using `_entry` suffix for consistency with CounterMap):
 /// - `get_{field}_entry(key) -> Option<&V>` - Single-item lookup
@@ -2626,7 +2626,7 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
         }
     } else if is_option {
         // Check emptiness via the typed ref accessor, then delegate to
-        // TaskStorage's `take_<name>` (which returns `Option<T>` for lazy
+        // TaskStorageInner's `take_<name>` (which returns `Option<T>` for lazy
         // collections — exactly the shape this outer method returns).
         quote! {
             if #ref_expr.is_none_or(|m| m.is_empty()) {
@@ -2818,7 +2818,7 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
 }
 
 /// Generate the `drop_data()`, `drop_meta()`, and `drop_data_and_meta()` methods
-/// for TaskStorage.
+/// for TaskStorageInner.
 ///
 /// These methods clear persistent category fields for eviction. They must be
 /// generated by the macro because they need to know which specific inline fields
@@ -2894,7 +2894,7 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
 
     quote! {
         #[automatically_derived]
-        impl TaskStorage {
+        impl TaskStorageInner {
 
             /// Whether this storage holds no data-category state — no
             /// data-category lazy variants, no data-category inline fields
@@ -2935,7 +2935,7 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
         }
 
         #[automatically_derived]
-        impl crate::backend::task_storage_box::TaskStorageBox {
+        impl crate::backend::task_storage::TaskStorage {
             /// Drop persistent fields so the task can be evicted.
             ///
             /// For each `filter_transient` field, transient entries are retained as
@@ -2958,7 +2958,7 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
             /// The caller does NOT need to call `is_empty()` after this — the
             /// outcome already accounts for everything `is_empty()` would check.
             ///
-            /// Lives on `TaskStorageBox` because it may install via
+            /// Lives on `TaskStorage` because it may install via
             /// `<name>_mut()` (filter_transient residue) which can grow the
             /// underlying buffer.
             #[must_use]
@@ -3260,7 +3260,7 @@ fn gen_decode_body(grouped_fields: &GroupedFields, category: Category) -> TokenS
     }
 }
 
-/// Generate encode/decode methods for TaskStorage serialization.
+/// Generate encode/decode methods for TaskStorageInner serialization.
 ///
 /// Generates four methods:
 /// - `encode_meta<E>(&self, encoder: &mut E)` - Encode meta category fields
@@ -3319,7 +3319,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
 
     quote! {
         #[automatically_derived]
-        impl TaskStorage {
+        impl TaskStorageInner {
             /// Encode meta category fields directly to bincode.
             /// Only persistent (non-transient) fields are encoded.
             pub fn encode_meta<E: bincode::enc::Encoder>(
@@ -3344,11 +3344,11 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
         }
 
         #[automatically_derived]
-        impl crate::backend::task_storage_box::TaskStorageBox {
+        impl crate::backend::task_storage::TaskStorage {
             /// Decode meta category fields from bincode. Only persistent
             /// (non-transient) fields are decoded.
             ///
-            /// Lives on `TaskStorageBox` because installing lazy payloads
+            /// Lives on `TaskStorage` because installing lazy payloads
             /// from the wire may need to grow the unified buffer.
             pub fn decode_meta<D: bincode::de::Decoder>(
                 &mut self,
@@ -3764,11 +3764,11 @@ fn gen_restore_inline_for_category(
         .collect()
 }
 
-/// Generate snapshot clone and restore methods for TaskStorage.
+/// Generate snapshot clone and restore methods for TaskStorageInner.
 ///
 /// Generates:
-/// - `clone_meta_snapshot(&self) -> TaskStorage` - Clone only persistent meta fields
-/// - `clone_data_snapshot(&self) -> TaskStorage` - Clone only persistent data fields
+/// - `clone_meta_snapshot(&self) -> TaskStorageInner` - Clone only persistent meta fields
+/// - `clone_data_snapshot(&self) -> TaskStorageInner` - Clone only persistent data fields
 /// - `restore_from(&mut self, source, category)` - Restore data by category from decoded storage
 /// - `restore_meta_from(&mut self, source)` - Restore meta fields from source
 /// - `restore_data_from(&mut self, source)` - Restore data fields from source
@@ -3825,15 +3825,15 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
 
     quote! {
         #[automatically_derived]
-        impl crate::backend::task_storage_box::TaskStorageBox {
+        impl crate::backend::task_storage::TaskStorage {
             /// Create a snapshot containing all persistent fields. Returns a
-            /// fresh `TaskStorageBox`; the snapshot is independent of `self`.
+            /// fresh `TaskStorage`; the snapshot is independent of `self`.
             ///
-            /// Lives on `TaskStorageBox` (not `TaskStorage`) because cloning
+            /// Lives on `TaskStorage` (not `TaskStorageInner`) because cloning
             /// the lazy payloads into the new snapshot installs them, which
             /// may need to grow that snapshot's buffer.
-            pub fn clone_snapshot(&self) -> crate::backend::task_storage_box::TaskStorageBox {
-                let mut snapshot = crate::backend::task_storage_box::TaskStorageBox::new();
+            pub fn clone_snapshot(&self) -> crate::backend::task_storage::TaskStorage {
+                let mut snapshot = crate::backend::task_storage::TaskStorage::new();
 
                 // Clone inline meta fields
                 #(#clone_meta_inline)*
@@ -3852,7 +3852,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 snapshot
             }
 
-            /// Restore persisted data from a decoded `TaskStorageBox`.
+            /// Restore persisted data from a decoded `TaskStorage`.
             ///
             /// This is used during restore operations to copy decoded persisted data
             /// into the task's existing storage. It preserves transient state (flags,
@@ -3870,7 +3870,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
             /// - `Data`: Restore data fields (output_dependent, dependencies, cell_data, etc.)
             pub fn restore_from(
                 &mut self,
-                source: crate::backend::task_storage_box::TaskStorageBox,
+                source: crate::backend::task_storage::TaskStorage,
                 category: crate::backend::SpecificTaskDataCategory,
             ) {
                 match category {
@@ -3885,7 +3885,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
             /// `filter_transient` fields are merged rather than overwritten.
             pub fn restore_meta_from(
                 &mut self,
-                mut source: crate::backend::task_storage_box::TaskStorageBox,
+                mut source: crate::backend::task_storage::TaskStorage,
             ) {
                 // Per-variant restore for each persistent meta lazy field.
                 // Must run before the inline-field assignments below, because
@@ -3906,7 +3906,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
             /// `filter_transient` fields are merged rather than overwritten.
             pub fn restore_data_from(
                 &mut self,
-                mut source: crate::backend::task_storage_box::TaskStorageBox,
+                mut source: crate::backend::task_storage::TaskStorage,
             ) {
                 // Per-variant restore for each persistent data lazy field
                 // (see restore_meta_from for the ordering rationale).

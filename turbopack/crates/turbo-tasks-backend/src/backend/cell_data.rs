@@ -71,7 +71,7 @@ impl MergeRestore for CellData {
 
 impl DropPartial for CellData {
     /// Drop cells whose value type is freely evictable, retain those that
-    /// are not. Called by the macro-generated `TaskStorage::drop_partial`
+    /// are not. Called by the macro-generated `TaskStorageInner::drop_partial`
     /// on the data-eviction path.
     ///
     /// Dropped (`Evictability::Always`): persistable cells (restored from
