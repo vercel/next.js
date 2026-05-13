@@ -1,0 +1,24 @@
+diff --git a/lib/client/browserContext.js b/lib/client/browserContext.js
+index 0b5cb3356cdc4917d9198a184f1a2cb391924453..3ad3d86bebde7a7e25af4f94b964d003e10d40a0 100644
+--- a/lib/client/browserContext.js
++++ b/lib/client/browserContext.js
+@@ -183,6 +183,19 @@ class BrowserContext extends import_channelOwner.ChannelOwner {
+   _onRequestFailed(request, responseEndTiming, failureText, page) {
+     request._failureText = failureText || null;
+     request._setResponseEndTiming(responseEndTiming);
++    // PATCH (next.js): mirror what `_onRequestFinished` does for the
++    // response, so callers awaiting `response.finished()` don't hang on
++    // failed/canceled requests. The server side already resolves the
++    // server-side `_finishedPromise` from `_onLoadingFailed` (see
++    // chromium/crNetworkManager.js), but only the `requestFinished` IPC
++    // carries a response payload — `requestFailed` does not, so the
++    // client-side Response's `_finishedPromise` is otherwise never
++    // resolved. We look up the response via the existing async RPC and
++    // resolve it fire-and-forget; catch is a no-op so we never produce
++    // an unhandled rejection if the context tears down concurrently.
++    request.response().then((response) => {
++      if (response !== null) response._finishedPromise.resolve(null);
++    }).catch(() => {});
+     this.emit(import_events.Events.BrowserContext.RequestFailed, request);
+     if (page)
+       page.emit(import_events.Events.Page.RequestFailed, request);
