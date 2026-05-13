@@ -23,6 +23,7 @@ import { Telemetry } from '../../telemetry/storage'
 import { eventAnalyzeCompleted } from '../../telemetry/events'
 import { traceGlobals } from '../../trace/shared'
 import type { RoutesManifest } from '..'
+import { Bundler } from '../../lib/bundler'
 
 export type AnalyzeOptions = {
   dir: string
@@ -45,6 +46,7 @@ export default async function analyze({
     const config: NextConfigComplete = await loadConfig(PHASE_ANALYZE, dir, {
       silent: false,
       reactProductionProfiling,
+      bundler: Bundler.Turbopack,
     })
 
     process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''

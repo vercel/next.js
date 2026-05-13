@@ -26,6 +26,7 @@ import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { isWriteable } from './helpers/is-writeable'
+import { generateAgentFiles } from './helpers/generate-agent-files'
 import { runTypegen } from './helpers/typegen'
 
 import type { Bundler, TemplateMode, TemplateType } from './templates'
@@ -52,6 +53,7 @@ export async function createApp({
   bundler,
   disableGit,
   reactCompiler,
+  agentsMd,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -71,6 +73,7 @@ export async function createApp({
   bundler: Bundler
   disableGit?: boolean
   reactCompiler: boolean
+  agentsMd: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
@@ -344,6 +347,10 @@ export default clientPromise
   )
 }
 // --- MongoDB Logic End ---
+
+  if (agentsMd) {
+    generateAgentFiles(root)
+  }
 
   if (disableGit) {
     console.log('Skipping git initialization.')

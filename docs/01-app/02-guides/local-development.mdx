@@ -54,15 +54,42 @@ Make sure you're using the latest version of Next.js. Each new version often inc
 
 Turbopack is now the default bundler for Next.js development and provides significant performance improvements over webpack.
 
-```bash
+```bash package="pnpm"
+pnpm add next@latest
+pnpm dev  # Turbopack is used by default
+```
+
+```bash package="npm"
 npm install next@latest
 npm run dev  # Turbopack is used by default
 ```
 
+```bash package="yarn"
+yarn add next@latest
+yarn dev  # Turbopack is used by default
+```
+
+```bash package="bun"
+bun add next@latest
+bun dev  # Turbopack is used by default
+```
+
 If you need to use Webpack instead of Turbopack, you can opt-in:
 
-```bash
-npm run dev --webpack
+```bash package="pnpm"
+pnpm dev --webpack
+```
+
+```bash package="npm"
+npm run dev -- --webpack
+```
+
+```bash package="yarn"
+yarn dev --webpack
+```
+
+```bash package="bun"
+bun run dev --webpack
 ```
 
 [Learn more about Turbopack](/blog/turbopack-for-development-stable). See our [upgrade guides](/docs/app/guides/upgrading) and codemods for more information.
@@ -208,29 +235,41 @@ It provides detailed information about the time taken for each module to compile
 1. Make sure you have the latest version of Next.js installed.
 1. Generate a Turbopack trace file:
 
-   ```bash
+   ```bash package="pnpm"
+   NEXT_TURBOPACK_TRACING=1 pnpm dev
+   ```
+
+   ```bash package="npm"
    NEXT_TURBOPACK_TRACING=1 npm run dev
+   ```
+
+   ```bash package="yarn"
+   NEXT_TURBOPACK_TRACING=1 yarn dev
+   ```
+
+   ```bash package="bun"
+   NEXT_TURBOPACK_TRACING=1 bun dev
    ```
 
 1. Navigate around your application or make edits to files to reproduce the problem.
 1. Stop the Next.js development server.
-1. A file called `trace-turbopack` will be available in the `.next/dev` folder.
+1. A file called `trace-turbopack` will be available in the `.next-profiles` folder.
 1. You can interpret the file using `npx next internal trace [path-to-file]`:
 
    ```bash
-   npx next internal trace .next/dev/trace-turbopack
+   npx next internal trace .next-profiles/trace-turbopack
    ```
 
    On versions where `trace` is not available, the command was named `turbo-trace-server`:
 
    ```bash
-   npx next internal turbo-trace-server .next/dev/trace-turbopack
+   npx next internal turbo-trace-server .next-profiles/trace-turbopack
    ```
 
 1. Once the trace server is running you can view the trace at https://trace.nextjs.org/.
 1. By default the trace viewer will aggregate timings, in order to see each individual time you can switch from "Aggregated in order" to "Spans in order" at the top right of the viewer.
 
-> **Good to know**: The trace file is placed under the development server directory, which defaults to `.next/dev`.
+> **Good to know**: The trace file is placed in the `.next-profiles` directory at the project root.
 
 ### Still having problems?
 

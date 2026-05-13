@@ -80,9 +80,13 @@ export async function handler(
     const tracer = getTracer()
 
     const activeSpan = tracer.getActiveScopeSpan()
+    const isWrappedByNextServer = Boolean(
+      routerServerContext?.isWrappedByNextServer
+    )
     const onRequestError =
       routeModule.instrumentationOnRequestError.bind(routeModule)
 
+    let parentSpan: Span | undefined
     const invokeRouteModule = async (span?: Span) =>
       routeModule
         .render(req, res, {
@@ -134,39 +138,47 @@ export async function handler(
             return
           }
 
-          const route = rootSpanAttributes.get('next.route')
-          if (route) {
-            const name = `${method} ${route}`
+          const route = rootSpanAttributes.get('next.route') || srcPage
+          const name = `${method} ${route}`
 
-            span.setAttributes({
-              'next.route': route,
-              'http.route': route,
-              'next.span_name': name,
-            })
-            span.updateName(name)
-          } else {
-            span.updateName(`${method} ${srcPage}`)
+          span.setAttributes({
+            'next.route': route,
+            'http.route': route,
+            'next.span_name': name,
+          })
+          span.updateName(name)
+
+          // Propagate http.route to the parent span if one exists (e.g.
+          // a platform-created HTTP span in adapter deployments).
+          if (parentSpan && parentSpan !== span) {
+            parentSpan.setAttribute('http.route', route)
+            parentSpan.updateName(name)
           }
         })
 
     // TODO: activeSpan code path is for when wrapped by
     // next-server can be removed when this is no longer used
-    if (activeSpan) {
+    if (isWrappedByNextServer && activeSpan) {
       await invokeRouteModule(activeSpan)
     } else {
-      await tracer.withPropagatedContext(req.headers, () =>
-        tracer.trace(
-          BaseServerSpan.handleRequest,
-          {
-            spanName: `${method} ${srcPage}`,
-            kind: SpanKind.SERVER,
-            attributes: {
-              'http.method': method,
-              'http.target': req.url,
+      parentSpan = tracer.getActiveScopeSpan()
+      await tracer.withPropagatedContext(
+        req.headers,
+        () =>
+          tracer.trace(
+            BaseServerSpan.handleRequest,
+            {
+              spanName: `${method} ${srcPage}`,
+              kind: SpanKind.SERVER,
+              attributes: {
+                'http.method': method,
+                'http.target': req.url,
+              },
             },
-          },
-          invokeRouteModule
-        )
+            invokeRouteModule
+          ),
+        undefined,
+        !isWrappedByNextServer
       )
     }
   } catch (err) {

@@ -229,7 +229,7 @@ In addition, a number of built-in conditions are supported:
 - `development`: Matches when using `next dev`.
 - `production`: Matches when using `next build`.
 - `node`: Matches code that will run on the default Node.js runtime.
-- `edge-light`: Matches code that will run on the [Edge runtime](/docs/app/api-reference/edge).
+- `edge-light`: Matches code that will run on the [Edge runtime](/docs/app/api-reference/edge) (deprecated).
 
 Rules can be an object or an array of objects. An array is often useful for modeling disjoint conditions:
 
@@ -297,6 +297,38 @@ Available module types:
 | `raw`        | Return raw contents as string                            |
 | `bytes`      | Inline contents as bytes                                 |
 
+### Inline loader configuration with import attributes
+
+You can apply a Turbopack loader to an individual import using the `with` clause (import attributes). This is specified per-import rather than globally via `turbopack.rules`.
+
+This is useful when you want to apply a loader to a specific import without affecting all files of that type.
+
+```tsx filename="app/page.tsx"
+// Apply a raw loader to import a .txt file as a JavaScript module
+import rawText from '../data.txt' with { turbopackLoader: 'raw-loader', turbopackAs: '*.js' }
+
+export default function Page() {
+  return <p>{rawText}</p>
+}
+```
+
+The following import attributes are supported:
+
+| Attribute                | Description                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `turbopackLoader`        | The loader to apply (e.g. `'raw-loader'`).                                                                                    |
+| `turbopackLoaderOptions` | JSON string of loader options (e.g. `'{"search":"X","replace":"Y"}'`).                                                        |
+| `turbopackAs`            | Rename pattern for the output (same as `turbopack.rules[].as`). For example, `'*.js'` treats the loader output as JavaScript. |
+| `turbopackModuleType`    | Set the module type for the output (same as `turbopack.rules[].type`).                                                        |
+
+Loaders with options pass a JSON-encoded string via `turbopackLoaderOptions`:
+
+```tsx filename="app/page.tsx"
+import value from '../data.js' with { turbopackLoader: 'string-replace-loader', turbopackLoaderOptions: '{"search":"PLACEHOLDER","replace":"replaced value"}' }
+```
+
+> **Good to know**: Import attributes with `turbopackLoader` are Turbopack-specific and are not supported by webpack. This feature requires the `with` keyword (not `assert`) in your import statements.
+
 ### Resolving aliases
 
 Turbopack can be configured to modify module resolution through aliases, similar to webpack's [`resolve.alias`](https://webpack.js.org/configuration/resolve/#resolvealias) configuration.
@@ -356,6 +388,7 @@ The option automatically adds a polyfill for debug IDs to the JavaScript bundle 
 
 | Version  | Changes                                              |
 | -------- | ---------------------------------------------------- |
+| `16.2.0` | `turbopackLoader` import attributes were added.      |
 | `16.2.0` | `turbopack.rules.*.type` was added.                  |
 | `16.2.0` | `turbopack.rules.*.condition.contentType` was added. |
 | `16.2.0` | `turbopack.rules.*.condition.query` was added.       |

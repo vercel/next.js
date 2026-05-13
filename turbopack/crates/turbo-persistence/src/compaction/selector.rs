@@ -397,7 +397,7 @@ mod tests {
         mem::{replace, swap},
     };
 
-    use rand::{Rng, SeedableRng, seq::SliceRandom};
+    use rand::{RngExt, SeedableRng, seq::SliceRandom};
 
     use super::*;
 

@@ -22,8 +22,10 @@ import {
   type OverlayState,
   type DispatcherEvent,
   ACTION_CACHE_INDICATOR,
+  ACTION_INSTANT_NAVS_TOGGLE,
 } from './dev-overlay/shared'
 
+import type { FlightRouterState } from '../shared/lib/app-router-types'
 import {
   createContext,
   startTransition,
@@ -72,7 +74,11 @@ export interface Dispatcher {
   renderingIndicatorShow(): void
   segmentExplorerNodeAdd(nodeState: SegmentNodeState): void
   segmentExplorerNodeRemove(nodeState: SegmentNodeState): void
-  segmentExplorerUpdateRouteState(page: string): void
+  segmentExplorerUpdateRouteState(
+    page: string,
+    tree: FlightRouterState | null
+  ): void
+  instantNavsToggle(): void
 }
 
 type Dispatch = ReturnType<typeof useErrorOverlayReducer>[1]
@@ -220,10 +226,13 @@ export const dispatcher: Dispatcher = {
     }
   ),
   segmentExplorerUpdateRouteState: createQueuable(
-    (dispatch: Dispatch, page: string) => {
-      dispatch({ type: ACTION_DEVTOOL_UPDATE_ROUTE_STATE, page })
+    (dispatch: Dispatch, page: string, tree: FlightRouterState | null) => {
+      dispatch({ type: ACTION_DEVTOOL_UPDATE_ROUTE_STATE, page, tree })
     }
   ),
+  instantNavsToggle: createQueuable((dispatch: Dispatch) => {
+    dispatch({ type: ACTION_INSTANT_NAVS_TOGGLE })
+  }),
 }
 
 function replayQueuedEvents(dispatch: NonNullable<typeof maybeDispatch>) {

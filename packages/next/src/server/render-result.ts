@@ -1,6 +1,8 @@
 import type { OutgoingHttpHeaders, ServerResponse } from 'http'
+import type { Readable } from 'stream'
 import type { CacheControl } from './lib/cache-control'
 import type { FetchMetrics } from './base-http'
+import type { PrefetchHints } from '../shared/lib/app-router-types'
 
 import {
   chainStreams,
@@ -8,7 +10,11 @@ import {
   streamFromString,
   streamToString,
 } from './stream-utils/node-web-streams-helper'
-import { isAbortError, pipeToNodeResponse } from './pipe-readable'
+import {
+  isAbortError,
+  pipeToNodeResponse,
+  pipeNodeReadableToNodeResponse,
+} from './pipe-readable'
 import type { RenderResumeDataCache } from './resume-data-cache/resume-data-cache'
 import { InvariantError } from '../shared/lib/invariant-error'
 import type {
@@ -48,6 +54,13 @@ export type AppPageRenderResultMetadata = {
   segmentData?: Map<string, Buffer>
 
   /**
+   * Per-route prefetch hints computed at build time (e.g. segment inlining
+   * decisions based on gzip sizes). Written to prefetch-hints.json by the
+   * build pipeline.
+   */
+  prefetchHints?: PrefetchHints
+
+  /**
    * In development, the resume data cache is warmed up before the render. This
    * is attached to the metadata so that it can be used during the render. When
    * prerendering, the filled resume data cache is also attached to the metadata
@@ -59,7 +72,6 @@ export type AppPageRenderResultMetadata = {
 export type PagesRenderResultMetadata = {
   pageData?: any
   cacheControl?: CacheControl
-  assetQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean
 }
@@ -73,6 +85,7 @@ export type RenderResultMetadata = AppPageRenderResultMetadata &
 export type RenderResultResponse =
   | ReadableStream<Uint8Array>[]
   | ReadableStream<Uint8Array>
+  | Readable
   | string
   | Buffer
   | null
@@ -83,6 +96,16 @@ export type RenderResultOptions<
   contentType: ContentTypeOption | null
   waitUntil?: Promise<unknown>
   metadata: Metadata
+}
+
+function isNodeReadable(value: unknown): value is Readable {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    typeof (value as Record<string, unknown>).pipe === 'function' &&
+    typeof (value as Record<string, unknown>).on === 'function' &&
+    !(value instanceof ReadableStream)
+  )
 }
 
 export default class RenderResult<
@@ -222,6 +245,27 @@ export default class RenderResult<
       return chainStreams(...this.response)
     }
 
+    if (isNodeReadable(this.response)) {
+      if (process.env.NEXT_RUNTIME === 'edge') {
+        throw new InvariantError(
+          'Node.js Readable cannot be converted to a web stream in the edge runtime'
+        )
+      } else {
+        let Readable: typeof import('node:stream').Readable
+        if (process.env.TURBOPACK) {
+          Readable = (require('node:stream') as typeof import('node:stream'))
+            .Readable
+        } else {
+          Readable = (
+            __non_webpack_require__(
+              'node:stream'
+            ) as typeof import('node:stream')
+          ).Readable
+        }
+        return Readable.toWeb(this.response) as ReadableStream<Uint8Array>
+      }
+    }
+
     return this.response
   }
 
@@ -244,9 +288,39 @@ export default class RenderResult<
       return this.response
     } else if (Buffer.isBuffer(this.response)) {
       return [streamFromBuffer(this.response)]
+    } else if (isNodeReadable(this.response)) {
+      if (process.env.NEXT_RUNTIME === 'edge') {
+        throw new InvariantError(
+          'Node.js Readable cannot be converted to a web stream in the edge runtime'
+        )
+      } else {
+        let Readable: typeof import('node:stream').Readable
+        if (process.env.TURBOPACK) {
+          Readable = (require('node:stream') as typeof import('node:stream'))
+            .Readable
+        } else {
+          Readable = (
+            __non_webpack_require__(
+              'node:stream'
+            ) as typeof import('node:stream')
+          ).Readable
+        }
+        return [Readable.toWeb(this.response) as ReadableStream<Uint8Array>]
+      }
     } else {
       return [this.response]
     }
+  }
+
+  /**
+   * Pipes the response through a transform stream. This converts the response
+   * to a single readable stream (chaining if needed) and pipes it through the
+   * provided transform.
+   *
+   * @param transform The transform stream to pipe through
+   */
+  public pipeThrough(transform: TransformStream<Uint8Array, Uint8Array>): void {
+    this.response = this.readable.pipeThrough(transform)
   }
 
   /**
@@ -329,6 +403,16 @@ export default class RenderResult<
    * @param res
    */
   public async pipeToNodeResponse(res: ServerResponse) {
+    if (
+      this.response !== null &&
+      typeof this.response !== 'string' &&
+      !Buffer.isBuffer(this.response) &&
+      !Array.isArray(this.response) &&
+      isNodeReadable(this.response)
+    ) {
+      await pipeNodeReadableToNodeResponse(this.response, res, this.waitUntil)
+      return
+    }
     await pipeToNodeResponse(this.readable, res, this.waitUntil)
   }
 }

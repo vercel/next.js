@@ -1081,7 +1081,7 @@ describe('runtime prefetching', () => {
         STATIC_CONTENT
       )
       expect(await browser.elementById('error-boundary').text()).toInclude(
-        'Error boundary: An error occurred in the Server Components render'
+        'Error boundary: Minified React error #441;'
       )
     })
   })

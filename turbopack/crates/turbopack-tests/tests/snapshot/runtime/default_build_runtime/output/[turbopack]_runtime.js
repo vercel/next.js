@@ -1,13 +1,39 @@
-const RUNTIME_PUBLIC_PATH = "output/[turbopack]_runtime.js";
-const RELATIVE_ROOT_PATH = "../../../../../../..";
-const ASSET_PREFIX = "/";
-const WORKER_FORWARDED_GLOBALS = [];
+var RUNTIME_PUBLIC_PATH = "output/[turbopack]_runtime.js";
+var RELATIVE_ROOT_PATH = "../../../../../../..";
+var ASSET_PREFIX = "/";
+var WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
  * TurboPack ECMAScript runtimes.
  *
  * It will be prepended to the runtime code of each runtime.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
+/**
+ * Describes why a module was instantiated.
+ * Shared between browser and Node.js runtimes.
+ */ var SourceType = /*#__PURE__*/ function(SourceType) {
+    /**
+   * The module was instantiated because it was included in an evaluated chunk's
+   * runtime.
+   * SourceData is a ChunkPath.
+   */ SourceType[SourceType["Runtime"] = 0] = "Runtime";
+    /**
+   * The module was instantiated because a parent module imported it.
+   * SourceData is a ModuleId.
+   */ SourceType[SourceType["Parent"] = 1] = "Parent";
+    /**
+   * The module was instantiated because it was included in a chunk's hot module
+   * update.
+   * SourceData is an array of ModuleIds or undefined.
+   */ SourceType[SourceType["Update"] = 2] = "Update";
+    return SourceType;
+}(SourceType || {});
+/**
+ * Flag indicating which module object type to create when a module is merged. Set to `true`
+ * by each runtime that uses ModuleWithDirection (browser dev-base.ts, nodejs dev-base.ts,
+ * nodejs build-base.ts). Browser production (build-base.ts) leaves it as `false` since it
+ * uses plain Module objects.
+ */ let createModuleWithDirectionFlag = false;
 const REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -31,9 +57,12 @@ function defineProp(obj, name, options) {
 function getOverwrittenModule(moduleCache, id) {
     let module = moduleCache[id];
     if (!module) {
-        // This is invoked when a module is merged into another module, thus it wasn't invoked via
-        // instantiateModule and the cache entry wasn't created yet.
-        module = createModuleObject(id);
+        if (createModuleWithDirectionFlag) {
+            // set in development modes for hmr support
+            module = createModuleWithDirection(id);
+        } else {
+            module = createModuleObject(id);
+        }
         moduleCache[id] = module;
     }
     return module;
@@ -46,6 +75,16 @@ function getOverwrittenModule(moduleCache, id) {
         error: undefined,
         id,
         namespaceObject: undefined
+    };
+}
+function createModuleWithDirection(id) {
+    return {
+        exports: {},
+        error: undefined,
+        id,
+        namespaceObject: undefined,
+        parents: [],
+        children: []
     };
 }
 const BindingTag_Value = 0;
@@ -332,7 +371,6 @@ function createPromise() {
 function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
     let i = offset;
     while(i < chunkModules.length){
-        let moduleId = chunkModules[i];
         let end = i + 1;
         // Find our factory function
         while(end < chunkModules.length && typeof chunkModules[end] !== 'function'){
@@ -341,15 +379,33 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
         if (end === chunkModules.length) {
             throw new Error('malformed chunk format, expected a factory function');
         }
-        // Each chunk item has a 'primary id' and optional additional ids. If the primary id is already
-        // present we know all the additional ids are also present, so we don't need to check.
-        if (!moduleFactories.has(moduleId)) {
-            const moduleFactoryFn = chunkModules[end];
-            applyModuleFactoryName(moduleFactoryFn);
-            newModuleId?.(moduleId);
-            for(; i < end; i++){
-                moduleId = chunkModules[i];
-                moduleFactories.set(moduleId, moduleFactoryFn);
+        // Install the factory for each module ID that doesn't already have one.
+        // When some IDs in this group already have a factory, reuse that existing
+        // group factory for the missing IDs to keep all IDs in the group consistent.
+        // Otherwise, install the factory from this chunk.
+        const moduleFactoryFn = chunkModules[end];
+        let existingGroupFactory = undefined;
+        for(let j = i; j < end; j++){
+            const id = chunkModules[j];
+            const existingFactory = moduleFactories.get(id);
+            if (existingFactory) {
+                existingGroupFactory = existingFactory;
+                break;
+            }
+        }
+        const factoryToInstall = existingGroupFactory ?? moduleFactoryFn;
+        let didInstallFactory = false;
+        for(let j = i; j < end; j++){
+            const id = chunkModules[j];
+            if (!moduleFactories.has(id)) {
+                if (!didInstallFactory) {
+                    if (factoryToInstall === moduleFactoryFn) {
+                        applyModuleFactoryName(moduleFactoryFn);
+                    }
+                    didInstallFactory = true;
+                }
+                moduleFactories.set(id, factoryToInstall);
+                newModuleId?.(id);
             }
         }
         i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
@@ -490,6 +546,25 @@ contextPrototype.U = relativeURL;
     throw new Error(`Invariant: ${computeMessage(never)}`);
 }
 /**
+ * Constructs an error message for when a module factory is not available.
+ */ function factoryNotAvailableMessage(moduleId, sourceType, sourceData) {
+    let instantiationReason;
+    switch(sourceType){
+        case 0:
+            instantiationReason = `as a runtime entry of chunk ${sourceData}`;
+            break;
+        case 1:
+            instantiationReason = `because it was required from module ${sourceData}`;
+            break;
+        case 2:
+            instantiationReason = 'because of an HMR update';
+            break;
+        default:
+            invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
+    }
+    return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`;
+}
+/**
  * A stub function to make `require` available but non-functional in ESM.
  */ function requireStub(_moduleId) {
     throw new Error('dynamic usage of require is not supported');
@@ -503,7 +578,7 @@ function applyModuleFactoryName(factory) {
         value: 'module evaluation'
     });
 }
-/// <reference path="../shared/runtime-utils.ts" />
+/// <reference path="../shared/runtime/runtime-utils.ts" />
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.
 /// If a fn requires node.js specific behavior, it should be placed in `node-external-utils` instead.
@@ -565,7 +640,7 @@ const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
     return ABSOLUTE_ROOT;
 }
 Context.prototype.P = resolveAbsolutePath;
-/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
+/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime/runtime-utils.ts" />
 function readWebAssemblyAsResponse(path) {
     const { createReadStream } = require('fs');
     const { Readable } = require('stream');
@@ -586,29 +661,18 @@ async function instantiateWebAssemblyFromPath(path, importsObj) {
     const { instance } = await WebAssembly.instantiateStreaming(response, importsObj);
     return instance.exports;
 }
-/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
-/// <reference path="../shared-node/base-externals-utils.ts" />
-/// <reference path="../shared-node/node-externals-utils.ts" />
-/// <reference path="../shared-node/node-wasm-utils.ts" />
-var SourceType = /*#__PURE__*/ function(SourceType) {
-    /**
-   * The module was instantiated because it was included in an evaluated chunk's
-   * runtime.
-   * SourceData is a ChunkPath.
-   */ SourceType[SourceType["Runtime"] = 0] = "Runtime";
-    /**
-   * The module was instantiated because a parent module imported it.
-   * SourceData is a ModuleId.
-   */ SourceType[SourceType["Parent"] = 1] = "Parent";
-    return SourceType;
-}(SourceType || {});
-process.env.TURBOPACK = '1';
-const nodeContextPrototype = Context.prototype;
+/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../shared/runtime/runtime-utils.ts" />
+/// <reference path="../../shared-node/base-externals-utils.ts" />
+/// <reference path="../../shared-node/node-externals-utils.ts" />
+/// <reference path="../../shared-node/node-wasm-utils.ts" />
+/// <reference path="./nodejs-globals.d.ts" />
+/**
+ * Base Node.js runtime shared between production and development.
+ * Contains chunk loading, module caching, and other non-HMR functionality.
+ */ process.env.TURBOPACK = '1';
 const url = require('url');
 const moduleFactories = new Map();
-nodeContextPrototype.M = moduleFactories;
 const moduleCache = Object.create(null);
-nodeContextPrototype.c = moduleCache;
 /**
  * Returns an absolute path to the given module's id.
  */ function resolvePathFromModule(moduleId) {
@@ -621,13 +685,11 @@ nodeContextPrototype.c = moduleCache;
     const resolved = path.resolve(RUNTIME_ROOT, strippedAssetPrefix);
     return url.pathToFileURL(resolved).href;
 }
-nodeContextPrototype.R = resolvePathFromModule;
 /**
  * Exports a URL value. No suffix is added in Node.js runtime.
  */ function exportUrl(urlValue, id) {
     exportValue.call(this, urlValue, id);
 }
-nodeContextPrototype.q = exportUrl;
 function loadRuntimeChunk(sourcePath, chunkData) {
     if (typeof chunkData === 'string') {
         loadRuntimeChunkPath(sourcePath, chunkData);
@@ -641,6 +703,7 @@ const loadedChunk = Promise.resolve(undefined);
 const chunkCache = new Map();
 function clearChunkCache() {
     chunkCache.clear();
+    loadedChunks.clear();
 }
 function loadRuntimeChunkPath(sourcePath, chunkPath) {
     if (!isJs(chunkPath)) {
@@ -739,27 +802,36 @@ contextPrototype.u = loadWebAssemblyModule;
     };
     return new WorkerConstructor(workerPath, options);
 }
+const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
+/**
+ * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
+ */ function isJs(chunkUrlOrPath) {
+    return regexJsUrl.test(chunkUrlOrPath);
+}
+/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-base.ts" />
+/**
+ * Production Node.js runtime.
+ * Uses ModuleWithDirection and simple module instantiation without HMR support.
+ */ // moduleCache and moduleFactories are declared in runtime-base.ts
+// this is read in runtime-utils.ts so it creates a module with direction for hmr
+createModuleWithDirectionFlag = true;
+const nodeContextPrototype = Context.prototype;
+nodeContextPrototype.q = exportUrl;
+nodeContextPrototype.M = moduleFactories;
+// Cast moduleCache to ModuleWithDirection for production mode
+nodeContextPrototype.c = moduleCache;
+nodeContextPrototype.R = resolvePathFromModule;
 nodeContextPrototype.b = createWorker;
+nodeContextPrototype.C = clearChunkCache;
 function instantiateModule(id, sourceType, sourceData) {
     const moduleFactory = moduleFactories.get(id);
     if (typeof moduleFactory !== 'function') {
         // This can happen if modules incorrectly handle HMR disposes/updates,
         // e.g. when they keep a `setTimeout` around which still executes old code
         // and contains e.g. a `require("something")` call.
-        let instantiationReason;
-        switch(sourceType){
-            case 0:
-                instantiationReason = `as a runtime entry of chunk ${sourceData}`;
-                break;
-            case 1:
-                instantiationReason = `because it was required from module ${sourceData}`;
-                break;
-            default:
-                invariant(sourceType, (sourceType)=>`Unknown source type: ${sourceType}`);
-        }
-        throw new Error(`Module ${id} was instantiated ${instantiationReason}, but the module factory is not available.`);
+        throw new Error(factoryNotAvailableMessage(id, sourceType, sourceData));
     }
-    const module1 = createModuleObject(id);
+    const module1 = createModuleWithDirection(id);
     const exports = module1.exports;
     moduleCache[id] = module1;
     const context = new Context(module1, exports);
@@ -770,6 +842,7 @@ function instantiateModule(id, sourceType, sourceData) {
         module1.error = error;
         throw error;
     }
+    ;
     module1.loaded = true;
     if (module1.namespaceObject && module1.exports !== module1.namespaceObject) {
         // in case of a circular dependency: cjs1 -> esm2 -> cjs1
@@ -788,12 +861,12 @@ function getOrInstantiateModuleFromParent(id, sourceModule) {
         }
         return module1;
     }
-    return instantiateModule(id, 1, sourceModule.id);
+    return instantiateModule(id, SourceType.Parent, sourceModule.id);
 }
 /**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(chunkPath, moduleId) {
-    return instantiateModule(moduleId, 0, chunkPath);
+    return instantiateModule(moduleId, SourceType.Runtime, chunkPath);
 }
 /**
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
@@ -807,12 +880,6 @@ function getOrInstantiateRuntimeModule(chunkPath, moduleId) {
         return module1;
     }
     return instantiateRuntimeModule(chunkPath, moduleId);
-}
-const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
-/**
- * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
- */ function isJs(chunkUrlOrPath) {
-    return regexJsUrl.test(chunkUrlOrPath);
 }
 module.exports = (sourcePath)=>({
         m: (id)=>getOrInstantiateRuntimeModule(sourcePath, id),

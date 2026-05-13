@@ -37,6 +37,7 @@ export function getGlobalCssLoader(
         modules: false,
         targets: ctx.supportedBrowsers,
         postcss,
+        lightningCssFeatures: ctx.experimental.lightningCssFeatures,
       },
     })
   } else {
@@ -52,6 +53,7 @@ export function getGlobalCssLoader(
           cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
         import: (url: string, _: any, resourcePath: string) =>
           cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
+        deploymentId: ctx.deploymentId,
       },
     })
 

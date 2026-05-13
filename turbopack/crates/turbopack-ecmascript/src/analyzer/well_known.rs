@@ -7,8 +7,7 @@ use turbopack_core::compile_time_info::CompileTimeInfo;
 use url::Url;
 
 use super::{
-    ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
-    WellKnownObjectKind, imports::ImportAnnotations,
+    ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind, WellKnownObjectKind,
 };
 use crate::analyzer::RequireContextValue;
 
@@ -18,26 +17,32 @@ pub async fn replace_well_known(
     allow_project_root_tracing: bool,
 ) -> Result<(JsValue, bool)> {
     Ok(match value {
-        JsValue::Call(_, box JsValue::WellKnownFunction(kind), args) => (
-            well_known_function_call(
-                kind,
-                JsValue::unknown_empty(false, "this is not analyzed yet"),
-                args,
-                compile_time_info,
-                allow_project_root_tracing,
+        JsValue::Call(_, call) if matches!(call.callee(), JsValue::WellKnownFunction(_)) => {
+            let (callee, args) = call.into_parts();
+            let JsValue::WellKnownFunction(kind) = callee else {
+                unreachable!()
+            };
+            (
+                well_known_function_call(
+                    kind,
+                    JsValue::unknown_empty(false, rcstr!("this is not analyzed yet")),
+                    args,
+                    compile_time_info,
+                    allow_project_root_tracing,
+                )
+                .await?,
+                true,
             )
-            .await?,
-            true,
-        ),
-        JsValue::Call(usize, callee, args) => {
+        }
+        JsValue::Call(total, call) => {
             // var fs = require('fs'), fs = __importStar(fs);
             // TODO(WEB-552) this is not correct and has many false positives!
-            if args.len() == 1
-                && let JsValue::WellKnownObject(_) = &args[0]
+            if call.args().len() == 1
+                && let JsValue::WellKnownObject(_) = &call.args()[0]
             {
-                return Ok((args[0].clone(), true));
+                return Ok((call.args()[0].clone(), true));
             }
-            (JsValue::Call(usize, callee, args), false)
+            (JsValue::Call(total, call), false)
         }
         JsValue::Member(_, box JsValue::WellKnownObject(kind), box prop) => {
             well_known_object_member(kind, prop, compile_time_info).await?
@@ -60,6 +65,17 @@ pub async fn replace_well_known(
             ),
             _ => (value, false),
         },
+        // module.hot → WellKnownObject(ModuleHot) (only when HMR is enabled)
+        JsValue::Member(_, box JsValue::FreeVar(ref name), box ref prop)
+            if &**name == "module"
+                && prop.as_str() == Some("hot")
+                && compile_time_info.await?.hot_module_replacement_enabled =>
+        {
+            (
+                JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot),
+                true,
+            )
+        }
         _ => (value, false),
     })
 }
@@ -109,9 +125,9 @@ pub async fn well_known_function_call(
                 format!("/ROOT/{}", cwd.path).into()
             } else {
                 JsValue::unknown(
-                    JsValue::call(Box::new(JsValue::WellKnownFunction(kind)), args),
+                    JsValue::call_from_parts(JsValue::WellKnownFunction(kind), args),
                     true,
-                    "process.cwd is not specified in the environment",
+                    rcstr!("process.cwd is not specified in the environment"),
                 )
             }
         }
@@ -131,9 +147,9 @@ pub async fn well_known_function_call(
         }
 
         _ => JsValue::unknown(
-            JsValue::call(Box::new(JsValue::WellKnownFunction(kind)), args),
+            JsValue::call_from_parts(JsValue::WellKnownFunction(kind), args),
             true,
-            "unsupported function",
+            rcstr!("unsupported function"),
         ),
     })
 }
@@ -157,26 +173,22 @@ fn object_assign(args: Vec<JsValue>) -> JsValue {
             merged_object
         } else {
             JsValue::unknown(
-                JsValue::call(
-                    Box::new(JsValue::WellKnownFunction(
-                        WellKnownFunctionKind::ObjectAssign,
-                    )),
-                    vec![],
+                JsValue::call_from_iter(
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectAssign),
+                    [],
                 ),
                 true,
-                "empty arguments for Object.assign",
+                rcstr!("empty arguments for Object.assign"),
             )
         }
     } else {
         JsValue::unknown(
-            JsValue::call(
-                Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::ObjectAssign,
-                )),
+            JsValue::call_from_parts(
+                JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectAssign),
                 args,
             ),
             true,
-            "only const object assign is supported",
+            rcstr!("only const object assign is supported"),
         )
     }
 }
@@ -241,7 +253,7 @@ fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
     // If no path segments are passed, `path.resolve()` will return the absolute
     // path of the current working directory.
     if args.is_empty() {
-        return JsValue::unknown_empty(false, "cwd is not static analyzable");
+        return JsValue::unknown_empty(false, rcstr!("cwd is not static analyzable"));
     }
     if args.len() == 1 {
         return args.into_iter().next().unwrap();
@@ -330,14 +342,12 @@ fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
         }
     }
     JsValue::unknown(
-        JsValue::call(
-            Box::new(JsValue::WellKnownFunction(
-                WellKnownFunctionKind::PathDirname,
-            )),
+        JsValue::call_from_parts(
+            JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
             args,
         ),
         true,
-        "path.dirname with unsupported arguments",
+        rcstr!("path.dirname with unsupported arguments"),
     )
 }
 
@@ -348,16 +358,16 @@ pub fn import(args: Vec<JsValue>) -> JsValue {
         [JsValue::Constant(ConstantValue::Str(v))] => {
             JsValue::promise(JsValue::Module(ModuleValue {
                 module: v.as_atom().into_owned().into(),
-                annotations: ImportAnnotations::default(),
+                annotations: None,
             }))
         }
         _ => JsValue::unknown(
-            JsValue::call(
-                Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::Import)),
+            JsValue::call_from_parts(
+                JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
                 args,
             ),
             true,
-            "only a single constant argument is supported",
+            rcstr!("only a single constant argument is supported"),
         ),
     }
 }
@@ -369,138 +379,145 @@ fn require(args: Vec<JsValue>) -> JsValue {
         if let Some(s) = args[0].as_str() {
             JsValue::Module(ModuleValue {
                 module: s.into(),
-                annotations: ImportAnnotations::default(),
+                annotations: None,
             })
         } else {
             JsValue::unknown(
-                JsValue::call(
-                    Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::Require)),
+                JsValue::call_from_parts(
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                     args,
                 ),
                 true,
-                "only constant argument is supported",
+                rcstr!("only constant argument is supported"),
             )
         }
     } else {
         JsValue::unknown(
-            JsValue::call(
-                Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::Require)),
+            JsValue::call_from_parts(
+                JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                 args,
             ),
             true,
-            "only a single argument is supported",
+            rcstr!("only a single argument is supported"),
         )
     }
 }
 
 /// (try to) statically evaluate `require.context(...)()`
-fn require_context_require(val: RequireContextValue, args: Vec<JsValue>) -> Result<JsValue> {
+fn require_context_require(val: Box<RequireContextValue>, args: Vec<JsValue>) -> Result<JsValue> {
     if args.is_empty() {
         return Ok(JsValue::unknown(
-            JsValue::call(
-                Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequire(val),
-                )),
+            JsValue::call_from_parts(
+                JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(val)),
                 args,
             ),
             true,
-            "require.context(...).require() requires an argument specifying the module path",
+            rcstr!(
+                "require.context(...).require() requires an argument specifying the module path"
+            ),
         ));
     }
 
     let Some(s) = args[0].as_str() else {
         return Ok(JsValue::unknown(
-            JsValue::call(
-                Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequire(val),
-                )),
+            JsValue::call_from_parts(
+                JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(val)),
                 args,
             ),
             true,
-            "require.context(...).require() only accepts a single, constant string argument",
+            rcstr!(
+                "require.context(...).require() only accepts a single, constant string argument"
+            ),
         ));
     };
 
     let Some(m) = val.0.get(s) else {
         return Ok(JsValue::unknown(
-            JsValue::call(
-                Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequire(val),
-                )),
+            JsValue::call_from_parts(
+                JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(val)),
                 args,
             ),
             true,
-            "require.context(...).require() can only be called with an argument that's in the \
-             context",
+            rcstr!(
+                "require.context(...).require() can only be called with an argument that's in the \
+                 context"
+            ),
         ));
     };
 
     Ok(JsValue::Module(ModuleValue {
         module: m.to_string().into(),
-        annotations: ImportAnnotations::default(),
+        annotations: None,
     }))
 }
 
 /// (try to) statically evaluate `require.context(...).keys()`
-fn require_context_require_keys(val: RequireContextValue, args: Vec<JsValue>) -> Result<JsValue> {
+fn require_context_require_keys(
+    val: Box<RequireContextValue>,
+    args: Vec<JsValue>,
+) -> Result<JsValue> {
     Ok(if args.is_empty() {
         JsValue::array(val.0.keys().cloned().map(|k| k.into()).collect())
     } else {
         JsValue::unknown(
-            JsValue::call(
-                Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequireKeys(val),
-                )),
+            JsValue::call_from_parts(
+                JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequireKeys(val)),
                 args,
             ),
             true,
-            "require.context(...).keys() does not accept arguments",
+            rcstr!("require.context(...).keys() does not accept arguments"),
         )
     })
 }
 
 /// (try to) statically evaluate `require.context(...).resolve()`
 fn require_context_require_resolve(
-    val: RequireContextValue,
+    val: Box<RequireContextValue>,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
     if args.len() != 1 {
         return Ok(JsValue::unknown(
-            JsValue::call(
-                Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequireResolve(val),
+            JsValue::call_from_parts(
+                JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequireResolve(
+                    val,
                 )),
                 args,
             ),
             true,
-            "require.context(...).resolve() only accepts a single, constant string argument",
+            rcstr!(
+                "require.context(...).resolve() only accepts a single, constant string argument"
+            ),
         ));
     }
 
     let Some(s) = args[0].as_str() else {
         return Ok(JsValue::unknown(
-            JsValue::call(
-                Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequireResolve(val),
+            JsValue::call_from_parts(
+                JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequireResolve(
+                    val,
                 )),
                 args,
             ),
             true,
-            "require.context(...).resolve() only accepts a single, constant string argument",
+            rcstr!(
+                "require.context(...).resolve() only accepts a single, constant string argument"
+            ),
         ));
     };
 
     let Some(m) = val.0.get(s) else {
         return Ok(JsValue::unknown(
-            JsValue::call(
-                Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireContextRequireResolve(val),
+            JsValue::call_from_parts(
+                JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequireResolve(
+                    val,
                 )),
                 args,
             ),
             true,
-            "require.context(...).resolve() can only be called with an argument that's in the \
-             context",
+            rcstr!(
+                "require.context(...).resolve() can only be called with an argument that's in the \
+                 context"
+            ),
         ));
     };
 
@@ -514,38 +531,32 @@ fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
                 .map(|url| JsValue::Url(String::from(url).into(), JsValueUrlKind::Absolute))
                 .unwrap_or_else(|_| {
                     JsValue::unknown(
-                        JsValue::call(
-                            Box::new(JsValue::WellKnownFunction(
-                                WellKnownFunctionKind::PathToFileUrl,
-                            )),
+                        JsValue::call_from_parts(
+                            JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
                             args,
                         ),
                         true,
-                        "url not parseable: path is relative or has an invalid prefix",
+                        rcstr!("url not parseable: path is relative or has an invalid prefix"),
                     )
                 })
         } else {
             JsValue::unknown(
-                JsValue::call(
-                    Box::new(JsValue::WellKnownFunction(
-                        WellKnownFunctionKind::PathToFileUrl,
-                    )),
+                JsValue::call_from_parts(
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
                     args,
                 ),
                 true,
-                "only constant argument is supported",
+                rcstr!("only constant argument is supported"),
             )
         }
     } else {
         JsValue::unknown(
-            JsValue::call(
-                Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::PathToFileUrl,
-                )),
+            JsValue::call_from_parts(
+                JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
                 args,
             ),
             true,
-            "only a single argument is supported",
+            rcstr!("only a single argument is supported"),
         )
     }
 }
@@ -595,7 +606,7 @@ async fn well_known_object_member(
     let new_value = match kind {
         WellKnownObjectKind::GlobalObject => global_object(prop),
         WellKnownObjectKind::PathModule | WellKnownObjectKind::PathModuleDefault => {
-            path_module_member(kind, prop)
+            path_module_member(kind, prop, compile_time_info).await?
         }
         WellKnownObjectKind::FsModule
         | WellKnownObjectKind::FsModuleDefault
@@ -624,6 +635,36 @@ async fn well_known_object_member(
         WellKnownObjectKind::NodePreGyp => node_pre_gyp(prop),
         WellKnownObjectKind::NodeExpressApp => express(prop),
         WellKnownObjectKind::NodeProtobufLoader => protobuf_loader(prop),
+        WellKnownObjectKind::ImportMeta => match prop.as_str() {
+            // import.meta.turbopackHot is the ESM equivalent of module.hot for HMR
+            Some("turbopackHot") if compile_time_info.await?.hot_module_replacement_enabled => {
+                JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot)
+            }
+            // import.meta.glob is the Vite-compatible glob import.
+            // Note: import.meta.globEager() (removed in Vite 3) is intentionally
+            // not supported. Users should migrate to import.meta.glob('...', { eager: true }).
+            Some("glob") => JsValue::WellKnownFunction(WellKnownFunctionKind::ImportMetaGlob),
+            _ => {
+                return Ok((
+                    JsValue::member(Box::new(JsValue::WellKnownObject(kind)), Box::new(prop)),
+                    false,
+                ));
+            }
+        },
+        WellKnownObjectKind::ModuleHot => match prop.as_str() {
+            Some("accept") => JsValue::WellKnownFunction(WellKnownFunctionKind::ModuleHotAccept),
+            Some("decline") => JsValue::WellKnownFunction(WellKnownFunctionKind::ModuleHotDecline),
+            _ => {
+                return Ok((
+                    JsValue::unknown(
+                        JsValue::member(Box::new(JsValue::WellKnownObject(kind)), Box::new(prop)),
+                        true,
+                        rcstr!("unsupported property on module.hot"),
+                    ),
+                    true,
+                ));
+            }
+        },
         #[allow(unreachable_patterns)]
         _ => {
             return Ok((
@@ -644,13 +685,17 @@ fn global_object(prop: JsValue) -> JsValue {
                 Box::new(prop),
             ),
             true,
-            "unsupported property on global Object",
+            rcstr!("unsupported property on global Object"),
         ),
     }
 }
 
-fn path_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
-    match (kind, prop.as_str()) {
+async fn path_module_member(
+    kind: WellKnownObjectKind,
+    prop: JsValue,
+    compile_time_info: Vc<CompileTimeInfo>,
+) -> Result<JsValue> {
+    Ok(match (kind, prop.as_str()) {
         (.., Some("join")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
         (.., Some("dirname")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
         (.., Some("resolve")) => {
@@ -659,6 +704,13 @@ fn path_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
                 "",
             ))))
         }
+        (.., Some("sep")) => compile_time_info
+            .environment()
+            .compile_target()
+            .await?
+            .platform
+            .path_separator()
+            .into(),
         (WellKnownObjectKind::PathModule, Some("default")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::PathModuleDefault)
         }
@@ -668,9 +720,9 @@ fn path_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
                 Box::new(prop),
             ),
             true,
-            "unsupported property on Node.js path module",
+            rcstr!("unsupported property on Node.js path module"),
         ),
-    }
+    })
 }
 
 fn fs_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
@@ -684,6 +736,9 @@ fn fs_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
                 return JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(
                     word.into(),
                 ));
+            }
+            (.., "readdir" | "readdirSync") => {
+                return JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadDir);
             }
             (WellKnownObjectKind::FsModule | WellKnownObjectKind::FsModuleDefault, "promises") => {
                 return JsValue::WellKnownObject(WellKnownObjectKind::FsModulePromises);
@@ -700,7 +755,7 @@ fn fs_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
             Box::new(prop),
         ),
         true,
-        "unsupported property on Node.js fs module",
+        rcstr!("unsupported property on Node.js fs module"),
     )
 }
 
@@ -739,7 +794,7 @@ fn fs_extra_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
             Box::new(prop),
         ),
         true,
-        "unsupported property on fs-extra module",
+        rcstr!("unsupported property on fs-extra module"),
     )
 }
 
@@ -757,7 +812,7 @@ fn module_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
                 Box::new(prop),
             ),
             true,
-            "unsupported property on Node.js `module` module",
+            rcstr!("unsupported property on Node.js `module` module"),
         ),
     }
 }
@@ -776,7 +831,7 @@ fn url_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
                 Box::new(prop),
             ),
             true,
-            "unsupported property on Node.js url module",
+            rcstr!("unsupported property on Node.js url module"),
         ),
     }
 }
@@ -797,7 +852,7 @@ fn worker_threads_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsV
                 Box::new(prop),
             ),
             true,
-            "unsupported property on Node.js worker_threads module",
+            rcstr!("unsupported property on Node.js worker_threads module"),
         ),
     }
 }
@@ -823,7 +878,7 @@ fn child_process_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsVa
                 Box::new(prop),
             ),
             true,
-            "unsupported property on Node.js child_process module",
+            rcstr!("unsupported property on Node.js child_process module"),
         ),
     }
 }
@@ -842,7 +897,7 @@ fn os_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
                 Box::new(prop),
             ),
             true,
-            "unsupported property on Node.js os module",
+            rcstr!("unsupported property on Node.js os module"),
         ),
     }
 }
@@ -877,7 +932,7 @@ async fn node_process_member(
                 Box::new(prop),
             ),
             true,
-            "unsupported property on Node.js process object",
+            rcstr!("unsupported property on Node.js process object"),
         ),
     })
 }
@@ -891,7 +946,7 @@ fn node_pre_gyp(prop: JsValue) -> JsValue {
                 Box::new(prop),
             ),
             true,
-            "unsupported property on @mapbox/node-pre-gyp module",
+            rcstr!("unsupported property on @mapbox/node-pre-gyp module"),
         ),
     }
 }
@@ -907,7 +962,7 @@ fn express(prop: JsValue) -> JsValue {
                 Box::new(prop),
             ),
             true,
-            "unsupported property on require('express')() object",
+            rcstr!("unsupported property on require('express')() object"),
         ),
     }
 }
@@ -925,7 +980,7 @@ fn protobuf_loader(prop: JsValue) -> JsValue {
                 Box::new(prop),
             ),
             true,
-            "unsupported property on require('@grpc/proto-loader') object",
+            rcstr!("unsupported property on require('@grpc/proto-loader') object"),
         ),
     }
 }

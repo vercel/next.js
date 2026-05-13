@@ -386,6 +386,7 @@ impl<'a> Parser<'a> {
         }
     }
     fn error(&self, kind: ErrorKind) -> Error {
+        // ast-grep-ignore: no-context-format
         Error::msg(kind.description(self.char_pos))
             .context(format!("Parsing glob pattern: {}", self.glob))
     }

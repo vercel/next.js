@@ -11,7 +11,7 @@ pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{IntoTraitRef, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     FileSystemPath,
     glob::{Glob, GlobOptions},
@@ -20,13 +20,17 @@ use turbopack_core::{
     chunk::SourceMapsType,
     ident::Layer,
     reference_type::{
-        CssReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType, UrlReferenceSubType,
+        CssReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceTypeCondition,
+        UrlReferenceSubType,
     },
     resolve::options::{ImportMap, ImportMapping},
 };
-use turbopack_css::CssModuleAssetType;
+use turbopack_css::CssModuleType;
 use turbopack_ecmascript::{
-    EcmascriptInputTransform, EcmascriptInputTransforms, EcmascriptOptions, SpecifiedModuleType,
+    AnalyzeMode, EcmascriptInputTransform, EcmascriptInputTransforms, EcmascriptOptions,
+    SpecifiedModuleType, bytes_source_transform::BytesSourceTransform,
+    json_source_transform::JsonSourceTransform, text_source_transform::TextSourceTransform,
+    transform::PresetEnvConfig,
 };
 use turbopack_mdx::MdxTransform;
 use turbopack_node::{
@@ -39,7 +43,7 @@ use turbopack_wasm::source::WebAssemblySourceType;
 use crate::evaluate_context::{config_tracing_module_context, node_evaluate_asset_context};
 
 #[turbo_tasks::function]
-fn package_import_map_from_import_mapping(
+pub(crate) fn package_import_map_from_import_mapping(
     package_name: RcStr,
     package_mapping: ResolvedVc<ImportMapping>,
 ) -> Vc<ImportMap> {
@@ -52,7 +56,7 @@ fn package_import_map_from_import_mapping(
 }
 
 #[turbo_tasks::function]
-fn package_import_map_from_context(
+pub(crate) fn package_import_map_from_context(
     package_name: RcStr,
     context_path: FileSystemPath,
 ) -> Vc<ImportMap> {
@@ -237,9 +241,11 @@ impl ModuleOptions {
                     enable_typeof_window_inlining,
                     enable_exports_info_inlining,
                     enable_import_as_bytes,
+                    enable_import_as_text,
                     source_maps: ecmascript_source_maps,
                     inline_helpers,
                     infer_module_side_effects,
+                    ref preset_env_config,
                     ..
                 },
             enable_mdx,
@@ -249,6 +255,7 @@ impl ModuleOptions {
                     enable_raw_css,
                     source_maps: css_source_maps,
                     ref module_css_condition,
+                    lightningcss_features,
                     ..
                 },
             ref static_url_tag,
@@ -283,8 +290,12 @@ impl ModuleOptions {
         // So only if this is not a CSS module, or one of the special reference type constraints.
         let module_css_external_transform_conditions = RuleCondition::Any(vec![
             RuleCondition::not(module_css_condition.clone()),
-            RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Inner)),
-            RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Analyze)),
+            RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
+                CssReferenceSubType::Inner,
+            ))),
+            RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
+                CssReferenceSubType::Analyze,
+            ))),
         ]);
 
         let mut ecma_preprocess = vec![];
@@ -322,7 +333,11 @@ impl ModuleOptions {
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
 
         if let Some(environment) = environment {
-            postprocess.push(EcmascriptInputTransform::PresetEnv(environment));
+            let env_config = match preset_env_config {
+                Some(c) => *c,
+                None => PresetEnvConfig::default().resolved_cell(),
+            };
+            postprocess.push(EcmascriptInputTransform::PresetEnv(environment, env_config));
         }
 
         let decorators_transform = if let Some(options) = &enable_decorators {
@@ -358,6 +373,46 @@ impl ModuleOptions {
         let empty = ResolvedVc::<EcmascriptInputTransforms>::cell(vec![]);
 
         let mut rules = vec![];
+
+        // In tracing mode, we only need to record file dependencies — not transform them.
+        // Source transforms rename the file identity (e.g., foo.json -> foo.json.[json].cjs),
+        // which produces virtual paths that don't exist on disk. This breaks NFT file tracing
+        // and standalone build file copying. Use Raw module type instead so the original
+        // filesystem path is preserved in the trace.
+        let is_tracing = analyze_mode == AnalyzeMode::Tracing;
+
+        // Import attribute rules (bytes/text) must come BEFORE config rules.
+        // Import attributes have a stronger API contract - they're explicit in the source code
+        // and should override any file-pattern-based config rules.
+        if enable_import_as_bytes {
+            rules.push(ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
+                    EcmaScriptModulesReferenceSubType::ImportWithType("bytes".into()),
+                ))),
+                if is_tracing {
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
+                } else {
+                    vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                        ResolvedVc::upcast(BytesSourceTransform::new().to_resolved().await?),
+                    ]))]
+                },
+            ));
+        }
+
+        if enable_import_as_text {
+            rules.push(ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
+                    EcmaScriptModulesReferenceSubType::ImportWithType("text".into()),
+                ))),
+                if is_tracing {
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
+                } else {
+                    vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                        ResolvedVc::upcast(TextSourceTransform::new().to_resolved().await?),
+                    ]))]
+                },
+            ));
+        }
 
         if let Some(webpack_loaders_options) = enable_webpack_loaders {
             let webpack_loaders_options = webpack_loaders_options.await?;
@@ -435,15 +490,18 @@ impl ModuleOptions {
 
                     // Add module type if specified
                     if let Some(type_str) = rule.module_type.as_ref() {
-                        let module_type = ModuleType::from_str_with_defaults(
-                            type_str,
-                            ecma_preprocess,
-                            main,
-                            postprocess,
-                            ecmascript_options_vc,
-                            environment,
-                        )?;
-                        effects.push(ModuleRuleEffect::ModuleType(module_type));
+                        effects.push(
+                            ConfiguredModuleType::parse(type_str)?
+                                .into_effect(
+                                    ecma_preprocess,
+                                    main,
+                                    postprocess,
+                                    ecmascript_options_vc,
+                                    environment,
+                                    lightningcss_features,
+                                )
+                                .await?,
+                        )
                     }
 
                     if !effects.is_empty() {
@@ -500,41 +558,43 @@ impl ModuleOptions {
         // Rules that apply for certains references
         rules.extend([
             ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
+                RuleCondition::ReferenceType(ReferenceTypeCondition::Url(Some(
+                    UrlReferenceSubType::CssUrl,
+                ))),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlCss {
                     tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::Undefined)),
+                RuleCondition::ReferenceType(ReferenceTypeCondition::Url(Some(
+                    UrlReferenceSubType::Undefined,
+                ))),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
                     tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::Url(
+                RuleCondition::ReferenceType(ReferenceTypeCondition::Url(Some(
                     UrlReferenceSubType::EcmaScriptNewUrl,
-                )),
+                ))),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs {
                     tag: static_url_tag.clone(),
                 })],
             ),
             ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
+                RuleCondition::ReferenceType(ReferenceTypeCondition::EcmaScriptModules(Some(
                     EcmaScriptModulesReferenceSubType::ImportWithType("json".into()),
-                )),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
+                ))),
+                if is_tracing {
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
+                } else {
+                    vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                        // Use spec-compliant ESM for import attributes
+                        ResolvedVc::upcast(JsonSourceTransform::new_esm().to_resolved().await?),
+                    ]))]
+                },
             ),
         ]);
-
-        if enable_import_as_bytes {
-            rules.push(ModuleRule::new(
-                RuleCondition::ReferenceType(ReferenceType::EcmaScriptModules(
-                    EcmaScriptModulesReferenceSubType::ImportWithType("bytes".into()),
-                )),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::InlinedBytesJs)],
-            ));
-        }
 
         // Rules that apply based on file extension or content type
         rules.extend([
@@ -543,7 +603,14 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathEndsWith(".json".to_string()),
                     RuleCondition::ContentTypeStartsWith("application/json".to_string()),
                 ]),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Json)],
+                if is_tracing {
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)]
+                } else {
+                    vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                        // For backcompat with webpack we generate a cjs style export
+                        ResolvedVc::upcast(JsonSourceTransform::new_cjs().to_resolved().await?),
+                    ]))]
+                },
             ),
             ModuleRule::new_all(
                 RuleCondition::any(vec![
@@ -655,12 +722,14 @@ impl ModuleOptions {
         ]);
 
         if let Some(options) = enable_typescript_transform {
+            let options = options.await?;
             let ts_preprocess = ResolvedVc::cell(
                 decorators_transform
                     .clone()
                     .into_iter()
                     .chain(std::iter::once(EcmascriptInputTransform::TypeScript {
-                        use_define_for_class_fields: options.await?.use_define_for_class_fields,
+                        use_define_for_class_fields: options.use_define_for_class_fields,
+                        verbatim_module_syntax: options.verbatim_module_syntax,
                     }))
                     .collect(),
             );
@@ -756,8 +825,9 @@ impl ModuleOptions {
                 ModuleRule::new(
                     module_css_condition.clone(),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Module,
+                        ty: CssModuleType::Module,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
                 ModuleRule::new(
@@ -766,8 +836,9 @@ impl ModuleOptions {
                         RuleCondition::ContentTypeStartsWith("text/css".to_string()),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Default,
+                        ty: CssModuleType::Default,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
             ]);
@@ -824,39 +895,42 @@ impl ModuleOptions {
                     RuleCondition::all(vec![
                         module_css_condition.clone(),
                         // Create a normal CSS asset if `@import`ed from CSS already.
-                        RuleCondition::ReferenceType(ReferenceType::Css(
+                        RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                             CssReferenceSubType::AtImport(None),
-                        )),
+                        ))),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Module,
+                        ty: CssModuleType::Module,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to include it
                 ModuleRule::new(
                     RuleCondition::all(vec![
                         module_css_condition.clone(),
-                        RuleCondition::ReferenceType(ReferenceType::Css(
+                        RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                             CssReferenceSubType::Inner,
-                        )),
+                        ))),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Module,
+                        ty: CssModuleType::Module,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to list the classes
                 ModuleRule::new(
                     RuleCondition::all(vec![
                         module_css_condition.clone(),
-                        RuleCondition::ReferenceType(ReferenceType::Css(
+                        RuleCondition::ReferenceType(ReferenceTypeCondition::Css(Some(
                             CssReferenceSubType::Analyze,
-                        )),
+                        ))),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Module,
+                        ty: CssModuleType::Module,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
                 ModuleRule::new(
@@ -869,8 +943,9 @@ impl ModuleOptions {
                         RuleCondition::ContentTypeStartsWith("text/css".to_string()),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Default,
+                        ty: CssModuleType::Default,
                         environment,
+                        lightningcss_features,
                     })],
                 ),
             ]);

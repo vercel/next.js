@@ -6,10 +6,9 @@ use lightningcss::{
     traits::ToCss,
     values::string::CowArcStr,
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext},
+    chunk::{ChunkingContext, ChunkingType},
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ImportContext},
@@ -22,7 +21,7 @@ use crate::{
     references::css_resolve,
 };
 
-#[turbo_tasks::value(eq = "manual", serialization = "none", shared)]
+#[turbo_tasks::value(eq = "manual", serialization = "skip", shared)]
 #[derive(PartialEq)]
 pub enum ImportAttributes {
     LightningCss {
@@ -80,7 +79,8 @@ impl ImportAttributes {
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("import(url) {request}")]
 pub struct ImportAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -141,15 +141,12 @@ impl ModuleReference for ImportAssetReference {
             Some(self.issue_source),
         ))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for ImportAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("import(url) {}", self.request.to_string().await?,).into(),
-        ))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        })
     }
 }
 
@@ -205,6 +202,3 @@ impl CodeGenerateable for ImportAssetReference {
         Ok(CodeGeneration { imports }.cell())
     }
 }
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for ImportAssetReference {}

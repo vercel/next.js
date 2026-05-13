@@ -15,6 +15,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     AnalyzeMode, TreeShakingMode, TypeofWindow, references::esm::UrlRewriteBehavior,
+    transform::PresetEnvConfig,
 };
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
@@ -121,42 +122,56 @@ impl WebpackLoaderBuiltinConditionSet for EmptyWebpackLoaderBuiltinConditionSet 
     }
 }
 
-/// The kind of decorators transform to use.
-/// [TODO]: might need bikeshed for the name (Ecma)
+/// The kind of ECMAScript class decorators transform to use.
+///
+/// TODO: might need bikeshed for the name (Ecma)
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum DecoratorsKind {
-    Legacy,
+    /// Enables the syntax and behavior of the modern [stage 3 proposal]. This is the recommended
+    /// transform with JavaScript or [TypeScript 5.0][ts5] or later.
+    ///
+    /// [stage 3 proposal]: https://github.com/tc39/proposal-decorators
+    /// [ts5]: https://devblogs.microsoft.com/typescript/announcing-typescript-5-0/#differences-with-experimental-legacy-decorators
     Ecma,
+
+    /// Enables the legacy class decorator syntax and behavior, as it was defined during the [stage
+    /// 1 proposal].
+    ///
+    /// This is the same as setting [`jsx.transform.legacyDecorator` in SWC][swc].
+    ///
+    /// This option exists for compatibility with the TypeScript compiler's legacy
+    /// `--experimentalDecorators` feature.
+    ///
+    /// [stage 1 proposal]: https://github.com/wycats/javascript-decorators/blob/e1bf8d41bfa2591d9/README.md
+    /// [swc]: https://swc.rs/docs/configuration/compilation#jsctransformlegacydecorator
+    Legacy,
 }
 
-/// Configuration options for the decorators transform.
+/// Configuration for the ECMAScript class decorators transform.
 ///
-/// This is not part of Typescript transform: while there are typescript
-/// specific transforms (legay decorators), there is an ecma decorator transform
-/// as well for the JS.
+/// This is not part of TypeScript transform. It can be used with or without TypeScript.
+///
+/// There is a [legacy TypeScript-specific transform][DecoratorsKind::Legacy] available for when
+/// decorators are used with TypeScript.
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone, Debug)]
 pub struct DecoratorsOptions {
     pub decorators_kind: Option<DecoratorsKind>,
-    /// Option to control whether to emit decorator metadata.
-    /// (https://www.typescriptlang.org/tsconfig#emitDecoratorMetadata)
-    /// This'll be applied only if `decorators_type` and
-    /// `enable_typescript_transform` is enabled.
+    /// Option to control whether to [emit decorator metadata]. This will be applied only when
+    /// using [`DecoratorsKind::Legacy`].
+    ///
+    /// [emit decorator metadata]: https://www.typescriptlang.org/tsconfig#emitDecoratorMetadata
     pub emit_decorators_metadata: bool,
-    /// Mimic babel's `decorators.decoratorsBeforeExport` option.
-    /// This'll be applied only if `decorators_type` is enabled.
-    /// ref: https://github.com/swc-project/swc/blob/d4ebb5e6efbed0758f25e46e8f74d7c47ec6cb8f/crates/swc_ecma_parser/src/lib.rs#L327
-    /// [TODO]: this option is not actively being used currently.
+    /// Mimic [Babel's `decorators.decoratorsBeforeExport` option][babel]. This'll be applied only
+    /// if `decorators_type` is enabled.
+    ///
+    /// TODO: this option is not currently used.
+    ///
+    /// Ref: <https://github.com/swc-project/swc/blob/d4ebb5e6efbed0/crates/swc_ecma_parser/src/lib.rs#L327>
+    ///
+    /// [babel]: https://babeljs.io/docs/babel-plugin-proposal-decorators#decoratorsbeforeexport
     pub decorators_before_export: bool,
     pub use_define_for_class_fields: bool,
-}
-
-#[turbo_tasks::value_impl]
-impl ValueDefault for DecoratorsOptions {
-    #[turbo_tasks::function]
-    fn value_default() -> Vc<Self> {
-        Self::default().cell()
-    }
 }
 
 /// Subset of Typescript options configured via tsconfig.json or jsconfig.json,
@@ -165,14 +180,7 @@ impl ValueDefault for DecoratorsOptions {
 #[derive(Default, Clone, Debug)]
 pub struct TypescriptTransformOptions {
     pub use_define_for_class_fields: bool,
-}
-
-#[turbo_tasks::value_impl]
-impl ValueDefault for TypescriptTransformOptions {
-    #[turbo_tasks::function]
-    fn value_default() -> Vc<Self> {
-        Self::default().cell()
-    }
+    pub verbatim_module_syntax: bool,
 }
 
 #[turbo_tasks::value(shared)]
@@ -261,14 +269,20 @@ pub struct EcmascriptOptionsContext {
     /// Whether to allow accessing exports info via `__webpack_exports_info__`.
     pub enable_exports_info_inlining: bool,
 
-    /// Whether to enable `import bytes from 'module' as { type: "bytes }` syntax.
+    /// Whether to enable `import bytes from 'module' with { type: "bytes" }` syntax.
     pub enable_import_as_bytes: bool,
+
+    /// Whether to enable `import text from 'module' with { type: "text" }` syntax.
+    pub enable_import_as_text: bool,
 
     // TODO should this be a part of Environment instead?
     pub inline_helpers: bool,
 
     /// Whether to infer side effect free modules via local analysis. Defaults to true.
     pub infer_module_side_effects: bool,
+
+    /// Additional SWC preset-env options (mode, coreJs, include, exclude, etc.).
+    pub preset_env_config: Option<ResolvedVc<PresetEnvConfig>>,
 
     pub placeholder_for_future_extensions: (),
 }
@@ -290,6 +304,9 @@ pub struct CssOptionsContext {
     /// true). By default (for `None`), it uses
     /// `Any(ResourcePathEndsWith(".module.css"), ContentTypeStartsWith("text/css+module"))`
     pub module_css_condition: Option<RuleCondition>,
+
+    /// User-specified lightningcss feature flags (include/exclude bitmasks).
+    pub lightningcss_features: turbopack_css::LightningCssFeatureFlags,
 
     pub placeholder_for_future_extensions: (),
 }

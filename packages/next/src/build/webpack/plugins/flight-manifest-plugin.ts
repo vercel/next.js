@@ -19,7 +19,7 @@ import { getProxiedPluginState } from '../../build-context'
 import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { CLIENT_STATIC_FILES_RUNTIME_MAIN_APP } from '../../../shared/lib/constants'
-import { getDeploymentIdQueryOrEmptyString } from '../../../shared/lib/deployment-id'
+import { getAssetTokenQuery } from '../../../shared/lib/deployment-id'
 import {
   formatBarrelOptimizedResource,
   getModuleReferencesInOrder,
@@ -119,7 +119,7 @@ function getAppPathRequiredChunks(
   chunkGroup: webpack.ChunkGroup,
   excludedFiles: Set<string>
 ) {
-  const deploymentIdChunkQuery = getDeploymentIdQueryOrEmptyString()
+  const assetTokenQuery = getAssetTokenQuery()
 
   const chunks: Array<string> = []
   chunkGroup.chunks.forEach((chunk) => {
@@ -142,10 +142,7 @@ function getAppPathRequiredChunks(
         // previously done for dynamic chunks by patching the webpack runtime but we want
         // these filenames to be managed by React's Flight runtime instead and so we need
         // to implement any special handling of the file name here.
-        return chunks.push(
-          chunkId,
-          encodeURIPath(file) + deploymentIdChunkQuery
-        )
+        return chunks.push(chunkId, encodeURIPath(file) + assetTokenQuery)
       })
     }
   })

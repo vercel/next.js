@@ -160,7 +160,7 @@ export function StatusIndicator({ status, onClick }: StatusIndicatorProps) {
         data-indicator-status
         data-nextjs-dev-tools-button
         onClick={onClick}
-        aria-label="Open Next.js Dev Tools"
+        aria-label={'Open Next.js Dev Tools'}
       >
         {statusDotColor[status] && (
           <div

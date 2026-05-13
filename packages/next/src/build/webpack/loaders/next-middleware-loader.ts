@@ -16,6 +16,7 @@ export type MiddlewareLoaderOptions = {
   matchers?: string
   preferredRegion: string | string[] | undefined
   middlewareConfig: string
+  cacheHandler?: string
 }
 
 // matchers can have special characters that break the loader params
@@ -38,6 +39,7 @@ export default async function middlewareLoader(this: any) {
     matchers: encodedMatchers,
     preferredRegion,
     middlewareConfig: middlewareConfigBase64,
+    cacheHandler,
   }: MiddlewareLoaderOptions = this.getOptions()
   const matchers = encodedMatchers ? decodeMatchers(encodedMatchers) : undefined
   const pagePath = this.utils.contextify(
@@ -67,8 +69,17 @@ export default async function middlewareLoader(this: any) {
     middlewareConfig,
   }
 
-  return await loadEntrypoint('middleware', {
-    VAR_USERLAND: pagePath,
-    VAR_DEFINITION_PAGE: page,
-  })
+  return await loadEntrypoint(
+    'middleware',
+    {
+      VAR_USERLAND: pagePath,
+      VAR_DEFINITION_PAGE: page,
+    },
+    {},
+    {
+      incrementalCacheHandler: cacheHandler
+        ? this.utils.contextify(this.context || this.rootContext, cacheHandler)
+        : null,
+    }
+  )
 }

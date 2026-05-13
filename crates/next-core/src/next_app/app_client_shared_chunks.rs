@@ -35,8 +35,9 @@ pub async fn get_app_client_shared_chunk_group(
                 module_graph,
                 AvailabilityInfo::root(),
             )
-            .resolve()
+            .to_resolved()
             .await
+            .map(|r| *r)
     }
     .instrument(span)
     .await?;

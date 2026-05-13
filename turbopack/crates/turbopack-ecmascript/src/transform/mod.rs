@@ -1,6 +1,6 @@
 use std::{fmt::Debug, hash::Hash, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use async_trait::async_trait;
 use swc_core::{
     atoms::{Atom, atom},
@@ -15,6 +15,7 @@ use swc_core::{
                 helpers::{HELPERS, HelperData, Helpers},
             },
             react::react,
+            typescript::{Config, typescript},
         },
         utils::IsDirective,
     },
@@ -27,11 +28,40 @@ use turbopack_core::{environment::Environment, source::Source};
 
 use crate::runtime_functions::{TURBOPACK_MODULE, TURBOPACK_REFRESH};
 
+/// Additional options for SWC's preset-env, beyond the browserslist-derived
+/// targets that are already provided by the `Environment`.
+///
+/// These correspond to the fields documented at
+/// <https://swc.rs/docs/configuration/supported-browsers>.
+#[turbo_tasks::value(shared)]
+#[derive(Default, Clone, Debug)]
+pub struct PresetEnvConfig {
+    /// Polyfill injection mode (`"usage"` or `"entry"`), matching Babel's
+    /// `useBuiltIns`.
+    pub mode: Option<RcStr>,
+    /// The core-js version string (e.g. `"3.38"`).
+    pub core_js: Option<RcStr>,
+    /// Core-js modules or SWC transform passes to skip.
+    pub skip: Option<Vec<RcStr>>,
+    /// Core-js modules or SWC transform passes to always include.
+    pub include: Option<Vec<RcStr>>,
+    /// Core-js modules or SWC transform passes to always exclude.
+    pub exclude: Option<Vec<RcStr>>,
+    /// Enable shipped TC39 proposals.
+    pub shipped_proposals: Option<bool>,
+    /// Force all transforms regardless of targets.
+    pub force_all_transforms: Option<bool>,
+    /// Enable debug output.
+    pub debug: Option<bool>,
+    /// Enable loose mode for transforms.
+    pub loose: Option<bool>,
+}
+
 #[turbo_tasks::value]
 #[derive(Debug, Clone, Hash)]
 pub enum EcmascriptInputTransform {
     Plugin(ResolvedVc<TransformPlugin>),
-    PresetEnv(ResolvedVc<Environment>),
+    PresetEnv(ResolvedVc<Environment>, ResolvedVc<PresetEnvConfig>),
     React {
         development: bool,
         refresh: bool,
@@ -44,6 +74,7 @@ pub enum EcmascriptInputTransform {
     // it doesn't derive `Copy` so repeating values in here
     TypeScript {
         use_define_for_class_fields: bool,
+        verbatim_module_syntax: bool,
     },
     Decorators {
         is_legacy: bool,
@@ -62,7 +93,7 @@ pub trait CustomTransformer: Debug {
 
 /// A wrapper around a TransformPlugin instance, allowing it to operate with
 /// the turbo_task caching requirements.
-#[turbo_tasks::value(transparent, serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(transparent, serialization = "skip", eq = "manual", cell = "new")]
 #[derive(Debug)]
 pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
@@ -103,6 +134,9 @@ pub struct TransformContext<'a> {
     pub query_str: RcStr,
     pub file_path: FileSystemPath,
     pub source: ResolvedVc<Box<dyn Source>>,
+    /// The value of `process.env.NODE_ENV` for this compilation
+    /// (e.g. `"development"` or `"production"`).
+    pub node_env: RcStr,
 }
 
 impl EcmascriptInputTransform {
@@ -133,10 +167,10 @@ impl EcmascriptInputTransform {
                         "classic" => Runtime::Classic,
                         "automatic" => Runtime::Automatic,
                         _ => {
-                            return Err(anyhow::anyhow!(
+                            bail!(
                                 "Invalid value for swc.jsc.transform.react.runtime: {}",
                                 runtime
-                            ));
+                            );
                         }
                     }
                 } else {
@@ -197,19 +231,70 @@ impl EcmascriptInputTransform {
 
                 helpers
             }
-            EcmascriptInputTransform::PresetEnv(env) => {
+            EcmascriptInputTransform::PresetEnv(env, preset_env_config) => {
                 let versions = env.runtime_versions().await?;
+                let extra = preset_env_config.await?;
+
+                let mode = match extra.mode.as_deref() {
+                    Some("usage") => Some(preset_env::Mode::Usage),
+                    Some("entry") => Some(preset_env::Mode::Entry),
+                    _ => None,
+                };
+
+                let core_js = extra.core_js.as_ref().and_then(|v| {
+                    let parts: Vec<&str> = v.split('.').collect();
+                    Some(preset_env::Version {
+                        major: parts.first()?.parse().ok()?,
+                        minor: parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0),
+                        patch: parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0),
+                    })
+                });
+
+                let skip = extra
+                    .skip
+                    .as_ref()
+                    .map(|v| v.iter().map(|s| Atom::from(s.as_str())).collect())
+                    .unwrap_or_default();
+
+                let parse_feature_or_module = |s: &str| -> FeatureOrModule {
+                    if let Ok(feature) = s.parse::<Feature>() {
+                        FeatureOrModule::Feature(feature)
+                    } else {
+                        FeatureOrModule::CoreJsModule(s.to_string())
+                    }
+                };
+
+                let include: Vec<FeatureOrModule> = extra
+                    .include
+                    .as_ref()
+                    .map(|v| v.iter().map(|s| parse_feature_or_module(s)).collect())
+                    .unwrap_or_default();
+
+                // Disable some ancient ES3 transforms; ReservedWords breaks resolving of
+                // some ident references.
+                let mut exclude: Vec<FeatureOrModule> = vec![
+                    FeatureOrModule::Feature(Feature::ReservedWords),
+                    FeatureOrModule::Feature(Feature::MemberExpressionLiterals),
+                    FeatureOrModule::Feature(Feature::PropertyLiterals),
+                ];
+                if let Some(user_exclude) = &extra.exclude {
+                    for s in user_exclude {
+                        exclude.push(parse_feature_or_module(s));
+                    }
+                }
+
                 let config = swc_core::ecma::preset_env::EnvConfig::from(
                     swc_core::ecma::preset_env::Config {
                         targets: Some(Targets::Versions(*versions)),
-                        mode: None, // Don't insert core-js polyfills
-                        // Disable some ancient ES3 transforms, ReservedWords breaks resolving of
-                        // some idents references
-                        exclude: vec![
-                            FeatureOrModule::Feature(Feature::ReservedWords),
-                            FeatureOrModule::Feature(Feature::MemberExpressionLiterals),
-                            FeatureOrModule::Feature(Feature::PropertyLiterals),
-                        ],
+                        mode,
+                        core_js,
+                        skip,
+                        include,
+                        exclude,
+                        shipped_proposals: extra.shipped_proposals.unwrap_or(false),
+                        force_all_transforms: extra.force_all_transforms.unwrap_or(false),
+                        debug: extra.debug.unwrap_or(false),
+                        loose: extra.loose.unwrap_or(false),
                         ..Default::default()
                     },
                 );
@@ -230,9 +315,12 @@ impl EcmascriptInputTransform {
             EcmascriptInputTransform::TypeScript {
                 // TODO(WEB-1213)
                 use_define_for_class_fields: _use_define_for_class_fields,
+                verbatim_module_syntax,
             } => {
-                use swc_core::ecma::transforms::typescript::typescript;
-                let config = Default::default();
+                let config = Config {
+                    verbatim_module_syntax: *verbatim_module_syntax,
+                    ..Default::default()
+                };
                 apply_transform(
                     program,
                     helpers,

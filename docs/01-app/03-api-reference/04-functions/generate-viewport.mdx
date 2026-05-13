@@ -6,7 +6,7 @@ related:
   description: View all the Metadata API options.
   links:
     - app/api-reference/file-conventions/metadata
-    - app/getting-started/cache-components
+    - app/getting-started/caching
     - app/api-reference/config/next-config-js/cacheComponents
 ---
 
@@ -64,7 +64,7 @@ export function generateViewport({ params }) {
 
 > **Good to know**:
 >
-> - If the viewport doesn't depend on runtime information, it should be defined using the static [`viewport` object](#the-viewport-object) rather than `generateViewport`.
+> - If the viewport doesn't depend on request information, it should be defined using the static [`viewport` object](#the-viewport-object) rather than `generateViewport`.
 
 ## Viewport Fields
 
@@ -178,7 +178,7 @@ export const viewport = {
 
 ## With Cache Components
 
-When [Cache Components](/docs/app/getting-started/cache-components) is enabled, `generateViewport` follows the same rules as other components. If viewport accesses runtime data (`cookies()`, `headers()`, `params`, `searchParams`) or performs uncached data fetching, it defers to request time.
+When [Cache Components](/docs/app/getting-started/caching) is enabled, `generateViewport` follows the same rules as other components. If viewport accesses runtime data (`cookies()`, `headers()`, `params`, `searchParams`) or performs uncached data fetching, it defers to request time.
 
 Unlike metadata, viewport cannot be streamed because it affects initial page load UI. If `generateViewport` defers to request time, the page would need to block until resolved.
 
@@ -194,7 +194,7 @@ export async function generateViewport() {
 
 If viewport genuinely requires runtime data, wrap the document `<body>` in a Suspense boundary to signal that the entire route should be dynamic:
 
-```tsx filename="app/layout.tsx" highlight={1,11-15}
+```tsx filename="app/layout.tsx" highlight={1,13,17}
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 

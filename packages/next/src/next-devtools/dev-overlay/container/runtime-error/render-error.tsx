@@ -68,20 +68,9 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
       return
     }
 
-    let mounted = true
-
-    getErrorByType(nextError, isAppDir).then((resolved) => {
-      if (mounted) {
-        // We don't care if the desired error changed while we were resolving,
-        // thus we're not tracking it using a ref. Once the work has been done,
-        // we'll store it.
-        setLookups((m) => ({ ...m, [resolved.id]: resolved }))
-      }
-    })
-
-    return () => {
-      mounted = false
-    }
+    const resolved = getErrorByType(nextError, isAppDir)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO: fetch-while-rendering
+    setLookups((m) => ({ ...m, [resolved.id]: resolved }))
   }, [nextError, isAppDir])
 
   const totalErrorCount = errors.length

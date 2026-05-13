@@ -1,22 +1,24 @@
 import { lang, locale } from 'next/root-params'
 
 export default async function Page() {
-  const rootParams = await getCachedParams()
-  const data = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random'
-  ).then((res) => res.text())
+  const result = await getCachedData()
 
   return (
     <p>
       <span id="param">
-        {rootParams.lang} {rootParams.locale}
+        {result.lang} {result.locale}
       </span>{' '}
-      <span id="random">{data}</span>
+      <span id="random">{result.random}</span>
     </p>
   )
 }
 
-async function getCachedParams() {
+async function getCachedData() {
   'use cache'
-  return { lang: await lang(), locale: await locale() }
+
+  const random = await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random'
+  ).then((res) => res.text())
+
+  return { lang: await lang(), locale: await locale(), random }
 }

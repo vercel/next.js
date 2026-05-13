@@ -111,6 +111,12 @@ const bundleTypes = {
   server: {
     server: path.join(__dirname, 'dist/esm/server/next-server.js'),
   },
+  'app-worker': {
+    'use-cache-probe-worker': path.join(
+      __dirname,
+      'dist/esm/server/dev/use-cache-probe-worker.js'
+    ),
+  },
 }
 
 /**
@@ -162,7 +168,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
   const bundledReactChannel = experimental ? '-experimental' : ''
 
   const alias =
-    bundleType === 'app'
+    bundleType === 'app' || bundleType === 'app-worker'
       ? makeAppAliases({
           experimental,
           bundler: turbo ? 'turbopack' : 'webpack',
@@ -209,8 +215,11 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
         'process.env.NEXT_MINIMAL': JSON.stringify('true'),
         'this.serverOptions.experimentalTestProxy': JSON.stringify(false),
         'this.minimalMode': JSON.stringify(true),
-        'this.renderOpts.dev': JSON.stringify(dev),
-        'renderOpts.dev': JSON.stringify(dev),
+        // Only inline __NEXT_DEV_SERVER in prod bundles (for dead-code
+        // elimination). Dev bundles must keep it as a runtime check because
+        // they're shared between `next dev` (where it's set) and `next build
+        // --debug-prerender` (where it's not).
+        ...(dev ? {} : { 'process.env.__NEXT_DEV_SERVER': JSON.stringify('') }),
         'process.env.NODE_ENV': JSON.stringify(
           dev ? 'development' : 'production'
         ),
@@ -255,7 +264,10 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       rules: [
         { test: /\.m?js$/, loader: `source-map-loader`, enforce: `pre` },
         {
-          include: /[\\/]react-server\.node/,
+          include: [
+            /[\\/]react-server\.node/,
+            /server[\\/]dev[\\/]use-cache-probe-worker/,
+          ],
           layer: 'react-server',
         },
         {

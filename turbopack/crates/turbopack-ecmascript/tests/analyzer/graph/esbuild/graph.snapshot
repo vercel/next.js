@@ -111,7 +111,9 @@
             Constant(
                 Num(
                     ConstantNumber(
-                        1.0,
+                        TotalOrderF64(
+                            1.0,
+                        ),
                     ),
                 ),
             ),
@@ -290,7 +292,9 @@
             Constant(
                 Num(
                     ConstantNumber(
-                        0.0,
+                        TotalOrderF64(
+                            0.0,
+                        ),
                     ),
                 ),
             ),

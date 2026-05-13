@@ -1,8 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
-import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import path from 'path'
 import fs from 'fs'
-import { retry } from 'next-test-utils'
+import { listClientChunks, retry } from 'next-test-utils'
 
 describe('chunk-load-failure', () => {
   const { next } = nextTestSetup({
@@ -10,14 +9,15 @@ describe('chunk-load-failure', () => {
   })
 
   async function getNextDynamicChunk() {
-    const chunksPath = path.join(next.testDir, '.next/static/')
-    const browserChunks = await recursiveReadDir(chunksPath, {
-      pathnameFilter: (f) => /\.js$/.test(f),
-    })
-    let nextDynamicChunks = browserChunks.filter((f) =>
-      fs
-        .readFileSync(path.join(chunksPath, f), 'utf8')
-        .includes('this is a lazy loaded async component')
+    const browserChunks = await listClientChunks(
+      path.join(next.testDir, next.distDir)
+    )
+    let nextDynamicChunks = browserChunks.filter(
+      (f) =>
+        /\.js$/.test(f) &&
+        fs
+          .readFileSync(path.join(next.testDir, next.distDir, f), 'utf8')
+          .includes('this is a lazy loaded async component')
     )
     expect(nextDynamicChunks).toHaveLength(1)
 
@@ -30,7 +30,7 @@ describe('chunk-load-failure', () => {
     let pageError: Error | undefined
     const browser = await next.browser('/dynamic', {
       beforePageLoad(page) {
-        page.route('**/' + nextDynamicChunk, async (route) => {
+        page.route(`**/${nextDynamicChunk}*`, async (route) => {
           await route.abort('connectionreset')
         })
         page.on('pageerror', (error: Error) => {
@@ -41,19 +41,19 @@ describe('chunk-load-failure', () => {
 
     await retry(async () => {
       const body = await browser.elementByCss('body')
-      // Client errors show "This page crashed"
-      expect(await body.text()).toMatch(/This page crashed/)
+      // Client errors show "This page couldn\u2019t load"
+      expect(await body.text()).toMatch(/This page couldn\u2019t load/)
     })
 
     expect(pageError).toBeDefined()
     expect(pageError.name).toBe('ChunkLoadError')
     if (process.env.IS_TURBOPACK_TEST) {
       expect(pageError.message).toStartWith(
-        'Failed to load chunk /_next/static/' + nextDynamicChunk
+        'Failed to load chunk /_next/' + nextDynamicChunk
       )
     } else {
       expect(pageError.message).toMatch(/^Loading chunk \S+ failed./)
-      expect(pageError.message).toContain('/_next/static/' + nextDynamicChunk)
+      expect(pageError.message).toContain('/_next/' + nextDynamicChunk)
     }
   })
 
@@ -64,7 +64,7 @@ describe('chunk-load-failure', () => {
     try {
       const browser = await next.browser('/dynamic', {
         beforePageLoad(page) {
-          page.route('**/' + nextDynamicChunk, async (route) => {
+          page.route(`**/${nextDynamicChunk}*`, async (route) => {
             // deterministically ensure that the async chunk is still loading during the navigation
             await new Promise((r) => {
               resolve = r

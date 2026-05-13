@@ -1,0 +1,22 @@
+export const unstable_instant = {
+  level: 'experimental-error',
+  unstable_samples: [{ params: { param: '123' } }],
+}
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ param: string }>
+}) {
+  return (
+    <main>
+      <p>Params need a suspense boundary when statically prefetched.</p>
+      <Runtime params={params} />
+    </main>
+  )
+}
+
+async function Runtime({ params }: { params: Promise<{ param: string }> }) {
+  const { param } = await params
+  return <div id="runtime-content">Param value: {param}</div>
+}

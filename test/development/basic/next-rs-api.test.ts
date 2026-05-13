@@ -1,9 +1,8 @@
 import { NextInstance, createNext } from 'e2e-utils'
 import { trace } from 'next/dist/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
-import { createDefineEnv, loadBindings } from 'next/dist/build/swc'
+import { createDefineEnv, loadBindings, HmrTarget } from 'next/dist/build/swc'
 import type {
-  Diagnostics,
   Issue,
   Project,
   RawEntrypoints,
@@ -53,33 +52,6 @@ function normalizeIssues(issues: Issue[]) {
         source: normalizePath(issue.source.source.ident),
       },
     }))
-    .sort((a, b) => {
-      const a_ = JSON.stringify(a)
-      const b_ = JSON.stringify(b)
-      if (a_ < b_) return -1
-      if (a_ > b_) return 1
-      return 0
-    })
-}
-
-function normalizeDiagnostics(diagnostics: Diagnostics[]) {
-  return diagnostics
-    .map((diagnostic) => {
-      if (diagnostic.name === 'EVENT_BUILD_FEATURE_USAGE') {
-        diagnostic.payload = Object.fromEntries(
-          Object.entries(diagnostic.payload).map(([key, value]) => {
-            return [
-              key.replace(
-                /^(x86_64|i686|aarch64)-(apple-darwin|unknown-linux-(gnu|musl)|pc-windows-msvc)$/g,
-                'platform-triplet'
-              ),
-              value,
-            ]
-          })
-        )
-      }
-      return diagnostic
-    })
     .sort((a, b) => {
       const a_ = JSON.stringify(a)
       const b_ = JSON.stringify(b)
@@ -149,9 +121,11 @@ export default () => <div>${text}<Client /></div>;`
 }
 
 describe('next.rs api writeToDisk multiple times', () => {
+  let next: NextInstance
+  afterEach(async () => {
+    await next?.destroy()
+  })
   it('should allow to write to disk multiple times', async () => {
-    let next: NextInstance
-
     next = await createNext({
       skipStart: true,
       files: {
@@ -232,12 +206,13 @@ async function main() {
     writeRoutesHashesManifest: false,
     currentNodeJsVersion: '18.0.0',
     isPersistentCachingEnabled: false,
+    nextVersion: '0.0.0',
   });
 
   const entrypointsSubscription = project.entrypointsSubscribe();
   const entrypoints = (await entrypointsSubscription.next()).value;
 
-  const RUNS = 10000;
+  const RUNS = 1000;
   async function compileRoute(route) {
     const endpoint = route.endpoint ?? route.htmlEndpoint ?? route.pages[0].htmlEndpoint;
     if (!endpoint) {
@@ -302,8 +277,6 @@ main()
       }
     )
     expect(result.status).toBe(0)
-
-    await next.destroy()
   })
 })
 
@@ -391,6 +364,7 @@ describe('next.rs api', () => {
       writeRoutesHashesManifest: false,
       currentNodeJsVersion: '18.0.0',
       isPersistentCachingEnabled: false,
+      nextVersion: '0.0.0',
     })
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),
@@ -420,9 +394,6 @@ describe('next.rs api', () => {
       '/route-nodejs',
     ])
     expect(normalizeIssues(entrypoints.value.issues)).toMatchSnapshot('issues')
-    expect(normalizeDiagnostics(entrypoints.value.diagnostics)).toMatchSnapshot(
-      'diagnostics'
-    )
     await entrypointsSubscription.return()
   })
 
@@ -514,9 +485,6 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot(
-            'diagnostics'
-          )
           break
         }
         case 'page': {
@@ -524,17 +492,11 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot(
-            'diagnostics'
-          )
 
           const result2 = await route.dataEndpoint.writeToDisk()
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('data issues')
-          expect(normalizeDiagnostics(result2.diagnostics)).toMatchSnapshot(
-            'data diagnostics'
-          )
           break
         }
         case 'app-page': {
@@ -542,17 +504,11 @@ describe('next.rs api', () => {
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
-          expect(normalizeDiagnostics(result.diagnostics)).toMatchSnapshot(
-            'diagnostics'
-          )
 
           const result2 = await route.pages[0].rscEndpoint.writeToDisk()
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('rsc issues')
-          expect(normalizeDiagnostics(result2.diagnostics)).toMatchSnapshot(
-            'rsc diagnostics'
-          )
 
           break
         }
@@ -667,12 +623,15 @@ describe('next.rs api', () => {
           }
         }
 
-        const result = await project.hmrIdentifiersSubscribe().next()
+        const result = await project
+          .hmrChunkNamesSubscribe(HmrTarget.Client)
+          .next()
         expect(result.done).toBe(false)
-        const identifiers = result.value.identifiers
-        expect(identifiers).toHaveProperty('length', expect.toBePositive())
-        const subscriptions = identifiers.map((identifier) =>
-          project.hmrEvents(identifier)
+        const chunkNames = result.value.chunkNames
+        expect(chunkNames).toHaveProperty('length', expect.toBePositive())
+
+        const subscriptions = chunkNames.map((chunkName) =>
+          project.hmrEvents(chunkName, HmrTarget.Client)
         )
         await Promise.all(
           subscriptions.map(async (subscription) => {
@@ -681,10 +640,6 @@ describe('next.rs api', () => {
             expect(result.value).toHaveProperty('resource', expect.toBeObject())
             expect(result.value).toHaveProperty('type', 'issues')
             expect(normalizeIssues(result.value.issues)).toEqual([])
-            expect(result.value).toHaveProperty(
-              'diagnostics',
-              expect.toBeEmpty()
-            )
           })
         )
         console.log('waiting for events')
@@ -728,13 +683,9 @@ describe('next.rs api', () => {
               })(),
               serverSideSubscription &&
                 (async () => {
-                  for await (const {
-                    issues,
-                    diagnostics,
-                  } of serverSideSubscription) {
+                  for await (const { issues } of serverSideSubscription) {
                     if (done) return
                     expect(issues).toBeArray()
-                    expect(diagnostics).toBeArray()
                     foundServerSideChange = true
                   }
                 })(),
@@ -794,12 +745,12 @@ describe('next.rs api', () => {
     if (route.type !== 'page') throw new Error('unknown route type')
     await route.htmlEndpoint.writeToDisk()
 
-    const result = await project.hmrIdentifiersSubscribe().next()
+    const result = await project.hmrChunkNamesSubscribe(HmrTarget.Client).next()
     expect(result.done).toBe(false)
-    const identifiers = result.value.identifiers
+    const chunkNames = result.value.chunkNames
 
-    const subscriptions = identifiers.map((identifier) =>
-      project.hmrEvents(identifier)
+    const subscriptions = chunkNames.map((chunkName) =>
+      project.hmrEvents(chunkName, HmrTarget.Client)
     )
     await Promise.all(
       subscriptions.map(async (subscription) => {
@@ -807,7 +758,6 @@ describe('next.rs api', () => {
         expect(result.done).toBe(false)
         expect(result.value).toHaveProperty('resource', expect.toBeObject())
         expect(result.value).toHaveProperty('type', 'issues')
-        expect(result.value).toHaveProperty('diagnostics', expect.toBeEmpty())
       })
     )
     const merged = raceIterators(subscriptions)

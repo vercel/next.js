@@ -1,7 +1,7 @@
 let loggedTurbopack = false
 
 export function shouldUseTurbopack(): boolean {
-  if (!!process.env.NEXT_TEST_WASM) {
+  if (!!process.env.NEXT_TEST_WASM || !!process.env.NEXT_TEST_WASM_AFTER_JEST) {
     return false
   }
 

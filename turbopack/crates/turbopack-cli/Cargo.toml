@@ -42,6 +42,7 @@ bincode = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 console-subscriber = { workspace = true, optional = true }
 dunce = { workspace = true }
+either = { workspace = true }
 futures = { workspace = true }
 owo-colors = { workspace = true }
 rustc-hash = { workspace = true }
@@ -69,11 +70,15 @@ turbopack-ecmascript-plugins = { workspace = true, features = [
 ] }
 turbopack-ecmascript-runtime = { workspace = true }
 turbopack-env = { workspace = true }
-turbopack-node = { workspace = true }
+turbopack-node = { workspace = true, default-features = false, features = ["process_pool"]}
 turbopack-nodejs = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 webbrowser = { workspace = true }
+
+[build-dependencies]
+anyhow = { workspace = true }
+vergen-gitcl = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

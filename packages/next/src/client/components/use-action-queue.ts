@@ -2,16 +2,33 @@ import type { Dispatch } from 'react'
 import React, { use, useMemo, useOptimistic } from 'react'
 import { isThenable } from '../../shared/lib/is-thenable'
 import type { AppRouterActionQueue } from './app-router-instance'
-import type {
-  AppRouterState,
-  ReducerActions,
-  ReducerState,
+import {
+  ACTION_REFRESH,
+  type AppRouterState,
+  type ReducerActions,
+  type ReducerState,
 } from './router-reducer/router-reducer-types'
 
 // The app router state lives outside of React, so we can import the dispatch
 // method directly wherever we need it, rather than passing it around via props
 // or context.
 let dispatch: Dispatch<ReducerActions> | null = null
+
+/**
+ * Called when the instant navigation test lock is released. If the router
+ * is initialized, dispatches a soft refresh to fetch dynamic data. If not
+ * (e.g. the lock was released before hydration finished), falls back to a
+ * hard reload.
+ */
+export function refreshOnInstantNavigationUnlock() {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    if (dispatch !== null) {
+      dispatch({ type: ACTION_REFRESH, bypassCacheInvalidation: true })
+    } else {
+      window.location.reload()
+    }
+  }
+}
 
 export function dispatchAppRouterAction(action: ReducerActions) {
   if (dispatch === null) {
@@ -53,7 +70,9 @@ export function useActionQueue(
   // of the router state that represents the eventual target if/when the gesture
   // completes. Otherwise it returns the canonical state.
   const [state, setGesture] = useOptimistic(canonicalState)
-  setGestureRouterState = setGesture
+  if (typeof window !== 'undefined') {
+    setGestureRouterState = setGesture
+  }
 
   // Because of a known issue that requires to decode Flight streams inside the
   // render phase, we have to be a bit clever and assign the dispatch method to
@@ -62,20 +81,26 @@ export function useActionQueue(
   // Ideally, what we'd do instead is pass the state as a prop to root.render;
   // this is conceptually how we're modeling the app router state, despite the
   // weird implementation details.
+  let nextDispatch: Dispatch<ReducerActions>
+
   if (process.env.NODE_ENV !== 'production') {
     const { useAppDevRenderingIndicator } =
       require('../../next-devtools/userspace/use-app-dev-rendering-indicator') as typeof import('../../next-devtools/userspace/use-app-dev-rendering-indicator')
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const appDevRenderingIndicator = useAppDevRenderingIndicator()
 
-    dispatch = (action: ReducerActions) => {
+    nextDispatch = (action: ReducerActions) => {
       appDevRenderingIndicator(() => {
         actionQueue.dispatch(action, setState)
       })
     }
   } else {
-    dispatch = (action: ReducerActions) =>
+    nextDispatch = (action: ReducerActions) =>
       actionQueue.dispatch(action, setState)
+  }
+
+  if (typeof window !== 'undefined') {
+    dispatch = nextDispatch
   }
 
   // When navigating to a non-prefetched route, then App Router state will be

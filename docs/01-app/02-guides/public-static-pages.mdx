@@ -14,7 +14,7 @@ This guide will show you how to build public pages that share data across users.
 
 As an example, we'll build a product list page.
 
-We'll start with a static header, add a product list with async external data, and learn how to render it without blocking the response. Finally, we'll add a user-specific promotion banner without switching the entire page to [request-time rendering](/docs/app/glossary#request-time-rendering).
+We'll start with a static header, add a product list with async external data, and learn how to render it without blocking the response. Finally, we'll add a user-specific promotion banner without switching the entire page to [dynamic rendering](/docs/app/glossary#dynamic-rendering).
 
 You can find the resources used in this example here:
 
@@ -44,6 +44,8 @@ export default async function Page() {
 #### Static components
 
 The `<Header />` component doesn't depend on any inputs that change between requests, such as: external data, request headers, route params, the current time, or random values.
+
+> **Good to know**: If you need to display locale-aware dates or times without a visible flash, see [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration).
 
 Since its output never changes and can be determined ahead of time, this kind of component is called a **static** component. With no reason to wait for a request, Next.js can safely **prerender** the page at [build time](/docs/app/glossary#build-time).
 
@@ -234,7 +236,7 @@ Route (app)      Revalidate  Expire
 
 At [**build time**](/docs/app/glossary#build-time), most of the page, including the header, product list and promotion fallback, is rendered, cached and pushed to a content delivery network.
 
-At [**request time**](/docs/app/glossary#request-time), the prerendered part is served instantly from a CDN node close to the user.
+At [**request time**](/docs/app/glossary#dynamic-rendering), the prerendered part is served instantly from a CDN node close to the user.
 
 In parallel, the user specific promotion is rendered on the server, streamed to the client, and swapped into the fallback slot.
 

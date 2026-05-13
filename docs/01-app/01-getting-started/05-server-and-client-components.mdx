@@ -102,7 +102,7 @@ export default function LikeButton({ likes }) {
 On the server, Next.js uses React's APIs to orchestrate rendering. The rendering work is split into chunks, by individual route segments ([layouts and pages](/docs/app/getting-started/layouts-and-pages)):
 
 - **Server Components** are rendered into a special data format called the React Server Component Payload (RSC Payload).
-- **Client Components** and the RSC Payload are used to [pre-render](/docs/app/guides/caching#rendering-strategies) HTML.
+- **Client Components** and the RSC Payload are used to [prerender](/docs/app/glossary#prerendering) HTML.
 
 > **What is the React Server Component Payload (RSC)?**
 >
@@ -173,7 +173,11 @@ export default function Counter() {
 
 `"use client"` is used to declare a **boundary** between the Server and Client module graphs (trees).
 
-Once a file is marked with `"use client"`, **all its imports and child components are considered part of the client bundle**. This means you don't need to add the directive to every component that is intended for the client.
+Once a file is marked with `"use client"`, **all of its imports and the components it directly renders are included in the client bundle**. This means you don’t need to add the directive to every component that is intended for the client.
+
+This behavior applies to components that are part of the Client Component’s [module graph](/docs/app/glossary#module-graph), which includes the modules it imports and the components it renders directly. It does not apply to Server Components passed as children or other props. Those components are not imported into the Client Component’s module graph. They are rendered on the server and passed to the Client Component as rendered output.
+
+See [Interleaving Server and Client Components](/docs/app/getting-started/server-and-client-components#interleaving-server-and-client-components) for how Server and Client Components can be combined.
 
 ### Reducing JS bundle size
 
@@ -284,7 +288,7 @@ export default function LikeButton({ likes }) {
 }
 ```
 
-Alternatively, you can stream data from a Server Component to a Client Component with the [`use` Hook](https://react.dev/reference/react/use). See an [example](/docs/app/getting-started/fetching-data#streaming-data-with-the-use-hook).
+Alternatively, you can stream data from a Server Component to a Client Component with the [`use` API](https://react.dev/reference/react/use). See an [example](/docs/app/getting-started/fetching-data#streaming-data-with-the-use-api).
 
 > **Good to know**: Props passed to Client Components need to be [serializable](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values) by React.
 
@@ -338,7 +342,7 @@ export default function Page() {
 }
 ```
 
-In this pattern, all Server Components will be rendered on the server ahead of time, including those as props. The resulting RSC payload will contain references of where Client Components should be rendered within the component tree.
+In this pattern, Server Components are rendered on the server ahead of time, even when passed as props to Client Components. The React Server Component Payload contains the rendered result of those Server Components, plus placeholders for where Client Components should be rendered and references to their JavaScript files.
 
 ### Context providers
 
@@ -411,191 +415,6 @@ export default function RootLayout({ children }) {
 Your Server Component will now be able to directly render your provider, and all other Client Components throughout your app will be able to consume this context.
 
 > **Good to know**: You should render providers as deep as possible in the tree – notice how `ThemeProvider` only wraps `{children}` instead of the entire `<html>` document. This makes it easier for Next.js to optimize the static parts of your Server Components.
-
-### Sharing data with context and React.cache
-
-You can share fetched data across both Server and Client Components by combining [`React.cache`](https://react.dev/reference/react/cache) with context providers.
-
-Create a cached function that fetches data:
-
-```ts filename="app/lib/user.ts" switcher
-import { cache } from 'react'
-
-export const getUser = cache(async () => {
-  const res = await fetch('https://api.example.com/user')
-  return res.json()
-})
-```
-
-```js filename="app/lib/user.js" switcher
-import { cache } from 'react'
-
-export const getUser = cache(async () => {
-  const res = await fetch('https://api.example.com/user')
-  return res.json()
-})
-```
-
-Create a context provider that stores the promise:
-
-```tsx filename="app/user-provider.tsx" switcher
-'use client'
-
-import { createContext } from 'react'
-
-type User = {
-  id: string
-  name: string
-}
-
-export const UserContext = createContext<Promise<User> | null>(null)
-
-export default function UserProvider({
-  children,
-  userPromise,
-}: {
-  children: React.ReactNode
-  userPromise: Promise<User>
-}) {
-  return <UserContext value={userPromise}>{children}</UserContext>
-}
-```
-
-```jsx filename="app/user-provider.js" switcher
-'use client'
-
-import { createContext } from 'react'
-
-export const UserContext = createContext(null)
-
-export default function UserProvider({ children, userPromise }) {
-  return <UserContext value={userPromise}>{children}</UserContext>
-}
-```
-
-In a layout, pass the promise to the provider without awaiting:
-
-```tsx filename="app/layout.tsx" switcher
-import UserProvider from './user-provider'
-import { getUser } from './lib/user'
-
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const userPromise = getUser() // Don't await
-
-  return (
-    <html>
-      <body>
-        <UserProvider userPromise={userPromise}>{children}</UserProvider>
-      </body>
-    </html>
-  )
-}
-```
-
-```jsx filename="app/layout.js" switcher
-import UserProvider from './user-provider'
-import { getUser } from './lib/user'
-
-export default function RootLayout({ children }) {
-  const userPromise = getUser() // Don't await
-
-  return (
-    <html>
-      <body>
-        <UserProvider userPromise={userPromise}>{children}</UserProvider>
-      </body>
-    </html>
-  )
-}
-```
-
-Client Components use [`use()`](https://react.dev/reference/react/use) to resolve the promise from context, wrapped in `<Suspense>` for fallback UI:
-
-```tsx filename="app/ui/profile.tsx" switcher
-'use client'
-
-import { use, useContext } from 'react'
-import { UserContext } from '../user-provider'
-
-export function Profile() {
-  const userPromise = useContext(UserContext)
-  if (!userPromise) {
-    throw new Error('useContext must be used within a UserProvider')
-  }
-  const user = use(userPromise)
-  return <p>Welcome, {user.name}</p>
-}
-```
-
-```jsx filename="app/ui/profile.js" switcher
-'use client'
-
-import { use, useContext } from 'react'
-import { UserContext } from '../user-provider'
-
-export function Profile() {
-  const userPromise = useContext(UserContext)
-  if (!userPromise) {
-    throw new Error('useContext must be used within a UserProvider')
-  }
-  const user = use(userPromise)
-  return <p>Welcome, {user.name}</p>
-}
-```
-
-```tsx filename="app/page.tsx" switcher
-import { Suspense } from 'react'
-import { Profile } from './ui/profile'
-
-export default function Page() {
-  return (
-    <Suspense fallback={<div>Loading profile...</div>}>
-      <Profile />
-    </Suspense>
-  )
-}
-```
-
-```jsx filename="app/page.js" switcher
-import { Suspense } from 'react'
-import { Profile } from './ui/profile'
-
-export default function Page() {
-  return (
-    <Suspense fallback={<div>Loading profile...</div>}>
-      <Profile />
-    </Suspense>
-  )
-}
-```
-
-Server Components can also call `getUser()` directly:
-
-```tsx filename="app/dashboard/page.tsx" switcher
-import { getUser } from '../lib/user'
-
-export default async function DashboardPage() {
-  const user = await getUser() // Cached - same request, no duplicate fetch
-  return <h1>Dashboard for {user.name}</h1>
-}
-```
-
-```jsx filename="app/dashboard/page.js" switcher
-import { getUser } from '../lib/user'
-
-export default async function DashboardPage() {
-  const user = await getUser() // Cached - same request, no duplicate fetch
-  return <h1>Dashboard for {user.name}</h1>
-}
-```
-
-Since `getUser` is wrapped with `React.cache`, multiple calls within the same request return the same memoized result, whether called directly in Server Components or resolved via context in Client Components.
-
-> **Good to know**: `React.cache` is scoped to the current request only. Each request gets its own memoization scope with no sharing between requests.
 
 ### Third-party components
 

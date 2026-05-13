@@ -1,7 +1,7 @@
 import assert from 'assert'
 import webdriver from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
-import { check, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('basePath', () => {
   const basePath = '/docs'
@@ -20,9 +20,8 @@ describe('basePath', () => {
   it('should use urls with basepath in router events', async () => {
     const browser = await webdriver(next.url, `${basePath}/hello`)
     try {
-      await check(
-        () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
-        'ready'
+      await retry(() =>
+        expect(browser.eval('window.next.router.isReady')).resolves.toBe(true)
       )
       await browser.eval('window._clearEventLog()')
       await browser
@@ -46,22 +45,28 @@ describe('basePath', () => {
   it('should use urls with basepath in router events for hash changes', async () => {
     const browser = await webdriver(next.url, `${basePath}/hello`)
     try {
-      await check(
-        () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
-        'ready'
+      await retry(() =>
+        expect(browser.eval('window.next.router.isReady')).resolves.toBe(true)
       )
       await browser.eval('window._clearEventLog()')
       await browser.elementByCss('#hash-change').click()
 
-      const eventLog = await browser.eval('window._getEventLog()')
-      expect(eventLog).toEqual([
-        ['hashChangeStart', `${basePath}/hello#some-hash`, { shallow: false }],
-        [
-          'hashChangeComplete',
-          `${basePath}/hello#some-hash`,
-          { shallow: false },
-        ],
-      ])
+      await retry(async () => {
+        const eventLog = await browser.eval('window._getEventLog()')
+
+        expect(eventLog).toEqual([
+          [
+            'hashChangeStart',
+            `${basePath}/hello#some-hash`,
+            { shallow: false },
+          ],
+          [
+            'hashChangeComplete',
+            `${basePath}/hello#some-hash`,
+            { shallow: false },
+          ],
+        ])
+      })
     } finally {
       await browser.close()
     }
@@ -70,9 +75,8 @@ describe('basePath', () => {
   it('should use urls with basepath in router events for cancelled routes', async () => {
     const browser = await webdriver(next.url, `${basePath}/hello`)
     try {
-      await check(
-        () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
-        'ready'
+      await retry(() =>
+        expect(browser.eval('window.next.router.isReady')).resolves.toBe(true)
       )
       await browser.eval('window._clearEventLog()')
 
@@ -105,9 +109,8 @@ describe('basePath', () => {
   it('should use urls with basepath in router events for failed route change', async () => {
     const browser = await webdriver(next.url, `${basePath}/hello`)
     try {
-      await check(
-        () => browser.eval('window.next.router.isReady ? "ready" : "no"'),
-        'ready'
+      await retry(() =>
+        expect(browser.eval('window.next.router.isReady')).resolves.toBe(true)
       )
       await browser.eval('window._clearEventLog()')
       await browser.elementByCss('#error-route').click()

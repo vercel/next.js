@@ -1,22 +1,16 @@
-import { createNext, FileRef } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
-import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
 
 describe('next/head', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'app/pages')),
-        components: new FileRef(join(__dirname, 'app/components')),
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'app/pages')),
+      components: new FileRef(join(__dirname, 'app/components')),
+    },
   })
-  afterAll(() => next.destroy())
 
   it(`should place charset element at the top of <head>`, async () => {
     const browser = await webdriver(next.url, '/')

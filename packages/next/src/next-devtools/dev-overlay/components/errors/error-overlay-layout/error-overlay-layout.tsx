@@ -52,7 +52,7 @@ export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   activeIdx?: number
   setActiveIndex?: (index: number) => void
   dialogResizerRef?: React.RefObject<HTMLDivElement | null>
-  generateErrorInfo: () => string
+  generateErrorInfo: () => Promise<string>
 }
 
 export function ErrorOverlayLayout({

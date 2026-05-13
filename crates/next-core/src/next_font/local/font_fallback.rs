@@ -108,18 +108,22 @@ async fn get_font_adjustment(
 
     let font_file_binary = font_file_rope.to_bytes();
     let scope = allsorts::binary::read::ReadScope::new(&font_file_binary);
-    let mut font = Font::new(scope.read::<FontData>()?.table_provider(0)?)?.context(format!(
-        "Unable to read font metrics from font file at {}",
-        &main_descriptor.path,
-    ))?;
+    let mut font = Font::new(scope.read::<FontData>()?.table_provider(0)?)?.with_context(|| {
+        format!(
+            "Unable to read font metrics from font file at {}",
+            &main_descriptor.path,
+        )
+    })?;
 
     let az_avg_width = calc_average_width(&mut font);
     let units_per_em = font
         .head_table()?
-        .context(format!(
-            "Unable to read font scale from font file at {}",
-            &main_descriptor.path
-        ))?
+        .with_context(|| {
+            format!(
+                "Unable to read font scale from font file at {}",
+                &main_descriptor.path
+            )
+        })?
         .units_per_em as f64;
 
     let fallback_avg_width = fallback_font.az_avg_width / fallback_font.units_per_em as f64;

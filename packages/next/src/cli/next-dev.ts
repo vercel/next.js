@@ -32,10 +32,13 @@ import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
+import { getCacheDirectory } from '../lib/helpers/get-cache-directory'
+import { getGitBranch } from '../lib/helpers/git'
 import os from 'os'
+import fs from 'node:fs'
 import { once } from 'node:events'
 import { clearTimeout } from 'timers'
-import { flushAllTraces, trace } from '../trace'
+import { trace, initializeTraceState, exportTraceState } from '../trace'
 import { traceId } from '../trace/shared'
 import { Bundler, parseBundlerArgs } from '../lib/bundler'
 
@@ -55,7 +58,8 @@ export type NextDevOptions = {
   experimentalUploadTrace?: string
   experimentalNextConfigStripTypes?: boolean
   experimentalCpuProf?: boolean
-  experimentalServerFastRefresh?: boolean
+  serverFastRefresh?: boolean
+  internalTrace?: string | boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
@@ -67,8 +71,29 @@ let distDir: string | undefined
 let isTurbopack: boolean
 let traceUploadUrl: string
 let sessionStopHandled = false
+let devSpanAttrs: { 'rage-restart': boolean; 'missing-next-dir': boolean } = {
+  'rage-restart': false,
+  'missing-next-dir': false,
+}
 const sessionStarted = Date.now()
 const sessionSpan = trace('next-dev')
+
+// If the user restarts the dev server within this window we count it as a "rage restart".
+const RAGE_RESTART_THRESHOLD_MS = 90_000
+
+// Shape of a single project entry in the dev-state.json file.
+// All fields are optional so older entries without gitBranch are still valid.
+type DevStateEntry = {
+  stopTime?: number
+  distDirPath?: string
+  gitBranch?: string
+}
+
+// Single shared file for all projects — keyed by project directory path.
+const DEV_STATE_FILE = path.join(
+  getCacheDirectory('nextjs-nodejs'),
+  'dev-state.json'
+)
 
 // How long should we wait for the child to cleanly exit after sending
 // SIGINT/SIGTERM to the child process before sending SIGKILL?
@@ -100,7 +125,6 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   }
 
   sessionSpan.stop()
-  await flushAllTraces({ end: true })
 
   try {
     const { eventCliSessionStopped } =
@@ -118,7 +142,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       pagesDir = !!pagesResult.pagesDir
     }
 
-    let telemetry =
+    const telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
         typeof import('../telemetry/storage').Telemetry
       >) ||
@@ -150,6 +174,8 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       distDir,
       isTurboSession: isTurbopack,
     })
+
+    writeDevState()
   }
 
   // Save CPU profile if it was enabled (before exiting)
@@ -166,7 +192,14 @@ process.on('SIGINT', () => handleSessionStop('SIGINT'))
 process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
 
 // exit event must be synchronous
-process.on('exit', () => child?.kill('SIGKILL'))
+process.on('exit', () => {
+  child?.kill('SIGKILL')
+  // Catch aggressive kills (e.g. OOM, unhandled exception) that bypass handleSessionStop.
+  // SIGKILL of the parent cannot be caught; for all other exits this ensures state is written.
+  if (!sessionStopHandled) {
+    writeDevState()
+  }
+})
 
 const nextDev = async (
   options: NextDevOptions,
@@ -186,7 +219,7 @@ const nextDev = async (
 
   if (options.experimentalCpuProf) {
     Log.info(
-      `CPU profiling enabled. Profile will be saved to .next/cpu-profiles/ on exit (Ctrl+C).`
+      `CPU profiling enabled. Profile will be saved to .next-profiles/ on exit (Ctrl+C).`
     )
   }
 
@@ -248,13 +281,66 @@ const nextDev = async (
     traceUploadUrl = options.experimentalUploadTrace
   }
 
+  if (traceUploadUrl) {
+    let isRageRestart = false
+    let distDirCleared = false
+    try {
+      if (fs.existsSync(DEV_STATE_FILE)) {
+        const allState = JSON.parse(
+          fs.readFileSync(DEV_STATE_FILE, 'utf8')
+        ) as Record<string, DevStateEntry>
+        const state = allState[dir]
+        if (
+          state?.stopTime &&
+          Date.now() - state.stopTime < RAGE_RESTART_THRESHOLD_MS
+        ) {
+          // Only flag as a rage restart if the git branch hasn't changed. If
+          // either the stored or current branch is unknown, skip the comparison
+          // and fall back to time-only detection.
+          const storedBranch = state.gitBranch
+          const currentBranch = getGitBranch(dir)
+          const branchChanged =
+            storedBranch && currentBranch && storedBranch !== currentBranch
+          if (!branchChanged) {
+            isRageRestart = true
+          }
+        }
+        if (state?.distDirPath && !fs.existsSync(state.distDirPath)) {
+          distDirCleared = true
+        }
+      }
+    } catch {
+      // Corrupt file — leave both flags false
+    }
+    devSpanAttrs = {
+      'rage-restart': isRageRestart,
+      'missing-next-dir': distDirCleared,
+    }
+  }
+
+  const enabledFeatures = Object.fromEntries(
+    Object.entries({
+      serverFastRefreshDisabled: options.serverFastRefresh === false,
+      experimentalCpuProf: options.experimentalCpuProf,
+    }).filter(([_, value]) => value)
+  )
+
+  for (const [key, value] of Object.entries(enabledFeatures)) {
+    sessionSpan.setAttribute(`feature.${key}`, value)
+  }
+
+  initializeTraceState({
+    ...exportTraceState(),
+    defaultParentSpanId: sessionSpan.getId(),
+  })
+
   const devServerOptions: StartServerOptions = {
     dir,
     port,
     allowRetry,
     isDev: true,
     hostname: host,
-    experimentalServerFastRefresh: options.experimentalServerFastRefresh,
+    serverFastRefresh: options.serverFastRefresh,
   }
 
   const startServerPath = require.resolve('../server/lib/start-server')
@@ -302,20 +388,27 @@ const nextDev = async (
         nodeOptions.inspect = formatDebugAddress(address)
       }
 
+      const { nodeOptions: formattedNodeOptions, execArgv } =
+        formatNodeOptions(nodeOptions)
+
       child = fork(startServerPath, {
         stdio: 'inherit',
+        execArgv,
         env: {
           ...defaultEnv,
           ...(isTurbopack ? { TURBOPACK: process.env.TURBOPACK } : undefined),
+          __NEXT_DEV_SERVER: '1',
           NEXT_PRIVATE_START_TIME: process.env.NEXT_PRIVATE_START_TIME,
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
+          NEXT_PRIVATE_ENABLED_FEATURES: JSON.stringify(enabledFeatures),
+          NEXT_PRIVATE_DEV_SPAN_ATTRS: JSON.stringify(devSpanAttrs),
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
-          NODE_OPTIONS: formatNodeOptions(nodeOptions),
+          NODE_OPTIONS: formattedNodeOptions,
           // There is a node.js bug on MacOS which causes closing file watchers to be really slow.
-          // This limits the number of watchers to mitigate the issue.
+          // This limits the number of watchers x mitigate the issue.
           // https://github.com/nodejs/node/issues/29949
           WATCHPACK_WATCHER_LIMIT:
             os.platform() === 'darwin' ? '20' : undefined,
@@ -323,9 +416,12 @@ const nextDev = async (
           ...(options.experimentalCpuProf
             ? {
                 NEXT_CPU_PROF: '1',
-                NEXT_CPU_PROF_DIR: path.join(dir, '.next', 'cpu-profiles'),
+                NEXT_CPU_PROF_DIR: path.join(dir, '.next-profiles'),
                 __NEXT_PRIVATE_CPU_PROFILE: 'dev-server',
               }
+            : undefined),
+          ...(process.env.NEXT_TURBOPACK_TRACING
+            ? { NEXT_TURBOPACK_TRACING: process.env.NEXT_TURBOPACK_TRACING }
             : undefined),
         },
       })
@@ -369,6 +465,10 @@ const nextDev = async (
               sync: true,
             })
           }
+
+          // Reset the start time so "Ready in X" reflects the restart
+          // duration, not time since the original process started.
+          process.env.NEXT_PRIVATE_START_TIME = Date.now().toString()
 
           return startServer({ ...startServerOptions, port })
         }
@@ -418,6 +518,45 @@ const nextDev = async (
   }
 
   await runDevServer(false)
+}
+
+function writeDevState(): void {
+  if (!traceUploadUrl || !dir) return
+  try {
+    fs.mkdirSync(path.dirname(DEV_STATE_FILE), { recursive: true })
+
+    let state: Record<string, DevStateEntry> = {}
+    try {
+      state = JSON.parse(fs.readFileSync(DEV_STATE_FILE, 'utf8'))
+    } catch {
+      // File missing or corrupt — start with empty state
+    }
+
+    // Eagerly remove entries that are stale (older than threshold) or invalid
+    // (future timestamps from clock skew or corruption).
+    const now = Date.now()
+    const cutoff = now - RAGE_RESTART_THRESHOLD_MS
+    for (const key of Object.keys(state)) {
+      const t = state[key]?.stopTime
+      if (!t || t < cutoff || t > now) {
+        delete state[key]
+      }
+    }
+
+    // Update current project
+    const gitBranch = getGitBranch(dir)
+    state[dir] = {
+      stopTime: Date.now(),
+      distDirPath: path.join(dir, distDir ?? '.next'),
+      ...(gitBranch ? { gitBranch } : {}),
+    }
+
+    const { sync: writeFileAtomicSync } =
+      require('next/dist/compiled/write-file-atomic') as typeof import('next/dist/compiled/write-file-atomic')
+    writeFileAtomicSync(DEV_STATE_FILE, JSON.stringify(state))
+  } catch {
+    // Best effort — don't interfere with shutdown
+  }
 }
 
 export { nextDev }

@@ -37,6 +37,7 @@ interface RunnerFnParams {
   distDir: string
   incrementalCache?: any
   serverComponentsHmrCache?: ServerComponentsHmrCache
+  clientAssetToken: string
 }
 
 type RunnerFn = (params: RunnerFnParams) => Promise<FetchEventResult>
@@ -94,6 +95,11 @@ export async function getRuntimeContext(
   if (params.serverComponentsHmrCache) {
     runtime.context.globalThis.__serverComponentsHmrCache =
       params.serverComponentsHmrCache
+  }
+
+  if (params.clientAssetToken) {
+    runtime.context.globalThis.NEXT_CLIENT_ASSET_SUFFIX =
+      params.clientAssetToken ? `?dpl=${params.clientAssetToken}` : ''
   }
 
   for (const paramPath of params.paths) {

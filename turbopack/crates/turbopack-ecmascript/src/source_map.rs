@@ -56,10 +56,8 @@ fn maybe_decode_data_url(url: &str) -> Option<Rope> {
 
     let data_b64 = if let Some(data) = url.strip_prefix(DATA_PREAMBLE) {
         data
-    } else if let Some(data) = url.strip_prefix(DATA_PREAMBLE_CHARSET) {
-        data
     } else {
-        return None;
+        url.strip_prefix(DATA_PREAMBLE_CHARSET)?
     };
 
     data_encoding::BASE64

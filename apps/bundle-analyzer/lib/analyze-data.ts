@@ -477,9 +477,4 @@ export class AnalyzeData {
       'node_modules/next/dist/build/polyfills/polyfill-nomodule.js'
     )
   }
-
-  // Get the raw header for debugging
-  getRawAnalyzeHeader(): AnalyzeDataHeader {
-    return this.analyzeHeader
-  }
 }

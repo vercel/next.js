@@ -20,7 +20,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            0.0,
+                            TotalOrderF64(
+                                0.0,
+                            ),
                         ),
                     ),
                 ),

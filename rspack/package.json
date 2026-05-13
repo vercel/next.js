@@ -9,7 +9,7 @@
     "type": "git",
     "url": "git+https://github.com/vercel/next.js.git"
   },
-  "packageManager": "pnpm@10.13.1",
+  "packageManager": "pnpm@10.33.0",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "exports": {

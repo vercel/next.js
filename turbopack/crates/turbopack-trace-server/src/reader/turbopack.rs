@@ -1,19 +1,19 @@
 use std::{
     borrow::Cow,
     collections::hash_map::Entry,
-    mem::{take, transmute},
+    mem::transmute,
     ops::{Deref, DerefMut},
     sync::Arc,
 };
 
 use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
+use turbo_rcstr::{RcStr, RcStrInterning, rcstr};
 use turbopack_trace_utils::tracing::{TraceRow, TraceValue};
 
 use super::TraceFormat;
 use crate::{
-    FxIndexMap,
-    span::SpanIndex,
+    span::{SpanArgs, SpanIndex},
     store_container::{StoreContainer, StoreWriteGuard},
     timestamp::Timestamp,
 };
@@ -26,41 +26,36 @@ struct AllocationInfo {
     deallocation_count: u64,
 }
 
-struct InternalRow<'a> {
+struct InternalRow {
     id: Option<u64>,
-    ty: InternalRowType<'a>,
+    ty: InternalRowType,
 }
 
-impl InternalRow<'_> {
-    fn into_static(self) -> InternalRow<'static> {
-        InternalRow {
-            id: self.id,
-            ty: self.ty.into_static(),
-        }
-    }
-}
-
-enum InternalRowType<'a> {
+enum InternalRowType {
     Start {
         new_id: u64,
         ts: Timestamp,
-        name: Cow<'a, str>,
-        target: Cow<'a, str>,
-        values: Vec<(Cow<'a, str>, TraceValue<'a>)>,
+        name: RcStr,
+        target: RcStr,
+        values: SpanArgs,
     },
-    End {
-        ts: Timestamp,
-    },
+    End,
     SelfTime {
         start: Timestamp,
         end: Timestamp,
     },
     Event {
         ts: Timestamp,
-        values: Vec<(Cow<'a, str>, TraceValue<'a>)>,
+        /// Pre-extracted at parse time from the typed `TraceValue::UInt`;
+        /// the runtime `values` vec no longer carries it.
+        duration: Timestamp,
+        /// Pre-extracted at parse time from the typed `TraceValue::String`;
+        /// defaults to `"event"` when not present.
+        name: RcStr,
+        values: SpanArgs,
     },
     Record {
-        values: Vec<(Cow<'a, str>, TraceValue<'a>)>,
+        values: SpanArgs,
     },
     Allocation {
         allocations: u64,
@@ -72,84 +67,51 @@ enum InternalRowType<'a> {
     },
 }
 
-impl InternalRowType<'_> {
-    fn into_static(self) -> InternalRowType<'static> {
-        match self {
-            InternalRowType::Start {
-                ts,
-                new_id,
-                name,
-                target,
-                values,
-            } => InternalRowType::Start {
-                ts,
-                new_id,
-                name: name.into_owned().into(),
-                target: target.into_owned().into(),
-                values: values
-                    .into_iter()
-                    .map(|(k, v)| (k.into_owned().into(), v.into_static()))
-                    .collect(),
-            },
-            InternalRowType::End { ts } => InternalRowType::End { ts },
-            InternalRowType::SelfTime { start, end } => InternalRowType::SelfTime { start, end },
-            InternalRowType::Event { ts, values } => InternalRowType::Event {
-                ts,
-                values: values
-                    .into_iter()
-                    .map(|(k, v)| (k.into_owned().into(), v.into_static()))
-                    .collect(),
-            },
-            InternalRowType::Record { values } => InternalRowType::Record {
-                values: values
-                    .into_iter()
-                    .map(|(k, v)| (k.into_owned().into(), v.into_static()))
-                    .collect(),
-            },
-            InternalRowType::Allocation {
-                allocations,
-                allocation_count,
-            } => InternalRowType::Allocation {
-                allocations,
-                allocation_count,
-            },
-            InternalRowType::Deallocation {
-                deallocations,
-                deallocation_count,
-            } => InternalRowType::Deallocation {
-                deallocations,
-                deallocation_count,
-            },
-        }
-    }
-}
-
-#[derive(Default)]
-struct QueuedRows {
-    rows: Vec<InternalRow<'static>>,
-}
-
 pub struct TurbopackFormat {
     store: Arc<StoreContainer>,
     id_mapping: FxHashMap<u64, SpanIndex>,
-    queued_rows: FxHashMap<u64, QueuedRows>,
+    dropped_ids: FxHashSet<u64>,
+    remaining_ids_to_drop: usize,
+    queued_rows: FxHashMap<u64, Vec<InternalRow>>,
     outdated_spans: FxHashSet<SpanIndex>,
     thread_stacks: FxHashMap<u64, Vec<u64>>,
     thread_allocation_counters: FxHashMap<u64, AllocationInfo>,
     self_time_started: FxHashMap<(u64, u64), Timestamp>,
+    interner: RcStrInterning,
 }
 
 impl TurbopackFormat {
     pub fn new(store: Arc<StoreContainer>) -> Self {
+        let drop_ids = std::env::var("DROP_SPANS")
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or_default();
         Self {
             store,
-            id_mapping: FxHashMap::default(),
-            queued_rows: FxHashMap::default(),
-            outdated_spans: FxHashSet::default(),
-            thread_stacks: FxHashMap::default(),
-            thread_allocation_counters: FxHashMap::default(),
-            self_time_started: FxHashMap::default(),
+            id_mapping: FxHashMap::with_capacity_and_hasher(131_072, Default::default()),
+            dropped_ids: FxHashSet::with_capacity_and_hasher(drop_ids, Default::default()),
+            remaining_ids_to_drop: drop_ids,
+            queued_rows: FxHashMap::with_capacity_and_hasher(1_024, Default::default()),
+            outdated_spans: FxHashSet::with_capacity_and_hasher(8_192, Default::default()),
+            thread_stacks: FxHashMap::with_capacity_and_hasher(64, Default::default()),
+            thread_allocation_counters: FxHashMap::with_capacity_and_hasher(64, Default::default()),
+            self_time_started: FxHashMap::with_capacity_and_hasher(256, Default::default()),
+            interner: RcStrInterning::new(),
         }
+    }
+
+    fn intern_span_args(&mut self, values: Vec<(Cow<'_, str>, TraceValue<'_>)>) -> SpanArgs {
+        values
+            .into_iter()
+            .map(|(k, v)| {
+                let k = self.interner.intern_cow(k);
+                let v = match v {
+                    TraceValue::String(s) => self.interner.intern_cow(s),
+                    other => self.interner.intern_display(&other),
+                };
+                (k, v)
+            })
+            .collect()
     }
 
     fn process(&mut self, store: &mut StoreWriteGuard, row: TraceRow<'_>) {
@@ -163,6 +125,9 @@ impl TurbopackFormat {
                 values,
             } => {
                 let ts = Timestamp::from_micros(ts);
+                let name = self.interner.intern_cow(name);
+                let target = self.interner.intern_cow(target);
+                let values = self.intern_span_args(values);
                 self.process_internal_row(
                     store,
                     InternalRow {
@@ -178,6 +143,7 @@ impl TurbopackFormat {
                 );
             }
             TraceRow::Record { id, values } => {
+                let values = self.intern_span_args(values);
                 self.process_internal_row(
                     store,
                     InternalRow {
@@ -186,13 +152,12 @@ impl TurbopackFormat {
                     },
                 );
             }
-            TraceRow::End { ts, id } => {
-                let ts = Timestamp::from_micros(ts);
+            TraceRow::End { ts: _, id } => {
                 self.process_internal_row(
                     store,
                     InternalRow {
                         id: Some(id),
-                        ty: InternalRowType::End { ts },
+                        ty: InternalRowType::End,
                     },
                 );
             }
@@ -244,11 +209,41 @@ impl TurbopackFormat {
             }
             TraceRow::Event { ts, parent, values } => {
                 let ts = Timestamp::from_micros(ts);
+                // Pull `duration` and `name` out of the typed values during
+                // interning
+                let mut duration = Timestamp::ZERO;
+                let mut name = rcstr!("event");
+                let mut interned_values: SpanArgs = SpanArgs::with_capacity(values.len());
+                for (k, v) in values {
+                    match k.as_ref() {
+                        "duration" => {
+                            duration = Timestamp::from_micros(v.as_u64().unwrap_or(0));
+                        }
+                        "name" => {
+                            if let TraceValue::String(s) = v {
+                                name = self.interner.intern_cow(s);
+                            }
+                        }
+                        _ => {
+                            let k = self.interner.intern_cow(k);
+                            let v = match v {
+                                TraceValue::String(s) => self.interner.intern_cow(s),
+                                other => self.interner.intern_display(&other),
+                            };
+                            interned_values.push((k, v));
+                        }
+                    }
+                }
                 self.process_internal_row(
                     store,
                     InternalRow {
                         id: parent,
-                        ty: InternalRowType::Event { ts, values },
+                        ty: InternalRowType::Event {
+                            ts,
+                            duration,
+                            name,
+                            values: interned_values,
+                        },
                     },
                 );
             }
@@ -287,6 +282,14 @@ impl TurbopackFormat {
                         );
                     }
                 }
+            }
+            TraceRow::MemorySample {
+                ts,
+                memory,
+                memory_pressure,
+            } => {
+                let ts = Timestamp::from_micros(ts);
+                store.add_memory_sample(ts, memory, memory_pressure);
             }
             TraceRow::AllocationCounters {
                 ts: _,
@@ -351,32 +354,26 @@ impl TurbopackFormat {
         }
     }
 
-    fn process_internal_row(&mut self, store: &mut StoreWriteGuard, row: InternalRow<'_>) {
-        let mut queue = Vec::new();
-        queue.push(row);
-        while !queue.is_empty() {
-            let q = take(&mut queue);
-            for row in q {
-                self.process_internal_row_queue(store, row, &mut queue);
-            }
-        }
-    }
-
-    fn process_internal_row_queue(
-        &mut self,
-        store: &mut StoreWriteGuard,
-        row: InternalRow<'_>,
-        queue: &mut Vec<InternalRow<'_>>,
-    ) {
+    fn process_internal_row(&mut self, store: &mut StoreWriteGuard, row: InternalRow) {
         let id = if let Some(id) = row.id {
+            if matches!(
+                row.ty,
+                InternalRowType::End
+                    | InternalRowType::Event { .. }
+                    | InternalRowType::Record { .. }
+                    | InternalRowType::SelfTime { .. }
+            ) && self.dropped_ids.contains(&id)
+            {
+                return;
+            }
             if let Some(id) = self.id_mapping.get(&id) {
                 Some(*id)
             } else {
-                self.queued_rows
-                    .entry(id)
-                    .or_default()
-                    .rows
-                    .push(row.into_static());
+                // Parent hasn't been seen yet; queue this row to be processed
+                // when the parent arrives. The row is already lifetime-free
+                // (strings interned eagerly at parse time) so no allocation
+                // is needed to extend its lifetime here.
+                self.queued_rows.entry(id).or_default().push(row);
                 return;
             }
         } else {
@@ -390,70 +387,53 @@ impl TurbopackFormat {
                 target,
                 values,
             } => {
-                let span_id = store.add_span(
-                    id,
-                    ts,
-                    target.into_owned(),
-                    name.into_owned(),
-                    values
-                        .iter()
-                        .map(|(k, v)| (k.to_string(), v.to_string()))
-                        .collect(),
-                    &mut self.outdated_spans,
-                );
-                self.id_mapping.insert(new_id, span_id);
-                if let Some(QueuedRows { rows }) = self.queued_rows.remove(&new_id) {
+                if self.remaining_ids_to_drop > 0
+                    && let Some(id) = id
+                {
+                    self.remaining_ids_to_drop -= 1;
+                    self.dropped_ids.insert(new_id);
+                    self.id_mapping.insert(new_id, id);
+                } else {
+                    let span_id =
+                        store.add_span(id, ts, target, name, values, &mut self.outdated_spans);
+                    self.id_mapping.insert(new_id, span_id);
+                }
+                // Inline-flush any rows that were waiting on this parent.
+                // Processing them now keeps the just-added Span (and its
+                // surrounding Store state) hot in cache, and avoids the
+                // memcpy of a working-queue extend. Recursion depth is
+                // bounded by the depth of orphan chains in the trace.
+                if let Some(rows) = self.queued_rows.remove(&new_id) {
                     for row in rows {
-                        queue.push(row);
+                        self.process_internal_row(store, row);
                     }
                 }
             }
-            InternalRowType::Record { ref values } => {
-                store.add_args(
-                    id.unwrap(),
-                    values
-                        .iter()
-                        .map(|(k, v)| (k.to_string(), v.to_string()))
-                        .collect(),
-                    &mut self.outdated_spans,
-                );
+            InternalRowType::Record { values } => {
+                store.add_args(id.unwrap(), values, &mut self.outdated_spans);
             }
-            InternalRowType::End { ts: _ } => {
+            InternalRowType::End => {
                 store.complete_span(id.unwrap());
             }
             InternalRowType::SelfTime { start, end } => {
                 store.add_self_time(id.unwrap(), start, end, &mut self.outdated_spans);
             }
-            InternalRowType::Event { ts, values } => {
-                let mut values = values.into_iter().collect::<FxIndexMap<_, _>>();
-                let duration = Timestamp::from_micros(
-                    values
-                        .swap_remove("duration")
-                        .and_then(|v| v.as_u64())
-                        .unwrap_or(0),
-                );
-                let name = values
-                    .swap_remove("name")
-                    .and_then(|v| v.as_str().map(|s| s.to_string()))
-                    .unwrap_or("event".into());
-
+            InternalRowType::Event {
+                ts,
+                duration,
+                name,
+                values,
+            } => {
+                let start = ts.saturating_sub(duration);
                 let id = store.add_span(
                     id,
-                    ts.saturating_sub(duration),
-                    "event".into(),
+                    start,
+                    rcstr!("event"),
                     name,
-                    values
-                        .iter()
-                        .map(|(k, v)| (k.to_string(), v.to_string()))
-                        .collect(),
+                    values,
                     &mut self.outdated_spans,
                 );
-                store.add_self_time(
-                    id,
-                    ts.saturating_sub(duration),
-                    ts,
-                    &mut self.outdated_spans,
-                );
+                store.add_self_time(id, start, ts, &mut self.outdated_spans);
                 store.complete_span(id);
             }
             InternalRowType::Allocation {
@@ -484,6 +464,31 @@ impl TurbopackFormat {
 
 impl TraceFormat for TurbopackFormat {
     type Reused = Vec<TraceRow<'static>>;
+
+    fn create_reused() -> Vec<TraceRow<'static>> {
+        // Pre-allocate for a typical batch size to avoid repeated doubling during initial read.
+        Vec::with_capacity(4_096)
+    }
+
+    fn stats(&self) -> String {
+        use std::fmt::Write;
+
+        let spans = self.id_mapping.len();
+        let mut stats = format!("{spans} spans");
+
+        let dropped_spans = self.dropped_ids.len();
+        if dropped_spans > 0 {
+            let total_drop = dropped_spans + self.remaining_ids_to_drop;
+            write!(stats, ", {dropped_spans}/{total_drop} dropped").unwrap();
+        }
+
+        let queued_spans = self.queued_rows.len();
+        if queued_spans > 0 {
+            write!(stats, ", {queued_spans} queued").unwrap();
+        }
+
+        stats
+    }
 
     fn read(&mut self, mut buffer: &[u8], reuse: &mut Self::Reused) -> Result<usize> {
         reuse.clear();

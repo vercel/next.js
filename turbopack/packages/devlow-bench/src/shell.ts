@@ -8,7 +8,12 @@ export interface Command {
   ok(): Promise<void>
   kill(): Promise<void>
   end(): Promise<number>
-  waitForOutput(regex: RegExp): Promise<RegExpMatchArray>
+  waitForOutput(
+    regex: RegExp,
+    options?: {
+      timeoutMs?: number
+    }
+  ): Promise<RegExpMatchArray>
   reportMemUsage(
     metricName: string,
     options: {
@@ -28,6 +33,7 @@ class CommandImpl {
   stdout: string = ''
   stderr: string = ''
   output: string = ''
+  outputCursor: number = 0
   exitPromise: Promise<number>
   waitingForOutput: (() => void)[] = []
   constructor(private process: ChildProcess) {
@@ -91,20 +97,62 @@ class CommandImpl {
     await this.exitPromise
   }
 
-  async waitForOutput(regex: RegExp) {
-    let start = this.output.length
+  async waitForOutput(
+    regex: RegExp,
+    options: {
+      timeoutMs?: number
+    } = {}
+  ) {
+    let start = this.outputCursor
+    const deadline =
+      options.timeoutMs === undefined
+        ? undefined
+        : Date.now() + options.timeoutMs
+
     while (true) {
-      const match = this.output.slice(start).match(regex)
+      const outputToSearch = this.output.slice(start)
+      const match = outputToSearch.match(regex)
       if (match) {
+        const matchIndex = match.index ?? outputToSearch.search(regex)
+        if (matchIndex >= 0) {
+          this.outputCursor = start + matchIndex + match[0].length
+        } else {
+          this.outputCursor = this.output.length
+        }
         return match
       }
-      const waitResult = await Promise.race([
+
+      const promises: Promise<number | 'output' | 'timeout'>[] = [
         this.exitPromise,
         new Promise<void>((resolve) => {
           this.waitingForOutput.push(resolve)
         }).then(() => 'output'),
-      ])
+      ]
+
+      let timeoutId: ReturnType<typeof setTimeout> | undefined
+      if (deadline !== undefined) {
+        const timeoutMs = deadline - Date.now()
+        if (timeoutMs <= 0) {
+          throw new Error(
+            `Timed out waiting for output matching ${regex}\n\nOutput:\n${this.output}`
+          )
+        }
+        promises.push(
+          new Promise<'timeout'>((resolve) => {
+            timeoutId = setTimeout(() => resolve('timeout'), timeoutMs)
+          })
+        )
+      }
+
+      const waitResult = await Promise.race(promises)
+      if (timeoutId) clearTimeout(timeoutId)
+
       if (waitResult !== 'output') {
+        if (waitResult === 'timeout') {
+          throw new Error(
+            `Timed out waiting for output matching ${regex}\n\nOutput:\n${this.output}`
+          )
+        }
         throw new Error(
           `Command exited with code ${waitResult}\n\nOutput:\n${this.output}`
         )

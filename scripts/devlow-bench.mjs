@@ -10,6 +10,7 @@ import { waitForFile } from '@vercel/devlow-bench/file'
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url))
 const START_SERVER_REGEXP = /Ready in \d+/
 const URL_REGEXP = /Local:\s+(?<url>.+)\n/
+const STARTUP_WAIT_TIMEOUT_MS = 5 * 60 * 1000
 
 const GIT_SHA =
   process.env.GITHUB_SHA ??
@@ -105,10 +106,14 @@ const nextBuildWorkflow =
       // wait for server to be ready
       const {
         groups: { url },
-      } = await shell.waitForOutput(URL_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP, {
+        timeoutMs: STARTUP_WAIT_TIMEOUT_MS,
+      })
 
       // wait for server to be ready
-      await shell.waitForOutput(START_SERVER_REGEXP)
+      await shell.waitForOutput(START_SERVER_REGEXP, {
+        timeoutMs: STARTUP_WAIT_TIMEOUT_MS,
+      })
       await measureTime('server startup', { props: { turbopack, page } })
       await shell.reportMemUsage('mem usage after startup', {
         props: { turbopack, page },
@@ -192,7 +197,9 @@ const nextBuildWorkflow =
       // wait for server to be ready
       const {
         groups: { url: url2 },
-      } = await shell.waitForOutput(URL_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP, {
+        timeoutMs: STARTUP_WAIT_TIMEOUT_MS,
+      })
       await shell.reportMemUsage('mem usage after startup with cache')
 
       // open page
@@ -284,10 +291,14 @@ const nextDevWorkflow =
       // wait for server to be ready
       const {
         groups: { url },
-      } = await shell.waitForOutput(URL_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP, {
+        timeoutMs: STARTUP_WAIT_TIMEOUT_MS,
+      })
 
       // wait for server to be ready
-      await shell.waitForOutput(START_SERVER_REGEXP)
+      await shell.waitForOutput(START_SERVER_REGEXP, {
+        timeoutMs: STARTUP_WAIT_TIMEOUT_MS,
+      })
       await measureTime('server startup', { props: { turbopack, page } })
       await shell.reportMemUsage('mem usage after startup', {
         props: { turbopack, page },
@@ -512,7 +523,9 @@ const nextDevWorkflow =
       // wait for server to be ready
       const {
         groups: { url: url2 },
-      } = await shell.waitForOutput(URL_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP, {
+        timeoutMs: STARTUP_WAIT_TIMEOUT_MS,
+      })
       await shell.reportMemUsage('mem usage after startup with cache')
 
       // open page

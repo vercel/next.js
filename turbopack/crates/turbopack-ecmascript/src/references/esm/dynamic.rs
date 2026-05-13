@@ -5,18 +5,18 @@ use swc_core::{
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkingContext, ChunkingType},
     environment::ChunkLoading,
     issue::IssueSource,
+    module::Module,
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
-        ModuleResolveResult, ResolveErrorMode,
+        BindingUsage, ExportUsage, ModuleResolveResult, ResolveErrorMode,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
@@ -34,7 +34,8 @@ use crate::{
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("dynamic import {request}")]
 pub struct EsmAsyncAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -42,6 +43,11 @@ pub struct EsmAsyncAssetReference {
     pub issue_source: IssueSource,
     pub error_mode: ResolveErrorMode,
     pub import_externals: bool,
+    /// The export usage extracted from the dynamic import usage pattern.
+    /// Detected from destructured await, member access on await, .then()
+    /// callback destructuring, or webpackExports/turbopackExports comments.
+    pub export_usage: ExportUsage,
+    pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
 impl EsmAsyncAssetReference {
@@ -62,6 +68,8 @@ impl EsmAsyncAssetReference {
         annotations: ImportAnnotations,
         error_mode: ResolveErrorMode,
         import_externals: bool,
+        export_usage: ExportUsage,
+        resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Self {
         EsmAsyncAssetReference {
             origin,
@@ -70,6 +78,8 @@ impl EsmAsyncAssetReference {
             annotations,
             error_mode,
             import_externals,
+            export_usage,
+            resolve_override,
         }
     }
 }
@@ -78,8 +88,12 @@ impl EsmAsyncAssetReference {
 impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        if let Some(resolved) = &self.resolve_override {
+            return Ok(*ModuleResolveResult::module(*resolved));
+        }
+
         esm_resolve(
-            self.get_origin().resolve().await?,
+            *self.get_origin().to_resolved().await?,
             *self.request,
             EcmaScriptModulesReferenceSubType::DynamicImport,
             self.error_mode,
@@ -87,23 +101,16 @@ impl ModuleReference for EsmAsyncAssetReference {
         )
         .await
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("dynamic import {}", self.request.to_string().await?,).into(),
-        ))
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Async)
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Async))
+    fn binding_usage(&self) -> BindingUsage {
+        BindingUsage {
+            import: Default::default(),
+            export: self.export_usage.clone(),
+        }
     }
 }
 

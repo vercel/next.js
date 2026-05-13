@@ -81,7 +81,17 @@ describe('app-dir trailingSlash handling', () => {
           .elementById('generated-at')
           .text()
 
-        expect(refreshedGeneratedAt).toBe(initialGeneratedAt)
+        // A previous test can trigger revalidation right before this one starts.
+        // Assert the page is stable across consecutive refreshes instead of
+        // requiring the very first refresh to always match the initial load.
+        await retry(async () => {
+          await browser.refresh()
+          const refreshedAgainGeneratedAt = await browser
+            .elementById('generated-at')
+            .text()
+
+          expect(refreshedAgainGeneratedAt).toBe(refreshedGeneratedAt)
+        })
       }
 
       await browser

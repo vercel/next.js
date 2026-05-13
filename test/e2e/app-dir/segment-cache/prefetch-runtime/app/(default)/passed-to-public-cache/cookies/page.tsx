@@ -4,9 +4,9 @@ import { cachedDelay, DebugRenderKind } from '../../../shared'
 import { connection } from 'next/server'
 
 export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ cookies: [{ name: 'testCookie', value: 'testValue' }] }],
+  unstable_samples: [{ cookies: [{ name: 'testCookie', value: 'testValue' }] }],
 }
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page() {
   return (

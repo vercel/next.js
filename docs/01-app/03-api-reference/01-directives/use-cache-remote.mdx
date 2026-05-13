@@ -14,7 +14,7 @@ related:
     - app/api-reference/functions/connection
 ---
 
-While the `use cache` directive is sufficient for most application needs, you might occasionally notice that cached operations are re-running more often than expected, or that your upstream services (CMS, databases, external APIs) are getting more hits than you'd expect. This can happen because in-memory caching has inherent limitations:
+While the `use cache` directive is sufficient for most application needs, you might notice that cached operations are re-running more often than expected, or that your upstream services (CMS, databases, external APIs) are getting more hits than you'd expect. This can happen because `use cache` stores entries in-memory, which has inherent limitations:
 
 - Cache entries being evicted to make room for new ones
 - Memory constraints in your deployment environment
@@ -22,7 +22,7 @@ While the `use cache` directive is sufficient for most application needs, you mi
 
 Note that `use cache` still provides value beyond server-side caching: it informs Next.js what can be prefetched and defines stale times for client-side navigation.
 
-The `'use cache: remote'` directive lets you declaratively specify that a cached output should be stored in a **remote cache** instead of in-memory. While this gives you more durable caching for specific operations, it comes with tradeoffs: infrastructure cost and network latency during cache lookups.
+The `'use cache: remote'` directive lets you declaratively specify that a cached output should be stored in a remote cache instead of in-memory, providing durable caching shared across all server instances. This comes with tradeoffs: infrastructure cost and network latency during cache lookups.
 
 ## Usage
 
@@ -73,7 +73,7 @@ Compelling scenarios for `'use cache: remote'`:
 
 In these cases, the cost and latency of remote caching is justified by avoiding worse outcomes (rate limit errors, backend overload, high compute bills, or degraded user experience).
 
-For static shell content, `use cache` is usually sufficient. However, if your static pages share data from an upstream that can't handle concurrent revalidation requests (like a rate-limited CMS), `use cache: remote` acts as a shared cache layer in front of that upstream. This is the same pattern as putting a key-value store in front of a database, but declared in your code rather than configured in infrastructure.
+For static shell content, `use cache` is usually sufficient. If your upstream source can't handle concurrent revalidation requests (like a rate-limited CMS), `use cache: remote` acts as a shared cache layer. This is the same pattern as putting a key-value store in front of a database, but declared in code.
 
 ### How `use cache: remote` differs from `use cache` and `use cache: private`
 
@@ -90,9 +90,13 @@ Next.js provides three caching directives, each designed for different use cases
 
 ### Caching with runtime data
 
-Both `use cache` and `'use cache: remote'` directives can't access runtime data like cookies or search params directly, since this data isn't available when computing the cache. However, you can extract values from these APIs and pass them as arguments to cached functions. See [with runtime data](/docs/app/getting-started/cache-components#with-runtime-data) for this pattern.
+Both `use cache` and `'use cache: remote'` can't access runtime values like cookies or search params directly. You can extract these values and pass them as arguments to cached functions. See [with runtime data](/docs/app/getting-started/caching#working-with-runtime-apis) for this pattern.
 
-In general, but most importantly for `'use cache: remote'`, be thoughtful about which values you include in cache keys. Each unique value creates a separate cache entry, reducing cache utilization. Consider this example with search filters:
+> **Good to know**: `use cache` stores entries in-memory. In serverless environments, memory is not shared between instances and is typically destroyed after serving a request, leading to frequent cache misses for runtime caching.
+
+### Cache key considerations
+
+Be thoughtful about which values you include in cache keys. Each unique value creates a separate cache entry, reducing cache utilization. Consider this example with search filters:
 
 ```tsx filename="app/products/[category]/page.tsx"
 import { Suspense } from 'react'

@@ -7,17 +7,14 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
-/// <reference path="../../../shared/runtime-types.d.ts" />
+/// <reference path="../../../shared/runtime/runtime-types.d.ts" />
 
 function getAssetSuffixFromScriptSrc() {
   // TURBOPACK_ASSET_SUFFIX is set in web workers
-  return (
-    (self.TURBOPACK_ASSET_SUFFIX ??
-      document?.currentScript
-        ?.getAttribute?.('src')
-        ?.replace(/^(.*(?=\?)|^.*$)/, '')) ||
-    ''
-  )
+  if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX
+  const src = document?.currentScript?.getAttribute?.('src') ?? ''
+  const qi = src.indexOf('?')
+  return qi >= 0 ? src.slice(qi) : ''
 }
 
 type ChunkResolver = {
@@ -186,6 +183,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         } else {
           const link = document.createElement('link')
           link.rel = 'stylesheet'
+          link.crossOrigin = CROSS_ORIGIN
           link.href = chunkUrl
           link.onerror = () => {
             resolver.reject()
@@ -212,6 +210,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           }
         } else {
           const script = document.createElement('script')
+          script.crossOrigin = CROSS_ORIGIN
           script.src = chunkUrl
           // We'll only mark the chunk as loaded once the script has been executed,
           // which happens in `registerChunk`. Hence the absence of `resolve()` in

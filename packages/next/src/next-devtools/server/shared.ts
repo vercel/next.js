@@ -1,5 +1,4 @@
-import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
-import isInternal from '../../shared/lib/is-internal'
+import { codeFrameColumns } from '../../shared/lib/errors/code-frame'
 import type { StackFrame } from '../../server/lib/parse-stack'
 import { ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric } from '../../server/lib/source-maps'
 
@@ -25,6 +24,13 @@ export interface OriginalStackFrameResponse {
   originalStackFrame: (StackFrame & { ignored: boolean }) | null
   originalCodeFrame: string | null
 }
+
+type CodeFrameRenderOptions = {
+  colors?: boolean
+  maxWidth?: number
+}
+
+export const DEVTOOLS_CODE_FRAME_MAX_WIDTH = 1000
 
 export function ignoreListAnonymousStackFramesIfSandwiched(
   responses: OriginalStackFramesResponse
@@ -66,22 +72,34 @@ export function ignoreListAnonymousStackFramesIfSandwiched(
 export function getOriginalCodeFrame(
   frame: IgnorableStackFrame,
   source: string | null,
-  colors: boolean = process.stdout.isTTY
+  colorsOrOptions: boolean | CodeFrameRenderOptions = process.stdout?.isTTY ??
+    false
 ): string | null {
-  if (!source || isInternal(frame.file)) {
+  if (!source || frame.line1 == null) {
     return null
   }
 
-  return codeFrameColumns(
-    source,
-    {
-      start: {
-        // 1-based, but -1 means start line without highlighting
-        line: frame.line1 ?? -1,
-        // 1-based, but 0 means whole line without column highlighting
-        column: frame.column1 ?? 0,
+  const { colors, maxWidth } =
+    typeof colorsOrOptions === 'boolean'
+      ? { colors: colorsOrOptions, maxWidth: undefined }
+      : {
+          colors: colorsOrOptions.colors ?? process.stdout?.isTTY ?? false,
+          maxWidth: colorsOrOptions.maxWidth,
+        }
+
+  return (
+    codeFrameColumns(
+      source,
+      {
+        start: {
+          line: frame.line1,
+          column: frame.column1 ?? undefined,
+        },
       },
-    },
-    { forceColor: colors }
+      {
+        color: colors,
+        maxWidth,
+      }
+    ) ?? null
   )
 }

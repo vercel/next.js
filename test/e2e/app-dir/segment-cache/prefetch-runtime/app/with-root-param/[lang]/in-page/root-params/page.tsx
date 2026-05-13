@@ -5,9 +5,9 @@ import { lang } from 'next/root-params'
 import { cookies } from 'next/headers'
 
 export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ params: { lang: 'en' } }],
+  unstable_samples: [{ params: { lang: 'en' } }],
 }
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page() {
   return (

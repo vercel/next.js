@@ -1,19 +1,34 @@
 import { nextTestSetup } from 'e2e-utils'
+import { join } from 'path'
+import { readFile } from 'fs/promises'
+import { listClientChunks } from 'next-test-utils'
 
 describe('browser-chunks', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
-  let sources = []
+  let sources: string[] = []
+  let jsContents: string[] = []
   beforeAll(async () => {
-    const sourcemaps = await next.readFiles('.next/static/chunks', (filename) =>
-      filename.endsWith('.js.map')
-    )
+    const chunksDir = join(next.testDir, '.next')
 
+    const chunks = await listClientChunks(chunksDir)
+
+    const sourcemaps = await Promise.all(
+      chunks
+        .filter((filename) => filename.endsWith('.js.map'))
+        .map((f) => readFile(join(chunksDir, f), 'utf8'))
+    )
     sources = sourcemaps.flatMap((sourcemap) => JSON.parse(sourcemap).sources)
+
+    jsContents = await Promise.all(
+      chunks
+        .filter((filename) => filename.endsWith('.js'))
+        .map((f) => readFile(join(chunksDir, f), 'utf8'))
+    )
   })
+
   it('must not bundle any server modules into browser chunks', () => {
     const serverSources = sources.filter(
       (source) =>
@@ -60,6 +75,31 @@ describe('browser-chunks', () => {
       throw new Error(
         'Did not expect any heavy dependencies in browser chunks.\n' + message
       )
+    }
+  })
+
+  it('must not pull server internals from next/cache into browser chunks', () => {
+    // When a Client Component imports from next/cache, the bundler should
+    // DCE the server require() branch (via process.env.NEXT_RUNTIME === '')
+    // and only include lightweight client stubs. Pre-compiled dist/ modules
+    // don't appear in sourcemaps, so we check the actual JS content.
+    const serverOnlyPatterns = [
+      // IncrementalCache is a class from next/dist/server used by unstable_cache
+      'IncrementalCache',
+    ]
+
+    for (const pattern of serverOnlyPatterns) {
+      const chunksWithPattern = jsContents.filter((content) =>
+        content.includes(pattern)
+      )
+
+      if (chunksWithPattern.length > 0) {
+        throw new Error(
+          `Found server-only pattern "${pattern}" in ${chunksWithPattern.length} browser chunk(s). ` +
+            `This likely means next/cache is pulling server internals into the client bundle. ` +
+            `Ensure the server require() calls in packages/next/cache.js are behind a DCE-able branch.`
+        )
+      }
     }
   })
 })

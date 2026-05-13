@@ -66,10 +66,15 @@ describe('Error Overlay invalid imports', () => {
     await session.waitForRedbox()
     if (process.env.IS_TURBOPACK_TEST) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "./app
-        Invalid import
-        'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
-        The error was caused by using 'styled-jsx'. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default."
+       "./app/comp2.js
+       'styled-jsx' cannot be imported from a Server Component module
+       It only works in a Client Component but none of its parents are marked with 'use client', so they're Server Components by default.
+
+       Import trace:
+         Server Component:
+           ./app/comp2.js
+           ./app/comp1.js
+           ./app/page.js"
       `)
     } else if (process.env.NEXT_RSPACK) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
@@ -95,6 +100,75 @@ describe('Error Overlay invalid imports', () => {
               ./app/comp1.js
               ./app/page.js"
           `)
+    }
+  })
+
+  it('should show error when require-ing client-only in server component', async () => {
+    await using sandbox = await createSandbox(
+      next,
+      new Map([
+        [
+          'app/foo.js',
+          outdent`
+            require("client-only")
+          `,
+        ],
+        [
+          'app/page.js',
+          outdent`
+            'use client'
+            import './foo'
+
+            export default function Page() {
+              return "Hello"
+            }
+          `,
+        ],
+      ])
+    )
+    const { session } = sandbox
+    const pageFile = 'app/page.js'
+    const content = await next.readFile(pageFile)
+    const withoutUseClient = content.replace("'use client'", '')
+    await session.patch(pageFile, withoutUseClient)
+
+    await session.waitForRedbox()
+    if (process.env.IS_TURBOPACK_TEST) {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+       "./app/foo.js (1:1)
+       'client-only' cannot be imported from a Server Component module
+       > 1 | require("client-only")
+           | ^^^^^^^^^^^^^^^^^^^^^^
+
+       It should only be used from a Client Component.
+
+       Import trace:
+         Server Component:
+           ./app/foo.js
+           ./app/page.js"
+      `)
+    } else if (process.env.NEXT_RSPACK) {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+       "./app/foo.js
+         × 'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
+         │ 
+         │ The error was caused by importing 'next/dist/compiled/client-only/error.js' in './app/foo.js'.
+         │ 
+         │ Import trace for requested module:
+       │   ./app/foo.js
+       │   ./app/page.js"
+      `)
+    } else {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+       "./app/foo.js
+       'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
+
+       The error was caused by importing 'next/dist/compiled/client-only/error.js' in './app/foo.js'.
+
+       Import trace for requested module:
+       ./app/foo.js
+       ./app/page.js"
+      `)
     }
   })
 
@@ -160,10 +234,19 @@ describe('Error Overlay invalid imports', () => {
     await session.waitForRedbox()
     if (process.env.IS_TURBOPACK_TEST) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "./node_modules/client-only-package
-        Invalid import
-        'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
-        The error was caused by importing 'node_modules/client-only-package'"
+       "./node_modules/client-only-package/index.js (1:1)
+       'client-only' cannot be imported from a Server Component module
+       > 1 | require("client-only")
+           | ^^^^^^^^^^^^^^^^^^^^^^
+
+       It should only be used from a Client Component.
+
+       Import trace:
+         Server Component:
+           ./node_modules/client-only-package/index.js
+           ./app/comp2.js
+           ./app/comp1.js
+           ./app/page.js"
       `)
     } else if (process.env.NEXT_RSPACK) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
@@ -252,10 +335,27 @@ describe('Error Overlay invalid imports', () => {
     await session.waitForRedbox()
     if (process.env.IS_TURBOPACK_TEST) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "./node_modules/server-only-package
-        Invalid import
-        'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.
-        The error was caused by importing 'node_modules/server-only-package'"
+       "./node_modules/server-only-package/index.js (1:1)
+       'server-only' cannot be imported from a Client Component module
+       > 1 | require("server-only")
+           | ^^^^^^^^^^^^^^^^^^^^^^
+
+       It should only be used from a Server Component.
+
+       Import traces:
+         Client Component Browser:
+           ./node_modules/server-only-package/index.js [Client Component Browser]
+           ./app/comp2.js [Client Component Browser]
+           ./app/comp1.js [Client Component Browser]
+           ./app/page.js [Client Component Browser]
+           ./app/page.js [Server Component]
+
+         Client Component SSR:
+           ./node_modules/server-only-package/index.js [Client Component SSR]
+           ./app/comp2.js [Client Component SSR]
+           ./app/comp1.js [Client Component SSR]
+           ./app/page.js [Client Component SSR]
+           ./app/page.js [Server Component]"
       `)
     } else if (process.env.NEXT_RSPACK) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`

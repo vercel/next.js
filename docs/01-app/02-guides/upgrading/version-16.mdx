@@ -59,8 +59,20 @@ Learn more in the documentation [here](/docs/app/guides/mcp).
 
 To update to Next.js version 16, you can use the `upgrade` [codemod](/docs/app/guides/upgrading/codemods#160):
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm dlx @next/codemod@canary upgrade latest
+```
+
+```bash package="npm"
 npx @next/codemod@canary upgrade latest
+```
+
+```bash package="yarn"
+yarn dlx @next/codemod@canary upgrade latest
+```
+
+```bash package="bun"
+bunx @next/codemod@canary upgrade latest
 ```
 
 The [codemod](/docs/app/guides/upgrading/codemods#160) is able to:
@@ -73,8 +85,20 @@ The [codemod](/docs/app/guides/upgrading/codemods#160) is able to:
 
 If you prefer to do it manually, install the latest Next.js and React versions:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm add next@latest react@latest react-dom@latest
+```
+
+```bash package="npm"
 npm install next@latest react@latest react-dom@latest
+```
+
+```bash package="yarn"
+yarn add next@latest react@latest react-dom@latest
+```
+
+```bash package="bun"
+bun add next@latest react@latest react-dom@latest
 ```
 
 If you are using TypeScript, ensure you also upgrade `@types/react` and `@types/react-dom` to their latest versions.
@@ -279,9 +303,9 @@ Starting with **Next.js 16**, synchronous access is fully removed. These APIs ca
 - `params` in [`layout.js`](/docs/app/api-reference/file-conventions/layout), [`page.js`](/docs/app/api-reference/file-conventions/page), [`route.js`](/docs/app/api-reference/file-conventions/route), [`default.js`](/docs/app/api-reference/file-conventions/default), [`opengraph-image`](/docs/app/api-reference/file-conventions/metadata/opengraph-image#opengraph-image), [`twitter-image`](/docs/app/api-reference/file-conventions/metadata/opengraph-image#twitter-image), [`icon`](/docs/app/api-reference/file-conventions/metadata/app-icons#icon), and [`apple-icon`](/docs/app/api-reference/file-conventions/metadata/app-icons#apple-icon).
 - `searchParams` in [`page.js`](/docs/app/api-reference/file-conventions/page)
 
-Use the [codemod](/docs/app/guides/upgrading/codemods#migrate-to-async-dynamic-apis) to migrate to async Dynamic APIs.
+Use the [codemod](/docs/app/guides/upgrading/codemods#migrate-to-async-dynamic-apis) to migrate to async Request-time APIs.
 
-### Migrating types for async Dynamic APIs
+### Migrating types for async Request-time APIs
 
 To help migrate to async `params` and `searchParams`, you can run [`npx next typegen`](/docs/app/api-reference/cli/next#next-typegen-options) to automatically generate these globally available types helpers:
 
@@ -408,8 +432,20 @@ module.exports = nextConfig
 
 Install the latest version of the React Compiler plugin:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm add -D babel-plugin-react-compiler
+```
+
+```bash package="npm"
 npm install -D babel-plugin-react-compiler
+```
+
+```bash package="yarn"
+yarn add -D babel-plugin-react-compiler
+```
+
+```bash package="bun"
+bun add -D babel-plugin-react-compiler
 ```
 
 > **Good to know:** Expect compile times in development and during builds to be higher when enabling this option as the React Compiler relies on Babel.
@@ -418,7 +454,17 @@ npm install -D babel-plugin-react-compiler
 
 ### revalidateTag
 
-[`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) has a new function signature. You can pass a [`cacheLife`](/docs/app/api-reference/functions/cacheLife#reference) profile as the second argument.
+[`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) now requires a second argument specifying a [`cacheLife`](/docs/app/api-reference/functions/cacheLife#reference) profile. The single-argument form is deprecated and will produce a TypeScript error.
+
+```ts
+// Before
+revalidateTag('posts')
+
+// After
+revalidateTag('posts', 'max')
+```
+
+If you need immediate expiration rather than stale-while-revalidate, use [`updateTag`](/docs/app/api-reference/functions/updateTag) in Server Actions instead.
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -446,7 +492,7 @@ Use `revalidateTag` for content where a slight delay in updates is acceptable, s
 
 ### updateTag
 
-[`updateTag`](/docs/app/api-reference/functions/updateTag) is a new [Server Actions](/docs/app/getting-started/updating-data#what-are-server-functions)-only API that provides **read-your-writes** semantics, where a user makes a change and the UI immediately shows the change, rather than stale data.
+[`updateTag`](/docs/app/api-reference/functions/updateTag) is a new [Server Actions](/docs/app/getting-started/mutating-data#what-are-server-functions)-only API that provides **read-your-writes** semantics, where a user makes a change and the UI immediately shows the change, rather than stale data.
 
 It does this by expiring and immediately refreshing data within the same request.
 
@@ -546,9 +592,9 @@ However, you may see more individual prefetch requests with much lower total tra
 
 If the increased request count causes issues, please let us know by creating an [issue](https://github.com/vercel/next.js/issues) or [discussion](https://github.com/vercel/next.js/discussions) item.
 
-## Partial Pre-Rendering (PPR)
+## Partial Prerendering (PPR)
 
-**Next.js 16** removes the experimental **Partial Pre-Rendering (PPR)** flag and configuration options, including the route level segment `experimental_ppr`.
+**Next.js 16** removes the experimental **Partial Prerendering (PPR)** flag and configuration options, including the route level segment `experimental_ppr`.
 
 Starting with **Next.js 16**, you can opt into PPR using the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) configuration.
 
@@ -561,7 +607,7 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-PPR in **Next.js 16** works differently than in **Next.js 15** canaries. If you are using PPR today, stay in the current Next.js 15 canary you are using. We will follow up with a guide to migrate to Cache Components.
+PPR in **Next.js 16** works differently than in **Next.js 15** canaries. If you are using PPR today, stay in the current Next.js 15 canary you are using. See [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components) for migration patterns.
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
@@ -797,6 +843,8 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
+This might be necessary when hosting Next.js in a VPC with split-horizon DNS and you receive status 400 Bad Request. Only enable once you understand the SSRF risk.
+
 ### Maximum Redirects (Breaking change)
 
 The default for `images.maximumRedirects` has changed from unlimited to 3 redirects maximum.
@@ -875,10 +923,22 @@ module.exports = {
 
 Additionally, a lockfile mechanism prevents multiple `next dev` or `next build` instances on the same project.
 
-Since the development server outputs to `.next/dev`, the [Turbopack tracing command](/docs/app/guides/local-development#turbopack-tracing) should be:
+The [Turbopack tracing command](/docs/app/guides/local-development#turbopack-tracing) should be:
 
-```bash
-npx next internal trace .next/dev/trace-turbopack
+```bash package="pnpm"
+pnpm next internal trace .next-profiles/trace-turbopack
+```
+
+```bash package="npm"
+npx next internal trace .next-profiles/trace-turbopack
+```
+
+```bash package="yarn"
+yarn next internal trace .next-profiles/trace-turbopack
+```
+
+```bash package="bun"
+bunx next internal trace .next-profiles/trace-turbopack
 ```
 
 ## Parallel Routes `default.js` requirement
@@ -992,7 +1052,7 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-Share your feedback in the [RFC discussion](https://github.com/vercel/next.js/discussions/77740).
+`adapterPath` was promoted to a stable, top-level option in 16.2.0. See [`adapterPath`](/docs/app/api-reference/config/next-config-js/adapterPath) for the current API reference.
 
 ## Modern Sass API
 
@@ -1038,8 +1098,20 @@ The `next lint` command has been removed. Use Biome or ESLint directly. `next bu
 
 A codemod is available to automate migration:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm dlx @next/codemod@canary next-lint-to-eslint-cli .
+```
+
+```bash package="npm"
 npx @next/codemod@canary next-lint-to-eslint-cli .
+```
+
+```bash package="yarn"
+yarn dlx @next/codemod@canary next-lint-to-eslint-cli .
+```
+
+```bash package="bun"
+bunx @next/codemod@canary next-lint-to-eslint-cli .
 ```
 
 The `eslint` option in the Next.js config file is also removed.
@@ -1138,14 +1210,21 @@ The following options have been removed from [`devIndicators`](/docs/app/api-ref
 
 The indicator itself remains available.
 
-### `experimental.dynamicIO`
+### `experimental.dynamicIO` and `experimental.useCache`
 
-The `experimental.dynamicIO` flag has been renamed to `cacheComponents`:
-
-Update your Next config file, by removing the `dynamicIO` flag.
+The `experimental.dynamicIO` and `experimental.useCache` flags are deprecated. Use top-level [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) instead.
 
 ```js filename="next.config.js"
-// Next.js 15 - experimental.dynamicIO is now removed
+// Before: experimental.useCache
+module.exports = {
+  experimental: {
+    useCache: true,
+  },
+}
+```
+
+```js filename="next.config.js"
+// Before: experimental.dynamicIO
 module.exports = {
   experimental: {
     dynamicIO: true,
@@ -1153,14 +1232,25 @@ module.exports = {
 }
 ```
 
-Add the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) flag set to true.
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
 
-```js filename="next.config.js"
-// Next.js 16 - use cacheComponents instead
+// After
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+// After
 module.exports = {
   cacheComponents: true,
 }
 ```
+
+For more on Cache Components, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
 
 ### `unstable_rootParams`
 

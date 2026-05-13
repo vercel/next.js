@@ -39,17 +39,16 @@ impl BaseSegment {
     }
 }
 
-/// This struct allows to cell a list of RouteTrees and merge them into one.
+/// This struct allows to cell a list of [`RouteTree`]s and merge them into one.
 ///
-/// This can't be a single method `fn merge(Vec<Vc<RouteTree>>)` as this would
-/// lead to creating new tasks over and over. A celled list leads to task reuse
-/// and faster operation.
+/// This can't be a single method `fn merge(Vec<Vc<RouteTree>>)` as this would lead to creating new
+/// tasks over and over. A celled list leads to task reuse and faster operation.
 #[turbo_tasks::value(transparent)]
 pub struct RouteTrees(Vec<ResolvedVc<RouteTree>>);
 
 #[turbo_tasks::value_impl]
 impl RouteTrees {
-    /// Merges the list of RouteTrees into one RouteTree.
+    /// Merges the list of [`RouteTree`]s into one [`RouteTree`].
     #[turbo_tasks::function]
     pub async fn merge(&self) -> Result<Vc<RouteTree>> {
         let trees = &self.0;

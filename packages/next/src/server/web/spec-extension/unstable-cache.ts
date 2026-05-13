@@ -148,6 +148,7 @@ export function unstable_cache<T extends Callback>(
           workUnitStore &&
           workStore &&
           getDraftModeProviderForCacheScope(workStore, workUnitStore),
+        rootParams: undefined,
       }
 
       if (workStore) {
@@ -195,7 +196,9 @@ export function unstable_cache<T extends Callback>(
               isNestedUnstableCache = true
               break
             case 'prerender-client':
+            case 'validation-client':
             case 'request':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -285,8 +288,12 @@ export function unstable_cache<T extends Callback>(
                 // Check if we need to do foreground revalidation
                 if (workStore.isStaticGeneration) {
                   // When the page is revalidating and the cache entry is stale,
-                  // we need to wait for fresh data (blocking revalidate)
-                  return workStore.pendingRevalidates[invocationKey]
+                  // we need to wait for fresh data (blocking revalidate). The
+                  // `await` here keeps `cacheSignal.endRead` (in the outer
+                  // `finally`) suspended until the recompute + cacheNewResult
+                  // actually complete, so the prospective prerender's
+                  // `cacheSignal` doesn't resolve `cacheReady` prematurely.
+                  return await workStore.pendingRevalidates[invocationKey]
                 }
                 // Otherwise, we're doing background revalidation - return stale immediately
               }
@@ -409,12 +416,14 @@ function getFetchUrlPrefix(
       return `${pathname}${sortedSearch.length ? '?' : ''}${sortedSearch}`
     case 'prerender':
     case 'prerender-client':
+    case 'validation-client':
     case 'prerender-runtime':
     case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
+    case 'generate-static-params':
       return workStore.route
     default:
       return workUnitStore satisfies never

@@ -1,22 +1,15 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { check } from 'next-test-utils'
 
 describe('browser-shallow-navigation', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'app/pages')),
-        'middleware.js': new FileRef(join(__dirname, 'app/middleware.js')),
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'app/pages')),
+      'middleware.js': new FileRef(join(__dirname, 'app/middleware.js')),
+    },
   })
-
-  afterAll(() => next.destroy())
 
   it('should render the correct page', async () => {
     const browser = await webdriver(next.url, '/')

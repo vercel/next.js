@@ -402,6 +402,10 @@ class NextCustomServer implements NextWrapperServer {
   }
 
   async prepare() {
+    if (this.options.dev) {
+      process.env.__NEXT_DEV_SERVER = '1'
+    }
+
     const { getRequestHandlers } =
       require('./lib/start-server') as typeof import('./lib/start-server')
 

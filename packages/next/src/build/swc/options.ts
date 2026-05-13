@@ -60,6 +60,7 @@ function getBaseSWCOptions({
   hasReactRefresh,
   globalWindow,
   esm,
+  configDir,
   modularizeImports,
   swcPlugins,
   compilerOptions,
@@ -75,6 +76,7 @@ function getBaseSWCOptions({
   useCacheEnabled,
   taintEnabled,
   trackDynamicImports,
+  pageExtensions,
 }: {
   filename: string
   jest?: boolean
@@ -82,6 +84,7 @@ function getBaseSWCOptions({
   hasReactRefresh: boolean
   globalWindow: boolean
   esm: boolean
+  configDir?: string
   modularizeImports?: NextConfig['modularizeImports']
   compilerOptions: NextConfig['compiler']
   swcPlugins: ExperimentalConfig['swcPlugins']
@@ -97,6 +100,7 @@ function getBaseSWCOptions({
   useCacheEnabled?: boolean
   taintEnabled?: boolean
   trackDynamicImports?: boolean
+  pageExtensions?: string[]
 }) {
   const isReactServerLayer = shouldUseReactServerCondition(bundleLayer)
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
@@ -113,7 +117,10 @@ function getBaseSWCOptions({
   )
   const plugins = (swcPlugins ?? [])
     .filter(Array.isArray)
-    .map(([name, options]: any) => [require.resolve(name), options])
+    .map(([name, options]: any) => [
+      require.resolve(name, configDir ? { paths: [configDir] } : undefined),
+      options,
+    ])
 
   return {
     jsc: {
@@ -159,7 +166,7 @@ function getBaseSWCOptions({
         optimizer: {
           simplify: false,
           globals: jest
-            ? null
+            ? undefined
             : {
                 typeofs: {
                   window: globalWindow ? 'object' : 'undefined',
@@ -220,6 +227,7 @@ function getBaseSWCOptions({
             cacheComponentsEnabled: isCacheComponents,
             useCacheEnabled,
             taintEnabled,
+            pageExtensions: pageExtensions || [],
           }
         : undefined,
     serverActions:
@@ -308,16 +316,19 @@ export function getJestSWCOptions({
   filename,
   esm,
   modularizeImports,
+  configDir,
   swcPlugins,
   compilerOptions,
   jsConfig,
   resolvedBaseUrl,
   pagesDir,
+  imageConfig,
   serverReferenceHashSalt,
 }: {
   isServer: boolean
   filename: string
   esm: boolean
+  configDir?: string
   modularizeImports?: NextConfig['modularizeImports']
   swcPlugins: ExperimentalConfig['swcPlugins']
   compilerOptions: NextConfig['compiler']
@@ -325,6 +336,7 @@ export function getJestSWCOptions({
   resolvedBaseUrl?: ResolvedBaseUrl
   pagesDir?: string
   serverComponents?: boolean
+  imageConfig?: Partial<NextConfig['images']>
   serverReferenceHashSalt: string
 }) {
   let baseOptions = getBaseSWCOptions({
@@ -332,6 +344,7 @@ export function getJestSWCOptions({
     jest: true,
     development: false,
     hasReactRefresh: false,
+    configDir,
     globalWindow: !isServer,
     modularizeImports,
     swcPlugins,
@@ -346,6 +359,19 @@ export function getJestSWCOptions({
     serverComponents: false,
     serverReferenceHashSalt,
   })
+
+  // In production, webpack DefinePlugin replaces process.env.__NEXT_IMAGE_OPTS
+  // with an object literal at compile time. Emulate that here by enabling
+  // SWC's optimizer globals.envs so the same compile-time replacement happens
+  // during Jest transforms.
+  if (imageConfig) {
+    baseOptions.jsc.transform.optimizer.globals = {
+      envs: {
+        ...baseOptions.jsc.transform.optimizer.globals?.envs,
+        __NEXT_IMAGE_OPTS: JSON.stringify(imageConfig),
+      },
+    } as any
+  }
 
   const useCjsModules = shouldOutputCommonJs(filename)
   return {
@@ -375,10 +401,13 @@ export function getLoaderSWCOptions({
   isPageFile,
   isCacheComponents,
   hasReactRefresh,
+  // The folder containing the next.config.js, used for resolving relative config paths.
+  configDir,
   modularizeImports,
   optimizeServerReact,
   optimizePackageImports,
   swcPlugins,
+  swcEnvOptions,
   compilerOptions,
   jsConfig,
   supportedBrowsers,
@@ -392,6 +421,7 @@ export function getLoaderSWCOptions({
   useCacheEnabled,
   taintEnabled,
   trackDynamicImports,
+  pageExtensions,
 }: {
   filename: string
   development: boolean
@@ -400,6 +430,7 @@ export function getLoaderSWCOptions({
   appDir?: string
   isPageFile: boolean
   hasReactRefresh: boolean
+  configDir: string
   optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
   isCacheComponents?: boolean
@@ -407,6 +438,7 @@ export function getLoaderSWCOptions({
     NextConfig['experimental']
   >['optimizePackageImports']
   swcPlugins: ExperimentalConfig['swcPlugins']
+  swcEnvOptions?: ExperimentalConfig['swcEnvOptions']
   compilerOptions: NextConfig['compiler']
   jsConfig: any
   supportedBrowsers: string[] | undefined
@@ -420,12 +452,14 @@ export function getLoaderSWCOptions({
   useCacheEnabled?: boolean
   taintEnabled?: boolean
   trackDynamicImports?: boolean
+  pageExtensions?: string[]
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
     development,
     globalWindow: !isServer,
     hasReactRefresh,
+    configDir,
     modularizeImports,
     swcPlugins,
     compilerOptions,
@@ -442,6 +476,7 @@ export function getLoaderSWCOptions({
     useCacheEnabled,
     taintEnabled,
     trackDynamicImports,
+    pageExtensions,
   })
   baseOptions.fontLoaders = {
     fontLoaders: ['next/font/local', 'next/font/google'],
@@ -518,6 +553,7 @@ export function getLoaderSWCOptions({
         ? {
             env: {
               targets: supportedBrowsers,
+              ...swcEnvOptions,
             },
           }
         : {}),

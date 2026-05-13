@@ -58,9 +58,7 @@
             Module(
                 ModuleValue {
                     module: "node:module",
-                    annotations: ImportAnnotations {
-                        map: {},
-                    },
+                    annotations: None,
                 },
             ),
             Constant(

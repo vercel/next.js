@@ -54,7 +54,7 @@ describe('Internal Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/posts')
+    expect(result.resolvedPathname).toBe('/posts')
     expect(result.externalRewrite).toBeUndefined()
   })
 
@@ -79,7 +79,7 @@ describe('Internal Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/api/search')
+    expect(result.resolvedPathname).toBe('/api/search')
   })
 
   it('should preserve original query params during internal rewrite', async () => {
@@ -103,7 +103,7 @@ describe('Internal Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/internal/page')
+    expect(result.resolvedPathname).toBe('/internal/page')
   })
 
   it('should handle regex captures in internal rewrite', async () => {
@@ -127,7 +127,7 @@ describe('Internal Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/profile/john')
+    expect(result.resolvedPathname).toBe('/profile/john')
   })
 
   it('should handle named captures in internal rewrite', async () => {
@@ -151,7 +151,7 @@ describe('Internal Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/api/product')
+    expect(result.resolvedPathname).toBe('/api/product')
   })
 })
 
@@ -178,7 +178,7 @@ describe('External Rewrites', () => {
 
     expect(result.externalRewrite).toBeDefined()
     expect(result.externalRewrite?.toString()).toBe('http://external.com/api')
-    expect(result.matchedPathname).toBeUndefined()
+    expect(result.resolvedPathname).toBeUndefined()
   })
 
   it('should handle external rewrite with https', async () => {
@@ -381,7 +381,7 @@ describe('Chained Internal Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/d')
+    expect(result.resolvedPathname).toBe('/d')
   })
 
   it('should chain rewrites across different phases', async () => {
@@ -415,7 +415,7 @@ describe('Chained Internal Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/final')
+    expect(result.resolvedPathname).toBe('/final')
   })
 
   it('should complete chaining then check pathname match', async () => {
@@ -444,7 +444,7 @@ describe('Chained Internal Rewrites', () => {
     const result = await resolveRoutes(params)
 
     // Should chain through all routes, then match pathname
-    expect(result.matchedPathname).toBe('/path3')
+    expect(result.resolvedPathname).toBe('/path3')
   })
 
   it('should chain with regex captures preserved', async () => {
@@ -472,7 +472,7 @@ describe('Chained Internal Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/api/user-content')
+    expect(result.resolvedPathname).toBe('/api/user-content')
   })
 
   it('should stop chaining on external rewrite', async () => {
@@ -504,7 +504,7 @@ describe('Chained Internal Rewrites', () => {
     const result = await resolveRoutes(params)
 
     expect(result.externalRewrite?.toString()).toBe('https://external.com/api')
-    expect(result.matchedPathname).toBeUndefined()
+    expect(result.resolvedPathname).toBeUndefined()
   })
 
   it('should stop chaining on redirect', async () => {
@@ -542,7 +542,7 @@ describe('Chained Internal Rewrites', () => {
     expect(result.redirect).toBeDefined()
     expect(result.redirect?.status).toBe(301)
     expect(result.redirect?.url.pathname).toBe('/final-destination')
-    expect(result.matchedPathname).toBeUndefined()
+    expect(result.resolvedPathname).toBeUndefined()
   })
 
   it('should handle complex chaining scenario', async () => {
@@ -571,6 +571,6 @@ describe('Chained Internal Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/api/posts')
+    expect(result.resolvedPathname).toBe('/api/posts')
   })
 })

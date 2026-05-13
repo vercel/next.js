@@ -6,19 +6,20 @@ use napi::{JsFunction, bindgen_prelude::External};
 use napi_derive::napi;
 use next_api::{
     operation::OptionEndpoint,
-    paths::ServerPath,
+    paths::AssetPath,
     route::{
-        EndpointOutputPaths, endpoint_client_changed_operation, endpoint_server_changed_operation,
-        endpoint_write_to_disk_operation,
+        Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
+        endpoint_server_changed_operation, endpoint_write_to_disk_operation,
     },
 };
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
-use turbopack_core::{diagnostics::PlainDiagnostic, issue::PlainIssue};
+use turbopack_core::issue::{IssueFilter, PlainIssue};
 
 use crate::next_api::utils::{
-    DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
-    strongly_consistent_catch_collectables, subscribe,
+    DetachedVc, NapiIssue, RootTask, TurbopackResult, strongly_consistent_catch_collectables,
+    subscribe,
 };
 
 #[napi(object)]
@@ -27,16 +28,16 @@ pub struct NapiEndpointConfig {}
 
 #[napi(object)]
 #[derive(Default)]
-pub struct NapiServerPath {
-    pub path: String,
-    pub content_hash: String,
+pub struct NapiAssetPath {
+    pub path: RcStr,
+    pub content_hash: RcStr,
 }
 
-impl From<ServerPath> for NapiServerPath {
-    fn from(server_path: ServerPath) -> Self {
+impl From<AssetPath> for NapiAssetPath {
+    fn from(asset_path: AssetPath) -> Self {
         Self {
-            path: server_path.path.into_owned(),
-            content_hash: format!("{:x}", server_path.content_hash),
+            path: asset_path.path,
+            content_hash: asset_path.content_hash,
         }
     }
 }
@@ -47,7 +48,7 @@ pub struct NapiWrittenEndpoint {
     pub r#type: String,
     pub entry_path: Option<String>,
     pub client_paths: Vec<String>,
-    pub server_paths: Vec<NapiServerPath>,
+    pub server_paths: Vec<NapiAssetPath>,
     pub config: NapiEndpointConfig,
 }
 
@@ -98,25 +99,37 @@ impl Deref for ExternalEndpoint {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+/// Build an `IssueFilter` by reading the project from the endpoint's
+/// `OperationVc<OptionEndpoint>` and extracting ignore rules from its config.
+async fn issue_filter_from_endpoint(
+    endpoint_op: OperationVc<OptionEndpoint>,
+) -> Result<Vc<IssueFilter>> {
+    let endpoint_option = endpoint_op.connect().await?;
+    if let Some(ep) = &*endpoint_option {
+        Ok(ep.project().issue_filter())
+    } else {
+        Ok(IssueFilter::warnings_and_foreign_errors().cell())
+    }
+}
+
+#[turbo_tasks::value(serialization = "skip")]
 struct WrittenEndpointWithIssues {
     written: Option<ReadRef<EndpointOutputPaths>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
-    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_written_endpoint_with_issues_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
     let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
-    let (written, issues, diagnostics, effects) =
-        strongly_consistent_catch_collectables(write_to_disk_op).await?;
+    let filter = issue_filter_from_endpoint(endpoint_op).await?;
+    let (written, issues, effects) =
+        strongly_consistent_catch_collectables(write_to_disk_op, filter).await?;
     Ok(WrittenEndpointWithIssues {
         written,
         issues,
-        diagnostics,
         effects,
     }
     .cell())
@@ -129,7 +142,7 @@ pub async fn endpoint_write_to_disk(
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
     let ctx = endpoint.turbopack_ctx();
     let endpoint_op = ***endpoint;
-    let (written, issues, diags) = endpoint
+    let (written, issues) = endpoint
         .turbopack_ctx()
         .turbo_tasks()
         .run(async move {
@@ -138,21 +151,19 @@ pub async fn endpoint_write_to_disk(
             let WrittenEndpointWithIssues {
                 written,
                 issues,
-                diagnostics,
                 effects,
             } = &*written_entrypoint_with_issues_op
                 .read_strongly_consistent()
                 .await?;
             effects.apply().await?;
 
-            Ok((written.clone(), issues.clone(), diagnostics.clone()))
+            Ok((written.clone(), issues.clone()))
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;
     Ok(TurbopackResult {
         result: NapiWrittenEndpoint::from(written.map(ReadRef::into_owned)),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-        diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
     })
 }
 
@@ -181,27 +192,21 @@ pub fn endpoint_server_changed_subscribe(
             let EndpointIssuesAndDiags {
                 changed: _,
                 issues,
-                diagnostics,
                 effects: _,
             } = &*ctx.value;
 
             Ok(vec![TurbopackResult {
                 result: (),
                 issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-                diagnostics: diagnostics
-                    .iter()
-                    .map(|d| NapiDiagnostic::from(d))
-                    .collect(),
             }])
         },
     )
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "skip", eq = "manual")]
 struct EndpointIssuesAndDiags {
     changed: Option<ReadRef<Completion>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
-    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
@@ -212,13 +217,12 @@ impl PartialEq for EndpointIssuesAndDiags {
             (None, None) => true,
             (None, Some(_)) | (Some(_), None) => false,
         }) && self.issues == other.issues
-            && self.diagnostics == other.diagnostics
     }
 }
 
 impl Eq for EndpointIssuesAndDiags {}
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn subscribe_issues_and_diags_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
     should_include_issues: bool,
@@ -226,12 +230,12 @@ async fn subscribe_issues_and_diags_operation(
     let changed_op = endpoint_server_changed_operation(endpoint_op);
 
     if should_include_issues {
-        let (changed_value, issues, diagnostics, effects) =
-            strongly_consistent_catch_collectables(changed_op).await?;
+        let filter = issue_filter_from_endpoint(endpoint_op).await?;
+        let (changed_value, issues, effects) =
+            strongly_consistent_catch_collectables(changed_op, filter).await?;
         Ok(EndpointIssuesAndDiags {
             changed: changed_value,
             issues,
-            diagnostics,
             effects,
         }
         .cell())
@@ -240,7 +244,6 @@ async fn subscribe_issues_and_diags_operation(
         Ok(EndpointIssuesAndDiags {
             changed: Some(changed_value),
             issues: Arc::new(vec![]),
-            diagnostics: Arc::new(vec![]),
             effects: Arc::new(Effects::default()),
         }
         .cell())
@@ -276,7 +279,6 @@ pub fn endpoint_client_changed_subscribe(
             Ok(vec![TurbopackResult {
                 result: (),
                 issues: vec![],
-                diagnostics: vec![],
             }])
         },
     )
