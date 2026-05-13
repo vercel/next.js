@@ -5,7 +5,7 @@ mod operation;
 mod snapshot_coordinator;
 mod storage;
 pub mod storage_schema;
-mod task_storage_box;
+pub(crate) mod task_storage_box;
 
 use std::{
     borrow::Cow,
@@ -3773,7 +3773,7 @@ fn encode_task_data(
     data.encode(category, &mut encoder)?;
 
     if cfg!(feature = "verify_serialization") {
-        TaskStorage::new()
+        crate::backend::task_storage_box::TaskStorageBox::new()
             .decode(
                 category,
                 &mut new_turbo_bincode_decoder(&scratch_buffer[..]),

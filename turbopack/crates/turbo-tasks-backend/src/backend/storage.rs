@@ -697,8 +697,7 @@ impl StorageWriteGuard<'_> {
                 if !flags.any_modified_during_snapshot() {
                     // Snapshot all non-transient fields, carrying the modified bits into
                     // the copy so the iterator knows which categories to persist.
-                    let mut snapshot =
-                        TaskStorageBox::from_boxed(Box::new(self.inner.clone_snapshot()));
+                    let mut snapshot = self.inner.clone_snapshot();
                     snapshot.flags.set_data_modified(flags.data_modified());
                     snapshot.flags.set_meta_modified(flags.meta_modified());
                     snapshot.flags.set_new_task(flags.new_task());

@@ -29,7 +29,7 @@ use crate::{
         EventDescription, TaskDataCategory, TurboTasksBackend, TurboTasksBackendInner,
         snapshot_coordinator::OperationGuard,
         storage::{SpecificTaskDataCategory, StorageWriteGuard},
-        storage_schema::{TaskStorage, TaskStorageAccessors},
+        storage_schema::TaskStorageAccessors,
     },
     backing_storage::BackingStorage,
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
@@ -190,12 +190,12 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         &self,
         task_id: TaskId,
         category: SpecificTaskDataCategory,
-    ) -> Result<TaskStorage> {
+    ) -> Result<crate::backend::task_storage_box::TaskStorageBox> {
         debug_assert!(
             self.backend.should_restore(),
             "restore_task_data called when should_restore() is false"
         );
-        let mut storage = TaskStorage::default();
+        let mut storage = crate::backend::task_storage_box::TaskStorageBox::new();
         self.backend
             .backing_storage
             .lookup_data(task_id, category, &mut storage)
@@ -207,7 +207,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
         &self,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
-    ) -> Result<Vec<TaskStorage>> {
+    ) -> Result<Vec<crate::backend::task_storage_box::TaskStorageBox>> {
         debug_assert!(task_ids.len() > 1, "Use restore_task_data for single task");
         debug_assert!(
             self.backend.should_restore(),
@@ -599,9 +599,9 @@ struct TaskRestoreEntry {
     task_id: TaskId,
     category: TaskDataCategory,
     /// Result of restoring the data category (set in Phase 1b, consumed in Phase 1c).
-    data_restore_result: Option<Result<TaskStorage>>,
+    data_restore_result: Option<Result<crate::backend::task_storage_box::TaskStorageBox>>,
     /// Result of restoring the meta category (set in Phase 1b, consumed in Phase 1c).
-    meta_restore_result: Option<Result<TaskStorage>>,
+    meta_restore_result: Option<Result<crate::backend::task_storage_box::TaskStorageBox>>,
     /// Another thread claimed the data restore; we must wait in Phase 3.
     wait_data: bool,
     /// Another thread claimed the meta restore; we must wait in Phase 3.
@@ -630,7 +630,7 @@ fn wait_category(wait_data: bool, wait_meta: bool) -> Option<TaskDataCategory> {
 /// notify waiters, and panic.
 fn apply_restore_result(
     task: &mut StorageWriteGuard<'_>,
-    result: Result<TaskStorage>,
+    result: Result<crate::backend::task_storage_box::TaskStorageBox>,
     category: SpecificTaskDataCategory,
 ) -> Result<()> {
     let task_category = TaskDataCategory::from(category);

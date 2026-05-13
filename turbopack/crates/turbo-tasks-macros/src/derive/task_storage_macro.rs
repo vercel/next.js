@@ -3798,9 +3798,11 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
     quote! {
         #[automatically_derived]
         impl TaskStorage {
-            /// Create a snapshot containing all persistent fields
-            pub fn clone_snapshot(&self) -> TaskStorage {
-                let mut snapshot = TaskStorage::new();
+            /// Create a snapshot containing all persistent fields. Returns a
+            /// `TaskStorageBox` (the owning thin pointer); the snapshot is
+            /// independent of `self`.
+            pub fn clone_snapshot(&self) -> crate::backend::task_storage_box::TaskStorageBox {
+                let mut snapshot = crate::backend::task_storage_box::TaskStorageBox::new();
 
                 // Clone inline meta fields
                 #(#clone_meta_inline)*
@@ -3819,7 +3821,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 snapshot
             }
 
-            /// Restore persisted data from a decoded TaskStorage.
+            /// Restore persisted data from a decoded `TaskStorageBox`.
             ///
             /// This is used during restore operations to copy decoded persisted data
             /// into the task's existing storage. It preserves transient state (flags,
@@ -3837,7 +3839,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
             /// - `Data`: Restore data fields (output_dependent, dependencies, cell_data, etc.)
             pub fn restore_from(
                 &mut self,
-                source: TaskStorage,
+                source: crate::backend::task_storage_box::TaskStorageBox,
                 category: crate::backend::SpecificTaskDataCategory,
             ) {
                 match category {
@@ -3850,7 +3852,10 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
             ///
             /// `self` may contain transient residue left behind by `drop_partial`;
             /// `filter_transient` fields are merged rather than overwritten.
-            fn restore_meta_from(&mut self, mut source: TaskStorage) {
+            pub fn restore_meta_from(
+                &mut self,
+                mut source: crate::backend::task_storage_box::TaskStorageBox,
+            ) {
                 // Per-variant restore for each persistent meta lazy field.
                 // Must run before the inline-field assignments below, because
                 // those moves leave `source` partially moved and we wouldn't be
@@ -3868,7 +3873,10 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
             ///
             /// `self` may contain transient residue left behind by `drop_partial`;
             /// `filter_transient` fields are merged rather than overwritten.
-            fn restore_data_from(&mut self, mut source: TaskStorage) {
+            pub fn restore_data_from(
+                &mut self,
+                mut source: crate::backend::task_storage_box::TaskStorageBox,
+            ) {
                 // Per-variant restore for each persistent data lazy field
                 // (see restore_meta_from for the ordering rationale).
                 #(#restore_data_lazy_blocks)*

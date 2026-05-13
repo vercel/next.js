@@ -31,6 +31,10 @@ use turbo_tasks::{
     task_storage,
 };
 
+// Only used by the `tests` module below; bring it in there to avoid a
+// `cfg(test)`-only `use` at the file level.
+#[cfg(test)]
+use crate::backend::task_storage_box::TaskStorageBox;
 use crate::{
     backend::{cell_data::CellData, counter_map::CounterMap, lazy_tail::LazyTail},
     data::{
@@ -944,7 +948,7 @@ mod tests {
 
     #[test]
     fn test_accessors() {
-        let mut storage = TaskStorage::new();
+        let mut storage = TaskStorageBox::new();
 
         // Inline direct fields (Option-wrapped)
         assert_eq!(storage.get_output(), None);
@@ -1005,7 +1009,7 @@ mod tests {
 
     #[test]
     fn test_flag_fields() {
-        let mut storage = TaskStorage::new();
+        let mut storage = TaskStorageBox::new();
 
         // Test that flags are default false
         assert!(!storage.flags.invalidator());
@@ -1037,7 +1041,7 @@ mod tests {
         assert_eq!(TaskFlags::PERSISTED_MASK, 0b111); // 3 persisted flags
 
         // Test set_persisted_bits preserves transient flags
-        let mut storage2 = TaskStorage::new();
+        let mut storage2 = TaskStorageBox::new();
         storage2.flags.set_current_session_clean(true); // Set transient flag
         storage2.flags.set_persisted_bits(0b100); // Set immutable only
         assert!(storage2.flags.immutable());
@@ -1049,7 +1053,7 @@ mod tests {
     #[test]
     fn test_internal_state_flags() {
         // Test the new internal state flags (formerly InnerStorageState)
-        let mut storage = TaskStorage::new();
+        let mut storage = TaskStorageBox::new();
 
         // All internal state flags should be default false
         assert!(!storage.flags.meta_restored());
@@ -1114,7 +1118,7 @@ mod tests {
 
     #[test]
     fn test_encode_decode_meta_roundtrip() {
-        let mut original = TaskStorage::new();
+        let mut original = TaskStorageBox::new();
 
         // Set inline meta fields via accessor methods
         original.set_aggregation_number(AggregationNumber {
@@ -1149,7 +1153,7 @@ mod tests {
         }
 
         // Decode into new storage
-        let mut decoded = TaskStorage::new();
+        let mut decoded = TaskStorageBox::new();
         // Set transient flag before decode to verify it's preserved
         decoded.flags.set_current_session_clean(true);
 
@@ -1209,7 +1213,7 @@ mod tests {
 
     #[test]
     fn test_encode_decode_data_roundtrip() {
-        let mut original = TaskStorage::new();
+        let mut original = TaskStorageBox::new();
 
         // Set inline data field via accessor methods
         original
@@ -1253,7 +1257,7 @@ mod tests {
         }
 
         // Decode into new storage
-        let mut decoded = TaskStorage::new();
+        let mut decoded = TaskStorageBox::new();
 
         {
             let mut decoder = new_decoder(&buffer);
@@ -1300,7 +1304,7 @@ mod tests {
     #[test]
     fn test_encode_decode_empty_storage() {
         // Test that empty storage can be encoded/decoded
-        let original = TaskStorage::new();
+        let original = TaskStorageBox::new();
 
         // Encode meta
         let mut meta_buffer = turbo_bincode::TurboBincodeBuffer::new();
@@ -1321,7 +1325,7 @@ mod tests {
         }
 
         // Decode meta
-        let mut decoded = TaskStorage::new();
+        let mut decoded = TaskStorageBox::new();
         {
             let mut decoder = new_decoder(&meta_buffer);
             decoded
@@ -1365,7 +1369,7 @@ mod tests {
     /// persistent portion back in without clobbering the residue.
     #[test]
     fn drop_partial_retains_transient_residue_data() {
-        let mut storage = TaskStorage::new();
+        let mut storage = TaskStorageBox::new();
 
         // Mix persistent and transient references in a filter_transient data field.
         storage.output_dependent_mut().insert(persistent_task(1));
@@ -1406,7 +1410,7 @@ mod tests {
 
         // Simulate a restore from disk: source has the persistent entries only
         // (transient ones would have been filtered during encode).
-        let mut source = TaskStorage::new();
+        let mut source = TaskStorageBox::new();
         source.output_dependent_mut().insert(persistent_task(1));
         source.output_dependent_mut().insert(persistent_task(2));
 
@@ -1424,7 +1428,7 @@ mod tests {
     /// restore.
     #[test]
     fn drop_partial_retains_transient_residue_meta() {
-        let mut storage = TaskStorage::new();
+        let mut storage = TaskStorageBox::new();
 
         storage.upper_mut().insert(persistent_task(1), 1);
         storage.upper_mut().insert(transient_task(2), 1);
@@ -1451,7 +1455,7 @@ mod tests {
         assert!(storage.flags.data_restored());
 
         // Restore persistent meta fields.
-        let mut source = TaskStorage::new();
+        let mut source = TaskStorageBox::new();
         source.upper_mut().insert(persistent_task(1), 1);
         source.children_mut().insert(persistent_task(100));
 
@@ -1470,7 +1474,7 @@ mod tests {
     /// field to default — this is the hot path we optimized for.
     #[test]
     fn drop_partial_resets_fields_without_transients() {
-        let mut storage = TaskStorage::new();
+        let mut storage = TaskStorageBox::new();
 
         storage.output_dependent_mut().insert(persistent_task(1));
         storage.output_dependent_mut().insert(persistent_task(2));
@@ -1495,7 +1499,7 @@ mod tests {
     /// had been dropped.
     #[test]
     fn drop_partial_clears_persisted_flags_so_is_empty() {
-        let mut storage = TaskStorage::new();
+        let mut storage = TaskStorageBox::new();
         storage.flags.set_data_restored(true);
         storage.flags.set_meta_restored(true);
         storage.flags.set_invalidator(true);
@@ -1522,7 +1526,7 @@ mod tests {
     /// transient at encode time).
     #[test]
     fn drop_partial_retains_transient_output() {
-        let mut storage = TaskStorage::new();
+        let mut storage = TaskStorageBox::new();
         storage.set_output(OutputValue::Output(transient_task(1)));
         storage.flags.set_data_restored(true);
         storage.flags.set_meta_restored(true);
@@ -1585,7 +1589,7 @@ mod tests {
 
         #[test]
         fn drop_partial_retains_non_recoverable_entries() {
-            let mut storage = TaskStorage::new();
+            let mut storage = TaskStorageBox::new();
             storage
                 .cell_data_mut()
                 .insert(keepable_cell(0), dummy_ref());
@@ -1608,7 +1612,7 @@ mod tests {
 
         #[test]
         fn drop_partial_removes_variant_when_all_recoverable() {
-            let mut storage = TaskStorage::new();
+            let mut storage = TaskStorageBox::new();
             storage
                 .cell_data_mut()
                 .insert(keepable_cell(0), dummy_ref());
@@ -1628,7 +1632,7 @@ mod tests {
 
         #[test]
         fn restore_merges_residue_with_incoming() {
-            let mut storage = TaskStorage::new();
+            let mut storage = TaskStorageBox::new();
             storage
                 .cell_data_mut()
                 .insert(keepable_cell(0), dummy_ref());
@@ -1644,7 +1648,7 @@ mod tests {
             assert_eq!(storage.cell_data().unwrap().len(), 1);
 
             // Simulate a restore: disk had only the persistable entry.
-            let mut source = TaskStorage::new();
+            let mut source = TaskStorageBox::new();
             source.cell_data_mut().insert(keepable_cell(0), dummy_ref());
 
             storage.restore_data_from(source);
@@ -1659,7 +1663,7 @@ mod tests {
 
         #[test]
         fn drop_partial_meta_does_not_touch_cell_data() {
-            let mut storage = TaskStorage::new();
+            let mut storage = TaskStorageBox::new();
             storage
                 .cell_data_mut()
                 .insert(keepable_cell(0), dummy_ref());

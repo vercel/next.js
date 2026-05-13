@@ -17,7 +17,7 @@ use turbo_tasks::{
 
 use crate::{
     GitVersionInfo,
-    backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage},
+    backend::{AnyOperation, SpecificTaskDataCategory},
     backing_storage::{
         BackingStorage, BackingStorageSealed, SnapshotItem, SnapshotMeta,
         compute_task_type_hash_from_components,
@@ -347,7 +347,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         &self,
         task_id: TaskId,
         category: SpecificTaskDataCategory,
-        storage: &mut TaskStorage,
+        storage: &mut crate::backend::task_storage_box::TaskStorageBox,
     ) -> Result<()> {
         let inner = &*self.inner;
         let Some(bytes) = inner
@@ -369,7 +369,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         &self,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
-    ) -> Result<Vec<TaskStorage>> {
+    ) -> Result<Vec<crate::backend::task_storage_box::TaskStorageBox>> {
         let inner = &*self.inner;
         let int_keys: Vec<_> = task_ids.iter().map(|&id| IntKey::new(*id)).collect();
         let keys = int_keys.iter().map(|k| k.as_ref()).collect::<Vec<_>>();
@@ -385,7 +385,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         bytes
             .into_iter()
             .map(|opt_bytes| {
-                let mut storage = TaskStorage::new();
+                let mut storage = crate::backend::task_storage_box::TaskStorageBox::new();
                 if let Some(bytes) = opt_bytes {
                     let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
                     storage
