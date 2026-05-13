@@ -12,6 +12,14 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: Verify SYNC_FORK_TOKEN is set
+        env:
+          SYNC_FORK_TOKEN: ${{ secrets.SYNC_FORK_TOKEN }}
+        run: |
+          if [ -z "$SYNC_FORK_TOKEN" ]; then
+            echo "::error::SYNC_FORK_TOKEN secret is missing. The default GITHUB_TOKEN cannot merge upstream commits that touch .github/workflows/ (needs the 'workflow' scope, which GITHUB_TOKEN cannot be granted). Set a PAT with repo+workflow scopes as the SYNC_FORK_TOKEN secret."
+            exit 1
+          fi
       - run: gh repo sync ${{ github.repository }} -b canary
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.SYNC_FORK_TOKEN }}
