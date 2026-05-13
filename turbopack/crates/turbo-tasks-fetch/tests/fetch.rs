@@ -14,7 +14,7 @@ use turbo_tasks_fetch::{
     FetchClientConfig, FetchErrorKind, FetchIssue,
 };
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
-use turbo_tasks_testing::{Registration, register, run_once};
+use turbo_tasks_testing::{Registration, TestInstance, register, run_once};
 use turbopack_core::issue::{Issue, IssueSeverity, StyledString};
 
 static REGISTRATION: Registration = register!();
@@ -299,7 +299,7 @@ async fn errors_on_404() {
     .unwrap()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn fetch_body(url: RcStr) -> Result<Vc<RcStr>> {
     let client_vc = FetchClientConfig {
         min_cache_control: Duration::ZERO,
@@ -333,7 +333,8 @@ async fn ttl_invalidates_within_session() {
         .create_async()
         .await;
 
-    let tt = REGISTRATION.create_turbo_tasks("ttl_invalidates_within_session", true);
+    let TestInstance { tt, .. } =
+        REGISTRATION.create_turbo_tasks("ttl_invalidates_within_session", true);
     let body = turbo_tasks::run_once(tt.clone(), {
         let url = url.clone();
         async move {
@@ -394,7 +395,8 @@ async fn ttl_invalidates_on_session_restore() {
         .await;
 
     // Session 1: fetch and cache
-    let tt = REGISTRATION.create_turbo_tasks("ttl_invalidates_on_session_restore", true);
+    let TestInstance { tt, .. } =
+        REGISTRATION.create_turbo_tasks("ttl_invalidates_on_session_restore", true);
     let body = turbo_tasks::run_once(tt.clone(), {
         let url = url.clone();
         async move {
@@ -425,7 +427,8 @@ async fn ttl_invalidates_on_session_restore() {
     // invalidates `fetch_inner` asynchronously, which triggers a second round of execution.
     // We need to read twice: the first read returns the stale cached value, then wait for the
     // timer-triggered re-execution to settle.
-    let tt = REGISTRATION.create_turbo_tasks("ttl_invalidates_on_session_restore", false);
+    let TestInstance { tt, .. } =
+        REGISTRATION.create_turbo_tasks("ttl_invalidates_on_session_restore", false);
     turbo_tasks::run_once(tt.clone(), {
         let url = url.clone();
         async move {
@@ -453,7 +456,7 @@ async fn ttl_invalidates_on_session_restore() {
     tt.stop_and_wait().await;
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn fetch_is_err(url: RcStr) -> Result<Vc<bool>> {
     let client_vc = FetchClientConfig::default().cell();
     let result = &*client_vc.fetch(url, None).await?;
@@ -482,7 +485,8 @@ async fn errors_retried_on_session_restore() {
         .create_async()
         .await;
 
-    let tt = REGISTRATION.create_turbo_tasks("errors_retried_on_session_restore", true);
+    let TestInstance { tt, .. } =
+        REGISTRATION.create_turbo_tasks("errors_retried_on_session_restore", true);
     let is_err = turbo_tasks::run_once(tt.clone(), {
         let url = url.clone();
         async move {
@@ -503,7 +507,8 @@ async fn errors_retried_on_session_restore() {
         .create_async()
         .await;
 
-    let tt = REGISTRATION.create_turbo_tasks("errors_retried_on_session_restore", false);
+    let TestInstance { tt, .. } =
+        REGISTRATION.create_turbo_tasks("errors_retried_on_session_restore", false);
     let is_err = turbo_tasks::run_once(tt.clone(), {
         let url = url.clone();
         async move {
