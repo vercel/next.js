@@ -529,7 +529,7 @@ impl TaskStorageInner {
         let key_evictability = if flags.new_task() {
             KeyEvictability::Unevictable
         } else {
-            match &self.head.persistent_task_type {
+            match &self.inline.persistent_task_type {
                 None => KeyEvictability::Unevictable,
                 // strong_count == 1: only this TaskStorageInner holds this Arc, so no task_cache
                 // entry references it. It must have been already evicted on a prior
@@ -753,7 +753,7 @@ impl TaskStorage {
         // SAFETY: head_mut is fine here because we don't call any grow path
         // while the borrow is live.
         unsafe {
-            self.head_mut().head.aggregation_number = AggregationNumber {
+            self.head_mut().inline.aggregation_number = AggregationNumber {
                 base: u32::MAX,
                 distance: 0,
                 effective: u32::MAX,
@@ -1691,9 +1691,9 @@ mod tests {
         // heap allocation as TaskStorageInner, accessed via raw pointer
         // arithmetic from `(self as *const TaskStorageInner).add(size_of::<TaskStorageInner>())`.
         assert_eq!(
-            size_of::<TaskStorageHead>(),
+            size_of::<TaskStorageInline>(),
             112,
-            "TaskStorageHead size changed! Inspect Rust's struct layout to find why.",
+            "TaskStorageInline size changed! Inspect Rust's struct layout to find why.",
         );
         assert_eq!(
             size_of::<TaskStorageInner>(),

@@ -734,16 +734,16 @@ impl GroupedFields {
 // Code Generation Helpers
 // =============================================================================
 
-/// Generate inline field clone assignments: `snapshot.head.field = self.head.field.clone();`
+/// Generate inline field clone assignments: `snapshot.inline.field = self.inline.field.clone();`
 ///
-/// Inline fields live on the schema-emitted `TaskStorageHead`; this helper
+/// Inline fields live on the schema-emitted `TaskStorageInline`; this helper
 /// only ever handles inline (non-lazy) fields.
 fn gen_clone_inline_fields<'a>(fields: impl Iterator<Item = &'a FieldInfo>) -> Vec<TokenStream> {
     fields
         .map(|field| {
             let field_name = &field.field_name;
             quote! {
-                snapshot.head.#field_name = self.head.#field_name.clone();
+                snapshot.inline.#field_name = self.inline.#field_name.clone();
             }
         })
         .collect()
@@ -757,7 +757,7 @@ fn gen_restore_inline_field(field: &FieldInfo) -> TokenStream {
     // will be properly dropped by Rust's struct destructor.
     if !field.filter_transient {
         return quote! {
-            self.head.#field_name = std::mem::take(&mut source.head.#field_name);
+            self.inline.#field_name = std::mem::take(&mut source.inline.#field_name);
         };
     }
     match field.storage_type {
@@ -766,17 +766,17 @@ fn gen_restore_inline_field(field: &FieldInfo) -> TokenStream {
             // means a transient value is live and newer than the disk value —
             // prefer the residue; otherwise take the source.
             quote! {
-                if self.head.#field_name.is_none() {
-                    self.head.#field_name = std::mem::take(&mut source.head.#field_name);
+                if self.inline.#field_name.is_none() {
+                    self.inline.#field_name = std::mem::take(&mut source.inline.#field_name);
                 }
             }
         }
         StorageType::AutoSet => {
             quote! {
-                if self.head.#field_name.is_empty() {
-                    self.head.#field_name = std::mem::take(&mut source.head.#field_name);
+                if self.inline.#field_name.is_empty() {
+                    self.inline.#field_name = std::mem::take(&mut source.inline.#field_name);
                 } else {
-                    self.head.#field_name.merge_restore(std::mem::take(&mut source.head.#field_name));
+                    self.inline.#field_name.merge_restore(std::mem::take(&mut source.inline.#field_name));
                 }
             }
         }
@@ -785,10 +785,10 @@ fn gen_restore_inline_field(field: &FieldInfo) -> TokenStream {
             // transient task ids; source entries are keyed by persistent ids.
             // These key spaces are disjoint, so `extend` merges cleanly.
             quote! {
-                if self.head.#field_name.is_empty() {
-                    self.head.#field_name = std::mem::take(&mut source.head.#field_name);
+                if self.inline.#field_name.is_empty() {
+                    self.inline.#field_name = std::mem::take(&mut source.inline.#field_name);
                 } else {
-                    self.head.#field_name.merge_restore(std::mem::take(&mut source.head.#field_name));
+                    self.inline.#field_name.merge_restore(std::mem::take(&mut source.inline.#field_name));
                 }
             }
         }
@@ -1252,11 +1252,11 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
     }
 }
 
-/// Generate the unified TaskStorageInner struct, plus a private `TaskStorageHead`
+/// Generate the unified TaskStorageInner struct, plus a private `TaskStorageInline`
 /// that groups the schema-declared inline fields. Splitting inline fields out
 /// is preparation for moving the lazy-tail byte buffer into the same heap
 /// allocation as the head (step 3 of the storage refactor): once the byte
-/// buffer is inline, `size_of::<TaskStorageHead>()` defines the exact "head
+/// buffer is inline, `size_of::<TaskStorageInline>()` defines the exact "head
 /// region" of the allocation, with the tail bytes living immediately after.
 ///
 /// For now `Head` is just an organizational grouping that derives `Default`
@@ -1304,18 +1304,18 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
     };
 
     // `Head` always exists for symmetry with the lazy-tail story (so callers
-    // can always reach inline fields via `task.head.<field>`), but when the
+    // can always reach inline fields via `task.inline.<field>`), but when the
     // schema has no inline fields it's a unit-shaped struct.
     quote! {
         #[doc = "The schema's inline fields grouped into one struct."]
         #[doc = ""]
         #[doc = "Lives on [`TaskStorageInner`] as `head`. Step 3 of the storage refactor"]
-        #[doc = "will exploit the boundary at `size_of::<TaskStorageHead>()` to lay"]
+        #[doc = "will exploit the boundary at `size_of::<TaskStorageInline>()` to lay"]
         #[doc = "out the lazy-field byte tail in the same allocation."]
         #[automatically_derived]
         #[derive(Debug, Default, turbo_tasks::ShrinkToFit)]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
-        pub struct TaskStorageHead {
+        pub struct TaskStorageInline {
             #(#inline_field_defs,)*
         }
 
@@ -1329,7 +1329,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
         #[derive(Debug, Default, turbo_tasks::ShrinkToFit)]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
         pub struct TaskStorageInner {
-            pub(crate) head: TaskStorageHead,
+            pub(crate) inline: TaskStorageInline,
             #flags_field
             #lazy_field
         }
@@ -1415,19 +1415,19 @@ fn generate_direct_field_accessors_split(field: &FieldInfo) -> (TokenStream, Tok
     let get_mut_name = field.get_mut_ident();
 
     if field.is_inline() && field.use_default {
-        // Inline with default: field is T stored on `self.head`, with
+        // Inline with default: field is T stored on `self.inline`, with
         // `Default::default()` standing in for "empty". No grow needed.
         let storage = quote! {
             #vis fn #get_name(&self) -> Option<&#field_type> {
-                if self.head.#field_name != #field_type::default() {
-                    Some(&self.head.#field_name)
+                if self.inline.#field_name != #field_type::default() {
+                    Some(&self.inline.#field_name)
                 } else {
                     None
                 }
             }
 
             #vis fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
-                let old = std::mem::replace(&mut self.head.#field_name, value);
+                let old = std::mem::replace(&mut self.inline.#field_name, value);
                 if old != #field_type::default() {
                     Some(old)
                 } else {
@@ -1436,7 +1436,7 @@ fn generate_direct_field_accessors_split(field: &FieldInfo) -> (TokenStream, Tok
             }
 
             #vis fn #take_name(&mut self) -> Option<#field_type> {
-                let old = std::mem::take(&mut self.head.#field_name);
+                let old = std::mem::take(&mut self.inline.#field_name);
                 if old != #field_type::default() {
                     Some(old)
                 } else {
@@ -1446,19 +1446,19 @@ fn generate_direct_field_accessors_split(field: &FieldInfo) -> (TokenStream, Tok
         };
         (storage, quote! {})
     } else if field.is_inline() {
-        // Inline: field is `Option<T>` stored on `self.head`. No grow.
+        // Inline: field is `Option<T>` stored on `self.inline`. No grow.
         let inner_type = extract_option_inner_type(field_type);
         let storage = quote! {
             #vis fn #get_name(&self) -> Option<&#inner_type> {
-                self.head.#field_name.as_ref()
+                self.inline.#field_name.as_ref()
             }
 
             #vis fn #set_name(&mut self, value: #inner_type) -> Option<#inner_type> {
-                self.head.#field_name.replace(value)
+                self.inline.#field_name.replace(value)
             }
 
             #vis fn #take_name(&mut self) -> Option<#inner_type> {
-                self.head.#field_name.take()
+                self.inline.#field_name.take()
             }
         };
         (storage, quote! {})
@@ -1538,18 +1538,18 @@ fn generate_collection_field_accessors_split(
     };
 
     if field.is_inline() {
-        // Inline: field lives on `self.head`. No grow needed.
+        // Inline: field lives on `self.inline`. No grow needed.
         let storage = quote! {
             #vis fn #ref_name(&self) -> &#field_type {
-                &self.head.#field_name
+                &self.inline.#field_name
             }
 
             #vis fn #mut_name(&mut self) -> &mut #field_type {
-                &mut self.head.#field_name
+                &mut self.inline.#field_name
             }
 
             #vis fn #take_name(&mut self) -> #field_type {
-                std::mem::take(&mut self.head.#field_name)
+                std::mem::take(&mut self.inline.#field_name)
             }
         };
         (storage, quote! {})
@@ -1869,7 +1869,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
                         fn #get_mut_name(&mut self) -> &mut #value_type {
                             #check_access
                             #track_modification
-                            &mut self.typed_mut().head.#field_name
+                            &mut self.typed_mut().inline.#field_name
                         }
                     }
                 } else {
@@ -1879,7 +1879,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
                         fn #get_mut_name(&mut self) -> Option<&mut #value_type> {
                             #check_access
                             #track_modification
-                            self.typed_mut().head.#field_name.as_mut()
+                            self.typed_mut().inline.#field_name.as_mut()
                         }
                     }
                 }
@@ -2723,14 +2723,14 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
         if field.drop_on_completion_if_immutable {
             inline_cleanups.push(quote! {
                 if is_immutable {
-                    typed.head.#field_name = Default::default();
+                    typed.inline.#field_name = Default::default();
                 } else {
-                    typed.head.#field_name.shrink_to_fit();
+                    typed.inline.#field_name.shrink_to_fit();
                 }
             });
         } else if field.shrink_on_completion {
             inline_cleanups.push(quote! {
-                typed.head.#field_name.shrink_to_fit();
+                typed.inline.#field_name.shrink_to_fit();
             });
         }
     }
@@ -2867,10 +2867,10 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
         let field_name = &field.field_name;
         match field.storage_type {
             StorageType::AutoMap | StorageType::AutoSet | StorageType::CounterMap => quote! {
-                self.head.#field_name.is_empty()
+                self.inline.#field_name.is_empty()
             },
             StorageType::Direct => quote! {
-                self.head.#field_name == Default::default()
+                self.inline.#field_name == Default::default()
             },
             StorageType::Flag => unreachable!(),
         }
@@ -3032,10 +3032,10 @@ fn gen_drop_inline_field(field: &FieldInfo) -> TokenStream {
     let field_name = &field.field_name;
     if !field.filter_transient {
         return quote! {
-            self.head.#field_name = Default::default();
+            self.inline.#field_name = Default::default();
         };
     }
-    let target = quote! { self.head.#field_name };
+    let target = quote! { self.inline.#field_name };
     if let StorageType::Direct = field.storage_type {
         // For `Option<T>` fields, `DropPartial::drop_partial` clears the
         // `Option` to `None` for persistent values and leaves transient
@@ -3247,7 +3247,7 @@ fn gen_decode_body(grouped_fields: &GroupedFields, category: Category) -> TokenS
         .map(|field| {
             let field_name = &field.field_name;
             quote! {
-                self.head.#field_name = bincode::Decode::decode(decoder)?;
+                self.inline.#field_name = bincode::Decode::decode(decoder)?;
             }
         })
         .collect();
@@ -3496,10 +3496,10 @@ fn generate_encode_value(field: &FieldInfo, value_ref: TokenStream) -> TokenStre
 
 /// Generate code to encode an inline field to bincode.
 ///
-/// Delegates to `generate_encode_value` with `&self.head.field_name` as the value reference.
+/// Delegates to `generate_encode_value` with `&self.inline.field_name` as the value reference.
 fn generate_encode_inline_field(field: &FieldInfo) -> TokenStream {
     let field_name = &field.field_name;
-    generate_encode_value(field, quote! { &self.head.#field_name })
+    generate_encode_value(field, quote! { &self.inline.#field_name })
 }
 
 /// Generate code to encode a lazy field value with index.
