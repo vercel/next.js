@@ -227,9 +227,14 @@ function getMiddlewareData<T extends FetchDataOutput>(
           const parsedSource = getNextPathnameInfo(
             parseRelativeUrl(source).pathname,
             {
-              nextConfig: process.env.__NEXT_HAS_REWRITES
-                ? undefined
-                : nextConfig,
+              // Pass basePath (and trailingSlash) so the basePath prefix is
+              // stripped before the `_next/data/` check, but omit `i18n` so the
+              // locale prefix is preserved here — the rewrite resolver below
+              // handles the locale-prefixed `as`.
+              nextConfig: {
+                basePath: nextConfig.basePath,
+                trailingSlash: nextConfig.trailingSlash,
+              },
               parseData: true,
             }
           )
