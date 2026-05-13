@@ -1,4 +1,4 @@
-export type CardColor = 'blue' | 'purple' | 'red' | 'amber' | 'teal'
+export type CardColor = 'blue' | 'purple' | 'red' | 'amber' | 'teal' | 'gray'
 
 export type FixCardGroup =
   | 'stream'

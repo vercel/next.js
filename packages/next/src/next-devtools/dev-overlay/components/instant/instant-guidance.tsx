@@ -11,6 +11,7 @@ import {
   SYNC_IO_CLIENT_DOCS,
   SYNC_IO_DOCS,
   getCards,
+  type CardColor,
   type FixCard,
   type FixCardGroup,
   type GuidanceKind,
@@ -40,8 +41,9 @@ const GROUP_LABELS: Record<FixCardGroup, string> = {
 function getCardIcon(group: FixCardGroup) {
   switch (group) {
     case 'stream':
-    case 'dynamic':
       return <AlignmentLeftIcon />
+    case 'dynamic':
+      return <RotateClockwiseIcon />
     case 'prerender':
     case 'cache':
     case 'measure':
@@ -59,11 +61,38 @@ function getCardIcon(group: FixCardGroup) {
   }
 }
 
+function getDisplayColor(group: FixCardGroup): CardColor {
+  switch (group) {
+    case 'cache':
+    case 'prerender':
+      return 'purple'
+    case 'stream':
+      return 'blue'
+    case 'block':
+      return 'red'
+    case 'static':
+      return 'gray'
+    case 'dynamic':
+      return 'blue'
+    case 'client':
+    case 'defer':
+      return 'amber'
+    case 'measure':
+      return 'teal'
+    default:
+      return group satisfies never
+  }
+}
+
 function CardGrid({ cards }: { cards: FixCard[] }) {
   return (
     <div data-nextjs-card-grid>
       {cards.map((card) => (
-        <div data-nextjs-fix-card data-card-color={card.color} key={card.title}>
+        <div
+          data-nextjs-fix-card
+          data-card-color={getDisplayColor(card.group)}
+          key={card.title}
+        >
           <div data-nextjs-fix-card-header>
             <div data-nextjs-fix-card-icon>{getCardIcon(card.group)}</div>
             <div data-nextjs-fix-card-header-text>
@@ -329,6 +358,15 @@ export const INSTANT_GUIDANCE_STYLES = css`
   [data-card-color='red'] [data-nextjs-fix-card-icon] {
     background: var(--color-red-100);
     color: var(--color-red-800);
+  }
+
+  [data-card-color='gray'] [data-nextjs-fix-snippet] [data-snippet-highlight] {
+    color: var(--color-gray-1000);
+  }
+
+  [data-card-color='gray'] [data-nextjs-fix-card-icon] {
+    background: var(--color-gray-100);
+    color: var(--color-gray-800);
   }
 
   [data-card-color='amber'] [data-nextjs-fix-snippet] [data-snippet-highlight] {
