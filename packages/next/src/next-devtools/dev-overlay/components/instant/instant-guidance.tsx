@@ -117,13 +117,13 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
             href={card.link}
             target="_blank"
             rel="noopener noreferrer"
-            key={card.title}
+            key={card.id}
             aria-label={`Open docs for ${card.title}`}
           >
             {inner}
           </a>
         ) : (
-          <div {...sharedProps} key={card.title}>
+          <div {...sharedProps} key={card.id}>
             {inner}
           </div>
         )

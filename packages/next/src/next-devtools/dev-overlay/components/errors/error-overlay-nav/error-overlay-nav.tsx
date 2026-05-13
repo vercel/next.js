@@ -10,7 +10,6 @@ type ErrorOverlayNavProps = {
   activeIdx?: number
   setActiveIndex?: (index: number) => void
   versionInfo?: VersionInfo
-  isTurbopack?: boolean
   error: ReadyRuntimeError['error']
   debugInfo?: DebugInfo
   generateErrorInfo: () => Promise<string>

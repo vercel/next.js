@@ -57,7 +57,7 @@ export function ErrorOverlayLayout({
   children,
   headerChildren,
   errorCode,
-  errorCount,
+  errorCount: _errorCount,
   error,
   debugInfo,
   isBuildError,
@@ -66,7 +66,6 @@ export function ErrorOverlayLayout({
   runtimeErrors,
   activeIdx,
   setActiveIndex,
-  isTurbopack,
   dialogResizerRef,
   generateErrorInfo,
   // This prop is used to animate the dialog, it comes from a parent component (<ErrorOverlay>)
@@ -113,15 +112,11 @@ export function ErrorOverlayLayout({
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           versionInfo={versionInfo}
-          isTurbopack={isTurbopack}
           error={error}
           debugInfo={debugInfo}
           generateErrorInfo={generateErrorInfo}
         />
-        <ErrorOverlayDialog
-          onClose={onClose}
-          data-has-footer={hasFooter}
-        >
+        <ErrorOverlayDialog onClose={onClose} data-has-footer={hasFooter}>
           <Resizer
             ref={dialogResizerRef}
             measure={!animating}

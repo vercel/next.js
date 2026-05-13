@@ -97,7 +97,7 @@ function createStoryFrames({
   return () =>
     Promise.resolve([
       {
-        error: true,
+        error: true as const,
         reason,
         external: false,
         ignored: false,
@@ -643,35 +643,6 @@ export const instantClientMathRandomErrors: ReadyRuntimeError[] = [
         markerLine: 4,
         pointerColumn: 19,
         afterLine: 'return <p>Random: {value}</p>',
-      }),
-    }),
-    type: 'runtime',
-  },
-]
-
-export const instantValidationBlockedErrors: ReadyRuntimeError[] = [
-  {
-    id: 106,
-    runtime: true,
-    error: Object.assign(
-      new Error(
-        'Route "/28-use-client-with-instant": Could not validate `unstable_instant` because a Client Component in a parent segment prevented the page from rendering.'
-      ),
-      { __NEXT_ERROR_CODE: 'E1082' }
-    ),
-    frames: createStoryFrames({
-      reason:
-        'Route "/28-use-client-with-instant": Could not validate `unstable_instant` because a Client Component in a parent segment prevented the page from rendering.',
-      file: 'app/28-use-client-with-instant/page.tsx',
-      methodName: 'Page',
-      line: 3,
-      column: 14,
-      codeFrame: instantCodeFrame({
-        beforeLine: "'use client'",
-        line: "'use client'",
-        markerLine: 3,
-        pointerColumn: 14,
-        afterLine: 'export default function Page() {',
       }),
     }),
     type: 'runtime',
