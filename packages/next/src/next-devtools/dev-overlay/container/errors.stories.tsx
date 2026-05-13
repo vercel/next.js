@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 
 import { Errors } from './errors'
-import { withShadowPortal } from '../storybook/with-shadow-portal'
+import { withShadowPortal } from '../../../../.storybook/decorators/with-shadow-portal'
 import { lorem } from '../utils/lorem'
 import {
   instantCurrentTimeErrors,
@@ -15,7 +15,7 @@ import {
   instantViewportErrors,
   instantViewportUncachedErrors,
   runtimeErrors,
-} from '../storybook/errors'
+} from '../../../../.storybook/fixtures/errors'
 
 const meta: Meta<typeof Errors> = {
   component: Errors,

@@ -1,6 +1,6 @@
-import type { SupportedErrorEvent } from '../container/runtime-error/render-error'
-import type { ReadyRuntimeError } from '../utils/get-error-by-type'
-import { lorem } from '../utils/lorem'
+import type { SupportedErrorEvent } from '../../src/next-devtools/dev-overlay/container/runtime-error/render-error'
+import type { ReadyRuntimeError } from '../../src/next-devtools/dev-overlay/utils/get-error-by-type'
+import { lorem } from '../../src/next-devtools/dev-overlay/utils/lorem'
 
 const originalCodeFrame = (message: string) => {
   return `\u001b[0m \u001b[90m 1 \u001b[39m \u001b[36mexport\u001b[39m \u001b[36mdefault\u001b[39m \u001b[36mfunction\u001b[39m \u001b[33mHome\u001b[39m() {\u001b[0m
