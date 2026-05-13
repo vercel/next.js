@@ -3,7 +3,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::ChunkingType,
+    chunk::{ChunkingType, TracedMode},
     context::AssetContext,
     file_source::FileSource,
     reference::ModuleReference,
@@ -45,7 +45,9 @@ impl ModuleReference for TsConfigReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Traced { is_entry: false })
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }
 
@@ -95,7 +97,9 @@ impl ModuleReference for TsReferencePathAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Traced { is_entry: false })
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }
 
@@ -131,6 +135,8 @@ impl ModuleReference for TsReferenceTypeAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Traced { is_entry: false })
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }

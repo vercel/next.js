@@ -26,7 +26,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
-    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
+    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType, TracedMode},
     issue::{ImportTracer, ImportTraces, Issue},
     module::Module,
     module_graph::{
@@ -1803,10 +1803,19 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                 })
                 .filter(|(_, ty, _, _)| {
                     // Ignore non-entry traced reference if not already in tracing mode.
-                    // ChunkingType::Traced{is_entry: true} =>target is always traced
-                    // ChunkingType::Traced{is_entry: false}=>target only traced if parent is traced
-                    // ChunkingType::*                      =>target only traced if parent is traced
-                    !matches!(ty, ChunkingType::Traced { is_entry: false }) || is_traced
+                    //
+                    // ChunkingType::Traced{TracedMode::Entry}
+                    // ==> target is always traced
+                    // ChunkingType::Traced{TracedMode::Transitive}
+                    // ==> target only traced if parent is traced
+                    // ChunkingType::*
+                    // ==> target only traced if parent is traced
+                    !matches!(
+                        ty,
+                        ChunkingType::Traced {
+                            mode: TracedMode::Transitive
+                        }
+                    ) || is_traced
                 })
                 .map(async |(reference, ty, binding_usage, target)| {
                     let to = if let Some(idx) = visited_modules.get(&target) {
@@ -2382,7 +2391,13 @@ pub mod tests {
                         ("x.js", vec!["y.js", "traced.js"]),
                         ("y.js", vec!["z.js"]),
                     ],
-                    [("x.js", "traced.js", ChunkingType::Traced { is_entry: true })],
+                    [(
+                        "x.js",
+                        "traced.js",
+                        ChunkingType::Traced {
+                            mode: TracedMode::Entry,
+                        },
+                    )],
                 );
                 let make_module = |name| {
                     Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(name).unwrap(), repo))

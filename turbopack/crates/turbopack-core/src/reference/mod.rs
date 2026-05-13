@@ -9,7 +9,7 @@ use turbo_tasks::{
 };
 
 use crate::{
-    chunk::ChunkingType,
+    chunk::{ChunkingType, TracedMode},
     module::{Module, Modules},
     output::{
         ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
@@ -161,7 +161,7 @@ pub async fn referenced_modules_and_affecting_sources(
 #[value_to_string("traced {}", self.module.ident())]
 pub struct TracedModuleReference {
     module: ResolvedVc<Box<dyn Module>>,
-    is_entry: bool,
+    mode: TracedMode,
 }
 
 #[turbo_tasks::value_impl]
@@ -172,17 +172,15 @@ impl ModuleReference for TracedModuleReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Traced {
-            is_entry: self.is_entry,
-        })
+        Some(ChunkingType::Traced { mode: self.mode })
     }
 }
 
 #[turbo_tasks::value_impl]
 impl TracedModuleReference {
     #[turbo_tasks::function]
-    pub fn new(module: ResolvedVc<Box<dyn Module>>, is_entry: bool) -> Vc<Self> {
-        Self::cell(TracedModuleReference { module, is_entry })
+    pub fn new(module: ResolvedVc<Box<dyn Module>>, mode: TracedMode) -> Vc<Self> {
+        Self::cell(TracedModuleReference { module, mode })
     }
 }
 

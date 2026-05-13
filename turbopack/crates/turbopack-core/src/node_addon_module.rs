@@ -7,6 +7,7 @@ use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 
 use crate::{
+    chunk::TracedMode,
     file_source::FileSource,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -148,7 +149,7 @@ async fn dir_references(package_dir: FileSystemPath) -> Result<Vc<ModuleReferenc
                 Ok(ResolvedVc::upcast(
                     TracedModuleReference::new(
                         Vc::upcast(RawModule::new(Vc::upcast(FileSource::new(p)))),
-                        true,
+                        TracedMode::Entry,
                     )
                     .to_resolved()
                     .await?,

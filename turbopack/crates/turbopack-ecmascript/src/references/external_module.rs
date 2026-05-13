@@ -10,7 +10,7 @@ use turbo_tasks_fs::{FileSystem, FileSystemPath, LinkType, VirtualFileSystem, ro
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, TracedMode},
     ident::{AssetIdent, Layer},
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -336,8 +336,11 @@ impl Module for CachedExternalModule {
                     })
                     .chain(external_result.primary_modules_raw_iter().map(|m| *m))
                     .map(|s| {
-                        Vc::upcast::<Box<dyn ModuleReference>>(TracedModuleReference::new(s, true))
-                            .to_resolved()
+                        Vc::upcast::<Box<dyn ModuleReference>>(TracedModuleReference::new(
+                            s,
+                            TracedMode::Entry,
+                        ))
+                        .to_resolved()
                     })
                     .try_join()
                     .await?;

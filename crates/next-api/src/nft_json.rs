@@ -22,7 +22,7 @@ use turbo_tasks_fs::{
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::ChunkingType,
+    chunk::{ChunkingType, TracedMode},
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     module::{Module, Modules},
@@ -485,12 +485,19 @@ pub async fn traced_modules_for_entries(
                 return Ok(GraphTraversalAction::Continue);
             };
 
-            // ChunkingType::Traced{is_entry: true}  => target is always traced
-            // ChunkingType::Traced{is_entry: false} => target only traced if parent is traced
-            // ChunkingType::*                       => target only traced if parent is traced
+            // Ignore non-entry traced reference if not already in tracing mode.
+            //
+            // ChunkingType::Traced{TracedMode::Entry}
+            // ==> target is always traced
+            // ChunkingType::Traced{TracedMode::Transitive}
+            // ==> target only traced if parent is traced
+            // ChunkingType::*
+            // ==> target only traced if parent is traced
             if matches!(
                 ref_data.chunking_type,
-                ChunkingType::Traced { is_entry: true }
+                ChunkingType::Traced {
+                    mode: TracedMode::Entry
+                }
             ) || traced_modules.contains(&parent)
             {
                 if let Some(exclude_glob) = &exclude_glob
@@ -550,12 +557,19 @@ async fn traced_module_data_for_graph(
                 return Ok(GraphTraversalAction::Continue);
             };
 
-            // ChunkingType::Traced{is_entry: true}  => target is always traced
-            // ChunkingType::Traced{is_entry: false} => target only traced if parent is traced
-            // ChunkingType::*                       => target only traced if parent is traced
+            // Ignore non-entry traced reference if not already in tracing mode.
+            //
+            // ChunkingType::Traced{TracedMode::Entry}
+            // ==> target is always traced
+            // ChunkingType::Traced{TracedMode::Transitive}
+            // ==> target only traced if parent is traced
+            // ChunkingType::*
+            // ==> target only traced if parent is traced
             if matches!(
                 ref_data.chunking_type,
-                ChunkingType::Traced { is_entry: true }
+                ChunkingType::Traced {
+                    mode: TracedMode::Entry
+                }
             ) || traced_modules.contains(&parent)
             {
                 traced_modules.insert(target);

@@ -4,7 +4,7 @@ use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPath};
 
 use super::ModuleReference;
 use crate::{
-    chunk::ChunkingType,
+    chunk::{ChunkingType, TracedMode},
     file_source::FileSource,
     raw_module::RawModule,
     resolve::ModuleResolveResult,
@@ -54,7 +54,9 @@ impl ModuleReference for SourceMapReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Traced { is_entry: false })
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }
 

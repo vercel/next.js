@@ -281,6 +281,40 @@ pub trait OutputChunk: Asset {
     fn runtime_info(self: Vc<Self>) -> Vc<OutputChunkRuntimeInfo>;
 }
 
+/// Whether this reference is an entry point for a traced subgraph.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Hash,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    Eq,
+    PartialEq,
+    ValueDebugFormat,
+    NonLocalValue,
+    Encode,
+    Decode,
+    TaskInput,
+)]
+pub enum TracedMode {
+    /// Going from bundled to unbundled code, i.e. an external dependency or readFile static assets.
+    Entry,
+    /// This reference should only be respected from unbundled code (e.g. for package.json needed by
+    /// externals (sort of affecting_sources)
+    Transitive,
+}
+
+impl Display for TracedMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TracedMode::Entry => write!(f, "Entry"),
+            TracedMode::Transitive => write!(f, "Transitive"),
+        }
+    }
+}
+
 /// Specifies how a chunk interacts with other chunks when building a chunk
 /// group
 #[derive(
@@ -329,9 +363,7 @@ pub enum ChunkingType {
     /// or externals and their transitive dependencies).
     Traced {
         /// Whether this reference is an entry point for a traced subgraph.
-        /// is_entry=true: e.g. for the first external dependency, or for readFile static assets
-        /// is_entry=false: e.g. for package.json needed by externals (sort of affecting_sources)
-        is_entry: bool,
+        mode: TracedMode,
     },
 }
 
@@ -375,7 +407,7 @@ impl Display for ChunkingType {
             } => {
                 write!(f, "Shared(inherit_async: {inherit_async})")
             }
-            ChunkingType::Traced { is_entry } => write!(f, "Traced(is_entry: {is_entry})"),
+            ChunkingType::Traced { mode } => write!(f, "Traced(mode: {mode})"),
         }
     }
 }
@@ -433,9 +465,7 @@ impl ChunkingType {
                 inherit_async: false,
                 merge_tag: merge_tag.clone(),
             },
-            ChunkingType::Traced { is_entry } => ChunkingType::Traced {
-                is_entry: *is_entry,
-            },
+            ChunkingType::Traced { mode } => ChunkingType::Traced { mode: *mode },
         }
     }
 }

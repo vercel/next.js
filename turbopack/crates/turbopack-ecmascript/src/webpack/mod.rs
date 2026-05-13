@@ -3,7 +3,7 @@ use swc_core::ecma::ast::Lit;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::ChunkingType,
+    chunk::{ChunkingType, TracedMode},
     compile_time_info::CompileTimeInfo,
     file_source::FileSource,
     ident::AssetIdent,
@@ -141,7 +141,9 @@ impl ModuleReference for WebpackChunkAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Traced { is_entry: false })
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }
 
@@ -172,7 +174,9 @@ impl ModuleReference for WebpackEntryAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Traced { is_entry: false })
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }
 
@@ -221,6 +225,8 @@ impl ModuleReference for WebpackRuntimeAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Traced { is_entry: false })
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }
