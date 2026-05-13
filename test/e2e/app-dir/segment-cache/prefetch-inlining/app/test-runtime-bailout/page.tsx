@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 
 export const unstable_instant = {
-  samples: [{ cookies: [{ name: 'theme', value: 'default' }] }],
+  unstable_samples: [{ cookies: [{ name: 'theme', value: 'default' }] }],
 }
 export const unstable_prefetch = 'force-runtime'
 

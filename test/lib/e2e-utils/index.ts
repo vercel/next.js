@@ -167,6 +167,15 @@ const isNextTestWasm = !!process.env.NEXT_TEST_WASM
 export const itTurbopack =
   !isNextTestWasm && shouldUseTurbopack() ? it : it.skip
 
+/**
+ * Whether the test is running against React 18 (based on
+ * `process.env.NEXT_TEST_REACT_VERSION`). When the env var is unset or empty,
+ * the test install uses the default React peer dependency version which is
+ * currently React 19, so this is `false`.
+ */
+export const isReact18 =
+  parseInt(process.env.NEXT_TEST_REACT_VERSION || '', 10) === 18
+
 if (!testMode) {
   throw new Error(
     `No 'NEXT_TEST_MODE' set in environment, this is required for e2e-utils`

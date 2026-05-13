@@ -1,8 +1,7 @@
-use std::{borrow::Cow, mem::take};
+use std::{borrow::Cow, mem::take, sync::LazyLock};
 
 use anyhow::{Result, bail};
 use either::Either;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use tracing::Level;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, ValueToString};
@@ -61,7 +60,7 @@ pub async fn expand_batches(
                             );
                             let asset_ident = item.chunk_item.asset_ident().to_string();
                             Ok(ChunkItemOrBatchWithInfo::ChunkItem {
-                                chunk_item: item.clone(),
+                                chunk_item: *item,
                                 size: *size.await?,
                                 asset_ident: asset_ident.owned().await?,
                             })
@@ -260,8 +259,8 @@ fn is_app_code(ident: &str) -> bool {
 
 /// Returns the package name of the given `ident`.
 fn package_name(ident: &str) -> &str {
-    static PACKAGE_NAME_REGEX: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r"/node_modules/((?:@[^/]+/)?[^/]+)").unwrap());
+    static PACKAGE_NAME_REGEX: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"/node_modules/((?:@[^/]+/)?[^/]+)").unwrap());
     if let Some(result) = PACKAGE_NAME_REGEX.find_iter(ident).last() {
         &result.as_str()["/node_modules/".len()..]
     } else {

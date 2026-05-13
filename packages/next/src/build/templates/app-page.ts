@@ -29,6 +29,7 @@ import {
   NodeNextResponse,
 } from '../../server/base-http/node' with { 'turbopack-transition': 'next-server-utility' }
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr' with { 'turbopack-transition': 'next-server-utility' }
+import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getFallbackRouteParams,
   getPlaceholderFallbackRouteParams,
@@ -47,7 +48,6 @@ import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
-  NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_INSTANT_TEST_COOKIE,
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
@@ -294,7 +294,8 @@ export async function handler(
   // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
 
   const isRSCRequest =
-    getRequestMeta(req, 'isRSCRequest') ?? Boolean(req.headers[RSC_HEADER])
+    getRequestMeta(req, 'isRSCRequest') ??
+    isRSCRequestHeader(req.headers[RSC_HEADER])
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
 
@@ -418,17 +419,20 @@ export async function handler(
   // Enable the Instant Navigation Testing API. Renders only the prefetched
   // portion of the page, excluding dynamic content. This allows tests to
   // assert on the prefetched UI state deterministically.
-  // - Header: Used for client-side navigations where we can set request headers
-  // - Cookie: Used for MPA navigations (page reload, full page load) where we
-  //   can't set request headers. Only applies to document requests (no RSC
-  //   header) - RSC requests should proceed normally even during a locked scope,
-  //   with blocking happening on the client side.
+  //
+  // The instant test cookie is sent automatically with all requests while a
+  // navigation lock is held. We treat a request as a test render when the
+  // cookie is present and either:
+  // - it's a document request (no RSC header) — covers MPA navigations
+  // - it's a prefetch RSC request — covers client-side prefetches
+  // Regular RSC navigation requests proceed normally even during a locked
+  // scope; blocking happens on the client side.
   const isInstantNavigationTest =
     exposeTestingApi &&
-    (req.headers[NEXT_INSTANT_PREFETCH_HEADER] === '1' ||
-      (req.headers[RSC_HEADER] === undefined &&
-        typeof req.headers.cookie === 'string' &&
-        req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=')))
+    typeof req.headers.cookie === 'string' &&
+    req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
+    (!isRSCRequestHeader(req.headers[RSC_HEADER]) ||
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1')
 
   // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
   // prerender manifest and this is an app page.
@@ -535,6 +539,8 @@ export async function handler(
     // If we're in development, we always support dynamic HTML, unless it's
     // a data request, in which case we only produce static HTML.
     routeModule.isDev === true ||
+    // If this is a draft mode request, it supports dynamic HTML.
+    isDraftMode ||
     // If this is not SSG or does not have static paths, then it supports
     // dynamic HTML.
     !isSSG ||
@@ -878,6 +884,8 @@ export async function handler(
               }
             : {}),
           cacheComponents: Boolean(nextConfig.cacheComponents),
+          validationLevel:
+            nextConfig.experimental.instantInsights.validationLevel,
           experimental: {
             isRoutePPREnabled,
             expireTime: nextConfig.expireTime,
@@ -942,6 +950,23 @@ export async function handler(
         fetchTags: cacheTags,
         fetchMetrics,
       } = metadata
+
+      // Apply the `expireTime` fallback as soon as we have the render's
+      // `cacheControl`, so every downstream consumer (the cache stored via
+      // `incrementalCache.set`, the response Cache-Control header, the outgoing
+      // entry returned to `handleResponse`) sees a finalized `cacheControl`
+      // with a populated `expire`. This mirrors the build-time fallback in
+      // `build/index.ts` so we don't apply an expire to routes that opt out of
+      // revalidation entirely (`revalidate: false`) or that are dynamic
+      // (`revalidate: 0`).
+      if (
+        cacheControl &&
+        cacheControl.revalidate !== false &&
+        cacheControl.revalidate > 0 &&
+        cacheControl.expire === undefined
+      ) {
+        cacheControl.expire = nextConfig.expireTime
+      }
 
       if (cacheTags) {
         headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
@@ -1605,7 +1630,7 @@ export async function handler(
 
             cacheControl = {
               revalidate: cacheEntry.cacheControl.revalidate,
-              expire: cacheEntry.cacheControl?.expire ?? nextConfig.expireTime,
+              expire: cacheEntry.cacheControl.expire,
             }
           }
           // Otherwise if the revalidate value is false, then we should use the

@@ -1,3 +1,5 @@
+import { htmlEscapeAttributeString } from '../../../shared/lib/htmlescape'
+
 /**
  * For chromium based browsers (Chrome, Edge, etc.) and Safari,
  * icons need to stay under <head> to be picked up by the browser.
@@ -15,6 +17,8 @@ export function createServerInsertedMetadata(nonce: string | undefined) {
     }
 
     inserted = true
-    return `<script ${nonce ? `nonce="${nonce}"` : ''}>${REINSERT_ICON_SCRIPT}</script>`
+    return `<script${
+      nonce ? ` nonce="${htmlEscapeAttributeString(nonce)}"` : ''
+    }>${REINSERT_ICON_SCRIPT}</script>`
   }
 }

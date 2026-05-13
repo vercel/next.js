@@ -28,6 +28,14 @@ describe('node-worker-threads', () => {
     expect(data.message).toBe('pong from simple worker')
   })
 
+  it('should handle worker with new URL(..., import.meta.url)', async () => {
+    const res = await next.fetch('/api/url-worker-test')
+    const data = await res.json()
+    expect(res.status).toBe(200)
+    expect(data.success).toBe(true)
+    expect(data.message).toBe('pong from url worker')
+  })
+
   it('should handle self-referencing worker with __filename', async () => {
     const res = await next.fetch('/api/worker-test')
     const data = await res.json()
