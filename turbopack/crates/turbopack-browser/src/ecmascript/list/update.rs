@@ -47,9 +47,8 @@ impl ChunkListUpdate<'_> {
 }
 
 /// Computes the update of a chunk list from one version to another.
-#[turbo_tasks::function]
 pub(super) async fn update_chunk_list(
-    content: Vc<EcmascriptDevChunkListContent>,
+    content: ResolvedVc<EcmascriptDevChunkListContent>,
     from_version: ResolvedVc<Box<dyn Version>>,
 ) -> Result<Vc<Update>> {
     let to_version = content.version();

@@ -127,7 +127,6 @@ const STATS_RELATIVE_PATH = '.next/warm-restart-task-stats.json'
            "next_api::project::Project::hmr_version_state",
            "next_napi_bindings::next_api::project::hmr_update_with_issues_operation",
            "next_napi_bindings::next_api::project::project_hmr_update_operation",
-           "turbopack_browser::ecmascript::list::update::update_chunk_list",
            "turbopack_core::version::VersionState::get",
          ]
         `)
