@@ -1,20 +1,18 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, Vc, turbobail};
+use turbo_tasks::{FxIndexMap, TryJoinIterExt, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::{
     chunk::{MinifyType, ModuleId},
     version::Version,
 };
+use turbopack_ecmascript::chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries};
 
-use super::content_entry::EcmascriptBuildNodeChunkContentEntries;
-
-#[turbo_tasks::value]
+#[turbo_tasks::value(serialization = "skip")]
 pub(super) struct EcmascriptBuildNodeChunkVersion {
     pub(super) chunk_path: RcStr,
     pub(super) minify_type: MinifyType,
-    #[bincode(with = "turbo_bincode::indexmap")]
     pub(super) entries_hashes: FxIndexMap<ModuleId, u64>,
 }
 
@@ -24,7 +22,7 @@ impl EcmascriptBuildNodeChunkVersion {
     pub async fn new(
         output_root: FileSystemPath,
         chunk_path: FileSystemPath,
-        entries: Vc<EcmascriptBuildNodeChunkContentEntries>,
+        content: Vc<EcmascriptChunkContent>,
         minify_type: MinifyType,
     ) -> Result<Vc<Self>> {
         let output_root = output_root.clone();
@@ -34,12 +32,15 @@ impl EcmascriptBuildNodeChunkVersion {
         } else {
             turbobail!("chunk path {chunk_path} is not in client root {output_root}");
         };
-        let entries = entries.await?;
-        let mut entries_hashes =
-            FxIndexMap::with_capacity_and_hasher(entries.len(), Default::default());
-        for (id, entry) in entries.iter() {
-            entries_hashes.insert(id.clone(), *entry.hash.await?);
-        }
+        let entries_hashes = EcmascriptChunkContentEntries::new(content)
+            .await?
+            .iter()
+            .map(async |(id, entry)| Ok((id.clone(), *entry.hash.await?)))
+            .try_join()
+            .await?
+            .into_iter()
+            .collect();
+
         Ok(EcmascriptBuildNodeChunkVersion {
             chunk_path: chunk_path.into(),
             minify_type,
