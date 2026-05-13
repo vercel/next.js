@@ -106,7 +106,13 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
           </div>
           <pre data-nextjs-fix-snippet>
             {card.snippets.map((snippet, i) => (
-              <span key={i} data-snippet-line>
+              <span
+                key={i}
+                data-snippet-line
+                data-snippet-line-highlighted={
+                  snippet.parts || snippet.highlight ? true : undefined
+                }
+              >
                 {snippet.parts ? (
                   snippet.parts.map((part, j) => (
                     <span
@@ -316,7 +322,7 @@ export const INSTANT_GUIDANCE_STYLES = css`
     line-height: 1.5;
     margin: 0;
     margin-left: -1px;
-    padding: 16px;
+    padding: 14px 16px;
     width: calc(100% + 2px);
     white-space: pre;
     overflow: hidden;
@@ -336,8 +342,27 @@ export const INSTANT_GUIDANCE_STYLES = css`
   */
 
   [data-snippet-line] {
+    position: relative;
     display: block;
     color: var(--color-gray-800);
+  }
+
+  [data-snippet-line]:not([data-snippet-line-highlighted])::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: color-mix(
+      in srgb,
+      var(--color-background-200) 60%,
+      transparent
+    );
+    backdrop-filter: blur(0.5px);
+    pointer-events: none;
+  }
+
+  [data-snippet-line] > * {
+    position: relative;
+    z-index: 1;
   }
 
   [data-nextjs-fix-snippet] [data-snippet-highlight] {
