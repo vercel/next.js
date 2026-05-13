@@ -1469,7 +1469,9 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     isBuildTimePrerendering = false,
   } = renderOpts
 
+  let didErrorObservably = false
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
+    didErrorObservably = true
     return onInstrumentationRequestError?.(
       err,
       req,
@@ -1579,7 +1581,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         ctx,
         finalRequestStore,
         fallbackParams,
-        validationDebugChannelClient
+        validationDebugChannelClient,
+        didErrorObservably
       )
     } else {
       logValidationSkipped(ctx)
@@ -3401,7 +3404,11 @@ async function renderToStream(
   return getTracer().withSpan(renderSpan, async () => {
     // MARK: renderToStream errorHandlers
     const { reactServerErrorsByDigest } = workStore
+
+    // We use this to determine if we should suppress other derivative errors
+    let didErrorObservably = false
     function onHTMLRenderRSCError(err: DigestedError, silenceLog: boolean) {
+      didErrorObservably = true
       return onInstrumentationRequestError?.(
         err,
         req,
@@ -3533,7 +3540,8 @@ async function renderToStream(
               ctx,
               finalRequestStore,
               fallbackParams,
-              validationDebugChannelClient
+              validationDebugChannelClient,
+              didErrorObservably
             )
 
             reactServerResult = new ReactServerResult(serverStream)
@@ -3652,7 +3660,8 @@ async function renderToStream(
               ctx,
               finalRequestStore,
               fallbackParams,
-              validationDebugChannelClient
+              validationDebugChannelClient,
+              didErrorObservably
             )
 
             reactServerResult = new ReactServerResult(serverStream)
@@ -5604,7 +5613,8 @@ async function spawnStaticShellValidationInDevImpl(
   ctx: AppRenderContext,
   requestStore: RequestStore,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  debugChannelClient: AnyStream | undefined
+  debugChannelClient: AnyStream | undefined,
+  devRenderDidError: boolean
 ): Promise<void> {
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
@@ -5735,7 +5745,8 @@ async function spawnStaticShellValidationInDevImpl(
       fallbackRouteParams,
       ctx,
       hmrRefreshHash,
-      validationSamples
+      validationSamples,
+      devRenderDidError
     )
 
     if (instantConfigsResult.length > 0) {
@@ -6093,7 +6104,8 @@ async function validateInstantConfigs(
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   ctx: AppRenderContext,
   hmrRefreshHash: string | undefined,
-  validationSamples: ValidationStoreClient['validationSamples'] | null
+  validationSamples: ValidationStoreClient['validationSamples'] | null,
+  devRenderDidError: boolean
 ): Promise<Array<unknown>> {
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
@@ -6340,7 +6352,8 @@ async function validateInstantConfigs(
         preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
         instantValidationState,
         validationSampleTracking,
-        boundaryState
+        boundaryState,
+        devRenderDidError
       )
     } catch (thrownValue) {
       result = getNavigationDisallowedDynamicReasons(
@@ -6348,7 +6361,8 @@ async function validateInstantConfigs(
         PreludeState.Errored,
         instantValidationState,
         validationSampleTracking,
-        boundaryState
+        boundaryState,
+        devRenderDidError
       )
     }
 
@@ -7109,7 +7123,8 @@ async function validateInstantConfigInBuildWithSample(
       fallbackRouteParams,
       validationCtx,
       undefined, // hmrRefreshHash,
-      validationSamples
+      validationSamples,
+      false // build has no shared dev render that would surface errors
     )
   })
 }
