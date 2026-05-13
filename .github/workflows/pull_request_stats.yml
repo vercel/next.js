@@ -94,7 +94,7 @@ jobs:
       fail-fast: false
       matrix:
         bundler: [webpack, turbopack]
-    runs-on: ubuntu-latest-16-core-oss
+    runs-on: ubuntu-latest-8-core-oss
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:

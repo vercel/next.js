@@ -62,7 +62,7 @@ on:
         description: 'List of runner labels'
         required: false
         type: string
-        default: '["ubuntu-latest-16-core-oss"]'
+        default: '["ubuntu-latest-8-core-oss"]'
       buildNativeTarget:
         description: 'Target for build-native step'
         required: false

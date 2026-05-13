@@ -33,7 +33,7 @@ permissions:
 jobs:
   benchmark-small-apps:
     name: Benchmark Rust Crates (small apps)
-    runs-on: ubuntu-latest-16-core-oss
+    runs-on: ubuntu-latest-8-core-oss
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
@@ -68,7 +68,7 @@ jobs:
 
   benchmark-analyzer:
     name: Benchmark Rust Crates (analyzer)
-    runs-on: ubuntu-latest-16-core-oss
+    runs-on: ubuntu-latest-8-core-oss
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
@@ -104,7 +104,7 @@ jobs:
   benchmark-large:
     name: Benchmark Rust Crates (large)
     if: ${{ github.event.label.name == 'benchmark' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest-16-core-oss
+    runs-on: ubuntu-latest-8-core-oss
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 

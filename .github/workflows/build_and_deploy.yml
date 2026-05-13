@@ -196,7 +196,7 @@ jobs:
                   x86_64: {}
                   aarch64: {}
               linux:
-                host: "['ubuntu-latest-16-core-oss']"
+                host: "['ubuntu-latest-8-core-oss']"
                 docker: next-swc-builder:latest
                 vendor: unknown
                 sys: linux
@@ -391,7 +391,7 @@ jobs:
       matrix:
         target: [web, nodejs]
 
-    runs-on: ubuntu-latest-16-core-oss
+    runs-on: ubuntu-latest-8-core-oss
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
