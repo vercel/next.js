@@ -45,7 +45,7 @@ export const CALL_STACK_STYLES = css`
   [data-nextjs-call-stack-container] {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
     position: relative;
     margin: 0;
     padding: 20px 0 0;
@@ -80,7 +80,7 @@ export const CALL_STACK_STYLES = css`
 
     padding: 0 6px;
     height: var(--size-20);
-    min-width: 20px;
+    min-width: var(--size-20);
     gap: 4px;
 
     color: var(--color-gray-1000);
@@ -101,7 +101,7 @@ export const CALL_STACK_STYLES = css`
     color: var(--color-gray-900);
     font-size: var(--size-14);
     line-height: var(--size-20);
-    border-radius: 6px;
+    border-radius: var(--rounded-md-2);
     padding: 4px 6px;
     margin-right: -6px;
     &:hover {

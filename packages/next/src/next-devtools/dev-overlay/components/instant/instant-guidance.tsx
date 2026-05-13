@@ -257,8 +257,8 @@ export const INSTANT_GUIDANCE_STYLES = css`
   }
 
   [data-nextjs-fix-card-icon] {
-    width: 36px;
-    height: 36px;
+    width: var(--size-36);
+    height: var(--size-36);
     border-radius: var(--rounded-full);
     flex-shrink: 0;
     display: flex;
@@ -267,8 +267,8 @@ export const INSTANT_GUIDANCE_STYLES = css`
   }
 
   [data-nextjs-fix-card-icon] svg {
-    width: 16px;
-    height: 16px;
+    width: var(--size-16);
+    height: var(--size-16);
   }
 
   [data-nextjs-fix-card-header-text] {
@@ -300,7 +300,7 @@ export const INSTANT_GUIDANCE_STYLES = css`
   [data-nextjs-fix-snippet] {
     flex: 1;
     font-family: var(--font-stack-monospace);
-    font-size: 12px;
+    font-size: var(--size-12);
     line-height: 1.5;
     margin: 0;
     margin-left: -1px;

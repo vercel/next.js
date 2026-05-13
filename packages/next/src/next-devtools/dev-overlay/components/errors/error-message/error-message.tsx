@@ -84,12 +84,12 @@ export const styles = `
   .nextjs__container_errors_desc code {
     font-family: var(--font-stack-monospace);
     font-weight: 500;
-    line-height: 20px;
+    line-height: var(--size-20);
     color: var(--color-gray-1000);
     padding: 2px 6px;
     background: var(--color-background-200);
     border: 1px solid var(--color-gray-200);
-    border-radius: 6px;
+    border-radius: var(--rounded-md-2);
   }
 
   .nextjs__container_errors_gradient_overlay {
@@ -115,7 +115,7 @@ export const styles = `
     padding: 6px 12px;
     background: var(--color-background-100);
     border: none;
-    border-radius: 999px;
+    border-radius: var(--rounded-full);
     box-shadow:
       0px 2px 2px var(--color-gray-alpha-100),
       0px 8px 8px -8px var(--color-gray-alpha-100),

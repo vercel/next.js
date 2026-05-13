@@ -12,7 +12,6 @@ import {
   instantMathRandomErrors,
   instantRuntimeDataErrors,
   instantUncachedDataErrors,
-  instantValidationBlockedErrors,
   instantViewportErrors,
   instantViewportUncachedErrors,
   runtimeErrors,
@@ -177,12 +176,5 @@ export const InstantClientMathRandom: Story = {
   args: {
     ...Default.args,
     runtimeErrors: instantClientMathRandomErrors,
-  },
-}
-
-export const InstantValidationBlocked: Story = {
-  args: {
-    ...Default.args,
-    runtimeErrors: instantValidationBlockedErrors,
   },
 }

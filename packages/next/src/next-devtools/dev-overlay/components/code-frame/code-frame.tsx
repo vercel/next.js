@@ -135,14 +135,14 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
 export const CODE_FRAME_STYLES = `
   [data-nextjs-codeframe] {
     --code-frame-padding: 12px;
-    --code-frame-line-height: 20px;
+    --code-frame-line-height: var(--size-20);
     background-color: var(--color-background-200);
     color: var(--color-gray-1000);
     text-overflow: ellipsis;
     border: 1px solid var(--color-gray-400);
     border-radius: var(--rounded-xl);
     font-family: var(--font-stack-monospace);
-    font-size: 13px;
+    font-size: var(--size-13);
     line-height: var(--code-frame-line-height);
     margin: 0;
     overflow: hidden;
@@ -174,8 +174,8 @@ export const CODE_FRAME_STYLES = `
   }
 
   [data-with-open-in-editor-link-source-file] svg {
-    width: 14px;
-    height: 14px;
+    width: var(--size-14);
+    height: var(--size-14);
   }
 
   .code-frame-lines {
@@ -183,22 +183,22 @@ export const CODE_FRAME_STYLES = `
   }
 
   .code-frame-link [data-text] {
-    font-size: 12px;
+    font-size: var(--size-12);
     text-align: left;
   }
 
   .code-frame-header {
     width: 100%;
     transition: background 100ms ease-out;
-    border-radius: 8px 8px 0 0;
+    border-radius: var(--rounded-lg) var(--rounded-lg) 0 0;
   }
 
   [data-with-open-in-editor-link-source-file] {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
+    width: var(--size-24);
+    height: var(--size-24);
     padding: 4px;
     margin-left: auto;
     border-radius: var(--rounded-full);

@@ -70,13 +70,8 @@ export const CallStackFrame: React.FC<{
 export const CALL_STACK_FRAME_STYLES = `
   [data-nextjs-call-stack-frame-no-source] {
     padding: 6px 8px;
-    margin-bottom: 4px;
 
     border-radius: var(--rounded-lg);
-  }
-
-  [data-nextjs-call-stack-frame-no-source]:last-child {
-    margin-bottom: 0;
   }
 
   [data-nextjs-call-stack-frame-ignored="true"] {
@@ -112,8 +107,8 @@ export const CALL_STACK_FRAME_STYLES = `
     line-height: var(--size-20);
 
     svg {
-      width: var(--size-16px);
-      height: var(--size-16px);
+      width: var(--size-16);
+      height: var(--size-16);
     }
   }
 
@@ -146,7 +141,7 @@ export const CALL_STACK_FRAME_STYLES = `
 
   .call-stack-frame-file {
     color: var(--color-gray-900);
-    font-size: var(--size-14);
+    font-size: var(--size-13);
     line-height: var(--size-20);
     word-wrap: break-word;
   }
