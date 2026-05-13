@@ -13,8 +13,7 @@ describe('cached navigations', () => {
     return
   }
 
-  // TODO: flaky
-  it.skip('serves cached static segments instantly on the second navigation', async () => {
+  it('serves cached static segments instantly on the second navigation', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       async beforePageLoad(p: Playwright.Page) {
@@ -182,8 +181,7 @@ describe('cached navigations', () => {
     )
   })
 
-  // TODO: flaky
-  it.skip('caches static segments when navigating to a known route without a prefetch', async () => {
+  it('caches static segments when navigating to a known route without a prefetch', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       async beforePageLoad(p: Playwright.Page) {
@@ -276,8 +274,7 @@ describe('cached navigations', () => {
     )
   })
 
-  // TODO: flaky
-  it.skip('includes static params in the cached static stage', async () => {
+  it('includes static params in the cached static stage', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       async beforePageLoad(p: Playwright.Page) {
@@ -337,8 +334,7 @@ describe('cached navigations', () => {
     )
   })
 
-  // TODO: flaky
-  it.skip('defers fallback params to the runtime stage', async () => {
+  it('defers fallback params to the runtime stage', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       async beforePageLoad(p: Playwright.Page) {
@@ -407,8 +403,7 @@ describe('cached navigations', () => {
     )
   })
 
-  // TODO: flaky
-  it.skip('caches runtime-prefetchable content from a navigation for instant second visit', async () => {
+  it('caches runtime-prefetchable content from a navigation for instant second visit', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       async beforePageLoad(p: Playwright.Page) {
@@ -562,8 +557,7 @@ describe('cached navigations', () => {
     )
   })
 
-  // TODO: flaky
-  it.skip('caches runtime-prefetchable content from the initial HTML for subsequent navigations', async () => {
+  it('caches runtime-prefetchable content from the initial HTML for subsequent navigations', async () => {
     let page: Playwright.Page
     // Start directly at /runtime-prefetchable — full HTML load, not a
     // client-side navigation. The RSC payload is inlined in the HTML and
@@ -757,8 +751,7 @@ describe('cached navigations', () => {
     )
   })
 
-  // TODO: flaky
-  it.skip('caches a partially static page from the initial HTML for subsequent navigations', async () => {
+  it('caches a partially static page from the initial HTML for subsequent navigations', async () => {
     let page: Playwright.Page
     // Start directly at /partially-static — full HTML load. The RSC payload
     // inlined in the HTML contains both cached and dynamic content.
@@ -824,8 +817,7 @@ describe('cached navigations', () => {
     )
   })
 
-  // TODO: flaky
-  it.skip('reuses cached page segment across different fallback params after navigation', async () => {
+  it('reuses cached page segment across different fallback params after navigation', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       async beforePageLoad(p: Playwright.Page) {
@@ -886,8 +878,7 @@ describe('cached navigations', () => {
     )
   })
 
-  // TODO: flaky
-  it.skip('reuses cached page segment across different fallback params after initial HTML load', async () => {
+  it('reuses cached page segment across different fallback params after initial HTML load', async () => {
     let page: Playwright.Page
     // Start directly at /with-fallback-params/foo — full HTML load. The RSC
     // payload inlined in the HTML seeds the segment cache with the page
