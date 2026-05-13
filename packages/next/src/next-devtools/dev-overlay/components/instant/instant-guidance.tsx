@@ -1,20 +1,25 @@
-import { AlignmentLeftIcon } from '../../icons/alignment-left'
-import { ClockRewindIcon } from '../../icons/clock-rewind'
+import {
+  FixCardAlignLeftIcon,
+  FixCardDatabaseIcon,
+  FixCardHistoryIcon,
+  FixCardLayoutIcon,
+  FixCardOctagonIcon,
+  FixCardPointerClickIcon,
+  FixCardRotateCwIcon,
+  FixCardTimerIcon,
+  FixCardZapIcon,
+} from '../../icons/fix-card-icons'
 import { ExternalIcon } from '../../icons/external'
-import { LayoutIcon } from '../../icons/layout'
-import { LightningIcon } from '../../icons/lightning'
-import { RotateClockwiseIcon } from '../../icons/rotate-clockwise'
-import { StopIcon } from '../../icons/stop'
 import { css } from '../../utils/css'
 import {
   DOCS_URLS,
   EXPLANATIONS,
+  FIX_CARD_GROUPS,
   SYNC_IO_CLIENT_DOCS,
   SYNC_IO_DOCS,
   getCards,
-  type CardColor,
   type FixCard,
-  type FixCardGroup,
+  type FixCardIcon,
   type GuidanceKind,
   type GuidanceVariant,
 } from './instant-guidance-data'
@@ -22,117 +27,104 @@ import {
 export {
   DOCS_URLS,
   EXPLANATIONS,
+  FIX_CARD_GROUPS,
   SYNC_IO_CLIENT_DOCS,
   SYNC_IO_DOCS,
 } from './instant-guidance-data'
 export type { GuidanceKind, GuidanceVariant } from './instant-guidance-data'
 
-const GROUP_LABELS: Record<FixCardGroup, string> = {
-  stream: 'Stream',
-  prerender: 'Prerender',
-  block: 'Block',
-  cache: 'Cache',
-  static: 'Static',
-  dynamic: 'Dynamic',
-  client: 'Client',
-  defer: 'Defer',
-  measure: 'Measure',
-}
-
-function getCardIcon(group: FixCardGroup) {
-  switch (group) {
-    case 'stream':
-      return <AlignmentLeftIcon />
-    case 'dynamic':
-      return <RotateClockwiseIcon />
-    case 'prerender':
-    case 'cache':
-    case 'measure':
-      return <ClockRewindIcon />
-    case 'block':
-      return <StopIcon />
-    case 'static':
-      return <LightningIcon />
-    case 'client':
-      return <LayoutIcon />
-    case 'defer':
-      return <RotateClockwiseIcon />
+function getCardIcon(icon: FixCardIcon) {
+  switch (icon) {
+    case 'align-left':
+      return <FixCardAlignLeftIcon />
+    case 'rotate-cw':
+      return <FixCardRotateCwIcon />
+    case 'pointer-click':
+      return <FixCardPointerClickIcon />
+    case 'history':
+      return <FixCardHistoryIcon />
+    case 'database':
+      return <FixCardDatabaseIcon />
+    case 'timer':
+      return <FixCardTimerIcon />
+    case 'octagon':
+      return <FixCardOctagonIcon />
+    case 'zap':
+      return <FixCardZapIcon />
+    case 'layout':
+      return <FixCardLayoutIcon />
     default:
-      return group satisfies never
-  }
-}
-
-function getDisplayColor(group: FixCardGroup): CardColor {
-  switch (group) {
-    case 'cache':
-    case 'prerender':
-      return 'purple'
-    case 'stream':
-      return 'blue'
-    case 'block':
-      return 'red'
-    case 'static':
-      return 'gray'
-    case 'dynamic':
-      return 'blue'
-    case 'client':
-    case 'defer':
-      return 'amber'
-    case 'measure':
-      return 'teal'
-    default:
-      return group satisfies never
+      return icon satisfies never
   }
 }
 
 function CardGrid({ cards }: { cards: FixCard[] }) {
   return (
     <div data-nextjs-card-grid>
-      {cards.map((card) => (
-        <div
-          data-nextjs-fix-card
-          data-card-color={getDisplayColor(card.group)}
-          key={card.title}
-        >
-          <div data-nextjs-fix-card-header>
-            <div data-nextjs-fix-card-icon>{getCardIcon(card.group)}</div>
-            <div data-nextjs-fix-card-header-text>
-              <div data-nextjs-fix-card-title-row>
-                <span data-nextjs-fix-card-title>{GROUP_LABELS[card.group]}</span>
-                {/* <ExternalIcon width={16} height={16} /> */}
-              </div>
-              <span data-nextjs-fix-card-description>{card.title}</span>
-            </div>
-          </div>
-          <pre data-nextjs-fix-snippet>
-            {card.snippets.map((snippet, i) => (
-              <span
-                key={i}
-                data-snippet-line
-                data-snippet-line-highlighted={
-                  snippet.parts || snippet.highlight ? true : undefined
-                }
-              >
-                {snippet.parts ? (
-                  snippet.parts.map((part, j) => (
-                    <span
-                      key={j}
-                      data-snippet-highlight={part.highlight ? '' : undefined}
-                    >
-                      {part.text}
-                    </span>
-                  ))
-                ) : snippet.highlight ? (
-                  <span data-snippet-highlight>{snippet.text}</span>
-                ) : (
-                  snippet.text
-                )}
-                {'\n'}
+      {cards.map((card) => {
+        const groupMeta = FIX_CARD_GROUPS[card.group]
+        const inner = (
+          <>
+            {card.link ? (
+              <span data-nextjs-fix-card-link-icon aria-hidden="true">
+                <ExternalIcon width={16} height={16} />
               </span>
-            ))}
-          </pre>
-        </div>
-      ))}
+            ) : null}
+            <div data-nextjs-fix-card-header>
+              <div data-nextjs-fix-card-icon>{getCardIcon(groupMeta.icon)}</div>
+              <div data-nextjs-fix-card-header-text>
+                <div data-nextjs-fix-card-title-row>
+                  <span data-nextjs-fix-card-title>{groupMeta.label}</span>
+                </div>
+                <span data-nextjs-fix-card-description>{card.title}</span>
+              </div>
+            </div>
+            <pre data-nextjs-fix-snippet>
+              {card.snippets.map((snippet, i) => (
+                <span key={i} data-snippet-line>
+                  {snippet.parts ? (
+                    snippet.parts.map((part, j) => (
+                      <span
+                        key={j}
+                        data-snippet-highlight={part.highlight ? '' : undefined}
+                      >
+                        {part.text}
+                      </span>
+                    ))
+                  ) : snippet.highlight ? (
+                    <span data-snippet-highlight>{snippet.text}</span>
+                  ) : (
+                    snippet.text
+                  )}
+                  {'\n'}
+                </span>
+              ))}
+            </pre>
+          </>
+        )
+
+        const sharedProps = {
+          'data-nextjs-fix-card': '',
+          'data-card-color': groupMeta.color,
+        }
+
+        return card.link ? (
+          <a
+            {...sharedProps}
+            href={card.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            key={card.title}
+            aria-label={`Open docs for ${card.title}`}
+          >
+            {inner}
+          </a>
+        ) : (
+          <div {...sharedProps} key={card.title}>
+            {inner}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -205,9 +197,11 @@ export function InstantHeaderExplanation({
   return (
     <p data-nextjs-instant-explanation>
       {resolvedExplanation}{' '}
-      <a href={resolvedDocsUrl} target="_blank" rel="noopener noreferrer">
-        Learn more
-      </a>
+      {resolvedDocsUrl ? (
+        <a href={resolvedDocsUrl} target="_blank" rel="noopener noreferrer">
+          Learn more
+        </a>
+      ) : null}
     </p>
   )
 }
@@ -248,17 +242,38 @@ export const INSTANT_GUIDANCE_STYLES = css`
     border: 1px solid var(--color-gray-200);
     border-bottom: none;
     border-radius: var(--rounded-xl);
+    color: inherit;
     display: flex;
     flex-direction: column;
     min-width: 0;
     overflow: hidden;
+    position: relative;
+    text-decoration: none;
+    text-decoration-line: none;
   }
 
-  /*
+  a[data-nextjs-fix-card],
+  a[data-nextjs-fix-card]:hover,
+  a[data-nextjs-fix-card]:visited {
+    color: inherit;
+    text-decoration: none;
+    text-decoration-line: none;
+  }
+
+  [data-nextjs-fix-card] * {
+    text-decoration: none !important;
+    text-decoration-line: none !important;
+  }
+
   [data-nextjs-fix-card]:hover {
     border-color: var(--color-gray-500);
+    background: var(--color-gray-alpha-100);
   }
-  */
+
+  a[data-nextjs-fix-card]:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
+  }
 
   [data-nextjs-fix-card-header] {
     display: flex;
@@ -285,6 +300,7 @@ export const INSTANT_GUIDANCE_STYLES = css`
 
   [data-nextjs-fix-card-header-text] {
     display: flex;
+    flex: 1;
     flex-direction: column;
     gap: 4px;
     min-width: 0;
@@ -295,6 +311,17 @@ export const INSTANT_GUIDANCE_STYLES = css`
     align-items: center;
     gap: 4px;
     color: var(--color-gray-1000);
+  }
+
+  [data-nextjs-fix-card-link-icon] {
+    align-items: center;
+    color: var(--color-gray-800);
+    display: flex;
+    opacity: 1;
+    position: absolute;
+    right: 14px;
+    top: 14px;
+    z-index: 1;
   }
 
   [data-nextjs-fix-card-title] {
@@ -342,27 +369,8 @@ export const INSTANT_GUIDANCE_STYLES = css`
   */
 
   [data-snippet-line] {
-    position: relative;
     display: block;
     color: var(--color-gray-800);
-  }
-
-  [data-snippet-line]:not([data-snippet-line-highlighted])::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: color-mix(
-      in srgb,
-      var(--color-background-200) 60%,
-      transparent
-    );
-    backdrop-filter: blur(0.5px);
-    pointer-events: none;
-  }
-
-  [data-snippet-line] > * {
-    position: relative;
-    z-index: 1;
   }
 
   [data-nextjs-fix-snippet] [data-snippet-highlight] {

@@ -11,10 +11,40 @@ export type FixCardGroup =
   | 'defer'
   | 'measure'
 
+export type FixCardIcon =
+  | 'align-left'
+  | 'database'
+  | 'history'
+  | 'layout'
+  | 'octagon'
+  | 'pointer-click'
+  | 'rotate-cw'
+  | 'timer'
+  | 'zap'
+
+export const FIX_CARD_GROUPS: Record<
+  FixCardGroup,
+  { label: string; color: CardColor; icon: FixCardIcon }
+> = {
+  stream: { label: 'Stream', color: 'blue', icon: 'align-left' },
+  prerender: { label: 'Prerender', color: 'purple', icon: 'history' },
+  block: { label: 'Block', color: 'red', icon: 'octagon' },
+  cache: { label: 'Cache', color: 'purple', icon: 'database' },
+  static: { label: 'Static', color: 'gray', icon: 'zap' },
+  dynamic: { label: 'Dynamic', color: 'blue', icon: 'rotate-cw' },
+  client: { label: 'Client', color: 'amber', icon: 'layout' },
+  defer: { label: 'Defer', color: 'amber', icon: 'pointer-click' },
+  measure: { label: 'Measure', color: 'teal', icon: 'timer' },
+}
+
 export type FixCard = {
+  /** Stable docs-anchor id for this fix card. */
+  id: string
   title: string
   group: FixCardGroup
   color: CardColor
+  /** Docs URL the card links to, or `null` for no link. */
+  link: string | null
   snippets: Snippet[]
 }
 
@@ -36,9 +66,11 @@ export type Snippet = {
 
 const runtimeCards: FixCard[] = [
   {
-    title: 'Show a fallback while data loads',
+    id: 'wrap-in-or-move-into-suspense',
+    title: 'Wrap in or move into Suspense',
     group: 'stream',
     color: 'purple',
+    link: 'https://nextjs.org/docs/messages/blocking-route#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <DataChild />' },
@@ -46,11 +78,20 @@ const runtimeCards: FixCard[] = [
     ],
   },
   {
-    title: 'Make route params static',
-    group: 'prerender',
+    id: 'prerender-known-params',
+    title: 'Prerender known params',
+    group: 'cache',
     color: 'blue',
+    link: 'https://nextjs.org/docs/messages/blocking-route#prerender-known-params',
     snippets: [
-      { text: 'export function generateStaticParams() {' },
+      {
+        text: 'function generateStaticParams() {',
+        parts: [
+          { text: 'function ' },
+          { text: 'generateStaticParams', highlight: true },
+          { text: '() {' },
+        ],
+      },
       {
         text: '  return [{ slug: "…" }]',
         parts: [
@@ -62,32 +103,37 @@ const runtimeCards: FixCard[] = [
     ],
   },
   {
+    id: 'allow-blocking-route',
     title: 'Allow blocking route',
     group: 'block',
     color: 'red',
+    link: 'https://nextjs.org/docs/messages/blocking-route#allow-blocking-route',
     snippets: [
+      { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
-      { text: '' },
-      { text: 'export default function Page() {' },
     ],
   },
 ]
 
 const dynamicCards: FixCard[] = [
   {
-    title: 'Prerender and cache',
+    id: 'cache-the-component-or-data',
+    title: 'Cache the component or data',
     group: 'cache',
     color: 'blue',
+    link: 'https://nextjs.org/docs/messages/blocking-route#cache-the-component-or-data',
     snippets: [
-      { text: 'function getData() {' },
+      { text: 'async function Posts() {' },
       { text: '  "use cache"', highlight: true },
-      { text: '}' },
+      { text: '  return <List items={…} />' },
     ],
   },
   {
-    title: 'Show a fallback while data loads',
+    id: 'wrap-in-or-move-into-suspense',
+    title: 'Wrap in or move into Suspense',
     group: 'stream',
     color: 'purple',
+    link: 'https://nextjs.org/docs/messages/blocking-route#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <DataChild />' },
@@ -95,13 +141,14 @@ const dynamicCards: FixCard[] = [
     ],
   },
   {
+    id: 'allow-blocking-route',
     title: 'Allow blocking route',
     group: 'block',
     color: 'red',
+    link: 'https://nextjs.org/docs/messages/blocking-route#allow-blocking-route',
     snippets: [
+      { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
-      { text: '' },
-      { text: 'export default function Page() {' },
     ],
   },
 ]
@@ -110,9 +157,11 @@ const dynamicCards: FixCard[] = [
 
 const metadataRuntimeCards: FixCard[] = [
   {
+    id: 'use-static-metadata',
     title: 'Use static metadata',
     group: 'static',
     color: 'blue',
+    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#use-static-metadata',
     snippets: [
       { text: 'export const metadata = {' },
       { text: '  title: "My Page"', highlight: true },
@@ -120,9 +169,11 @@ const metadataRuntimeCards: FixCard[] = [
     ],
   },
   {
+    id: 'render-page-at-request-time',
     title: 'Render page at request time',
     group: 'dynamic',
     color: 'purple',
+    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#render-page-at-request-time',
     snippets: [
       { text: 'export default async function Page() {' },
       { text: '  await connection()', highlight: true },
@@ -133,20 +184,23 @@ const metadataRuntimeCards: FixCard[] = [
 
 const metadataDynamicCards: FixCard[] = [
   {
-    title: 'Prerender and cache',
+    id: 'cache-the-metadata',
+    title: 'Cache the metadata',
     group: 'cache',
     color: 'blue',
+    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#cache-the-metadata',
     snippets: [
-      { text: 'export async function generateMetadata() {' },
+      { text: 'async function generateMetadata() {' },
       { text: '  "use cache"', highlight: true },
-      { text: '  return await cms.getPageMeta(…)' },
-      { text: '}' },
+      { text: '  return await cms.getMeta(…)' },
     ],
   },
   {
+    id: 'render-page-at-request-time',
     title: 'Render page at request time',
     group: 'dynamic',
     color: 'purple',
+    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#render-page-at-request-time',
     snippets: [
       { text: 'export default async function Page() {' },
       { text: '  await connection()', highlight: true },
@@ -159,9 +213,11 @@ const metadataDynamicCards: FixCard[] = [
 
 const viewportRuntimeCards: FixCard[] = [
   {
+    id: 'use-static-viewport',
     title: 'Use static viewport',
     group: 'static',
     color: 'blue',
+    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#use-static-viewport',
     snippets: [
       { text: 'export const viewport = {' },
       { text: '  themeColor: "#000"', highlight: true },
@@ -169,9 +225,11 @@ const viewportRuntimeCards: FixCard[] = [
     ],
   },
   {
+    id: 'wrap-body-in-suspense',
     title: 'Wrap body in Suspense',
     group: 'stream',
     color: 'purple',
+    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#wrap-body-in-suspense',
     snippets: [
       { text: '<Suspense>', highlight: true },
       { text: '  <body>{children}</body>' },
@@ -179,33 +237,37 @@ const viewportRuntimeCards: FixCard[] = [
     ],
   },
   {
+    id: 'allow-blocking-route',
     title: 'Allow blocking route',
     group: 'block',
     color: 'red',
+    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#allow-blocking-route',
     snippets: [
+      { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
-      { text: '' },
-      { text: 'export default function Page() {' },
     ],
   },
 ]
 
 const viewportDynamicCards: FixCard[] = [
   {
-    title: 'Prerender and cache',
+    id: 'cache-viewport-data',
+    title: 'Cache viewport data',
     group: 'cache',
     color: 'blue',
+    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#cache-viewport-data',
     snippets: [
-      { text: 'export async function generateViewport() {' },
+      { text: 'async function generateViewport() {' },
       { text: '  "use cache"', highlight: true },
       { text: '  return await db.getViewport(…)' },
-      { text: '}' },
     ],
   },
   {
+    id: 'wrap-body-in-suspense',
     title: 'Wrap body in Suspense',
     group: 'stream',
     color: 'purple',
+    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#wrap-body-in-suspense',
     snippets: [
       { text: '<Suspense>', highlight: true },
       { text: '  <body>{children}</body>' },
@@ -213,13 +275,14 @@ const viewportDynamicCards: FixCard[] = [
     ],
   },
   {
+    id: 'allow-blocking-route',
     title: 'Allow blocking route',
     group: 'block',
     color: 'red',
+    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#allow-blocking-route',
     snippets: [
+      { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
-      { text: '' },
-      { text: 'export default function Page() {' },
     ],
   },
 ]
@@ -228,9 +291,11 @@ const viewportDynamicCards: FixCard[] = [
 
 const syncMathCards: FixCard[] = [
   {
+    id: 'render-at-request-time',
     title: 'Render at request time',
     group: 'dynamic',
     color: 'purple',
+    link: 'https://nextjs.org/docs/messages/next-prerender-random#render-at-request-time',
     snippets: [
       { text: 'await connection()', highlight: true },
       { text: 'const id = Math.random()' },
@@ -238,20 +303,23 @@ const syncMathCards: FixCard[] = [
     ],
   },
   {
-    title: 'Prerender and cache',
+    id: 'cache-the-random-value',
+    title: 'Cache the random value',
     group: 'cache',
     color: 'blue',
+    link: 'https://nextjs.org/docs/messages/next-prerender-random#cache-the-random-value',
     snippets: [
       { text: 'function RandomId() {' },
       { text: '  "use cache"', highlight: true },
       { text: '  return String(Math.random())' },
-      { text: '}' },
     ],
   },
   {
+    id: 'render-on-the-client',
     title: 'Render on the client',
     group: 'client',
     color: 'amber',
+    link: 'https://nextjs.org/docs/messages/next-prerender-random#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
       { text: 'export function RandomId() {' },
@@ -263,9 +331,11 @@ const syncMathCards: FixCard[] = [
 
 const syncDateCards: FixCard[] = [
   {
+    id: 'render-at-request-time',
     title: 'Render at request time',
     group: 'dynamic',
     color: 'purple',
+    link: 'https://nextjs.org/docs/messages/next-prerender-current-time#render-at-request-time',
     snippets: [
       { text: 'await connection()', highlight: true },
       { text: 'const t = Date.now()' },
@@ -273,20 +343,23 @@ const syncDateCards: FixCard[] = [
     ],
   },
   {
-    title: 'Prerender and cache',
+    id: 'cache-the-timestamp',
+    title: 'Cache the timestamp',
     group: 'cache',
     color: 'blue',
+    link: 'https://nextjs.org/docs/messages/next-prerender-current-time#cache-the-timestamp',
     snippets: [
       { text: 'function Timestamp() {' },
       { text: '  "use cache"', highlight: true },
       { text: '  return <time>{Date.now()}</time>' },
-      { text: '}' },
     ],
   },
   {
+    id: 'render-on-the-client',
     title: 'Render on the client',
     group: 'client',
     color: 'amber',
+    link: 'https://nextjs.org/docs/messages/next-prerender-current-time#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
       { text: 'export function RelativeTime() {' },
@@ -295,9 +368,11 @@ const syncDateCards: FixCard[] = [
     ],
   },
   {
+    id: 'measure-elapsed-time',
     title: 'Measure elapsed time',
     group: 'measure',
     color: 'teal',
+    link: 'https://nextjs.org/docs/messages/next-prerender-current-time#measure-elapsed-time',
     snippets: [
       { text: 'const start = performance.now()', highlight: true },
       { text: 'doWork()' },
@@ -308,9 +383,11 @@ const syncDateCards: FixCard[] = [
 
 const syncCryptoCards: FixCard[] = [
   {
+    id: 'render-at-request-time',
     title: 'Render at request time',
     group: 'dynamic',
     color: 'purple',
+    link: 'https://nextjs.org/docs/messages/next-prerender-crypto#render-at-request-time',
     snippets: [
       { text: 'await connection()', highlight: true },
       { text: 'const id = crypto.randomUUID()' },
@@ -318,20 +395,23 @@ const syncCryptoCards: FixCard[] = [
     ],
   },
   {
-    title: 'Prerender and cache',
+    id: 'cache-the-generated-value',
+    title: 'Cache the generated value',
     group: 'cache',
     color: 'blue',
+    link: 'https://nextjs.org/docs/messages/next-prerender-crypto#cache-the-generated-value',
     snippets: [
       { text: 'function TokenId() {' },
       { text: '  "use cache"', highlight: true },
       { text: '  return crypto.randomUUID()' },
-      { text: '}' },
     ],
   },
   {
+    id: 'render-on-the-client',
     title: 'Render on the client',
     group: 'client',
     color: 'amber',
+    link: 'https://nextjs.org/docs/messages/next-prerender-crypto#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
       { text: 'export function TokenId() {' },
@@ -345,9 +425,11 @@ const syncCryptoCards: FixCard[] = [
 
 const syncClientDateCards: FixCard[] = [
   {
-    title: 'Wrap in Suspense',
+    id: 'wrap-in-or-move-into-suspense',
+    title: 'Wrap in or move into Suspense',
     group: 'stream',
     color: 'purple',
+    link: 'https://nextjs.org/docs/messages/next-prerender-current-time-client#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <DateDisplay />' },
@@ -355,22 +437,26 @@ const syncClientDateCards: FixCard[] = [
     ],
   },
   {
+    id: 'move-into-effect-or-event-handler',
     title: 'Move into effect or event handler',
     group: 'defer',
     color: 'amber',
+    link: 'https://nextjs.org/docs/messages/next-prerender-current-time-client#move-into-effect-or-event-handler',
     snippets: [
-      { text: 'useEffect(() => {', highlight: true },
-      { text: '  setT(Date.now())' },
-      { text: '}, [])' },
+      { text: '<button onClick={() => {' },
+      { text: '  setT(Date.now())', highlight: true },
+      { text: '}} />' },
     ],
   },
 ]
 
 const syncClientMathCards: FixCard[] = [
   {
-    title: 'Wrap in Suspense',
+    id: 'wrap-in-or-move-into-suspense',
+    title: 'Wrap in or move into Suspense',
     group: 'stream',
     color: 'purple',
+    link: 'https://nextjs.org/docs/messages/next-prerender-random-client#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <RandomId />' },
@@ -378,22 +464,26 @@ const syncClientMathCards: FixCard[] = [
     ],
   },
   {
+    id: 'move-into-effect-or-event-handler',
     title: 'Move into effect or event handler',
     group: 'defer',
     color: 'amber',
+    link: 'https://nextjs.org/docs/messages/next-prerender-random-client#move-into-effect-or-event-handler',
     snippets: [
-      { text: 'useEffect(() => {', highlight: true },
-      { text: '  setId(String(Math.random()))' },
-      { text: '}, [])' },
+      { text: '<button onClick={() => {' },
+      { text: '  setId(Math.random())', highlight: true },
+      { text: '}} />' },
     ],
   },
 ]
 
 const syncClientCryptoCards: FixCard[] = [
   {
-    title: 'Wrap in Suspense',
+    id: 'wrap-in-or-move-into-suspense',
+    title: 'Wrap in or move into Suspense',
     group: 'stream',
     color: 'purple',
+    link: 'https://nextjs.org/docs/messages/next-prerender-crypto-client#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <TokenId />' },
@@ -401,13 +491,15 @@ const syncClientCryptoCards: FixCard[] = [
     ],
   },
   {
+    id: 'move-into-effect-or-event-handler',
     title: 'Move into effect or event handler',
     group: 'defer',
     color: 'amber',
+    link: 'https://nextjs.org/docs/messages/next-prerender-crypto-client#move-into-effect-or-event-handler',
     snippets: [
-      { text: 'useEffect(() => {', highlight: true },
-      { text: '  setId(crypto.randomUUID())' },
-      { text: '}, [])' },
+      { text: '<button onClick={() => {' },
+      { text: '  setId(crypto.randomUUID())', highlight: true },
+      { text: '}} />' },
     ],
   },
 ]

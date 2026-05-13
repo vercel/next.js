@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { HotlinkedText } from '../hot-linked-text'
 import { getStackFrameFile, type StackFrame } from '../../../shared/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
-import { FileDependentIcon } from '../../icons/file-dependent'
+import { ExternalIcon } from '../../icons/external'
 import { FileIcon } from '../../icons/file'
 import {
   formatCodeFrame,
@@ -58,7 +58,7 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
             data-with-open-in-editor-link-source-file
             onClick={open}
           >
-            <FileDependentIcon />
+            <ExternalIcon />
           </button>
         </p>
       </div>
