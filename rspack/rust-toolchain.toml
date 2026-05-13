@@ -2,4 +2,4 @@
 profile = "default"
 components = ["rust-src"]
 # Use nightly for better access to the latest Rust features.
-channel = "nightly-2025-11-13"
+channel = "nightly-2026-04-16"
