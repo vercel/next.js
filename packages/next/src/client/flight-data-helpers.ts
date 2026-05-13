@@ -251,8 +251,7 @@ function stripClientOnlyDataFromFlightRouterState(
     parallelRoutes,
     _refreshState, // Intentionally unused - URLs are client-only
     refreshMarker,
-    isRootLayout,
-    hasLoadingBoundary,
+    prefetchHints,
   ] = flightRouterState
 
   // Strip client-only data from the segment
@@ -272,11 +271,8 @@ function stripClientOnlyDataFromFlightRouterState(
   }
 
   // Append optional fields if present
-  if (isRootLayout !== undefined) {
-    result[4] = isRootLayout
-  }
-  if (hasLoadingBoundary !== undefined) {
-    result[5] = hasLoadingBoundary
+  if (prefetchHints !== undefined) {
+    result[4] = prefetchHints
   }
 
   // Everything else is used only by the client and is not needed for requests.

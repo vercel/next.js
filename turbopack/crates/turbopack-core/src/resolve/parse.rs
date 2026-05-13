@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use anyhow::{Ok, Result};
 use regex::Regex;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc, turbofmt};
 
 use super::pattern::Pattern;
 
@@ -90,7 +90,8 @@ fn split_off_query_fragment(mut raw: &str) -> (Pattern, RcStr, RcStr) {
     (Pattern::Constant(RcStr::from(raw)), query, hash)
 }
 
-static WINDOWS_PATH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[A-Za-z]:\\|\\\\").unwrap());
+static WINDOWS_PATH: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[A-Za-z]:[/\\]|^\\\\").unwrap());
 static URI_PATH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^([^/\\:]+:)(.+)$").unwrap());
 static DATA_URI_REMAINDER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^([^;,]*)(?:;([^,]+))?,(.*)$").unwrap());
@@ -293,7 +294,12 @@ impl Request {
                 Request::Unknown { path } => {
                     path.push(item);
                 }
-                Request::DataUri { .. } | Request::Uri { .. } | Request::Dynamic => {
+                Request::DataUri { .. } | Request::Uri { .. } => {
+                    return Request::Dynamic;
+                }
+                Request::Dynamic => {
+                    // A dynamic prefix is essentially impossible to resolve so we don't try.  We
+                    // would have to scan the entire repo for suffix matches.
                     return Request::Dynamic;
                 }
                 Request::Alternatives { .. } => unreachable!(),
@@ -652,7 +658,7 @@ impl Request {
                 encoding,
                 data,
             } => {
-                let data = ResolvedVc::cell(format!("{}{}", data.await?, suffix).into());
+                let data = ResolvedVc::cell(turbofmt!("{}{suffix}", *data).await?);
                 Self::DataUri {
                     media_type: media_type.clone(),
                     encoding: encoding.clone(),
@@ -849,6 +855,27 @@ pub async fn stringify_data_uri(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_windows_paths() {
+        assert_eq!(
+            Request::Windows {
+                path: rcstr!(r"C:\Users\demo\src\index.ts").into(),
+                query: rcstr!(""),
+                fragment: rcstr!(""),
+            },
+            Request::parse_ref(rcstr!(r"C:\Users\demo\src\index.ts").into())
+        );
+
+        assert_eq!(
+            Request::Windows {
+                path: rcstr!("C:/Users/demo/src/index.ts").into(),
+                query: rcstr!(""),
+                fragment: rcstr!(""),
+            },
+            Request::parse_ref(rcstr!("C:/Users/demo/src/index.ts").into())
+        );
+    }
 
     #[test]
     fn test_parse_module() {

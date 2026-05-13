@@ -12,6 +12,7 @@ describe('hydration-error-count', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        [
          {
+           "code": "E394",
            "componentStack": "...
            <Next.js Internal Component>
              <Next.js Internal Component>
@@ -61,6 +62,7 @@ describe('hydration-error-count', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        [
          {
+           "code": "E394",
            "componentStack": "...
            <Next.js Internal Component>
              <Next.js Internal Component>
@@ -192,6 +194,7 @@ describe('hydration-error-count', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        [
          {
+           "code": "E394",
            "componentStack": "...
            <Next.js Internal Component>
              <Next.js Internal Component>
@@ -262,6 +265,7 @@ describe('hydration-error-count', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        [
          {
+           "code": "E394",
            "componentStack": "...
            <Next.js Internal Component>
              <Next.js Internal Component>
@@ -337,6 +341,7 @@ describe('hydration-error-count', () => {
     await expect(browser).toDisplayRedbox(`
      [
        {
+         "code": "E394",
          "componentStack": "...
          <Next.js Internal Component>
            <Next.js Internal Component>

@@ -6,9 +6,7 @@ use either::Either;
 use indoc::writedoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    FxIndexMap, IntoTraitRef, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs,
-};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -112,7 +110,7 @@ impl EcmascriptDevChunkListContent {
             if let Some(mergeable) =
                 ResolvedVc::try_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content)
             {
-                let merger = mergeable.get_merger().resolve().await?;
+                let merger = mergeable.get_merger().to_resolved().await?;
                 by_merger.entry(merger).or_default().push(*chunk_content);
             } else {
                 by_path.insert(
@@ -127,7 +125,7 @@ impl EcmascriptDevChunkListContent {
             .map(|(merger, contents)| (merger, Vc::cell(contents)))
             .map(async |(merger, contents)| {
                 Ok((
-                    merger.to_resolved().await?,
+                    merger,
                     merger.merge(contents).version().into_trait_ref().await?,
                 ))
             })

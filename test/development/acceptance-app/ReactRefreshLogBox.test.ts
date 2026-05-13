@@ -281,11 +281,11 @@ describe('ReactRefreshLogBox app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (7:1)
-       Parsing ecmascript source code failed
+       Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
        > 7 | }
            | ^",
          "stack": [],
@@ -515,11 +515,11 @@ describe('ReactRefreshLogBox app', () => {
     } else {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "Syntax error: <FIXME-project-root>/index.module.css Unknown word",
+         "description": "Syntax error: <FIXME-project-root>/index.module.css Unknown word .button",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css (1:1)
-       Syntax error: <FIXME-project-root>/index.module.css Unknown word
+       Syntax error: <FIXME-project-root>/index.module.css Unknown word .button
        > 1 | .button
            | ^",
          "stack": [],
@@ -1558,6 +1558,7 @@ describe('ReactRefreshLogBox app', () => {
       if (isRspack) {
         await expect({ browser, next }).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "module error",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -1577,6 +1578,7 @@ describe('ReactRefreshLogBox app', () => {
       } else if (!isTurbopack) {
         await expect({ browser, next }).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "module error",
            "environmentLabel": null,
            "label": "Runtime Error",

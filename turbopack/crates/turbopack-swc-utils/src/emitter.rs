@@ -136,9 +136,15 @@ impl Emitter for IssueEmitter {
             }
         };
 
+        // When self.title is set (e.g. "Parsing ecmascript source code failed"),
+        // use the SWC diagnostic as the title for a more specific error message,
+        // and demote the generic title to the description.
+        // When self.title is not set, use the first line of the message as title
+        // and the rest as description.
         let title;
         if let Some(t) = self.title.as_ref() {
-            title = t.clone();
+            title = message.trim().into();
+            message = t.to_string();
         } else {
             let mut message_split = message.split('\n');
             title = message_split.next().unwrap().trim().to_string().into();

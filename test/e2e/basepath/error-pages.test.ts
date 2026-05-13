@@ -57,13 +57,9 @@ describe('basePath', () => {
   it('should not update URL for a 404', async () => {
     const browser = await webdriver(next.url, '/missing')
 
-    if (isNextDeploy) {
-      // the custom 404 only shows inside of the basePath so this
-      // will be the Vercel default 404 page
-      expect(
-        await browser.eval('document.documentElement.innerHTML')
-      ).toContain('NOT_FOUND')
-    } else {
+    // the custom 404 only shows inside of the basePath so this
+    // could be a platform default 404 page on deploy
+    if (!isNextDeploy) {
       const pathname = await browser.eval(() => window.location.pathname)
       expect(await browser.eval(() => (window as any).next.router.asPath)).toBe(
         '/missing'
@@ -75,13 +71,9 @@ describe('basePath', () => {
   it('should handle 404 urls that start with basePath', async () => {
     const browser = await webdriver(next.url, `${basePath}hello`)
 
-    if (isNextDeploy) {
-      // the custom 404 only shows inside of the basePath so this
-      // will be the Vercel default 404 page
-      expect(
-        await browser.eval('document.documentElement.innerHTML')
-      ).toContain('404: This page could not be found')
-    } else {
+    // the custom 404 only shows inside of the basePath so this
+    // could be a platform default 404 page on deploy
+    if (!isNextDeploy) {
       expect(await browser.eval(() => (window as any).next.router.asPath)).toBe(
         `${basePath}hello`
       )
@@ -161,8 +153,10 @@ describe('basePath', () => {
   it('should show 404 for page not under the /docs prefix', async () => {
     const text = await renderViaHTTP(next.url, '/hello')
     expect(text).not.toContain('Hello World')
-    expect(text).toContain(
-      isNextDeploy ? 'NOT_FOUND' : 'This page could not be found'
-    )
+    // the custom 404 only shows inside of the basePath so this
+    // could be a platform default 404 page on deploy
+    if (!isNextDeploy) {
+      expect(text).toContain('This page could not be found')
+    }
   })
 })

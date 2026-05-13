@@ -7,11 +7,12 @@ import {
 } from 'next-test-utils'
 
 describe('app-dir - error-on-next-codemod-comment', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
   })
+  if (skipped) return
 
   if (isNextDev) {
     beforeAll(async () => {
@@ -26,7 +27,8 @@ describe('app-dir - error-on-next-codemod-comment', () => {
       if (process.env.IS_TURBOPACK_TEST) {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
            "./app/page.tsx (2:2)
-           Ecmascript file had an error
+           You have an unresolved @next/codemod comment "remove jsx of next line" that needs review.
+               After review, either remove the comment if you made the necessary changes or replace "@next-codemod-error" with "@next-codemod-ignore" to bypass the build error if no action at this line can be taken.
              1 | export default function Page() {
            > 2 |   // @next-codemod-error remove jsx of next line
                |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -34,8 +36,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
              4 | }
              5 |
 
-           You have an unresolved @next/codemod comment "remove jsx of next line" that needs review.
-           After review, either remove the comment if you made the necessary changes or replace "@next-codemod-error" with "@next-codemod-ignore" to bypass the build error if no action at this line can be taken."
+           Ecmascript file had an error"
           `)
       } else if (process.env.NEXT_RSPACK) {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`

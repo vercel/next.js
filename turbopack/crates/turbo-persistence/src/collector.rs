@@ -1,7 +1,7 @@
 use std::mem::take;
 
 use crate::{
-    ValueBuffer,
+    FamilyKind, ValueBuffer,
     collector_entry::{CollectorEntry, CollectorEntryValue, EntryKey, TINY_VALUE_THRESHOLD},
     constants::{
         DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE, MAX_SMALL_VALUE_SIZE,
@@ -110,10 +110,44 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         self.entries.push(entry);
     }
 
-    /// Sorts the entries and returns them along with the total key size. This doesn't
-    /// clear the entries.
-    pub fn sorted(&mut self) -> (&[CollectorEntry<K>], usize) {
-        self.entries.sort_unstable_by(|a, b| a.key.cmp(&b.key));
+    /// Sorts entries by key. Tombstones are placed last within each key group.
+    /// This method does not deduplicate entries.
+    ///
+    /// In debug builds, asserts that SingleValue families have no duplicate keys.
+    pub fn sorted(&mut self, family_kind: FamilyKind) -> (&[CollectorEntry<K>], usize) {
+        // Sort by (hash, key) with tombstones placed last within each key group.
+        // We can use unstable sort because the relative order of equal elements
+        // doesn't matter — duplicates are either disallowed (SingleValue) or
+        // allowed without deduplication (MultiValue).
+        self.entries.sort_unstable_by(|a, b| {
+            a.key
+                .cmp(&b.key)
+                .then_with(|| a.value.is_deleted().cmp(&b.value.is_deleted()))
+        });
+
+        #[cfg(debug_assertions)]
+        if family_kind == FamilyKind::SingleValue {
+            // WriteBatch callers must not insert duplicate keys for SingleValue families.
+            for w in self.entries.windows(2) {
+                if w[0].key == w[1].key {
+                    let mut key_buf = Vec::new();
+                    w[0].key.data.write_to(&mut key_buf);
+                    panic!(
+                        "WriteBatch invariant violation: SingleValue family has duplicate key \
+                         (hash={:#018x}, key={})",
+                        w[0].key.hash,
+                        key_buf
+                            .iter()
+                            .map(|b| format!("{b:02x}"))
+                            .collect::<String>(),
+                    );
+                }
+            }
+        }
+
+        // Suppress unused variable warning in release builds
+        let _ = family_kind;
+
         (&self.entries, self.total_key_size)
     }
 

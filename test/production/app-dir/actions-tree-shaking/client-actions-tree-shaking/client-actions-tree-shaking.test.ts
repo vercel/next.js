@@ -1,6 +1,7 @@
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { getClientReferenceManifest, retry } from 'next-test-utils'
+import { parseRelativeUrl } from 'next/dist/shared/lib/router/utils/parse-relative-url'
 
 function getServerReferenceIdsFromBundle(source: string): string[] {
   // Reference IDs are strings with [0-9a-f] that are at least 32 characters long.
@@ -42,11 +43,11 @@ describe('app-dir - client-actions-tree-shaking', () => {
           chunks.add(chunk)
         }
       }
-      // client mmodules is a mapping from module name to a set of chunks releative to `/_next/`
+      // clientModules is a mapping from module name to a set of URLs
       // So strip that prefix and add it to the chunks
       for (const clientModule of Object.values(clientManifest.clientModules)) {
         for (const chunk of clientModule.chunks) {
-          chunks.add(chunk.replace('/_next/', ''))
+          chunks.add(parseRelativeUrl(chunk).pathname.replace('/_next/', ''))
         }
       }
     } else {

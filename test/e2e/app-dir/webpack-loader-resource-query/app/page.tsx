@@ -1,5 +1,5 @@
 // @ts-expect-error -- ignore
-import { v } from './test.mdx?test=hi'
+import { v } from '@/test.mdx?test=hi'
 // @ts-expect-error -- ignore
 import reversed from './data.txt?reverse'
 // @ts-expect-error -- ignore

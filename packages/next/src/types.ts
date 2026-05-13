@@ -40,6 +40,8 @@ export type {
   ResolvedViewport,
 } from './lib/metadata/types/metadata-interface'
 
+export type { Instant } from './build/segment-config/app/app-segment-config'
+
 export type { Instrumentation } from './server/instrumentation/types'
 
 /**

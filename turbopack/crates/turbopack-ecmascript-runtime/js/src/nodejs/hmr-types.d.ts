@@ -18,3 +18,7 @@ interface NodeJsPartialHmrUpdate {
     chunks?: Record<string, { type: 'partial' }>
   }
 }
+
+interface NodeJsRestartHmrUpdate {
+  type: 'restart'
+}

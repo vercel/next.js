@@ -122,10 +122,10 @@ export function deobfuscateModuleId(moduleId: string): string {
  */
 export function removeFreeCallWrapper(text: string): string {
   // Match (0, <ident>.<ident>) patterns anywhere in the text the beginning
-  // Use Unicode property escapes (\p{ID_Start}, \p{ID_Continue}) for full JS identifier support
-  // Requires the 'u' (unicode) flag in the regex
+  // Overzealous: accept any non-whitespace member expression after the dot.
+  // TODO: Fix https://linear.app/vercel/issue/NEXT-4875 to allow using unicode property escapes
   return text.replace(
-    /\(0\s*,\s*(__TURBOPACK__[a-zA-Z0-9_$]+__\.[\p{ID_Start}_$][\p{ID_Continue}$]*)\)/u,
+    /\(0\s*,\s*(__TURBOPACK__[a-zA-Z0-9_$]+__\.[^\s)]+)\)/g,
     '$1'
   )
 }

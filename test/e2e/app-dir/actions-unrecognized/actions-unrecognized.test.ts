@@ -92,8 +92,8 @@ describe('unrecognized server actions', () => {
       body: 'foo=bar',
     })
 
-    // On Vercel, this would hit the 404 route which is a static page, and returns a 405 instead.
-    expect(res.status).toBe(isNextDeploy ? 405 : 404)
+    // On deploy, this would hit the 404 route which is a static page, and returns a 405 instead.
+    expect(res.status).toBeOneOf([405, 404])
   })
 
   describe.each(['nodejs', 'edge'])(
@@ -154,12 +154,9 @@ describe('unrecognized server actions', () => {
         } else {
           // An MPA action, sent without JS.
 
-          if (isNextDeploy) {
-            // FIXME: When deployed to vercel, the request is logged as a 500, but returns a 405.
-            // We also don't seem to display the error page correctly
-            expect(response.status()).toBe(405)
-            expect(response.headers()['content-type']).toStartWith('text/html')
-          } else {
+          // FIXME: When deployed, the request is logged as a 500, but returns a 405.
+          // We also don't seem to display the error page correctly
+          if (!isNextDeploy) {
             // FIXME: Currently, an unrecognized id in an MPA action results in a 500.
             // This is not ideal, and ignores all nested `error.js` files, only showing the topmost one.
             expect(response.status()).toBe(500)

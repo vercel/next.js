@@ -59,7 +59,7 @@ describe('Dynamic Routes After afterFiles Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/posts/my-post')
+    expect(result.resolvedPathname).toBe('/posts/my-post')
     expect(result.routeMatches).toEqual({
       '1': 'my-post',
       slug: 'my-post',
@@ -96,7 +96,7 @@ describe('Dynamic Routes After afterFiles Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/posts/article')
+    expect(result.resolvedPathname).toBe('/posts/article')
     expect(result.routeMatches).toEqual({
       '1': 'article',
       slug: 'article',
@@ -137,7 +137,7 @@ describe('Dynamic Routes After afterFiles Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/users/test')
+    expect(result.resolvedPathname).toBe('/users/test')
     expect(result.routeMatches).toEqual({
       '1': 'test',
       username: 'test',
@@ -178,7 +178,7 @@ describe('Dynamic Routes After afterFiles Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/posts/post')
+    expect(result.resolvedPathname).toBe('/posts/post')
     expect(result.routeMatches).toEqual({
       '1': 'post',
       slug: 'post',
@@ -222,7 +222,7 @@ describe('Dynamic Routes After afterFiles Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/users/profile')
+    expect(result.resolvedPathname).toBe('/users/profile')
     expect(result.routeMatches).toEqual({
       '1': 'profile',
       page: 'profile',
@@ -257,7 +257,7 @@ describe('Dynamic Routes After fallback Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/catch-all/page')
+    expect(result.resolvedPathname).toBe('/catch-all/page')
     expect(result.routeMatches).toEqual({
       '1': 'page',
       path: 'page',
@@ -294,7 +294,7 @@ describe('Dynamic Routes After fallback Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/error/404')
+    expect(result.resolvedPathname).toBe('/error/404')
     expect(result.routeMatches).toEqual({
       '1': '404',
       code: '404',
@@ -331,7 +331,7 @@ describe('Dynamic Routes After fallback Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/fallback/404')
+    expect(result.resolvedPathname).toBe('/fallback/404')
     expect(result.routeMatches).toEqual({
       '1': '404',
       type: '404',
@@ -368,7 +368,7 @@ describe('Dynamic Routes After fallback Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/error/500')
+    expect(result.resolvedPathname).toBe('/error/500')
     expect(result.routeMatches).toEqual({
       '1': '500',
       code: '500',
@@ -405,7 +405,7 @@ describe('Dynamic Routes After fallback Rewrites', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/users/123')
+    expect(result.resolvedPathname).toBe('/users/123')
     expect(result.routeMatches).toEqual({
       '1': '123',
       id: '123',
@@ -446,7 +446,7 @@ describe('Mixed afterFiles and fallback with Dynamic Routes', () => {
     const result = await resolveRoutes(params)
 
     // Should match in afterFiles -> dynamic routes, not reach fallback
-    expect(result.matchedPathname).toBe('/posts/article')
+    expect(result.resolvedPathname).toBe('/posts/article')
     expect(result.routeMatches).toEqual({
       '1': 'article',
       slug: 'article',
@@ -485,7 +485,7 @@ describe('Mixed afterFiles and fallback with Dynamic Routes', () => {
     const result = await resolveRoutes(params)
 
     // Should go through: test -> intermediate (no match) -> fallback -> posts/fallback (dynamic match)
-    expect(result.matchedPathname).toBe('/posts/fallback')
+    expect(result.resolvedPathname).toBe('/posts/fallback')
     expect(result.routeMatches).toEqual({
       '1': 'fallback',
       slug: 'fallback',

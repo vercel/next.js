@@ -93,7 +93,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
     let span = span_outer.clone();
     async move {
-        let async_module_info = module_graph.async_module_info().await?;
+        let async_module_info = module_graph.async_module_info();
         let chunk_group_info = module_graph.chunk_group_info().await?;
         let module_graph = module_graph.await?;
 
@@ -139,9 +139,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             FxHashSet::with_capacity_and_hasher(module_count, Default::default());
 
         let inner_span = tracing::info_span!("collect mergeable modules");
-        let mergeable = graphs
-            .iter()
-            .flat_map(|g| g.iter_nodes())
+        let mergeable = module_graph
+            .iter_reachable_modules()?
             .map(async |module| {
                 if let Some(mergeable) =
                     ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module)
@@ -156,6 +155,18 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             .await?
             .into_iter()
             .collect::<FxHashSet<_>>();
+
+        // Pre-fetch async status for all mergeable modules using keyed access to avoid
+        // reading the full AsyncModulesInfo set during the synchronous traversal below.
+        let inner_span = tracing::info_span!("pre-fetch async module status");
+        let async_modules: FxHashSet<_> = mergeable
+            .iter()
+            .map(async |&module| Ok(async_module_info.is_async(module).await?.then_some(module)))
+            .try_flat_join()
+            .instrument(inner_span)
+            .await?
+            .into_iter()
+            .collect();
 
         let inner_span = tracing::info_span!("fixed point traversal").entered();
 
@@ -191,8 +202,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     && let Some(parent_module) = parent_module
                     && mergeable.contains(&parent_module)
                     && mergeable.contains(&module)
-                    && !async_module_info.contains(&parent_module)
-                    && !async_module_info.contains(&module)
+                    && !async_modules.contains(&parent_module)
+                    && !async_modules.contains(&module)
                 {
                     // ^ TODO technically we could merge a sync child into an async parent
 
@@ -526,9 +537,12 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     // necessarily needed for browser),
                     exposed_modules_imported.insert(module);
                 }
-                if parent_info
-                    .is_some_and(|(_, r)| matches!(r.binding_usage.export, ExportUsage::All))
-                {
+                if parent_info.is_some_and(|(_, r)| {
+                    matches!(
+                        r.binding_usage.export,
+                        ExportUsage::All | ExportUsage::PartialNamespaceObject(_)
+                    )
+                }) {
                     // This module needs to be exposed:
                     // - namespace import from another group
                     exposed_modules_namespace.insert(module);

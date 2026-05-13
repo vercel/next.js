@@ -16,27 +16,11 @@ interface NextjsVersionResult {
 }
 
 export function getNextjsVersion(cwd: string): NextjsVersionResult {
-  const packageJsonPath = path.join(cwd, 'package.json')
-
-  if (!fs.existsSync(packageJsonPath)) {
-    return {
-      version: null,
-      error: 'No package.json found in the current directory',
-    }
-  }
-
   try {
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'))
-    const dependencies = packageJson.dependencies || {}
-    const devDependencies = packageJson.devDependencies || {}
-
-    const nextVersion = dependencies.next || devDependencies.next
-
-    if (nextVersion) {
-      const cleanVersion = nextVersion.replace(/^[\^~>=<]+/, '')
-      return { version: cleanVersion }
-    }
-
+    const nextPkgPath = require.resolve('next/package.json', { paths: [cwd] })
+    const pkg = JSON.parse(fs.readFileSync(nextPkgPath, 'utf-8'))
+    return { version: pkg.version }
+  } catch {
     // Not found at root - check for monorepo workspace
     const workspace = detectWorkspace(cwd)
     if (workspace.isMonorepo && workspace.packages.length > 0) {
@@ -55,11 +39,6 @@ export function getNextjsVersion(cwd: string): NextjsVersionResult {
     return {
       version: null,
       error: 'Next.js is not installed in this project.',
-    }
-  } catch (err) {
-    return {
-      version: null,
-      error: `Failed to parse package.json: ${err instanceof Error ? err.message : String(err)}`,
     }
   }
 }
@@ -525,18 +504,16 @@ function findNextjsInWorkspace(cwd: string, patterns: string[]): string | null {
   const versions: string[] = []
 
   for (const pkgPath of packagePaths) {
-    const packageJsonPath = path.join(pkgPath, 'package.json')
-    if (!fs.existsSync(packageJsonPath)) continue
-
     try {
-      const content = fs.readFileSync(packageJsonPath, 'utf-8')
-      const pkg = JSON.parse(content)
-      const nextVersion = pkg.dependencies?.next || pkg.devDependencies?.next
-      if (nextVersion) {
-        versions.push(nextVersion.replace(/^[\^~>=<]+/, ''))
+      const nextPkgPath = require.resolve('next/package.json', {
+        paths: [pkgPath],
+      })
+      const pkg = JSON.parse(fs.readFileSync(nextPkgPath, 'utf-8'))
+      if (pkg.version) {
+        versions.push(pkg.version)
       }
     } catch {
-      // Skip invalid package.json
+      // Next.js not installed in this package
     }
   }
 

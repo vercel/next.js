@@ -32,15 +32,14 @@ describe('use-cache-unknown-cache-kind', () => {
         expect(buildOutput).toMatchInlineSnapshot(`
          "Error: Turbopack build failed with 1 errors:
          ./app/page.tsx:1:1
-         Ecmascript file had an error
+         Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
          > 1 | 'use cache: custom'
              | ^^^^^^^^^^^^^^^^^^^
            2 |
            3 | export default async function Page() {
            4 |   return <p>hello world</p>
 
-         Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
-
+         Ecmascript file had an error
 
 
              at <unknown> (./app/page.tsx:1:1)
@@ -113,7 +112,7 @@ describe('use-cache-unknown-cache-kind', () => {
 
       if (isTurbopack) {
         expect(errorDescription).toMatchInlineSnapshot(
-          `"Ecmascript file had an error"`
+          `"Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config."`
         )
       } else if (isRspack) {
         expect(errorDescription).toMatchInlineSnapshot(
@@ -128,14 +127,14 @@ describe('use-cache-unknown-cache-kind', () => {
       if (isTurbopack) {
         expect(errorSource).toMatchInlineSnapshot(`
          "./app/page.tsx (1:1)
-         Ecmascript file had an error
+         Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config.
          > 1 | 'use cache: custom'
              | ^^^^^^^^^^^^^^^^^^^
            2 |
            3 | export default async function Page() {
            4 |   return <p>hello world</p>
 
-         Unknown cache kind "custom". Please configure a cache handler for this kind in the \`cacheHandlers\` object in your Next.js config."
+         Ecmascript file had an error"
         `)
       } else if (isRspack) {
         expect(errorSource).toMatchInlineSnapshot(`

@@ -1,0 +1,18 @@
+[package]
+name = "swc-plugin-env-check"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+strip = "debuginfo"
+codegen-units = 1
+lto = true
+opt-level = "z"
+
+[dependencies]
+serde = "1.0.173"
+serde_json = "1.0.103"
+swc_core = { version = "63.1.1", features = ["ecma_plugin_transform"] }

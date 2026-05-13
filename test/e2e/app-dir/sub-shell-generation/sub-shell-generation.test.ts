@@ -1,9 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
 import * as cheerio from 'cheerio'
 
+const isAdapterTest = Boolean(process.env.NEXT_ENABLE_ADAPTER)
+
 describe('sub-shell-generation', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
+    // The latest changes to support this behavior on deployed infra are available in the adapter,
+    // and are not being backported to the CLI
+    skipDeployment: !isAdapterTest,
   })
 
   if (isNextDev) {

@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{Ok, Result};
 use rustc_hash::{FxHashMap, FxHashSet};
+use smallvec::SmallVec;
 use swc_core::{
     atoms::Atom,
     base::try_with_handler,
@@ -21,17 +22,16 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::ResolvedVc;
-use turbopack_core::source::Source;
+use turbopack_core::resolve::ExportUsage;
 
 use super::{
-    ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind,
-    is_unresolved_id,
+    ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind, is_unresolved_id,
 };
 use crate::{
     AnalyzeMode, SpecifiedModuleType,
     analyzer::{WellKnownObjectKind, is_unresolved},
-    references::{constant_value::parse_single_expr_lit, for_each_ident_in_pat},
+    code_gen::CodeGen,
+    references::{constant_value::parse_single_expr_lit, esm::EsmModuleItem},
     utils::{AstPathRange, unparen},
 };
 
@@ -203,6 +203,23 @@ pub enum Effect {
         ast_path: Vec<AstParentKind>,
         span: Span,
     },
+    /// A dynamic import() call, potentially with export usage extracted from
+    /// usage patterns. Export usage is detected from these patterns:
+    ///
+    /// - `const { a, b } = await import('./lib')` (destructured await)
+    /// - `(await import('./lib')).a` (member access on await)
+    /// - `import('./lib').then(({ a, b }) => {})` (arrow .then() callback)
+    /// - `import('./lib').then(function({ a, b }) {})` (function .then() callback)
+    /// - `import(/* webpackExports: ["a"] */ './lib')` (magic comment)
+    /// - `import(/* turbopackExports: ["a"] */ './lib')` (magic comment)
+    DynamicImport {
+        args: Vec<EffectArg>,
+        ast_path: Vec<AstParentKind>,
+        span: Span,
+        in_try: bool,
+        /// The export usage extracted from the usage pattern.
+        export_usage: ExportUsage,
+    },
     /// Unreachable code, e.g. after a `return` statement.
     Unreachable { start_ast_path: Vec<AstParentKind> },
 }
@@ -236,6 +253,11 @@ impl Effect {
                 obj.normalize();
                 prop.normalize();
             }
+            Effect::DynamicImport { args, .. } => {
+                for arg in args.iter_mut() {
+                    arg.normalize();
+                }
+            }
             Effect::ImportedBinding { .. } => {}
             Effect::TypeOf { arg, .. } => {
                 arg.normalize();
@@ -247,26 +269,34 @@ impl Effect {
     }
 }
 
+#[derive(Debug)]
 pub enum AssignmentScope {
+    /// assigned in the root scope
     ModuleEval,
+    /// assigned in a function scopes
     Function,
 }
 
+/// Tracks the locations where this was assigned to:
+/// This is used to track the _liveness_ of exports.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum AssignmentScopes {
+    /// assigned only in the root scope
     AllInModuleEvalScope,
+    /// assigned in any set of function scopes
     AllInFunctionScopes,
+    /// assigned in both module and function scopes
     Mixed,
 }
 impl AssignmentScopes {
-    fn new(initial: AssignmentScope) -> Self {
+    pub fn new(initial: AssignmentScope) -> Self {
         match initial {
             AssignmentScope::ModuleEval => AssignmentScopes::AllInModuleEvalScope,
             AssignmentScope::Function => AssignmentScopes::AllInFunctionScopes,
         }
     }
 
-    fn merge(self, other: AssignmentScope) -> Self {
+    pub fn merge(self, other: AssignmentScope) -> Self {
         // If the other assignment kind is the same as the current one, return the current one.
         if self == Self::new(other) {
             self
@@ -276,76 +306,19 @@ impl AssignmentScopes {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct VarMeta {
-    pub value: JsValue,
-    /// Tracks the locations where this was assigned to:
-    /// - [`AssignmentScopes::AllInModuleEvalScope`] if it was assigned only in the root scope
-    /// - [`AssignmentScopes::AllInFunctionScopes`] if it was assigned in any set of function
-    ///   scopes
-    /// - [`AssignmentScopes::Mixed`] if it was assigned in both
-    ///
-    /// This is used to track the _liveness_ of exports.
-    pub assignment_scopes: AssignmentScopes,
-}
-
-impl VarMeta {
-    pub fn new(value: JsValue, kind: AssignmentScope) -> Self {
-        Self {
-            value,
-            assignment_scopes: AssignmentScopes::new(kind),
-        }
-    }
-
-    pub fn normalize(&mut self) {
-        self.value.normalize();
-    }
-
-    fn add_alt(&mut self, value: JsValue, kind: AssignmentScope) {
-        self.value.add_alt(value);
-        self.assignment_scopes = self.assignment_scopes.merge(kind);
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum DeclUsage {
-    SideEffects,
-    Bindings(FxHashSet<Id>),
-}
-impl Default for DeclUsage {
-    fn default() -> Self {
-        DeclUsage::Bindings(Default::default())
-    }
-}
-impl DeclUsage {
-    fn add_usage(&mut self, user: &Id) {
-        match self {
-            Self::Bindings(set) => {
-                set.insert(user.clone());
-            }
-            Self::SideEffects => {}
-        }
-    }
-    fn make_side_effects(&mut self) {
-        *self = Self::SideEffects;
-    }
-}
-
 #[derive(Debug)]
 pub struct VarGraph {
-    pub values: FxHashMap<Id, VarMeta>,
-    /// Map FreeVar names to their Id to facilitate lookups into [values]
-    /// Doesn't necessarily contain every FreeVar, just those who have non trivial values.
+    pub values: FxHashMap<Id, JsValue>,
+
+    /// Map [`JsValue::FreeVar`] names to their [`Id`] to facilitate lookups into [`Self::values`].
+    ///
+    /// Doesn't necessarily contain every [`FreeVar`][JsValue::FreeVar], just those who have
+    /// non-trivial values.
     pub free_var_ids: FxHashMap<Atom, Id>,
 
     pub effects: Vec<Effect>,
-
-    // ident -> immediate usage (top level decl)
-    pub decl_usages: FxHashMap<Id, DeclUsage>,
-    // import -> immediate usage (top level decl)
-    pub import_usages: FxHashMap<usize, DeclUsage>,
-    // export name -> top level decl
-    pub exports: FxHashMap<Atom, Id>,
+    // Some unconditional codegens, usually for ESM items.
+    pub code_gens: Vec<CodeGen>,
 }
 
 impl VarGraph {
@@ -359,20 +332,17 @@ impl VarGraph {
     }
 }
 
-/// You should use same [Mark] for this function and
-/// [swc_ecma_transforms_base::resolver::resolver_with_mark]
 pub fn create_graph(
     m: &Program,
     eval_context: &EvalContext,
     analyze_mode: AnalyzeMode,
+    supports_block_scoping: bool,
 ) -> VarGraph {
     let mut graph = VarGraph {
         values: Default::default(),
         free_var_ids: Default::default(),
         effects: Default::default(),
-        decl_usages: Default::default(),
-        import_usages: Default::default(),
-        exports: Default::default(),
+        code_gens: Default::default(),
     };
 
     m.visit_with_ast_path(
@@ -383,6 +353,8 @@ pub fn create_graph(
             state: Default::default(),
             effects: Default::default(),
             hoisted_effects: Default::default(),
+            code_gens: Default::default(),
+            supports_block_scoping,
         },
         &mut Default::default(),
     );
@@ -395,29 +367,34 @@ pub fn create_graph(
 /// A context used for assembling the evaluation graph.
 #[derive(Debug)]
 pub struct EvalContext {
+    /// Should be the same [`Mark`] used by [`swc_core::ecma::transforms::base::resolver`].
     pub(crate) unresolved_mark: Mark,
+    /// Should be the same [`Mark`] used by [`swc_core::ecma::transforms::base::resolver`].
     pub(crate) top_level_mark: Mark,
     pub(crate) imports: ImportMap,
     pub(crate) force_free_values: Arc<FxHashSet<Id>>,
 }
 
 impl EvalContext {
-    /// Produce a new [EvalContext] from a [Program]. If you wish to support
-    /// webpackIgnore or turbopackIgnore comments, you must pass those in,
-    /// since the AST does not include comments by default.
+    /// Produce a new [`EvalContext`] from a [`Program`].
+    ///
+    /// If you wish to support `webpackIgnore` or `turbopackIgnore` comments, you must pass those
+    /// in, since the AST does not include comments by default.
+    ///
+    /// You should use the same `unresolved_mark` and `top_level_mark` [Mark] values for this
+    /// context that you passed to [`swc_core::ecma::transforms::base::resolver`].
     pub fn new(
         module: Option<&Program>,
         unresolved_mark: Mark,
         top_level_mark: Mark,
         force_free_values: Arc<FxHashSet<Id>>,
         comments: Option<&dyn Comments>,
-        source: Option<ResolvedVc<Box<dyn Source>>>,
     ) -> Self {
         Self {
             unresolved_mark,
             top_level_mark,
             imports: module.map_or(ImportMap::default(), |m| {
-                ImportMap::analyze(m, source, comments)
+                ImportMap::analyze(unresolved_mark, m, comments)
             }),
             force_free_values,
         }
@@ -468,7 +445,7 @@ impl EvalContext {
                             }
                         }
                         // This is actually unreachable
-                        None => return JsValue::unknown_empty(true, ""),
+                        None => return JsValue::unknown_empty(true, rcstr!("")),
                     }
                 }
             } else {
@@ -496,8 +473,8 @@ impl EvalContext {
             // model their values mostly useful for truthy/falsy checks.
             match i.sym.as_str() {
                 "undefined" => JsValue::Constant(ConstantValue::Undefined),
-                "NaN" => JsValue::Constant(ConstantValue::Num(ConstantNumber(f64::NAN))),
-                "Infinity" => JsValue::Constant(ConstantValue::Num(ConstantNumber(f64::INFINITY))),
+                "NaN" => JsValue::Constant(ConstantValue::Num(f64::NAN.into())),
+                "Infinity" => JsValue::Constant(ConstantValue::Num(f64::INFINITY.into())),
                 _ => JsValue::FreeVar(i.sym.clone()),
             }
         } else {
@@ -649,7 +626,10 @@ impl EvalContext {
                 {
                     self.eval_tpl(tpl, true)
                 } else {
-                    JsValue::unknown_empty(true, "tagged template literal is not supported yet")
+                    JsValue::unknown_empty(
+                        true,
+                        rcstr!("tagged template literal is not supported yet"),
+                    )
                 }
             }
 
@@ -679,7 +659,7 @@ impl EvalContext {
                     last = e;
                 }
                 if side_effects {
-                    last.make_unknown(true, "sequence with side effects");
+                    last.make_unknown(true, rcstr!("sequence with side effects"));
                 }
                 last
             }
@@ -708,19 +688,19 @@ impl EvalContext {
                 args,
                 ..
             }) => {
+                let args = args.as_deref().unwrap_or(&[]);
                 // We currently do not handle spreads.
-                if args.iter().flatten().any(|arg| arg.spread.is_some()) {
-                    return JsValue::unknown_empty(true, "spread in new calls is not supported");
+                if args.iter().any(|arg| arg.spread.is_some()) {
+                    return JsValue::unknown_empty(
+                        true,
+                        rcstr!("spread in new calls is not supported"),
+                    );
                 }
 
-                let args: Vec<_> = args
-                    .iter()
-                    .flatten()
-                    .map(|arg| self.eval(&arg.expr))
-                    .collect();
-                let callee = Box::new(self.eval(callee));
-
-                JsValue::new(callee, args)
+                JsValue::new_from_iter(
+                    self.eval(callee),
+                    args.iter().map(|arg| self.eval(&arg.expr)),
+                )
             }
 
             Expr::Call(CallExpr {
@@ -732,28 +712,32 @@ impl EvalContext {
                 if args.iter().any(|arg| arg.spread.is_some()) {
                     return JsValue::unknown_empty(
                         true,
-                        "spread in function calls is not supported",
+                        rcstr!("spread in function calls is not supported"),
                     );
                 }
 
-                let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(callee) {
-                    let obj = Box::new(self.eval(obj));
-                    let prop = Box::new(match prop {
+                    let prop = match prop {
                         MemberProp::Ident(i) => i.sym.clone().into(),
                         MemberProp::PrivateName(_) => {
                             return JsValue::unknown_empty(
                                 false,
-                                "private names in function calls is not supported",
+                                rcstr!("private names in function calls is not supported"),
                             );
                         }
                         MemberProp::Computed(ComputedPropName { expr, .. }) => self.eval(expr),
-                    });
-                    JsValue::member_call(obj, prop, args)
+                    };
+                    let obj = self.eval(obj);
+                    JsValue::member_call_from_iter(
+                        obj,
+                        prop,
+                        args.iter().map(|arg| self.eval(&arg.expr)),
+                    )
                 } else {
-                    let callee = Box::new(self.eval(callee));
-
-                    JsValue::call(callee, args)
+                    JsValue::call_from_iter(
+                        self.eval(callee),
+                        args.iter().map(|arg| self.eval(&arg.expr)),
+                    )
                 }
             }
 
@@ -766,7 +750,7 @@ impl EvalContext {
                 if args.iter().any(|arg| arg.spread.is_some()) {
                     return JsValue::unknown_empty(
                         true,
-                        "spread in function calls is not supported",
+                        rcstr!("spread in function calls is not supported"),
                     );
                 }
 
@@ -782,18 +766,20 @@ impl EvalContext {
             }) => {
                 // We currently do not handle spreads.
                 if args.iter().any(|arg| arg.spread.is_some()) {
-                    return JsValue::unknown_empty(true, "spread in import() is not supported");
+                    return JsValue::unknown_empty(
+                        true,
+                        rcstr!("spread in import() is not supported"),
+                    );
                 }
-                let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
-
-                let callee = Box::new(JsValue::FreeVar(atom!("import")));
-
-                JsValue::call(callee, args)
+                JsValue::call_from_iter(
+                    JsValue::FreeVar(atom!("import")),
+                    args.iter().map(|arg| self.eval(&arg.expr)),
+                )
             }
 
             Expr::Array(arr) => {
                 if arr.elems.iter().flatten().any(|v| v.spread.is_some()) {
-                    return JsValue::unknown_empty(true, "spread is not supported");
+                    return JsValue::unknown_empty(true, rcstr!("spread is not supported"));
                 }
 
                 let arr = arr
@@ -823,7 +809,7 @@ impl EvalContext {
                         ),
                         _ => ObjectPart::Spread(JsValue::unknown_empty(
                             true,
-                            "unsupported object part",
+                            rcstr!("unsupported object part"),
                         )),
                     })
                     .collect(),
@@ -837,28 +823,22 @@ impl EvalContext {
             Expr::Assign(AssignExpr { op, .. }) => match op {
                 // TODO: `self.eval(right)` would be the value, but we need to handle the side
                 // effect of that expression
-                AssignOp::Assign => JsValue::unknown_empty(true, "assignment expression"),
-                _ => JsValue::unknown_empty(true, "compound assignment expression"),
+                AssignOp::Assign => JsValue::unknown_empty(true, rcstr!("assignment expression")),
+                _ => JsValue::unknown_empty(true, rcstr!("compound assignment expression")),
             },
 
-            _ => JsValue::unknown_empty(true, "unsupported expression"),
+            _ => JsValue::unknown_empty(true, rcstr!("unsupported expression")),
         }
     }
 
-    pub fn eval_single_expr_lit(expr_lit: RcStr) -> Result<JsValue> {
+    pub fn eval_single_expr_lit(expr_lit: &RcStr) -> Result<JsValue> {
         let cm = Lrc::new(SourceMap::default());
 
         let js_value = try_with_handler(cm, Default::default(), |_| {
             GLOBALS.set(&Default::default(), || {
                 let expr = parse_single_expr_lit(expr_lit);
-                let eval_context = EvalContext::new(
-                    None,
-                    Mark::new(),
-                    Mark::new(),
-                    Default::default(),
-                    None,
-                    None,
-                );
+                let eval_context =
+                    EvalContext::new(None, Mark::new(), Mark::new(), Default::default(), None);
 
                 Ok(eval_context.eval(&expr))
             })
@@ -911,6 +891,13 @@ struct Analyzer<'a> {
     /// Tracked separately so we can preserve effects from hoisted declarations even when we don't
     /// collect effects from the declaring context.
     hoisted_effects: Vec<Effect>,
+
+    // Some unconditional codegens, usually for ESM items.
+    code_gens: Vec<CodeGen>,
+
+    /// Whether we may codegen `let` and `const` or if we should fallback to var (at the cost of
+    /// slightly less correct circular import errors) for EsmModuleItem
+    supports_block_scoping: bool,
 
     eval_context: &'a EvalContext,
 }
@@ -1002,15 +989,6 @@ mod analyzer_state {
         early_return_stack: Vec<EarlyReturn>,
         lexical_stack: Vec<LexicalContext>,
         var_decl_kind: Option<VarDeclKind>,
-
-        cur_top_level_decl_name: Option<Id>,
-    }
-
-    impl AnalyzerState {
-        /// Returns the identifier of the current top level declaration.
-        pub(super) fn cur_top_level_decl_name(&self) -> &Option<Id> {
-            &self.cur_top_level_decl_name
-        }
     }
 
     impl Analyzer<'_> {
@@ -1305,28 +1283,142 @@ mod analyzer_state {
             }
             always_returns
         }
-
-        /// Runs `visitor` with the current top level declaration identifier
-        pub(super) fn enter_top_level_decl<T>(
-            &mut self,
-            name: &Ident,
-            visitor: impl FnOnce(&mut Self) -> T,
-        ) -> T {
-            let is_top_level_fn = self.state.cur_top_level_decl_name.is_none();
-            if is_top_level_fn {
-                self.state.cur_top_level_decl_name = Some(name.to_id());
-            }
-            let result = visitor(self);
-            if is_top_level_fn {
-                self.state.cur_top_level_decl_name = None;
-            }
-            result
-        }
     }
 }
 
 pub fn as_parent_path(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> Vec<AstParentKind> {
     ast_path.iter().map(|n| n.kind()).collect()
+}
+
+/// Extracts export names from usage patterns on a dynamic import.
+///
+/// Supports two patterns:
+/// 1. Destructuring: `const { cat, dog } = await import('./lib')` → `PartialNamespaceObject(["cat",
+///    "dog"])`
+/// 2. Member access: `(await import('./lib')).cat` → `PartialNamespaceObject(["cat"])`
+///
+/// For `const {} = await import('./lib')`, returns `Evaluation`.
+/// For `const mod = await import('./lib')` or non-recognized patterns, returns `All`.
+/// For patterns with rest elements or computed keys, returns `All` (conservative).
+fn extract_dynamic_import_export_usage(
+    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+) -> ExportUsage {
+    // Walk up the AST path from the import() call to find usage patterns that
+    // reveal which exports are needed. Supported patterns:
+    //
+    // 1. Destructured await:     const { a, b } = await import('./lib')
+    // 2. Member access on await: (await import('./lib')).a
+    // 3. Arrow .then() callback: import('./lib').then(({ a, b }) => {})
+    // 4. Function .then() callback: import('./lib').then(function({ a, b }) {})
+    //
+    // Only allow Expr wrappers, AwaitExpr, ParenExpr, and Callee as intermediate
+    // nodes to ensure the import result flows directly into the usage site.
+    let mut seen_await = false;
+    let mut seen_then = false;
+    let names = 'outer: {
+        for node_ref in ast_path.iter().rev() {
+            match node_ref {
+                // Only extract names when `await` is present — without await, the
+                // destructuring targets the Promise, not the module namespace.
+                AstParentNodeRef::VarDeclarator(decl, VarDeclaratorField::Init) if seen_await => {
+                    break 'outer extract_names_from_object_pat(&decl.name);
+                }
+                // Member access: (await import('./lib')).someExport
+                // Only valid after AwaitExpr — without await, it's a Promise method
+                AstParentNodeRef::MemberExpr(member, MemberExprField::Obj) if seen_await => {
+                    break 'outer extract_name_from_member_prop(&member.prop);
+                }
+                // Promise .then() pattern: import('./lib').then(({ name }) => {})
+                // Without await, check if this is a .then() call and extract from callback
+                AstParentNodeRef::MemberExpr(member, MemberExprField::Obj) => {
+                    if matches!(&member.prop, MemberProp::Ident(ident) if &*ident.sym == "then") {
+                        seen_then = true;
+                        continue;
+                    }
+                    break 'outer None;
+                }
+                // After seeing .then MemberExpr, the next CallExpr is the .then() call
+                // — extract destructured parameter names from the first callback argument
+                AstParentNodeRef::CallExpr(call, CallExprField::Callee) if seen_then => {
+                    break 'outer extract_names_from_then_callback(call);
+                }
+                AstParentNodeRef::AwaitExpr(_, AwaitExprField::Arg) => {
+                    seen_await = true;
+                    continue;
+                }
+                // Allowed intermediate nodes
+                AstParentNodeRef::Expr(..)
+                | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr)
+                | AstParentNodeRef::Callee(_, CalleeField::Expr) => continue,
+                // Any other node means the import is nested in something else
+                _ => break 'outer None,
+            }
+        }
+        None
+    };
+    match names {
+        Some(names) if names.is_empty() => ExportUsage::Evaluation,
+        Some(names) => ExportUsage::PartialNamespaceObject(names),
+        None => ExportUsage::All,
+    }
+}
+
+/// Extract export names from the first argument of a `.then()` callback.
+/// Supports both arrow functions and function expressions with destructured
+/// first parameters.
+fn extract_names_from_then_callback(call: &CallExpr) -> Option<SmallVec<[RcStr; 1]>> {
+    let first_arg = call.args.first()?;
+    if first_arg.spread.is_some() {
+        return None;
+    }
+    match &*first_arg.expr {
+        // Arrow function: import('./lib').then(({ name }) => {})
+        Expr::Arrow(arrow) => {
+            let first_param = arrow.params.first()?;
+            extract_names_from_object_pat(first_param)
+        }
+        // Function expression: import('./lib').then(function({ name }) {})
+        Expr::Fn(fn_expr) => {
+            let first_param = fn_expr.function.params.first()?;
+            extract_names_from_object_pat(&first_param.pat)
+        }
+        _ => None,
+    }
+}
+
+fn extract_name_from_member_prop(prop: &MemberProp) -> Option<SmallVec<[RcStr; 1]>> {
+    match prop {
+        MemberProp::Ident(ident) => Some(SmallVec::from_buf([ident.sym.as_str().into()])),
+        MemberProp::Computed(ComputedPropName {
+            expr: box Expr::Lit(Lit::Str(s)),
+            ..
+        }) => s.value.as_str().map(|v| SmallVec::from_buf([v.into()])),
+        _ => None,
+    }
+}
+
+fn extract_names_from_object_pat(pat: &Pat) -> Option<SmallVec<[RcStr; 1]>> {
+    let Pat::Object(obj_pat) = pat else {
+        return None;
+    };
+    let mut names = SmallVec::new();
+    for prop in &obj_pat.props {
+        match prop {
+            ObjectPatProp::KeyValue(kv) => match &kv.key {
+                PropName::Ident(ident) => names.push(ident.sym.as_str().into()),
+                PropName::Str(s) => match s.value.as_str() {
+                    Some(str_val) => names.push(str_val.into()),
+                    None => return None, // non-UTF-8 string key
+                },
+                _ => return None, // computed key, can't determine statically
+            },
+            ObjectPatProp::Assign(assign) => {
+                names.push(assign.key.sym.as_str().into());
+            }
+            ObjectPatProp::Rest(_) => return None, // rest pattern means all exports needed
+        }
+    }
+    Some(names)
 }
 
 pub fn as_parent_path_with(
@@ -1365,15 +1457,10 @@ impl Analyzer<'_> {
             self.data.free_var_ids.insert(id.0.clone(), id.clone());
         }
 
-        let kind = if self.is_in_fn() {
-            AssignmentScope::Function
-        } else {
-            AssignmentScope::ModuleEval
-        };
         if let Some(prev) = self.data.values.get_mut(&id) {
-            prev.add_alt(value, kind);
+            prev.add_alt(value);
         } else {
-            self.data.values.insert(id, VarMeta::new(value, kind));
+            self.data.values.insert(id, value);
         }
         // TODO(kdy1): We may need to report an error for this.
         // Variables declared with `var` are hoisted, but using undefined as its
@@ -1680,13 +1767,24 @@ impl Analyzer<'_> {
 
         match callee {
             Callee::Import(_) => {
-                self.add_effect(Effect::Call {
-                    func: Box::new(JsValue::FreeVar(atom!("import"))),
+                // Prefer webpackExports/turbopackExports comment (authoritative when present)
+                let attrs = self.eval_context.imports.get_attributes(span);
+                let export_usage = if let Some(names) = &attrs.export_names {
+                    if names.is_empty() {
+                        ExportUsage::Evaluation
+                    } else {
+                        ExportUsage::PartialNamespaceObject(names.clone())
+                    }
+                } else {
+                    // Fall back to AST path walking (works when import is not wrapped)
+                    extract_dynamic_import_export_usage(ast_path)
+                };
+                self.add_effect(Effect::DynamicImport {
                     args,
                     ast_path: as_parent_path(ast_path),
                     span,
                     in_try: self.is_in_try(),
-                    new,
+                    export_usage,
                 });
             }
             Callee::Expr(box expr) => {
@@ -1697,7 +1795,7 @@ impl Analyzer<'_> {
                         MemberProp::Ident(i) => Box::new(i.sym.clone().into()),
                         MemberProp::PrivateName(_) => Box::new(JsValue::unknown_empty(
                             false,
-                            "private names in member expressions are not supported",
+                            rcstr!("private names in member expressions are not supported"),
                         )),
                         MemberProp::Computed(ComputedPropName { expr, .. }) => {
                             Box::new(self.eval_context.eval(expr))
@@ -1766,9 +1864,30 @@ impl Analyzer<'_> {
             span: member_expr.span(),
         });
     }
+
+    fn add_esm_module_item(&mut self, ast_path: &AstNodePath<AstParentNodeRef<'_>>) {
+        if self.analyze_mode.is_code_gen() {
+            self.code_gens.push(
+                EsmModuleItem::new(as_parent_path(ast_path).into(), self.supports_block_scoping)
+                    .into(),
+            );
+        }
+    }
 }
 
 impl VisitAstPath for Analyzer<'_> {
+    fn visit_import_decl<'ast: 'r, 'r>(
+        &mut self,
+        import: &'ast ImportDecl,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        import.visit_children_with_ast_path(self, ast_path);
+        if import.type_only {
+            return;
+        }
+        self.add_esm_module_item(ast_path);
+    }
+
     fn visit_import_specifier<'ast: 'r, 'r>(
         &mut self,
         _import_specifier: &'ast ImportSpecifier,
@@ -1798,7 +1917,7 @@ impl VisitAstPath for Analyzer<'_> {
                     let right = self.eval_context.eval(&n.right);
                     JsValue::add(vec![left, right])
                 }
-                _ => JsValue::unknown_empty(true, "unsupported assign operation"),
+                _ => JsValue::unknown_empty(true, rcstr!("unsupported assign operation")),
             };
             self.with_pat_value(Some(pat_value), |this| {
                 n.left.visit_children_with_ast_path(this, &mut ast_path)
@@ -1821,7 +1940,7 @@ impl VisitAstPath for Analyzer<'_> {
         if let Some(key) = n.arg.as_ident() {
             self.add_value(
                 key.to_id(),
-                JsValue::unknown_empty(true, "updated with update expression"),
+                JsValue::unknown_empty(true, rcstr!("updated with update expression")),
             );
         }
 
@@ -1849,7 +1968,7 @@ impl VisitAstPath for Analyzer<'_> {
                         .ignore,
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                     true,
-                    "ignored require",
+                    rcstr!("ignored require"),
                 ),
             );
         }
@@ -1958,10 +2077,8 @@ impl VisitAstPath for Analyzer<'_> {
         decl: &'ast FnDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let fn_value = self.enter_top_level_decl(&decl.ident, |this| {
-            this.enter_fn(&*decl.function, |this| {
-                decl.visit_children_with_ast_path(this, ast_path);
-            })
+        let fn_value = self.enter_fn(&*decl.function, |this| {
+            decl.visit_children_with_ast_path(this, ast_path);
         });
 
         // Take all effects produced by the function and move them to hoisted effects since
@@ -2200,7 +2317,7 @@ impl VisitAstPath for Analyzer<'_> {
                 // `Some(JsValue::iteratedKeys(Box::new(self.eval_context.eval(&n.right))))`
                 Some(JsValue::unknown_empty(
                     false,
-                    "for-in variable currently not analyzed",
+                    rcstr!("for-in variable currently not analyzed"),
                 )),
                 |this| {
                     n.left.visit_with_ast_path(this, &mut ast_path);
@@ -2325,7 +2442,11 @@ impl VisitAstPath for Analyzer<'_> {
             self.add_value(
                 i.to_id(),
                 value.unwrap_or_else(|| {
-                    JsValue::unknown(JsValue::Variable(i.to_id()), false, "pattern without value")
+                    JsValue::unknown(
+                        JsValue::Variable(i.to_id()),
+                        false,
+                        rcstr!("pattern without value"),
+                    )
                 }),
             );
             return;
@@ -2341,7 +2462,7 @@ impl VisitAstPath for Analyzer<'_> {
     ) {
         let value = self
             .take_pat_value()
-            .unwrap_or_else(|| JsValue::unknown_empty(false, "pattern without value"));
+            .unwrap_or_else(|| JsValue::unknown_empty(false, rcstr!("pattern without value")));
         match pat {
             AssignTargetPat::Array(arr) => {
                 let mut ast_path = ast_path.with_guard(AstParentNodeRef::AssignTargetPat(
@@ -2375,7 +2496,7 @@ impl VisitAstPath for Analyzer<'_> {
                         JsValue::unknown(
                             JsValue::Variable(i.to_id()),
                             false,
-                            "pattern without value",
+                            rcstr!("pattern without value"),
                         )
                     }),
                 );
@@ -2383,16 +2504,18 @@ impl VisitAstPath for Analyzer<'_> {
 
             Pat::Array(arr) => {
                 let mut ast_path = ast_path.with_guard(AstParentNodeRef::Pat(pat, PatField::Array));
-                let value =
-                    value.unwrap_or_else(|| JsValue::unknown_empty(false, "pattern without value"));
+                let value = value.unwrap_or_else(|| {
+                    JsValue::unknown_empty(false, rcstr!("pattern without value"))
+                });
                 self.handle_array_pat_with_value(arr, value, &mut ast_path);
             }
 
             Pat::Object(obj) => {
                 let mut ast_path =
                     ast_path.with_guard(AstParentNodeRef::Pat(pat, PatField::Object));
-                let value =
-                    value.unwrap_or_else(|| JsValue::unknown_empty(false, "pattern without value"));
+                let value = value.unwrap_or_else(|| {
+                    JsValue::unknown_empty(false, rcstr!("pattern without value"))
+                });
                 self.handle_object_pat_with_value(obj, value, &mut ast_path);
             }
 
@@ -2438,17 +2561,6 @@ impl VisitAstPath for Analyzer<'_> {
         if let Some((esm_reference_index, export)) =
             self.eval_context.imports.get_binding(&ident.to_id())
         {
-            let usage = self
-                .data
-                .import_usages
-                .entry(esm_reference_index)
-                .or_default();
-            if let Some(top_level) = self.state.cur_top_level_decl_name() {
-                usage.add_usage(top_level);
-            } else {
-                usage.make_side_effects();
-            }
-
             // Optimization: Look for a MemberExpr to see if we only access a few members from the
             // module, add those specific effects instead of depending on the entire module.
             //
@@ -2475,7 +2587,7 @@ impl VisitAstPath for Analyzer<'_> {
             } else {
                 self.add_effect(Effect::ImportedBinding {
                     esm_reference_index,
-                    export,
+                    export: export.map(|e| RcStr::from(e.as_str())),
                     ast_path: as_parent_path(ast_path),
                     span: ident.span(),
                 })
@@ -2494,24 +2606,6 @@ impl VisitAstPath for Analyzer<'_> {
                 ast_path: as_parent_path(ast_path),
                 span: ident.span(),
             })
-        }
-
-        if !is_unresolved(ident, self.eval_context.unresolved_mark) {
-            if let Some(top_level) = self.state.cur_top_level_decl_name() {
-                if !(ident.sym == top_level.0 && ident.ctxt == top_level.1) {
-                    self.data
-                        .decl_usages
-                        .entry(ident.to_id())
-                        .or_default()
-                        .add_usage(top_level);
-                }
-            } else {
-                self.data
-                    .decl_usages
-                    .entry(ident.to_id())
-                    .or_default()
-                    .make_side_effects();
-            }
         }
     }
 
@@ -2556,6 +2650,7 @@ impl VisitAstPath for Analyzer<'_> {
         });
         self.effects.append(&mut self.hoisted_effects);
         self.data.effects = take(&mut self.effects);
+        self.data.code_gens = take(&mut self.code_gens);
     }
 
     fn visit_cond_expr<'ast: 'r, 'r>(
@@ -2793,7 +2888,7 @@ impl VisitAstPath for Analyzer<'_> {
         let effects = take(&mut self.effects);
 
         prev_effects.push(Effect::Conditional {
-            condition: Box::new(JsValue::unknown_empty(true, "labeled statement")),
+            condition: Box::new(JsValue::unknown_empty(true, rcstr!("labeled statement"))),
             kind: Box::new(ConditionalKind::Labeled {
                 body: Box::new(EffectsBlock {
                     effects,
@@ -2810,31 +2905,24 @@ impl VisitAstPath for Analyzer<'_> {
         self.effects = prev_effects;
     }
 
+    fn visit_export_all<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast ExportAll,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        if export.type_only {
+            return;
+        }
+        self.add_esm_module_item(ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
+    }
+
     fn visit_export_decl<'ast: 'r, 'r>(
         &mut self,
         node: &'ast ExportDecl,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
-        match &node.decl {
-            Decl::Class(node) => {
-                self.data
-                    .exports
-                    .insert(node.ident.sym.clone(), node.ident.to_id());
-            }
-            Decl::Fn(node) => {
-                self.data
-                    .exports
-                    .insert(node.ident.sym.clone(), node.ident.to_id());
-            }
-            Decl::Var(node) => {
-                for VarDeclarator { name, .. } in &node.decls {
-                    for_each_ident_in_pat(name, &mut |name, ctxt| {
-                        self.data.exports.insert(name.clone(), (name.clone(), ctxt));
-                    });
-                }
-            }
-            _ => {}
-        };
+        self.add_esm_module_item(ast_path);
         node.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -2843,20 +2931,40 @@ impl VisitAstPath for Analyzer<'_> {
         node: &'ast ExportNamedSpecifier,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
-        let export_name = node
-            .exported
-            .as_ref()
-            .unwrap_or(&node.orig)
-            .atom()
-            .into_owned();
-        self.data.exports.insert(
-            export_name,
-            match &node.orig {
-                ModuleExportName::Ident(ident) => ident.to_id(),
-                ModuleExportName::Str(_) => unreachable!("exporting a string should be impossible"),
-            },
-        );
+        if node.is_type_only {
+            return;
+        }
         node.visit_children_with_ast_path(self, ast_path);
+    }
+
+    fn visit_export_default_expr<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast ExportDefaultExpr,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        self.add_esm_module_item(ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
+    }
+
+    fn visit_export_default_decl<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast ExportDefaultDecl,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        self.add_esm_module_item(ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
+    }
+
+    fn visit_named_export<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast NamedExport,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        if export.type_only {
+            return;
+        }
+        self.add_esm_module_item(ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 }
 
@@ -3016,9 +3124,7 @@ impl Analyzer<'_> {
                 for (idx, elem) in arr.elems.iter().enumerate() {
                     let pat_value = Some(JsValue::member(
                         Box::new(value.clone()),
-                        Box::new(JsValue::Constant(ConstantValue::Num(ConstantNumber(
-                            idx as f64,
-                        )))),
+                        Box::new(JsValue::Constant(ConstantValue::Num((idx as f64).into()))),
                     ));
                     self.with_pat_value(pat_value, |this| {
                         let mut ast_path = ast_path

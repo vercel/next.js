@@ -3,7 +3,7 @@ use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
-use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
+use turbo_tasks_hash::{DeterministicHash, HashAlgorithm, Xxh3Hash64Hasher, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     module::{Module, Modules},
@@ -77,19 +77,11 @@ pub async fn outputs_hash(outputs: Vc<OutputAssets>) -> Result<Vc<u64>> {
     .await?;
     let outputs_hashes = output_assets
         .iter()
-        .map(|asset| asset.content().hash())
+        .map(|asset| asset.content().hash(HashAlgorithm::Xxh3Hash128Hex))
         .try_join()
         .await?;
 
-    let outputs_hash = {
-        let mut hasher = Xxh3Hash64Hasher::new();
-        for hash in outputs_hashes.iter() {
-            hash.deterministic_hash(&mut hasher);
-        }
-        hasher.finish()
-    };
-
-    Ok(Vc::cell(outputs_hash))
+    Ok(Vc::cell(hash_xxh3_hash64(outputs_hashes)))
 }
 
 #[turbo_tasks::function]
@@ -102,7 +94,7 @@ pub async fn endpoint_entry_modules(
     let modules = entries
         .await?
         .into_iter()
-        .chain(additional_entries.await?.into_iter())
+        .chain(additional_entries.await?)
         .flat_map(|e| e.entries())
         .collect::<FxIndexSet<_>>();
     Ok(Vc::cell(modules.into_iter().collect()))
@@ -128,7 +120,7 @@ pub async fn endpoints_entry_modules(
         .flat_map(|(entries, additional_entries)| {
             entries
                 .into_iter()
-                .chain(additional_entries.into_iter())
+                .chain(additional_entries)
                 .flat_map(|e| e.entries())
         })
         .collect::<FxIndexSet<_>>();
@@ -159,19 +151,11 @@ pub async fn sources_hash(module_graph: Vc<ModuleGraph>, modules: Vc<Modules>) -
         .try_flat_join()
         .await?
         .into_iter()
-        .map(|source| source.content().hash())
+        .map(|source| source.content().hash(HashAlgorithm::Xxh3Hash128Hex))
         .try_join()
         .await?;
 
-    let sources_hash = {
-        let mut hasher = Xxh3Hash64Hasher::new();
-        for source in sources.iter() {
-            source.deterministic_hash(&mut hasher);
-        }
-        hasher.finish()
-    };
-
-    Ok(Vc::cell(sources_hash))
+    Ok(Vc::cell(hash_xxh3_hash64(sources)))
 }
 
 #[derive(Serialize)]
@@ -245,7 +229,7 @@ impl Asset for RoutesHashesManifestAsset {
         let manifest = serde_json::to_string_pretty(&RoutesHashesManifest {
             routes: entrypoint_hashes
                 .into_keys()
-                .zip(entrypoint_hashes_values.into_iter())
+                .zip(entrypoint_hashes_values)
                 .map(|(k, (sources_hash, outputs_hash))| {
                     (
                         k,

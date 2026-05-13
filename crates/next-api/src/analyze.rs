@@ -5,7 +5,9 @@ use byteorder::{BE, WriteBytesExt};
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
+};
 use turbo_tasks_fs::{
     File, FileContent, FileSystemPath,
     rope::{Rope, RopeBuilder},
@@ -351,6 +353,19 @@ impl ModulesDataBuilder {
     }
 }
 
+/// Merges two sets of output assets into one. Used to combine per-route output
+/// assets with shared assets (e.g. `_app`, `_document`) at report generation time.
+#[turbo_tasks::function]
+pub async fn combine_output_assets(
+    primary: Vc<OutputAssets>,
+    extra: Vc<OutputAssets>,
+) -> Result<Vc<OutputAssets>> {
+    let mut combined: Vec<ResolvedVc<Box<dyn OutputAsset>>> =
+        primary.await?.iter().copied().collect();
+    combined.extend(extra.await?.iter().copied());
+    Ok(Vc::cell(combined))
+}
+
 #[turbo_tasks::function]
 pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc<FileContent>> {
     let output_assets = all_assets_from_entries(output_assets);
@@ -458,7 +473,7 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
         .copied()
         .map(async |module| {
             let ident = module.ident().to_string().owned().await?;
-            let path = module.ident().path().to_string().owned().await?;
+            let path = module.ident().await?.path.to_string_ref().await?;
             Ok((ident, path))
         })
         .try_join()

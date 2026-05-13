@@ -3,24 +3,16 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
 
 describe('Middleware Runtime trailing slash', () => {
-  let next: NextInstance
-
-  afterAll(async () => {
-    await next.destroy()
-  })
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
-        'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
-        pages: new FileRef(join(__dirname, '../app/pages')),
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
+      'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
+      pages: new FileRef(join(__dirname, '../app/pages')),
+    },
   })
 
   function runTests() {
@@ -113,19 +105,20 @@ describe('Middleware Runtime trailing slash', () => {
           ...manifest.middleware['/'],
         }
         delete middlewareWithoutEnvs.env
-        expect(middlewareWithoutEnvs).toEqual({
-          files: process.env.IS_TURBOPACK_TEST
-            ? expect.toBeArray()
-            : expect.arrayContaining([
-                'server/edge-runtime-webpack.js',
-                'server/middleware.js',
-              ]),
+        expect(middlewareWithoutEnvs).toMatchObject({
           name: 'middleware',
           page: '/',
           matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
           wasm: [],
-          assets: process.env.IS_TURBOPACK_TEST ? expect.toBeArray() : [],
+          assets: [],
         })
+        expect(middlewareWithoutEnvs.files).toBeArray()
+        expect(middlewareWithoutEnvs.entrypoint).toMatch(
+          /^server\/.+\.(?:js|mjs|cjs)$/
+        )
+        expect(middlewareWithoutEnvs.files).toContain(
+          middlewareWithoutEnvs.entrypoint
+        )
       })
 
       it('should have correct files in manifest', async () => {
@@ -134,11 +127,8 @@ describe('Middleware Runtime trailing slash', () => {
         )
         for (const key of Object.keys(manifest.middleware)) {
           const middleware = manifest.middleware[key]
-          if (!process.env.IS_TURBOPACK_TEST) {
-            expect(middleware.files).toContainEqual(
-              expect.stringContaining('server/edge-runtime-webpack')
-            )
-          }
+          expect(middleware.entrypoint).toMatch(/^server\/.+\.(?:js|mjs|cjs)$/)
+          expect(middleware.files).toContain(middleware.entrypoint)
           expect(middleware.files).not.toContainEqual(
             expect.stringContaining('static/chunks/')
           )

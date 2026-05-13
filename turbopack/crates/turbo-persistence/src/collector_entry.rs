@@ -16,7 +16,7 @@ pub struct CollectorEntry<K: StoreKey> {
 pub const TINY_VALUE_THRESHOLD: usize = 22;
 
 pub enum CollectorEntryValue {
-    /// Tiny value stored inline (22 16 bytes, no heap allocation)
+    /// Tiny value stored inline (≤22 bytes, no heap allocation)
     Tiny {
         value: [u8; TINY_VALUE_THRESHOLD],
         len: u8,
@@ -60,6 +60,11 @@ impl CollectorEntryValue {
             CollectorEntryValue::Small { value } => value.len(),
             _ => 0,
         }
+    }
+
+    /// Returns true if this value is a deletion tombstone.
+    pub fn is_deleted(&self) -> bool {
+        matches!(self, CollectorEntryValue::Deleted)
     }
 }
 

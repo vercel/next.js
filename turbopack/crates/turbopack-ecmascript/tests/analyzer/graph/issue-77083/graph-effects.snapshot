@@ -83,12 +83,7 @@
                             Module(
                                 ModuleValue {
                                     module: "./assert",
-                                    annotations: ImportAnnotations {
-                                        map: {},
-                                        turbopack_loader: None,
-                                        turbopack_rename_as: None,
-                                        turbopack_module_type: None,
-                                    },
+                                    annotations: None,
                                 },
                             ),
                             Constant(
@@ -104,7 +99,9 @@
                                 Constant(
                                     Num(
                                         ConstantNumber(
-                                            1.0,
+                                            TotalOrderF64(
+                                                1.0,
+                                            ),
                                         ),
                                     ),
                                 ),
@@ -113,7 +110,9 @@
                                 Constant(
                                     Num(
                                         ConstantNumber(
-                                            1.0,
+                                            TotalOrderF64(
+                                                1.0,
+                                            ),
                                         ),
                                     ),
                                 ),
@@ -370,12 +369,7 @@
             Module(
                 ModuleValue {
                     module: "./assert",
-                    annotations: ImportAnnotations {
-                        map: {},
-                        turbopack_loader: None,
-                        turbopack_rename_as: None,
-                        turbopack_module_type: None,
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
@@ -391,7 +385,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            2.0,
+                            TotalOrderF64(
+                                2.0,
+                            ),
                         ),
                     ),
                 ),
@@ -400,7 +396,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            2.0,
+                            TotalOrderF64(
+                                2.0,
+                            ),
                         ),
                     ),
                 ),
@@ -518,12 +516,7 @@
             Module(
                 ModuleValue {
                     module: "./assert",
-                    annotations: ImportAnnotations {
-                        map: {},
-                        turbopack_loader: None,
-                        turbopack_rename_as: None,
-                        turbopack_module_type: None,
-                    },
+                    annotations: None,
                 },
             ),
             Constant(
@@ -539,7 +532,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            3.0,
+                            TotalOrderF64(
+                                3.0,
+                            ),
                         ),
                     ),
                 ),
@@ -548,7 +543,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            3.0,
+                            TotalOrderF64(
+                                3.0,
+                            ),
                         ),
                     ),
                 ),

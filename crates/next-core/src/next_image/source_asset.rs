@@ -1,8 +1,8 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
-use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -34,7 +34,7 @@ pub struct StructuredImageFileSource {
 #[turbo_tasks::value_impl]
 impl Source for StructuredImageFileSource {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let modifier = match self.blur_placeholder_mode {
             BlurPlaceholderMode::DataUrl => rcstr!("structured image object with data url"),
             BlurPlaceholderMode::NextImageUrl => {
@@ -42,10 +42,20 @@ impl Source for StructuredImageFileSource {
             }
             BlurPlaceholderMode::None => rcstr!("structured image object"),
         };
-        self.image
+        Ok(self
+            .image
             .ident()
+            .owned()
+            .await?
             .with_modifier(modifier)
-            .rename_as(rcstr!("*.mjs"))
+            .rename_as("*.mjs")
+            .into_vc())
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let ident = self.image.ident().to_string().await?;
+        Ok(Vc::cell(format!("structured image of {}", ident).into()))
     }
 }
 

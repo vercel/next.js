@@ -127,6 +127,7 @@ export class NextDevInstance extends NextInstance {
 
     const useTurbo =
       !process.env.NEXT_TEST_WASM &&
+      !process.env.NEXT_TEST_WASM_AFTER_JEST &&
       ((this as any).turbo || (this as any).experimentalTurbo)
 
     let startArgs = [

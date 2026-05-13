@@ -37,7 +37,9 @@
                 Constant(
                     Num(
                         ConstantNumber(
-                            1.0,
+                            TotalOrderF64(
+                                1.0,
+                            ),
                         ),
                     ),
                 ),

@@ -13,7 +13,7 @@ use crate::{
     store_container::StoreContainer,
     timestamp::Timestamp,
     u64_string,
-    viewer::{Update, ViewLineUpdate, ViewMode, Viewer},
+    viewer::{SortMode, Update, ViewLineUpdate, ViewMode, Viewer},
 };
 
 #[derive(Serialize, Debug)]
@@ -43,6 +43,8 @@ pub enum ServerToClientMessage {
         persistent_allocations: u64,
         args: Vec<(String, String)>,
         path: Vec<String>,
+        memory_samples: Vec<u64>,
+        memory_pressure_samples: Vec<u8>,
     },
 }
 
@@ -210,34 +212,39 @@ fn handle_connection(
                         )?;
                     }
                     ClientToServerMessage::ViewMode { id, mode, inherit } => {
-                        let (mode, sorted) = if let Some(mode) = mode.strip_suffix("-sorted") {
-                            (mode, true)
-                        } else {
-                            (mode.as_str(), false)
-                        };
+                        let (mode, sort_mode) =
+                            if let Some(mode) = mode.strip_suffix("-sorted-by-name") {
+                                (mode, SortMode::Name)
+                            } else if let Some(mode) = mode.strip_suffix("-sorted-by-value") {
+                                (mode, SortMode::Value)
+                            } else if let Some(mode) = mode.strip_suffix("-sorted") {
+                                (mode, SortMode::Value)
+                            } else {
+                                (mode.as_str(), SortMode::ExecutionOrder)
+                            };
                         match mode {
                             "raw-spans" => {
                                 state.viewer.set_view_mode(
                                     id,
-                                    Some((ViewMode::RawSpans { sorted }, inherit)),
+                                    Some((ViewMode::RawSpans { sort_mode }, inherit)),
                                 );
                             }
                             "aggregated" => {
                                 state.viewer.set_view_mode(
                                     id,
-                                    Some((ViewMode::Aggregated { sorted }, inherit)),
+                                    Some((ViewMode::Aggregated { sort_mode }, inherit)),
                                 );
                             }
                             "bottom-up" => {
                                 state.viewer.set_view_mode(
                                     id,
-                                    Some((ViewMode::BottomUp { sorted }, inherit)),
+                                    Some((ViewMode::BottomUp { sort_mode }, inherit)),
                                 );
                             }
                             "aggregated-bottom-up" => {
                                 state.viewer.set_view_mode(
                                     id,
-                                    Some((ViewMode::AggregatedBottomUp { sorted }, inherit)),
+                                    Some((ViewMode::AggregatedBottomUp { sort_mode }, inherit)),
                                 );
                             }
                             _ => {
@@ -286,6 +293,10 @@ fn handle_connection(
                                     current = parent;
                                 }
                                 path.reverse();
+                                let memory_samples =
+                                    store.memory_samples_for_range(span.start(), span.end());
+                                let memory_pressure_samples = store
+                                    .memory_pressure_samples_for_range(span.start(), span.end());
                                 ServerToClientMessage::QueryResult {
                                     id,
                                     is_graph,
@@ -299,6 +310,8 @@ fn handle_connection(
                                     persistent_allocations,
                                     args,
                                     path,
+                                    memory_samples,
+                                    memory_pressure_samples,
                                 }
                             } else {
                                 ServerToClientMessage::QueryResult {
@@ -314,6 +327,8 @@ fn handle_connection(
                                     persistent_allocations: 0,
                                     args: Vec::new(),
                                     path: Vec::new(),
+                                    memory_samples: Vec::new(),
+                                    memory_pressure_samples: Vec::new(),
                                 }
                             }
                         };

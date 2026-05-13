@@ -17,14 +17,10 @@ const nextConfig = {
       },
     },
   },
-  experimental: enableCaching
-    ? {
-        turbopackFileSystemCacheForBuild: true,
-      }
-    : {
-        turbopackFileSystemCacheForDev: false,
-        turbopackFileSystemCacheForBuild: false,
-      },
+  experimental: {
+    turbopackFileSystemCacheForBuild: enableCaching,
+    turbopackFileSystemCacheForDev: enableCaching,
+  },
   env: {
     NEXT_PUBLIC_CONFIG_ENV: 'hello world',
   },

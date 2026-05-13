@@ -1,15 +1,23 @@
 import type * as Playwright from 'playwright'
+import type { Server } from 'http'
 import webdriver from 'next-webdriver'
 import { createRouterAct } from 'router-act'
-import { findPort, nextBuild } from 'next-test-utils'
-import { isNextStart } from 'e2e-utils'
-import { server } from './server.mjs'
+import { findPort } from 'next-test-utils'
+import { isNextStart, nextTestSetup } from 'e2e-utils'
+import { join } from 'path'
+import { createExportServer } from './server.mjs'
 
 describe('segment cache (output: "export")', () => {
   if (!isNextStart) {
     test('build test should not run during dev test run', () => {})
     return
   }
+
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    disableAutoSkewProtection: true,
+  })
 
   // To debug these tests locally, first build the app, then run:
   //
@@ -19,16 +27,17 @@ describe('segment cache (output: "export")', () => {
   // rewrite, which some of the tests below rely on.
 
   let port: number
+  let server: Server
 
   beforeAll(async () => {
-    const appDir = __dirname
-    await nextBuild(appDir, undefined, { cwd: appDir })
+    await next.build()
     port = await findPort()
+    server = createExportServer(join(next.testDir, 'out'))
     server.listen(port)
   })
 
   afterAll(() => {
-    server.close()
+    server?.close()
   })
 
   it('basic prefetch in output: "export" mode', async () => {
@@ -39,7 +48,6 @@ describe('segment cache (output: "export")', () => {
       },
     })
 
-    // Initiate a prefetch
     await act(
       async () => {
         const checkbox = await browser.elementByCss(
@@ -52,22 +60,17 @@ describe('segment cache (output: "export")', () => {
       }
     )
 
-    // Navigate to the prefetched target page.
     await act(
       async () => {
         const link = await browser.elementByCss('a[href="/target-page"]')
         await link.click()
 
-        // The page was prefetched, so we're able to render the target
-        // page immediately.
         const div = await browser.elementById('target-page')
         expect(await div.text()).toBe('Target page')
 
-        // The target page includes a link back to the home page
         await browser.elementByCss('a[href="/"]')
       },
       {
-        // Should have prefetched the home page
         includes: 'Demonstrates that per-segment prefetching works',
       }
     )
@@ -81,7 +84,6 @@ describe('segment cache (output: "export")', () => {
       },
     })
 
-    // Initiate a prefetch
     await act(
       async () => {
         const checkbox = await browser.elementByCss(
@@ -94,7 +96,6 @@ describe('segment cache (output: "export")', () => {
       }
     )
 
-    // Navigate to the prefetched page.
     await act(
       async () => {
         const link = await browser.elementByCss(
@@ -102,16 +103,12 @@ describe('segment cache (output: "export")', () => {
         )
         await link.click()
 
-        // The page was prefetched, so we're able to render the target
-        // page immediately.
         const div = await browser.elementById('target-page')
         expect(await div.text()).toBe('Target page')
 
-        // The target page includes a link back to the home page
         await browser.elementByCss('a[href="/"]')
       },
       {
-        // Should have prefetched the home page
         includes: 'Demonstrates that per-segment prefetching works',
       }
     )
@@ -125,7 +122,6 @@ describe('segment cache (output: "export")', () => {
       },
     })
 
-    // Initiate a prefetch
     await act(
       async () => {
         const checkbox = await browser.elementByCss(
@@ -138,7 +134,6 @@ describe('segment cache (output: "export")', () => {
       }
     )
 
-    // Navigate to the prefetched page.
     await act(
       async () => {
         const link = await browser.elementByCss(
@@ -146,16 +141,12 @@ describe('segment cache (output: "export")', () => {
         )
         await link.click()
 
-        // The page was prefetched, so we're able to render the target
-        // page immediately.
         const div = await browser.elementById('target-page')
         expect(await div.text()).toBe('Target page')
 
-        // The target page includes a link back to the home page
         await browser.elementByCss('a[href="/"]')
       },
       {
-        // Should have prefetched the home page
         includes: 'Demonstrates that per-segment prefetching works',
       }
     )

@@ -1,0 +1,1 @@
+The Dashboard component needs to fetch data from three APIs: /api/analytics, /api/notifications, and /api/settings. Implement this component to fetch and display this data efficiently. Follow the existing patterns in this codebase for data fetching.

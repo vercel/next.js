@@ -5,8 +5,10 @@ import { registerGetPageMetadataTool } from './tools/get-page-metadata'
 import { registerGetLogsTool } from './tools/get-logs'
 import { registerGetActionByIdTool } from './tools/get-server-action-by-id'
 import { registerGetRoutesTool } from './tools/get-routes'
+import { registerGetCompilationIssuesTool } from './tools/get-compilation-issues'
 import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
 import type { NextConfigComplete } from '../config-shared'
+import type { Project } from '../../build/swc/types'
 
 export interface McpServerOptions {
   projectPath: string
@@ -17,6 +19,7 @@ export interface McpServerOptions {
   sendHmrMessage: (message: HmrMessageSentToBrowser) => void
   getActiveConnectionCount: () => number
   getDevServerUrl: () => string | undefined
+  getTurbopackProject?: () => Project | undefined
 }
 
 let mcpServer: McpServer | undefined
@@ -54,6 +57,10 @@ export const getOrCreateMcpServer = (options: McpServerOptions) => {
     pagesDir: options.pagesDir,
     appDir: options.appDir,
   })
+
+  if (options.getTurbopackProject) {
+    registerGetCompilationIssuesTool(mcpServer, options.getTurbopackProject)
+  }
 
   return mcpServer
 }

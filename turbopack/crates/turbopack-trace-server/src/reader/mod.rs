@@ -25,6 +25,10 @@ const MIN_INITIAL_REPORT_SIZE: u64 = 100 * 1024 * 1024;
 
 trait TraceFormat {
     type Reused: Default;
+    /// Create the initial reused buffer. Override to pre-allocate capacity.
+    fn create_reused() -> Self::Reused {
+        Self::Reused::default()
+    }
     fn read(&mut self, buffer: &[u8], reuse: &mut Self::Reused) -> Result<usize>;
     fn stats(&self) -> String {
         String::new()
@@ -46,7 +50,7 @@ where
     T::Reused: 'static,
 {
     fn create_reused(&self) -> ErasedReused {
-        Box::new(T::Reused::default())
+        Box::new(T::create_reused())
     }
 
     fn read(&mut self, buffer: &[u8], reuse: &mut ErasedReused) -> Result<usize> {
@@ -206,6 +210,7 @@ impl TraceReader {
             match file.read(&mut chunk) {
                 Ok(bytes_read) => {
                     if bytes_read == 0 {
+                        self.store.write().optimize();
                         if let Some(value) = self.wait_for_more_data(
                             &mut file,
                             &mut initial_read,
@@ -304,6 +309,7 @@ impl TraceReader {
                     if err.kind() == io::ErrorKind::UnexpectedEof
                         || err.kind() == io::ErrorKind::InvalidInput
                     {
+                        self.store.write().optimize();
                         if let Some(value) = self.wait_for_more_data(
                             &mut file,
                             &mut initial_read,

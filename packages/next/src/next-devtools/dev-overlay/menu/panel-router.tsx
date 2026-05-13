@@ -28,7 +28,9 @@ import { UserPreferencesBody } from '../components/errors/dev-tools-indicator/de
 import { useShortcuts } from '../hooks/use-shortcuts'
 import { useUpdateAllPanelPositions } from '../components/devtools-indicator/devtools-indicator'
 import { saveDevToolsConfig } from '../utils/save-devtools-config'
+import { InstantNavsPanel } from '../components/instant-navs/instant-navs-panel'
 import './panel-router.css'
+import { CacheDisabledBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cache-disabled'
 
 const MenuPanel = () => {
   const { setPanel, setSelectedIndex } = usePanelRouterContext()
@@ -103,6 +105,28 @@ const MenuPanel = () => {
           title: 'Cache Components is enabled.',
           label: 'Cache Components',
           value: 'Enabled',
+        },
+        isAppRouter &&
+          !!process.env.__NEXT_INSTANT_NAV_TOGGLE && {
+            title: 'Test instant navigation behavior.',
+            label: 'Instant Navs',
+            value: <ChevronRight />,
+            onClick: () => {
+              setPanel('instant-navs')
+            },
+            attributes: {
+              'data-instant-nav': true,
+            },
+          },
+        state.cacheIndicator === 'bypass' && {
+          title:
+            'Caching is currently disabled (bypassed). Click to learn more.',
+          label: 'Cache',
+          value: 'Disabled',
+          onClick: () => setPanel('cache-disabled'),
+          attributes: {
+            'data-cache-disabled': true,
+          },
         },
         isAppRouter && {
           label: 'Route Info',
@@ -240,6 +264,43 @@ export const PanelRouter = () => {
             header={<DevToolsHeader title="Route Info" />}
           >
             <PageSegmentTree page={state.page} />
+          </DynamicPanel>
+        </PanelRoute>
+      )}
+
+      {isAppRouter && !!process.env.__NEXT_INSTANT_NAV_TOGGLE && (
+        <PanelRoute name="instant-navs">
+          <DynamicPanel
+            sharePanelSizeGlobally={false}
+            sharePanelPositionGlobally={false}
+            draggable
+            sizeConfig={{
+              kind: 'fixed',
+              height: 300 / state.scale,
+              width: 480 / state.scale,
+            }}
+            header={<DevToolsHeader title="Instant Navs" />}
+          >
+            <InstantNavsPanel />
+          </DynamicPanel>
+        </PanelRoute>
+      )}
+
+      {state.cacheIndicator === 'bypass' && (
+        <PanelRoute name="cache-disabled">
+          <DynamicPanel
+            sharePanelSizeGlobally={false}
+            sizeConfig={{
+              kind: 'fixed',
+              height: 340 / state.scale,
+              width: 480 / state.scale,
+            }}
+            closeOnClickOutside
+            header={<DevToolsHeader title="Cache disabled" />}
+          >
+            <div className="panel-content">
+              <CacheDisabledBody />
+            </div>
           </DynamicPanel>
         </PanelRoute>
       )}

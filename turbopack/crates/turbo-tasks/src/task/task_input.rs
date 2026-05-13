@@ -18,32 +18,102 @@ use bincode::{
 use either::Either;
 use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::RcStr;
+use turbo_tasks_hash::HashAlgorithm;
 
 // This import is necessary for derive macros to work, as their expansion refers to the crate
 // name directly.
-use crate as turbo_tasks;
+use crate::{self as turbo_tasks, ReadRef};
 use crate::{
-    MagicAny, ReadRef, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
+    DynTaskInputs, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
     trace::TraceRawVcs,
 };
 
 /// Trait to implement in order for a type to be accepted as a
 /// [`#[turbo_tasks::function]`][crate::function] argument.
 ///
+/// ## Serialization
+///
+/// For persistent caching of a task, arguments must be serializable. All `TaskInput`s must
+/// implement the bincode [`Encode`] and [`Decode`] traits.
+///
 /// Transient task inputs are required to implement [`Encode`] and [`Decode`], but are allowed to
 /// panic at runtime. This requirement could be lifted in the future.
 ///
 /// Bincode encoding must be deterministic and compatible with [`Eq`] comparisons. If two
 /// `TaskInput`s compare equal they must also encode to the same bytes.
+///
+/// ## Hash and Eq
+///
+/// Arguments are used as part of keys in a `HashMap`, so they must implement of [`PartialEq`],
+/// [`Eq`], and [`Hash`] traits.
+///
+/// ## [`Vc<T>`][Vc]
+///
+/// A [`Vc`] is a pointer to a cell. It implements `TaskInput` and serves as a "pass by reference"
+/// argument:
+///
+/// - **Memoization**: [`Vc`] is keyed by pointer for memoization purposes. Identical values in
+///   different cells are treated as distinct.
+/// - **Singleton Pattern**: To ensure memoization efficiency, the singleton pattern can be employed
+///   to guarantee that identical values yield the same `Vc`. For more info see [Singleton Pattern
+///   Guide][singleton].
+///
+/// [singleton]: https://turbopack-rust-docs.vercel.sh/turbo-engine/singleton.html
+///
+/// ## Deriving `TaskInput`
+///
+/// Structs or enums can be made into task inputs by deriving `TaskInput`:
+///
+/// ```rust
+/// #[derive(TaskInput)]
+/// struct MyStruct {
+///     // Fields go here...
+/// }
+/// ```
+///
+/// Derived `TaskInput` types **passed by value**. When called, arguments are moved into a `Box`,
+/// and then cloned before being passed into the function. If the task is invalidated, the
+/// `TaskInput` is cloned again to allow the function to be re-executed. It's recommended to ensure
+/// that these types are cheap to clone.
+///
+/// Reference-counted types like [`Arc`] are cheap to clone, but each reference contained in a
+/// `TaskInput` will be serialized independently in the persistent cache, and may consume extra disk
+/// space. If an [`Arc`] points to a large type, consider wrapping that type in [`Vc`], so that only
+/// one copy of the value will be serialized.
 pub trait TaskInput:
     Send + Sync + Clone + Debug + PartialEq + Eq + Hash + TraceRawVcs + Encode + Decode<()>
 {
+    /// This method should resolve any [`Vc`]s nested inside of this object, cloning the object in
+    /// the process. If the input is unresolved ([`TaskInput::is_resolved`]) a "local" resolution
+    /// task is created that runs this method.
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         async { Ok(self.clone()) }
     }
+
+    /// This should return `true` if there are any unresolved [`Vc`]s in the type.
+    ///
+    /// Note that [`Vc`]s can sometimes be internally resolved, so you should call
+    /// [`Vc::is_resolved`] (or rely on the derive macro for this trait) instead of returning `true`
+    /// for any [`Vc`]. [`ResolvedVc::is_resolved`] always returns `true`.
+    ///
+    /// If this returns `true`, a "local" resolution task calling [`TaskInput::resolve_input`] will
+    /// be spawned before the function accepting the arguments is run.
+    ///
+    /// If this returns `false`, the `TaskInput` will be [cloned][Clone] instead of resolved, and
+    /// the function's task will be spawned directly without a resolution step.
     fn is_resolved(&self) -> bool {
         true
     }
+
+    /// This should return true if this object contains a [`Vc`] (or any subtype of [`Vc`]) pointing
+    /// to a cell owned by a transient task.
+    ///
+    /// Any function called with a transient `TaskInput` will be transient. Any [`Vc`] constructed
+    /// in a transient task or in a top-level [`run_once`][crate::run_once] closure will be
+    /// transient.
+    ///
+    /// Internally, a [`Vc`] can be determined to be transient by comparing the owning task's id
+    /// with the [`TRANSIENT_TASK_BIT`][crate::TRANSIENT_TASK_BIT] mask.
     fn is_transient(&self) -> bool;
 }
 
@@ -72,7 +142,8 @@ impl_task_input! {
     TaskId,
     ValueTypeId,
     Duration,
-    String
+    String,
+    HashAlgorithm
 }
 
 impl<T> TaskInput for Vec<T>
@@ -188,7 +259,7 @@ where
     }
 
     async fn resolve_input(&self) -> Result<Self> {
-        Vc::resolve(*self).await
+        Ok(*(*self).to_resolved().await?)
     }
 }
 
@@ -213,7 +284,7 @@ where
 
 impl<T> TaskInput for TransientValue<T>
 where
-    T: MagicAny + Clone + Debug + Hash + Eq + TraceRawVcs + 'static,
+    T: DynTaskInputs + Clone + Debug + Hash + Eq + TraceRawVcs + 'static,
 {
     fn is_transient(&self) -> bool {
         true

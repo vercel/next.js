@@ -145,6 +145,7 @@ describe('required server files', () => {
       /- Local:/,
       {
         ...process.env,
+        ...next.env,
         ENV_FROM_HOST: 'FOOBAR',
         PORT: `${appPort}`,
       },
@@ -1557,6 +1558,31 @@ describe('required server files', () => {
   describe('without minimalMode, with wasm', () => {
     beforeAll(() => {
       minimalMode = false
+    })
+
+    it('should ignore external nxtP params when middleware only checks the pathname', async () => {
+      const blockedRes = await fetchViaHTTP(
+        appPort,
+        '/dynamic/secret',
+        undefined,
+        withInvocationId()
+      )
+
+      expect(blockedRes.status).toBe(401)
+      expect(await blockedRes.text()).toBe('Unauthorized')
+
+      const bypassRes = await fetchViaHTTP(
+        appPort,
+        '/dynamic/public?nxtPslug=secret',
+        undefined,
+        withInvocationId()
+      )
+
+      expect(bypassRes.status).toBe(200)
+
+      const $ = cheerio.load(await bypassRes.text())
+      expect($('#dynamic').text()).toBe('dynamic page')
+      expect($('#slug').text()).toBe('public')
     })
 
     it('should run middleware correctly', async () => {

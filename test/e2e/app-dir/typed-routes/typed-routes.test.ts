@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, runNextCommand } from 'next-test-utils'
+import execa from 'execa'
+import { retry } from 'next-test-utils'
 
 const expectedDts = `
 type AppRoutes = "/" | "/_shop/[[...category]]" | "/dashboard" | "/dashboard/settings" | "/docs/[...slug]" | "/gallery/photo/[id]" | "/project/[slug]"
@@ -22,15 +23,41 @@ describe('typed-routes', () => {
   }
 
   it('should generate route types correctly', async () => {
+    // Route type generation happens after the "Ready" log fires; give it time.
     await retry(async () => {
-      const dts = await next.readFile(`${next.distDir}/types/route-types.d.ts`)
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
       expect(dts).toContain(expectedDts)
-    })
+    }, 30000)
+  })
+
+  it('should have passing tsc after start', async () => {
+    // Wait for routes.d.ts before stopping the server; route type generation
+    // happens after the "Ready" log fires and tsc may run before it completes.
+    await retry(async () => {
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
+      expect(dts).toContain(expectedDts)
+    }, 30000)
+
+    await next.stop()
+    try {
+      const { stdout, stderr } = await execa('pnpm', ['tsc', '--noEmit'], {
+        cwd: next.testDir,
+        reject: false,
+      })
+
+      expect({ stdout, stderr }).toEqual({
+        stdout: '',
+        stderr: '',
+      })
+    } finally {
+      await next.start()
+    }
   })
 
   it('should correctly convert custom route patterns from path-to-regexp to bracket syntax', async () => {
+    // Route type generation happens after the "Ready" log fires; give it time.
     await retry(async () => {
-      const dts = await next.readFile(`${next.distDir}/types/route-types.d.ts`)
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
 
       // Test standard dynamic segment: :slug -> [slug]
       expect(dts).toContain('"/project/[slug]"')
@@ -41,7 +68,7 @@ describe('typed-routes', () => {
       // Test catch-all zero-or-more: :slug* -> [[...slug]]
       expect(dts).toContain('"/blog/[category]/[[...slug]]"')
       expect(dts).toContain('"/api-legacy/[version]/[[...endpoint]]"')
-    })
+    }, 30000)
   })
 
   if (isNextDev) {
@@ -58,7 +85,7 @@ describe('typed-routes', () => {
 
       await retry(async () => {
         const routeTypesContent = await next.readFile(
-          `${next.distDir}/types/route-types.d.ts`
+          `${next.distDir}/types/routes.d.ts`
         )
 
         expect(routeTypesContent).toContain(
@@ -70,7 +97,7 @@ describe('typed-routes', () => {
 
   it('should generate RouteContext type for route handlers', async () => {
     await retry(async () => {
-      const dts = await next.readFile(`${next.distDir}/types/route-types.d.ts`)
+      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
       expect(dts).toContain(
         'interface RouteContext<AppRouteHandlerRoute extends AppRouteHandlerRoutes>'
       )
@@ -102,11 +129,9 @@ type InvalidRoute = RouteContext<'/api/users/invalid'>`
     })
 
     it('should exit typegen successfully', async () => {
-      const { code } = await runNextCommand(['typegen'], {
-        cwd: next.testDir,
-      })
+      const { exitCode } = await next.runCommand(['typegen'])
 
-      expect(code).toBe(0)
+      expect(exitCode).toBe(0)
     })
   }
 })

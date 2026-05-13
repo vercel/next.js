@@ -1,4 +1,4 @@
-import { NextInstance, createNext } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import fs from 'fs-extra'
 import {
   findPort,
@@ -11,19 +11,20 @@ import { join } from 'path'
 let MY_DEPLOYMENT_ID = 'test-deployment-id'
 
 describe('standalone mode: runtimeServerDeploymentId', () => {
-  let next: NextInstance
   let server
   let appPort
   let output = ''
 
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: {
+      NEXT_DEPLOYMENT_ID: MY_DEPLOYMENT_ID,
+    },
+    skipStart: true,
+    disableAutoSkewProtection: true,
+  })
+
   beforeAll(async () => {
-    next = await createNext({
-      files: __dirname,
-      env: {
-        NEXT_DEPLOYMENT_ID: MY_DEPLOYMENT_ID,
-      },
-      skipStart: true,
-    })
     let { exitCode } = await next.build()
     // eslint-disable-next-line jest/no-standalone-expect
     expect(exitCode).toBe(0)
@@ -47,6 +48,7 @@ describe('standalone mode: runtimeServerDeploymentId', () => {
       /- Local:/,
       {
         ...process.env,
+        ...next.env,
         HOSTNAME: '::',
         PORT: appPort,
         NEXT_DEPLOYMENT_ID: MY_DEPLOYMENT_ID,
@@ -64,7 +66,6 @@ describe('standalone mode: runtimeServerDeploymentId', () => {
     )
   })
   afterAll(async () => {
-    await next.destroy()
     if (server) await killApp(server)
   })
 

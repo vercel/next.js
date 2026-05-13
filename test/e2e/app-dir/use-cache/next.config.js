@@ -6,6 +6,7 @@ const nextConfig = {
     custom: require.resolve(
       'next/dist/server/lib/cache-handlers/default.external'
     ),
+    'no-store': require.resolve('./no-store-handler.js'),
   },
   experimental: {
     useCache: true,

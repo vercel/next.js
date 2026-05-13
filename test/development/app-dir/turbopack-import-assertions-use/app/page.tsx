@@ -8,7 +8,10 @@ import replacedValue from '../data-with-placeholder.js' with { turbopackLoader: 
 import rawTextViaModuleType from '../data2.txt' with { turbopackLoader: '../node_modules/test-raw-loader/index.js', turbopackModuleType: 'ecmascript' }
 // Import a non-.json file and treat it as JSON via turbopackModuleType
 import jsonData from '../data.jsonlike' with { turbopackLoader: 'test-identity-loader', turbopackModuleType: 'json' }
+// Normal rules should still work at the same time
+import jsonData2 from '../data.jsonlike2'
 
+console.log(jsonData, jsonData2)
 export default function Page() {
   return (
     <div>
@@ -16,6 +19,7 @@ export default function Page() {
       <p id="replaced">{replacedValue}</p>
       <p id="module-type">{rawTextViaModuleType}</p>
       <p id="json-type">{jsonData.greeting}</p>
+      <p id="json-type-2">{jsonData2.greeting}</p>
     </div>
   )
 }
