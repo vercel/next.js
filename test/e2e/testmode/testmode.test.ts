@@ -138,7 +138,7 @@ describe('testmode', () => {
   })
 
   describe('passthrough body', () => {
-    it('forwards request body when handler returns continue', async () => {
+    it('should forward request body when handler returns continue', async () => {
       const receivedBodies: string[] = []
       const port = await findPort()
       const echoServer = http.createServer(async (req, res) => {
