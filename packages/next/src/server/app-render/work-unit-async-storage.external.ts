@@ -364,6 +364,13 @@ export interface PublicUseCacheStore extends CommonUseCacheStore {
    * Tracks which root param names were read during this cache invocation.
    */
   readonly readRootParamNames: Set<string>
+  /**
+   * The first nested public `'use cache'` invocation with a dynamic cache life
+   * (`revalidate === 0` or `expire < DYNAMIC_EXPIRE`) that propagated up to
+   * this store. Used as `cause` for the nested-dynamic cache error so the
+   * redbox can point at the inner invocation site, not just the outer one.
+   */
+  dynamicNestedCacheError: Error | undefined
 }
 
 export interface PrivateUseCacheStore extends CommonUseCacheStore {

@@ -59,7 +59,11 @@ import { DYNAMIC_EXPIRE, RUNTIME_PREFETCH_DYNAMIC_STALE } from './constants'
 import { NEXT_CACHE_ROOT_PARAM_TAG_ID } from '../../lib/constants'
 import type { CacheHandler } from '../lib/cache-handlers/types'
 import { getCacheHandler } from './handlers'
-import { UseCacheDeadlockError, UseCacheTimeoutError } from './use-cache-errors'
+import {
+  NestedDynamicUseCacheError,
+  UseCacheDeadlockError,
+  UseCacheTimeoutError,
+} from './use-cache-errors'
 import {
   createHangingInputAbortSignal,
   postponeWithTracking,
@@ -106,6 +110,15 @@ interface PublicCacheContext {
   readonly functionId: string
   /** The cache handler kind (first arg of `cache()`, e.g. 'default'). */
   readonly handlerKind: string
+  /**
+   * Eagerly captured at `cache()` entry, pointing at this invocation's call
+   * site. Only set when the outer is itself a public `'use cache'` (i.e. when
+   * this entry could become the propagated origin of a nested-dynamic cache
+   * error in the parent). When this cache resolves dynamic, this is copied into
+   * `outerWorkUnitStore.dynamicNestedCacheError` so the parent's error can use
+   * it as `cause`.
+   */
+  readonly dynamicNestedCacheError: Error | undefined
 }
 
 type CacheContext = PrivateCacheContext | PublicCacheContext
@@ -148,6 +161,7 @@ interface CacheResultMetadata {
   readonly readRootParamNames: ReadonlySet<string> | undefined
   readonly hasExplicitRevalidate: boolean | undefined
   readonly hasExplicitExpire: boolean | undefined
+  readonly dynamicNestedCacheError: Error | undefined
 }
 
 /**
@@ -268,7 +282,7 @@ const findSourceMapURL =
 const nestedCacheZeroRevalidateErrorMessage =
   `A "use cache" with zero \`revalidate\` is nested inside another "use cache" ` +
   `that has no explicit \`cacheLife\`, which is not allowed during ` +
-  `prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose ` +
+  `prerendering. Add \`cacheLife()\` to the outer "use cache" to choose ` +
   `whether it should be prerendered (with non-zero \`revalidate\`) or remain ` +
   `dynamic (with zero \`revalidate\`). Read more: ` +
   `https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`
@@ -276,7 +290,7 @@ const nestedCacheZeroRevalidateErrorMessage =
 const nestedCacheShortExpireErrorMessage =
   `A "use cache" with short \`expire\` (under 5 minutes) is nested inside ` +
   `another "use cache" that has no explicit \`cacheLife\`, which is not ` +
-  `allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` ` +
+  `allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" ` +
   `to choose whether it should be prerendered (with longer \`expire\`) or remain ` +
   `dynamic (with short \`expire\`). Read more: ` +
   `https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`
@@ -381,6 +395,7 @@ function saveSharedCacheEntryToResumeDataCache(
       readRootParamNames: metadata.readRootParamNames,
       hasExplicitRevalidate: metadata.hasExplicitRevalidate,
       hasExplicitExpire: metadata.hasExplicitExpire,
+      dynamicNestedCacheError: metadata.dynamicNestedCacheError,
     }))
 
   prerenderResumeDataCache.cache.set(serializedCacheKey, rdcResult)
@@ -585,6 +600,7 @@ function createUseCacheStore(
       rootParams: outerWorkUnitStore.rootParams,
       readRootParamNames: new Set<string>(),
       outerOwnerStack: cacheContext.outerOwnerStack,
+      dynamicNestedCacheError: undefined,
     }
   }
 }
@@ -767,6 +783,17 @@ function propagateCacheEntryMetadata(
             cacheContext.outerWorkUnitStore.readRootParamNames.add(paramName)
           }
         }
+        // If this entry's cache life is dynamic, record this invocation as the
+        // origin to use as `cause` when the outer cache surfaces the
+        // nested-dynamic cache error. `??=` keeps the first occurrence so the
+        // cause points at the immediate dynamic child.
+        if (
+          cacheContext.dynamicNestedCacheError !== undefined &&
+          (metadata.revalidate === 0 || metadata.expire < DYNAMIC_EXPIRE)
+        ) {
+          cacheContext.outerWorkUnitStore.dynamicNestedCacheError ??=
+            cacheContext.dynamicNestedCacheError
+        }
       // fallthrough
       case 'private-cache':
       case 'prerender':
@@ -874,6 +901,15 @@ export interface CollectedCacheResult {
    * don't have this information.
    */
   readRootParamNames: ReadonlySet<string> | undefined
+  /**
+   * The `Error` carried up from the first nested public `'use cache'`
+   * invocation that propagated a dynamic cache life into this entry, captured
+   * eagerly at that inner invocation's `cache()` entry. Used as `cause` for the
+   * nested-dynamic cache error so the redbox can point at the inner invocation
+   * site, not just the outer one. Lives in-memory only — intentionally dropped
+   * from the serialized RDC because dynamic entries aren't serialized either.
+   */
+  dynamicNestedCacheError: Error | undefined
 }
 
 async function collectResult(
@@ -958,6 +994,12 @@ async function collectResult(
       innerCacheStore.type === 'cache'
         ? innerCacheStore.readRootParamNames
         : undefined,
+    // The store accumulates this from nested public caches that propagated a
+    // dynamic life into us.
+    dynamicNestedCacheError:
+      innerCacheStore.type === 'cache'
+        ? innerCacheStore.dynamicNestedCacheError
+        : undefined,
   }
 
   if (!cacheContext.skipPropagation) {
@@ -970,6 +1012,7 @@ async function collectResult(
       hasExplicitRevalidate: collected.hasExplicitRevalidate,
       hasExplicitExpire: collected.hasExplicitExpire,
       readRootParamNames: collected.readRootParamNames,
+      dynamicNestedCacheError: collected.dynamicNestedCacheError,
     })
 
     const cacheSignal = getCacheSignal(cacheContext.outerWorkUnitStore)
@@ -1338,12 +1381,14 @@ function cloneCacheResult(
       hasExplicitRevalidate: result.hasExplicitRevalidate,
       hasExplicitExpire: result.hasExplicitExpire,
       readRootParamNames: result.readRootParamNames,
+      dynamicNestedCacheError: result.dynamicNestedCacheError,
     },
     {
       entry: entryB,
       hasExplicitRevalidate: result.hasExplicitRevalidate,
       hasExplicitExpire: result.hasExplicitExpire,
       readRootParamNames: result.readRootParamNames,
+      dynamicNestedCacheError: result.dynamicNestedCacheError,
     },
   ]
 }
@@ -1560,12 +1605,36 @@ export async function cache(
         throw new InvariantError(
           `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being allowed in client components statically, but did not in this case.`
         )
+      case 'cache': {
+        // Eagerly capture this invocation's call site while still synchronous
+        // in `cache()`. Used as `cause` of the nested-dynamic cache error
+        // when the outer cache (whose body never re-runs during the final
+        // prerender) throws. Only constructed when the parent is itself a
+        // public `'use cache'` — otherwise this entry can never propagate
+        // dynamism into that error and the allocation would be wasted. Private
+        // parents are intentionally excluded: `'use cache: private'` is
+        // dynamic-by-definition in prerendering and deferred to the runtime
+        // stage in dev requests, so a public cache nested inside one never
+        // triggers the throw upstream.
+        const dynamicNestedCacheError = new NestedDynamicUseCacheError()
+        Error.captureStackTrace(dynamicNestedCacheError, cache)
+        applyOwnerStack(dynamicNestedCacheError)
+        cacheContext = {
+          kind: 'public',
+          outerWorkUnitStore: workUnitStore,
+          skipPropagation: false,
+          outerOwnerStack,
+          functionId: id,
+          handlerKind: kind,
+          dynamicNestedCacheError,
+        }
+        break
+      }
       case 'prerender':
       case 'prerender-runtime':
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
-      case 'cache':
       case 'private-cache':
       // TODO: We should probably forbid nesting "use cache" inside
       // unstable_cache. (fallthrough)
@@ -1578,6 +1647,7 @@ export async function cache(
           outerOwnerStack,
           functionId: id,
           handlerKind: kind,
+          dynamicNestedCacheError: undefined,
         }
         break
       default:
@@ -1988,7 +2058,9 @@ export async function cache(
               if (rdcResult.entry.revalidate === 0) {
                 if (rdcResult.hasExplicitRevalidate === false) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheZeroRevalidateErrorMessage)
+                    new Error(nestedCacheZeroRevalidateErrorMessage, {
+                      cause: rdcResult.dynamicNestedCacheError,
+                    })
                   )
                 }
                 debug?.(
@@ -1999,7 +2071,9 @@ export async function cache(
               } else {
                 if (rdcResult.hasExplicitExpire === false) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheShortExpireErrorMessage)
+                    new Error(nestedCacheShortExpireErrorMessage, {
+                      cause: rdcResult.dynamicNestedCacheError,
+                    })
                   )
                 }
                 debug?.(
@@ -2036,7 +2110,9 @@ export async function cache(
                   rdcResult.hasExplicitRevalidate === false
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheZeroRevalidateErrorMessage)
+                    new Error(nestedCacheZeroRevalidateErrorMessage, {
+                      cause: rdcResult.dynamicNestedCacheError,
+                    })
                   )
                 }
                 if (
@@ -2044,7 +2120,9 @@ export async function cache(
                   rdcResult.hasExplicitExpire === false
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheShortExpireErrorMessage)
+                    new Error(nestedCacheShortExpireErrorMessage, {
+                      cause: rdcResult.dynamicNestedCacheError,
+                    })
                   )
                 }
                 // We delay the cache here so that it doesn't resolve in the static task --
@@ -2154,6 +2232,7 @@ export async function cache(
           hasExplicitRevalidate: rdcResult.hasExplicitRevalidate,
           hasExplicitExpire: rdcResult.hasExplicitExpire,
           readRootParamNames: rdcResult.readRootParamNames,
+          dynamicNestedCacheError: rdcResult.dynamicNestedCacheError,
         })
 
         const [streamA, streamB] = rdcResult.entry.value.tee()
@@ -2685,6 +2764,7 @@ export async function cache(
               hasExplicitRevalidate: collected.hasExplicitRevalidate,
               hasExplicitExpire: collected.hasExplicitExpire,
               readRootParamNames: collected.readRootParamNames,
+              dynamicNestedCacheError: collected.dynamicNestedCacheError,
             }))
 
           const sharedCacheEntry = new SharedCacheEntry(
@@ -2720,6 +2800,8 @@ export async function cache(
             // set this to undefined here.
             hasExplicitRevalidate: undefined,
             hasExplicitExpire: undefined,
+            // The same applies to the dynamic nested cache error.
+            dynamicNestedCacheError: undefined,
           }
 
           maybePropagateCacheEntryMetadata(cacheContext, entryMetadata)
@@ -2746,6 +2828,7 @@ export async function cache(
                 hasExplicitRevalidate: entryMetadata.hasExplicitRevalidate,
                 hasExplicitExpire: entryMetadata.hasExplicitExpire,
                 readRootParamNames: entryMetadata.readRootParamNames,
+                dynamicNestedCacheError: entryMetadata.dynamicNestedCacheError,
               })
             )
           } else {

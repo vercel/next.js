@@ -26,6 +26,7 @@ function createMockedCache() {
       hasExplicitRevalidate: true,
       hasExplicitExpire: true,
       readRootParamNames: undefined,
+      dynamicNestedCacheError: undefined,
     })
   )
 
@@ -44,6 +45,7 @@ function createMockedCache() {
       hasExplicitRevalidate: true,
       hasExplicitExpire: true,
       readRootParamNames: undefined,
+      dynamicNestedCacheError: undefined,
     })
   )
 
@@ -62,6 +64,7 @@ function createMockedCache() {
       hasExplicitRevalidate: true,
       hasExplicitExpire: true,
       readRootParamNames: undefined,
+      dynamicNestedCacheError: undefined,
     })
   )
 
