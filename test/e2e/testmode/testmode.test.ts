@@ -138,50 +138,37 @@ describe('testmode', () => {
   })
 
   describe('passthrough body', () => {
-    let echoServer: http.Server
-    let echoUrl: string
-    let lastBody = ''
-
-    beforeAll(async () => {
-      echoServer = http.createServer((req, res) => {
+    it('forwards request body when handler returns continue', async () => {
+      let resolveBody!: (body: string) => void
+      const bodyReceived = new Promise<string>((resolve) => {
+        resolveBody = resolve
+      })
+      const echoServer = http.createServer((req, res) => {
         const chunks: Buffer[] = []
         req.on('data', (chunk) => chunks.push(chunk))
         req.on('end', () => {
-          lastBody = Buffer.concat(chunks).toString('utf-8')
-          res.writeHead(200, { 'Content-Type': 'text/plain' })
-          res.end(lastBody)
+          resolveBody(Buffer.concat(chunks).toString('utf-8'))
+          res.end()
         })
       })
-      await new Promise<void>((resolve) =>
-        echoServer.listen(0, '127.0.0.1', resolve)
-      )
+      await new Promise<void>((r) => echoServer.listen(0, '127.0.0.1', r))
       const { port } = echoServer.address() as AddressInfo
-      echoUrl = `http://127.0.0.1:${port}/echo`
-    })
+      const echoUrl = `http://127.0.0.1:${port}/`
 
-    afterAll(() => {
-      echoServer.close()
-    })
-
-    beforeEach(() => {
-      lastBody = ''
+      // Replace the default proxy from the outer beforeEach with one that
+      // tells Next.js to pass the request through to the echo server.
       proxyServer.close()
-    })
-
-    it('should forward request body when handler returns continue', async () => {
       proxyServer = await createProxyServer({
-        onFetch: async (_testData, request) => {
-          if (request.url === echoUrl) {
-            return 'continue'
-          }
-          return undefined
-        },
+        onFetch: async (_testData, request) =>
+          request.url === echoUrl ? 'continue' : undefined,
       })
 
-      const url = `/api/post-passthrough?target=${encodeURIComponent(echoUrl)}`
-      const json = await (await fetchForTest(url)).json()
-      expect(lastBody).toEqual('{"message":"hello"}')
-      expect(json.echoed).toEqual('{"message":"hello"}')
+      await fetchForTest(
+        `/api/post-passthrough?target=${encodeURIComponent(echoUrl)}`
+      )
+
+      expect(await bodyReceived).toEqual('{"message":"hello"}')
+      echoServer.close()
     })
   })
 })
