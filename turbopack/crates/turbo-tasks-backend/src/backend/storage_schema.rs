@@ -525,7 +525,7 @@ impl TaskStorage {
         let key_evictability = if flags.new_task() {
             KeyEvictability::Unevictable
         } else {
-            match &self.persistent_task_type {
+            match &self.head.persistent_task_type {
                 None => KeyEvictability::Unevictable,
                 // strong_count == 1: only this TaskStorage holds this Arc, so no task_cache entry
                 // references it. It must have been already evicted on a prior cycle.
@@ -734,7 +734,7 @@ impl TaskStorage {
         self.flags.set_restored(TaskDataCategory::All);
 
         // This is a root (or once) task. These tasks use the max aggregation number.
-        self.aggregation_number = AggregationNumber {
+        self.head.aggregation_number = AggregationNumber {
             base: u32::MAX,
             distance: 0,
             effective: u32::MAX,
@@ -1685,17 +1685,26 @@ mod tests {
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn test_schema_size() {
-        // After the byte-tail layout swap, `TaskStorage` is still 128 B.
-        // The previous 16-byte lazy-vec slot was replaced by `LazyTail`
-        // (also 16 B; `present: u32 | len: u16 | cap: u16 | ptr:
-        // NonNull<u8>`). Per-task discriminant savings come from how
-        // payloads are now packed in the tail, not the head footprint.
+        // Inline fields are now grouped into `TaskStorageHead`, with
+        // `flags` and `lazy_tail` living at the top level of `TaskStorage`.
+        // The grouping costs 8 B of padding because Rust can no longer
+        // reorder the small `flags`/`lazy_tail` fields into the alignment
+        // gaps of the `Arc`/`Box`/`AutoMap` fields that now live inside
+        // `head`. Step 3 of the refactor (inlining the lazy tail bytes
+        // into the same allocation as the head, dropping `LazyTail::ptr`)
+        // recovers the regression and goes further.
+        assert_eq!(
+            size_of::<TaskStorageHead>(),
+            112,
+            "TaskStorageHead size changed! Inspect Rust's struct layout to find why.",
+        );
         assert_eq!(
             size_of::<TaskStorage>(),
-            128,
+            136,
             "TaskStorage size changed! Inspect Rust's struct layout to find why.",
         );
-        // `LazyTail` is 16 B (4 + 2 + 2 + 8).
+        // `LazyTail` is 16 B (4 + 2 + 2 + 8). Step 3 will inline the byte
+        // buffer into TaskStorage's allocation and drop the `ptr` field.
         assert_eq!(
             size_of::<LazyTail>(),
             16,
