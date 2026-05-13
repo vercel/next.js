@@ -28,9 +28,9 @@ pub(crate) const TAIL_BUFFER_ALIGN: usize = 8;
 
 /// Owns the byte tail and the presence bitmap.
 ///
-/// Laid out as `(present, len, cap, ptr)` for explicit `#[repr(C)]` so the
-/// total fits in 16 B on 64-bit, the same size as the previous
-/// `TinyVec<LazyField, _>` slot.
+/// Laid out as `(present, len, cap, ptr)` under explicit `#[repr(C)]` so the
+/// total fits in 16 B on 64-bit, the same size as the original lazy-vec
+/// slot the byte-tail layout replaced.
 #[repr(C)]
 pub(crate) struct LazyTail {
     /// Presence bitmap: bit `tag - 1` is set iff the variant with that tag is

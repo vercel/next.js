@@ -1685,18 +1685,17 @@ mod tests {
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn test_schema_size() {
-        // After the byte-tail layout swap, `TaskStorage` is still 128 B —
-        // the previous `TinyVec<LazyField, _>` slot (16 B) was replaced by
-        // `LazyTail` (also 16 B; `present: u32 | len: u16 | cap: u16 |
-        // ptr: NonNull<u8>`). Per-task discriminant savings come from how
+        // After the byte-tail layout swap, `TaskStorage` is still 128 B.
+        // The previous 16-byte lazy-vec slot was replaced by `LazyTail`
+        // (also 16 B; `present: u32 | len: u16 | cap: u16 | ptr:
+        // NonNull<u8>`). Per-task discriminant savings come from how
         // payloads are now packed in the tail, not the head footprint.
         assert_eq!(
             size_of::<TaskStorage>(),
             128,
             "TaskStorage size changed! Inspect Rust's struct layout to find why.",
         );
-        // `LazyTail` is 16 B (4 + 2 + 2 + 8). Same slot size as the old
-        // `TinyVec<LazyField, _>`, so the head doesn't grow.
+        // `LazyTail` is 16 B (4 + 2 + 2 + 8).
         assert_eq!(
             size_of::<LazyTail>(),
             16,
