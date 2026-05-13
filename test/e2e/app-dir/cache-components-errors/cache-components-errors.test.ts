@@ -1093,7 +1093,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered Math.random() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -1241,7 +1241,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered Math.random() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -4841,7 +4841,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1247",
+             "code": "E1242",
              "description": "Next.js encountered Date.now() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -4986,7 +4986,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1247",
+             "code": "E1242",
              "description": "Next.js encountered Date.now() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5131,7 +5131,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1247",
+             "code": "E1242",
              "description": "Next.js encountered Date.now() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5276,7 +5276,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1247",
+             "code": "E1242",
              "description": "Next.js encountered Math.random() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5417,7 +5417,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1247",
+             "code": "E1242",
              "description": "Next.js encountered crypto.getRandomValues() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5561,7 +5561,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1247",
+             "code": "E1242",
              "description": "Next.js encountered crypto.randomUUID() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5703,7 +5703,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -5719,7 +5719,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -5865,7 +5865,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').generateKeySync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -5881,7 +5881,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').generateKeySync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6027,7 +6027,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6043,7 +6043,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6189,7 +6189,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered crypto.getRandomValues() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6205,7 +6205,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered crypto.getRandomValues() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6351,7 +6351,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomBytes(size) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6367,7 +6367,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomBytes(size) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6513,7 +6513,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomFillSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6529,7 +6529,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomFillSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6675,7 +6675,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6691,7 +6691,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6837,7 +6837,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6853,7 +6853,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6999,7 +6999,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomUUID() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -7015,7 +7015,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomUUID() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
