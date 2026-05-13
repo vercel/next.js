@@ -1,3 +1,5 @@
+import http from 'http'
+import type { AddressInfo } from 'net'
 import { nextTestSetup } from 'e2e-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 
@@ -132,6 +134,54 @@ describe('testmode', () => {
     it('should handle rewrites', async () => {
       const text = await (await fetchForTest('/rewrite-1')).text()
       expect(text).toEqual('test1')
+    })
+  })
+
+  describe('passthrough body', () => {
+    let echoServer: http.Server
+    let echoUrl: string
+    let lastBody = ''
+
+    beforeAll(async () => {
+      echoServer = http.createServer((req, res) => {
+        const chunks: Buffer[] = []
+        req.on('data', (chunk) => chunks.push(chunk))
+        req.on('end', () => {
+          lastBody = Buffer.concat(chunks).toString('utf-8')
+          res.writeHead(200, { 'Content-Type': 'text/plain' })
+          res.end(lastBody)
+        })
+      })
+      await new Promise<void>((resolve) =>
+        echoServer.listen(0, '127.0.0.1', resolve)
+      )
+      const { port } = echoServer.address() as AddressInfo
+      echoUrl = `http://127.0.0.1:${port}/echo`
+    })
+
+    afterAll(() => {
+      echoServer.close()
+    })
+
+    beforeEach(() => {
+      lastBody = ''
+      proxyServer.close()
+    })
+
+    it('should forward request body when handler returns continue', async () => {
+      proxyServer = await createProxyServer({
+        onFetch: async (_testData, request) => {
+          if (request.url === echoUrl) {
+            return 'continue'
+          }
+          return undefined
+        },
+      })
+
+      const url = `/api/post-passthrough?target=${encodeURIComponent(echoUrl)}`
+      const json = await (await fetchForTest(url)).json()
+      expect(lastBody).toEqual('{"message":"hello"}')
+      expect(json.echoed).toEqual('{"message":"hello"}')
     })
   })
 })
