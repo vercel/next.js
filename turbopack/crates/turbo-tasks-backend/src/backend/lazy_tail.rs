@@ -99,33 +99,50 @@ impl Drop for LazyTail {
 
 impl ShrinkToFit for LazyTail {
     fn shrink_to_fit(&mut self) {
-        if self.cap == 0 || self.cap == self.len {
+        if self.cap == 0 {
             return;
         }
-        // Reallocate to exactly fit `len` bytes. `mimalloc_good_size`-aware
-        // shrink lives a layer above; this is the minimum-footprint variant.
-        unsafe {
-            if self.len == 0 {
+        if self.len == 0 {
+            // SAFETY: We allocated `cap` bytes at `ptr` with align
+            // `TAIL_BUFFER_ALIGN` and there's nothing left to keep, so free
+            // the buffer and reset to the dangling/empty state.
+            unsafe {
                 dealloc(
                     self.ptr.as_ptr(),
                     Layout::from_size_align_unchecked(self.cap as usize, TAIL_BUFFER_ALIGN),
                 );
-                self.ptr = NonNull::dangling();
-                self.cap = 0;
-            } else {
-                let new_layout =
-                    Layout::from_size_align_unchecked(self.len as usize, TAIL_BUFFER_ALIGN);
-                let new_ptr = std::alloc::realloc(
-                    self.ptr.as_ptr(),
-                    Layout::from_size_align_unchecked(self.cap as usize, TAIL_BUFFER_ALIGN),
-                    self.len as usize,
-                );
-                if new_ptr.is_null() {
-                    handle_alloc_error(new_layout);
-                }
-                self.ptr = NonNull::new_unchecked(new_ptr);
-                self.cap = self.len;
             }
+            self.ptr = NonNull::dangling();
+            self.cap = 0;
+            return;
+        }
+        // Mimalloc rounds allocations up to bin boundaries, so a realloc
+        // request from `cap` down to `len` is wasted work when both fall in
+        // the same bin — mimalloc would just return the same pointer with
+        // the same usable size. Skip the realloc unless we'd actually move
+        // to a smaller class. (`good_size` falls back to next-power-of-two
+        // when `custom_allocator` is off.)
+        let target_size = turbo_tasks_malloc::TurboMalloc::good_size(self.len as usize);
+        let current_bin = turbo_tasks_malloc::TurboMalloc::good_size(self.cap as usize);
+        if target_size >= current_bin {
+            return;
+        }
+        let new_cap = target_size.min(u16::MAX as usize);
+        // SAFETY: existing allocation has size `self.cap` with align
+        // `TAIL_BUFFER_ALIGN`; we realloc to the same alignment with a
+        // smaller size that still satisfies `len`.
+        unsafe {
+            let new_layout = Layout::from_size_align_unchecked(new_cap, TAIL_BUFFER_ALIGN);
+            let new_ptr = std::alloc::realloc(
+                self.ptr.as_ptr(),
+                Layout::from_size_align_unchecked(self.cap as usize, TAIL_BUFFER_ALIGN),
+                new_cap,
+            );
+            if new_ptr.is_null() {
+                handle_alloc_error(new_layout);
+            }
+            self.ptr = NonNull::new_unchecked(new_ptr);
+            self.cap = new_cap as u16;
         }
     }
 }
@@ -303,18 +320,13 @@ impl LazyTail {
     /// Caller holds `&mut self`; no outstanding references into the buffer.
     unsafe fn grow_to(&mut self, min_bytes: usize) {
         debug_assert!(min_bytes > self.cap as usize);
-        // Double-then-round: start at 64 B for the first allocation, then
-        // grow by powers of two. Cap at `u16::MAX` (~64 KB) which is far
-        // above any realistic working set.
-        let mut new_cap = if self.cap == 0 {
-            64usize
-        } else {
-            (self.cap as usize) * 2
-        };
-        while new_cap < min_bytes {
-            new_cap = new_cap.saturating_mul(2);
-        }
-        let new_cap = new_cap.min(u16::MAX as usize);
+        // Ask the allocator for the bin it would actually round our request
+        // up to. Allocating exactly `min_bytes` would be wasteful — mimalloc
+        // would reserve the bin's full size anyway, and the next push would
+        // immediately trigger another realloc inside the same bin. `good_size`
+        // pre-rounds to that bin so subsequent pushes up to that boundary
+        // are free.
+        let new_cap = turbo_tasks_malloc::TurboMalloc::good_size(min_bytes).min(u16::MAX as usize);
         assert!(
             new_cap >= min_bytes,
             "lazy tail capacity overflow: requested {min_bytes}, max {}",
