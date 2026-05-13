@@ -426,6 +426,11 @@ impl Asset for NftJsonAsset {
                 result.extend(includes.into_iter().flatten());
             }
 
+            // Some of the output assets may have been included multiple times (in multiple chunking
+            // contexts), or asset contexts.
+            result.sort_unstable();
+            result.dedup();
+
             let (files, file_hashes): (Vec<_>, Vec<_>) = result.into_iter().unzip();
             // We can't just add this into "files" because Next.js sometimes decides to delete
             // output files such as `.next/server/pages/index.js` if that page was prerendered and
