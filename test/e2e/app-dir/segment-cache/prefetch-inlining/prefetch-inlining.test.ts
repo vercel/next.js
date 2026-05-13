@@ -805,4 +805,15 @@ describe('prefetch inlining', () => {
       'Independent head page'
     )
   })
+
+  it('notFound() during prerender does not crash build', async () => {
+    // Regression test: a page that calls notFound() during prerendering
+    // produces a flight data tree where some child seed data entries are
+    // undefined. collectPrefetchHints must handle this without crashing.
+    // The build succeeding is the primary assertion.
+    const browser = await next.browser('/test-not-found/exists')
+    expect(await browser.elementByCss('#page-not-found').text()).toBe(
+      'Found: exists'
+    )
+  })
 })

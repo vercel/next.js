@@ -41,7 +41,7 @@ import {
   createNodeStreamWithLateRelease,
   createNodeStreamFromChunks,
 } from './stream-utils'
-import { createWebDebugChannel } from '../debug-channel-server'
+import type { DebugChannelPair } from '../debug-channel-server'
 import type { FlightComponentMod } from '../stream-ops'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -53,6 +53,10 @@ import {
   DEFAULT_SEGMENT_KEY,
   NOT_FOUND_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
+import {
+  isFrameworkErrorRoute,
+  isImplicitValidationSegment,
+} from './instant-config'
 import type { NextParsedUrlQuery } from '../../request-meta'
 
 const filterStackFrame =
@@ -217,7 +221,8 @@ export async function collectStagedSegmentData(
   fullPageDebugChunks: Uint8Array[] | null,
   startTime: number,
   hasRuntimePrefetch: boolean,
-  clientReferenceManifest: ClientReferenceManifest
+  clientReferenceManifest: ClientReferenceManifest,
+  createDebugChannel: () => DebugChannelPair | undefined
 ) {
   const debugChannelAbortController = new AbortController()
   const debugStream = fullPageDebugChunks
@@ -297,7 +302,7 @@ export async function collectStagedSegmentData(
     cacheEntry: SegmentCacheItem
   ): Promise<void> => {
     const segmentDebugChannel = cacheEntry.debugChunks
-      ? createWebDebugChannel()
+      ? createDebugChannel()
       : undefined
 
     const itemStream = renderFlightStream(
@@ -527,7 +532,8 @@ export async function createCombinedPayloadStream(
   renderSignal: AbortSignal,
   clientReferenceManifest: ClientReferenceManifest,
   startTime: number,
-  isDebugChannelEnabled: boolean
+  isDebugChannelEnabled: boolean,
+  createDebugChannel: () => DebugChannelPair | undefined
 ) {
   // Collect all the chunks so that we're not dependent on timing of the render.
 
@@ -536,7 +542,7 @@ export async function createCombinedPayloadStream(
   const allChunks: Uint8Array[] = []
 
   const debugChunks: Uint8Array[] | null = isDebugChannelEnabled ? [] : null
-  const debugChannel = isDebugChannelEnabled ? createWebDebugChannel() : null
+  const debugChannel = isDebugChannelEnabled ? createDebugChannel() : null
 
   let streamFinished: Promise<any>
 
@@ -928,6 +934,14 @@ export async function createCombinedPayloadAtDepth(
   stageEndTimes: StageEndTimes,
   useRuntimeStageForPartialSegments: boolean
 ): Promise<ValidationPayloadResult | null> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError(
+      'createCombinedPayloadAtDepth must run inside a WorkStore'
+    )
+  }
+  const { validationLevel, route } = workStore
+
   let hasStaticSegments = false
   let hasRuntimeSegments = false
   // Index 0 is reserved for the root config. Slot markers start at 1.
@@ -1153,7 +1167,25 @@ export async function createCombinedPayloadAtDepth(
         (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
       prefetchConfig =
         (layoutOrPageMod as AppSegmentConfig).unstable_prefetch ?? null
-      if (instantConfig && typeof instantConfig === 'object') {
+
+      // When the default validation level is active and this is a page or
+      // default segment without an explicit config, treat it as if
+      // unstable_instant = true was exported. Framework-synthesized error
+      // routes are excluded — see isFrameworkErrorRoute.
+      if (
+        instantConfig === null &&
+        validationLevel !== 'manual-warning' &&
+        validationLevel !== 'experimental-manual-error' &&
+        isImplicitValidationSegment(segment) &&
+        !isFrameworkErrorRoute(route)
+      ) {
+        instantConfig = true
+      }
+
+      if (
+        instantConfig === true ||
+        (typeof instantConfig === 'object' && instantConfig !== null)
+      ) {
         const rawFactory: unknown = (layoutOrPageMod as any)
           .__debugCreateInstantConfigStack
         localCreateInstantStack =
@@ -1161,7 +1193,7 @@ export async function createCombinedPayloadAtDepth(
       }
     }
 
-    const segmentHasRuntimePrefetch = prefetchConfig === 'runtime'
+    const segmentHasRuntimePrefetch = prefetchConfig === 'force-runtime'
 
     let childIsInsideRuntimePrefetch = isInsideRuntimePrefetch
     let stage: SegmentStage
@@ -1241,7 +1273,10 @@ export async function createCombinedPayloadAtDepth(
       requiresInstantUI = false
       createInstantStack = null
       configDepth = -1
-    } else if (instantConfig && typeof instantConfig === 'object') {
+    } else if (
+      instantConfig === true ||
+      (typeof instantConfig === 'object' && instantConfig !== null)
+    ) {
       requiresInstantUI = true
       createInstantStack = localCreateInstantStack
       configDepth = segmentDepth

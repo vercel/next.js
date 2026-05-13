@@ -26,14 +26,15 @@ export function ErrorMessage({ errorMessage, errorType }: ErrorMessageProps) {
   // The "Blocking Route" error message is specifically formatted to look nice
   // in the overlay (rather than just passed through from the console), so we
   // intentionally don't truncate it and rely on the scroll overflow instead.
-  const shouldTruncate = isTooTall && errorType !== 'Blocking Route'
+  const shouldTruncate =
+    isTooTall && errorType !== 'Blocking Route' && errorType !== 'Instant'
 
   return (
     <div className="nextjs__container_errors_wrapper">
       <div
         ref={messageRef}
         id="nextjs__container_errors_desc"
-        className={`nextjs__container_errors_desc ${shouldTruncate && !isExpanded ? 'truncated' : ''}`}
+        className={`nextjs__container_errors_desc ${shouldTruncate && !isExpanded ? 'truncated' : ''} ${errorType === 'Instant' ? 'nextjs__container_errors_desc_instant' : ''}`}
       >
         {errorMessage}
       </div>
@@ -69,6 +70,10 @@ export const styles = `
     line-height: var(--size-24);
     overflow-wrap: break-word;
     white-space: pre-wrap;
+  }
+
+  .nextjs__container_errors_desc.nextjs__container_errors_desc_instant {
+    color: var(--color-gray-900);
   }
 
   .nextjs__container_errors_desc.truncated {

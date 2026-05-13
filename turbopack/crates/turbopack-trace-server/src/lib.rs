@@ -17,6 +17,8 @@ use self::{
 };
 
 mod bottom_up;
+mod chunked_vec;
+mod lazy_sorted_vec;
 mod reader;
 mod self_time_tree;
 mod server;
@@ -57,6 +59,18 @@ pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) -> Arc<Sto
 
 const PAGE_SIZE: usize = 20;
 
+/// How spans should be sorted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SortMode {
+    /// No sorting — spans appear in execution/natural order.
+    #[default]
+    ExecutionOrder,
+    /// Sort by value (corrected duration descending).
+    Value,
+    /// Sort alphabetically by name, then by category.
+    Name,
+}
+
 /// Options for querying spans from the trace store.
 pub struct QueryOptions {
     /// Optional parent span ID (as produced by `SpanInfo::id`).
@@ -64,8 +78,8 @@ pub struct QueryOptions {
     pub parent: Option<String>,
     /// When true, aggregate child spans with the same name.
     pub aggregated: bool,
-    /// When true, sort results by corrected duration descending.
-    pub sort: bool,
+    /// How to sort the results.
+    pub sort: SortMode,
     /// Optional substring search query.
     pub search: Option<String>,
     /// 1-based page number.
@@ -224,12 +238,22 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
         };
 
         // Sort if requested.
-        if options.sort {
-            filtered.sort_by(|a, b| {
-                b.corrected_total_time()
-                    .cmp(&a.corrected_total_time())
-                    .then_with(|| b.total_time().cmp(&a.total_time()))
-            });
+        match options.sort {
+            SortMode::Value => {
+                filtered.sort_by(|a, b| {
+                    b.corrected_total_time()
+                        .cmp(&a.corrected_total_time())
+                        .then_with(|| b.total_time().cmp(&a.total_time()))
+                });
+            }
+            SortMode::Name => {
+                filtered.sort_by(|a, b| {
+                    let (a_cat, a_title) = a.nice_name();
+                    let (b_cat, b_title) = b.nice_name();
+                    a_title.cmp(b_title).then_with(|| a_cat.cmp(b_cat))
+                });
+            }
+            SortMode::ExecutionOrder => {}
         }
 
         let (page_items, page, total_pages, total_count) = paginate(filtered, options.page);
@@ -307,12 +331,22 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
         };
 
         // Sort if requested.
-        if options.sort {
-            filtered.sort_by(|a, b| {
-                b.corrected_total_time()
-                    .cmp(&a.corrected_total_time())
-                    .then_with(|| b.total_time().cmp(&a.total_time()))
-            });
+        match options.sort {
+            SortMode::Value => {
+                filtered.sort_by(|a, b| {
+                    b.corrected_total_time()
+                        .cmp(&a.corrected_total_time())
+                        .then_with(|| b.total_time().cmp(&a.total_time()))
+                });
+            }
+            SortMode::Name => {
+                filtered.sort_by(|a, b| {
+                    let (a_cat, a_title) = a.nice_name();
+                    let (b_cat, b_title) = b.nice_name();
+                    a_title.cmp(b_title).then_with(|| a_cat.cmp(b_cat))
+                });
+            }
+            SortMode::ExecutionOrder => {}
         }
 
         let (page_items, page, total_pages, total_count) = paginate(filtered, options.page);

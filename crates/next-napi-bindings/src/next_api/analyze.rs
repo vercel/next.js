@@ -8,21 +8,19 @@ use next_api::{
 };
 use turbo_tasks::{Effects, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
-    diagnostics::PlainDiagnostic,
     issue::PlainIssue,
     output::{OutputAsset, OutputAssets},
 };
 
 use crate::next_api::utils::strongly_consistent_catch_collectables;
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 pub struct WriteAnalyzeResult {
     pub issues: Arc<Vec<ReadRef<PlainIssue>>>,
-    pub diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     pub effects: Arc<Effects>,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 pub async fn write_analyze_data_with_issues_operation(
     project: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
@@ -30,18 +28,13 @@ pub async fn write_analyze_data_with_issues_operation(
     let analyze_data_op = write_analyze_data_with_issues_operation_inner(project, app_dir_only);
     let filter = project.project().issue_filter();
 
-    let (_analyze_data, issues, diagnostics, effects) =
+    let (_analyze_data, issues, effects) =
         strongly_consistent_catch_collectables(analyze_data_op, filter).await?;
 
-    Ok(WriteAnalyzeResult {
-        issues,
-        diagnostics,
-        effects,
-    }
-    .cell())
+    Ok(WriteAnalyzeResult { issues, effects }.cell())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn write_analyze_data_with_issues_operation_inner(
     project: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,

@@ -1,35 +1,25 @@
 import path from 'path'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, isReact18, nextTestSetup } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
-
 describe('prerender native module', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(
-          path.join(__dirname, 'prerender-native-module/pages')
-        ),
-        'data.sqlite': new FileRef(
-          path.join(__dirname, 'prerender-native-module/data.sqlite')
-        ),
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(path.join(__dirname, 'prerender-native-module/pages')),
+      'data.sqlite': new FileRef(
+        path.join(__dirname, 'prerender-native-module/data.sqlite')
+      ),
+    },
+    dependencies: {
+      sqlite: '4.0.22',
+      sqlite3: '5.0.2',
+    },
+    packageJson: {
+      pnpm: {
+        onlyBuiltDependencies: ['sqlite3'],
       },
-      dependencies: {
-        sqlite: '4.0.22',
-        sqlite3: '5.0.2',
-      },
-      packageJson: {
-        pnpm: {
-          onlyBuiltDependencies: ['sqlite3'],
-        },
-      },
-    })
+    },
   })
-  afterAll(() => next.destroy())
 
   it('should render index correctly', async () => {
     const browser = await webdriver(next.url, '/')

@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { waitFor } from 'next-test-utils'
+import { retry, waitFor } from 'next-test-utils'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -14,14 +14,16 @@ describe('Client navigation with shallow routing', () => {
 
   it('should update the url without running getInitialProps', async () => {
     const browser = await next.browser('/nav/shallow-routing')
-    const counter = await browser
+    await browser
       .elementByCss('#increase')
       .click()
       .elementByCss('#increase')
       .click()
-      .elementByCss('#counter')
-      .text()
-    expect(counter).toBe('Counter: 2')
+
+    await retry(async () => {
+      const counter = await browser.elementByCss('#counter').text()
+      expect(counter).toBe('Counter: 2')
+    })
 
     const getInitialPropsRunCount = await browser
       .elementByCss('#get-initial-props-run-count')
@@ -33,17 +35,23 @@ describe('Client navigation with shallow routing', () => {
 
   it('should handle the back button and should not run getInitialProps', async () => {
     const browser = await next.browser('/nav/shallow-routing')
-    let counter = await browser
+    await browser
       .elementByCss('#increase')
       .click()
       .elementByCss('#increase')
       .click()
-      .elementByCss('#counter')
-      .text()
-    expect(counter).toBe('Counter: 2')
 
-    counter = await browser.back().elementByCss('#counter').text()
-    expect(counter).toBe('Counter: 1')
+    await retry(async () => {
+      const counter = await browser.elementByCss('#counter').text()
+      expect(counter).toBe('Counter: 2')
+    })
+
+    await browser.back()
+
+    await retry(async () => {
+      const counter = await browser.elementByCss('#counter').text()
+      expect(counter).toBe('Counter: 1')
+    })
 
     const getInitialPropsRunCount = await browser
       .elementByCss('#get-initial-props-run-count')

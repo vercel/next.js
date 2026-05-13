@@ -9,7 +9,6 @@ const { StreamableHTTPServerTransport } =
   require('next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp') as typeof import('next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp')
 
 const DEFAULT_WS_PORT = 5747
-const DEFAULT_MCP_PORT = 5748 // Keep in sync with query-trace.ts
 
 /** 100 internal ticks = 1 µs */
 const TICKS_PER_US = 100
@@ -85,7 +84,7 @@ export async function startTurboTraceServerCli(
   mcpPort: number | undefined
 ) {
   const wsPort = port ?? DEFAULT_WS_PORT
-  const httpPort = mcpPort ?? DEFAULT_MCP_PORT
+  const httpPort = mcpPort ?? wsPort + 1
 
   let bindings
   try {
@@ -137,10 +136,10 @@ export async function startTurboTraceServerCli(
             'When true (default), aggregate spans with the same name into a single entry. Set to false to see individual raw spans.'
           ),
         sort: z
-          .boolean()
+          .enum(['value', 'name'])
           .optional()
           .describe(
-            'When true, sort results by corrected duration descending. Default false.'
+            'Sort mode: "value" for corrected duration descending, "name" for alphabetical. Omit for execution order.'
           ),
         search: z
           .string()
@@ -161,7 +160,7 @@ export async function startTurboTraceServerCli(
       const result = bindings.turbo.queryTraceSpans(handle, {
         parent: args.parent,
         aggregated: args.aggregated ?? true,
-        sort: args.sort ?? false,
+        sort: args.sort,
         search: args.search,
         page: args.page ?? 1,
       })

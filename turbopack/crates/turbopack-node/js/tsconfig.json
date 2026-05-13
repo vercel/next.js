@@ -16,12 +16,10 @@
     // environment
     "lib": ["ESNext"],
     "target": "esnext",
-    "ignoreDeprecations": "6.0",
 
     // modules
-    "baseUrl": ".",
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
 
     // emit
     "noEmit": true,

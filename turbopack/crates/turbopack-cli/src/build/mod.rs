@@ -180,13 +180,13 @@ impl TurbopackBuildBuilder {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn extract_effects_operation(op: OperationVc<()>) -> Result<Vc<Effects>> {
     let _ = op.resolve().strongly_consistent().await?;
     Ok(take_effects(op).await?.cell())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn build_internal(
     project_dir: RcStr,
     root_dir: RcStr,
@@ -295,6 +295,7 @@ async fn build_internal(
                 origin
                     .resolve_asset(request_vc, origin.resolve_options(), ty)
                     .await?
+                    .await?
                     .first_module()
                     .await?
                     .with_context(|| {
@@ -316,15 +317,14 @@ async fn build_internal(
         false,
         true,
     );
-    let mut module_graph = ModuleGraph::from_single_graph(single_graph);
+    let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
     let binding_usage = compute_binding_usage_info(module_graph, true);
     let unused_references = binding_usage
         .connect()
         .unused_references()
         .to_resolved()
         .await?;
-    module_graph =
-        ModuleGraph::from_single_graph_without_unused_references(single_graph, binding_usage);
+    module_graph = ModuleGraph::from_graphs(vec![single_graph], Some(binding_usage));
     let module_graph = module_graph.connect();
     let module_id_strategy = get_global_module_id_strategy(module_graph)
         .to_resolved()
@@ -451,11 +451,10 @@ async fn build_internal(
                             Target::Browser => chunking_context.evaluated_chunk_group_assets(
                                 AssetIdent::from_path(
                                     build_output_root
-                                        .join(
-                                            ecmascript.ident().path().await?.file_stem().unwrap(),
-                                        )?
+                                        .join(ecmascript.ident().await?.path.file_stem().unwrap())?
                                         .with_extension("entry.js"),
-                                ),
+                                )
+                                .into_vc(),
                                 ChunkGroup::Entry(
                                     [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
                                 ),
@@ -470,8 +469,8 @@ async fn build_internal(
                                                 .join(
                                                     ecmascript
                                                         .ident()
-                                                        .path()
                                                         .await?
+                                                        .path
                                                         .file_stem()
                                                         .unwrap(),
                                                 )?

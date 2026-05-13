@@ -8,8 +8,7 @@
     "jsx": "react-jsx",
     "module": "ESNext",
     "target": "ES2018",
-    "moduleResolution": "node",
-    "ignoreDeprecations": "6.0",
+    "moduleResolution": "bundler",
     "types": ["trusted-types", "jest", "node"],
     "paths": {
       // Required absolute paths.

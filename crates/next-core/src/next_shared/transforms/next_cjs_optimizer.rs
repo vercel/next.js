@@ -7,13 +7,31 @@ use swc_core::{
     common::SyntaxContext,
     ecma::{ast::*, visit::VisitMutWith},
 };
-use turbo_tasks::ResolvedVc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
-use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
+use turbopack_ecmascript::{
+    CustomTransformer, EcmascriptInputTransform, TransformContext, TransformPlugin,
+};
 
 use super::module_rule_match_js_no_url;
 
-pub fn get_next_cjs_optimizer_rule(enable_mdx_rs: bool) -> ModuleRule {
+pub async fn get_next_cjs_optimizer_rule(enable_mdx_rs: bool) -> Result<ModuleRule> {
+    let transformer = EcmascriptInputTransform::Plugin(
+        next_cjs_optimizer_transform_plugin().to_resolved().await?,
+    );
+    // TODO: use get_ecma_transform_rule instead
+    Ok(ModuleRule::new(
+        module_rule_match_js_no_url(enable_mdx_rs),
+        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
+            preprocess: ResolvedVc::cell(vec![]),
+            main: ResolvedVc::cell(vec![]),
+            postprocess: ResolvedVc::cell(vec![transformer]),
+        }],
+    ))
+}
+
+#[turbo_tasks::function]
+fn next_cjs_optimizer_transform_plugin() -> Vc<TransformPlugin> {
     // [NOTE]: This isn't user configurable config
     // (https://github.com/vercel/next.js/blob/a1d0259ea06592c5ca6df882e9b1d0d0121c5083/packages/next/src/build/swc/options.ts#L395)
     // build it internally without accepting customization.
@@ -47,18 +65,7 @@ pub fn get_next_cjs_optimizer_rule(enable_mdx_rs: bool) -> ModuleRule {
             },
         )]),
     };
-
-    let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(
-        Box::new(NextCjsOptimizer { config }) as _,
-    ));
-    ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            preprocess: ResolvedVc::cell(vec![]),
-            main: ResolvedVc::cell(vec![]),
-            postprocess: ResolvedVc::cell(vec![transformer]),
-        }],
-    )
+    Vc::cell(Box::new(NextCjsOptimizer { config }) as Box<dyn CustomTransformer + Send + Sync>)
 }
 
 #[derive(Debug)]

@@ -1,21 +1,15 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 
 describe('navigation between pages and app dir', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(__dirname),
-      dependencies: {
-        typescript: 'latest',
-        '@types/react': 'latest',
-        '@types/node': 'latest',
-      },
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(__dirname),
+    dependencies: {
+      typescript: 'latest',
+      '@types/react': 'latest',
+      '@types/node': 'latest',
+    },
   })
-  afterAll(() => next.destroy())
 
   it('It should be able to navigate app -> pages', async () => {
     const browser = await webdriver(next.url, '/app')

@@ -1,5 +1,7 @@
+mod cell_data;
 mod counter_map;
 mod operation;
+mod snapshot_coordinator;
 mod storage;
 pub mod storage_schema;
 
@@ -12,7 +14,7 @@ use std::{
     pin::Pin,
     sync::{
         Arc, LazyLock,
-        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicBool, Ordering},
     },
     time::SystemTime,
 };
@@ -20,16 +22,17 @@ use std::{
 use anyhow::{Context, Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use indexmap::IndexSet;
-use parking_lot::{Condvar, Mutex};
+use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
 use turbo_tasks::{
-    CellId, FxDashMap, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
-    ReadOutputOptions, ReadTracking, SharedReference, TRANSIENT_TASK_BIT, TaskExecutionReason,
-    TaskId, TaskPriority, TraitTypeId, TurboTasksBackendApi, TurboTasksPanic, ValueTypeId,
+    CellId, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency, ReadOutputOptions,
+    ReadTracking, SharedReference, StackDynTaskInputs, TRANSIENT_TASK_BIT, TaskExecutionReason,
+    TaskId, TaskPersistence, TaskPriority, TraitTypeId, TurboTasksBackendApi, TurboTasksPanic,
+    ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, CellHash, TaskExecutionSpec, TransientTaskType,
         TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
@@ -37,6 +40,7 @@ use turbo_tasks::{
         VerificationMode,
     },
     event::{Event, EventDescription, EventListener},
+    macro_helpers::NativeFunction,
     message_queue::{TimingEvent, TraceEvent},
     registry::get_value_type,
     scope::scope_and_block,
@@ -47,7 +51,7 @@ use turbo_tasks::{
 
 pub use self::{
     operation::AnyOperation,
-    storage::{SpecificTaskDataCategory, TaskDataCategory},
+    storage::{EvictionCounts, SpecificTaskDataCategory, TaskDataCategory},
 };
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::TaskDirtyCause;
@@ -57,9 +61,10 @@ use crate::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext,
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
             LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard, TaskType,
-            connect_children, get_aggregation_number, get_uppers, is_root_node,
-            make_task_dirty_internal, prepare_new_children,
+            connect_children, get_aggregation_number, get_uppers, make_task_dirty_internal,
+            prepare_new_children,
         },
+        snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
         storage::Storage,
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
@@ -70,10 +75,7 @@ use crate::{
     },
     error::TaskError,
     utils::{
-        arc_or_owned::ArcOrOwned,
-        dash_map_drop_contents::drop_contents,
-        dash_map_raw_entry::{RawEntry, raw_entry},
-        ptr_eq_arc::PtrEqArc,
+        dash_map_raw_entry::{RawEntry, get_shard, raw_entry_in_shard, raw_get_in_shard},
         shard_amount::compute_shard_amount,
     },
 };
@@ -81,9 +83,7 @@ use crate::{
 /// Threshold for parallelizing making dependent tasks dirty.
 /// If the number of dependent tasks exceeds this threshold,
 /// the operation will be parallelized.
-const DEPENDENT_TASKS_DIRTY_PARALLIZATION_THRESHOLD: usize = 10000;
-
-const SNAPSHOT_REQUESTED_BIT: usize = 1 << (usize::BITS - 1);
+const DEPENDENT_TASKS_DIRTY_PARALLELIZATION_THRESHOLD: usize = 10000;
 
 /// Configurable idle timeout for snapshot persistence.
 /// Defaults to 2 seconds if not set or if the value is invalid.
@@ -95,18 +95,20 @@ static IDLE_TIMEOUT: LazyLock<Duration> = LazyLock::new(|| {
         .unwrap_or(Duration::from_secs(2))
 });
 
-struct SnapshotRequest {
-    snapshot_requested: bool,
-    suspended_operations: FxHashSet<PtrEqArc<AnyOperation>>,
-}
-
-impl SnapshotRequest {
-    fn new() -> Self {
-        Self {
-            snapshot_requested: false,
-            suspended_operations: FxHashSet::default(),
-        }
-    }
+/// Priority used to re-schedule a task that became stale during execution.
+///
+/// Stale tasks must run again, but at a priority that reflects why they're being re-run rather
+/// than the (likely higher) priority of the original schedule. We use invalidation priority
+/// based on the task's leaf distance, parented under either the task's current dirty priority
+/// or `leaf()` if it is no longer dirty.
+fn compute_stale_priority(task: &impl TaskGuard) -> TaskPriority {
+    TaskPriority::invalidation(
+        task.get_leaf_distance()
+            .copied()
+            .unwrap_or_default()
+            .distance,
+    )
+    .in_parent(task.is_dirty().unwrap_or(TaskPriority::leaf()))
 }
 
 pub enum StorageMode {
@@ -143,6 +145,11 @@ pub struct BackendOptions {
 
     /// Avoid big preallocations for faster startup. Should only be used for testing purposes.
     pub small_preallocation: bool,
+
+    /// When enabled, evict all evictable tasks from in-memory storage after every snapshot.
+    /// This reclaims memory by clearing persisted data that can be re-loaded from disk on demand.
+    /// This is an EXPERIMENTAL FEATURE under development
+    pub evict_after_snapshot: bool,
 }
 
 impl Default for BackendOptions {
@@ -153,13 +160,13 @@ impl Default for BackendOptions {
             storage_mode: Some(StorageMode::ReadWrite),
             num_workers: None,
             small_preallocation: false,
+            evict_after_snapshot: false,
         }
     }
 }
 
 pub enum TurboTasksBackendJob {
-    InitialSnapshot,
-    FollowUpSnapshot,
+    Snapshot,
 }
 
 pub struct TurboTasksBackend<B: BackingStorage>(Arc<TurboTasksBackendInner<B>>);
@@ -172,27 +179,16 @@ struct TurboTasksBackendInner<B: BackingStorage> {
     persisted_task_id_factory: IdFactoryWithReuse<TaskId>,
     transient_task_id_factory: IdFactoryWithReuse<TaskId>,
 
-    task_cache: FxDashMap<Arc<CachedTaskType>, TaskId>,
-
     storage: Storage,
 
-    /// Number of executing operations + Highest bit is set when snapshot is
-    /// requested. When that bit is set, operations should pause until the
-    /// snapshot is completed. When the bit is set and in progress counter
-    /// reaches zero, `operations_completed_when_snapshot_requested` is
-    /// triggered.
-    in_progress_operations: AtomicUsize,
-
-    snapshot_request: Mutex<SnapshotRequest>,
-    /// Condition Variable that is triggered when `in_progress_operations`
-    /// reaches zero while snapshot is requested. All operations are either
-    /// completed or suspended.
-    operations_suspended: Condvar,
-    /// Condition Variable that is triggered when a snapshot is completed and
-    /// operations can continue.
-    snapshot_completed: Condvar,
-    /// The timestamp of the last started snapshot since [`Self::start_time`].
-    last_snapshot: AtomicU64,
+    /// Coordinates the operation/snapshot interleaving protocol. See
+    /// [`SnapshotCoordinator`] for details.
+    snapshot_coord: SnapshotCoordinator,
+    /// Serializes calls to `snapshot_and_persist`. The coordinator's
+    /// `begin_snapshot` asserts that snapshots don't overlap; this mutex
+    /// enforces that contract for our two callers (background loop and
+    /// `stop_and_wait`).
+    snapshot_in_progress: Mutex<()>,
 
     stopping: AtomicBool,
     stopping_event: Event,
@@ -220,6 +216,19 @@ impl<B: BackingStorage> TurboTasksBackend<B> {
     pub fn backing_storage(&self) -> &B {
         &self.0.backing_storage
     }
+
+    /// Perform a snapshot and then evict all evictable tasks from memory.
+    ///
+    /// This is exposed for integration tests that need to verify the
+    /// snapshot → evict → restore cycle works correctly.
+    ///
+    /// Returns `(snapshot_had_new_data, eviction_counts)`.
+    pub fn snapshot_and_evict_for_testing(
+        &self,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    ) -> (bool, EvictionCounts) {
+        self.0.snapshot_and_evict_for_testing(turbo_tasks)
+    }
 }
 
 impl<B: BackingStorage> TurboTasksBackendInner<B> {
@@ -243,13 +252,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 TaskId::try_from(TRANSIENT_TASK_BIT).unwrap(),
                 TaskId::MAX,
             ),
-            task_cache: FxDashMap::default(),
             storage: Storage::new(shard_amount, small_preallocation),
-            in_progress_operations: AtomicUsize::new(0),
-            snapshot_request: Mutex::new(SnapshotRequest::new()),
-            operations_suspended: Condvar::new(),
-            snapshot_completed: Condvar::new(),
-            last_snapshot: AtomicU64::new(0),
+            snapshot_coord: SnapshotCoordinator::new(),
+            snapshot_in_progress: Mutex::new(()),
             stopping: AtomicBool::new(false),
             stopping_event: Event::new(|| || "TurboTasksBackend::stopping_event".to_string()),
             idle_start_event: Event::new(|| || "TurboTasksBackend::idle_start_event".to_string()),
@@ -271,65 +276,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     }
 
     fn suspending_requested(&self) -> bool {
-        self.should_persist()
-            && (self.in_progress_operations.load(Ordering::Relaxed) & SNAPSHOT_REQUESTED_BIT) != 0
+        self.should_persist() && self.snapshot_coord.snapshot_pending()
     }
 
     fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
-        #[cold]
-        fn operation_suspend_point_cold<B: BackingStorage>(
-            this: &TurboTasksBackendInner<B>,
-            suspend: impl FnOnce() -> AnyOperation,
-        ) {
-            let operation = Arc::new(suspend());
-            let mut snapshot_request = this.snapshot_request.lock();
-            if snapshot_request.snapshot_requested {
-                snapshot_request
-                    .suspended_operations
-                    .insert(operation.clone().into());
-                let value = this.in_progress_operations.fetch_sub(1, Ordering::AcqRel) - 1;
-                assert!((value & SNAPSHOT_REQUESTED_BIT) != 0);
-                if value == SNAPSHOT_REQUESTED_BIT {
-                    this.operations_suspended.notify_all();
-                }
-                this.snapshot_completed
-                    .wait_while(&mut snapshot_request, |snapshot_request| {
-                        snapshot_request.snapshot_requested
-                    });
-                this.in_progress_operations.fetch_add(1, Ordering::AcqRel);
-                snapshot_request
-                    .suspended_operations
-                    .remove(&operation.into());
-            }
-        }
-
-        if self.suspending_requested() {
-            operation_suspend_point_cold(self, suspend);
+        if self.should_persist() {
+            self.snapshot_coord.suspend_point(suspend);
         }
     }
 
-    pub(crate) fn start_operation(&self) -> OperationGuard<'_, B> {
+    pub(crate) fn start_operation(&self) -> OperationGuard<'_, AnyOperation> {
         if !self.should_persist() {
-            return OperationGuard { backend: None };
+            return OperationGuard::noop();
         }
-        let fetch_add = self.in_progress_operations.fetch_add(1, Ordering::AcqRel);
-        if (fetch_add & SNAPSHOT_REQUESTED_BIT) != 0 {
-            let mut snapshot_request = self.snapshot_request.lock();
-            if snapshot_request.snapshot_requested {
-                let value = self.in_progress_operations.fetch_sub(1, Ordering::AcqRel) - 1;
-                if value == SNAPSHOT_REQUESTED_BIT {
-                    self.operations_suspended.notify_all();
-                }
-                self.snapshot_completed
-                    .wait_while(&mut snapshot_request, |snapshot_request| {
-                        snapshot_request.snapshot_requested
-                    });
-                self.in_progress_operations.fetch_add(1, Ordering::AcqRel);
-            }
-        }
-        OperationGuard {
-            backend: Some(self),
-        }
+        self.snapshot_coord.begin_operation()
     }
 
     fn should_persist(&self) -> bool {
@@ -337,6 +297,39 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             self.options.storage_mode,
             Some(StorageMode::ReadWrite) | Some(StorageMode::ReadWriteOnShutdown)
         )
+    }
+
+    fn should_evict(&self) -> bool {
+        self.options.evict_after_snapshot && self.should_persist()
+    }
+
+    /// Perform a snapshot and then evict all evictable tasks from memory.
+    ///
+    /// This is exposed for integration tests that need to verify the
+    /// snapshot → evict → restore cycle works correctly.
+    ///
+    /// Returns `(snapshot_had_new_data, eviction_counts)`.
+    #[doc(hidden)]
+    pub fn snapshot_and_evict_for_testing(
+        &self,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    ) -> (bool, EvictionCounts) {
+        assert!(
+            self.should_persist(),
+            "snapshot_and_evict requires persistence"
+        );
+        let snapshot_result = self.snapshot_and_persist(None, "test", turbo_tasks);
+        let had_new_data = match snapshot_result {
+            Ok((_, new_data)) => new_data,
+            Err(_) => {
+                // Snapshot/persist failed — skip eviction since the data may not
+                // be on disk yet. Evicting now could lose in-memory state that
+                // can't be restored.
+                return (false, EvictionCounts::default());
+            }
+        };
+        let counts = self.storage.evict_after_snapshot(None);
+        (had_new_data, counts)
     }
 
     fn should_restore(&self) -> bool {
@@ -351,14 +344,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.options.active_tracking
     }
 
-    fn track_cache_hit(&self, task_type: &CachedTaskType) {
+    fn track_cache_hit_by_fn(&self, native_fn: &'static NativeFunction) {
         self.task_statistics
-            .map(|stats| stats.increment_cache_hit(task_type.native_fn));
+            .map(|stats| stats.increment_cache_hit(native_fn));
     }
 
-    fn track_cache_miss(&self, task_type: &CachedTaskType) {
+    fn track_cache_miss_by_fn(&self, native_fn: &'static NativeFunction) {
         self.task_statistics
-            .map(|stats| stats.increment_cache_miss(task_type.native_fn));
+            .map(|stats| stats.increment_cache_miss(native_fn));
     }
 
     /// Reconstructs a full [`TurboTasksExecutionError`] from the compact [`TaskError`] storage
@@ -425,23 +418,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     }
 }
 
-pub(crate) struct OperationGuard<'a, B: BackingStorage> {
-    backend: Option<&'a TurboTasksBackendInner<B>>,
-}
-
-impl<B: BackingStorage> Drop for OperationGuard<'_, B> {
-    fn drop(&mut self) {
-        if let Some(backend) = self.backend {
-            let fetch_sub = backend
-                .in_progress_operations
-                .fetch_sub(1, Ordering::AcqRel);
-            if fetch_sub - 1 == SNAPSHOT_REQUESTED_BIT {
-                backend.operations_suspended.notify_all();
-            }
-        }
-    }
-}
-
 /// Intermediate result of step 1 of task execution completion.
 struct TaskExecutionCompletePrepareResult {
     pub new_children: FxHashSet<TaskId>,
@@ -459,13 +435,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         parent_task: Option<TaskId>,
         child_task: TaskId,
-        task_type: Option<ArcOrOwned<CachedTaskType>>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         operation::ConnectChildOperation::run(
             parent_task,
             child_task,
-            task_type,
             self.execute_context(turbo_tasks),
         );
     }
@@ -545,36 +519,21 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         if matches!(options.consistency, ReadConsistency::Strong) {
-            // Ensure it's an root node
-            loop {
-                let aggregation_number = get_aggregation_number(&task);
-                if is_root_node(aggregation_number) {
-                    break;
-                }
+            if task
+                .get_persistent_task_type()
+                .is_some_and(|t| !t.native_fn.is_root)
+            {
                 drop(task);
                 drop(reader_task);
-                {
-                    let _span = tracing::trace_span!(
-                        "make root node for strongly consistent read",
-                        %task_id
+                panic!(
+                    "Strongly consistent read of non-root task {} (reader: {}). The `root` \
+                     attribute is missing on the task.",
+                    self.debug_get_task_description(task_id),
+                    reader.map_or_else(
+                        || "unknown".to_string(),
+                        |r| self.debug_get_task_description(r)
                     )
-                    .entered();
-                    AggregationUpdateQueue::run(
-                        AggregationUpdateJob::UpdateAggregationNumber {
-                            task_id,
-                            base_aggregation_number: u32::MAX,
-                            distance: None,
-                        },
-                        &mut ctx,
-                    );
-                }
-                (task, reader_task) = if let Some(reader_id) = need_reader_task {
-                    // TODO(sokra): see comment above
-                    let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-                    (task, Some(reader))
-                } else {
-                    (ctx.task(task_id, TaskDataCategory::All), None)
-                }
+                );
             }
 
             let is_dirty = task.is_dirty();
@@ -858,7 +817,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         let ReadCellOptions {
-            is_serializable_cell_content,
             tracking,
             final_read_hint,
         } = options;
@@ -879,9 +837,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
 
         let content = if final_read_hint {
-            task.remove_cell_data(is_serializable_cell_content, cell)
+            task.remove_cell_data(&cell)
         } else {
-            task.get_cell_data(is_serializable_cell_content, cell)
+            task.get_cell_data(&cell).cloned()
         };
         if let Some(content) = content {
             if tracking.should_track(false) {
@@ -889,7 +847,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
             return Ok(Ok(TypedCellContent(
                 cell.type_id,
-                CellContent(Some(content.reference)),
+                CellContent(Some(content)),
             )));
         }
 
@@ -993,6 +951,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let snapshot_span =
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason)
                 .entered();
+        // Serialize snapshots. The internal protocol (snapshot_mode, snapshot
+        // request bit, suspended_operations) assumes only one snapshot runs at
+        // a time. Held for the entire snapshot lifecycle.
+        let _snapshot_in_progress = self.snapshot_in_progress.lock();
         let start = Instant::now();
         // SystemTime for wall-clock timestamps in trace events (milliseconds
         // since epoch). Instant is monotonic but has no defined epoch, so it
@@ -1000,37 +962,18 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let wall_start = SystemTime::now();
         debug_assert!(self.should_persist());
 
-        let suspended_operations;
-        {
+        let mut snapshot_phase = {
             let _span = tracing::info_span!("blocking").entered();
-            let mut snapshot_request = self.snapshot_request.lock();
-            snapshot_request.snapshot_requested = true;
-            let active_operations = self
-                .in_progress_operations
-                .fetch_or(SNAPSHOT_REQUESTED_BIT, Ordering::Relaxed);
-            if active_operations != 0 {
-                self.operations_suspended
-                    .wait_while(&mut snapshot_request, |_| {
-                        self.in_progress_operations.load(Ordering::Relaxed)
-                            != SNAPSHOT_REQUESTED_BIT
-                    });
-            }
-            suspended_operations = snapshot_request
-                .suspended_operations
-                .iter()
-                .map(|op| op.arc().clone())
-                .collect::<Vec<_>>();
-        }
+            self.snapshot_coord.begin_snapshot()
+        };
         // Enter snapshot mode, which atomically reads and resets the modified count.
         // Checking after start_snapshot ensures no concurrent increments can race.
         let (snapshot_guard, has_modifications) = self.storage.start_snapshot();
-        let mut snapshot_request = self.snapshot_request.lock();
-        snapshot_request.snapshot_requested = false;
-        self.in_progress_operations
-            .fetch_sub(SNAPSHOT_REQUESTED_BIT, Ordering::Relaxed);
-        self.snapshot_completed.notify_all();
+
+        let suspended_operations = snapshot_phase.take_suspended_operations();
+
         let snapshot_time = Instant::now();
-        drop(snapshot_request);
+        drop(snapshot_phase);
 
         if !has_modifications {
             // No tasks modified since the last snapshot — drop the guard (which
@@ -1445,7 +1388,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Schedule the snapshot job
             let _span = trace_span!("persisting background job").entered();
             let _span = tracing::info_span!("thread").entered();
-            turbo_tasks.schedule_backend_background_job(TurboTasksBackendJob::InitialSnapshot);
+            turbo_tasks.schedule_backend_background_job(TurboTasksBackendJob::Snapshot);
         }
     }
 
@@ -1466,7 +1409,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         {
             eprintln!("Persisting failed during shutdown: {err:?}");
         }
-        drop_contents(&self.task_cache);
         self.storage.drop_contents();
         if let Err(err) = self.backing_storage.shutdown() {
             println!("Shutting down failed: {err}");
@@ -1507,74 +1449,121 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.idle_end_event.notify(usize::MAX);
     }
 
-    fn get_or_create_persistent_task(
+    fn get_or_create_task(
         &self,
-        task_type: CachedTaskType,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &mut dyn StackDynTaskInputs,
         parent_task: Option<TaskId>,
+        persistence: TaskPersistence,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
-        let is_root = task_type.native_fn.is_root;
+        let transient = matches!(persistence, TaskPersistence::Transient);
 
-        // First check if the task exists in the cache which only uses a read lock
-        // .map(|r| *r) copies the TaskId and drops the DashMap Ref (releasing the read lock)
-        // before ConnectChildOperation::run, which may re-enter task_cache with a write lock.
-        if let Some(task_id) = self.task_cache.get(&task_type).map(|r| *r) {
-            self.track_cache_hit(&task_type);
-            self.connect_child(
-                parent_task,
-                task_id,
-                Some(ArcOrOwned::Owned(task_type)),
-                turbo_tasks,
+        if transient
+            && let Some(parent_task) = parent_task
+            && !parent_task.is_transient()
+        {
+            let task_type = CachedTaskType {
+                native_fn,
+                this,
+                arg: arg.take_box(),
+            };
+            self.panic_persistent_calling_transient(
+                self.debug_get_task_description(parent_task),
+                Some(&task_type),
+                /* cell_id */ None,
             );
+        }
+
+        let is_root = native_fn.is_root;
+
+        // Compute hash and shard index once from borrowed components (no heap allocation).
+        let arg_ref = arg.as_ref();
+        let hash = CachedTaskType::hash_from_components(
+            self.storage.task_cache.hasher(),
+            native_fn,
+            this,
+            arg_ref,
+        );
+        // Locate the shard once so that the read-only lookup and any
+        // write-lock retry below share the same reference (saves a modulo +
+        // memory lookup on the miss path).
+        let shard = get_shard(&self.storage.task_cache, hash);
+
+        // Step 1: Fast read-only cache lookup (read lock, no allocation).
+        // Use a read lock rather than a write lock to avoid contention. connect_child
+        // may re-enter task_cache with a write lock, so we must not hold a write lock here.
+        if let Some(task_id) =
+            raw_get_in_shard(shard, hash, |k| k.eq_components(native_fn, this, arg_ref))
+        {
+            self.track_cache_hit_by_fn(native_fn);
+            self.connect_child(parent_task, task_id, turbo_tasks);
             return task_id;
         }
 
-        // Create a single ExecuteContext for both lookup and connect_child
+        // Step 2: Check backing storage using borrowed components (no box needed yet).
         let mut ctx = self.execute_context(turbo_tasks);
 
         let mut is_new = false;
-        let (task_id, task_type) = if let Some(task_id) = ctx.task_by_type(&task_type) {
-            // Task exists in backing storage
-            // So we only need to insert it into the in-memory cache
-            self.track_cache_hit(&task_type);
-            let task_type = match raw_entry(&self.task_cache, &task_type) {
-                RawEntry::Occupied(_) => ArcOrOwned::Owned(task_type),
+
+        // Task exists in backing storage.
+        // We only need to insert it into the in-memory cache.
+        let task_id = if !transient
+            && let Some((task_id, stored_type)) = ctx.task_by_type(native_fn, this, arg_ref)
+        {
+            self.track_cache_hit_by_fn(native_fn);
+            // Step 3a: Insert into in-memory cache using the pre-located shard.
+            // Use the existing Arc from storage to avoid a duplicate allocation.
+            match raw_entry_in_shard(shard, self.storage.task_cache.hasher(), hash, |k| {
+                k.eq_components(native_fn, this, arg_ref)
+            }) {
+                RawEntry::Occupied(_) => {}
                 RawEntry::Vacant(e) => {
-                    let task_type = Arc::new(task_type);
-                    e.insert(task_type.clone(), task_id);
-                    ArcOrOwned::Arc(task_type)
+                    e.insert(stored_type, task_id);
                 }
             };
-            (task_id, task_type)
+            task_id
         } else {
-            // Task doesn't exist in memory cache or backing storage
-            // So we might need to create a new task
-            let (task_id, task_type) = match raw_entry(&self.task_cache, &task_type) {
+            match raw_entry_in_shard(shard, self.storage.task_cache.hasher(), hash, |k| {
+                k.eq_components(native_fn, this, arg_ref)
+            }) {
                 RawEntry::Occupied(e) => {
-                    // Another thread beat us to creating this task - use their task_id.
-                    // They will handle logging the new task as modified
+                    // Another thread beat us to creating this task — use their task_id.
+                    // They will handle logging the new task as modified.
                     let task_id = *e.get();
                     drop(e);
-                    self.track_cache_hit(&task_type);
-                    (task_id, ArcOrOwned::Owned(task_type))
+                    self.track_cache_hit_by_fn(native_fn);
+                    task_id
                 }
                 RawEntry::Vacant(e) => {
-                    // We're creating a new task.
-                    let task_type = Arc::new(task_type);
-                    let task_id = self.persisted_task_id_factory.get();
+                    // Only now do we force the allocation.
+                    // NOTE: if our caller had to perform resolution, then this will have already
+                    // been boxed and take_box just takes it.
+                    let task_type = Arc::new(CachedTaskType {
+                        native_fn,
+                        this,
+                        arg: arg.take_box(),
+                    });
+                    let task_id = if transient {
+                        self.transient_task_id_factory.get()
+                    } else {
+                        self.persisted_task_id_factory.get()
+                    };
                     // Initialize storage BEFORE making task_id visible in the cache.
                     // This ensures any thread that reads task_id from the cache sees
                     // the storage entry already initialized (restored flags set).
-                    self.storage.initialize_new_task(task_id);
-                    e.insert(task_type.clone(), task_id);
-                    // insert() consumes e, releasing the lock
-                    self.track_cache_miss(&task_type);
+                    self.storage
+                        .initialize_new_task(task_id, Some(task_type.clone()));
+                    // insert() consumes e, releasing the shard write lock.
+                    e.insert(task_type, task_id);
+                    self.track_cache_miss_by_fn(native_fn);
                     is_new = true;
-                    (task_id, ArcOrOwned::Arc(task_type))
+                    task_id
                 }
-            };
-            (task_id, task_type)
+            }
         };
+
         if is_new && is_root {
             AggregationUpdateQueue::run(
                 AggregationUpdateJob::UpdateAggregationNumber {
@@ -1585,86 +1574,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 &mut ctx,
             );
         }
-        // Reuse the same ExecuteContext for connect_child
-        operation::ConnectChildOperation::run(parent_task, task_id, Some(task_type), ctx);
+
+        operation::ConnectChildOperation::run(parent_task, task_id, ctx);
 
         task_id
-    }
-
-    fn get_or_create_transient_task(
-        &self,
-        task_type: CachedTaskType,
-        parent_task: Option<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) -> TaskId {
-        let is_root = task_type.native_fn.is_root;
-
-        if let Some(parent_task) = parent_task
-            && !parent_task.is_transient()
-        {
-            self.panic_persistent_calling_transient(
-                self.debug_get_task_description(parent_task),
-                Some(&task_type),
-                /* cell_id */ None,
-            );
-        }
-        // First check if the task exists in the cache which only uses a read lock.
-        // .map(|r| *r) copies the TaskId and drops the DashMap Ref (releasing the read lock)
-        // before ConnectChildOperation::run, which may re-enter task_cache with a write lock.
-        if let Some(task_id) = self.task_cache.get(&task_type).map(|r| *r) {
-            self.track_cache_hit(&task_type);
-            self.connect_child(
-                parent_task,
-                task_id,
-                Some(ArcOrOwned::Owned(task_type)),
-                turbo_tasks,
-            );
-            return task_id;
-        }
-        // If not, acquire a write lock and double check / insert
-        match raw_entry(&self.task_cache, &task_type) {
-            RawEntry::Occupied(e) => {
-                let task_id = *e.get();
-                drop(e);
-                self.track_cache_hit(&task_type);
-                self.connect_child(
-                    parent_task,
-                    task_id,
-                    Some(ArcOrOwned::Owned(task_type)),
-                    turbo_tasks,
-                );
-                task_id
-            }
-            RawEntry::Vacant(e) => {
-                let task_type = Arc::new(task_type);
-                let task_id = self.transient_task_id_factory.get();
-                // Initialize storage BEFORE making task_id visible in the cache.
-                self.storage.initialize_new_task(task_id);
-                e.insert(task_type.clone(), task_id);
-                self.track_cache_miss(&task_type);
-
-                if is_root {
-                    let mut ctx = self.execute_context(turbo_tasks);
-                    AggregationUpdateQueue::run(
-                        AggregationUpdateJob::UpdateAggregationNumber {
-                            task_id,
-                            base_aggregation_number: u32::MAX,
-                            distance: None,
-                        },
-                        &mut ctx,
-                    );
-                }
-
-                self.connect_child(
-                    parent_task,
-                    task_id,
-                    Some(ArcOrOwned::Arc(task_type)),
-                    turbo_tasks,
-                );
-
-                task_id
-            }
-        }
     }
 
     /// Generate an object that implements [`fmt::Display`] explaining why the given
@@ -2001,6 +1914,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         Some(TaskExecutionSpec { future, span })
     }
 
+    /// Returns `Some(priority)` if the task became stale during execution and needs to be
+    /// re-scheduled at the given priority. The caller (turbo-tasks manager) hands it to the
+    /// priority runner so re-execution doesn't inherit the original schedule priority.
     fn task_execution_completed(
         &self,
         task_id: TaskId,
@@ -2009,7 +1925,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) -> bool {
+    ) -> Option<TaskPriority> {
         // Task completion is a 4 step process:
         // 1. Remove old edges (dependencies, collectibles, children, cells) and update the
         //    aggregation number of the task and the new children.
@@ -2042,6 +1958,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             immutable = tracing::field::Empty,
             new_output = tracing::field::Empty,
             output_dependents = tracing::field::Empty,
+            aggregation_number = tracing::field::Empty,
             stale = tracing::field::Empty,
         )
         .entered();
@@ -2050,7 +1967,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let mut ctx = self.execute_context(turbo_tasks);
 
-        let Some(TaskExecutionCompletePrepareResult {
+        let TaskExecutionCompletePrepareResult {
             new_children,
             is_now_immutable,
             #[cfg(feature = "verify_determinism")]
@@ -2058,7 +1975,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             new_output,
             output_dependent_tasks,
             is_recomputation,
-        }) = self.task_execution_completed_prepare(
+        } = match self.task_execution_completed_prepare(
             &mut ctx,
             #[cfg(feature = "trace_task_details")]
             &span,
@@ -2068,12 +1985,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             #[cfg(feature = "verify_determinism")]
             stateful,
             has_invalidator,
-        )
-        else {
-            // Task was stale and has been rescheduled
-            #[cfg(feature = "trace_task_details")]
-            span.record("stale", "prepare");
-            return true;
+        ) {
+            Ok(r) => r,
+            Err(stale_priority) => {
+                // Task was stale and has been rescheduled
+                #[cfg(feature = "trace_task_details")]
+                span.record("stale", "prepare");
+                return Some(stale_priority);
+            }
         };
 
         #[cfg(feature = "trace_task_details")]
@@ -2101,15 +2020,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         if has_new_children
-            && self.task_execution_completed_connect(&mut ctx, task_id, new_children)
+            && let Some(stale_priority) =
+                self.task_execution_completed_connect(&mut ctx, task_id, new_children)
         {
             // Task was stale and has been rescheduled
             #[cfg(feature = "trace_task_details")]
             span.record("stale", "connect");
-            return true;
+            return Some(stale_priority);
         }
 
-        let (stale, in_progress_cells) = self.task_execution_completed_finish(
+        let (stale_priority, in_progress_cells) = self.task_execution_completed_finish(
             &mut ctx,
             task_id,
             #[cfg(feature = "verify_determinism")]
@@ -2117,11 +2037,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             new_output,
             is_now_immutable,
         );
-        if stale {
+        if let Some(stale_priority) = stale_priority {
             // Task was stale and has been rescheduled
             #[cfg(feature = "trace_task_details")]
             span.record("stale", "finish");
-            return true;
+            return Some(stale_priority);
         }
 
         let removed_data = self.task_execution_completed_cleanup(
@@ -2136,7 +2056,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         drop(removed_data);
         drop(in_progress_cells);
 
-        false
+        None
     }
 
     fn task_execution_completed_prepare(
@@ -2148,14 +2068,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
-    ) -> Option<TaskExecutionCompletePrepareResult> {
+    ) -> Result<TaskExecutionCompletePrepareResult, TaskPriority> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let is_recomputation = task.is_dirty().is_none();
         let Some(in_progress) = task.get_in_progress_mut() else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
         if matches!(in_progress, InProgressState::Canceled) {
-            return Some(TaskExecutionCompletePrepareResult {
+            return Ok(TaskExecutionCompletePrepareResult {
                 new_children: Default::default(),
                 is_now_immutable: false,
                 #[cfg(feature = "verify_determinism")]
@@ -2179,6 +2099,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // If the task is stale, reschedule it
         #[cfg(not(feature = "no_fast_stale"))]
         if stale && !is_once_task {
+            let stale_priority = compute_stale_priority(&task);
             let Some(InProgressState::InProgress(box InProgressStateInner {
                 done_event,
                 mut new_children,
@@ -2207,7 +2128,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 },
                 ctx,
             );
-            return None;
+            return Err(stale_priority);
         }
 
         // take the children from the task to process them
@@ -2282,7 +2203,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         if has_children {
             // Prepare all new children
-            prepare_new_children(task_id, &mut task, &new_children, &mut queue);
+            let _aggregation_number =
+                prepare_new_children(task_id, &mut task, &new_children, &mut queue);
+
+            #[cfg(feature = "trace_task_details")]
+            span.record("aggregation_number", _aggregation_number);
 
             // Filter actual new children
             old_edges.extend(
@@ -2380,15 +2305,26 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         span.record("immutable", is_immutable || is_now_immutable);
 
         if !queue.is_empty() || !old_edges.is_empty() {
-            #[cfg(feature = "trace_task_completion")]
-            let _span = tracing::trace_span!("remove old edges and prepare new children").entered();
+            #[cfg(any(
+                feature = "trace_task_completion",
+                feature = "trace_aggregation_update_stats"
+            ))]
+            let _span =
+                tracing::trace_span!("remove old edges and prepare new children", stats = Empty)
+                    .entered();
             // Remove outdated edges first, before removing in_progress+dirty flag.
             // We need to make sure all outdated edges are removed before the task can potentially
             // be scheduled and executed again
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            {
+                let stats = CleanupOldEdgesOperation::run(task_id, old_edges, queue, ctx);
+                _span.record("stats", tracing::field::debug(stats));
+            }
+            #[cfg(not(feature = "trace_aggregation_update_stats"))]
             CleanupOldEdgesOperation::run(task_id, old_edges, queue, ctx);
         }
 
-        Some(TaskExecutionCompletePrepareResult {
+        Ok(TaskExecutionCompletePrepareResult {
             new_children,
             is_now_immutable,
             #[cfg(feature = "verify_determinism")]
@@ -2407,6 +2343,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) {
         debug_assert!(!output_dependent_tasks.is_empty());
 
+        #[cfg(feature = "trace_task_dirty")]
+        let task_description = self.debug_get_task_description(task_id);
+
         if output_dependent_tasks.len() > 1 {
             ctx.prepare_tasks(
                 output_dependent_tasks
@@ -2419,6 +2358,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         fn process_output_dependents(
             ctx: &mut impl ExecuteContext<'_>,
             task_id: TaskId,
+            #[cfg(feature = "trace_task_dirty")] task_description: &str,
             dependent_task_id: TaskId,
             queue: &mut AggregationUpdateQueue,
         ) {
@@ -2459,7 +2399,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 dependent_task_id,
                 make_stale,
                 #[cfg(feature = "trace_task_dirty")]
-                TaskDirtyCause::OutputChange { task_id },
+                TaskDirtyCause::OutputChange {
+                    task_description: task_description.to_string(),
+                },
                 queue,
                 ctx,
             );
@@ -2467,12 +2409,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             span.record("result", "marked dirty");
         }
 
-        if output_dependent_tasks.len() > DEPENDENT_TASKS_DIRTY_PARALLIZATION_THRESHOLD {
+        if output_dependent_tasks.len() > DEPENDENT_TASKS_DIRTY_PARALLELIZATION_THRESHOLD {
             let chunk_size = good_chunk_size(output_dependent_tasks.len());
             let chunks = into_chunks(output_dependent_tasks.to_vec(), chunk_size);
             let _ = scope_and_block(chunks.len(), |scope| {
                 for chunk in chunks {
                     let child_ctx = ctx.child_context();
+                    #[cfg(feature = "trace_task_dirty")]
+                    let task_description = &task_description;
                     scope.spawn(move || {
                         let mut ctx = child_ctx.create();
                         let mut queue = AggregationUpdateQueue::new();
@@ -2480,6 +2424,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             process_output_dependents(
                                 &mut ctx,
                                 task_id,
+                                #[cfg(feature = "trace_task_dirty")]
+                                task_description,
                                 dependent_task_id,
                                 &mut queue,
                             )
@@ -2491,7 +2437,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         } else {
             let mut queue = AggregationUpdateQueue::new();
             for dependent_task_id in output_dependent_tasks {
-                process_output_dependents(ctx, task_id, dependent_task_id, &mut queue);
+                process_output_dependents(
+                    ctx,
+                    task_id,
+                    #[cfg(feature = "trace_task_dirty")]
+                    &task_description,
+                    dependent_task_id,
+                    &mut queue,
+                );
             }
             queue.execute(ctx);
         }
@@ -2532,7 +2485,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         ctx: &mut impl ExecuteContext<'_>,
         task_id: TaskId,
         new_children: FxHashSet<TaskId>,
-    ) -> bool {
+    ) -> Option<TaskPriority> {
         debug_assert!(!new_children.is_empty());
 
         let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -2541,7 +2494,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         if matches!(in_progress, InProgressState::Canceled) {
             // Task was canceled in the meantime, so we don't connect the children
-            return false;
+            return None;
         }
         let InProgressState::InProgress(box InProgressStateInner {
             #[cfg(not(feature = "no_fast_stale"))]
@@ -2556,6 +2509,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // If the task is stale, reschedule it
         #[cfg(not(feature = "no_fast_stale"))]
         if *stale && !is_once_task {
+            let stale_priority = compute_stale_priority(&task);
             let Some(InProgressState::InProgress(box InProgressStateInner { done_event, .. })) =
                 task.take_in_progress()
             else {
@@ -2576,7 +2530,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 },
                 ctx,
             );
-            return true;
+            return Some(stale_priority);
         }
 
         let has_active_count = ctx.should_track_activeness()
@@ -2592,9 +2546,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             ctx.should_track_activeness(),
         );
 
-        false
+        None
     }
 
+    #[allow(clippy::type_complexity)]
     fn task_execution_completed_finish(
         &self,
         ctx: &mut impl ExecuteContext<'_>,
@@ -2603,7 +2558,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         new_output: Option<OutputValue>,
         is_now_immutable: bool,
     ) -> (
-        bool,
+        Option<TaskPriority>,
         Option<
             auto_hash_map::AutoMap<CellId, InProgressCellState, BuildHasherDefault<FxHasher>, 1>,
         >,
@@ -2614,7 +2569,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         if matches!(in_progress, InProgressState::Canceled) {
             // Task was canceled in the meantime, so we don't finish it
-            return (false, None);
+            return (None, None);
         }
         let InProgressState::InProgress(box InProgressStateInner {
             done_event,
@@ -2631,12 +2586,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // If the task is stale, reschedule it
         if stale && !is_once_task {
+            let stale_priority = compute_stale_priority(&task);
             let old = task.set_in_progress(InProgressState::Scheduled {
                 done_event,
                 reason: TaskExecutionReason::Stale,
             });
             debug_assert!(old.is_none(), "InProgress already exists");
-            return (true, None);
+            return (Some(stale_priority), None);
         }
 
         // Set the output if it has changed
@@ -2669,12 +2625,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let dirty_changed = task.get_dirty().cloned() != new_dirtyness;
         let data_update = task.update_dirty_state(new_dirtyness);
 
+        // Under verify_determinism we re-run a task whose dirty state or output unexpectedly
+        // changed during execution to confirm determinism. The leaf priority keeps these
+        // verification reruns at the highest priority.
         #[cfg(feature = "verify_determinism")]
-        let reschedule =
-            (dirty_changed || no_output_set) && !task_id.is_transient() && !is_once_task;
+        let stale_priority: Option<TaskPriority> =
+            ((dirty_changed || no_output_set) && !task_id.is_transient() && !is_once_task)
+                .then(TaskPriority::leaf);
         #[cfg(not(feature = "verify_determinism"))]
-        let reschedule = false;
-        if reschedule {
+        let stale_priority: Option<TaskPriority> = None;
+        if stale_priority.is_some() {
             let old = task.set_in_progress(InProgressState::Scheduled {
                 done_event,
                 reason: TaskExecutionReason::Stale,
@@ -2695,7 +2655,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // We return so the data can be dropped outside of critical sections
-        (reschedule, in_progress_cells)
+        (stale_priority, in_progress_cells)
     }
 
     fn task_execution_completed_cleanup(
@@ -2719,9 +2679,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Note: We do not mark the tasks as dirty here, as these tasks are unused or stale
             // anyway and we want to avoid needless re-executions. When the cells become
             // used again, they are invalidated from the update cell operation.
-            // Remove cell data for cells that no longer exist
-            let to_remove_persistent: Vec<_> = task
-                .iter_persistent_cell_data()
+            let to_remove: Vec<_> = task
+                .iter_cell_data()
                 .filter_map(|(cell, _)| {
                     cell_counters
                         .get(&cell.type_id)
@@ -2729,25 +2688,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         .then_some(*cell)
                 })
                 .collect();
-
-            // Remove transient cell data for cells that no longer exist
-            let to_remove_transient: Vec<_> = task
-                .iter_transient_cell_data()
-                .filter_map(|(cell, _)| {
-                    cell_counters
-                        .get(&cell.type_id)
-                        .is_none_or(|start_index| cell.index >= *start_index)
-                        .then_some(*cell)
-                })
-                .collect();
-            removed_cell_data.reserve_exact(to_remove_persistent.len() + to_remove_transient.len());
-            for cell in to_remove_persistent {
-                if let Some(data) = task.remove_persistent_cell_data(&cell) {
-                    removed_cell_data.push(data.into_untyped());
-                }
-            }
-            for cell in to_remove_transient {
-                if let Some(data) = task.remove_transient_cell_data(&cell) {
+            removed_cell_data.reserve_exact(to_remove.len());
+            for cell in to_remove {
+                if let Some(data) = task.remove_cell_data(&cell) {
                     removed_cell_data.push(data);
                 }
             }
@@ -2793,24 +2736,26 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
             match job {
-                TurboTasksBackendJob::InitialSnapshot | TurboTasksBackendJob::FollowUpSnapshot => {
+                TurboTasksBackendJob::Snapshot => {
                     debug_assert!(self.should_persist());
 
-                    let last_snapshot = self.last_snapshot.load(Ordering::Relaxed);
-                    let mut last_snapshot = self.start_time + Duration::from_millis(last_snapshot);
+                    let mut last_snapshot = self.start_time;
                     let mut idle_start_listener = self.idle_start_event.listen();
                     let mut idle_end_listener = self.idle_end_event.listen();
+                    // Whether to immediately set an idle timeout if possible.
+                    // Set to false if we don't persist anything in a cycle.
                     let mut fresh_idle = true;
-                    loop {
+                    let mut evicted = false;
+                    let mut is_first = true;
+                    'outer: loop {
                         const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(300);
                         const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
                         let idle_timeout = *IDLE_TIMEOUT;
-                        let (time, mut reason) =
-                            if matches!(job, TurboTasksBackendJob::InitialSnapshot) {
-                                (FIRST_SNAPSHOT_WAIT, "initial snapshot timeout")
-                            } else {
-                                (SNAPSHOT_INTERVAL, "regular snapshot interval")
-                            };
+                        let (time, mut reason) = if is_first {
+                            (FIRST_SNAPSHOT_WAIT, "initial snapshot timeout")
+                        } else {
+                            (SNAPSHOT_INTERVAL, "regular snapshot interval")
+                        };
 
                         let until = last_snapshot + time;
                         if until > Instant::now() {
@@ -2833,7 +2778,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                         idle_start_listener = self.idle_start_event.listen()
                                     },
                                     _ = &mut idle_end_listener => {
-                                        idle_time = until + idle_timeout;
+                                        idle_time = far_future();
                                         idle_end_listener = self.idle_end_event.listen()
                                     },
                                     _ = tokio::time::sleep_until(until) => {
@@ -2864,7 +2809,54 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 return;
                             }
                             Ok((snapshot_start, new_data)) => {
+                                // if we see 'new_data' then the next idle transition is 'fresh'
+                                fresh_idle = new_data;
+                                is_first = false;
                                 last_snapshot = snapshot_start;
+
+                                // Polls the idle-end event without blocking. Returns
+                                // `true` and refreshes the listener if idle has ended,
+                                // `false` if we are still idle.
+                                macro_rules! check_idle_ended {
+                                    () => {{
+                                        tokio::select! {
+                                            biased;
+                                            _ = &mut idle_end_listener => {
+                                                idle_end_listener = self.idle_end_event.listen();
+                                                true
+                                            },
+                                            _ = std::future::ready(()) => false,
+                                        }
+                                    }};
+                                }
+                                // Evict persisted tasks from memory to reclaim space.
+                                // Like compaction, this runs after snapshot_and_persist
+                                // as a separate concern.
+                                //
+                                // TODO: improve eviction policy — current approach is a full sweep
+                                // after every snapshot. Better strategies to consider:
+                                //   - Memory pressure signals: only evict when RSS exceeds a
+                                //     threshold rather than unconditionally.
+                                //   - Recency data: track last-access time per task and evict
+                                //     least-recently-used entries first rather than all at once.
+                                //   - Eviction intensity: partial sweeps (evict a fraction of
+                                //     eligible tasks per cycle) to reduce latency spikes.
+                                // Evict when there is new data to persist (the common
+                                // case) or on the very first snapshot after startup
+                                // (data was already on disk from a prior run, so
+                                // new_data may be false but in-memory state can still
+                                // be evicted).
+                                let mut ran_eviction = false;
+                                if this.should_evict() && (new_data || !evicted) {
+                                    if check_idle_ended!() {
+                                        // need to start all the way over so we catch the next
+                                        // signal
+                                        continue 'outer;
+                                    }
+                                    evicted = true;
+                                    ran_eviction = true;
+                                    this.storage.evict_after_snapshot(background_span.id());
+                                }
 
                                 // Compact while idle (up to limit), regardless of
                                 // whether the snapshot had new data.
@@ -2872,18 +2864,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 // `EnteredSpan` is `!Send` and would prevent the
                                 // future from being sent across threads when it
                                 // suspends at the `select!` await below.
+                                let mut ran_compaction = false;
                                 const MAX_IDLE_COMPACTION_PASSES: usize = 10;
                                 for _ in 0..MAX_IDLE_COMPACTION_PASSES {
-                                    let idle_ended = tokio::select! {
-                                        biased;
-                                        _ = &mut idle_end_listener => {
-                                            idle_end_listener = self.idle_end_event.listen();
-                                            true
-                                        },
-                                        _ = std::future::ready(()) => false,
-                                    };
-                                    if idle_ended {
-                                        break;
+                                    if check_idle_ended!() {
+                                        continue 'outer;
                                     }
                                     // Enter the span only around the synchronous
                                     // compact() call so we never hold an
@@ -2894,7 +2879,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                     )
                                     .entered();
                                     match self.backing_storage.compact() {
-                                        Ok(true) => {}
+                                        Ok(true) => {
+                                            ran_compaction = true;
+                                        }
                                         Ok(false) => break,
                                         Err(err) => {
                                             eprintln!("Compaction failed: {err:?}");
@@ -2907,21 +2894,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                         }
                                     }
                                 }
-
-                                if !new_data {
-                                    fresh_idle = false;
-                                    continue;
+                                if check_idle_ended!() {
+                                    continue 'outer;
                                 }
-                                let last_snapshot = last_snapshot.duration_since(self.start_time);
-                                self.last_snapshot.store(
-                                    last_snapshot.as_millis().try_into().unwrap(),
-                                    Ordering::Relaxed,
-                                );
-
-                                turbo_tasks.schedule_backend_background_job(
-                                    TurboTasksBackendJob::FollowUpSnapshot,
-                                );
-                                return;
+                                // After running snapshotting/eviction/compaction we have churned a
+                                // _lot_ of memory if we are still
+                                // idle tell `mimalloc` that now would be a good time to release
+                                // memory back to the OS
+                                if new_data || ran_compaction || ran_eviction {
+                                    turbo_tasks_malloc::TurboMalloc::collect(true);
+                                }
                             }
                         }
                     }
@@ -2934,14 +2916,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         task_id: TaskId,
         cell: CellId,
-        options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<TypedCellContent> {
         let mut ctx = self.execute_context(turbo_tasks);
         let task = ctx.task(task_id, TaskDataCategory::Data);
-        if let Some(content) = task.get_cell_data(options.is_serializable_cell_content, cell) {
-            debug_assert!(content.type_id == cell.type_id, "Cell type ID mismatch");
-            Ok(CellContent(Some(content.reference)).into_typed(cell.type_id))
+        if let Some(content) = task.get_cell_data(&cell).cloned() {
+            Ok(CellContent(Some(content)).into_typed(cell.type_id))
         } else {
             Ok(CellContent(None).into_typed(cell.type_id))
         }
@@ -2958,22 +2938,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut collectibles = AutoMap::default();
         {
             let mut task = ctx.task(task_id, TaskDataCategory::All);
-            // Ensure it's an root node
-            loop {
-                let aggregation_number = get_aggregation_number(&task);
-                if is_root_node(aggregation_number) {
-                    break;
-                }
+            if task
+                .get_persistent_task_type()
+                .is_some_and(|t| !t.native_fn.is_root)
+            {
                 drop(task);
-                AggregationUpdateQueue::run(
-                    AggregationUpdateJob::UpdateAggregationNumber {
-                        task_id,
-                        base_aggregation_number: u32::MAX,
-                        distance: None,
-                    },
-                    &mut ctx,
+                panic!(
+                    "Reading collectibles of non-root task {} (reader: {}). The `root` attribute \
+                     is missing on the task.",
+                    self.debug_get_task_description(task_id),
+                    reader_id.map_or_else(
+                        || "unknown".to_string(),
+                        |r| self.debug_get_task_description(r)
+                    )
                 );
-                task = ctx.task(task_id, TaskDataCategory::All);
             }
             for (collectible, count) in task.iter_aggregated_collectibles() {
                 if *count > 0 && collectible.collectible_type == collectible_type {
@@ -3071,7 +3049,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         task_id: TaskId,
         cell: CellId,
-        is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         content_hash: Option<CellHash>,
@@ -3082,7 +3059,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             task_id,
             cell,
             content,
-            is_serializable_cell_content,
             updated_key_hashes,
             content_hash,
             verification_mode,
@@ -3153,7 +3129,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         self.assert_not_persistent_calling_transient(parent_task, task, None);
-        ConnectChildOperation::run(parent_task, task, None, self.execute_context(turbo_tasks));
+        ConnectChildOperation::run(parent_task, task, self.execute_context(turbo_tasks));
     }
 
     fn create_transient_task(&self, task_type: TransientTaskType) -> TaskId {
@@ -3404,7 +3380,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         parent: String,
         child: Option<&CachedTaskType>,
         cell_id: Option<CellId>,
-    ) {
+    ) -> ! {
         let transient_reason = if let Some(child) = child {
             Cow::Owned(format!(
                 " The callee is transient because it depends on:\n{}",
@@ -3475,24 +3451,17 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         self.0.idle_end();
     }
 
-    fn get_or_create_persistent_task(
+    fn get_or_create_task(
         &self,
-        task_type: CachedTaskType,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &mut dyn StackDynTaskInputs,
         parent_task: Option<TaskId>,
+        persistence: TaskPersistence,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
         self.0
-            .get_or_create_persistent_task(task_type, parent_task, turbo_tasks)
-    }
-
-    fn get_or_create_transient_task(
-        &self,
-        task_type: CachedTaskType,
-        parent_task: Option<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> TaskId {
-        self.0
-            .get_or_create_transient_task(task_type, parent_task, turbo_tasks)
+            .get_or_create_task(native_fn, this, arg, parent_task, persistence, turbo_tasks)
     }
 
     fn invalidate_task(&self, task_id: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
@@ -3541,7 +3510,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> bool {
+    ) -> Option<TaskPriority> {
         self.0.task_execution_completed(
             task_id,
             result,
@@ -3590,11 +3559,9 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         task_id: TaskId,
         cell: CellId,
-        options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<TypedCellContent> {
-        self.0
-            .try_read_own_task_cell(task_id, cell, options, turbo_tasks)
+        self.0.try_read_own_task_cell(task_id, cell, turbo_tasks)
     }
 
     fn read_task_collectibles(
@@ -3635,7 +3602,6 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         task_id: TaskId,
         cell: CellId,
-        is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         content_hash: Option<CellHash>,
@@ -3645,7 +3611,6 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         self.0.update_task_cell(
             task_id,
             cell,
-            is_serializable_cell_content,
             content,
             updated_key_hashes,
             content_hash,
