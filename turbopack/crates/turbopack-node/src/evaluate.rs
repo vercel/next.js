@@ -10,8 +10,8 @@ use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, FxIndexMap, NonLocalValue, OperationVc, PrettyPrintError, ResolvedVc, TaskInput,
-    TryJoinIterExt, ValueToString, Vc, duration_span, fxindexmap, mark_session_dependent,
-    mark_top_level_task, take_effects, trace::TraceRawVcs,
+    TryJoinIterExt, ValueToString, Vc, duration_span, fxindexmap, mark_top_level_task,
+    take_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
@@ -184,13 +184,12 @@ async fn emit_evaluate_pool_assets_operation(
     .cell())
 }
 
-#[turbo_tasks::function(operation, root)]
+#[turbo_tasks::function(operation, root, session_dependent)]
 async fn create_evaluate_pool_assets_operation(
     entries: ResolvedVc<EvaluateEntries>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<EmittedEvaluatePoolAssets>> {
-    mark_session_dependent();
     let operation = emit_evaluate_pool_assets_operation(entries, chunking_context, module_graph);
     let assets = operation.resolve().strongly_consistent().await?;
     let effects = Arc::new(take_effects(operation).await?);

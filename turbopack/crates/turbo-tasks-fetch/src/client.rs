@@ -3,7 +3,7 @@ use std::{hash::Hash, sync::LazyLock};
 use anyhow::Result;
 use quick_cache::sync::Cache;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, Vc, duration_span, mark_session_dependent};
+use turbo_tasks::{Completion, ReadRef, Vc, duration_span};
 
 use crate::{FetchError, FetchResult, HttpResponse, HttpResponseBody};
 
@@ -34,7 +34,7 @@ impl FetchClientConfig {
     /// The reqwest client fails to construct if the TLS backend cannot be initialized, or the
     /// resolver cannot load the system configuration. These failures should be treated as
     /// cached for some amount of time, but ultimately transient (e.g. using
-    /// [`turbo_tasks::mark_session_dependent`]).
+    /// [`turbo_tasks::function(session_dependent)`]).
     pub fn try_get_cached_reqwest_client(
         self: ReadRef<FetchClientConfig>,
     ) -> reqwest::Result<reqwest::Client> {
@@ -121,7 +121,10 @@ impl FetchClientConfig {
             Ok(resp) => Ok(Vc::cell(Ok(resp.resolved_cell()))),
             Err(err) => {
                 // the client failed to construct or the HTTP request failed
-                mark_session_dependent();
+                // Mark session dependent so we get retried in the next sessions
+                // In dev our caller will keep going, but in prod builds this will fail the build
+                // anyway.
+                Completion::session_dependent().as_side_effect().await?;
                 Ok(Vc::cell(Err(
                     FetchError::from_reqwest_error(&err, &url).resolved_cell()
                 )))

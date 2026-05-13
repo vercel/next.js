@@ -102,6 +102,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             };
             let is_self_used = func_args.operation.is_some() || is_self_used(block);
             let is_root = func_args.root.is_some();
+            let is_session_dependent = func_args.session_dependent.is_some();
 
             let Some(turbo_fn) = TurboFn::new(
                 sig,
@@ -124,6 +125,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 is_self_used,
                 filter_trait_call_args: None, // not a trait method
                 is_root,
+                is_session_dependent,
             };
 
             let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
@@ -207,6 +209,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 // operations are not currently compatible with methods
                 let is_self_used = func_args.operation.is_some() || is_self_used(block);
                 let is_root = func_args.root.is_some();
+                let is_session_dependent = func_args.session_dependent.is_some();
 
                 let Some(turbo_fn) = TurboFn::new(
                     sig,
@@ -240,6 +243,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     is_self_used,
                     filter_trait_call_args: turbo_fn.filter_trait_call_args(),
                     is_root,
+                    is_session_dependent,
                 };
 
                 let native_function_ident =

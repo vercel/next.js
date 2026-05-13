@@ -148,7 +148,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                         )
                         .emit();
                 }
-                // Add a dummy implementation that derefences the box and delegates to the
+                // Add a dummy implementation that dereferences the box and delegates to the
                 // actual implementation.  We need to conditionally add an await if it is async
                 dynamic_trait_fns.push(if sig.asyncness.is_some() {
                     quote! {
@@ -217,7 +217,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 is_method: turbo_fn.is_method(),
                 is_self_used,
                 filter_trait_call_args: turbo_fn.filter_trait_call_args(),
-                is_root,
+                is_root: false,
+                is_session_dependent: false,
             };
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
