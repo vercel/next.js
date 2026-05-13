@@ -715,7 +715,7 @@ impl StorageWriteGuard<'_> {
 }
 
 impl Deref for StorageWriteGuard<'_> {
-    type Target = TaskStorage;
+    type Target = TaskStorageBox;
 
     fn deref(&self) -> &Self::Target {
         &self.inner

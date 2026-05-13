@@ -1594,15 +1594,21 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
         #[doc = "This is designed to work with TaskGuard."]
         #[automatically_derived]
         pub trait TaskStorageAccessors {
-            #[doc = "Access the typed storage (read-only)"]
-            fn typed(&self) -> &TaskStorage;
+            #[doc = "Access the owning `TaskStorageBox` (read-only)."]
+            #[doc = ""]
+            #[doc = "Returns the owning pointer so that callers needing to grow the"]
+            #[doc = "underlying allocation (step 3 of the storage refactor) have access"]
+            #[doc = "to it. Most accessor calls go through `Deref<Target = TaskStorage>`"]
+            #[doc = "on `TaskStorageBox`, so callsites read like `self.typed().<field>()`"]
+            #[doc = "regardless of whether the method lives on the box or the inner."]
+            fn typed(&self) -> &crate::backend::task_storage_box::TaskStorageBox;
 
-            #[doc = "Access the typed storage (mutable)."]
+            #[doc = "Access the owning `TaskStorageBox` (mutable)."]
             #[doc = ""]
             #[doc = "Note: This does NOT track modifications. Call `track_modification()` separately"]
             #[doc = "when the data actually changes. This split allows generated accessors to"]
             #[doc = "only track modifications when actual changes occur."]
-            fn typed_mut(&mut self) -> &mut TaskStorage;
+            fn typed_mut(&mut self) -> &mut crate::backend::task_storage_box::TaskStorageBox;
 
             #[doc = "Track that a modification occurred for the given category."]
             #[doc = ""]

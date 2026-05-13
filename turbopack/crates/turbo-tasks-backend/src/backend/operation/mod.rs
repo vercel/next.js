@@ -1426,11 +1426,11 @@ impl TaskGuard for TaskGuardImpl<'_> {
 }
 
 impl TaskStorageAccessors for TaskGuardImpl<'_> {
-    fn typed(&self) -> &TaskStorage {
+    fn typed(&self) -> &crate::backend::task_storage_box::TaskStorageBox {
         &self.task
     }
 
-    fn typed_mut(&mut self) -> &mut TaskStorage {
+    fn typed_mut(&mut self) -> &mut crate::backend::task_storage_box::TaskStorageBox {
         &mut self.task
     }
 
