@@ -1221,7 +1221,16 @@ async function generateCacheEntryImpl(
               filterStackFrame,
               signal: devRenderAbortController.signal,
               temporaryReferences,
-              onError: handleError,
+              onError(error) {
+                if (
+                  devRenderAbortController.signal.aborted &&
+                  devRenderAbortController.signal.reason === error
+                ) {
+                  return undefined
+                }
+
+                return handleError(error)
+              },
             }
           )
 

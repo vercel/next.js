@@ -22,12 +22,12 @@ describe('use-cache-hanging', () => {
         const outputIndex = next.cliOutput.length
         const browser = await next.browser('/static')
 
-        await expect(browser).toDisplayRedbox(`
+        await expect(browser).toDisplayCollapsedRedbox(`
          {
            "code": "E236",
            "description": "Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".",
-           "environmentLabel": null,
-           "label": "Runtime Error",
+           "environmentLabel": "Server",
+           "label": "Console Error",
            "source": "app/static/page.tsx (6:1) @ getCachedData
          > 6 | async function getCachedData(): Promise<string> {
              | ^",
@@ -51,12 +51,12 @@ describe('use-cache-hanging', () => {
         const outputIndex = next.cliOutput.length
         const browser = await next.browser('/runtime')
 
-        await expect(browser).toDisplayRedbox(`
+        await expect(browser).toDisplayCollapsedRedbox(`
          {
            "code": "E236",
            "description": "Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".",
-           "environmentLabel": null,
-           "label": "Runtime Error",
+           "environmentLabel": "Server",
+           "label": "Console Error",
            "source": "app/runtime/page.tsx (8:1) @ getCachedData
          >  8 | async function getCachedData(): Promise<string> {
               | ^",
