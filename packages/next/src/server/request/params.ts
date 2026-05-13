@@ -254,6 +254,10 @@ export function createServerParamsForServerSegment(
           isRuntimePrefetchable
         )
       case 'request':
+        console.log('creating server params with', {
+          underlyingParams,
+          fallbackParams: workUnitStore.fallbackParams,
+        })
         if (process.env.NODE_ENV === 'development') {
           // Semantically we only need the dev tracking when running in `next dev`
           // but since you would never use next dev with production NODE_ENV we use this
@@ -279,6 +283,7 @@ export function createServerParamsForServerSegment(
           )
         } else if (
           workUnitStore.asyncApiPromises &&
+          // TODO: seems like fallback params are always null during resumes?
           hasFallbackRouteParams(underlyingParams, workUnitStore.fallbackParams)
         ) {
           return (
