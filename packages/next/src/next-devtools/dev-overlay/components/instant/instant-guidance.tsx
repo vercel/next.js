@@ -1,5 +1,6 @@
 import { AlignmentLeftIcon } from '../../icons/alignment-left'
 import { ClockRewindIcon } from '../../icons/clock-rewind'
+import { ExternalIcon } from '../../icons/external'
 import { LayoutIcon } from '../../icons/layout'
 import { LightningIcon } from '../../icons/lightning'
 import { RotateClockwiseIcon } from '../../icons/rotate-clockwise'
@@ -96,7 +97,10 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
           <div data-nextjs-fix-card-header>
             <div data-nextjs-fix-card-icon>{getCardIcon(card.group)}</div>
             <div data-nextjs-fix-card-header-text>
-              <span data-nextjs-fix-card-title>{GROUP_LABELS[card.group]}</span>
+              <div data-nextjs-fix-card-title-row>
+                <span data-nextjs-fix-card-title>{GROUP_LABELS[card.group]}</span>
+                {/* <ExternalIcon width={16} height={16} /> */}
+              </div>
               <span data-nextjs-fix-card-description>{card.title}</span>
             </div>
           </div>
@@ -244,9 +248,11 @@ export const INSTANT_GUIDANCE_STYLES = css`
     overflow: hidden;
   }
 
+  /*
   [data-nextjs-fix-card]:hover {
     border-color: var(--color-gray-500);
   }
+  */
 
   [data-nextjs-fix-card-header] {
     display: flex;
@@ -278,13 +284,19 @@ export const INSTANT_GUIDANCE_STYLES = css`
     min-width: 0;
   }
 
+  [data-nextjs-fix-card-title-row] {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--color-gray-1000);
+  }
+
   [data-nextjs-fix-card-title] {
     display: block;
     margin: 0;
     font-size: var(--size-13);
     font-weight: 500;
     line-height: var(--size-16);
-    color: var(--color-gray-1000);
     text-align: left;
   }
 
@@ -317,9 +329,11 @@ export const INSTANT_GUIDANCE_STYLES = css`
     text-align: left;
   }
 
+  /*
   [data-nextjs-fix-card]:hover [data-nextjs-fix-snippet] {
     border-color: var(--color-gray-500);
   }
+  */
 
   [data-snippet-line] {
     display: block;
