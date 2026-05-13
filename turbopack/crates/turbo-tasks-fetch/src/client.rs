@@ -196,15 +196,13 @@ impl FetchClientConfig {
             Ok((resp, max_age_secs)) => {
                 if let Some(max_age_secs) = max_age_secs {
                     let max_age_secs = max(max_age_secs, min_cache_control_secs.as_secs());
-                    let deadline_secs = {
-                        // Transform the relative offset to an absolute deadline so it can be
-                        // cached.
-                        SystemTime::now()
-                            .duration_since(SystemTime::UNIX_EPOCH)
-                            // If the system clock is borked, just don't respect deadlines
-                            .ok()
-                            .map(|d| d.as_secs() + max_age_secs)
-                    };
+                    // Transform the relative offset to an absolute deadline so it can be
+                    // cached.
+                    let deadline_secs = SystemTime::now()
+                        .duration_since(SystemTime::UNIX_EPOCH)
+                        // If the system clock is borked, just don't respect deadlines
+                        .ok()
+                        .map(|d| d.as_secs() + max_age_secs);
                     let invalidator = turbo_tasks::get_invalidator();
                     Ok(FetchInnerResult {
                         result: ResolvedVc::cell(Ok(resp.resolved_cell())),
