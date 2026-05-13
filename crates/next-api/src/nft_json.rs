@@ -455,6 +455,20 @@ impl Asset for NftJsonAsset {
     }
 }
 
+/// Ignore non-entry traced reference if not already in tracing mode.
+///
+/// ChunkingType::Traced{TracedMode::Entry}      => target is always traced
+/// ChunkingType::Traced{TracedMode::Transitive} => target only traced if parent is traced
+/// ChunkingType::*                              => target only traced if parent is traced
+fn should_visit_for_tracing(chunking_type: &ChunkingType, parent_traced: bool) -> bool {
+    matches!(
+        chunking_type,
+        ChunkingType::Traced {
+            mode: TracedMode::Entry
+        }
+    ) || parent_traced
+}
+
 #[turbo_tasks::function]
 pub async fn traced_modules_for_entries(
     module_graph: Vc<ModuleGraph>,
@@ -485,21 +499,7 @@ pub async fn traced_modules_for_entries(
                 return Ok(GraphTraversalAction::Continue);
             };
 
-            // Ignore non-entry traced reference if not already in tracing mode.
-            //
-            // ChunkingType::Traced{TracedMode::Entry}
-            // ==> target is always traced
-            // ChunkingType::Traced{TracedMode::Transitive}
-            // ==> target only traced if parent is traced
-            // ChunkingType::*
-            // ==> target only traced if parent is traced
-            if matches!(
-                ref_data.chunking_type,
-                ChunkingType::Traced {
-                    mode: TracedMode::Entry
-                }
-            ) || traced_modules.contains(&parent)
-            {
+            if should_visit_for_tracing(&ref_data.chunking_type, traced_modules.contains(&parent)) {
                 if let Some(exclude_glob) = &exclude_glob
                     && exclude_glob.matches(
                         &module_paths
@@ -557,21 +557,7 @@ async fn traced_module_data_for_graph(
                 return Ok(GraphTraversalAction::Continue);
             };
 
-            // Ignore non-entry traced reference if not already in tracing mode.
-            //
-            // ChunkingType::Traced{TracedMode::Entry}
-            // ==> target is always traced
-            // ChunkingType::Traced{TracedMode::Transitive}
-            // ==> target only traced if parent is traced
-            // ChunkingType::*
-            // ==> target only traced if parent is traced
-            if matches!(
-                ref_data.chunking_type,
-                ChunkingType::Traced {
-                    mode: TracedMode::Entry
-                }
-            ) || traced_modules.contains(&parent)
-            {
+            if should_visit_for_tracing(&ref_data.chunking_type, traced_modules.contains(&parent)) {
                 traced_modules.insert(target);
             };
             Ok(GraphTraversalAction::Continue)
