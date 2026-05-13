@@ -6,6 +6,7 @@ import {
   FixCardOctagonIcon,
   FixCardPointerClickIcon,
   FixCardRotateCwIcon,
+  FixCardServerStackIcon,
   FixCardTimerIcon,
   FixCardZapIcon,
 } from '../../icons/fix-card-icons'
@@ -39,6 +40,8 @@ function getCardIcon(icon: FixCardIcon) {
       return <FixCardAlignLeftIcon />
     case 'rotate-cw':
       return <FixCardRotateCwIcon />
+    case 'server-stack':
+      return <FixCardServerStackIcon />
     case 'pointer-click':
       return <FixCardPointerClickIcon />
     case 'history':
@@ -267,7 +270,7 @@ export const INSTANT_GUIDANCE_STYLES = css`
 
   [data-nextjs-fix-card]:hover {
     border-color: var(--color-gray-500);
-    background: var(--color-gray-alpha-100);
+    background: var(--color-background-200);
   }
 
   a[data-nextjs-fix-card]:focus-visible {
@@ -362,11 +365,10 @@ export const INSTANT_GUIDANCE_STYLES = css`
     text-align: left;
   }
 
-  /*
   [data-nextjs-fix-card]:hover [data-nextjs-fix-snippet] {
     border-color: var(--color-gray-500);
+    background: var(--color-gray-100);
   }
-  */
 
   [data-snippet-line] {
     display: block;
@@ -425,16 +427,4 @@ export const INSTANT_GUIDANCE_STYLES = css`
     color: var(--color-amber-900);
   }
 
-  [data-card-color='teal'] [data-nextjs-fix-snippet] [data-snippet-highlight] {
-    color: var(--color-instant-text-teal);
-  }
-
-  [data-card-color='teal'] [data-nextjs-fix-card-icon] {
-    background: color-mix(
-      in srgb,
-      var(--color-instant-text-teal) 14%,
-      transparent
-    );
-    color: var(--color-instant-text-teal);
-  }
 `

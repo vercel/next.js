@@ -19,6 +19,7 @@ export type FixCardIcon =
   | 'octagon'
   | 'pointer-click'
   | 'rotate-cw'
+  | 'server-stack'
   | 'timer'
   | 'zap'
 
@@ -31,10 +32,10 @@ export const FIX_CARD_GROUPS: Record<
   block: { label: 'Block', color: 'red', icon: 'octagon' },
   cache: { label: 'Cache', color: 'purple', icon: 'database' },
   static: { label: 'Static', color: 'gray', icon: 'zap' },
-  dynamic: { label: 'Dynamic', color: 'blue', icon: 'rotate-cw' },
+  dynamic: { label: 'Dynamic', color: 'blue', icon: 'server-stack' },
   client: { label: 'Client', color: 'amber', icon: 'layout' },
   defer: { label: 'Defer', color: 'amber', icon: 'pointer-click' },
-  measure: { label: 'Measure', color: 'teal', icon: 'timer' },
+  measure: { label: 'Measure', color: 'gray', icon: 'timer' },
 }
 
 export type FixCard = {
@@ -324,7 +325,6 @@ const syncMathCards: FixCard[] = [
       { text: '"use client"', highlight: true },
       { text: 'export function RandomId() {' },
       { text: '  return String(Math.random())' },
-      { text: '}' },
     ],
   },
 ]
@@ -364,7 +364,6 @@ const syncDateCards: FixCard[] = [
       { text: '"use client"', highlight: true },
       { text: 'export function RelativeTime() {' },
       { text: '  return timeAgo(Date.now())' },
-      { text: '}' },
     ],
   },
   {
@@ -416,7 +415,6 @@ const syncCryptoCards: FixCard[] = [
       { text: '"use client"', highlight: true },
       { text: 'export function TokenId() {' },
       { text: '  return crypto.randomUUID()' },
-      { text: '}' },
     ],
   },
 ]
