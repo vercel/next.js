@@ -167,9 +167,8 @@ const metadataRuntimeCards: FixCard[] = [
     group: 'dynamic',
     link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#render-page-at-request-time',
     snippets: [
-      { text: 'export default async function Page() {' },
-      { text: '  await connection()', highlight: true },
-      { text: '}' },
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'await connection()', highlight: true },
     ],
   },
 ]
@@ -192,9 +191,8 @@ const metadataDynamicCards: FixCard[] = [
     group: 'dynamic',
     link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#render-page-at-request-time',
     snippets: [
-      { text: 'export default async function Page() {' },
-      { text: '  await connection()', highlight: true },
-      { text: '}' },
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'await connection()', highlight: true },
     ],
   },
 ]
