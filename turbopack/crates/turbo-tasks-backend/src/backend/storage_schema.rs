@@ -31,12 +31,11 @@ use turbo_tasks::{
     task_storage,
 };
 
-// Only used by the `tests` module below; bring it in there to avoid a
-// `cfg(test)`-only `use` at the file level.
-#[cfg(test)]
-use crate::backend::task_storage_box::TaskStorageBox;
 use crate::{
-    backend::{cell_data::CellData, counter_map::CounterMap, lazy_tail::LazyTail},
+    backend::{
+        cell_data::CellData, counter_map::CounterMap, lazy_tail::LazyTail,
+        task_storage_box::TaskStorageBox,
+    },
     data::{
         ActivenessState, AggregationNumber, CellDependency, CollectibleRef, CollectiblesRef,
         Dirtyness, InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType,
@@ -606,38 +605,14 @@ impl TaskStorage {
 // TaskStorage helper methods
 // =============================================================================
 
-// `TaskStorage` derives `Default`, so we cannot also derive `Drop`. Hand-write
-// it to walk `lazy_tail.present` and drop each payload via the schema's
-// per-tag dispatch before `LazyTail`'s field-level Drop frees the buffer.
-//
-// Field-level drops run after this body returns, in declaration order. The
-// `lazy_tail` field is last, so its Drop sees `present = 0, len = 0` and
-// only has to dealloc the buffer.
-impl Drop for TaskStorage {
-    fn drop(&mut self) {
-        let mut bits = self.lazy_tail.present;
-        while bits != 0 {
-            let bit_idx = bits.trailing_zeros();
-            let tag = (bit_idx + 1) as u8;
-            // SAFETY: `tag` is in `1..=LAZY_N` (its bit was set), and the
-            // bytes at the computed offset are a live payload whose type
-            // matches the schema's tag → type mapping.
-            unsafe {
-                let offset = LazyTail::sum_padded_sizes(
-                    self.lazy_tail.present & ((1u32 << bit_idx) - 1),
-                    &LAZY_PADDED_SIZE,
-                );
-                let ptr = self.lazy_tail.ptr.as_ptr().add(offset);
-                lazy_drop_dispatch(tag, ptr);
-            }
-            bits &= bits - 1;
-        }
-        // Mark as empty so `LazyTail::drop` doesn't try to do anything
-        // beyond deallocating the buffer.
-        self.lazy_tail.present = 0;
-        self.lazy_tail.len = 0;
-    }
-}
+// `TaskStorage` does NOT implement `Drop` — its `lazy_tail` field is just
+// metadata (presence bitmap + len + cap) and the byte buffer it describes
+// lives in the same allocation as the surrounding `TaskStorageBox`.
+// `TaskStorageBox::drop` walks the bitmap, runs per-tag drop dispatch on
+// each payload, then drops the head and deallocates the unified buffer.
+// A stack-constructed `TaskStorage` (e.g. inside `TaskStorageBox::new`'s
+// initialization step) always has `tail_cap == 0` and no live payloads, so
+// the auto-derived field drops are correct.
 
 impl TaskStorage {
     // =========================================================================
@@ -645,12 +620,6 @@ impl TaskStorage {
     // the per-variant typed accessors live here; per-variant access goes
     // straight through `self.lazy_tail`.
     // =========================================================================
-
-    /// Shrink the lazy storage to fit its current contents.
-    pub(crate) fn lazy_shrink_to_fit(&mut self) {
-        use turbo_tasks::ShrinkToFit;
-        self.lazy_tail.shrink_to_fit();
-    }
 
     /// "Are all lazy data fields empty?" — used by eviction predicates.
     ///
@@ -676,6 +645,13 @@ impl TaskStorage {
     /// per-tag dispatch.
     fn all_lazy_in_mask_empty(&self, mask: u32) -> bool {
         let mut bits = self.lazy_tail.present & mask;
+        // Tail bytes live immediately after the `TaskStorage` head in the
+        // surrounding `TaskStorageBox` allocation.
+        // SAFETY: caller's `&self` proves the surrounding `TaskStorageBox`
+        // allocation is live; tail is valid for `lazy_tail.cap` bytes.
+        let tail_base = unsafe {
+            (self as *const TaskStorage as *const u8).add(std::mem::size_of::<TaskStorage>())
+        };
         while bits != 0 {
             let bit_idx = bits.trailing_zeros();
             let tag = (bit_idx + 1) as u8;
@@ -684,11 +660,9 @@ impl TaskStorage {
             // payload whose type the schema's `lazy_is_empty_dispatch`
             // matches by tag.
             let is_empty = unsafe {
-                let offset = LazyTail::sum_padded_sizes(
-                    self.lazy_tail.present & ((1u32 << bit_idx) - 1),
-                    &LAZY_PADDED_SIZE,
-                );
-                let ptr = self.lazy_tail.ptr.as_ptr().add(offset);
+                let offset =
+                    LazyTail::sum_padded_sizes(self.lazy_tail.present & ((1u32 << bit_idx) - 1));
+                let ptr = tail_base.add(offset);
                 lazy_is_empty_dispatch(tag, ptr)
             };
             if !is_empty {
@@ -711,7 +685,38 @@ impl TaskStorage {
         }
     }
 
-    /// Decode fields for the specified category
+    // `decode(...)` lives on `TaskStorageBox` (see the impl block below)
+    // because `decode_meta` / `decode_data` install lazy payloads, which
+    // may grow the underlying buffer.
+
+    /// Initialize a transient task with the given root type and activeness tracking.
+    ///
+    /// This sets up the activeness state for root/once tasks.
+    /// Called when creating transient tasks via `create_transient_task`.
+    // `init_transient_task` lives on `TaskStorageBox` (see the impl block
+    // below) because it installs lazy payloads (`Activeness`,
+    // `transient_task_type`, `InProgress`), which may grow the underlying
+    // buffer.
+
+    /// Returns counts for aggregation tree and collectibles fields.
+    /// Used for cache size statistics.
+    pub fn meta_counts(&self) -> MetaCounts {
+        MetaCounts {
+            upper: self.upper().len(),
+            collectibles: self.collectibles().map_or(0, |c| c.len()),
+            aggregated_collectibles: self.aggregated_collectibles().map_or(0, |c| c.len()),
+            children: self.children().map_or(0, |c| c.len()),
+            followers: self.followers().map_or(0, |c| c.len()),
+            collectibles_dependents: self.collectibles_dependents().map_or(0, |c| c.len()),
+            aggregated_dirty_containers: self.aggregated_dirty_containers().map_or(0, |c| c.len()),
+        }
+    }
+}
+
+impl TaskStorageBox {
+    /// Decode fields for the specified category. Lives on `TaskStorageBox`
+    /// because installing lazy payloads from the wire may need to grow the
+    /// underlying buffer.
     pub fn decode<D: bincode::de::Decoder>(
         &mut self,
         category: SpecificTaskDataCategory,
@@ -723,10 +728,14 @@ impl TaskStorage {
         }
     }
 
-    /// Initialize a transient task with the given root type and activeness tracking.
+    /// Initialize a transient task with the given root type and activeness
+    /// tracking.
     ///
-    /// This sets up the activeness state for root/once tasks.
-    /// Called when creating transient tasks via `create_transient_task`.
+    /// This sets up the activeness state for root/once tasks. Called when
+    /// creating transient tasks via `create_transient_task`. Lives on
+    /// `TaskStorageBox` because it installs lazy payloads (`Activeness`,
+    /// `transient_task_type`, `InProgress`), which may grow the underlying
+    /// buffer.
     pub fn init_transient_task(
         &mut self,
         task_id: TaskId,
@@ -738,11 +747,15 @@ impl TaskStorage {
         self.flags.set_restored(TaskDataCategory::All);
 
         // This is a root (or once) task. These tasks use the max aggregation number.
-        self.head.aggregation_number = AggregationNumber {
-            base: u32::MAX,
-            distance: 0,
-            effective: u32::MAX,
-        };
+        // SAFETY: head_mut is fine here because we don't call any grow path
+        // while the borrow is live.
+        unsafe {
+            self.head_mut().head.aggregation_number = AggregationNumber {
+                base: u32::MAX,
+                distance: 0,
+                effective: u32::MAX,
+            };
+        }
         let root_type = match task_type {
             TransientTaskType::Root(_) => RootType::RootTask,
             TransientTaskType::Once(_) => RootType::OnceTask,
@@ -752,13 +765,7 @@ impl TaskStorage {
             // SAFETY: `LAZY_TAG_ACTIVENESS` is the schema tag for
             // `ActivenessState`. This is a freshly-created task whose lazy
             // tail does not yet contain an Activeness entry.
-            unsafe {
-                self.lazy_tail.install::<ActivenessState>(
-                    LAZY_TAG_ACTIVENESS,
-                    activeness,
-                    &LAZY_PADDED_SIZE,
-                );
-            }
+            unsafe { self.lazy_install::<ActivenessState>(LAZY_TAG_ACTIVENESS, activeness) };
         }
 
         // Set the task as scheduled so it can be executed
@@ -776,20 +783,6 @@ impl TaskStorage {
             done_event,
             reason: TaskExecutionReason::Root,
         });
-    }
-
-    /// Returns counts for aggregation tree and collectibles fields.
-    /// Used for cache size statistics.
-    pub fn meta_counts(&self) -> MetaCounts {
-        MetaCounts {
-            upper: self.upper().len(),
-            collectibles: self.collectibles().map_or(0, |c| c.len()),
-            aggregated_collectibles: self.aggregated_collectibles().map_or(0, |c| c.len()),
-            children: self.children().map_or(0, |c| c.len()),
-            followers: self.followers().map_or(0, |c| c.len()),
-            collectibles_dependents: self.collectibles_dependents().map_or(0, |c| c.len()),
-            aggregated_dirty_containers: self.aggregated_dirty_containers().map_or(0, |c| c.len()),
-        }
     }
 }
 
@@ -1689,14 +1682,11 @@ mod tests {
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn test_schema_size() {
-        // Inline fields are now grouped into `TaskStorageHead`, with
-        // `flags` and `lazy_tail` living at the top level of `TaskStorage`.
-        // The grouping costs 8 B of padding because Rust can no longer
-        // reorder the small `flags`/`lazy_tail` fields into the alignment
-        // gaps of the `Arc`/`Box`/`AutoMap` fields that now live inside
-        // `head`. Step 3 of the refactor (inlining the lazy tail bytes
-        // into the same allocation as the head, dropping `LazyTail::ptr`)
-        // recovers the regression and goes further.
+        // After inlining the lazy-tail byte buffer into TaskStorageBox's
+        // allocation, `LazyTail` only carries the bitmap + len + cap
+        // metadata (8 B, down from 16 B). The buffer lives in the same
+        // heap allocation as TaskStorage, accessed via raw pointer
+        // arithmetic from `(self as *const TaskStorage).add(size_of::<TaskStorage>())`.
         assert_eq!(
             size_of::<TaskStorageHead>(),
             112,
@@ -1704,14 +1694,15 @@ mod tests {
         );
         assert_eq!(
             size_of::<TaskStorage>(),
-            136,
+            128,
             "TaskStorage size changed! Inspect Rust's struct layout to find why.",
         );
-        // `LazyTail` is 16 B (4 + 2 + 2 + 8). Step 3 will inline the byte
-        // buffer into TaskStorage's allocation and drop the `ptr` field.
+        // `LazyTail` is 8 B (`u32 present + u16 len + u16 cap`). The byte
+        // buffer lives in TaskStorageBox's allocation, accessed via raw
+        // pointer arithmetic from the head's address.
         assert_eq!(
             size_of::<LazyTail>(),
-            16,
+            8,
             "LazyTail size changed! Inspect Rust's struct layout to find why.",
         );
     }
