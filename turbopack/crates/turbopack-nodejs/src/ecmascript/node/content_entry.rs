@@ -1,0 +1,100 @@
+use anyhow::Result;
+use either::Either;
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbopack_core::{
+    chunk::{AsyncModuleInfo, ChunkItemExt, ModuleId},
+    code_builder::Code,
+};
+use turbopack_ecmascript::chunk::{
+    EcmascriptChunkContent, EcmascriptChunkItem, EcmascriptChunkItemExt,
+    EcmascriptChunkItemOrBatchWithAsyncInfo, EcmascriptChunkItemWithAsyncInfo,
+};
+
+/// A chunk item's content entry.
+///
+/// Stores `ResolvedVc`s for the code and its hash so the bytes can be recovered
+/// from the persistent cache (and ultimately from disk) on demand, rather than
+/// pinning the compiled source in memory.
+#[turbo_tasks::value]
+#[derive(Debug)]
+pub struct EcmascriptBuildNodeChunkContentEntry {
+    pub code: ResolvedVc<Code>,
+    pub hash: ResolvedVc<u64>,
+}
+
+impl EcmascriptBuildNodeChunkContentEntry {
+    pub async fn new(
+        chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Result<Self> {
+        let code = chunk_item.code(async_module_info).to_resolved().await?;
+        Ok(EcmascriptBuildNodeChunkContentEntry {
+            code,
+            hash: code.source_code_hash().to_resolved().await?,
+        })
+    }
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct EcmascriptBuildNodeChunkContentEntries(
+    #[bincode(with = "turbo_bincode::indexmap")]
+    FxIndexMap<ModuleId, EcmascriptBuildNodeChunkContentEntry>,
+);
+
+#[turbo_tasks::value_impl]
+impl EcmascriptBuildNodeChunkContentEntries {
+    #[turbo_tasks::function]
+    pub async fn new(
+        chunk_content: Vc<EcmascriptChunkContent>,
+    ) -> Result<Vc<EcmascriptBuildNodeChunkContentEntries>> {
+        let chunk_content = chunk_content.await?;
+
+        let entries: FxIndexMap<_, _> = chunk_content
+            .chunk_items
+            .iter()
+            .map(async |item| {
+                Ok(match item {
+                    &EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(
+                        EcmascriptChunkItemWithAsyncInfo {
+                            chunk_item,
+                            async_info,
+                        },
+                    ) => Either::Left(std::iter::once((
+                        chunk_item.id().await?,
+                        EcmascriptBuildNodeChunkContentEntry::new(
+                            chunk_item,
+                            async_info.map(|info| *info),
+                        )
+                        .await?,
+                    ))),
+                    EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => {
+                        let batch = batch.await?;
+                        Either::Right(
+                            batch
+                                .chunk_items
+                                .iter()
+                                .map(|item| async move {
+                                    Ok((
+                                        item.chunk_item.id().await?,
+                                        EcmascriptBuildNodeChunkContentEntry::new(
+                                            item.chunk_item,
+                                            item.async_info.map(|info| *info),
+                                        )
+                                        .await?,
+                                    ))
+                                })
+                                .try_join()
+                                .await?
+                                .into_iter(),
+                        )
+                    }
+                })
+            })
+            .try_flat_join()
+            .await?
+            .into_iter()
+            .collect();
+
+        Ok(Vc::cell(entries))
+    }
+}

@@ -1,19 +1,20 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ReadRef, Vc, turbobail};
+use turbo_tasks::{FxIndexMap, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::{
     chunk::{MinifyType, ModuleId},
     version::Version,
 };
-use turbopack_ecmascript::chunk::{CodeAndIds, EcmascriptChunkContent};
 
-#[turbo_tasks::value(serialization = "skip")]
+use super::content_entry::EcmascriptBuildNodeChunkContentEntries;
+
+#[turbo_tasks::value]
 pub(super) struct EcmascriptBuildNodeChunkVersion {
-    pub(super) chunk_path: String,
-    pub(super) chunk_items: Vec<ReadRef<CodeAndIds>>,
+    pub(super) chunk_path: RcStr,
     pub(super) minify_type: MinifyType,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub(super) entries_hashes: FxIndexMap<ModuleId, u64>,
 }
 
@@ -23,7 +24,7 @@ impl EcmascriptBuildNodeChunkVersion {
     pub async fn new(
         output_root: FileSystemPath,
         chunk_path: FileSystemPath,
-        content: Vc<EcmascriptChunkContent>,
+        entries: Vc<EcmascriptBuildNodeChunkContentEntries>,
         minify_type: MinifyType,
     ) -> Result<Vc<Self>> {
         let output_root = output_root.clone();
@@ -33,24 +34,14 @@ impl EcmascriptBuildNodeChunkVersion {
         } else {
             turbobail!("chunk path {chunk_path} is not in client root {output_root}");
         };
-        let chunk_items = content.await?.chunk_item_code_and_ids().await?;
-
-        // Compute per-module hashes for fine-grained HMR tracking
-        let mut entries_hashes = FxIndexMap::default();
-        for item in &chunk_items {
-            for (module_id, code) in item {
-                let mut hasher = Xxh3Hash64Hasher::new();
-                let source = code.source_code();
-                hasher.write_ref(source);
-                let hash = hasher.finish();
-
-                entries_hashes.insert(module_id.clone(), hash);
-            }
+        let entries = entries.await?;
+        let mut entries_hashes =
+            FxIndexMap::with_capacity_and_hasher(entries.len(), Default::default());
+        for (id, entry) in entries.iter() {
+            entries_hashes.insert(id.clone(), *entry.hash.await?);
         }
-
         Ok(EcmascriptBuildNodeChunkVersion {
-            chunk_path: chunk_path.to_string(),
-            chunk_items,
+            chunk_path: chunk_path.into(),
             minify_type,
             entries_hashes,
         }

@@ -12,8 +12,8 @@ use turbopack_core::{
 use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
 
 use super::{
-    chunk::EcmascriptBuildNodeChunk, update::update_node_chunk,
-    version::EcmascriptBuildNodeChunkVersion,
+    chunk::EcmascriptBuildNodeChunk, content_entry::EcmascriptBuildNodeChunkContentEntries,
+    update::update_node_chunk, version::EcmascriptBuildNodeChunkVersion,
 };
 use crate::NodeJsChunkingContext;
 
@@ -41,6 +41,11 @@ impl EcmascriptBuildNodeChunkContent {
             source_map,
         }
         .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub(crate) fn entries(&self) -> Vc<EcmascriptBuildNodeChunkContentEntries> {
+        EcmascriptBuildNodeChunkContentEntries::new(*self.content)
     }
 }
 
@@ -84,7 +89,7 @@ impl EcmascriptBuildNodeChunkContent {
         Ok(EcmascriptBuildNodeChunkVersion::new(
             self.chunking_context.output_root().owned().await?,
             self.chunk.path().owned().await?,
-            *self.content,
+            EcmascriptBuildNodeChunkContentEntries::new(*self.content),
             *self.chunking_context.minify_type().await?,
         ))
     }
