@@ -371,7 +371,7 @@ export class NextInstance {
 
         if (nextConfigFile && this.nextConfig) {
           throw new Error(
-            `nextConfig provided on "createNext()" and as a file "${nextConfigFile}", use one or the other to continue`
+            `nextConfig provided on "nextTestSetup()" and as a file "${nextConfigFile}", use one or the other to continue`
           )
         }
 
