@@ -1,0 +1,72 @@
+---
+title: An expected segment was not rendered during instant UI validation
+---
+
+## Why This Error Occurred
+
+Next.js attempted to validate that navigation to the affected route is able to be rendered instantly without waiting on a server request or data loading.
+
+In this instance Next.js was unable to verify that the navigation would be instant because something prevented the necessary page data from rendering during validation.
+
+## Common Causes
+
+### A parent layout conditionally omits a parallel slot
+
+If a layout receives multiple slot props (e.g. `children`, `@modal`, `@sidebar`) but only renders some of them based on a condition, the omitted slot's content never renders.
+
+```tsx
+// app/dashboard/layout.tsx
+export default function Layout({
+  children,
+  modal,
+}: {
+  children: React.ReactNode
+  modal: React.ReactNode
+}) {
+  return (
+    <main>
+      {children}
+      {
+        // `modal` is only rendered conditionally.
+        showModal ? modal : null
+      }
+    </main>
+  )
+}
+```
+
+### A client component does not render its children during SSR
+
+If a client component does not render during SSR, any segments it would have rendered as children cannot be validated for instant UI.
+
+```tsx
+import dynamic from 'next/dynamic'
+
+// This component and its children will not render during SSR.
+const ClientOnly = dynamic(() => import('./my-component'), { ssr: false })
+
+export default async function Layout({ children }) {
+  // The children of this layout won't appear in the SSR HTML
+  // but can render fine on client navigation
+  return <ClientOnly>{children}</ClientOnly>
+}
+```
+
+## How to Fix It
+
+### If the missing segment is intentional
+
+If you expect this segment to sometimes not render (for example, a modal slot that only appears on certain routes), you can opt it out of instant UI validation:
+
+```tsx
+// app/dashboard/@modal/page.tsx
+export const unstable_instant = false
+
+export default function ModalPage() {
+  // ...
+}
+```
+
+### If the missing segment is unintentional
+
+Check the parent layouts above the reported segment. Make sure every layout renders its slot props (`children` and any named parallel routes). If a client component wraps the segment, ensure it renders its children during SSR.

@@ -583,22 +583,43 @@ describe('instant validation - parallel slot configs', () => {
           const browser = await navigateTo(href)
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "description": "Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.",
+             "code": "E1246",
+             "description": "Could not validate instant UI because an expected segment was not rendered.
+
+           Unrendered segment:
+             app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked/page.tsx
+
+           Route: /suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked
+
+           This can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.
+           This can happen when a client component opts out of rendering during SSR.
+
+           You can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.
+
+           Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
              "environmentLabel": "Server",
              "label": "Console Error",
-             "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { level: 'experimental-error' }
-               |                                 ^",
-             "stack": [
-               "unstable_instant app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked/page.tsx (1:33)",
-             ],
+             "source": null,
+             "stack": [],
            }
           `)
         } else {
           const result = await prerender(href)
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.
+           "Error: Could not validate instant UI because an expected segment was not rendered.
+
+           Unrendered segment:
+             app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked/page.tsx
+
+           Route: /suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked
+
+           This can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.
+           This can happen when a client component opts out of rendering during SSR.
+
+           You can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.
+
+           Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
