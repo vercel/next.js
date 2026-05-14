@@ -308,7 +308,7 @@ function navigateUsingPrefetchedRouteTree(
   route: FulfilledRouteCacheEntry
 ): AppRouterState {
   const routeTree = route.tree
-  const canonicalUrl = route.canonicalUrl + url.hash
+  const canonicalUrl = route.canonicalUrl.split('#')[0] + url.hash
   const renderedSearch = route.renderedSearch
   const prefetchSeed: NavigationSeed = {
     renderedSearch,
