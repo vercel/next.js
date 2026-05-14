@@ -3416,7 +3416,7 @@ describe('instant validation', () => {
              "description": "Could not validate instant UI because an expected segment was not rendered.
 
            Unrendered segment:
-app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
+             app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
 
            Route: /suspense-in-root/static/multi-depth-deferred-fallback/inner
 
@@ -3480,7 +3480,7 @@ app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
              "description": "Could not validate instant UI because an expected segment was not rendered.
 
            Unrendered segment:
-app/suspense-in-root/static/test-firstmod/inter/layout.tsx
+             app/suspense-in-root/static/test-firstmod/inter/layout.tsx
 
            Route: /suspense-in-root/static/test-firstmod/inter/inner
 
@@ -3542,8 +3542,8 @@ app/suspense-in-root/static/test-firstmod/inter/layout.tsx
              "description": "Could not validate instant UI because an expected segment was not rendered.
 
            Unrendered segments:
-app/suspense-in-root/static/test-multi-unrendered/@sidebar/page.tsx
-app/suspense-in-root/static/test-multi-unrendered/page.tsx
+             app/suspense-in-root/static/test-multi-unrendered/@sidebar/page.tsx
+             app/suspense-in-root/static/test-multi-unrendered/page.tsx
 
            Route: /suspense-in-root/static/test-multi-unrendered
 

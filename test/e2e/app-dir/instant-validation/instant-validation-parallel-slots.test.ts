@@ -587,7 +587,7 @@ describe('instant validation - parallel slot configs', () => {
              "description": "Could not validate instant UI because an expected segment was not rendered.
 
            Unrendered segment:
-             test/tmp/next-test-1778789286151-152/app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked/page.tsx
+             app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked/page.tsx
 
            Route: /suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked
 
