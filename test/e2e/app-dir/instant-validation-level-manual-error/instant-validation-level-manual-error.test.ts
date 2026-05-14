@@ -79,8 +79,8 @@ describe('instant validation - level manual-error', () => {
                ],
              },
            ],
-             "code": "E1249",
-             "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1249",
+           "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/explicit-error/page.tsx (11:19) @ Page
@@ -109,8 +109,8 @@ describe('instant validation - level manual-error', () => {
                ],
              },
            ],
-             "code": "E1249",
-             "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1249",
+           "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/explicit-true/page.tsx (12:19) @ Page
@@ -139,8 +139,8 @@ describe('instant validation - level manual-error', () => {
                ],
              },
            ],
-             "code": "E1249",
-             "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1249",
+           "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/explicit-warning/page.tsx (11:19) @ Page
