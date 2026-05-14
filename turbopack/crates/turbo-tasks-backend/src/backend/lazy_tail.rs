@@ -15,7 +15,7 @@
 //! does the alloc/dealloc/realloc, then passes a `tail_base: *mut u8`
 //! pointer into `LazyTail`'s typed methods so they can read/write payloads.
 
-use std::num::NonZeroU8;
+use std::{num::NonZeroU8, ops::ControlFlow};
 
 use turbo_tasks::ShrinkToFit;
 
@@ -87,14 +87,6 @@ impl Tag {
         self.bit() - 1
     }
 
-    /// Mask of every bit strictly above this tag's bit. Used when inserting
-    /// or removing a payload: the bytes belonging to variants packed *after*
-    /// this one have to shift to make room (insert) or close the gap (take).
-    #[inline]
-    pub(crate) const fn mask_above(self) -> u32 {
-        !((self.bit() << 1) - 1)
-    }
-
     /// Assert that the caller's `T` matches the payload type the schema
     /// assigned to this tag. The schema-emitted `LAZY_TYPE_IDS` table
     /// records `TypeId::of::<PayloadT>()` at each tag's slot; we compare
@@ -136,6 +128,8 @@ pub(crate) struct LazyTail {
     /// is stored in the tail buffer.
     pub(crate) present: u32,
     /// Bytes used in the tail buffer.
+    /// Can be computed as `sum_padded_sizes(present)` but is frequenetly needed and so maintained
+    /// would be worth dropping if we actually saved memory from it.
     pub(crate) len: u16,
     /// Bytes allocated in the tail buffer.
     pub(crate) cap: u16,
@@ -148,19 +142,38 @@ impl ShrinkToFit for LazyTail {
     fn shrink_to_fit(&mut self) {}
 }
 
+impl Drop for LazyTail {
+    /// Explicit no-op. The payload-drop walk and the dealloc of the
+    /// underlying byte buffer are both owned by
+    /// [`crate::backend::task_storage::TaskStorage`]: see its `Drop` impl. This
+    /// type only carries the presence bitmap + length/capacity counters and
+    /// owns no resources of its own. A manual `Drop` here makes the
+    /// "lifecycle lives elsewhere" invariant explicit so a future field
+    /// addition doesn't accidentally end up needing a destructor that
+    /// `TaskStorage::drop` is unaware of.
+    fn drop(&mut self) {}
+}
+
 impl LazyTail {
-    /// Compute the byte offset of the payload for `tag` in the tail buffer,
-    /// assuming the `present` bitmap is consistent. Returns `Some(offset)`
-    /// if `tag` is currently present, else `None`.
-    ///
-    /// The offset is the sum of `LAZY_PADDED_SIZE[k]` over every set bit `k`
-    /// strictly below the bit for `tag` in `present`.
+    /// Byte offset of `tag`'s slot in the tail buffer — the sum of
+    /// `LAZY_PADDED_SIZE` for every present variant packed strictly below
+    /// it. Returned unconditionally; the caller is responsible for knowing
+    /// whether the slot is occupied. Used by `insert_unchecked` (which has
+    /// already established `tag` is *absent*: the returned offset is where
+    /// the new payload would go) and by `offset_of` (which gates this on
+    /// the present-bit being set).
+    #[inline]
+    pub(crate) fn offset_for(&self, tag: Tag) -> usize {
+        Self::sum_padded_sizes(self.present & tag.mask_below())
+    }
+
+    /// Byte offset of `tag`'s payload, or `None` if it isn't present.
     #[inline]
     pub(crate) fn offset_of(&self, tag: Tag) -> Option<usize> {
         if self.present & tag.bit() == 0 {
             return None;
         }
-        Some(Self::sum_padded_sizes(self.present & tag.mask_below()))
+        Some(self.offset_for(tag))
     }
 
     /// Sum of `LAZY_PADDED_SIZE[k+1]` over every set bit `k` in `mask`.
@@ -172,7 +185,7 @@ impl LazyTail {
     /// `trailing_zeros` / `count_ones` but no built-in set-bit iterator;
     /// `bits &= bits - 1` is the canonical equivalent.
     #[inline]
-    pub(crate) fn sum_padded_sizes(mut mask: u32) -> usize {
+    fn sum_padded_sizes(mut mask: u32) -> usize {
         let mut offset = 0usize;
         while mask != 0 {
             let bit_idx = mask.trailing_zeros();
@@ -181,6 +194,71 @@ impl LazyTail {
             mask &= mask - 1;
         }
         offset
+    }
+
+    /// Walk every present tag in ascending tag order, invoking `f` with the
+    /// tag and a pointer to its payload bytes. The callback returns
+    /// [`ControlFlow`] so iteration can short-circuit.
+    ///
+    /// Returns the `ControlFlow::Break(B)` value if the callback broke,
+    /// else `ControlFlow::Continue(())` after walking every present tag.
+    ///
+    /// This is the iteration primitive used by `TaskStorage::drop`,
+    /// `Debug::fmt`, and the eviction predicates — `sum_padded_sizes` and
+    /// the `bits &= bits - 1` Lemire trick stay confined to this module.
+    /// Callers that want to filter to a subset of tags apply the mask
+    /// themselves inside the callback.
+    ///
+    /// Offsets accumulate across iterations: each step adds the previous
+    /// tag's padded size to a running `offset`, rather than re-summing
+    /// `LAZY_PADDED_SIZE` across `tag.mask_below()` on every iteration.
+    /// This drops the walk from O(popcount²) to O(popcount).
+    ///
+    /// # Safety
+    /// - `tail_base` must point to this `LazyTail`'s byte buffer (at least `self.cap` bytes), with
+    ///   provenance over the full head+tail allocation.
+    /// - `f` may read the bytes at the supplied pointer as the payload type the schema assigned to
+    ///   that tag (per `LAZY_TYPE_IDS`). Bytes outside the per-tag payload region are not
+    ///   guaranteed to be initialized.
+    #[inline]
+    pub(crate) unsafe fn try_for_each_present<B>(
+        &self,
+        tail_base: *const u8,
+        mut f: impl FnMut(Tag, *const u8) -> ControlFlow<B>,
+    ) -> ControlFlow<B> {
+        let mut bits = self.present;
+        let mut offset = 0usize;
+        while bits != 0 {
+            let bit_idx = bits.trailing_zeros();
+            // `bit_idx` is in `0..32` because `bits != 0`, so `bit_idx + 1`
+            // is a valid 1-based tag.
+            let tag = Tag::new((bit_idx + 1) as u8);
+            // SAFETY: `offset < self.len <= cap`, so `tail_base.add(offset)`
+            // is in-bounds of the unified head+tail allocation.
+            let ptr = unsafe { tail_base.add(offset) };
+            f(tag, ptr)?;
+            offset += LAZY_PADDED_SIZE[tag.table_index()] as usize;
+            bits &= bits - 1;
+        }
+        ControlFlow::Continue(())
+    }
+
+    /// Non-short-circuiting variant of [`Self::try_for_each_present`]. Same
+    /// safety contract.
+    #[inline]
+    pub(crate) unsafe fn for_each_present(
+        &self,
+        tail_base: *const u8,
+        mut f: impl FnMut(Tag, *const u8),
+    ) {
+        // SAFETY: forwarded — the caller has already signed the contract
+        // documented on `try_for_each_present`.
+        let _ = unsafe {
+            self.try_for_each_present::<()>(tail_base, |tag, ptr| {
+                f(tag, ptr);
+                ControlFlow::Continue(())
+            })
+        };
     }
 
     /// `true` iff the variant with `tag` has a payload in the tail.
@@ -235,7 +313,10 @@ impl LazyTail {
         tag.debug_assert_type::<T>();
 
         let payload_size = LAZY_PADDED_SIZE[tag.table_index()] as usize;
-        let above_bytes = Self::sum_padded_sizes(self.present & tag.mask_above());
+        // Bytes packed above this payload — by construction `self.len` is the
+        // total used tail bytes, so everything past `offset + payload_size`
+        // is the "above" region. Avoids a second `sum_padded_sizes` walk.
+        let above_bytes = self.len as usize - offset - payload_size;
 
         // SAFETY: `offset` is valid; we read the payload as `T` (caller
         // guarantees the type matches), then memmove the bytes above
@@ -258,8 +339,9 @@ impl LazyTail {
         Some(value)
     }
 
-    /// Insert a payload for `tag`. Caller must have already ensured the
-    /// buffer has enough capacity (`self.cap - self.len >= padded_size`).
+    /// Insert a payload for `tag` and return a mutable reference to it.
+    /// Caller must have already ensured the buffer has enough capacity
+    /// (`self.cap - self.len >= padded_size`).
     ///
     /// # Safety
     /// - `T` must match the payload type for `tag`.
@@ -271,18 +353,19 @@ impl LazyTail {
         tag: Tag,
         value: T,
         tail_base: *mut u8,
-    ) {
+    ) -> &mut T {
         debug_assert!(
             !self.has(tag),
             "lazy variant tag {} already present",
             tag.raw()
         );
         tag.debug_assert_type::<T>();
-        let mask_below = self.present & tag.mask_below();
-        let mask_above = self.present & !mask_below;
         let payload_size = LAZY_PADDED_SIZE[tag.table_index()] as usize;
-        let offset = Self::sum_padded_sizes(mask_below);
-        let above_bytes = Self::sum_padded_sizes(mask_above);
+        let offset = self.offset_for(tag);
+        // Bytes packed above this tag's slot — by construction `self.len` is
+        // the total used tail bytes pre-insert, so everything past `offset`
+        // is the "above" region that has to shift right.
+        let above_bytes = self.len as usize - offset;
         let new_len = self.len as usize + payload_size;
         debug_assert!(
             new_len <= self.cap as usize,
@@ -300,8 +383,10 @@ impl LazyTail {
         );
 
         // SAFETY: capacity ensured by caller. Shift payloads at or above
-        // `offset` right by `payload_size`, then write the new value.
-        unsafe {
+        // `offset` right by `payload_size`, write the new value, and return
+        // a `&mut T` to it. The `&mut` borrows from `&mut self` via the
+        // signature lifetime.
+        let inserted = unsafe {
             if above_bytes > 0 {
                 std::ptr::copy(
                     tail_base.add(offset),
@@ -309,11 +394,14 @@ impl LazyTail {
                     above_bytes,
                 );
             }
-            std::ptr::write(tail_base.add(offset).cast::<T>(), value);
-        }
+            let slot = tail_base.add(offset).cast::<T>();
+            std::ptr::write(slot, value);
+            &mut *slot
+        };
 
         self.len = new_len as u16;
         self.present |= tag.bit();
+        inserted
     }
 
     /// Replace the payload for `tag` in place (same tag, same size).

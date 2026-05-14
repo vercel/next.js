@@ -1694,4 +1694,63 @@ mod tests {
             "Debug should include the Dirtyness payload: {rendered}",
         );
     }
+
+    /// Insert lazy fields out of tag order so each insert forces the
+    /// previously-installed payload bytes to shift right, then take them
+    /// out of order so the take path's shift-left also runs. Verify every
+    /// value still reads back correctly after every shift. This exercises
+    /// the `insert_unchecked` and `take` byte-shift paths (`ptr::copy` of
+    /// `above_bytes`) and the offset accumulator in `for_each_present`.
+    ///
+    /// We use direct lazy fields with distinct types (`Dirtyness`, `i32`,
+    /// `ActivenessState`) so a wrong-offset bug would corrupt one payload's
+    /// bytes into another's representation and the read-back would fail.
+    #[test]
+    fn lazy_insert_shifts_existing_payloads() {
+        use crate::data::{ActivenessState, Dirtyness, RootType};
+        let mut storage = TaskStorage::new();
+        let task_id = TaskId::new(7).unwrap();
+
+        // Insert in descending tag order (activeness first, then
+        // aggregated_dirty_container_count, then dirty). Each later insert
+        // has all previously-installed payloads above its slot, so the
+        // shift-right path in `insert_unchecked` runs every time.
+        //   1. set_activeness: appended at offset 0 (no shift).
+        //   2. set_aggregated_dirty_container_count: inserted below activeness, which shifts right
+        //      by sizeof(i32).
+        //   3. set_dirty: inserted at offset 0, the other two shift right by sizeof(Dirtyness).
+        storage.set_activeness(ActivenessState::new_root(RootType::RootTask, task_id));
+        storage.set_aggregated_dirty_container_count(42);
+        storage.set_dirty(Dirtyness::SessionDependent);
+
+        // All three must read back at their post-shift offsets.
+        assert_eq!(storage.get_dirty(), Some(&Dirtyness::SessionDependent));
+        assert_eq!(storage.get_aggregated_dirty_container_count(), Some(&42));
+        assert!(storage.get_activeness().is_some());
+
+        // Take the lowest-tag payload — forces the two above it to shift
+        // left by sizeof(Dirtyness).
+        assert_eq!(storage.take_dirty(), Some(Dirtyness::SessionDependent));
+        assert_eq!(storage.get_dirty(), None);
+        assert_eq!(storage.get_aggregated_dirty_container_count(), Some(&42));
+        assert!(storage.get_activeness().is_some());
+
+        // Re-insert dirty — shifts the two above right again, back to the
+        // original packed layout.
+        storage.set_dirty(Dirtyness::SessionDependent);
+        assert_eq!(storage.get_dirty(), Some(&Dirtyness::SessionDependent));
+        assert_eq!(storage.get_aggregated_dirty_container_count(), Some(&42));
+        assert!(storage.get_activeness().is_some());
+
+        // Take the middle payload — only the top shifts left.
+        assert_eq!(storage.take_aggregated_dirty_container_count(), Some(42));
+        assert_eq!(storage.get_dirty(), Some(&Dirtyness::SessionDependent));
+        assert_eq!(storage.get_aggregated_dirty_container_count(), None);
+        assert!(storage.get_activeness().is_some());
+
+        // Take the top payload — no shift needed (nothing above it).
+        assert!(storage.take_activeness().is_some());
+        assert_eq!(storage.get_dirty(), Some(&Dirtyness::SessionDependent));
+        assert!(storage.get_activeness().is_none());
+    }
 }
