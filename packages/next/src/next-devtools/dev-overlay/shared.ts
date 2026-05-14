@@ -281,20 +281,20 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
   return stack?.split(REACT_ERROR_STACK_BOTTOM_FRAME_REGEX)[0]
 }
 
-// Errors stamped by the `*InNavigation` factories or wrappers from
-// `dynamic-rendering.ts` navigation paths — both clear on nav. Initial-render
-// errors lack both signals and persist.
+// Two stable signals — both tied to structural facts, not phase wording:
+//   - Body factories: nav variant says `accessed under \`<Suspense>\``,
+//     SSR variant says `accessed outside of \`<Suspense>\``.
+//   - Wrappers: emit `Could not validate \`unstable_instant\``.
 function getInstantErrorRoute(error: unknown): string | null {
   if (!error || typeof error !== 'object') return null
   const message = (error as Error).message
   if (typeof message !== 'string') return null
 
-  const isNavigationFactory =
-    (error as { __nextInstantNav?: unknown }).__nextInstantNav === true
+  const isNavigationBody = message.includes('accessed under `<Suspense>`')
   const isNavigationWrapper = message.includes(
     'Could not validate `unstable_instant`'
   )
-  if (!isNavigationFactory && !isNavigationWrapper) return null
+  if (!isNavigationBody && !isNavigationWrapper) return null
 
   const match = /^Route "([^"]+)":/.exec(message)
   return match ? match[1] : null
