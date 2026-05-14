@@ -8630,10 +8630,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/partial-fallback-shell-upgrade/partial-fallback-shell-upgrade.test.ts": {
-    "passed": [
-      "partial-fallback-shell-upgrade skipped in dev",
-      "partial-fallback-shell-upgrade when disabled skipped in dev"
-    ],
+    "passed": ["partial-fallback-shell-upgrade skipped in dev"],
     "failed": [],
     "pending": [],
     "flakey": [],
