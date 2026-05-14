@@ -693,10 +693,19 @@ impl GroupedFields {
             .collect();
         // Stable sort by category rank; within a category, preserve schema
         // declaration order.
+        //
+        // Tag = position in this iteration order + 1, and the byte tail packs
+        // payloads in ascending tag order — so the *first* category sits at
+        // the head of the tail and the *last* category sits at the end.
+        // Inserts and removes only shift bytes that pack AFTER the target
+        // tag, so we want the most-churned category (transient: installed
+        // during a task run, dropped at completion) to land at the END.
+        // Meta first (restored once on first access, mostly stable), then
+        // Data (bulk, mostly written-once during execution), then Transient.
         lazy.sort_by_key(|f| match f.category {
-            Category::Transient => 0u8,
-            Category::Meta => 1,
-            Category::Data => 2,
+            Category::Meta => 0u8,
+            Category::Data => 1,
+            Category::Transient => 2,
         });
         lazy.into_iter()
     }
