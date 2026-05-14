@@ -257,6 +257,12 @@ export default async function Page() {
         <li>
           <DebugLinks href="/suspense-in-root/static/multi-depth-deferred-fallback/inner" />
         </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/test-firstmod/inter/inner" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/test-multi-unrendered" />
+        </li>
       </ul>
 
       <h2>Disable Validation</h2>
