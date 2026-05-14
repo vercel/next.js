@@ -32,17 +32,3 @@ ignoredBuiltDependencies:
 # Keep security related settings in sync with pnpm-workspace.yaml written to
 # temporary fixture dirs in file://./scripts/install-native.mjs
 blockExoticSubdeps: true
-minimumReleaseAge: 2880 # 48 hrs
-minimumReleaseAgeExclude:
-  - '@next/*'
-  - '@turbo/*'
-  - '@vercel/*'
-  - '@workflow/*'
-  - babel-plugin-react-compiler
-  - next
-  - react
-  - react-dom
-  - react-is
-  - react-server-dom-*
-  - scheduler
-  - turbo

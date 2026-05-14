@@ -293,20 +293,35 @@ export function hasExternalOtelApiPackage(): boolean {
 
 const UNSAFE_CACHE_REGEX = /[\\/]pages[\\/][^\\/]+(?:$|\?|#)/
 
-export function getCacheDirectories(
-  configs: webpack.Configuration[]
-): Set<string> {
-  return new Set(
-    configs
-      .map((cfg) => {
-        if (typeof cfg.cache === 'object' && cfg.cache.type === 'filesystem') {
-          return cfg.cache.cacheDirectory
-        }
-        return null
-      })
-      .filter((dir) => dir != null)
-  )
-}
+export const getCacheDirectories = process.env.NEXT_RSPACK
+  ? (configs: webpack.Configuration[]) => {
+      return new Set(
+        configs
+          .map((cfg) => {
+            const cache = cfg.cache as any
+            if (typeof cache === 'object' && cache.type === 'persistent') {
+              return cache.storage.directory
+            }
+            return null
+          })
+          .filter((dir): dir is string => dir != null)
+      )
+    }
+  : (configs: webpack.Configuration[]) => {
+      return new Set(
+        configs
+          .map((cfg) => {
+            if (
+              typeof cfg.cache === 'object' &&
+              cfg.cache.type === 'filesystem'
+            ) {
+              return cfg.cache.cacheDirectory
+            }
+            return null
+          })
+          .filter((dir) => dir != null)
+      )
+    }
 
 export default async function getBaseWebpackConfig(
   dir: string,
@@ -1317,8 +1332,10 @@ export default async function getBaseWebpackConfig(
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
             dev ? '' : '-[contenthash]'
           }.js`,
-      library: isClient || isEdgeServer ? '_N_E' : undefined,
-      libraryTarget: isClient || isEdgeServer ? 'assign' : 'commonjs2',
+      library:
+        isClient || isEdgeServer
+          ? { name: '_N_E', type: 'assign' }
+          : { type: 'commonjs2' },
       hotUpdateChunkFilename: 'static/webpack/[id].[fullhash].hot-update.js',
       hotUpdateMainFilename:
         'static/webpack/[fullhash].[runtime].hot-update.json',
@@ -2433,16 +2450,16 @@ export default async function getBaseWebpackConfig(
       buildDependencies.push(jsConfigPath)
     }
 
-    // @ts-ignore
-    webpack5Config.experiments.cache = {
+    const rspackCacheKey = `${compilerType}${isDevFallback ? '-fallback' : ''}`
+    webpack5Config.cache = {
       type: 'persistent',
       buildDependencies,
       storage: {
         type: 'filesystem',
-        directory: cache.cacheDirectory,
+        directory: path.join(distDir, 'cache', 'rspack', rspackCacheKey),
       },
-      version: `${__dirname}|${process.env.__NEXT_VERSION}|${configVars}`,
-    }
+      version: `${__dirname}|${process.env.__NEXT_VERSION}|${configVars}|${rspackCacheKey}`,
+    } as any
   }
 
   if (process.env.NEXT_WEBPACK_LOGGING) {
@@ -2529,20 +2546,21 @@ export default async function getBaseWebpackConfig(
     deploymentId: config.deploymentId,
   })
 
-  // @ts-ignore Cache exists
-  webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
-    isDevFallback ? '-fallback' : ''
-  }`
+  if (!isRspack) {
+    // @ts-ignore Cache exists
+    webpackConfig.cache.name = `${webpackConfig.name}-${webpackConfig.mode}${
+      isDevFallback ? '-fallback' : ''
+    }`
+  }
 
   if (dev && !isRspack) {
     if (webpackConfig.module) {
       webpackConfig.module.unsafeCache = (module: any) =>
-          !UNSAFE_CACHE_REGEX.test(module.resource)
+        !UNSAFE_CACHE_REGEX.test(module.resource)
     } else {
       webpackConfig.module = {
-          unsafeCache: (module: any) =>
-            !UNSAFE_CACHE_REGEX.test(module.resource),
-        }
+        unsafeCache: (module: any) => !UNSAFE_CACHE_REGEX.test(module.resource),
+      }
     }
   }
 
