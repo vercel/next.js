@@ -175,7 +175,6 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         verification_mode: VerificationMode,
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
-    fn mark_own_task_as_session_dependent(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
 
@@ -1568,10 +1567,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.mark_own_task_as_finished(task, self);
     }
 
-    fn mark_own_task_as_session_dependent(&self, task: TaskId) {
-        self.backend.mark_own_task_as_session_dependent(task, self);
-    }
-
     /// Creates a future that inherits the current task id and task state. The current global task
     /// will wait for this future to be dropped before exiting.
     fn spawn_detached_for_testing(&self, fut: Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
@@ -1891,13 +1886,6 @@ pub fn spawn_detached_for_testing(f: impl Future<Output = ()> + Send + 'static) 
 
 pub fn current_task_for_testing() -> Option<TaskId> {
     CURRENT_TASK_STATE.with(|ts| ts.read().unwrap().task_id)
-}
-
-/// Marks the current task as dirty when restored from filesystem cache.
-pub fn mark_session_dependent() {
-    with_turbo_tasks(|tt| {
-        tt.mark_own_task_as_session_dependent(current_task("turbo_tasks::mark_session_dependent()"))
-    });
 }
 
 /// Marks the current task as finished. This excludes it from waiting for

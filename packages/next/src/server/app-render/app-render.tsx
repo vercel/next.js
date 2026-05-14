@@ -1593,11 +1593,17 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       // for the full stream to finish accumulating so we also catch errors from
       // the dynamic stage.
       void accumulatedChunksPromise.then(() => {
-        if (workStore.invalidDynamicUsageError) {
-          logMessagesAndSendErrorsToBrowser(
-            [workStore.invalidDynamicUsageError],
-            ctx
-          )
+        const { invalidDynamicUsageError } = workStore
+        // Forward only if userland caught the rejection. If userland didn't
+        // catch, the rejection propagated into the React render and React's
+        // `serverComponentsErrorHandler` already stamped a digest on the error
+        // and emitted it as a Flight error chunk — surfacing it again here
+        // would duplicate the entry in the dev overlay.
+        if (
+          invalidDynamicUsageError &&
+          !(invalidDynamicUsageError as { digest?: unknown }).digest
+        ) {
+          logMessagesAndSendErrorsToBrowser([invalidDynamicUsageError], ctx)
         }
       })
     }
@@ -3061,11 +3067,27 @@ async function renderToHTMLOrFlightImpl(
       fallbackParams
     )
 
-    // Invalid dynamic usages should only error the request in development.
-    // In production, it's better to produce a result.
-    // (the dynamic error will still be thrown inside the component tree, but it's catchable by error boundaries)
-    if (workStore.invalidDynamicUsageError && process.env.__NEXT_DEV_SERVER) {
-      throw workStore.invalidDynamicUsageError
+    // Forward an invalid-dynamic-usage error recorded by `'use cache'` only
+    // when userland caught it (try/catch around the cache call). If userland
+    // didn't catch, the rejection propagated into the React render, and React's
+    // `serverComponentsErrorHandler` already stamped a digest on the error and
+    // emitted it as a Flight error chunk — surfacing it again here would
+    // duplicate the entry in the dev overlay.
+    //
+    // The cacheComponents paths forward this themselves via
+    // `spawnStaticShellValidationInDev` and the validation-skipped fallback in
+    // `generateDynamicFlightRenderResultWithStagesInDev`. Here we cover the
+    // non-cacheComponents dev path where neither runs.
+    if (
+      process.env.__NEXT_DEV_SERVER &&
+      !cacheComponents &&
+      workStore.invalidDynamicUsageError &&
+      !(workStore.invalidDynamicUsageError as { digest?: unknown }).digest
+    ) {
+      void logMessagesAndSendErrorsToBrowser(
+        [workStore.invalidDynamicUsageError],
+        ctx
+      )
     }
 
     // If we have pending revalidates, wait until they are all resolved.
@@ -3694,6 +3716,12 @@ async function renderToStream(
 
           requestStore.stale = INFINITE_CACHE
           requestStore.stagedRendering = stageController
+          requestStore.asyncApiPromises = createAsyncApiPromises(
+            stageController,
+            requestStore.cookies,
+            requestStore.mutableCookies,
+            requestStore.headers
+          )
           requestStore.varyParamsAccumulator =
             createResponseVaryParamsAccumulator()
 
@@ -3823,6 +3851,12 @@ async function renderToStream(
 
           requestStore.stale = INFINITE_CACHE
           requestStore.stagedRendering = stageController
+          requestStore.asyncApiPromises = createAsyncApiPromises(
+            stageController,
+            requestStore.cookies,
+            requestStore.mutableCookies,
+            requestStore.headers
+          )
           requestStore.varyParamsAccumulator =
             createResponseVaryParamsAccumulator()
 
@@ -5592,11 +5626,19 @@ async function spawnStaticShellValidationInDevImpl(
 
   const hmrRefreshHash = getHmrRefreshHash(requestStore)
 
-  // We don't need to continue the prerender process if we already
-  // detected invalid dynamic usage in the initial prerender phase.
   const { invalidDynamicUsageError } = workStore
   if (invalidDynamicUsageError) {
-    return logMessagesAndSendErrorsToBrowser([invalidDynamicUsageError], ctx)
+    // We don't need to continue the prerender process if we already detected
+    // invalid dynamic usage in the initial prerender phase. Forward the error
+    // to the dev overlay only when userland caught the rejection. If userland
+    // didn't catch, the rejection propagated into the React render and React's
+    // `serverComponentsErrorHandler` already stamped a digest on the error and
+    // emitted it as a Flight error chunk — surfacing it again here would
+    // duplicate the entry in the dev overlay.
+    if (!(invalidDynamicUsageError as { digest?: unknown }).digest) {
+      return logMessagesAndSendErrorsToBrowser([invalidDynamicUsageError], ctx)
+    }
+    return
   }
 
   if (syncInterruptReason) {
@@ -6123,8 +6165,8 @@ async function validateInstantConfigs(
     if (previousBoundaryState) {
       // We're doing a followup render to better discriminate error types
       useRuntimeStageForPartialSegments = true
-      for (const id of previousBoundaryState.requiredIds) {
-        boundaryState.requiredIds.add(id)
+      for (const [id, filePath] of previousBoundaryState.requiredIds) {
+        boundaryState.requiredIds.set(id, filePath)
       }
     }
 
@@ -6380,10 +6422,12 @@ async function validateInstantConfigs(
         // There was no validation to perform at this level
         debug?.(`  No config at depth ${depth}+${currentGroupDepth}, skipping.`)
       } else {
-        // Something prevented this level from fully validating but there were no detected errors
-        if (impairedValidation === null) {
-          impairedValidation = result
-        }
+        // Something prevented this level from fully validating but there
+        // were no detected errors. Always overwrite — prefer the
+        // shallowest deferred fallback. If a high-level layout drops
+        // children, everything below is unreachable; the shallowest
+        // unrendered segment is closest to the actual cause.
+        impairedValidation = result
       }
     }
   }
