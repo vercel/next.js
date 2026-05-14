@@ -293,17 +293,6 @@ const syncMathCards: FixCard[] = [
       { text: '  return String(Math.random())' },
     ],
   },
-  {
-    id: 'render-on-the-client',
-    title: 'Render on the client',
-    group: 'client',
-    link: 'https://nextjs.org/docs/messages/next-prerender-random#render-on-the-client',
-    snippets: [
-      { text: '"use client"', highlight: true },
-      { text: 'export function RandomId() {' },
-      { text: '  return String(Math.random())' },
-    ],
-  },
 ]
 
 const syncDateCards: FixCard[] = [
@@ -327,17 +316,6 @@ const syncDateCards: FixCard[] = [
       { text: 'function Timestamp() {' },
       { text: '  "use cache"', highlight: true },
       { text: '  return <time>{Date.now()}</time>' },
-    ],
-  },
-  {
-    id: 'render-on-the-client',
-    title: 'Render on the client',
-    group: 'client',
-    link: 'https://nextjs.org/docs/messages/next-prerender-current-time#render-on-the-client',
-    snippets: [
-      { text: '"use client"', highlight: true },
-      { text: 'export function RelativeTime() {' },
-      { text: '  return timeAgo(Date.now())' },
     ],
   },
   {
@@ -373,17 +351,6 @@ const syncCryptoCards: FixCard[] = [
     snippets: [
       { text: 'function TokenId() {' },
       { text: '  "use cache"', highlight: true },
-      { text: '  return crypto.randomUUID()' },
-    ],
-  },
-  {
-    id: 'render-on-the-client',
-    title: 'Render on the client',
-    group: 'client',
-    link: 'https://nextjs.org/docs/messages/next-prerender-crypto#render-on-the-client',
-    snippets: [
-      { text: '"use client"', highlight: true },
-      { text: 'export function TokenId() {' },
       { text: '  return crypto.randomUUID()' },
     ],
   },
