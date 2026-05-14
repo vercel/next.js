@@ -319,6 +319,17 @@ const syncDateCards: FixCard[] = [
     ],
   },
   {
+    id: 'render-on-the-client',
+    title: 'Render on the client',
+    group: 'client',
+    link: 'https://nextjs.org/docs/messages/next-prerender-current-time#request-time-use-case',
+    snippets: [
+      { text: '"use client"', highlight: true },
+      { text: 'export function RelativeTime() {' },
+      { text: '  return timeAgo(Date.now())' },
+    ],
+  },
+  {
     id: 'measure-elapsed-time',
     title: 'Measure elapsed time',
     group: 'measure',
