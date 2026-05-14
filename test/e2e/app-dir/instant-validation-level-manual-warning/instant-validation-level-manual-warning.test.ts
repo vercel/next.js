@@ -230,7 +230,7 @@ describe('instant validation - level manual-warning', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1220",
-             "description": "Next.js encountered uncached data during the initial render or a navigation.",
+             "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/without-root-suspense/bare/page.tsx (10:19) @ Page
@@ -250,7 +250,7 @@ describe('instant validation - level manual-warning', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1220",
-             "description": "Next.js encountered uncached data during the initial render or a navigation.",
+             "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/without-root-suspense/explicit-error/page.tsx (11:19) @ Page
@@ -270,7 +270,7 @@ describe('instant validation - level manual-warning', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1220",
-             "description": "Next.js encountered uncached data during the initial render or a navigation.",
+             "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/without-root-suspense/explicit-true/page.tsx (11:19) @ Page
@@ -290,7 +290,7 @@ describe('instant validation - level manual-warning', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1220",
-             "description": "Next.js encountered uncached data during the initial render or a navigation.",
+             "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/without-root-suspense/explicit-warning/page.tsx (10:19) @ Page
