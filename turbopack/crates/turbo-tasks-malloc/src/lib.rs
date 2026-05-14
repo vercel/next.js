@@ -122,7 +122,7 @@ impl TurboMalloc {
         self::counter::reset_allocation_counters(start);
     }
 
-    /// Round `n` up to the allocator's natural size class boundary.
+    /// Round `n` up to the allocator's natural size-class boundary.
     ///
     /// When `custom_allocator` is on this calls `mi_good_size`, which returns
     /// the actual bytes mimalloc would reserve for a request of `n` bytes (so
@@ -133,9 +133,9 @@ impl TurboMalloc {
     ///
     /// Useful for "should we realloc?" decisions: a realloc that doesn't
     /// cross a size-class boundary is wasted work, so callers can compare
-    /// `good_size(current_len)` against `good_size(current_cap)` and skip
-    /// the shrink when they're equal.
-    pub fn good_size(n: usize) -> usize {
+    /// `get_bucket_size(current_len)` against `get_bucket_size(current_cap)`
+    /// and skip the shrink when they're equal.
+    pub fn get_bucket_size(n: usize) -> usize {
         #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
         unsafe {
             libmimalloc_sys::mi_good_size(n)

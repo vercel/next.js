@@ -1,8 +1,8 @@
 //! Task Storage Schema Definition
 //!
-//! This module defines the complete schema for task storage using the TaskStorageInner derive
-//! macro. The schema covers all CachedDataItem variants with appropriate storage types and
-//! categories.
+//! This module defines the complete schema for task storage using the `#[task_storage]`
+//! derive macro. Each field becomes either an inline `TaskStorageInner` field or a
+//! tag-indexed payload in the lazy tail.
 //!
 //! # Storage Types (`storage = "..."`)
 //!
@@ -706,7 +706,7 @@ impl TaskStorage {
             // SAFETY: `LAZY_TAG_ACTIVENESS` is the schema tag for
             // `ActivenessState`. This is a freshly-created task whose lazy
             // tail does not yet contain an Activeness entry.
-            unsafe { self.lazy_install::<ActivenessState>(LAZY_TAG_ACTIVENESS, activeness) };
+            unsafe { self.lazy_insert::<ActivenessState>(LAZY_TAG_ACTIVENESS, activeness) };
         }
 
         // Set the task as scheduled so it can be executed

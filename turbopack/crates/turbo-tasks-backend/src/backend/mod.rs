@@ -3774,7 +3774,7 @@ fn encode_task_data(
     data.encode(category, &mut encoder)?;
 
     if cfg!(feature = "verify_serialization") {
-        crate::backend::task_storage::TaskStorage::new()
+        TaskStorage::new()
             .decode(
                 category,
                 &mut new_turbo_bincode_decoder(&scratch_buffer[..]),

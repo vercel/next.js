@@ -1053,7 +1053,8 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
             );
             quote! {
                 #[doc = #doc]
-                pub const #tag_ident: u8 = #tag;
+                pub const #tag_ident: crate::backend::lazy_tail::Tag =
+                    crate::backend::lazy_tail::Tag::new(#tag);
             }
         })
         .collect();
@@ -1125,6 +1126,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
 
     // Per-tag dispatch arms for `lazy_drop_dispatch`. Each arm casts the byte
     // pointer to the right payload type and calls `drop_in_place`.
+    // Match arms read `tag.raw()` for terse pattern syntax (`1u8 => …`).
     let drop_dispatch_arms: Vec<_> = all_lazy_fields
         .iter()
         .enumerate()
@@ -1226,10 +1228,10 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         #[doc = "`ptr` must point to a live payload whose runtime type matches the"]
         #[doc = "compile-time payload type assigned to `tag` in the schema. After this"]
         #[doc = "call the bytes at `ptr` are uninitialized."]
-        pub(crate) unsafe fn lazy_drop_dispatch(tag: u8, ptr: *mut u8) {
-            match tag {
+        pub(crate) unsafe fn lazy_drop_dispatch(tag: crate::backend::lazy_tail::Tag, ptr: *mut u8) {
+            match tag.raw() {
                 #(#drop_dispatch_arms)*
-                _ => debug_assert!(false, "lazy_drop_dispatch: invalid tag {tag}"),
+                _ => debug_assert!(false, "lazy_drop_dispatch: invalid tag {}", tag.raw()),
             }
         }
 
@@ -1240,11 +1242,14 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         #[doc = ""]
         #[doc = "# Safety"]
         #[doc = "Same as `lazy_drop_dispatch`."]
-        pub(crate) unsafe fn lazy_is_empty_dispatch(tag: u8, ptr: *const u8) -> bool {
-            match tag {
+        pub(crate) unsafe fn lazy_is_empty_dispatch(
+            tag: crate::backend::lazy_tail::Tag,
+            ptr: *const u8,
+        ) -> bool {
+            match tag.raw() {
                 #(#is_empty_dispatch_arms,)*
                 _ => {
-                    debug_assert!(false, "lazy_is_empty_dispatch: invalid tag {tag}");
+                    debug_assert!(false, "lazy_is_empty_dispatch: invalid tag {}", tag.raw());
                     false
                 }
             }
@@ -3626,7 +3631,7 @@ fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
                     // the schema's tag → type mapping. Decoded values are
                     // pushed once per tag (sentinel-terminated stream
                     // produced by encode_*).
-                    unsafe { self.lazy_install::<#field_type>(#global_tag_ident, payload) };
+                    unsafe { self.lazy_insert::<#field_type>(#global_tag_ident, payload) };
                 }
             }
         })
@@ -3685,7 +3690,7 @@ fn gen_clone_lazy_arms_for_category(
             // no entry exists for `#tag_ident` yet.
             quote! {
                 if let Some(data) = self.#getter() {
-                    unsafe { snapshot.lazy_install::<#field_type>(#tag_ident, data.clone()) };
+                    unsafe { snapshot.lazy_insert::<#field_type>(#tag_ident, data.clone()) };
                 }
             }
         })

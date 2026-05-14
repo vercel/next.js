@@ -27,7 +27,7 @@ use std::{
 use turbo_tasks::ShrinkToFit;
 
 use crate::backend::{
-    lazy_tail::TAIL_BUFFER_ALIGN,
+    lazy_tail::{TAIL_BUFFER_ALIGN, Tag},
     storage_schema::{LAZY_MAX_ALIGN, LAZY_PADDED_SIZE, TaskStorageInner, lazy_drop_dispatch},
 };
 
@@ -39,6 +39,15 @@ use crate::backend::{
 pub struct TaskStorage {
     ptr: NonNull<TaskStorageInner>,
 }
+
+// `TaskStorage` is a single `NonNull<TaskStorageInner>`, so `Option<TaskStorage>`
+// must use the null-pointer niche and stay the same size. If this assert
+// fails, the DashMap entry layouts that depend on the thin-pointer assumption
+// have silently grown.
+const _: () = assert!(
+    std::mem::size_of::<Option<TaskStorage>>() == std::mem::size_of::<TaskStorage>(),
+    "Option<TaskStorage> must use the NonNull niche",
+);
 
 // SAFETY: We own the unified allocation; no one else can observe these bytes
 // while we hold a unique reference. The lazy-tail payloads are only
@@ -133,18 +142,19 @@ impl TaskStorage {
         unsafe { (self.ptr.as_ptr() as *mut u8).add(head_size) }
     }
 
-    /// Install a payload for `tag`. Grows the allocation if needed. The
+    /// Insert a payload for `tag`. Grows the allocation if needed. The
     /// variant must not already be present.
     ///
     /// # Safety
     /// `T` must match the payload type for `tag` per the schema's tag → type
     /// mapping.
-    pub(crate) unsafe fn lazy_install<T>(&mut self, tag: u8, value: T) {
+    pub(crate) unsafe fn lazy_insert<T>(&mut self, tag: Tag, value: T) {
         debug_assert!(
             !self.lazy_tail.has(tag),
-            "lazy variant tag {tag} already present"
+            "lazy variant tag {} already present",
+            tag.raw(),
         );
-        let payload_size = LAZY_PADDED_SIZE[tag as usize] as usize;
+        let payload_size = LAZY_PADDED_SIZE[tag.table_index()] as usize;
         let new_len = self.lazy_tail.len as usize + payload_size;
         if new_len > self.lazy_tail.cap as usize {
             // SAFETY: `grow_to` reallocates the buffer to fit at least
@@ -157,16 +167,16 @@ impl TaskStorage {
             let tail_base = self.tail_ptr_mut();
             self.head_mut()
                 .lazy_tail
-                .install_unchecked::<T>(tag, value, tail_base);
+                .insert_unchecked::<T>(tag, value, tail_base);
         }
     }
 
-    /// Replace the payload for `tag` with `value`. If absent, installs the
+    /// Replace the payload for `tag` with `value`. If absent, inserts the
     /// new value (may grow). Returns the previous payload if any.
     ///
     /// # Safety
     /// `T` must match the payload type for `tag`.
-    pub(crate) unsafe fn lazy_replace<T>(&mut self, tag: u8, value: T) -> Option<T> {
+    pub(crate) unsafe fn lazy_replace<T>(&mut self, tag: Tag, value: T) -> Option<T> {
         if self.lazy_tail.has(tag) {
             // SAFETY: caller ensures type match; same-tag replace is
             // in-place, no shifts or growth.
@@ -180,22 +190,22 @@ impl TaskStorage {
             }
         } else {
             // SAFETY: caller ensures type match; variant not present.
-            unsafe { self.lazy_install(tag, value) };
+            unsafe { self.lazy_insert(tag, value) };
             None
         }
     }
 
-    /// Get-or-create: if the variant is absent, install `Default::default()`
+    /// Get-or-create: if the variant is absent, insert `Default::default()`
     /// (which may grow), then return a mutable reference to the payload.
     ///
     /// # Safety
     /// `T` must match the payload type for `tag`.
-    pub(crate) unsafe fn lazy_get_or_create<T: Default>(&mut self, tag: u8) -> &mut T {
+    pub(crate) unsafe fn lazy_get_or_create<T: Default>(&mut self, tag: Tag) -> &mut T {
         if !self.lazy_tail.has(tag) {
             // SAFETY: caller ensures `T` matches `tag`; variant not present.
-            unsafe { self.lazy_install::<T>(tag, T::default()) };
+            unsafe { self.lazy_insert::<T>(tag, T::default()) };
         }
-        // SAFETY: just confirmed presence (and installed if needed).
+        // SAFETY: just confirmed presence (and inserted if needed).
         unsafe { self.lazy_find_mut::<T>(tag).unwrap_unchecked() }
     }
 
@@ -204,7 +214,7 @@ impl TaskStorage {
     /// # Safety
     /// `T` must match the payload type for `tag`.
     #[inline]
-    pub(crate) unsafe fn lazy_find<T>(&self, tag: u8) -> Option<&T> {
+    pub(crate) unsafe fn lazy_find<T>(&self, tag: Tag) -> Option<&T> {
         let tail_base = self.tail_ptr();
         // SAFETY: caller ensures `T` matches `tag`; `tail_base` is the start
         // of the tail buffer for this allocation, with provenance over the
@@ -217,7 +227,7 @@ impl TaskStorage {
     /// # Safety
     /// `T` must match the payload type for `tag`.
     #[inline]
-    pub(crate) unsafe fn lazy_find_mut<T>(&mut self, tag: u8) -> Option<&mut T> {
+    pub(crate) unsafe fn lazy_find_mut<T>(&mut self, tag: Tag) -> Option<&mut T> {
         let tail_base = self.tail_ptr_mut();
         // SAFETY: caller ensures `T` matches `tag`; `tail_base` is the start
         // of the tail buffer for this allocation.
@@ -228,7 +238,7 @@ impl TaskStorage {
     ///
     /// # Safety
     /// `T` must match the payload type for `tag`.
-    pub(crate) unsafe fn lazy_take<T>(&mut self, tag: u8) -> Option<T> {
+    pub(crate) unsafe fn lazy_take<T>(&mut self, tag: Tag) -> Option<T> {
         let tail_base = self.tail_ptr_mut();
         // SAFETY: caller ensures `T` matches `tag`; tail_base has provenance
         // over the full allocation.
@@ -267,14 +277,15 @@ impl TaskStorage {
         let tail_base = self.tail_ptr();
         while bits != 0 {
             let bit_idx = bits.trailing_zeros();
-            let tag = (bit_idx + 1) as u8;
-            // SAFETY: `tag` is in `1..=LAZY_N` (its bit was set in
-            // `present`), and the byte at the computed offset is a live
-            // payload whose type the schema's `lazy_is_empty_dispatch`
-            // matches by tag.
+            // `bit_idx` is in `0..32` because `bits != 0`, so `bit_idx + 1`
+            // is a valid 1-based tag.
+            let tag = Tag::new((bit_idx + 1) as u8);
+            // SAFETY: `tag` is present in the bitmap, and the byte at the
+            // computed offset is a live payload whose type
+            // `lazy_is_empty_dispatch` matches by tag.
             let is_empty = unsafe {
                 let offset = crate::backend::lazy_tail::LazyTail::sum_padded_sizes(
-                    self.head().lazy_tail.present & ((1u32 << bit_idx) - 1),
+                    self.head().lazy_tail.present & tag.mask_below(),
                 );
                 let ptr = tail_base.add(offset);
                 crate::backend::storage_schema::lazy_is_empty_dispatch(tag, ptr)
@@ -298,8 +309,9 @@ impl TaskStorage {
         }
         let head_size = std::mem::size_of::<TaskStorageInner>();
         let target_total =
-            turbo_tasks_malloc::TurboMalloc::good_size(head_size + tail_len as usize);
-        let current_bin = turbo_tasks_malloc::TurboMalloc::good_size(head_size + tail_cap as usize);
+            turbo_tasks_malloc::TurboMalloc::get_bucket_size(head_size + tail_len as usize);
+        let current_bin =
+            turbo_tasks_malloc::TurboMalloc::get_bucket_size(head_size + tail_cap as usize);
         if target_total >= current_bin {
             return;
         }
@@ -336,7 +348,8 @@ impl TaskStorage {
     unsafe fn grow_to(&mut self, min_tail_bytes: usize) {
         debug_assert!(min_tail_bytes > self.head().lazy_tail.cap as usize);
         let head_size = std::mem::size_of::<TaskStorageInner>();
-        let target_total = turbo_tasks_malloc::TurboMalloc::good_size(head_size + min_tail_bytes);
+        let target_total =
+            turbo_tasks_malloc::TurboMalloc::get_bucket_size(head_size + min_tail_bytes);
         // SAFETY: caller contract.
         unsafe { self.realloc_to_total(target_total) };
     }
@@ -406,12 +419,13 @@ impl Drop for TaskStorage {
         let head_size = std::mem::size_of::<TaskStorageInner>();
         while bits != 0 {
             let bit_idx = bits.trailing_zeros();
-            let tag = (bit_idx + 1) as u8;
+            // `bit_idx` is in `0..32` because `bits != 0`.
+            let tag = Tag::new((bit_idx + 1) as u8);
             // SAFETY: `tag` is in `1..=LAZY_N` and the bytes at the
             // computed offset are a live payload whose type matches the
             // schema's tag → type mapping.
             unsafe {
-                let mask_below = self.head().lazy_tail.present & ((1u32 << bit_idx) - 1);
+                let mask_below = self.head().lazy_tail.present & tag.mask_below();
                 let offset = crate::backend::lazy_tail::LazyTail::sum_padded_sizes(mask_below);
                 let ptr = (self.ptr.as_ptr() as *mut u8).add(head_size).add(offset);
                 lazy_drop_dispatch(tag, ptr);

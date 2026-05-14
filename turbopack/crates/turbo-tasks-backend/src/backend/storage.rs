@@ -491,7 +491,7 @@ impl Storage {
     /// Evict tasks from in-memory storage after a successful snapshot.
     ///
     /// Iterates all tasks and applies the eviction level returned by
-    /// `TaskStorageInner::evictability()`:
+    /// `TaskStorage::evictability()`:
     /// - `Full`: remove from map entirely
     /// - `DataAndMeta`: drop both data and meta fields, keep task in map
     /// - `DataOnly`: drop data fields only
