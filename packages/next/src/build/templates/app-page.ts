@@ -1922,14 +1922,29 @@ export async function handler(
       const transformer = new TransformStream<Uint8Array, Uint8Array>()
       body.push(transformer.readable)
 
+      // Plumb fallback params via request meta so the RequestStore created
+      // downstream in app-render.tsx knows which params to defer during the
+      // resume. We don't pass them as `fallbackRouteParams` because that
+      // would replace actual param values with opaque placeholders during
+      // segment resolution; the resolved values are baked into the URL and
+      // already interpolated into the postponed state.
+      if (nextConfig.cacheComponents && prerenderInfo?.fallbackRouteParams) {
+        const fallbackParams = createOpaqueFallbackRouteParams(
+          prerenderInfo.fallbackRouteParams
+        )
+        if (fallbackParams) {
+          addRequestMeta(req, 'fallbackParams', fallbackParams)
+        }
+      }
+
       // Perform the render again, but this time, provide the postponed state.
       // We don't await because we want the result to start streaming now, and
       // we've already chained the transformer's readable to the render result.
       doRender({
         span,
         postponed: cachedData.postponed,
-        // This is a resume render, not a fallback render, so we don't need to
-        // set this.
+        // This is a resume render, not a fallback render. Fallback params
+        // (for cacheComponents routes) are plumbed via request meta above.
         fallbackRouteParams: null,
         forceStaticRender: false,
       })

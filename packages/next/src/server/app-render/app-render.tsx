@@ -3716,6 +3716,12 @@ async function renderToStream(
 
           requestStore.stale = INFINITE_CACHE
           requestStore.stagedRendering = stageController
+          requestStore.asyncApiPromises = createAsyncApiPromises(
+            stageController,
+            requestStore.cookies,
+            requestStore.mutableCookies,
+            requestStore.headers
+          )
           requestStore.varyParamsAccumulator =
             createResponseVaryParamsAccumulator()
 
@@ -3845,6 +3851,12 @@ async function renderToStream(
 
           requestStore.stale = INFINITE_CACHE
           requestStore.stagedRendering = stageController
+          requestStore.asyncApiPromises = createAsyncApiPromises(
+            stageController,
+            requestStore.cookies,
+            requestStore.mutableCookies,
+            requestStore.headers
+          )
           requestStore.varyParamsAccumulator =
             createResponseVaryParamsAccumulator()
 

@@ -1,6 +1,5 @@
 import { cacheLife } from 'next/cache'
 import { connection } from 'next/server'
-import { setTimeout } from 'timers/promises'
 import { Suspense } from 'react'
 
 export default function Page({
@@ -40,12 +39,10 @@ async function ParamsContent({
   // await is deferred to the runtime stage, so this content won't appear
   // in the static stage.
   const { slug } = await params
-  await setTimeout(300)
   return <p>Param: {slug}</p>
 }
 
 async function ConnectionContent() {
   await connection()
-  await setTimeout(600)
   return <p>Dynamic content ({new Date().toISOString()})</p>
 }
