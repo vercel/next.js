@@ -4949,7 +4949,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1242",
-             "description": "Next.js encountered Date.now() without an explicit rendering intent.",
+             "description": "Next.js encountered Date() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-current-time/date/page.tsx (19:16) @ DateReadingComponent
@@ -5239,7 +5239,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1242",
-             "description": "Next.js encountered Date.now() without an explicit rendering intent.",
+             "description": "Next.js encountered new Date() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-current-time/new-date/page.tsx (19:16) @ DateReadingComponent
