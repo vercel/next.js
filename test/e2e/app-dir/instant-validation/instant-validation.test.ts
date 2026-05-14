@@ -198,13 +198,13 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/missing-suspense-around-runtime": Next.js encountered runtime data during the initial render.
+         "Error: Route "/suspense-in-root/static/missing-suspense-around-runtime": Next.js encountered runtime data during the initial render or a navigation.
 
-         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Use \`generateStaticParams\` to make route params static
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -258,9 +258,9 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic": Next.js encountered uncached data during the initial render.
+         "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -319,9 +319,9 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic": Next.js encountered uncached data during the initial render.
+         "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -381,13 +381,13 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic-layout": Next.js encountered runtime data during the initial render.
+         "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic-layout": Next.js encountered runtime data during the initial render or a navigation.
 
-         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Use \`generateStaticParams\` to make route params static
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -441,9 +441,9 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic-layout": Next.js encountered uncached data during the initial render.
+         "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic-layout": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -552,13 +552,13 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js encountered runtime data during the initial render.
+         "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js encountered runtime data during the initial render or a navigation.
 
-         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Use \`generateStaticParams\` to make route params static
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -647,13 +647,13 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/suspense-too-high": Next.js encountered runtime data during the initial render.
+         "Error: Route "/suspense-in-root/static/suspense-too-high": Next.js encountered runtime data during the initial render or a navigation.
 
-         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Use \`generateStaticParams\` to make route params static
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -711,9 +711,9 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/suspense-too-high": Next.js encountered uncached data during the initial render.
+         "Error: Route "/suspense-in-root/runtime/suspense-too-high": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -1250,9 +1250,9 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/invalid-loading-above-route-group": Next.js encountered uncached data during the initial render.
+         "Error: Route "/suspense-in-root/static/invalid-loading-above-route-group": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -1314,9 +1314,9 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/invalid-dynamic-layout-with-loading": Next.js encountered uncached data during the initial render.
+         "Error: Route "/suspense-in-root/static/invalid-dynamic-layout-with-loading": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -1390,13 +1390,13 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic": Next.js encountered runtime data during the initial render.
+           "Error: Route "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1478,13 +1478,13 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/invalid-blocking-inside-static": Next.js encountered runtime data during the initial render.
+           "Error: Route "/suspense-in-root/static/invalid-blocking-inside-static": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1539,9 +1539,9 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/runtime/invalid-blocking-inside-runtime": Next.js encountered uncached data during the initial render.
+           "Error: Route "/suspense-in-root/runtime/invalid-blocking-inside-runtime": Next.js encountered uncached data during the initial render or a navigation.
 
-           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Cache the data access with \`"use cache"\`
@@ -1603,13 +1603,13 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route": Next.js encountered runtime data during the initial render.
+           "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1665,13 +1665,13 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route/foo": Next.js encountered runtime data during the initial render.
+           "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route/foo": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1727,13 +1727,13 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route/bar": Next.js encountered runtime data during the initial render.
+           "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route/bar": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2598,13 +2598,13 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/route-group-config-only": Next.js encountered runtime data during the initial render.
+           "Error: Route "/suspense-in-root/static/route-group-config-only": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2659,13 +2659,13 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/route-group-config-and-segment-config": Next.js encountered runtime data during the initial render.
+           "Error: Route "/suspense-in-root/static/route-group-config-and-segment-config": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2721,13 +2721,13 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/route-group-segment-config-only": Next.js encountered runtime data during the initial render.
+           "Error: Route "/suspense-in-root/static/route-group-segment-config-only": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2783,13 +2783,13 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/route-group-config-with-deeper-segment/inner": Next.js encountered runtime data during the initial render.
+           "Error: Route "/suspense-in-root/static/route-group-config-with-deeper-segment/inner": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2845,13 +2845,13 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/route-group-deeper-segment-config/inner": Next.js encountered runtime data during the initial render.
+           "Error: Route "/suspense-in-root/static/route-group-deeper-segment-config/inner": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2914,13 +2914,13 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/route-group-shared-boundary": Next.js encountered runtime data during the initial render.
+           "Error: Route "/suspense-in-root/static/route-group-shared-boundary": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2990,13 +2990,13 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/parallel-group-depths-deep-slot-hole": Next.js encountered runtime data during the initial render.
+           "Error: Route "/suspense-in-root/static/parallel-group-depths-deep-slot-hole": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3060,13 +3060,13 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/parallel-group-depths-shallow-slot-hole": Next.js encountered runtime data during the initial render.
+           "Error: Route "/suspense-in-root/static/parallel-group-depths-shallow-slot-hole": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3131,13 +3131,13 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/static-layout-above-runtime-config/inner": Next.js encountered runtime data during the initial render.
+         "Error: Route "/suspense-in-root/runtime/static-layout-above-runtime-config/inner": Next.js encountered runtime data during the initial render or a navigation.
 
-         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Use \`generateStaticParams\` to make route params static
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3250,13 +3250,13 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/config-depth-preference-slot-wins/deeper/[...rest]": Next.js encountered runtime data during the initial render.
+           "Error: Route "/suspense-in-root/static/config-depth-preference-slot-wins/deeper/[...rest]": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3314,13 +3314,13 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/config-children-preferred": Next.js encountered runtime data during the initial render.
+           "Error: Route "/suspense-in-root/static/config-children-preferred": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Use \`generateStaticParams\` to make route params static
+             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3646,9 +3646,9 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/disable-validation/disable-dev": Next.js encountered uncached data during the initial render.
+           "Error: Route "/suspense-in-root/disable-validation/disable-dev": Next.js encountered uncached data during the initial render or a navigation.
 
-           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Cache the data access with \`"use cache"\`
