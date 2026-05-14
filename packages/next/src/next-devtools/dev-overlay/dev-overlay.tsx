@@ -18,15 +18,22 @@ export const RenderErrorContext = createContext<{
 
 export const useRenderErrorContext = () => useContext(RenderErrorContext)
 
+// Dispatches `ACTION_INSTANT_ERRORS_CLEAR` whenever the page changes to a
+// new non-empty value. The first non-empty value is recorded as a baseline
+// (the route the user landed on) and does not trigger a clear.
 function useClearInstantErrorsOnNav(
   page: string,
   dispatch: (action: DispatcherEvent) => void
 ) {
-  const previousPageRef = useRef(page)
+  const baselinePageRef = useRef<string | null>(null)
   useEffect(() => {
-    const previousPage = previousPageRef.current
-    previousPageRef.current = page
-    if (page === '' || page === previousPage) return
+    if (page === '') return
+    if (baselinePageRef.current === null) {
+      baselinePageRef.current = page
+      return
+    }
+    if (page === baselinePageRef.current) return
+    baselinePageRef.current = page
     dispatch({ type: ACTION_INSTANT_ERRORS_CLEAR, currentPath: page })
   }, [page, dispatch])
 }
