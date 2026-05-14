@@ -60,9 +60,9 @@ use crate::{
         operation::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext,
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
-            LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard, TaskType,
-            connect_children, get_aggregation_number, get_uppers, is_root_node,
-            make_task_dirty_internal, prepare_new_children,
+            LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard, TaskType, TaskTypeRef,
+            connect_children, get_aggregation_number, get_uppers, make_task_dirty_internal,
+            prepare_new_children,
         },
         snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
         storage::Storage,
@@ -427,23 +427,11 @@ struct TaskExecutionCompletePrepareResult {
     pub new_output: Option<OutputValue>,
     pub output_dependent_tasks: SmallVec<[TaskId; 4]>,
     pub is_recomputation: bool,
+    pub is_session_dependent: bool,
 }
 
 // Operations
 impl<B: BackingStorage> TurboTasksBackendInner<B> {
-    fn connect_child(
-        &self,
-        parent_task: Option<TaskId>,
-        child_task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) {
-        operation::ConnectChildOperation::run(
-            parent_task,
-            child_task,
-            self.execute_context(turbo_tasks),
-        );
-    }
-
     fn try_read_task_output(
         self: &Arc<Self>,
         task_id: TaskId,
@@ -519,36 +507,21 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         if matches!(options.consistency, ReadConsistency::Strong) {
-            // Ensure it's an root node
-            loop {
-                let aggregation_number = get_aggregation_number(&task);
-                if is_root_node(aggregation_number) {
-                    break;
-                }
+            if task
+                .get_persistent_task_type()
+                .is_some_and(|t| !t.native_fn.is_root)
+            {
                 drop(task);
                 drop(reader_task);
-                {
-                    let _span = tracing::trace_span!(
-                        "make root node for strongly consistent read",
-                        task = self.debug_get_task_description(task_id)
+                panic!(
+                    "Strongly consistent read of non-root task {} (reader: {}). The `root` \
+                     attribute is missing on the task.",
+                    self.debug_get_task_description(task_id),
+                    reader.map_or_else(
+                        || "unknown".to_string(),
+                        |r| self.debug_get_task_description(r)
                     )
-                    .entered();
-                    AggregationUpdateQueue::run(
-                        AggregationUpdateJob::UpdateAggregationNumber {
-                            task_id,
-                            base_aggregation_number: u32::MAX,
-                            distance: None,
-                        },
-                        &mut ctx,
-                    );
-                }
-                (task, reader_task) = if let Some(reader_id) = need_reader_task {
-                    // TODO(sokra): see comment above
-                    let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-                    (task, Some(reader))
-                } else {
-                    (ctx.task(task_id, TaskDataCategory::All), None)
-                }
+                );
             }
 
             let is_dirty = task.is_dirty();
@@ -1506,6 +1479,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // memory lookup on the miss path).
         let shard = get_shard(&self.storage.task_cache, hash);
 
+        let mut ctx = self.execute_context(turbo_tasks);
         // Step 1: Fast read-only cache lookup (read lock, no allocation).
         // Use a read lock rather than a write lock to avoid contention. connect_child
         // may re-enter task_cache with a write lock, so we must not hold a write lock here.
@@ -1513,14 +1487,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             raw_get_in_shard(shard, hash, |k| k.eq_components(native_fn, this, arg_ref))
         {
             self.track_cache_hit_by_fn(native_fn);
-            self.connect_child(parent_task, task_id, turbo_tasks);
+            operation::ConnectChildOperation::run(parent_task, task_id, ctx);
             return task_id;
         }
 
         // Step 2: Check backing storage using borrowed components (no box needed yet).
-        let mut ctx = self.execute_context(turbo_tasks);
-
-        let mut is_new = false;
 
         // Task exists in backing storage.
         // We only need to insert it into the in-memory cache.
@@ -1573,22 +1544,34 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     // insert() consumes e, releasing the shard write lock.
                     e.insert(task_type, task_id);
                     self.track_cache_miss_by_fn(native_fn);
-                    is_new = true;
+                    // Update the aggregation number before connecting the child
+                    // We don't need this on any of the task recovery paths above because the
+                    // aggregation number will already be set.
+                    if is_root {
+                        AggregationUpdateQueue::run(
+                            AggregationUpdateJob::UpdateAggregationNumber {
+                                task_id,
+                                base_aggregation_number: u32::MAX,
+                                distance: None,
+                            },
+                            &mut ctx,
+                        );
+                    } else if native_fn.is_session_dependent && self.should_track_dependencies() {
+                        const SESSION_DEPENDENT_AGGREGATION_NUMBER: u32 = u32::MAX >> 2;
+                        AggregationUpdateQueue::run(
+                            AggregationUpdateJob::UpdateAggregationNumber {
+                                task_id,
+                                base_aggregation_number: SESSION_DEPENDENT_AGGREGATION_NUMBER,
+                                distance: None,
+                            },
+                            &mut ctx,
+                        );
+                    };
+
                     task_id
                 }
             }
         };
-
-        if is_new && is_root {
-            AggregationUpdateQueue::run(
-                AggregationUpdateJob::UpdateAggregationNumber {
-                    task_id,
-                    base_aggregation_number: u32::MAX,
-                    distance: None,
-                },
-                &mut ctx,
-            );
-        }
 
         operation::ConnectChildOperation::run(parent_task, task_id, ctx);
 
@@ -1859,7 +1842,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     stale: false,
                     once_task,
                     done_event,
-                    session_dependent: false,
                     marked_as_completed: false,
                     new_children: Default::default(),
                 },
@@ -1973,6 +1955,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             immutable = tracing::field::Empty,
             new_output = tracing::field::Empty,
             output_dependents = tracing::field::Empty,
+            aggregation_number = tracing::field::Empty,
             stale = tracing::field::Empty,
         )
         .entered();
@@ -1989,6 +1972,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             new_output,
             output_dependent_tasks,
             is_recomputation,
+            is_session_dependent,
         } = match self.task_execution_completed_prepare(
             &mut ctx,
             #[cfg(feature = "trace_task_details")]
@@ -2050,6 +2034,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             no_output_set,
             new_output,
             is_now_immutable,
+            is_session_dependent,
         );
         if let Some(stale_priority) = stale_priority {
             // Task was stale and has been rescheduled
@@ -2085,6 +2070,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) -> Result<TaskExecutionCompletePrepareResult, TaskPriority> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let is_recomputation = task.is_dirty().is_none();
+        // Without dependency tracking, the SessionDependent dirty state is never read (no session
+        // restore), so skip the work
+        let is_session_dependent = self.should_track_dependencies()
+            && matches!(task.get_task_type(), TaskTypeRef::Cached(tt) if tt.native_fn.is_session_dependent);
         let Some(in_progress) = task.get_in_progress_mut() else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
@@ -2097,12 +2086,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 new_output: None,
                 output_dependent_tasks: Default::default(),
                 is_recomputation,
+                is_session_dependent,
             });
         }
         let &mut InProgressState::InProgress(box InProgressStateInner {
             stale,
             ref mut new_children,
-            session_dependent,
             once_task: is_once_task,
             ..
         }) = in_progress
@@ -2199,7 +2188,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Task was previously marked as immutable
             if !is_immutable
             // Task is not session dependent (session dependent tasks can change between sessions)
-            && !session_dependent
+            && !is_session_dependent
             // Task has no invalidator
             && !task.invalidator()
             // Task has no dependencies on collectibles
@@ -2217,7 +2206,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         if has_children {
             // Prepare all new children
-            prepare_new_children(task_id, &mut task, &new_children, &mut queue);
+            let _aggregation_number =
+                prepare_new_children(task_id, &mut task, &new_children, &mut queue);
+
+            #[cfg(feature = "trace_task_details")]
+            span.record("aggregation_number", _aggregation_number);
 
             // Filter actual new children
             old_edges.extend(
@@ -2342,6 +2335,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             new_output,
             output_dependent_tasks,
             is_recomputation,
+            is_session_dependent,
         })
     }
 
@@ -2352,6 +2346,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         output_dependent_tasks: SmallVec<[TaskId; 4]>,
     ) {
         debug_assert!(!output_dependent_tasks.is_empty());
+
+        #[cfg(feature = "trace_task_dirty")]
+        let task_description = self.debug_get_task_description(task_id);
 
         if output_dependent_tasks.len() > 1 {
             ctx.prepare_tasks(
@@ -2365,6 +2362,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         fn process_output_dependents(
             ctx: &mut impl ExecuteContext<'_>,
             task_id: TaskId,
+            #[cfg(feature = "trace_task_dirty")] task_description: &str,
             dependent_task_id: TaskId,
             queue: &mut AggregationUpdateQueue,
         ) {
@@ -2405,7 +2403,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 dependent_task_id,
                 make_stale,
                 #[cfg(feature = "trace_task_dirty")]
-                TaskDirtyCause::OutputChange { task_id },
+                TaskDirtyCause::OutputChange {
+                    task_description: task_description.to_string(),
+                },
                 queue,
                 ctx,
             );
@@ -2419,6 +2419,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let _ = scope_and_block(chunks.len(), |scope| {
                 for chunk in chunks {
                     let child_ctx = ctx.child_context();
+                    #[cfg(feature = "trace_task_dirty")]
+                    let task_description = &task_description;
                     scope.spawn(move || {
                         let mut ctx = child_ctx.create();
                         let mut queue = AggregationUpdateQueue::new();
@@ -2426,6 +2428,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             process_output_dependents(
                                 &mut ctx,
                                 task_id,
+                                #[cfg(feature = "trace_task_dirty")]
+                                task_description,
                                 dependent_task_id,
                                 &mut queue,
                             )
@@ -2437,7 +2441,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         } else {
             let mut queue = AggregationUpdateQueue::new();
             for dependent_task_id in output_dependent_tasks {
-                process_output_dependents(ctx, task_id, dependent_task_id, &mut queue);
+                process_output_dependents(
+                    ctx,
+                    task_id,
+                    #[cfg(feature = "trace_task_dirty")]
+                    &task_description,
+                    dependent_task_id,
+                    &mut queue,
+                );
             }
             queue.execute(ctx);
         }
@@ -2550,6 +2561,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         #[cfg(feature = "verify_determinism")] no_output_set: bool,
         new_output: Option<OutputValue>,
         is_now_immutable: bool,
+        is_session_dependent: bool,
     ) -> (
         Option<TaskPriority>,
         Option<
@@ -2568,7 +2580,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             done_event,
             once_task: is_once_task,
             stale,
-            session_dependent,
             marked_as_completed: _,
             new_children,
         }) = in_progress
@@ -2608,8 +2619,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        // Compute the new dirty state
-        let new_dirtyness = if session_dependent {
+        // Compute and apply the new dirty state, propagating to aggregating ancestors
+        let new_dirtyness = if is_session_dependent {
             Some(Dirtyness::SessionDependent)
         } else {
             None
@@ -2931,22 +2942,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut collectibles = AutoMap::default();
         {
             let mut task = ctx.task(task_id, TaskDataCategory::All);
-            // Ensure it's an root node
-            loop {
-                let aggregation_number = get_aggregation_number(&task);
-                if is_root_node(aggregation_number) {
-                    break;
-                }
+            if task
+                .get_persistent_task_type()
+                .is_some_and(|t| !t.native_fn.is_root)
+            {
                 drop(task);
-                AggregationUpdateQueue::run(
-                    AggregationUpdateJob::UpdateAggregationNumber {
-                        task_id,
-                        base_aggregation_number: u32::MAX,
-                        distance: None,
-                    },
-                    &mut ctx,
+                panic!(
+                    "Reading collectibles of non-root task {} (reader: {}). The `root` attribute \
+                     is missing on the task.",
+                    self.debug_get_task_description(task_id),
+                    reader_id.map_or_else(
+                        || "unknown".to_string(),
+                        |r| self.debug_get_task_description(r)
+                    )
                 );
-                task = ctx.task(task_id, TaskDataCategory::All);
             }
             for (collectible, count) in task.iter_aggregated_collectibles() {
                 if *count > 0 && collectible.collectible_type == collectible_type {
@@ -3059,42 +3068,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             verification_mode,
             self.execute_context(turbo_tasks),
         );
-    }
-
-    fn mark_own_task_as_session_dependent(
-        &self,
-        task_id: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) {
-        if !self.should_track_dependencies() {
-            // Without dependency tracking we don't need session dependent tasks
-            return;
-        }
-        const SESSION_DEPENDENT_AGGREGATION_NUMBER: u32 = u32::MAX >> 2;
-        let mut ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
-        let aggregation_number = get_aggregation_number(&task);
-        if aggregation_number < SESSION_DEPENDENT_AGGREGATION_NUMBER {
-            drop(task);
-            // We want to use a high aggregation number to avoid large aggregation chains for
-            // session dependent tasks (which change on every run)
-            AggregationUpdateQueue::run(
-                AggregationUpdateJob::UpdateAggregationNumber {
-                    task_id,
-                    base_aggregation_number: SESSION_DEPENDENT_AGGREGATION_NUMBER,
-                    distance: None,
-                },
-                &mut ctx,
-            );
-            task = ctx.task(task_id, TaskDataCategory::Meta);
-        }
-        if let Some(InProgressState::InProgress(box InProgressStateInner {
-            session_dependent,
-            ..
-        })) = task.get_in_progress_mut()
-        {
-            *session_dependent = true;
-        }
     }
 
     fn mark_own_task_as_finished(
@@ -3620,14 +3593,6 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
         self.0.mark_own_task_as_finished(task_id, turbo_tasks);
-    }
-
-    fn mark_own_task_as_session_dependent(
-        &self,
-        task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) {
-        self.0.mark_own_task_as_session_dependent(task, turbo_tasks);
     }
 
     fn connect_task(
