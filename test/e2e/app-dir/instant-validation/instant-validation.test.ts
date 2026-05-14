@@ -180,7 +180,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1250",
+           "code": "E1251",
            "description": "Next.js encountered runtime data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -203,8 +203,8 @@ describe('instant validation', () => {
          \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Use \`generateStaticParams\` to make route params static
            - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -363,7 +363,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1250",
+           "code": "E1251",
            "description": "Next.js encountered runtime data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -386,8 +386,8 @@ describe('instant validation', () => {
          \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Use \`generateStaticParams\` to make route params static
            - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -486,7 +486,7 @@ describe('instant validation', () => {
              ],
            },
          ],
-         "code": "E1250",
+         "code": "E1251",
          "description": "Next.js encountered runtime data during a navigation.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -534,7 +534,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1250",
+           "code": "E1251",
            "description": "Next.js encountered runtime data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -557,8 +557,8 @@ describe('instant validation', () => {
          \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Use \`generateStaticParams\` to make route params static
            - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -629,7 +629,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1250",
+           "code": "E1251",
            "description": "Next.js encountered runtime data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -652,8 +652,8 @@ describe('instant validation', () => {
          \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Use \`generateStaticParams\` to make route params static
            - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1372,7 +1372,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1395,8 +1395,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Use \`generateStaticParams\` to make route params static
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1460,7 +1460,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1483,8 +1483,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Use \`generateStaticParams\` to make route params static
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1585,7 +1585,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1608,8 +1608,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Use \`generateStaticParams\` to make route params static
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1647,7 +1647,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1670,8 +1670,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Use \`generateStaticParams\` to make route params static
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1709,7 +1709,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1732,8 +1732,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Use \`generateStaticParams\` to make route params static
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2580,7 +2580,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2603,8 +2603,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Use \`generateStaticParams\` to make route params static
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2641,7 +2641,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2664,8 +2664,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Use \`generateStaticParams\` to make route params static
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2703,7 +2703,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2726,8 +2726,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Use \`generateStaticParams\` to make route params static
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2765,7 +2765,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2788,8 +2788,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Use \`generateStaticParams\` to make route params static
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2827,7 +2827,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2850,8 +2850,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Use \`generateStaticParams\` to make route params static
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2896,7 +2896,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2919,8 +2919,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Use \`generateStaticParams\` to make route params static
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2972,7 +2972,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2995,8 +2995,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Use \`generateStaticParams\` to make route params static
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3042,7 +3042,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3065,8 +3065,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Use \`generateStaticParams\` to make route params static
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3113,7 +3113,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1250",
+           "code": "E1251",
            "description": "Next.js encountered runtime data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -3136,8 +3136,8 @@ describe('instant validation', () => {
          \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Use \`generateStaticParams\` to make route params static
            - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3181,7 +3181,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3232,7 +3232,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3255,8 +3255,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Use \`generateStaticParams\` to make route params static
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3296,7 +3296,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3319,8 +3319,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Use \`generateStaticParams\` to make route params static
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3361,7 +3361,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1250",
+             "code": "E1251",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",

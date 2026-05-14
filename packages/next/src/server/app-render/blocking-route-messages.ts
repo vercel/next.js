@@ -27,8 +27,8 @@ export function createRuntimeBodyErrorInNavigation(route: string): Error {
     `Route "${route}": Next.js encountered runtime data during the initial render or a navigation.\n\n` +
       `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
-      `  - Use \`generateStaticParams\` to make route params static\n` +
       `  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
+      `  - Use \`generateStaticParams\` to make route params static\n` +
       `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-route`
   )
