@@ -1390,7 +1390,8 @@ export function getNavigationDisallowedDynamicReasons(
   prelude: PreludeState,
   dynamicValidation: InstantValidationState,
   validationSampleTracking: InstantValidationSampleTracking | null,
-  boundaryState: ValidationBoundaryTracking
+  boundaryState: ValidationBoundaryTracking,
+  devRenderDidError: boolean
 ): NavigationValidationResult {
   // If we have errors related to missing samples, those should take precedence over everything else.
   if (validationSampleTracking) {
@@ -1402,6 +1403,12 @@ export function getNavigationDisallowedDynamicReasons(
 
   const { validationPreventingErrors } = dynamicValidation
   if (validationPreventingErrors.length > 0) {
+    if (process.env.__NEXT_DEV_SERVER && devRenderDidError) {
+      // The dev render already surfaced server errors to the user.
+      // The same errors likely caused validation to be inconclusive,
+      // so reporting them again as validation failures would be noisy.
+      return []
+    }
     return validationPreventingErrors
   }
 
@@ -1480,6 +1487,11 @@ export function getNavigationDisallowedDynamicReasons(
       }
       const error = new Error(message)
       return error
+    } else if (process.env.__NEXT_DEV_SERVER && devRenderDidError) {
+      // Errors outside the boundary likely blocked it from rendering,
+      // but they're already being reported to the user via the dev
+      // render. Suppress the validation failure to avoid noise.
+      return []
     } else if (thrownErrorsOutsideBoundary.length === 1) {
       const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.`
       const error = rootInstantStack !== null ? rootInstantStack() : new Error()
