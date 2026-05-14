@@ -23,11 +23,10 @@ export function ErrorMessage({ errorMessage, errorType }: ErrorMessageProps) {
     return null
   }
 
-  // The "Blocking Route" error message is specifically formatted to look nice
-  // in the overlay (rather than just passed through from the console), so we
-  // intentionally don't truncate it and rely on the scroll overflow instead.
-  const shouldTruncate =
-    isTooTall && errorType !== 'Blocking Route' && errorType !== 'Instant'
+  // Instant errors are formatted specifically for the overlay rather than
+  // passed through from the console, so we don't truncate them — they rely
+  // on scroll overflow instead.
+  const shouldTruncate = isTooTall && errorType !== 'Instant'
 
   return (
     <>

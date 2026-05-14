@@ -173,10 +173,6 @@ export function InstantGuidance({
   )
 }
 
-export function InstantExplanation() {
-  return <InstantHeaderExplanation kind="blocking-route" />
-}
-
 export function InstantHeaderExplanation({
   kind,
   explanation,
@@ -244,7 +240,6 @@ export const INSTANT_GUIDANCE_STYLES = css`
     overflow: hidden;
     position: relative;
     text-decoration: none;
-    text-decoration-line: none;
   }
 
   a[data-nextjs-fix-card],
@@ -252,12 +247,6 @@ export const INSTANT_GUIDANCE_STYLES = css`
   a[data-nextjs-fix-card]:visited {
     color: inherit;
     text-decoration: none;
-    text-decoration-line: none;
-  }
-
-  [data-nextjs-fix-card] * {
-    text-decoration: none !important;
-    text-decoration-line: none !important;
   }
 
   [data-nextjs-fix-card]:hover {

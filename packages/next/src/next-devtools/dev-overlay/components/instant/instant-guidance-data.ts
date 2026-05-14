@@ -596,9 +596,9 @@ export function getCards(
     case 'viewport':
       return variant === 'runtime' ? viewportRuntimeCards : viewportDynamicCards
     case 'sync-io':
-      return (cause && syncCardsByCause[cause]) || syncMathCards
+      return (cause && syncCardsByCause[cause]) || []
     case 'sync-io-client':
-      return (cause && syncClientCardsByCause[cause]) || syncClientMathCards
+      return (cause && syncClientCardsByCause[cause]) || []
     default:
       return kind satisfies never
   }

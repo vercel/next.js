@@ -21,7 +21,6 @@ import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
 import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
-  InstantExplanation,
   InstantHeaderExplanation,
   InstantGuidance,
   SYNC_IO_CLIENT_DOCS,
@@ -540,7 +539,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               ? 'Next.js encountered runtime data during the initial render.'
               : 'Next.js encountered uncached data during the initial render.'
           }
-          headerChildren={<InstantExplanation />}
+          headerChildren={<InstantHeaderExplanation kind="blocking-route" />}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
