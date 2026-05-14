@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
-import { usePathname } from '../../client/components/navigation'
 import { ShadowPortal } from './components/shadow-portal'
 import { ComponentStyles } from './styles/component-styles'
 import { ErrorOverlay } from './components/errors/error-overlay/error-overlay'
@@ -19,19 +18,39 @@ export const RenderErrorContext = createContext<{
 
 export const useRenderErrorContext = () => useContext(RenderErrorContext)
 
+// The dev overlay renders in a separate React root mounted at the document
+// body, so `usePathname()` from the App Router context isn't available here.
+// Subscribe to history events directly instead.
 function useClearInstantErrorsOnNav(
   dispatch: (action: DispatcherEvent) => void
 ) {
-  const pathname = usePathname()
-  const previousPathnameRef = useRef(pathname)
   useEffect(() => {
-    if (previousPathnameRef.current === pathname) return
-    previousPathnameRef.current = pathname
-    dispatch({
-      type: ACTION_INSTANT_ERRORS_CLEAR,
-      currentPath: pathname ?? '',
-    })
-  }, [pathname, dispatch])
+    let previousPath = window.location.pathname
+    const fireIfChanged = () => {
+      const currentPath = window.location.pathname
+      if (currentPath === previousPath) return
+      previousPath = currentPath
+      dispatch({ type: ACTION_INSTANT_ERRORS_CLEAR, currentPath })
+    }
+
+    window.addEventListener('popstate', fireIfChanged)
+    const originalPushState = history.pushState
+    const originalReplaceState = history.replaceState
+    history.pushState = function (...args) {
+      originalPushState.apply(this, args)
+      fireIfChanged()
+    }
+    history.replaceState = function (...args) {
+      originalReplaceState.apply(this, args)
+      fireIfChanged()
+    }
+
+    return () => {
+      window.removeEventListener('popstate', fireIfChanged)
+      history.pushState = originalPushState
+      history.replaceState = originalReplaceState
+    }
+  }, [dispatch])
 }
 
 export function DevOverlay() {
