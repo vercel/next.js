@@ -26,6 +26,7 @@ import {
   type GuidanceVariant,
 } from '../components/instant/instant-guidance'
 import { BLOCKING_ROUTE_NAVIGATION_EXPLANATION } from '../components/instant/instant-guidance-data'
+import { isBlockingRouteInNavError } from '../shared'
 import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './runtime-error/error-cause'
@@ -316,9 +317,7 @@ function isSyncIOClientError(message: string): boolean {
 
 function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
   const message = error.message
-  // Nav body factory variants say `accessed under <Suspense>`; SSR variants
-  // say `accessed outside of <Suspense>`.
-  const inNavigation = message.includes('accessed under `<Suspense>`')
+  const inNavigation = isBlockingRouteInNavError(message)
 
   const isBlockingPageLoadError = message.includes('/blocking-route')
   if (isBlockingPageLoadError) {

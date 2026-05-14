@@ -180,7 +180,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1247",
+           "code": "E1250",
            "description": "Next.js encountered runtime data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -200,7 +200,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/static/missing-suspense-around-runtime": Next.js encountered runtime data during the initial render or a navigation.
 
-         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Use \`generateStaticParams\` to make route params static
@@ -240,7 +240,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1246",
+           "code": "E1249",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -260,7 +260,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -300,7 +300,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1246",
+           "code": "E1249",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -321,7 +321,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -363,7 +363,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1247",
+           "code": "E1250",
            "description": "Next.js encountered runtime data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -383,7 +383,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic-layout": Next.js encountered runtime data during the initial render or a navigation.
 
-         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Use \`generateStaticParams\` to make route params static
@@ -423,7 +423,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1246",
+           "code": "E1249",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -443,7 +443,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic-layout": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -486,7 +486,7 @@ describe('instant validation', () => {
              ],
            },
          ],
-         "code": "E1247",
+         "code": "E1250",
          "description": "Next.js encountered runtime data during a navigation.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -534,7 +534,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1247",
+           "code": "E1250",
            "description": "Next.js encountered runtime data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -554,7 +554,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Next.js encountered runtime data during the initial render or a navigation.
 
-         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Use \`generateStaticParams\` to make route params static
@@ -629,7 +629,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1247",
+           "code": "E1250",
            "description": "Next.js encountered runtime data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -649,7 +649,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/static/suspense-too-high": Next.js encountered runtime data during the initial render or a navigation.
 
-         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Use \`generateStaticParams\` to make route params static
@@ -692,7 +692,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1246",
+           "code": "E1249",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -713,7 +713,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/suspense-too-high": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -1231,7 +1231,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1246",
+           "code": "E1249",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -1252,7 +1252,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/static/invalid-loading-above-route-group": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -1295,7 +1295,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1246",
+           "code": "E1249",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -1316,7 +1316,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/static/invalid-dynamic-layout-with-loading": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -1372,7 +1372,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1392,7 +1392,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -1460,7 +1460,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1480,7 +1480,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/invalid-blocking-inside-static": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -1521,7 +1521,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1246",
+             "code": "E1249",
              "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1541,7 +1541,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/runtime/invalid-blocking-inside-runtime": Next.js encountered uncached data during the initial render or a navigation.
 
-           \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Cache the data access with \`"use cache"\`
@@ -1585,7 +1585,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1605,7 +1605,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -1647,7 +1647,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1667,7 +1667,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route/foo": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -1709,7 +1709,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1729,7 +1729,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route/bar": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -2580,7 +2580,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2600,7 +2600,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/route-group-config-only": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -2641,7 +2641,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2661,7 +2661,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/route-group-config-and-segment-config": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -2703,7 +2703,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2723,7 +2723,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/route-group-segment-config-only": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -2765,7 +2765,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2785,7 +2785,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/route-group-config-with-deeper-segment/inner": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -2827,7 +2827,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2847,7 +2847,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/route-group-deeper-segment-config/inner": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -2896,7 +2896,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2916,7 +2916,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/route-group-shared-boundary": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -2972,7 +2972,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2992,7 +2992,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/parallel-group-depths-deep-slot-hole": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -3042,7 +3042,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3062,7 +3062,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/parallel-group-depths-shallow-slot-hole": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -3113,7 +3113,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1247",
+           "code": "E1250",
            "description": "Next.js encountered runtime data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -3133,7 +3133,7 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/static-layout-above-runtime-config/inner": Next.js encountered runtime data during the initial render or a navigation.
 
-         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+         \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Use \`generateStaticParams\` to make route params static
@@ -3181,7 +3181,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3232,7 +3232,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3252,7 +3252,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/config-depth-preference-slot-wins/deeper/[...rest]": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -3296,7 +3296,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3316,7 +3316,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/config-children-preferred": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -3361,7 +3361,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3412,11 +3412,11 @@ describe('instant validation', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1246",
+             "code": "E1248",
              "description": "Could not validate instant UI because an expected segment was not rendered.
 
            Unrendered segment:
-             app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
+app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
 
            Route: /suspense-in-root/static/multi-depth-deferred-fallback/inner
 
@@ -3476,11 +3476,11 @@ describe('instant validation', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1246",
+             "code": "E1248",
              "description": "Could not validate instant UI because an expected segment was not rendered.
 
            Unrendered segment:
-             app/suspense-in-root/static/test-firstmod/inter/layout.tsx
+app/suspense-in-root/static/test-firstmod/inter/layout.tsx
 
            Route: /suspense-in-root/static/test-firstmod/inter/inner
 
@@ -3538,12 +3538,12 @@ describe('instant validation', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1246",
+             "code": "E1248",
              "description": "Could not validate instant UI because an expected segment was not rendered.
 
            Unrendered segments:
-             app/suspense-in-root/static/test-multi-unrendered/@sidebar/page.tsx
-             app/suspense-in-root/static/test-multi-unrendered/page.tsx
+app/suspense-in-root/static/test-multi-unrendered/@sidebar/page.tsx
+app/suspense-in-root/static/test-multi-unrendered/page.tsx
 
            Route: /suspense-in-root/static/test-multi-unrendered
 
@@ -3648,7 +3648,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/disable-validation/disable-dev": Next.js encountered uncached data during the initial render or a navigation.
 
-           \`fetch(...)\` or \`connection()\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Cache the data access with \`"use cache"\`
@@ -3688,7 +3688,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1246",
+             "code": "E1249",
              "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",

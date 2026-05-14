@@ -281,17 +281,18 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
   return stack?.split(REACT_ERROR_STACK_BOTTOM_FRAME_REGEX)[0]
 }
 
+// Detects errors from `createRuntimeBodyErrorInNavigation` /
+// `createDynamicBodyErrorInNavigation`. SSR-only factories say "during the
+// initial render"; nav factories say "during the initial render or a navigation".
+export function isBlockingRouteInNavError(message: string): boolean {
+  return message.includes('or a navigation')
+}
+
 function getInstantErrorRoute(error: unknown): string | null {
   if (!error || typeof error !== 'object') return null
   const message = (error as Error).message
   if (typeof message !== 'string') return null
-
-  const isNavigationBody = message.includes('accessed under `<Suspense>`')
-  const isNavigationWrapper = message.includes(
-    'Could not validate `unstable_instant`'
-  )
-  if (!isNavigationBody && !isNavigationWrapper) return null
-
+  if (!isBlockingRouteInNavError(message)) return null
   const match = /^Route "([^"]+)":/.exec(message)
   return match ? match[1] : null
 }

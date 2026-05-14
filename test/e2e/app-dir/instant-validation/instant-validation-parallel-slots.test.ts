@@ -124,7 +124,7 @@ describe('instant validation - parallel slot configs', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -144,7 +144,7 @@ describe('instant validation - parallel slot configs', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/parallel/slot-config-only": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -184,7 +184,7 @@ describe('instant validation - parallel slot configs', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -204,7 +204,7 @@ describe('instant validation - parallel slot configs', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/parallel/slot-layout-config": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -244,7 +244,7 @@ describe('instant validation - parallel slot configs', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -264,7 +264,7 @@ describe('instant validation - parallel slot configs', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/parallel/slot-runtime-config": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -306,7 +306,7 @@ describe('instant validation - parallel slot configs', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -326,7 +326,7 @@ describe('instant validation - parallel slot configs', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/parallel/children-config-with-slot": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -368,7 +368,7 @@ describe('instant validation - parallel slot configs', () => {
                    ],
                  },
                ],
-               "code": "E1247",
+               "code": "E1250",
                "description": "Next.js encountered runtime data during a navigation.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -392,7 +392,7 @@ describe('instant validation - parallel slot configs', () => {
                    ],
                  },
                ],
-               "code": "E1247",
+               "code": "E1250",
                "description": "Next.js encountered runtime data during a navigation.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -413,7 +413,7 @@ describe('instant validation - parallel slot configs', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/parallel/fork-layout-config-with-slot": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -427,7 +427,7 @@ describe('instant validation - parallel slot configs', () => {
                at a (<anonymous>)
            Error: Route "/suspense-in-root/parallel/fork-layout-config-with-slot": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -535,7 +535,7 @@ describe('instant validation - parallel slot configs', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -553,7 +553,7 @@ describe('instant validation - parallel slot configs', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
@@ -583,11 +583,11 @@ describe('instant validation - parallel slot configs', () => {
           const browser = await navigateTo(href)
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1246",
+             "code": "E1248",
              "description": "Could not validate instant UI because an expected segment was not rendered.
 
            Unrendered segment:
-             app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked/page.tsx
+             test/tmp/next-test-1778789286151-152/app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked/page.tsx
 
            Route: /suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked
 
@@ -650,7 +650,7 @@ describe('instant validation - parallel slot configs', () => {
                  ],
                },
              ],
-             "code": "E1247",
+             "code": "E1250",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -668,7 +668,7 @@ describe('instant validation - parallel slot configs', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked": Next.js encountered runtime data during the initial render or a navigation.
 
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed under \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Use \`generateStaticParams\` to make route params static
