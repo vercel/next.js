@@ -73,7 +73,7 @@ export function groupCodeFrameLines(formattedFrame: string) {
 }
 
 // `>` marker or whitespace padding that sits before the line-number token.
-export function isLineNumberPrefixToken(content: string | undefined): boolean {
+function isLineNumberPrefixToken(content: string | undefined): boolean {
   return (
     content !== undefined && /^[\s>]+$/.test(content) && !content.includes('|')
   )
@@ -95,29 +95,4 @@ export function parseLineNumberFromCodeFrameLine(
     isErroredLine:
       line1 !== undefined && line1 === stackFrame.line1?.toString(),
   }
-}
-
-export function isCaretCodeFrameLine(line: AnserJsonEntry[]) {
-  const hasLineNumber =
-    (line[0]?.content === '>' || line[0]?.content === ' ') &&
-    line[1]?.content?.includes('|') &&
-    line[1]?.content.replace('|', '').trim() !== ''
-
-  return (
-    !hasLineNumber &&
-    line.some((entry) => entry.content.includes('^')) &&
-    line.every((entry) => /^[\s|^]*$/.test(entry.content))
-  )
-}
-
-export function getCaretOverlayTextFromCodeFrameLine(line: AnserJsonEntry[]) {
-  if (!isCaretCodeFrameLine(line)) {
-    return undefined
-  }
-
-  return line
-    .slice(1)
-    .map((entry) => entry.content)
-    .join('')
-    .replace(/[^\s^]/g, ' ')
 }

@@ -1,8 +1,6 @@
 import {
   formatCodeFrame,
-  getCaretOverlayTextFromCodeFrameLine,
   groupCodeFrameLines,
-  isCaretCodeFrameLine,
   parseLineNumberFromCodeFrameLine,
 } from './parse-code-frame'
 
@@ -91,28 +89,5 @@ describe('parse line numbers', () => {
       lineNumber: '7',
       isErroredLine: false,
     })
-  })
-
-  it('parses caret offset from caret lines', () => {
-    const input = {
-      stackFrame: {
-        file: 'app/page.tsx',
-        line1: 2,
-        column1: 9,
-        methodName: 'Page',
-        arguments: [],
-        ignored: false,
-      },
-      codeFrame:
-        "\u001b[0m \u001b[90m 1 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36mdefault\u001b[39m \u001b[36mfunction\u001b[39m \u001b[33mPage\u001b[39m() {\u001b[0m\n\u001b[0m\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 2 |\u001b[39m   \u001b[36mthrow\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m'test error'\u001b[39m)\u001b[0m\n\u001b[0m \u001b[90m   |\u001b[39m         \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 3 |\u001b[39m   \u001b[36mreturn\u001b[39m \u001b[33m<\u001b[39m\u001b[33mp\u001b[39m\u001b[33m>\u001b[39mhello world\u001b[33m<\u001b[39m\u001b[33m/\u001b[39m\u001b[33mp\u001b[39m\u001b[33m>\u001b[39m\u001b[0m\n\u001b[0m \u001b[90m 4 |\u001b[39m }\u001b[0m\n\u001b[0m \u001b[90m 5 |\u001b[39m\u001b[0m",
-    }
-
-    const formattedFrame = formatCodeFrame(input.codeFrame)
-    const decodedLines = groupCodeFrameLines(formattedFrame)
-
-    expect(isCaretCodeFrameLine(decodedLines[2])).toBe(true)
-    expect(getCaretOverlayTextFromCodeFrameLine(decodedLines[2])).toBe(
-      '             ^'
-    )
   })
 })

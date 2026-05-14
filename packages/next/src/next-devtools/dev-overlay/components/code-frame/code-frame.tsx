@@ -6,10 +6,7 @@ import { ExternalIcon } from '../../icons/external'
 import { FileIcon } from '../../icons/file'
 import {
   formatCodeFrame,
-  getCaretOverlayTextFromCodeFrameLine,
   groupCodeFrameLines,
-  isCaretCodeFrameLine,
-  isLineNumberPrefixToken,
   parseLineNumberFromCodeFrameLine,
 } from './parse-code-frame'
 
@@ -66,15 +63,6 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
         <div className="code-frame-lines">
           {parsedLineStates.map(({ line, parsedLine }, lineIndex) => {
             const { lineNumber, isErroredLine } = parsedLine
-            const nextLine = parsedLineStates[lineIndex + 1]?.line
-            const caretOverlayText =
-              isErroredLine && nextLine
-                ? getCaretOverlayTextFromCodeFrameLine(nextLine)
-                : undefined
-
-            if (isCaretCodeFrameLine(line)) {
-              return null
-            }
 
             const lineNumberProps: Record<string, string | boolean> = {}
             if (lineNumber) {
@@ -84,45 +72,26 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
               lineNumberProps['data-nextjs-codeframe-line--errored'] = true
             }
 
-            // Drop leading prefix tokens so every line aligns at the line number.
-            const firstContentIndex = line.findIndex(
-              (entry) => !isLineNumberPrefixToken(entry.content)
-            )
-
             return (
               <div key={`line-${lineIndex}`} {...lineNumberProps}>
-                {line.map((entry, entryIndex) => {
-                  if (
-                    firstContentIndex !== -1 &&
-                    entryIndex < firstContentIndex
-                  ) {
-                    return null
-                  }
-
-                  return (
-                    <span
-                      key={`frame-${entryIndex}`}
-                      style={{
-                        color: entry.fg
-                          ? `var(--color-${entry.fg})`
-                          : undefined,
-                        ...(entry.decoration === 'bold'
-                          ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
-                            // having longer width than expected on Geist Mono font-weight
-                            // above 600, hence a temporary fix is to use 500 for bold.
-                            { fontWeight: 500 }
-                          : entry.decoration === 'italic'
-                            ? { fontStyle: 'italic' }
-                            : undefined),
-                      }}
-                    >
-                      {entry.content}
-                    </span>
-                  )
-                })}
-                {caretOverlayText ? (
-                  <span data-nextjs-codeframe-caret>{caretOverlayText}</span>
-                ) : null}
+                {line.map((entry, entryIndex) => (
+                  <span
+                    key={`frame-${entryIndex}`}
+                    style={{
+                      color: entry.fg ? `var(--color-${entry.fg})` : undefined,
+                      ...(entry.decoration === 'bold'
+                        ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
+                          // having longer width than expected on Geist Mono font-weight
+                          // above 600, hence a temporary fix is to use 500 for bold.
+                          { fontWeight: 500 }
+                        : entry.decoration === 'italic'
+                          ? { fontStyle: 'italic' }
+                          : undefined),
+                    }}
+                  >
+                    {entry.content}
+                  </span>
+                ))}
               </div>
             )
           })}
@@ -232,7 +201,7 @@ export const CODE_FRAME_STYLES = `
     position: relative;
     isolation: isolate;
 
-    > span:not([data-nextjs-codeframe-caret]) { 
+    > span { 
       position: relative;
       z-index: 1;
     }
@@ -246,18 +215,6 @@ export const CODE_FRAME_STYLES = `
       box-shadow: 2px 0 0 0 var(--color-red-900) inset;
       position: absolute;
     }
-  }
-
-  [data-nextjs-codeframe-caret] {
-    position: absolute;
-    bottom: -12px;
-    left: 0;
-    z-index: 2;
-    color: var(--color-red-900) !important;
-    font-weight: 500;
-    line-height: var(--code-frame-line-height);
-    pointer-events: none;
-    white-space: pre;
   }
 
   [data-nextjs-codeframe-line] > span:first-child {
