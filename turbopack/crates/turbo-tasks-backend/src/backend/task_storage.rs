@@ -100,7 +100,7 @@ impl TaskStorage {
              the tail starts at a valid offset for every payload",
         );
         debug_assert!(
-            head_size % LAZY_MAX_ALIGN == 0,
+            head_size.is_multiple_of(LAZY_MAX_ALIGN),
             "size_of::<TaskStorageInner>() ({head_size}) must be a multiple of LAZY_MAX_ALIGN \
              ({LAZY_MAX_ALIGN}) so the tail base is aligned for every payload",
         );
@@ -148,7 +148,7 @@ impl TaskStorage {
     /// # Safety
     /// `T` must match the payload type for `tag` per the schema's tag → type
     /// mapping.
-    pub(crate) unsafe fn lazy_insert<T>(&mut self, tag: Tag, value: T) {
+    pub(crate) unsafe fn lazy_insert<T: 'static>(&mut self, tag: Tag, value: T) {
         debug_assert!(
             !self.lazy_tail.has(tag),
             "lazy variant tag {} already present",
@@ -176,7 +176,7 @@ impl TaskStorage {
     ///
     /// # Safety
     /// `T` must match the payload type for `tag`.
-    pub(crate) unsafe fn lazy_replace<T>(&mut self, tag: Tag, value: T) -> Option<T> {
+    pub(crate) unsafe fn lazy_replace<T: 'static>(&mut self, tag: Tag, value: T) -> Option<T> {
         if self.lazy_tail.has(tag) {
             // SAFETY: caller ensures type match; same-tag replace is
             // in-place, no shifts or growth.
@@ -200,7 +200,7 @@ impl TaskStorage {
     ///
     /// # Safety
     /// `T` must match the payload type for `tag`.
-    pub(crate) unsafe fn lazy_get_or_create<T: Default>(&mut self, tag: Tag) -> &mut T {
+    pub(crate) unsafe fn lazy_get_or_create<T: Default + 'static>(&mut self, tag: Tag) -> &mut T {
         if !self.lazy_tail.has(tag) {
             // SAFETY: caller ensures `T` matches `tag`; variant not present.
             unsafe { self.lazy_insert::<T>(tag, T::default()) };
@@ -214,7 +214,7 @@ impl TaskStorage {
     /// # Safety
     /// `T` must match the payload type for `tag`.
     #[inline]
-    pub(crate) unsafe fn lazy_find<T>(&self, tag: Tag) -> Option<&T> {
+    pub(crate) unsafe fn lazy_find<T: 'static>(&self, tag: Tag) -> Option<&T> {
         let tail_base = self.tail_ptr();
         // SAFETY: caller ensures `T` matches `tag`; `tail_base` is the start
         // of the tail buffer for this allocation, with provenance over the
@@ -227,7 +227,7 @@ impl TaskStorage {
     /// # Safety
     /// `T` must match the payload type for `tag`.
     #[inline]
-    pub(crate) unsafe fn lazy_find_mut<T>(&mut self, tag: Tag) -> Option<&mut T> {
+    pub(crate) unsafe fn lazy_find_mut<T: 'static>(&mut self, tag: Tag) -> Option<&mut T> {
         let tail_base = self.tail_ptr_mut();
         // SAFETY: caller ensures `T` matches `tag`; `tail_base` is the start
         // of the tail buffer for this allocation.
@@ -238,7 +238,7 @@ impl TaskStorage {
     ///
     /// # Safety
     /// `T` must match the payload type for `tag`.
-    pub(crate) unsafe fn lazy_take<T>(&mut self, tag: Tag) -> Option<T> {
+    pub(crate) unsafe fn lazy_take<T: 'static>(&mut self, tag: Tag) -> Option<T> {
         let tail_base = self.tail_ptr_mut();
         // SAFETY: caller ensures `T` matches `tag`; tail_base has provenance
         // over the full allocation.
@@ -465,8 +465,40 @@ impl Drop for TaskStorage {
 }
 
 impl fmt::Debug for TaskStorage {
+    /// Pretty-prints both the inline head and each present lazy variant by
+    /// name and value. Each lazy payload is rendered through its own
+    /// `Debug` impl via the schema-emitted dispatch.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("TaskStorage").field(self.head()).finish()
+        let head = self.head();
+        let mut map = f.debug_map();
+        // Inline head: format it as a single nested `Debug` so the inline
+        // fields keep their derived layout.
+        map.entry(&"inline", &head.inline);
+        map.entry(&"flags", &head.flags);
+
+        // Walk every present lazy variant. Each arm in `lazy_debug_dispatch`
+        // adds its own `(field_name, &value)` entry to `map`.
+        let mut bits = head.lazy_tail.present;
+        let tail_base = self.tail_ptr();
+        while bits != 0 {
+            let bit_idx = bits.trailing_zeros();
+            // `bit_idx` is in `0..32` because `bits != 0`.
+            let tag = Tag::new((bit_idx + 1) as u8);
+            // SAFETY: `tag` is in `1..=LAZY_N` (its bit was set in
+            // `present`), and the byte at the computed offset is a live
+            // payload whose type the schema's `lazy_debug_dispatch` matches
+            // by tag.
+            unsafe {
+                let offset = crate::backend::lazy_tail::LazyTail::sum_padded_sizes(
+                    head.lazy_tail.present & tag.mask_below(),
+                );
+                let ptr = tail_base.add(offset);
+                crate::backend::storage_schema::lazy_debug_dispatch(tag, ptr, &mut map);
+            }
+            bits &= bits - 1;
+        }
+
+        map.finish()
     }
 }
 

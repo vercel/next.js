@@ -1650,4 +1650,48 @@ mod tests {
             "LazyTail size changed! Inspect Rust's struct layout to find why.",
         );
     }
+
+    /// `TaskStorage`'s `Debug` impl should print inline fields plus each
+    /// present lazy variant keyed by its real field name (rendered through
+    /// the variant's own `Debug` impl). Pin a handful of keys so the
+    /// dispatch keeps the names in the output rather than dumping raw
+    /// bitmap bytes.
+    #[test]
+    fn test_debug_impl_renders_lazy_variant_names() {
+        let mut storage = TaskStorage::new();
+        // One inline field, one direct lazy field, one collection lazy field.
+        storage.set_output(OutputValue::Output(TaskId::new(1).unwrap()));
+        storage.set_dirty(Dirtyness::SessionDependent);
+        storage
+            .cell_dependencies_mut()
+            .insert(CellDependency::All(CellRef {
+                task: TaskId::new(2).unwrap(),
+                cell: CellId {
+                    type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
+                    index: 0,
+                },
+            }));
+
+        let rendered = format!("{storage:?}");
+        // Inline head appears via the `inline` key.
+        assert!(
+            rendered.contains("inline"),
+            "Debug should include inline head: {rendered}",
+        );
+        // Lazy variants appear by their real field name, not by raw tag.
+        assert!(
+            rendered.contains("dirty"),
+            "Debug should include `dirty` lazy variant: {rendered}",
+        );
+        assert!(
+            rendered.contains("cell_dependencies"),
+            "Debug should include `cell_dependencies` lazy variant: {rendered}",
+        );
+        // The variant value (not just the name) should be present too —
+        // Dirtyness renders one of its enum variants.
+        assert!(
+            rendered.contains("SessionDependent"),
+            "Debug should include the Dirtyness payload: {rendered}",
+        );
+    }
 }

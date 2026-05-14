@@ -1103,6 +1103,19 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         })
         .collect();
 
+    // Per-tag payload `TypeId`, indexed by tag. Used by
+    // `Tag::debug_assert_type::<T>()` to catch wrong-type casts at the call
+    // site rather than producing UB downstream. Only consulted in debug
+    // builds, but the table is always emitted so a single binary layout
+    // works for both.
+    let type_id_entries: Vec<_> = all_lazy_fields
+        .iter()
+        .map(|field| {
+            let ty = &field.field_type;
+            quote! { std::any::TypeId::of::<#ty>() }
+        })
+        .collect();
+
     // Per-category presence-bitmap masks. Bit `tag - 1` is set for variants
     // belonging to the category. `LAZY_PERSISTENT_MASK` is `LAZY_META_MASK |
     // LAZY_DATA_MASK`.
@@ -1163,6 +1176,26 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         })
         .collect();
 
+    // Per-tag dispatch arms for `lazy_debug_dispatch`. Each arm renders the
+    // present payload using its own `Debug` impl. The field name is
+    // forwarded as the key in the `DebugMap` the caller passes in.
+    let debug_dispatch_arms: Vec<_> = all_lazy_fields
+        .iter()
+        .enumerate()
+        .map(|(idx, field)| {
+            let tag = (idx + 1) as u8;
+            let ty = &field.field_type;
+            let field_name_str = field.field_name.to_string();
+            quote! {
+                #tag => {
+                    // SAFETY: caller guarantees `ptr` points to a live `#ty`.
+                    let value: &#ty = unsafe { &*ptr.cast::<#ty>() };
+                    map.entry(&#field_name_str, value);
+                }
+            }
+        })
+        .collect();
+
     quote! {
         // =====================================================================
         // Lazy-field tag layout tables.
@@ -1212,6 +1245,14 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         #[doc = "compute byte offsets into the tail without re-doing alignment math."]
         pub const LAZY_PADDED_SIZE: [u16; LAZY_N as usize + 1] = [0 #(, #padded_size_entries)*];
 
+        #[doc = "Per-tag payload `TypeId`. Index 0 is `TypeId::of::<()>()` as an"]
+        #[doc = "unused sentinel (real tags are 1-based). Consulted by"]
+        #[doc = "`Tag::debug_assert_type::<T>()` in debug builds to catch a caller"]
+        #[doc = "passing the wrong `T` to a typed `LazyTail` / `TaskStorage`"]
+        #[doc = "method before the unsafe pointer cast turns it into UB."]
+        pub const LAZY_TYPE_IDS: [std::any::TypeId; LAZY_N as usize + 1] =
+            [std::any::TypeId::of::<()>() #(, #type_id_entries)*];
+
         #[doc = "Bitmap of persistent (non-transient) variants. Bit `tag - 1` set."]
         pub const LAZY_PERSISTENT_MASK: u32 = #persistent_mask;
 
@@ -1252,6 +1293,23 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
                     debug_assert!(false, "lazy_is_empty_dispatch: invalid tag {}", tag.raw());
                     false
                 }
+            }
+        }
+
+        #[doc = "Format the payload at `ptr` into `map` keyed by the variant's"]
+        #[doc = "field name. Used by `TaskStorage`'s `Debug` impl to render"]
+        #[doc = "each present lazy variant by its real name and value."]
+        #[doc = ""]
+        #[doc = "# Safety"]
+        #[doc = "Same as `lazy_drop_dispatch`."]
+        pub(crate) unsafe fn lazy_debug_dispatch(
+            tag: crate::backend::lazy_tail::Tag,
+            ptr: *const u8,
+            map: &mut std::fmt::DebugMap<'_, '_>,
+        ) {
+            match tag.raw() {
+                #(#debug_dispatch_arms)*
+                _ => debug_assert!(false, "lazy_debug_dispatch: invalid tag {}", tag.raw()),
             }
         }
     }
@@ -1330,8 +1388,14 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
         #[doc = "in `head`. `flags` and `lazy_tail` stay at the top level for now —"]
         #[doc = "lots of code reads them as bare field accesses, and folding them in"]
         #[doc = "is a separate refactor."]
+        #[doc = ""]
+        #[doc = "Doesn't derive `Debug`: pretty-printing the lazy tail needs a"]
+        #[doc = "pointer to the tail bytes, which only the owning"]
+        #[doc = "[`crate::backend::task_storage::TaskStorage`] has. The custom"]
+        #[doc = "`Debug` impl on `TaskStorage` formats both the inline head and"]
+        #[doc = "each present lazy payload."]
         #[automatically_derived]
-        #[derive(Debug, Default, turbo_tasks::ShrinkToFit)]
+        #[derive(Default, turbo_tasks::ShrinkToFit)]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
         pub struct TaskStorageInner {
             pub(crate) inline: TaskStorageInline,
