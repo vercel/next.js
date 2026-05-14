@@ -107,6 +107,7 @@ export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
 export const ACTION_INSTANT_NAVS_TOGGLE = 'instant-navs-toggle'
 export const ACTION_INSTANT_NAVS_RESET = 'instant-navs-reset'
+export const ACTION_INSTANT_ERRORS_CLEAR = 'instant-errors-clear'
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
   '__nextjs-dev-tools-panel-position'
@@ -231,6 +232,11 @@ interface InstantNavResetAction {
   type: typeof ACTION_INSTANT_NAVS_RESET
 }
 
+interface InstantErrorsClearAction {
+  type: typeof ACTION_INSTANT_ERRORS_CLEAR
+  currentPath: string
+}
+
 export type DispatcherEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -258,6 +264,7 @@ export type DispatcherEvent =
   | DevToolsConfigAction
   | CacheOnlyToggleAction
   | InstantNavResetAction
+  | InstantErrorsClearAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -272,6 +279,25 @@ const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
 // This gets only the stack after React which is unaffected by StrictMode.
 function getStackIgnoringStrictMode(stack: string | undefined) {
   return stack?.split(REACT_ERROR_STACK_BOTTOM_FRAME_REGEX)[0]
+}
+
+// Errors stamped by the `*InNavigation` factories or wrappers from
+// `dynamic-rendering.ts` navigation paths — both clear on nav. Initial-render
+// errors lack both signals and persist.
+function getInstantErrorRoute(error: unknown): string | null {
+  if (!error || typeof error !== 'object') return null
+  const message = (error as Error).message
+  if (typeof message !== 'string') return null
+
+  const isNavigationFactory =
+    (error as { __nextInstantNav?: unknown }).__nextInstantNav === true
+  const isNavigationWrapper = message.includes(
+    'Could not validate `unstable_instant`'
+  )
+  if (!isNavigationFactory && !isNavigationWrapper) return null
+
+  const match = /^Route "([^"]+)":/.exec(message)
+  return match ? match[1] : null
 }
 
 const shouldDisableDevIndicator =
@@ -538,6 +564,17 @@ export function useErrorOverlayReducer(
         }
         case ACTION_INSTANT_NAVS_RESET: {
           return { ...state, instantNavs: false }
+        }
+        case ACTION_INSTANT_ERRORS_CLEAR: {
+          const remaining = state.errors.filter((event) => {
+            const route = getInstantErrorRoute(event.error)
+            if (route === null) return true
+            return route === action.currentPath
+          })
+          if (remaining.length === state.errors.length) {
+            return state
+          }
+          return { ...state, errors: remaining }
         }
         default: {
           return state

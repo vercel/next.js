@@ -1,4 +1,5 @@
-import { createContext, useContext, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { usePathname } from '../../client/components/navigation'
 import { ShadowPortal } from './components/shadow-portal'
 import { ComponentStyles } from './styles/component-styles'
 import { ErrorOverlay } from './components/errors/error-overlay/error-overlay'
@@ -9,6 +10,7 @@ import { DevToolsIndicator } from './components/devtools-indicator/devtools-indi
 import { PanelRouter } from './menu/panel-router'
 import { PanelRouterContext, type PanelStateKind } from './menu/context'
 import { useDevOverlayContext } from '../dev-overlay.browser'
+import { ACTION_INSTANT_ERRORS_CLEAR, type DispatcherEvent } from './shared'
 
 export const RenderErrorContext = createContext<{
   runtimeErrors: ReadyRuntimeError[]
@@ -17,6 +19,21 @@ export const RenderErrorContext = createContext<{
 
 export const useRenderErrorContext = () => useContext(RenderErrorContext)
 
+function useClearInstantErrorsOnNav(
+  dispatch: (action: DispatcherEvent) => void
+) {
+  const pathname = usePathname()
+  const previousPathnameRef = useRef(pathname)
+  useEffect(() => {
+    if (previousPathnameRef.current === pathname) return
+    previousPathnameRef.current = pathname
+    dispatch({
+      type: ACTION_INSTANT_ERRORS_CLEAR,
+      currentPath: pathname ?? '',
+    })
+  }, [pathname, dispatch])
+}
+
 export function DevOverlay() {
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const { state, dispatch, getSquashedHydrationErrorDetails } =
@@ -24,6 +41,8 @@ export function DevOverlay() {
   const [panel, setPanel] = useState<null | PanelStateKind>(() =>
     state.instantNavs ? 'instant-navs' : null
   )
+
+  useClearInstantErrorsOnNav(dispatch)
 
   const triggerRef = useRef<HTMLButtonElement>(null)
   return (
