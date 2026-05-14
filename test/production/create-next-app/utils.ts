@@ -97,6 +97,12 @@ export async function tryNextDev({
   // create a `node_modules/.bin/next` shim pointing at that copy. Invoke
   // next's bin directly so webpack loaders resolve under `node_modules/next`.
   const nextBin = 'node_modules/next/dist/bin/next'
+  // `createNext` is used here (rather than `nextTestSetup`) because each call
+  // happens inside an `it` block after `useTempDir` has scaffolded a fresh
+  // CNA project. The isolation `createNext` provides — copying the CNA
+  // project into a clean test dir, running `next build`/`next start` there,
+  // and tearing the dir down on `destroy()` — is what keeps build artifacts
+  // (`.next/`, etc.) off the original CNA-generated directory.
   const next = await createNext({
     files: dir,
     installCommand: 'true',
