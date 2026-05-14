@@ -155,14 +155,14 @@ const metadataRuntimeCards: FixCard[] = [
     group: 'static',
     link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#use-static-metadata',
     snippets: [
-      { text: 'export const metadata = {' },
-      { text: '  title: "My Page"', highlight: true },
+      { text: 'export const metadata = {', highlight: true },
+      { text: '  title: "My Page"' },
       { text: '}' },
     ],
   },
   {
     id: 'render-page-at-request-time',
-    title: 'Render page at request time',
+    title: 'Generate the page on every request',
     group: 'dynamic',
     link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#render-page-at-request-time',
     snippets: [
@@ -186,7 +186,7 @@ const metadataDynamicCards: FixCard[] = [
   },
   {
     id: 'render-page-at-request-time',
-    title: 'Render page at request time',
+    title: 'Generate the page on every request',
     group: 'dynamic',
     link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#render-page-at-request-time',
     snippets: [
@@ -205,8 +205,8 @@ const viewportRuntimeCards: FixCard[] = [
     group: 'static',
     link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#use-static-viewport',
     snippets: [
-      { text: 'export const viewport = {' },
-      { text: '  themeColor: "#000"', highlight: true },
+      { text: 'export const viewport = {', highlight: true },
+      { text: '  themeColor: "#000"' },
       { text: '}' },
     ],
   },
@@ -236,7 +236,7 @@ const viewportRuntimeCards: FixCard[] = [
 const viewportDynamicCards: FixCard[] = [
   {
     id: 'cache-viewport-data',
-    title: 'Cache viewport data',
+    title: 'Cache the viewport data',
     group: 'cache',
     link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#cache-viewport-data',
     snippets: [
@@ -273,7 +273,7 @@ const viewportDynamicCards: FixCard[] = [
 const syncMathCards: FixCard[] = [
   {
     id: 'render-at-request-time',
-    title: 'Render at request time',
+    title: 'Generate on every request',
     group: 'dynamic',
     link: 'https://nextjs.org/docs/messages/next-prerender-random#render-at-request-time',
     snippets: [
@@ -293,12 +293,23 @@ const syncMathCards: FixCard[] = [
       { text: '  return String(Math.random())' },
     ],
   },
+  {
+    id: 'render-on-the-client',
+    title: 'Render on the client',
+    group: 'client',
+    link: 'https://nextjs.org/docs/messages/next-prerender-random#render-on-the-client',
+    snippets: [
+      { text: '"use client"', highlight: true },
+      { text: 'const [id] = useState(() => Math.random())' },
+      { text: 'return <Item id={id} />' },
+    ],
+  },
 ]
 
 const syncDateCards: FixCard[] = [
   {
     id: 'render-at-request-time',
-    title: 'Render at request time',
+    title: 'Generate on every request',
     group: 'dynamic',
     link: 'https://nextjs.org/docs/messages/next-prerender-current-time#render-at-request-time',
     snippets: [
@@ -322,11 +333,11 @@ const syncDateCards: FixCard[] = [
     id: 'render-on-the-client',
     title: 'Render on the client',
     group: 'client',
-    link: 'https://nextjs.org/docs/messages/next-prerender-current-time#request-time-use-case',
+    link: 'https://nextjs.org/docs/messages/next-prerender-current-time#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
-      { text: 'export function RelativeTime() {' },
-      { text: '  return timeAgo(Date.now())' },
+      { text: 'useEffect(() => setT(Date.now()), [])' },
+      { text: 'return <Banner time={t} />' },
     ],
   },
   {
@@ -345,7 +356,7 @@ const syncDateCards: FixCard[] = [
 const syncCryptoCards: FixCard[] = [
   {
     id: 'render-at-request-time',
-    title: 'Render at request time',
+    title: 'Generate on every request',
     group: 'dynamic',
     link: 'https://nextjs.org/docs/messages/next-prerender-crypto#render-at-request-time',
     snippets: [
@@ -363,6 +374,17 @@ const syncCryptoCards: FixCard[] = [
       { text: 'function TokenId() {' },
       { text: '  "use cache"', highlight: true },
       { text: '  return crypto.randomUUID()' },
+    ],
+  },
+  {
+    id: 'render-on-the-client',
+    title: 'Render on the client',
+    group: 'client',
+    link: 'https://nextjs.org/docs/messages/next-prerender-crypto#render-on-the-client',
+    snippets: [
+      { text: '"use client"', highlight: true },
+      { text: 'const [id] = useState(() => crypto.randomUUID())' },
+      { text: 'return <Token id={id} />' },
     ],
   },
 ]
@@ -387,9 +409,20 @@ const syncClientDateCards: FixCard[] = [
     group: 'defer',
     link: 'https://nextjs.org/docs/messages/next-prerender-current-time-client#move-into-effect-or-event-handler',
     snippets: [
-      { text: '<button onClick={() => {' },
-      { text: '  setT(Date.now())', highlight: true },
+      { text: '<button onClick={() => {', highlight: true },
+      { text: '  setT(Date.now())' },
       { text: '}} />' },
+    ],
+  },
+  {
+    id: 'measure-elapsed-time',
+    title: 'Measure elapsed time',
+    group: 'measure',
+    link: 'https://nextjs.org/docs/messages/next-prerender-current-time-client#measure-elapsed-time',
+    snippets: [
+      { text: 'const start = performance.now()', highlight: true },
+      { text: 'doWork()' },
+      { text: 'const ms = performance.now() - start' },
     ],
   },
 ]
@@ -412,8 +445,8 @@ const syncClientMathCards: FixCard[] = [
     group: 'defer',
     link: 'https://nextjs.org/docs/messages/next-prerender-random-client#move-into-effect-or-event-handler',
     snippets: [
-      { text: '<button onClick={() => {' },
-      { text: '  setId(Math.random())', highlight: true },
+      { text: '<button onClick={() => {', highlight: true },
+      { text: '  setId(Math.random())' },
       { text: '}} />' },
     ],
   },
@@ -437,8 +470,8 @@ const syncClientCryptoCards: FixCard[] = [
     group: 'defer',
     link: 'https://nextjs.org/docs/messages/next-prerender-crypto-client#move-into-effect-or-event-handler',
     snippets: [
-      { text: '<button onClick={() => {' },
-      { text: '  setId(crypto.randomUUID())', highlight: true },
+      { text: '<button onClick={() => {', highlight: true },
+      { text: '  setId(crypto.randomUUID())' },
       { text: '}} />' },
     ],
   },
