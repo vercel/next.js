@@ -430,6 +430,17 @@ impl DerefMut for TaskStorage {
 }
 
 impl Drop for TaskStorage {
+    /// # Panics during drop
+    ///
+    /// If a payload's destructor (invoked through `lazy_drop_dispatch` in
+    /// step 1) panics, the unwind propagates out of `drop` and steps 2/3
+    /// are skipped — meaning the head fields are *not* dropped, the buffer
+    /// is *not* freed, and any payloads at higher tags than the panicking
+    /// one are *not* run. Lower-tag payloads dropped before the panic are
+    /// gone. This is the standard Rust drop-on-panic behavior (no
+    /// `catch_unwind` in destructors); we accept it because payload
+    /// destructors are written by schema authors and expected to be
+    /// panic-free.
     fn drop(&mut self) {
         // Snapshot `cap` while the head is still a live `TaskStorageInner`;
         // after `drop_in_place` we never reborrow it.

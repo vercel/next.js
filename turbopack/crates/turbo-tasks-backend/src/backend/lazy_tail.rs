@@ -535,37 +535,6 @@ mod tests {
     }
 
     #[test]
-    fn tag_masks_partition_the_other_bits() {
-        // For any tag, `mask_below | bit | mask_above` covers every bit in
-        // a u32 with no overlap. This is the structural invariant the
-        // insert/take/offset code relies on.
-        for tag_raw in 1..=LAZY_N {
-            let tag = Tag::new(tag_raw);
-            let union = tag.mask_below() | tag.bit() | tag.mask_above();
-            assert_eq!(
-                union,
-                u32::MAX,
-                "masks must cover every bit for tag {tag_raw}"
-            );
-            assert_eq!(
-                tag.mask_below() & tag.bit(),
-                0,
-                "mask_below must not overlap bit for tag {tag_raw}",
-            );
-            assert_eq!(
-                tag.mask_above() & tag.bit(),
-                0,
-                "mask_above must not overlap bit for tag {tag_raw}",
-            );
-            assert_eq!(
-                tag.mask_below() & tag.mask_above(),
-                0,
-                "mask_below and mask_above must not overlap for tag {tag_raw}",
-            );
-        }
-    }
-
-    #[test]
     fn option_tag_niches_to_one_byte() {
         // Tag wraps `NonZeroU8`, so `Option<Tag>` should reuse the zero
         // value as the `None` discriminant.

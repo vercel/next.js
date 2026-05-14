@@ -3299,8 +3299,8 @@ fn gen_encode_body(grouped_fields: &GroupedFields, category: Category) -> TokenS
         .persistent_inline(category.clone())
         .map(generate_encode_inline_field)
         .collect();
-    let lazy: Vec<_> = grouped_fields.persistent_lazy(category).collect();
-    let lazy_encode = generate_encode_lazy_fields(&lazy);
+    let lazy: Vec<_> = grouped_fields.persistent_lazy(category.clone()).collect();
+    let lazy_encode = generate_encode_lazy_fields(category, &lazy);
 
     quote! {
         #(#inline)*
@@ -3637,30 +3637,46 @@ fn generate_encode_lazy_field_with_index(field: &FieldInfo, index: u8) -> TokenS
 /// Generate code to encode lazy fields to bincode.
 /// Uses sentinel-terminated format: [index, data]... [sentinel]
 ///
-/// Emits one explicit `if let Some(data) = self.get_<variant>() { ... }` block
-/// per variant in `fields`, in their order. The unrolled form keeps the lazy
-/// storage representation opaque to this codegen — no iteration over
-/// `&LazyField` is needed.
-fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
+/// Walks the presence bitmap once (via `try_for_each_present_in_mask`)
+/// and dispatches per-tag to the variant's encode body. Compared to the
+/// previous "ask every variant if present, then encode" form this:
+/// - Skips offset recomputation for the absent variants (`for_each_present` maintains a running
+///   offset)
+/// - Reads each present payload from a pointer the iterator already computed, instead of redoing
+///   the `present & mask_below()` popcount inside the per-variant accessor.
+fn generate_encode_lazy_fields(category: Category, fields: &[&FieldInfo]) -> TokenStream {
     if fields.is_empty() {
         return quote! {};
     }
 
-    let encode_blocks: Vec<_> = fields
+    let category_mask_ident = match category {
+        Category::Meta => quote! { LAZY_META_MASK },
+        Category::Data => quote! { LAZY_DATA_MASK },
+        Category::Transient => {
+            // Transient lazy fields are never serialized.
+            unreachable!("generate_encode_lazy_fields called for Transient category");
+        }
+    };
+
+    let arms: Vec<_> = fields
         .iter()
         .enumerate()
         .map(|(idx, field)| {
-            // add 1 so 0 is reserved for the sentinel
-            let tag = idx as u8 + 1;
-            // For direct lazy fields the by-reference getter is `get_<name>()`; for
-            // collection lazy fields it's just `<name>()`. Both return `Option<&T>`.
-            let getter = match field.storage_type {
-                StorageType::Direct => field.get_ident(),
-                _ => field.ref_ident(),
-            };
-            let body = generate_encode_lazy_field_with_index(field, tag);
+            // Per-category wire index. `+1` so 0 stays reserved for the
+            // bincode encode sentinel that terminates the stream.
+            let wire_idx = idx as u8 + 1;
+            let field_type = &field.field_type;
+            let tag_ident = syn::Ident::new(
+                &format!("LAZY_TAG_{}", field.field_name.to_string().to_uppercase()),
+                proc_macro2::Span::call_site(),
+            );
+            let body = generate_encode_lazy_field_with_index(field, wire_idx);
             quote! {
-                if let Some(data) = self.#getter() {
+                t if t == #tag_ident.raw() => {
+                    // SAFETY: `tag` is `#tag_ident`, whose schema-declared
+                    // payload type is `#field_type`. `ptr` is the payload
+                    // pointer the iterator computed for that tag.
+                    let data: &#field_type = unsafe { &*ptr.cast::<#field_type>() };
                     #body
                 }
             }
@@ -3668,8 +3684,40 @@ fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
         .collect();
 
     quote! {
-        // Encode each persistent lazy field in this category, in tag order.
-        #(#encode_blocks)*
+        // Walk every present payload and filter by this category's mask
+        // inside the closure. The iterator already maintains the running
+        // byte-tail offset, so the per-arm body doesn't recompute it.
+        //
+        // SAFETY: `tail_base` is derived from the owning `TaskStorage`'s
+        // `NonNull<TaskStorageInner>`, which has provenance over the full
+        // head+tail allocation. Each arm matches on a tag whose payload
+        // type is fixed by the schema.
+        let mut __encode_result: Result<(), bincode::error::EncodeError> = Ok(());
+        let tail_base = self.tail_ptr();
+        unsafe {
+            let _ = self.lazy_tail.try_for_each_present(tail_base, |tag, ptr| {
+                if (tag.bit() & #category_mask_ident) == 0 {
+                    return std::ops::ControlFlow::Continue(());
+                }
+                let mut inner = || -> Result<(), bincode::error::EncodeError> {
+                    match tag.raw() {
+                        #(#arms)*
+                        _ => {
+                            debug_assert!(false, "tag {} not in this category mask", tag.raw());
+                        }
+                    }
+                    Ok(())
+                };
+                match inner() {
+                    Ok(()) => std::ops::ControlFlow::Continue(()),
+                    Err(e) => {
+                        __encode_result = Err(e);
+                        std::ops::ControlFlow::Break(())
+                    }
+                }
+            });
+        }
+        __encode_result?;
         // Write sentinel to mark end of lazy fields
         bincode::Encode::encode(&#LAZY_FIELD_SENTINEL, encoder)?;
     }
