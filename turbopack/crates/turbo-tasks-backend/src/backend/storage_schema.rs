@@ -33,10 +33,7 @@ use turbo_tasks::{
 };
 
 use crate::{
-    backend::{
-        cell_data::CellData, counter_map::CounterMap, lazy_tail::LazyTail,
-        task_storage::TaskStorage,
-    },
+    backend::{cell_data::CellData, counter_map::CounterMap, task_storage::TaskStorage},
     data::{
         ActivenessState, AggregationNumber, CellDependency, CollectibleRef, CollectiblesRef,
         Dirtyness, InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType,
@@ -518,11 +515,17 @@ pub enum KeyEvictability {
     Unevictable,
 }
 
-impl TaskStorageInner {
+impl TaskStorage {
     /// Determine the evictability level of this task based on its flags.
     ///
     /// This checks only the flags on the TaskStorageInner itself. The caller
     /// must additionally check that the task is not transient (via TaskId).
+    ///
+    /// Lives on `TaskStorage` (not `TaskStorageInner`) because it calls lazy
+    /// direct accessors (`get_in_progress`, `get_activeness`,
+    /// `get_transient_task_type`), which read tail payloads via a pointer
+    /// derived from `self.ptr` (full-allocation provenance). A reference of
+    /// type `&TaskStorageInner` only has provenance over the head bytes.
     pub fn evictability(&self) -> (KeyEvictability, ValueEvictability) {
         let flags = &self.flags;
 
@@ -616,67 +619,12 @@ impl TaskStorageInner {
 // initialization step) always has `tail_cap == 0` and no live payloads, so
 // the auto-derived field drops are correct.
 
-impl TaskStorageInner {
-    // =========================================================================
-    // Encapsulated access to the lazy storage. Only operations needed beyond
-    // the per-variant typed accessors live here; per-variant access goes
-    // straight through `self.lazy_tail`.
-    // =========================================================================
-
-    /// "Are all lazy data fields empty?" — used by eviction predicates.
+impl TaskStorage {
+    /// Encode fields for the specified category.
     ///
-    /// Returns true iff every data-category variant present in the lazy area
-    /// reports `is_empty()` via the schema's per-tag dispatch.
-    pub(crate) fn all_lazy_data_empty_or_absent(&self) -> bool {
-        self.all_lazy_in_mask_empty(LAZY_DATA_MASK)
-    }
-
-    /// "Are all lazy meta fields empty?" — used by eviction predicates.
-    pub(crate) fn all_lazy_meta_empty_or_absent(&self) -> bool {
-        self.all_lazy_in_mask_empty(LAZY_META_MASK)
-    }
-
-    /// "Are all transient lazy fields empty?" — used by eviction predicates.
-    pub(crate) fn all_transient_lazy_empty(&self) -> bool {
-        // Transient variants are the bits NOT in `LAZY_PERSISTENT_MASK`.
-        self.all_lazy_in_mask_empty(!LAZY_PERSISTENT_MASK)
-    }
-
-    /// Walk every present tag whose bit is set in `mask` and return `true`
-    /// only if all of those payloads report `is_empty()` via the schema's
-    /// per-tag dispatch.
-    fn all_lazy_in_mask_empty(&self, mask: u32) -> bool {
-        let mut bits = self.lazy_tail.present & mask;
-        // Tail bytes live immediately after the `TaskStorageInner` head in the
-        // surrounding `TaskStorage` allocation.
-        // SAFETY: caller's `&self` proves the surrounding `TaskStorage`
-        // allocation is live; tail is valid for `lazy_tail.cap` bytes.
-        let tail_base = unsafe {
-            (self as *const TaskStorageInner as *const u8)
-                .add(std::mem::size_of::<TaskStorageInner>())
-        };
-        while bits != 0 {
-            let bit_idx = bits.trailing_zeros();
-            let tag = (bit_idx + 1) as u8;
-            // SAFETY: `tag` is in `1..=LAZY_N` (its bit was set in
-            // `present`), and the byte at the computed offset is a live
-            // payload whose type the schema's `lazy_is_empty_dispatch`
-            // matches by tag.
-            let is_empty = unsafe {
-                let offset =
-                    LazyTail::sum_padded_sizes(self.lazy_tail.present & ((1u32 << bit_idx) - 1));
-                let ptr = tail_base.add(offset);
-                lazy_is_empty_dispatch(tag, ptr)
-            };
-            if !is_empty {
-                return false;
-            }
-            bits &= bits - 1;
-        }
-        true
-    }
-
-    /// Encode fields for the specified category
+    /// Lives on `TaskStorage` because `encode_meta`/`encode_data` read lazy
+    /// collection payloads via accessors that derive the tail pointer from
+    /// the owning thin pointer's full-allocation provenance.
     pub fn encode<E: bincode::enc::Encoder>(
         &self,
         category: SpecificTaskDataCategory,
@@ -688,35 +636,6 @@ impl TaskStorageInner {
         }
     }
 
-    // `decode(...)` lives on `TaskStorage` (see the impl block below)
-    // because `decode_meta` / `decode_data` install lazy payloads, which
-    // may grow the underlying buffer.
-
-    /// Initialize a transient task with the given root type and activeness tracking.
-    ///
-    /// This sets up the activeness state for root/once tasks.
-    /// Called when creating transient tasks via `create_transient_task`.
-    // `init_transient_task` lives on `TaskStorage` (see the impl block
-    // below) because it installs lazy payloads (`Activeness`,
-    // `transient_task_type`, `InProgress`), which may grow the underlying
-    // buffer.
-
-    /// Returns counts for aggregation tree and collectibles fields.
-    /// Used for cache size statistics.
-    pub fn meta_counts(&self) -> MetaCounts {
-        MetaCounts {
-            upper: self.upper().len(),
-            collectibles: self.collectibles().map_or(0, |c| c.len()),
-            aggregated_collectibles: self.aggregated_collectibles().map_or(0, |c| c.len()),
-            children: self.children().map_or(0, |c| c.len()),
-            followers: self.followers().map_or(0, |c| c.len()),
-            collectibles_dependents: self.collectibles_dependents().map_or(0, |c| c.len()),
-            aggregated_dirty_containers: self.aggregated_dirty_containers().map_or(0, |c| c.len()),
-        }
-    }
-}
-
-impl TaskStorage {
     /// Decode fields for the specified category. Lives on `TaskStorage`
     /// because installing lazy payloads from the wire may need to grow the
     /// underlying buffer.
@@ -728,6 +647,25 @@ impl TaskStorage {
         match category {
             SpecificTaskDataCategory::Meta => self.decode_meta(decoder),
             SpecificTaskDataCategory::Data => self.decode_data(decoder),
+        }
+    }
+
+    /// Returns counts for aggregation tree and collectibles fields.
+    /// Used for cache size statistics.
+    ///
+    /// Lives on `TaskStorage` (not `TaskStorageInner`) because it reads
+    /// lazy collection payloads. The accessors derive the tail pointer from
+    /// the owning thin pointer, which carries provenance over the full
+    /// head+tail allocation.
+    pub fn meta_counts(&self) -> MetaCounts {
+        MetaCounts {
+            upper: self.upper().len(),
+            collectibles: self.collectibles().map_or(0, |c| c.len()),
+            aggregated_collectibles: self.aggregated_collectibles().map_or(0, |c| c.len()),
+            children: self.children().map_or(0, |c| c.len()),
+            followers: self.followers().map_or(0, |c| c.len()),
+            collectibles_dependents: self.collectibles_dependents().map_or(0, |c| c.len()),
+            aggregated_dirty_containers: self.aggregated_dirty_containers().map_or(0, |c| c.len()),
         }
     }
 
@@ -940,7 +878,10 @@ mod tests {
     use turbo_tasks::{CellId, TaskId};
 
     use super::*;
-    use crate::data::{AggregationNumber, CellDependency, CellRef, Dirtyness, OutputValue};
+    use crate::{
+        backend::lazy_tail::LazyTail,
+        data::{AggregationNumber, CellDependency, CellRef, Dirtyness, OutputValue},
+    };
 
     #[test]
     fn test_accessors() {

@@ -104,13 +104,28 @@ impl TaskStorage {
         unsafe { Layout::from_size_align_unchecked(head_size + tail_cap as usize, align) }
     }
 
-    /// Mutable pointer to the first byte of the tail (immediately after
+    /// Read-only pointer to the first byte of the tail (immediately after
     /// the head).
+    ///
+    /// The returned pointer carries provenance over the full head+tail
+    /// allocation (derived from `self.ptr`, which was constructed with the
+    /// allocation's full layout). Reading through it is sound under
+    /// Stacked Borrows even though a plain `&TaskStorageInner` reference
+    /// only has provenance over the head bytes.
     ///
     /// # Safety
     /// The returned pointer is valid for `head.lazy_tail.cap` bytes. Reads
     /// must respect `head.lazy_tail.present` — only present payloads have
     /// valid initialized bytes.
+    #[inline]
+    pub(crate) fn tail_ptr(&self) -> *const u8 {
+        let head_size = std::mem::size_of::<TaskStorageInner>();
+        // SAFETY: the allocation has at least `head_size + cap` bytes, so
+        // adding `head_size` to the head pointer is in-bounds.
+        unsafe { (self.ptr.as_ptr() as *const u8).add(head_size) }
+    }
+
+    /// Mutable pointer to the first byte of the tail.
     #[inline]
     pub(crate) fn tail_ptr_mut(&mut self) -> *mut u8 {
         let head_size = std::mem::size_of::<TaskStorageInner>();
@@ -184,6 +199,19 @@ impl TaskStorage {
         unsafe { self.lazy_find_mut::<T>(tag).unwrap_unchecked() }
     }
 
+    /// Get a typed reference to a present lazy payload.
+    ///
+    /// # Safety
+    /// `T` must match the payload type for `tag`.
+    #[inline]
+    pub(crate) unsafe fn lazy_find<T>(&self, tag: u8) -> Option<&T> {
+        let tail_base = self.tail_ptr();
+        // SAFETY: caller ensures `T` matches `tag`; `tail_base` is the start
+        // of the tail buffer for this allocation, with provenance over the
+        // full head+tail allocation (derived from `self.ptr`).
+        unsafe { self.head().lazy_tail.find::<T>(tag, tail_base) }
+    }
+
     /// Get a typed mutable reference to a present lazy payload.
     ///
     /// # Safety
@@ -194,6 +222,69 @@ impl TaskStorage {
         // SAFETY: caller ensures `T` matches `tag`; `tail_base` is the start
         // of the tail buffer for this allocation.
         unsafe { self.head_mut().lazy_tail.find_mut::<T>(tag, tail_base) }
+    }
+
+    /// Take a present lazy payload, removing it. Returns `None` if absent.
+    ///
+    /// # Safety
+    /// `T` must match the payload type for `tag`.
+    pub(crate) unsafe fn lazy_take<T>(&mut self, tag: u8) -> Option<T> {
+        let tail_base = self.tail_ptr_mut();
+        // SAFETY: caller ensures `T` matches `tag`; tail_base has provenance
+        // over the full allocation.
+        unsafe { self.head_mut().lazy_tail.take::<T>(tag, tail_base) }
+    }
+
+    /// "Are all lazy data-category fields empty?" — used by eviction
+    /// predicates.
+    ///
+    /// Returns true iff every data-category variant present in the lazy
+    /// area reports `is_empty()` via the schema's per-tag dispatch. Lives
+    /// on `TaskStorage` (not `TaskStorageInner`) so the dispatch can read
+    /// payload bytes through a pointer with provenance over the full
+    /// head+tail allocation.
+    pub(crate) fn all_lazy_data_empty_or_absent(&self) -> bool {
+        self.all_lazy_in_mask_empty(crate::backend::storage_schema::LAZY_DATA_MASK)
+    }
+
+    /// "Are all lazy meta-category fields empty?" — used by eviction
+    /// predicates.
+    pub(crate) fn all_lazy_meta_empty_or_absent(&self) -> bool {
+        self.all_lazy_in_mask_empty(crate::backend::storage_schema::LAZY_META_MASK)
+    }
+
+    /// "Are all transient lazy fields empty?" — used by eviction predicates.
+    pub(crate) fn all_transient_lazy_empty(&self) -> bool {
+        // Transient variants are the bits NOT in `LAZY_PERSISTENT_MASK`.
+        self.all_lazy_in_mask_empty(!crate::backend::storage_schema::LAZY_PERSISTENT_MASK)
+    }
+
+    /// Walk every present tag whose bit is set in `mask` and return `true`
+    /// only if all of those payloads report `is_empty()` via the schema's
+    /// per-tag dispatch.
+    fn all_lazy_in_mask_empty(&self, mask: u32) -> bool {
+        let mut bits = self.head().lazy_tail.present & mask;
+        let tail_base = self.tail_ptr();
+        while bits != 0 {
+            let bit_idx = bits.trailing_zeros();
+            let tag = (bit_idx + 1) as u8;
+            // SAFETY: `tag` is in `1..=LAZY_N` (its bit was set in
+            // `present`), and the byte at the computed offset is a live
+            // payload whose type the schema's `lazy_is_empty_dispatch`
+            // matches by tag.
+            let is_empty = unsafe {
+                let offset = crate::backend::lazy_tail::LazyTail::sum_padded_sizes(
+                    self.head().lazy_tail.present & ((1u32 << bit_idx) - 1),
+                );
+                let ptr = tail_base.add(offset);
+                crate::backend::storage_schema::lazy_is_empty_dispatch(tag, ptr)
+            };
+            if !is_empty {
+                return false;
+            }
+            bits &= bits - 1;
+        }
+        true
     }
 
     /// Shrink the allocation so the tail occupies the smallest size class

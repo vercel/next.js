@@ -1463,49 +1463,39 @@ fn generate_direct_field_accessors_split(field: &FieldInfo) -> (TokenStream, Tok
         };
         (storage, quote! {})
     } else {
-        // Lazy direct field. Read / take / get-mut-if-present go on
-        // `TaskStorageInner`; `set_<name>` goes on `TaskStorage` since it may
-        // install a new payload (which may reallocate the buffer).
+        // Lazy direct field. All accessors live on `TaskStorage` (the
+        // owning thin pointer) so they can compute the tail base from
+        // `TaskStorage`'s `NonNull<TaskStorageInner>`, which carries
+        // provenance over the full head+tail allocation. An `&self:
+        // &TaskStorageInner` reference has provenance only for the head
+        // bytes and would be UB under Stacked Borrows to read past
+        // `size_of::<TaskStorageInner>()`.
         let tag_ident = syn::Ident::new(
             &format!("LAZY_TAG_{}", field.field_name.to_string().to_uppercase()),
             proc_macro2::Span::call_site(),
         );
-        let storage = quote! {
+        let on_box = quote! {
             #vis fn #get_name(&self) -> Option<&#field_type> {
                 // SAFETY: `#tag_ident` is the schema tag for `#field_type`.
-                // `tail_ptr` here is computed from the head pointer plus
-                // `size_of::<TaskStorageInner>()`, which is valid for
-                // `lazy_tail.cap` bytes (zero when no allocation).
-                unsafe {
-                    let tail_base = (self as *const TaskStorageInner as *const u8)
-                        .add(std::mem::size_of::<TaskStorageInner>());
-                    self.lazy_tail.find::<#field_type>(#tag_ident, tail_base)
-                }
+                unsafe { self.lazy_find::<#field_type>(#tag_ident) }
             }
 
             #vis fn #take_name(&mut self) -> Option<#field_type> {
-                // SAFETY: see `#get_name`. `take` only shrinks the tail.
-                unsafe {
-                    let tail_base = (self as *mut TaskStorageInner as *mut u8)
-                        .add(std::mem::size_of::<TaskStorageInner>());
-                    self.lazy_tail.take::<#field_type>(#tag_ident, tail_base)
-                }
+                // SAFETY: `#tag_ident` matches `#field_type`. `take` only
+                // shrinks the tail.
+                unsafe { self.lazy_take::<#field_type>(#tag_ident) }
             }
 
             #[doc = "Get a mutable reference to the field value (if present)."]
             #[doc = ""]
             #[doc = "Does NOT allocate if the field is absent — returns None instead."]
             #vis fn #get_mut_name(&mut self) -> Option<&mut #field_type> {
-                // SAFETY: same as `#get_name`. Mutation in place doesn't
-                // change `lazy_tail.len`, so no realloc is needed.
-                unsafe {
-                    let tail_base = (self as *mut TaskStorageInner as *mut u8)
-                        .add(std::mem::size_of::<TaskStorageInner>());
-                    self.lazy_tail.find_mut::<#field_type>(#tag_ident, tail_base)
-                }
+                // SAFETY: `#tag_ident` matches `#field_type`. Mutation in
+                // place doesn't change `lazy_tail.len`, so no realloc is
+                // needed.
+                unsafe { self.lazy_find_mut::<#field_type>(#tag_ident) }
             }
-        };
-        let on_box = quote! {
+
             #[doc = "Set the field value, returning the old value if present."]
             #[doc = ""]
             #[doc = "May reallocate the underlying buffer when the variant"]
@@ -1515,7 +1505,7 @@ fn generate_direct_field_accessors_split(field: &FieldInfo) -> (TokenStream, Tok
                 unsafe { self.lazy_replace::<#field_type>(#tag_ident, value) }
             }
         };
-        (storage, on_box)
+        (quote! {}, on_box)
     }
 }
 
@@ -1554,32 +1544,28 @@ fn generate_collection_field_accessors_split(
         };
         (storage, quote! {})
     } else {
-        // Lazy collection field. Read / take stay on TaskStorageInner; the
-        // grow-capable `<name>_mut()` lives on TaskStorage.
+        // Lazy collection field. All accessors live on `TaskStorage` so
+        // they can derive the tail pointer from `TaskStorage`'s
+        // `NonNull<TaskStorageInner>` (which has provenance over the full
+        // head+tail allocation). Reading the tail from an
+        // `&TaskStorageInner` would be UB under Stacked Borrows since
+        // that reference's provenance only covers the head bytes.
         let tag_ident = syn::Ident::new(
             &format!("LAZY_TAG_{}", field.field_name.to_string().to_uppercase()),
             proc_macro2::Span::call_site(),
         );
-        let storage = quote! {
+        let on_box = quote! {
             #vis fn #ref_name(&self) -> Option<&#field_type> {
                 // SAFETY: `#tag_ident` is the schema tag for `#field_type`.
-                unsafe {
-                    let tail_base = (self as *const TaskStorageInner as *const u8)
-                        .add(std::mem::size_of::<TaskStorageInner>());
-                    self.lazy_tail.find::<#field_type>(#tag_ident, tail_base)
-                }
+                unsafe { self.lazy_find::<#field_type>(#tag_ident) }
             }
 
             #vis fn #take_name(&mut self) -> Option<#field_type> {
-                // SAFETY: see `#ref_name`. `take` only shrinks.
-                unsafe {
-                    let tail_base = (self as *mut TaskStorageInner as *mut u8)
-                        .add(std::mem::size_of::<TaskStorageInner>());
-                    self.lazy_tail.take::<#field_type>(#tag_ident, tail_base)
-                }
+                // SAFETY: `#tag_ident` matches `#field_type`. `take` only
+                // shrinks the tail.
+                unsafe { self.lazy_take::<#field_type>(#tag_ident) }
             }
-        };
-        let on_box = quote! {
+
             #[doc = "Get a mutable reference to the collection, installing a"]
             #[doc = "fresh `Default::default()` if absent. May reallocate the"]
             #[doc = "underlying buffer when installing."]
@@ -1588,7 +1574,7 @@ fn generate_collection_field_accessors_split(
                 unsafe { self.lazy_get_or_create::<#field_type>(#tag_ident) }
             }
         };
-        (storage, on_box)
+        (quote! {}, on_box)
     }
 }
 
@@ -2894,13 +2880,21 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
 
     quote! {
         #[automatically_derived]
-        impl TaskStorageInner {
+        impl crate::backend::task_storage::TaskStorage {
 
             /// Whether this storage holds no data-category state — no
             /// data-category lazy variants, no data-category inline fields
             /// distinguishable from `Default`, and no persisted data flag
             /// bits. Used by `drop_partial` to short-circuit `is_empty()`
             /// after a meta-only or transient-only drop.
+            ///
+            /// Lives on `TaskStorage` (not `TaskStorageInner`) because the
+            /// lazy-emptiness check reads payload bytes through a pointer
+            /// derived from `self.ptr`, which carries provenance over the
+            /// full head+tail allocation. A reference of type
+            /// `&TaskStorageInner` would only have provenance for the head
+            /// bytes — reading the tail through it is UB under Stacked
+            /// Borrows.
             #[inline]
             pub(crate) fn is_empty_data(&self) -> bool {
                 self.flags.persisted_data_bits() == 0
@@ -2932,10 +2926,6 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
             pub fn is_empty(&self) -> bool {
                 self.is_empty_meta() && self.is_empty_data() && self.is_empty_transient()
             }
-        }
-
-        #[automatically_derived]
-        impl crate::backend::task_storage::TaskStorage {
             /// Drop persistent fields so the task can be evicted.
             ///
             /// For each `filter_transient` field, transient entries are retained as
@@ -3319,9 +3309,14 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
 
     quote! {
         #[automatically_derived]
-        impl TaskStorageInner {
+        impl crate::backend::task_storage::TaskStorage {
             /// Encode meta category fields directly to bincode.
             /// Only persistent (non-transient) fields are encoded.
+            ///
+            /// Lives on `TaskStorage` (not `TaskStorageInner`) because it
+            /// reads lazy collection payloads via accessors that derive the
+            /// tail pointer from the owning thin pointer's full-allocation
+            /// provenance.
             pub fn encode_meta<E: bincode::enc::Encoder>(
                 &self,
                 encoder: &mut E,
@@ -3333,6 +3328,8 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
 
             /// Encode data category fields directly to bincode.
             /// Only persistent (non-transient) fields are encoded.
+            ///
+            /// Lives on `TaskStorage` for the same reason as `encode_meta`.
             pub fn encode_data<E: bincode::enc::Encoder>(
                 &self,
                 encoder: &mut E,
@@ -3341,10 +3338,7 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
                 #encode_data_flags
                 Ok(())
             }
-        }
 
-        #[automatically_derived]
-        impl crate::backend::task_storage::TaskStorage {
             /// Decode meta category fields from bincode. Only persistent
             /// (non-transient) fields are decoded.
             ///

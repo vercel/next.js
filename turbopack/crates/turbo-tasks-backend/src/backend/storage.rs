@@ -284,7 +284,7 @@ impl Storage {
     /// empty `SnapshotItem`s (this is rare and only happens under error conditions).
     pub fn take_snapshot<
         'l,
-        P: for<'a> Fn(TaskId, &'a TaskStorageInner, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
+        P: for<'a> Fn(TaskId, &'a TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
     >(
         &'l self,
         guard: SnapshotGuard<'l>,
@@ -817,7 +817,7 @@ pub struct SnapshotShard<'l, P> {
 
 impl<'l, P> IntoIterator for SnapshotShard<'l, P>
 where
-    P: Fn(TaskId, &TaskStorageInner, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
+    P: Fn(TaskId, &TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
 {
     type Item = SnapshotItem;
     type IntoIter = SnapshotShardIter<'l, P>;
@@ -840,7 +840,7 @@ pub struct SnapshotShardIter<'l, P> {
 
 impl<'l, P> Iterator for SnapshotShardIter<'l, P>
 where
-    P: Fn(TaskId, &TaskStorageInner, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
+    P: Fn(TaskId, &TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
 {
     type Item = SnapshotItem;
 
@@ -903,7 +903,7 @@ mod tests {
     /// silently skip items via the "encoding failed" error path.
     fn dummy_process(
         task_id: TaskId,
-        _: &super::TaskStorageInner,
+        _: &super::TaskStorage,
         _: &mut TurboBincodeBuffer,
     ) -> SnapshotItem {
         SnapshotItem {
