@@ -25,6 +25,7 @@ import {
   type GuidanceKind,
   type GuidanceVariant,
 } from '../components/instant/instant-guidance'
+import { BLOCKING_ROUTE_NAVIGATION_EXPLANATION } from '../components/instant/instant-guidance-data'
 import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './runtime-error/error-cause'
@@ -126,17 +127,18 @@ type HydrationErrorDetails = {
 
 type BlockingRouteErrorDetails = {
   type: 'blocking-route'
-  variant: 'navigation' | 'runtime'
+  variant: 'dynamic' | 'runtime'
+  inNavigation: boolean
 }
 
 type DynamicMetadataErrorDetails = {
   type: 'dynamic-metadata'
-  variant: 'navigation' | 'runtime'
+  variant: 'dynamic' | 'runtime'
 }
 
 type DynamicViewportErrorDetails = {
   type: 'dynamic-viewport'
-  variant: 'navigation' | 'runtime'
+  variant: 'dynamic' | 'runtime'
 }
 
 type SyncIOErrorDetails = {
@@ -314,12 +316,15 @@ function isSyncIOClientError(message: string): boolean {
 
 function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
   const message = error.message
+  const inNavigation =
+    (error as { __nextInstantNav?: unknown }).__nextInstantNav === true
 
   const isBlockingPageLoadError = message.includes('/blocking-route')
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+      inNavigation,
     }
   }
 
@@ -329,7 +334,7 @@ function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
   if (isDynamicMetadataError) {
     return {
       type: 'dynamic-metadata',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
     }
   }
 
@@ -339,7 +344,7 @@ function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
   if (isBlockingViewportError) {
     return {
       type: 'dynamic-viewport',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
     }
   }
 
@@ -530,8 +535,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           errorType={errorType}
           errorMessage={
             errorDetails.variant === 'runtime'
-              ? 'Next.js encountered runtime data during the initial render.'
-              : 'Next.js encountered uncached data during the initial render.'
+              ? errorDetails.inNavigation
+                ? 'Next.js encountered runtime data during a navigation.'
+                : 'Next.js encountered runtime data during the initial render.'
+              : errorDetails.inNavigation
+                ? 'Next.js encountered uncached data during a navigation.'
+                : 'Next.js encountered uncached data during the initial render.'
           }
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
@@ -548,6 +557,11 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               key={activeError.id.toString()}
               error={activeError}
               variant={errorDetails.variant}
+              explanation={
+                errorDetails.inNavigation
+                  ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
+                  : undefined
+              }
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>

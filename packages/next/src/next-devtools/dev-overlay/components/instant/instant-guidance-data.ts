@@ -391,7 +391,7 @@ export type GuidanceKind =
   | 'sync-io'
   | 'sync-io-client'
 
-export type GuidanceVariant = 'runtime' | 'navigation'
+export type GuidanceVariant = 'runtime' | 'dynamic'
 
 export const DOCS_URLS: Record<GuidanceKind, string> = {
   'blocking-route': 'https://nextjs.org/docs/messages/blocking-route',
@@ -467,6 +467,9 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
     'This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.',
 }
 
+export const BLOCKING_ROUTE_NAVIGATION_EXPLANATION =
+  'This prevents the navigation from being instant, leading to a slower user experience.'
+
 const syncCardsByCause: Record<string, FixCard[]> = {
   'Math.random()': syncMathCards,
   'Date.now()': syncDateCards,
@@ -506,7 +509,7 @@ export function getCards(
 ): FixCard[] {
   switch (kind) {
     case 'blocking-route':
-      return variant === 'navigation' ? dynamicCards : runtimeCards
+      return variant === 'dynamic' ? dynamicCards : runtimeCards
     case 'metadata':
       return variant === 'runtime' ? metadataRuntimeCards : metadataDynamicCards
     case 'viewport':
