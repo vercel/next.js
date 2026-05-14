@@ -43,7 +43,17 @@ export async function getOrInitDiskLRU(
 
       const entries = await readEntries(cacheDir)
       for (const entry of entries) {
-        lru.set(entry.key, entry.size)
+        try {
+          lru.set(entry.key, entry.size)
+        } catch (err) {
+          // A corrupt entry (e.g. size ≤ 0 from a 0-byte file) must not
+          // reject the module-level promise and poison the singleton.
+          // Warn and skip so the rest of the cache remains usable.
+          console.warn(
+            `[next/image] Skipping corrupt disk-cache entry "${entry.key}" ` +
+              `(size=${entry.size}): ${err instanceof Error ? err.message : err}`
+          )
+        }
       }
 
       return lru

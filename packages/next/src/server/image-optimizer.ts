@@ -70,6 +70,15 @@ async function initCacheEntries(
   for (const cacheKey of cacheKeys) {
     try {
       const { expireAt, buffer } = await readFromCacheDir(cacheDir, cacheKey)
+      if (buffer.byteLength === 0) {
+        // A 0-byte file was left by an interrupted write (e.g., process killed
+        // mid-write on Windows). Passing size=0 to LRUCache.set() would throw
+        // and permanently poison the module-level disk-LRU singleton, breaking
+        // all subsequent image optimization for the lifetime of the process.
+        // Delete the corrupt file and skip this entry.
+        await deleteFromCacheDir(cacheDir, cacheKey)
+        continue
+      }
       entries.push({
         key: cacheKey,
         size: buffer.byteLength,
