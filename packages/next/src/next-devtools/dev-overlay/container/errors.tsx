@@ -275,7 +275,7 @@ function InstantRuntimeError({
   )
 }
 
-export function isRuntimeVariant(message: string): boolean {
+function isRuntimeVariant(message: string): boolean {
   // Discriminates between `createRuntimeBodyError` and `createDynamicBodyError`
   return (
     message.includes('encountered runtime data') &&
@@ -286,12 +286,10 @@ export function isRuntimeVariant(message: string): boolean {
 const SYNC_IO_APIS = [
   // Math
   'Math.random()',
-  // Date/Time — `new Date()` before `Date()` (substring false positive) and
-  // both before `Date.now()` (the `elapsedTimeBullet` text always contains
-  // `Date.now()` regardless of which API the user actually called).
+  // Date/Time — `new Date()` before `Date()` to avoid substring false positive
+  'Date.now()',
   'new Date()',
   'Date()',
-  'Date.now()',
   // Node Crypto — longer strings first to avoid substring false positives
   "require('node:crypto').generateKeyPairSync(...)",
   "require('node:crypto').generateKeySync(...)",
@@ -311,18 +309,16 @@ const SYNC_IO_DOCS_PATTERN =
 // Discriminate sync IO errors via the docs URL embedded in the user-facing
 // message by `createSyncIOError`, `createSyncIORuntimeError`, and
 // `createSyncIOClientError`.
-export function isSyncIOError(message: string): boolean {
+function isSyncIOError(message: string): boolean {
   return SYNC_IO_DOCS_PATTERN.test(message)
 }
 
-export function isSyncIOClientError(message: string): boolean {
+function isSyncIOClientError(message: string): boolean {
   const match = SYNC_IO_DOCS_PATTERN.exec(message)
   return match !== null && match[2] === '-client'
 }
 
-export function getBlockingRouteErrorDetails(
-  error: Error
-): null | ErrorDetails {
+function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
   const message = error.message
 
   const isBlockingPageLoadError = message.includes('/blocking-route')
