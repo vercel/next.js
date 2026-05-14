@@ -18,9 +18,8 @@ export const RenderErrorContext = createContext<{
 
 export const useRenderErrorContext = () => useContext(RenderErrorContext)
 
-// The dev overlay renders in a separate React root mounted at the document
-// body, so `usePathname()` from the App Router context isn't available here.
-// Subscribe to history events directly instead.
+// `usePathname()` is unavailable here — the overlay is in its own React root
+// outside the App Router context. Listen to history events directly.
 function useClearInstantErrorsOnNav(
   dispatch: (action: DispatcherEvent) => void
 ) {

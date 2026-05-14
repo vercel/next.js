@@ -281,10 +281,6 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
   return stack?.split(REACT_ERROR_STACK_BOTTOM_FRAME_REGEX)[0]
 }
 
-// Two stable signals — both tied to structural facts, not phase wording:
-//   - Body factories: nav variant says `accessed under \`<Suspense>\``,
-//     SSR variant says `accessed outside of \`<Suspense>\``.
-//   - Wrappers: emit `Could not validate \`unstable_instant\``.
 function getInstantErrorRoute(error: unknown): string | null {
   if (!error || typeof error !== 'object') return null
   const message = (error as Error).message

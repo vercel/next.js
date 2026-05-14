@@ -316,9 +316,8 @@ function isSyncIOClientError(message: string): boolean {
 
 function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
   const message = error.message
-  // Structural detection: nav body factories say `accessed under <Suspense>`
-  // vs. SSR variants which say `accessed outside of <Suspense>`. Object
-  // markers don't survive RSC serialization, so we read from the message.
+  // Nav body factory variants say `accessed under <Suspense>`; SSR variants
+  // say `accessed outside of <Suspense>`.
   const inNavigation = message.includes('accessed under `<Suspense>`')
 
   const isBlockingPageLoadError = message.includes('/blocking-route')
