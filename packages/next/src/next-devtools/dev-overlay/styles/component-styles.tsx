@@ -40,7 +40,7 @@ export function ComponentStyles() {
         ${containerRuntimeErrorStyles}
         ${versionStaleness}
         ${DEV_TOOLS_INFO_USER_PREFERENCES_STYLES}
-${SHORTCUT_RECORDER_STYLES}
+        ${SHORTCUT_RECORDER_STYLES}
         ${INSTANT_GUIDANCE_STYLES}
       `}
     </style>

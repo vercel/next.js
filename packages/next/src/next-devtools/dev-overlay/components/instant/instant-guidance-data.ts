@@ -18,7 +18,6 @@ export type FixCardIcon =
   | 'layout'
   | 'octagon'
   | 'pointer-click'
-  | 'rotate-cw'
   | 'server-stack'
   | 'timer'
   | 'zap'

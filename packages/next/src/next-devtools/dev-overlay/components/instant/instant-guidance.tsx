@@ -5,7 +5,6 @@ import {
   FixCardLayoutIcon,
   FixCardOctagonIcon,
   FixCardPointerClickIcon,
-  FixCardRotateCwIcon,
   FixCardServerStackIcon,
   FixCardTimerIcon,
   FixCardZapIcon,
@@ -25,21 +24,13 @@ import {
   type GuidanceVariant,
 } from './instant-guidance-data'
 
-export {
-  DOCS_URLS,
-  EXPLANATIONS,
-  FIX_CARD_GROUPS,
-  SYNC_IO_CLIENT_DOCS,
-  SYNC_IO_DOCS,
-} from './instant-guidance-data'
+export { SYNC_IO_CLIENT_DOCS, SYNC_IO_DOCS } from './instant-guidance-data'
 export type { GuidanceKind, GuidanceVariant } from './instant-guidance-data'
 
 function getCardIcon(icon: FixCardIcon) {
   switch (icon) {
     case 'align-left':
       return <FixCardAlignLeftIcon />
-    case 'rotate-cw':
-      return <FixCardRotateCwIcon />
     case 'server-stack':
       return <FixCardServerStackIcon />
     case 'pointer-click':
@@ -57,7 +48,8 @@ function getCardIcon(icon: FixCardIcon) {
     case 'layout':
       return <FixCardLayoutIcon />
     default:
-      return icon satisfies never
+      icon satisfies never
+      return null
   }
 }
 
@@ -426,5 +418,4 @@ export const INSTANT_GUIDANCE_STYLES = css`
     background: var(--color-amber-100);
     color: var(--color-amber-900);
   }
-
 `
