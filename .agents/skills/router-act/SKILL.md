@@ -7,6 +7,8 @@ description: >
   Covers the act API, fixture patterns, prefetch control via LinkAccordion,
   fake clocks, and avoiding flaky testing patterns.
 user-invocable: false
+metadata:
+  internal: true
 ---
 
 # Router Act Testing
