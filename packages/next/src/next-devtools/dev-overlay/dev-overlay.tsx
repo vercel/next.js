@@ -18,38 +18,17 @@ export const RenderErrorContext = createContext<{
 
 export const useRenderErrorContext = () => useContext(RenderErrorContext)
 
-// `usePathname()` is unavailable here — the overlay is in its own React root
-// outside the App Router context. Listen to history events directly.
 function useClearInstantErrorsOnNav(
+  page: string,
   dispatch: (action: DispatcherEvent) => void
 ) {
+  const previousPageRef = useRef(page)
   useEffect(() => {
-    let previousPath = window.location.pathname
-    const fireIfChanged = () => {
-      const currentPath = window.location.pathname
-      if (currentPath === previousPath) return
-      previousPath = currentPath
-      dispatch({ type: ACTION_INSTANT_ERRORS_CLEAR, currentPath })
-    }
-
-    window.addEventListener('popstate', fireIfChanged)
-    const originalPushState = history.pushState
-    const originalReplaceState = history.replaceState
-    history.pushState = function (...args) {
-      originalPushState.apply(this, args)
-      fireIfChanged()
-    }
-    history.replaceState = function (...args) {
-      originalReplaceState.apply(this, args)
-      fireIfChanged()
-    }
-
-    return () => {
-      window.removeEventListener('popstate', fireIfChanged)
-      history.pushState = originalPushState
-      history.replaceState = originalReplaceState
-    }
-  }, [dispatch])
+    const previousPage = previousPageRef.current
+    previousPageRef.current = page
+    if (page === '' || page === previousPage) return
+    dispatch({ type: ACTION_INSTANT_ERRORS_CLEAR, currentPath: page })
+  }, [page, dispatch])
 }
 
 export function DevOverlay() {
@@ -60,7 +39,7 @@ export function DevOverlay() {
     state.instantNavs ? 'instant-navs' : null
   )
 
-  useClearInstantErrorsOnNav(dispatch)
+  useClearInstantErrorsOnNav(state.page, dispatch)
 
   const triggerRef = useRef<HTMLButtonElement>(null)
   return (
