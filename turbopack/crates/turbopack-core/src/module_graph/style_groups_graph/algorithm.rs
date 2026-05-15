@@ -452,8 +452,8 @@ pub(super) fn split_into_chunks(
     chunk_groups: &[Vec<usize>],
     module_sizes: &[u64],
     module_style_types: &[StyleType],
-    request_cost: u64,
-    module_factor_cost: u64,
+    request_cost: f32,
+    module_factor_cost: f32,
     max_chunk_size: u64,
 ) -> Vec<Vec<usize>> {
     if global_order.is_empty() {
@@ -467,7 +467,7 @@ pub(super) fn split_into_chunks(
     // Active split point bitmap: `split_points[i] = true` means there's a boundary between
     // `order[i]` and `order[i+1]`.
     let mut split_points = vec![true; n.saturating_sub(1)];
-    let mut metrics: Vec<Option<f64>> = vec![None; split_points.len()];
+    let mut metrics: Vec<Option<f32>> = vec![None; split_points.len()];
 
     // Per-group total CSS byte size — used as the denominator in the cost formula. Memoized
     // here because `chunk_groups` is fixed.
@@ -524,7 +524,7 @@ pub(super) fn split_into_chunks(
 
         // 2. Find the most-negative metric.
         let mut best_i: Option<usize> = None;
-        let mut best_metric: f64 = 0.0;
+        let mut best_metric: f32 = 0.0;
         for i in 0..split_points.len() {
             if !split_points[i] {
                 continue;
@@ -587,7 +587,7 @@ fn affected_range(split_points: &[bool], index: usize) -> (usize, usize) {
 /// Cost of loading a single chunk: summed over the chunk groups that load it (a group "loads"
 /// a chunk if it shares ≥ 1 module with it).
 ///
-/// Returns `+infinity` (`f64::INFINITY`) when the chunk violates a hard constraint
+/// Returns `+infinity` (`f32::INFINITY`) when the chunk violates a hard constraint
 /// (`max_chunk_size` exceeded for a multi-item chunk, or a global CSS module would leak into a
 /// chunk group that doesn't already load it).
 fn chunk_cost(
@@ -596,23 +596,21 @@ fn chunk_cost(
     group_total_size: &[u64],
     module_sizes: &[u64],
     module_style_types: &[StyleType],
-    request_cost: u64,
-    module_factor_cost: u64,
+    request_cost: f32,
+    module_factor_cost: f32,
     max_chunk_size: u64,
-) -> f64 {
+) -> f32 {
     let chunk_size: u64 = chunk.iter().map(|&id| module_sizes[id]).sum();
 
     if chunk.len() > 1 && max_chunk_size > 0 && chunk_size > max_chunk_size {
-        return f64::INFINITY;
+        return f32::INFINITY;
     }
 
     let chunk_set: FxHashSet<usize> = chunk.iter().copied().collect();
 
     // Determine which groups load this chunk and accumulate the cost.
-    let mut total: f64 = 0.0;
-    let chunk_size_f = chunk_size as f64;
-    let request_cost_f = request_cost as f64;
-    let module_factor_cost_f = module_factor_cost as f64;
+    let mut total: f32 = 0.0;
+    let chunk_size_f = chunk_size as f32;
 
     // Pre-compute which chunk groups load this chunk (= share ≥ 1 module).
     let loading_groups: Vec<usize> = chunk_groups
@@ -636,17 +634,16 @@ fn chunk_cost(
         }
         for &gi in &loading_groups {
             if !chunk_groups[gi].contains(&id) {
-                return f64::INFINITY;
+                return f32::INFINITY;
             }
         }
     }
 
     for &gi in &loading_groups {
-        let group_total = group_total_size[gi] as f64;
+        let group_total = group_total_size[gi] as f32;
         // Per-group cost: chunk_size + (chunk_size / group_total) * module_factor_cost +
         // request_cost.
-        total +=
-            chunk_size_f + (chunk_size_f / group_total) * module_factor_cost_f + request_cost_f;
+        total += chunk_size_f + (chunk_size_f / group_total) * module_factor_cost + request_cost;
     }
     total
 }

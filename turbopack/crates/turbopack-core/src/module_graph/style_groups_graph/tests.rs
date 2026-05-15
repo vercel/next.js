@@ -92,7 +92,7 @@ fn no_global(node_count: usize) -> Vec<StyleType> {
 fn split_simple(
     global_order: &[NodeIndex],
     chunk_groups: &[Vec<usize>],
-    request_cost: u64,
+    request_cost: f32,
 ) -> Vec<Vec<usize>> {
     let count = global_order.len();
     split_into_chunks(
@@ -102,7 +102,7 @@ fn split_simple(
         &no_global(count),
         request_cost,
         // module_factor_cost = 0 reproduces the PoC's `(requestOverhead + 1*M) * N`.
-        0,
+        0.0,
         0,
     )
 }
@@ -623,61 +623,61 @@ fn order(ids_: &[usize]) -> Vec<NodeIndex> {
 
 #[test]
 fn split_returns_empty_for_empty_global_order() {
-    let chunks = split_simple(&[], &[], 3);
+    let chunks = split_simple(&[], &[], 3.0);
     assert!(chunks.is_empty());
 }
 
 #[test]
 fn split_returns_single_chunk_for_one_module() {
-    let chunks = split_simple(&order(&[0]), &[vec![0]], 3);
+    let chunks = split_simple(&order(&[0]), &[vec![0]], 3.0);
     assert_eq!(chunks, vec![vec![0]]);
 }
 
 #[test]
 fn split_merges_two_modules_always_co_loaded() {
-    let chunks = split_simple(&order(&[0, 1]), &[vec![0, 1]], 3);
+    let chunks = split_simple(&order(&[0, 1]), &[vec![0, 1]], 3.0);
     assert_eq!(chunks, vec![vec![0, 1]]);
 }
 
 #[test]
 fn split_keeps_two_modules_separate_when_never_co_loaded() {
-    let chunks = split_simple(&order(&[0, 1]), &[vec![0], vec![1]], 3);
+    let chunks = split_simple(&order(&[0, 1]), &[vec![0], vec![1]], 3.0);
     assert_eq!(chunks, vec![vec![0], vec![1]]);
 }
 
 #[test]
 fn split_only_merges_adjacent_modules_that_share_chunk_groups() {
-    let chunks = split_simple(&order(&[0, 1, 2]), &[vec![0, 1], vec![2]], 3);
+    let chunks = split_simple(&order(&[0, 1, 2]), &[vec![0, 1], vec![2]], 3.0);
     assert_eq!(chunks, vec![vec![0, 1], vec![2]]);
 }
 
 #[test]
 fn split_merges_all_modules_when_every_group_contains_all() {
-    let chunks = split_simple(&order(&[0, 1, 2, 3]), &[vec![0, 1, 2, 3]], 3);
+    let chunks = split_simple(&order(&[0, 1, 2, 3]), &[vec![0, 1, 2, 3]], 3.0);
     assert_eq!(chunks, vec![vec![0, 1, 2, 3]]);
 }
 
 #[test]
 fn split_preserves_global_order_within_a_chunk() {
     // global_order is [2, 0, 1] (not [0, 1, 2]) — the chunk should follow it.
-    let chunks = split_simple(&order(&[2, 0, 1]), &[vec![0, 1, 2]], 3);
+    let chunks = split_simple(&order(&[2, 0, 1]), &[vec![0, 1, 2]], 3.0);
     assert_eq!(chunks, vec![vec![2, 0, 1]]);
 }
 
 #[test]
 fn split_does_not_merge_across_modules_no_one_co_loads() {
     // 0 and 2 are co-loaded but 1 is loaded alone; merging across 1 would balloon cost.
-    let chunks = split_simple(&order(&[0, 1, 2]), &[vec![0, 2], vec![1]], 3);
+    let chunks = split_simple(&order(&[0, 1, 2]), &[vec![0, 2], vec![1]], 3.0);
     assert_eq!(chunks, vec![vec![0], vec![1], vec![2]]);
 }
 
 #[test]
 fn split_higher_request_overhead_drives_more_aggressive_merging() {
     let groups = vec![vec![0, 1], vec![1, 2]];
-    let chunks_low = split_simple(&order(&[0, 1, 2]), &groups, 1);
+    let chunks_low = split_simple(&order(&[0, 1, 2]), &groups, 1.0);
     assert_eq!(chunks_low, vec![vec![0], vec![1], vec![2]]);
 
-    let chunks_high = split_simple(&order(&[0, 1, 2]), &groups, 10);
+    let chunks_high = split_simple(&order(&[0, 1, 2]), &groups, 10.0);
     assert_eq!(chunks_high, vec![vec![0, 1, 2]]);
 }
 
@@ -688,7 +688,7 @@ fn split_higher_request_overhead_drives_more_aggressive_merging() {
 fn run_pipeline(
     chunk_groups: &[Vec<usize>],
     node_count: usize,
-    request_cost: u64,
+    request_cost: f32,
 ) -> (Vec<Vec<usize>>, Vec<usize>) {
     let mut g = create_graph(chunk_groups, node_count);
     make_acyclic(&mut g);
@@ -708,7 +708,7 @@ fn e2e_shared_sandwich_request_counts() {
     //   ['shared-a', 'c',       'shared-b']
     //   ['shared-a', 'b']
     let groups = vec![vec![0, 1, 2], vec![0, 3, 2], vec![0, 4, 2], vec![0, 3]];
-    let (_chunks, requests) = run_pipeline(&groups, 5, 3);
+    let (_chunks, requests) = run_pipeline(&groups, 5, 3.0);
     // Each group makes at least one request.
     for &r in &requests {
         assert!(r >= 1);
@@ -723,9 +723,9 @@ fn e2e_shared_sequence_overhead_curve() {
         vec![1, 2, 3, 5, 6],
         vec![7, 8, 1, 2, 3],
     ];
-    let (_chunks_1, req_1) = run_pipeline(&groups, 9, 1);
-    let (_chunks_3, req_3) = run_pipeline(&groups, 9, 3);
-    let (_chunks_5, req_5) = run_pipeline(&groups, 9, 5);
+    let (_chunks_1, req_1) = run_pipeline(&groups, 9, 1.0);
+    let (_chunks_3, req_3) = run_pipeline(&groups, 9, 3.0);
+    let (_chunks_5, req_5) = run_pipeline(&groups, 9, 5.0);
 
     // Higher request overhead → fewer (or equal) requests per group.
     for i in 0..groups.len() {

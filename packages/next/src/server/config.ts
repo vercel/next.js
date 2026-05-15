@@ -456,17 +456,28 @@ function assignDefaultsAndValidate(
     )
   }
 
-  // Validate experimental.cssChunking graph mode is only used with Turbopack
+  // Validate experimental.cssChunking compatibility with the active bundler.
   const cssChunking = result.experimental.cssChunking
+  const cssChunkingObjectType =
+    typeof cssChunking === 'object' &&
+    cssChunking !== null &&
+    typeof (cssChunking as { type?: string }).type === 'string'
+      ? (cssChunking as { type: string }).type
+      : undefined
+  const isStrictCssChunking =
+    cssChunking === 'strict' || cssChunkingObjectType === 'strict'
   const isGraphCssChunking =
-    cssChunking === 'graph' ||
-    (typeof cssChunking === 'object' &&
-      cssChunking !== null &&
-      cssChunking.type === 'graph')
+    cssChunking === 'graph' || cssChunkingObjectType === 'graph'
   if (isGraphCssChunking && !process.env.TURBOPACK) {
     throw new Error(
       `\`experimental.cssChunking: "graph"\` is only supported with Turbopack. ` +
         `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+    )
+  }
+  if (isStrictCssChunking && process.env.TURBOPACK) {
+    throw new Error(
+      `\`experimental.cssChunking: "strict"\` is only supported with webpack. ` +
+        `Please remove the option or run Next.js with webpack in ${configFileName}.`
     )
   }
 

@@ -45,9 +45,22 @@ pub enum StyleGroupsAlgorithm {
     Graph {
         /// See `experimental.cssChunking.requestCost` in Next.js.
         request_cost: u64,
-        /// See `experimental.cssChunking.moduleFactorCost` in Next.js.
-        module_factor_cost: u64,
+        /// See `experimental.cssChunking.moduleFactorCost` in Next.js. Stored as the IEEE-754
+        /// bit pattern of an `f32` (widened to `u64` so the enum can derive
+        /// `Eq` / `Hash` / `TaskInput`). Build via [`StyleGroupsAlgorithm::graph`] and read
+        /// with `f32::from_bits(bits as u32)`.
+        module_factor_cost_bits: u64,
     },
+}
+
+impl StyleGroupsAlgorithm {
+    /// Build a [`StyleGroupsAlgorithm::Graph`] variant from a real `f32` `module_factor_cost`.
+    pub fn graph(request_cost: u64, module_factor_cost: f32) -> Self {
+        Self::Graph {
+            request_cost,
+            module_factor_cost_bits: module_factor_cost.to_bits() as u64,
+        }
+    }
 }
 
 #[derive(
@@ -84,14 +97,22 @@ pub struct StyleGroups {
     pub shared_chunk_items: FxIndexMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo>,
 }
 
+/// Constructor for [`StyleGroups`] that's accessible from the graph algorithm in
+/// [`crate::module_graph::style_groups_graph`] without forcing the cell visibility wider.
+pub(super) fn make_style_groups(
+    shared_chunk_items: FxIndexMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo>,
+) -> Vc<StyleGroups> {
+    StyleGroups { shared_chunk_items }.cell()
+}
+
 #[derive(Debug)]
-pub(super) struct ModuleInfo {
-    pub(super) style_type: StyleType,
-    pub(super) ident: RcStr,
-    pub(super) chunk_group_indices: FxHashMap<usize, usize>,
-    pub(super) index_sum: usize,
-    pub(super) size: usize,
-    pub(super) chunk_item: Option<ChunkItemWithAsyncModuleInfo>,
+struct ModuleInfo {
+    style_type: StyleType,
+    ident: RcStr,
+    chunk_group_indices: FxHashMap<usize, usize>,
+    index_sum: usize,
+    size: usize,
+    chunk_item: Option<ChunkItemWithAsyncModuleInfo>,
 }
 
 impl ModuleInfo {
@@ -107,33 +128,29 @@ impl ModuleInfo {
     }
 }
 
-pub(super) struct ChunkGroupState {
-    pub(super) styles: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+struct ChunkGroupState {
+    styles: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     /// Number of distinct chunks this chunk group still needs to load. The legacy algorithm
-    /// decrements this as it merges items into shared chunks; the graph algorithm leaves it
-    /// untouched.
-    pub(super) requests: usize,
+    /// decrements this as it merges items into shared chunks.
+    requests: usize,
 }
 
-/// Per-chunk-group style module collection plus per-module metadata.
-pub(super) struct StyleCollection {
+/// Per-chunk-group style module collection plus per-module metadata. Internal to the legacy
+/// algorithm.
+struct StyleCollection {
     /// Per-module info, keyed by chunkable module. After collection, every value is `Some`
     /// (vacant entries used while traversing have been dropped). The map is sorted by
     /// `(index_sum, ident)` so insertion order is deterministic.
-    pub(super) module_info_map:
-        FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, Option<ModuleInfo>>,
+    module_info_map: FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, Option<ModuleInfo>>,
     /// Per-chunk-group state. Indexed by the same `idx` stored in
     /// `ModuleInfo::chunk_group_indices`.
-    pub(super) chunk_group_state: Vec<ChunkGroupState>,
+    chunk_group_state: Vec<ChunkGroupState>,
 }
 
 /// Walk every chunk group in `module_graph` post-order, collecting:
 ///  * the ordered list of CSS modules each chunk group loads,
 ///  * per-module metadata (style type, ident, size, chunk item, and per-group position).
-///
-/// Both [`compute_style_groups`] (legacy) and
-/// [`crate::module_graph::style_groups_graph::compute_style_groups_graph`] use this output.
-pub(super) async fn collect_style_modules_per_chunk_group(
+async fn collect_style_modules_per_chunk_group(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<StyleCollection> {

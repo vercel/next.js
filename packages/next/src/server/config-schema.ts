@@ -276,7 +276,10 @@ export const experimentalSchema = {
     .union([
       z.boolean(),
       z.literal('strict'),
+      z.literal('loose'),
       z.literal('graph'),
+      z.strictObject({ type: z.literal('strict') }),
+      z.strictObject({ type: z.literal('dependencies') }),
       z.strictObject({
         type: z.literal('graph'),
         requestCost: z.number().nonnegative().optional(),

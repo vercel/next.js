@@ -13,7 +13,9 @@ use turbopack_core::{
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
     free_var_references,
     issue::IssueSeverity,
-    module_graph::binding_usage_info::OptionBindingUsageInfo,
+    module_graph::{
+        binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
+    },
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
@@ -202,7 +204,7 @@ pub struct EdgeChunkingContextOptions {
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
     pub cross_origin: Vc<CrossOrigin>,
-    pub style_groups_algorithm: turbopack_core::module_graph::style_groups::StyleGroupsAlgorithm,
+    pub style_groups_algorithm: StyleGroupsAlgorithm,
 }
 
 /// Like `get_edge_chunking_context` but all assets are emitted as client assets (so `/_next`)

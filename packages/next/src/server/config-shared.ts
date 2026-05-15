@@ -508,19 +508,18 @@ export interface ExperimentalConfig {
   proxyPrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
-   * CSS Chunking strategy. Defaults to `true` ("loose" mode), which guesses dependencies
-   * between CSS files to keep ordering of them.
+   * CSS Chunking strategy. Defaults to `true` ("loose"/"dependencies" mode), which guesses
+   * dependencies between CSS files to keep ordering of them.
    *
-   * - `true` / `'loose'` — default heuristic-based chunking.
-   * - `'strict'` — preserve correct ordering as much as possible, even when this leads to
-   *   many requests.
+   * - `true` / `'loose'` / `{ type: 'dependencies' }` — default heuristic-based chunking.
+   * - `'strict'` / `{ type: 'strict' }` — preserve correct ordering as much as possible, even
+   *   when this leads to many requests. Webpack only.
    * - `false` — disable chunking; emit one chunk per CSS module.
-   * - `'graph'` — Turbopack only. Selects a CSS chunking strategy that analyzes the most
-   *   common style orderings across the application and produces shared chunks accordingly.
-   *   Compared to the default mode it intentionally overships some styles in order to reduce
-   *   the number of CSS requests per page.
-   * - `{ type: 'graph', requestCost?: number, moduleFactorCost?: number }` — Turbopack only.
-   *   Same as `'graph'` with explicit cost parameters:
+   * - `'graph'` / `{ type: 'graph', requestCost?, moduleFactorCost? }` — Turbopack only.
+   *   Selects a CSS chunking strategy that analyzes the most common style orderings across the
+   *   application and produces shared chunks accordingly. Compared to the default mode it
+   *   intentionally overships some styles in order to reduce the number of CSS requests per
+   *   page. Cost overrides:
    *     - `requestCost` (bytes, default `20000`) — additional cost charged for every CSS
    *       request a chunk group makes. Larger values bias the algorithm toward fewer, larger
    *       shared chunks; smaller values toward more, smaller chunks.
@@ -532,7 +531,10 @@ export interface ExperimentalConfig {
   cssChunking?:
     | boolean
     | 'strict'
+    | 'loose'
     | 'graph'
+    | { type: 'strict' }
+    | { type: 'dependencies' }
     | {
         type: 'graph'
         requestCost?: number

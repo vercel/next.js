@@ -22,7 +22,9 @@ use turbopack_core::{
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
     issue::IssueSeverity,
-    module_graph::binding_usage_info::OptionBindingUsageInfo,
+    module_graph::{
+        binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
+    },
     target::CompileTarget,
 };
 use turbopack_css::chunk::CssChunkType;
@@ -1021,7 +1023,7 @@ pub struct ServerChunkingContextOptions {
     pub asset_prefix: RcStr,
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
-    pub style_groups_algorithm: turbopack_core::module_graph::style_groups::StyleGroupsAlgorithm,
+    pub style_groups_algorithm: StyleGroupsAlgorithm,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)

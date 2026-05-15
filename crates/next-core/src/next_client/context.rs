@@ -23,7 +23,9 @@ use turbopack_core::{
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     free_var_references,
     issue::IssueSeverity,
-    module_graph::binding_usage_info::OptionBindingUsageInfo,
+    module_graph::{
+        binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
+    },
     resolve::{parse::Request, pattern::Pattern},
 };
 use turbopack_css::chunk::CssChunkType;
@@ -476,7 +478,7 @@ pub struct ClientChunkingContextOptions {
     pub hash_salt: ResolvedVc<RcStr>,
     pub cross_origin: Vc<CrossOrigin>,
     pub chunk_loading_global: Vc<Option<RcStr>>,
-    pub style_groups_algorithm: turbopack_core::module_graph::style_groups::StyleGroupsAlgorithm,
+    pub style_groups_algorithm: StyleGroupsAlgorithm,
 }
 
 #[turbo_tasks::function]

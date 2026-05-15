@@ -2190,21 +2190,29 @@ export default async function getBaseWebpackConfig(
         }),
       !dev &&
         isClient &&
-        config.experimental.cssChunking &&
-        config.experimental.cssChunking !== 'graph' &&
-        !(
-          typeof config.experimental.cssChunking === 'object' &&
-          (config.experimental.cssChunking as { type?: string }).type ===
-            'graph'
-        ) &&
-        (isRspack
-          ? new (getRspackCore().experiments.CssChunkingPlugin)({
-              strict: config.experimental.cssChunking === 'strict',
-              nextjs: true,
-            })
-          : new CssChunkingPlugin(
-              config.experimental.cssChunking === 'strict'
-            )),
+        (() => {
+          const value = config.experimental.cssChunking
+          if (!value) return false
+          // Resolve string + object shorthands to a single string mode.
+          let mode: 'strict' | 'loose' | 'graph'
+          if (typeof value === 'object') {
+            if ((value as { type?: string }).type === 'strict') mode = 'strict'
+            else if ((value as { type?: string }).type === 'dependencies')
+              mode = 'loose'
+            else mode = 'graph'
+          } else if (value === 'strict') mode = 'strict'
+          else if (value === 'graph') mode = 'graph'
+          else mode = 'loose'
+          // Graph mode is rejected at config-validation time for webpack; this is just a
+          // belt-and-braces check to keep the plugin usage simple.
+          if (mode === 'graph') return false
+          return isRspack
+            ? new (getRspackCore().experiments.CssChunkingPlugin)({
+                strict: mode === 'strict',
+                nextjs: true,
+              })
+            : new CssChunkingPlugin(mode === 'strict')
+        })(),
       telemetryPlugin,
       !dev &&
         isNodeServer &&

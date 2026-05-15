@@ -26,6 +26,7 @@ use turbopack_core::{
     issue::{
         IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage, StyledString,
     },
+    module_graph::style_groups::StyleGroupsAlgorithm,
     resolve::ResolveAliasMap,
 };
 use turbopack_ecmascript::{OptionTreeShaking, TreeShakingMode};
@@ -1040,69 +1041,25 @@ pub struct TurbopackIgnoreIssueRule {
     pub description: Option<TurbopackIgnoreIssueTextPattern>,
 }
 
-/// Options of `experimental.cssChunking` when an object is given.
+/// `experimental.cssChunking` accepts the following shapes (all normalized to a single canonical
+/// object form via [`CssChunkingConfig::normalize`]):
+///
+/// * `true` — equivalent to `{ type: "dependencies" }` (default loose behaviour).
+/// * `false` — disabled chunking.
+/// * `"strict"` / `"loose"` / `"graph"` — string shorthands.
+/// * `{ type: "strict" }` / `{ type: "dependencies" }` — object form for the legacy modes.
+/// * `{ type: "graph", requestCost?, moduleFactorCost? }` — object form for the graph algorithm.
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    PartialEq,
-    Eq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
-)]
-#[serde(rename_all = "camelCase")]
-pub struct CssChunkingGraphOptions {
-    pub r#type: CssChunkingGraphType,
-    pub request_cost: Option<u64>,
-    pub module_factor_cost: Option<u64>,
-}
-
-/// Always `"graph"`. Used for the tagged `cssChunking: { type: "graph", ... }` form.
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    PartialEq,
-    Eq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
-)]
-#[serde(rename_all = "camelCase")]
-pub enum CssChunkingGraphType {
-    #[default]
-    Graph,
-}
-
-/// `experimental.cssChunking` accepts `true` / `false` / `"strict"` / `"loose"` / `"graph"` or
-/// the object form `{ type: "graph", requestCost?, moduleFactorCost? }`.
-#[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(untagged)]
 pub enum CssChunkingConfig {
     Bool(bool),
-    Str(CssChunkingMode),
-    Object(CssChunkingGraphOptions),
+    String(CssChunkingMode),
+    Object(CssChunkingObject),
 }
 
+/// String shorthand variants for [`CssChunkingConfig`].
 #[derive(
     Clone,
     Copy,
@@ -1123,43 +1080,84 @@ pub enum CssChunkingMode {
     Graph,
 }
 
-#[derive(Default, Debug, Clone)]
-pub struct ResolvedCssChunking {
-    /// Selected algorithm for the StyleGroups computation.
-    pub algorithm: turbopack_core::module_graph::style_groups::StyleGroupsAlgorithm,
+/// Object form of `experimental.cssChunking`.
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum CssChunkingObject {
+    Strict,
+    Dependencies,
+    Graph(CssChunkingGraphOptions),
 }
 
-/// `Vc`-wrapped variant of [`turbopack_core::module_graph::style_groups::StyleGroupsAlgorithm`]
-/// returned from [`NextConfig::css_chunking`].
-#[turbo_tasks::value(transparent)]
-pub struct CssChunkingAlgorithm(
-    pub turbopack_core::module_graph::style_groups::StyleGroupsAlgorithm,
-);
+/// Cost parameters for the graph algorithm. See [`CssChunkingConfig`] for details.
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct CssChunkingGraphOptions {
+    pub request_cost: Option<u64>,
+    pub module_factor_cost: Option<f32>,
+}
 
-impl ResolvedCssChunking {
-    /// Resolve the user-supplied `experimental.cssChunking` value to the algorithm Turbopack
-    /// should use. Defaults are applied here.
-    pub fn from_config(config: Option<&CssChunkingConfig>) -> Self {
-        // PoC defaults: requestCost = 20000 (in bytes), moduleFactorCost = 1.
-        const DEFAULT_REQUEST_COST: u64 = 20000;
-        const DEFAULT_MODULE_FACTOR_COST: u64 = 1;
-        use turbopack_core::module_graph::style_groups::StyleGroupsAlgorithm;
-        let algorithm = match config {
-            Some(CssChunkingConfig::Str(CssChunkingMode::Graph)) => StyleGroupsAlgorithm::Graph {
-                request_cost: DEFAULT_REQUEST_COST,
-                module_factor_cost: DEFAULT_MODULE_FACTOR_COST,
-            },
-            Some(CssChunkingConfig::Object(opts)) => StyleGroupsAlgorithm::Graph {
-                request_cost: opts.request_cost.unwrap_or(DEFAULT_REQUEST_COST),
-                module_factor_cost: opts
-                    .module_factor_cost
-                    .unwrap_or(DEFAULT_MODULE_FACTOR_COST),
-            },
-            _ => StyleGroupsAlgorithm::Default,
-        };
-        Self { algorithm }
+impl CssChunkingConfig {
+    /// Normalize all input shapes to the canonical object form. This is what should be used
+    /// downstream.
+    pub fn normalize(&self) -> CssChunkingObject {
+        match self {
+            // `true` -> dependencies (default loose behaviour).
+            CssChunkingConfig::Bool(true) => CssChunkingObject::Dependencies,
+            // `false` -> dependencies as well; the legacy "off" path is selected by the existing
+            // ChunkingContext defaults, not this option, so map it to the default.
+            CssChunkingConfig::Bool(false) => CssChunkingObject::Dependencies,
+            CssChunkingConfig::String(CssChunkingMode::Strict) => CssChunkingObject::Strict,
+            CssChunkingConfig::String(CssChunkingMode::Loose) => CssChunkingObject::Dependencies,
+            CssChunkingConfig::String(CssChunkingMode::Graph) => {
+                CssChunkingObject::Graph(CssChunkingGraphOptions::default())
+            }
+            CssChunkingConfig::Object(obj) => obj.clone(),
+        }
     }
 }
+
+/// Default `requestCost` for the graph algorithm (in bytes).
+const DEFAULT_REQUEST_COST: u64 = 20_000;
+/// Default `moduleFactorCost` for the graph algorithm.
+const DEFAULT_MODULE_FACTOR_COST: f32 = 1.0;
+
+/// Resolve `experimental.cssChunking` to the [`StyleGroupsAlgorithm`] Turbopack should use.
+fn resolve_css_chunking_algorithm(config: Option<&CssChunkingConfig>) -> StyleGroupsAlgorithm {
+    let Some(config) = config else {
+        return StyleGroupsAlgorithm::Default;
+    };
+    match config.normalize() {
+        // Both `strict` and `dependencies` use the existing default Turbopack algorithm. Strict
+        // is rejected at the Next.js config validation step when running with Turbopack, so we
+        // never actually reach this path with `Strict`; map it conservatively anyway.
+        CssChunkingObject::Strict | CssChunkingObject::Dependencies => {
+            StyleGroupsAlgorithm::Default
+        }
+        CssChunkingObject::Graph(opts) => StyleGroupsAlgorithm::graph(
+            opts.request_cost.unwrap_or(DEFAULT_REQUEST_COST),
+            opts.module_factor_cost
+                .unwrap_or(DEFAULT_MODULE_FACTOR_COST),
+        ),
+    }
+}
+
+/// `Vc`-wrapped variant of [`StyleGroupsAlgorithm`] returned from [`NextConfig::css_chunking`].
+#[turbo_tasks::value(transparent)]
+pub struct CssChunkingAlgorithm(pub StyleGroupsAlgorithm);
 
 #[derive(
     Clone,
@@ -1941,12 +1939,13 @@ impl NextConfig {
         Vc::cell(self.experimental.inline_css.unwrap_or(false))
     }
 
-    /// Resolve `experimental.cssChunking` to a [`ResolvedCssChunking`] value (with defaults
-    /// applied for the cost parameters of the graph algorithm).
+    /// Resolve `experimental.cssChunking` to a [`StyleGroupsAlgorithm`] (with defaults applied
+    /// for the cost parameters of the graph algorithm).
     #[turbo_tasks::function]
     pub fn css_chunking(&self) -> Vc<CssChunkingAlgorithm> {
-        let resolved = ResolvedCssChunking::from_config(self.experimental.css_chunking.as_ref());
-        CssChunkingAlgorithm(resolved.algorithm).cell()
+        Vc::cell(resolve_css_chunking_algorithm(
+            self.experimental.css_chunking.as_ref(),
+        ))
     }
 
     #[turbo_tasks::function]
