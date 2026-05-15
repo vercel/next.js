@@ -194,6 +194,7 @@ where
     G: ReadonlyGraph<'a>,
 {
     let mut candidates: FxHashMap<NodeIndex, Candidate> = FxHashMap::default();
+    // Seed: a backward "stub" at the start node, plus a forward step over each outgoing edge.
     candidates.insert(
         start,
         Candidate {
@@ -218,50 +219,40 @@ where
     }
 
     loop {
-        // Linear scan for the entry with the lowest distance — strict `<` so insertion order
-        // wins on ties (matches the JS).
-        let mut min_node: Option<NodeIndex> = None;
-        let mut min_distance: u64 = u64::MAX;
-        for (&k, v) in &candidates {
-            if v.distance < min_distance {
-                min_distance = v.distance;
-                min_node = Some(k);
-            }
-        }
-        let node = match min_node {
-            Some(n) => n,
-            None => panic!("no cycles found"),
-        };
-        let current_distance = min_distance;
+        // Linear scan for the lowest-distance unvisited candidate. Strict `<` so insertion order
+        // wins on ties — this matches the JS PoC.
+        let (node, current_distance) = candidates
+            .iter()
+            .min_by_key(|(_, v)| v.distance)
+            .map(|(&k, v)| (k, v.distance))
+            .expect("no cycles found");
         if current_distance == u64::MAX {
             panic!("no cycles found");
         }
-        // Snapshot fields we need before mutating (to avoid two mutable borrows).
         let direction = candidates[&node].direction;
 
+        // A node with `direction == Cycle` is one where the forward and backward frontiers
+        // collided. Splice the two halves back into a cycle and return.
         if direction == Direction2::Cycle {
             let cand = candidates.remove(&node).unwrap();
-            // backward_path always begins with the cycle's start node; drop that head before
-            // reversing.
-            let mut result = cand.forward_path.clone();
+            let mut result = cand.forward_path;
             result.push(node);
-            for &n in cand.backward_path.iter().skip(1).rev() {
-                result.push(n);
-            }
+            // `backward_path` always begins with the cycle's start node; drop that head before
+            // reversing.
+            result.extend(cand.backward_path.into_iter().skip(1).rev());
             return result;
         }
 
-        // Mark visited.
+        // Mark `node` as visited (sentinel `u64::MAX` distance).
         candidates.get_mut(&node).unwrap().distance = u64::MAX;
-
+        // Snapshot the path extended through `node` for use when relaxing neighbours.
         let path_extended = {
             let cand = &candidates[&node];
             let mut p = cand.path.clone();
             p.push(node);
             p
         };
-
-        // Snapshot neighbours before mutating `candidates`.
+        // Snapshot neighbours before mutating `candidates` (avoids overlapping borrows).
         let neighbours: Vec<(NodeIndex, u32)> = match direction {
             Direction2::Forward => graph.outgoing_edges_with_weight(node).collect(),
             Direction2::Backward => graph.incoming_edges_with_weight(node).collect(),
@@ -272,6 +263,7 @@ where
             let new_distance = current_distance + weight as u64;
             match candidates.get_mut(&edge) {
                 None => {
+                    // Unseen neighbour — extend the unidirectional frontier.
                     candidates.insert(
                         edge,
                         Candidate {
@@ -283,34 +275,37 @@ where
                         },
                     );
                 }
+                Some(existing) if existing.distance == u64::MAX => {
+                    // Already visited — leave it.
+                }
+                Some(existing) if existing.direction == direction => {
+                    // Same-direction relaxation.
+                    if new_distance < existing.distance {
+                        existing.path = path_extended.clone();
+                        existing.distance = new_distance;
+                    }
+                }
+                Some(existing) if existing.direction == Direction2::Cycle => {
+                    // Already a cycle candidate — relax the half coming from `direction`.
+                    if new_distance < existing.distance {
+                        if direction == Direction2::Forward {
+                            existing.forward_path = path_extended.clone();
+                        } else {
+                            existing.backward_path = path_extended.clone();
+                        }
+                        existing.distance = new_distance;
+                    }
+                }
                 Some(existing) => {
-                    if existing.direction == direction {
-                        if existing.distance != u64::MAX && new_distance < existing.distance {
-                            existing.path = path_extended.clone();
-                            existing.distance = new_distance;
-                        }
-                    } else if existing.direction == Direction2::Cycle {
-                        if existing.distance != u64::MAX && new_distance < existing.distance {
-                            if direction == Direction2::Forward {
-                                existing.forward_path = path_extended.clone();
-                            } else {
-                                existing.backward_path = path_extended.clone();
-                            }
-                            existing.distance = new_distance;
-                        }
+                    // Opposite unidirectional frontiers met → upgrade to a cycle candidate.
+                    let other_path = std::mem::take(&mut existing.path);
+                    existing.direction = Direction2::Cycle;
+                    if direction == Direction2::Forward {
+                        existing.forward_path = path_extended.clone();
+                        existing.backward_path = other_path;
                     } else {
-                        // Opposite unidirectional → upgrade to a cycle candidate.
-                        if existing.distance != u64::MAX {
-                            let other_path = std::mem::take(&mut existing.path);
-                            existing.direction = Direction2::Cycle;
-                            if direction == Direction2::Forward {
-                                existing.forward_path = path_extended.clone();
-                                existing.backward_path = other_path;
-                            } else {
-                                existing.forward_path = other_path;
-                                existing.backward_path = path_extended.clone();
-                            }
-                        }
+                        existing.forward_path = other_path;
+                        existing.backward_path = path_extended.clone();
                     }
                 }
             }
@@ -464,67 +459,47 @@ pub(super) fn split_into_chunks(
     let order: Vec<usize> = global_order.iter().map(|n| n.index()).collect();
     let n = order.len();
 
-    // Active split point bitmap: `split_points[i] = true` means there's a boundary between
-    // `order[i]` and `order[i+1]`.
-    let mut split_points = vec![true; n.saturating_sub(1)];
-    let mut metrics: Vec<Option<f32>> = vec![None; split_points.len()];
-
-    // Per-group total CSS byte size — used as the denominator in the cost formula. Memoized
-    // here because `chunk_groups` is fixed.
+    // Per-group total CSS byte size — denominator in the cost formula. Memoized once because
+    // `chunk_groups` is fixed for the duration of this call. `.max(1)` avoids a div-by-zero
+    // when a chunk group has only zero-sized modules.
     let group_total_size: Vec<u64> = chunk_groups
         .iter()
         .map(|g| g.iter().map(|&id| module_sizes[id]).sum::<u64>().max(1))
         .collect();
 
+    let cx = CostContext {
+        chunk_groups,
+        group_total_size: &group_total_size,
+        module_sizes,
+        module_style_types,
+        request_cost,
+        module_factor_cost,
+        max_chunk_size,
+    };
+
+    // Active split point bitmap: `split_points[i] = true` means there's a boundary between
+    // `order[i]` and `order[i+1]`. Parallel `metrics` cache stores `cost(merged) - cost(left) -
+    // cost(right)` for the active split at `i` (or `None` if the metric needs (re)computing).
+    let mut split_points = vec![true; n.saturating_sub(1)];
+    let mut metrics: Vec<Option<f32>> = vec![None; split_points.len()];
+
     loop {
-        // 1. Compute metrics for active splits whose metric is unknown.
+        // 1. Refresh metrics for active splits with a stale entry.
         for i in 0..split_points.len() {
-            if !split_points[i] {
-                continue;
-            }
-            if metrics[i].is_some() {
+            if !split_points[i] || metrics[i].is_some() {
                 continue;
             }
             let (start, end) = affected_range(&split_points, i);
             let left = &order[start..=i];
             let right = &order[i + 1..=end];
             let merged = &order[start..=end];
-            let left_cost = chunk_cost(
-                left,
-                chunk_groups,
-                &group_total_size,
-                module_sizes,
-                module_style_types,
-                request_cost,
-                module_factor_cost,
-                max_chunk_size,
-            );
-            let right_cost = chunk_cost(
-                right,
-                chunk_groups,
-                &group_total_size,
-                module_sizes,
-                module_style_types,
-                request_cost,
-                module_factor_cost,
-                max_chunk_size,
-            );
-            let merged_cost = chunk_cost(
-                merged,
-                chunk_groups,
-                &group_total_size,
-                module_sizes,
-                module_style_types,
-                request_cost,
-                module_factor_cost,
-                max_chunk_size,
-            );
-            metrics[i] = Some(merged_cost - left_cost - right_cost);
+            metrics[i] = Some(cx.chunk_cost(merged) - cx.chunk_cost(left) - cx.chunk_cost(right));
         }
 
-        // 2. Find the most-negative metric.
+        // 2. Pick the most-negative metric. Stop if no merge would reduce cost. On ties keep the
+        //    lowest index (strict `<`), matching the PoC.
         let mut best_i: Option<usize> = None;
-        let mut best_metric: f32 = 0.0;
+        let mut best_metric = 0.0_f32;
         for i in 0..split_points.len() {
             if !split_points[i] {
                 continue;
@@ -540,38 +515,33 @@ pub(super) fn split_into_chunks(
             break;
         };
 
-        // 3. Merge at best_i.
+        // 3. Merge at `best_i` and invalidate the metrics of the two adjacent active splits (their
+        //    `affected_range` now extends across the merged region).
         split_points[best_i] = false;
         metrics[best_i] = None;
-        // Invalidate the nearest active splits on each side.
-        for i in (0..best_i).rev() {
-            if split_points[i] {
-                metrics[i] = None;
-                break;
-            }
+        if let Some(left) = (0..best_i).rev().find(|&i| split_points[i]) {
+            metrics[left] = None;
         }
-        for i in (best_i + 1)..split_points.len() {
-            if split_points[i] {
-                metrics[i] = None;
-                break;
-            }
+        if let Some(right) = ((best_i + 1)..split_points.len()).find(|&i| split_points[i]) {
+            metrics[right] = None;
         }
     }
 
     // Materialize chunks by walking `order` and starting a new chunk on each true split point.
     let mut result: Vec<Vec<usize>> = vec![vec![order[0]]];
     for i in 1..n {
-        let module = order[i];
-        let split = split_points[i - 1];
-        if split {
-            result.push(vec![module]);
+        if split_points[i - 1] {
+            result.push(vec![order[i]]);
         } else {
-            result.last_mut().unwrap().push(module);
+            result.last_mut().unwrap().push(order[i]);
         }
     }
     result
 }
 
+/// `(start, end)` order-indices for the merged region straddling the `index`-th split — the
+/// run of consecutive `order` positions whose neighbouring split points have been merged
+/// (`split_points[i] == false`).
 fn affected_range(split_points: &[bool], index: usize) -> (usize, usize) {
     let mut start = index;
     while start > 0 && !split_points[start - 1] {
@@ -584,68 +554,70 @@ fn affected_range(split_points: &[bool], index: usize) -> (usize, usize) {
     (start, end)
 }
 
-/// Cost of loading a single chunk: summed over the chunk groups that load it (a group "loads"
-/// a chunk if it shares ≥ 1 module with it).
-///
-/// Returns `+infinity` (`f32::INFINITY`) when the chunk violates a hard constraint
-/// (`max_chunk_size` exceeded for a multi-item chunk, or a global CSS module would leak into a
-/// chunk group that doesn't already load it).
-fn chunk_cost(
-    chunk: &[usize],
-    chunk_groups: &[Vec<usize>],
-    group_total_size: &[u64],
-    module_sizes: &[u64],
-    module_style_types: &[StyleType],
+/// Constant inputs to [`CostContext::chunk_cost`]. Bundled together so we don't have to pass
+/// seven arguments at every call site.
+struct CostContext<'a> {
+    chunk_groups: &'a [Vec<usize>],
+    group_total_size: &'a [u64],
+    module_sizes: &'a [u64],
+    module_style_types: &'a [StyleType],
     request_cost: f32,
     module_factor_cost: f32,
     max_chunk_size: u64,
-) -> f32 {
-    let chunk_size: u64 = chunk.iter().map(|&id| module_sizes[id]).sum();
+}
 
-    if chunk.len() > 1 && max_chunk_size > 0 && chunk_size > max_chunk_size {
-        return f32::INFINITY;
-    }
+impl CostContext<'_> {
+    /// Cost of loading a single chunk: summed over the chunk groups that load it (a group
+    /// "loads" a chunk if it shares ≥ 1 module with it).
+    ///
+    /// Returns `+infinity` (`f32::INFINITY`) when the chunk violates a hard constraint:
+    /// * `max_chunk_size` exceeded for a multi-item chunk; or
+    /// * a [`StyleType::GlobalStyle`] module would leak into a chunk group that doesn't already
+    ///   load that specific module.
+    fn chunk_cost(&self, chunk: &[usize]) -> f32 {
+        let chunk_size: u64 = chunk.iter().map(|&id| self.module_sizes[id]).sum();
 
-    let chunk_set: FxHashSet<usize> = chunk.iter().copied().collect();
-
-    // Determine which groups load this chunk and accumulate the cost.
-    let mut total: f32 = 0.0;
-    let chunk_size_f = chunk_size as f32;
-
-    // Pre-compute which chunk groups load this chunk (= share ≥ 1 module).
-    let loading_groups: Vec<usize> = chunk_groups
-        .iter()
-        .enumerate()
-        .filter_map(|(i, g)| {
-            if g.iter().any(|id| chunk_set.contains(id)) {
-                Some(i)
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    // Global CSS leakage check: if the chunk contains any GlobalStyle module, every chunk
-    // group that loads the chunk must already load that specific module (otherwise we'd be
-    // leaking unrelated global CSS into the page).
-    for &id in chunk {
-        if module_style_types[id] != StyleType::GlobalStyle {
-            continue;
+        if chunk.len() > 1 && self.max_chunk_size > 0 && chunk_size > self.max_chunk_size {
+            return f32::INFINITY;
         }
-        for &gi in &loading_groups {
-            if !chunk_groups[gi].contains(&id) {
+
+        // Chunk groups that load this chunk = those sharing ≥ 1 module with `chunk`.
+        let chunk_set: FxHashSet<usize> = chunk.iter().copied().collect();
+        let loading_groups: Vec<usize> = self
+            .chunk_groups
+            .iter()
+            .enumerate()
+            .filter(|(_, g)| g.iter().any(|id| chunk_set.contains(id)))
+            .map(|(i, _)| i)
+            .collect();
+
+        // Global CSS leakage check: every group that would end up loading this chunk must
+        // already be loading each of its `GlobalStyle` modules.
+        for &id in chunk {
+            if self.module_style_types[id] != StyleType::GlobalStyle {
+                continue;
+            }
+            if loading_groups
+                .iter()
+                .any(|&gi| !self.chunk_groups[gi].contains(&id))
+            {
                 return f32::INFINITY;
             }
         }
-    }
 
-    for &gi in &loading_groups {
-        let group_total = group_total_size[gi] as f32;
-        // Per-group cost: chunk_size + (chunk_size / group_total) * module_factor_cost +
-        // request_cost.
-        total += chunk_size_f + (chunk_size_f / group_total) * module_factor_cost + request_cost;
+        // Per-group cost: `chunk_size + (chunk_size / group_total) * module_factor_cost +
+        // request_cost`. Total is the sum across all loading groups.
+        let chunk_size_f = chunk_size as f32;
+        loading_groups
+            .iter()
+            .map(|&gi| {
+                let group_total = self.group_total_size[gi] as f32;
+                chunk_size_f
+                    + (chunk_size_f / group_total) * self.module_factor_cost
+                    + self.request_cost
+            })
+            .sum()
     }
-    total
 }
 
 // ---------------------------------------------------------------------------

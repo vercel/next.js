@@ -13,7 +13,11 @@ import {
   PHASE_PRODUCTION_SERVER,
   type PHASE_TYPE,
 } from '../shared/lib/constants'
-import { defaultConfig, normalizeConfig } from './config-shared'
+import {
+  defaultConfig,
+  normalizeConfig,
+  resolveCssChunkingMode,
+} from './config-shared'
 import type {
   ExperimentalConfig,
   NextConfigComplete,
@@ -456,25 +460,18 @@ function assignDefaultsAndValidate(
     )
   }
 
-  // Validate experimental.cssChunking compatibility with the active bundler.
-  const cssChunking = result.experimental.cssChunking
-  const cssChunkingObjectType =
-    typeof cssChunking === 'object' &&
-    cssChunking !== null &&
-    typeof (cssChunking as { type?: string }).type === 'string'
-      ? (cssChunking as { type: string }).type
-      : undefined
-  const isStrictCssChunking =
-    cssChunking === 'strict' || cssChunkingObjectType === 'strict'
-  const isGraphCssChunking =
-    cssChunking === 'graph' || cssChunkingObjectType === 'graph'
-  if (isGraphCssChunking && !process.env.TURBOPACK) {
+  // Validate experimental.cssChunking compatibility with the active bundler. Graph mode is
+  // Turbopack-only; strict mode is webpack-only.
+  const cssChunkingMode = resolveCssChunkingMode(
+    result.experimental.cssChunking
+  )
+  if (cssChunkingMode === 'graph' && !process.env.TURBOPACK) {
     throw new Error(
       `\`experimental.cssChunking: "graph"\` is only supported with Turbopack. ` +
         `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
     )
   }
-  if (isStrictCssChunking && process.env.TURBOPACK) {
+  if (cssChunkingMode === 'strict' && process.env.TURBOPACK) {
     throw new Error(
       `\`experimental.cssChunking: "strict"\` is only supported with webpack. ` +
         `Please remove the option or run Next.js with webpack in ${configFileName}.`

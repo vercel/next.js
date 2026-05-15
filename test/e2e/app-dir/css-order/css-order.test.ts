@@ -241,10 +241,9 @@ const PAGES: Record<
 
 const allPairs = getPairs(Object.keys(PAGES))
 
-// Modes that enable Turbopack's graph chunking. Each entry is `[label, value]`,
-// where `label` is shown in test names and `value` is what the test writes
-// into `experimental.cssChunking` (or `undefined` to leave it unset, which is
-// the existing Turbopack default).
+// Each entry is `[label, value]`, where `label` is shown in test names and `value` is what gets
+// written into `experimental.cssChunking` (or `undefined` to leave it unset, which is the
+// existing Turbopack default).
 type GraphCssChunkingObject = {
   type: 'graph'
   requestCost?: number
@@ -261,13 +260,11 @@ type CssChunkingValue =
 type Mode = readonly [string, CssChunkingValue]
 
 const TURBO_MODES: readonly Mode[] = [
-  // The default Turbopack behaviour is the existing loose algorithm; leave
-  // `cssChunking` unset to exercise it.
   ['turbo', undefined],
   ['graph', 'graph'],
   ['graph-object', { type: 'graph', requestCost: 1, moduleFactorCost: 1 }],
 ]
-const WEBPACK_MODES: readonly Mode[] = [
+const WEBPACK_MODES_TRUE: readonly Mode[] = [
   ['strict', 'strict'],
   ['true', true],
 ]
@@ -283,20 +280,18 @@ function isGraphMode(value: CssChunkingValue): boolean {
   )
 }
 
+function isStrictMode(value: CssChunkingValue): boolean {
+  return value === 'strict'
+}
+
 const options = (value: CssChunkingValue) => ({
   files: {
     app: new FileRef(path.join(__dirname, 'app')),
     pages: new FileRef(path.join(__dirname, 'pages')),
     'next.config.js':
       value === undefined
-        ? `
-            module.exports = {}`
-        : `
-            module.exports = {
-              experimental: {
-                cssChunking: ${JSON.stringify(value)}
-              }
-            }`,
+        ? `module.exports = {}`
+        : `module.exports = { experimental: { cssChunking: ${JSON.stringify(value)} } }`,
   },
   dependencies: {
     sass: 'latest',
@@ -304,6 +299,10 @@ const options = (value: CssChunkingValue) => ({
   skipDeployment: true,
 })
 
+/**
+ * Number of CSS request expected for a page in the given mode. Falls back from the most-specific
+ * to the most-generic per-page expectation.
+ */
 function expectedRequests(
   value: CssChunkingValue,
   pageInfo: {
@@ -315,11 +314,29 @@ function expectedRequests(
   if (isGraphMode(value)) {
     return pageInfo.requestsGraph ?? pageInfo.requestsLoose ?? pageInfo.requests
   }
-  if (value === 'strict') return pageInfo.requests
+  if (isStrictMode(value)) {
+    return pageInfo.requests
+  }
   // `undefined` (Turbopack default), `true`, or `'loose'` all map to loose.
   return pageInfo.requestsLoose ?? pageInfo.requests
 }
-describe.each(process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES)(
+
+/**
+ * Whether a given ordering should be skipped because at least one page in the ordering has a
+ * conflict that the active chunking mode can't preserve. `'strict'` preserves ordering for
+ * conflict scenarios; everything else does not.
+ */
+function shouldSkipConflict(ordering: string[]): boolean {
+  return ordering
+    .map((page) => PAGES[page])
+    .some((page) =>
+      process.env.IS_TURBOPACK_TEST
+        ? page.conflictTurbo || page.conflict
+        : page.conflict
+    )
+}
+
+describe.each(process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_TRUE)(
   'css-order %s',
   (_label: string, value: CssChunkingValue) => {
     const { next, isNextDev, skipped } = nextTestSetup(options(value))
@@ -328,18 +345,7 @@ describe.each(process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES)(
       const name = `should load correct styles navigating back again ${ordering.join(
         ' -> '
       )} -> ${ordering.join(' -> ')}`
-      if (
-        ordering
-          .map((page) => PAGES[page])
-          .some((page) =>
-            // Treat any Turbopack mode (including graph) the same as the legacy
-            // `'turbo'` label for the conflict-skip logic; graph mode does not
-            // preserve strict ordering either.
-            process.env.IS_TURBOPACK_TEST
-              ? page.conflictTurbo || page.conflict
-              : page.conflict
-          )
-      ) {
+      if (shouldSkipConflict(ordering)) {
         // Conflict scenarios won't support that case
         continue
       }
@@ -392,15 +398,7 @@ describe.each(
     const name = `should load correct styles navigating ${ordering.join(
       ' -> '
     )}`
-    if (
-      ordering
-        .map((page) => PAGES[page])
-        .some((page) =>
-          process.env.IS_TURBOPACK_TEST
-            ? page.conflictTurbo || page.conflict
-            : page.conflict
-        )
-    ) {
+    if (shouldSkipConflict(ordering)) {
       // Conflict scenarios won't support that case
       continue
     }
@@ -442,9 +440,9 @@ describe.each(
   for (const [page, pageInfo] of Object.entries(PAGES)) {
     const name = `should load correct styles on ${page}`
     if (
-      // strict preserves ordering for conflict scenarios; loose / turbo / graph
-      // do not. conflictTurbo applies to any Turbopack mode.
-      (value !== 'strict' && pageInfo.conflict) ||
+      // `strict` preserves ordering for conflict scenarios; loose/turbo/graph do not.
+      // `conflictTurbo` applies to any Turbopack mode.
+      (!isStrictMode(value) && pageInfo.conflict) ||
       (process.env.IS_TURBOPACK_TEST && pageInfo.conflictTurbo)
     ) {
       // Conflict scenarios won't support that case

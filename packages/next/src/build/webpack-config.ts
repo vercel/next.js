@@ -32,6 +32,7 @@ import {
 import type { CompilerNameValues } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import type { NextConfigComplete } from '../server/config-shared'
+import { resolveCssChunkingMode } from '../server/config-shared'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { buildConfiguration } from './webpack/config'
@@ -2188,30 +2189,20 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
+      // CSS chunking plugin. Graph mode is Turbopack-only and is rejected at config-validation
+      // time for webpack, so we only need to wire up `'loose'` (default) and `'strict'` here.
       !dev &&
         isClient &&
         (() => {
-          const value = config.experimental.cssChunking
-          if (!value) return false
-          // Resolve string + object shorthands to a single string mode.
-          let mode: 'strict' | 'loose' | 'graph'
-          if (typeof value === 'object') {
-            if ((value as { type?: string }).type === 'strict') mode = 'strict'
-            else if ((value as { type?: string }).type === 'dependencies')
-              mode = 'loose'
-            else mode = 'graph'
-          } else if (value === 'strict') mode = 'strict'
-          else if (value === 'graph') mode = 'graph'
-          else mode = 'loose'
-          // Graph mode is rejected at config-validation time for webpack; this is just a
-          // belt-and-braces check to keep the plugin usage simple.
-          if (mode === 'graph') return false
+          const mode = resolveCssChunkingMode(config.experimental.cssChunking)
+          if (mode !== 'loose' && mode !== 'strict') return false
+          const strict = mode === 'strict'
           return isRspack
             ? new (getRspackCore().experiments.CssChunkingPlugin)({
-                strict: mode === 'strict',
+                strict,
                 nextjs: true,
               })
-            : new CssChunkingPlugin(mode === 'strict')
+            : new CssChunkingPlugin(strict)
         })(),
       telemetryPlugin,
       !dev &&

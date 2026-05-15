@@ -405,6 +405,40 @@ export interface LightningCssFeatures {
   exclude?: LightningCssFeature[]
 }
 
+/**
+ * Accepted shapes for `experimental.cssChunking`. See [`ExperimentalConfig.cssChunking`] for the
+ * accepted values; use [`resolveCssChunkingMode`] to normalize the value at runtime.
+ */
+export type CssChunkingConfig =
+  | boolean
+  | 'strict'
+  | 'loose'
+  | 'graph'
+  | { type: 'strict' }
+  | { type: 'dependencies' }
+  | { type: 'graph'; requestCost?: number; moduleFactorCost?: number }
+
+/**
+ * Normalize any [`CssChunkingConfig`] value to one of the four modes the build pipeline cares
+ * about:
+ *   - `'off'`  — `false`/`undefined`: do not run a CSS chunking plugin.
+ *   - `'loose'` — `true` / `'loose'` / `{ type: 'dependencies' }`: heuristic-based chunking
+ *     (the default).
+ *   - `'strict'` — `'strict'` / `{ type: 'strict' }`: webpack-only ordered-chunking plugin.
+ *   - `'graph'` — `'graph'` / `{ type: 'graph', … }`: Turbopack-only graph algorithm.
+ */
+export function resolveCssChunkingMode(
+  value: CssChunkingConfig | undefined
+): 'off' | 'loose' | 'strict' | 'graph' {
+  if (value === undefined || value === false) return 'off'
+  if (value === true || value === 'loose') return 'loose'
+  if (value === 'strict' || value === 'graph') return value
+  // Object form. `requestCost` and `moduleFactorCost` are validated by the schema.
+  if (value.type === 'strict') return 'strict'
+  if (value.type === 'graph') return 'graph'
+  return 'loose'
+}
+
 export interface ExperimentalConfig {
   /**
    * A string that is incorporated into content-addressed output filenames
@@ -528,18 +562,7 @@ export interface ExperimentalConfig {
    *       Higher values penalize overshipping in small chunk groups proportionally more, so
    *       small pages ship fewer unrelated styles at the expense of more requests overall.
    */
-  cssChunking?:
-    | boolean
-    | 'strict'
-    | 'loose'
-    | 'graph'
-    | { type: 'strict' }
-    | { type: 'dependencies' }
-    | {
-        type: 'graph'
-        requestCost?: number
-        moduleFactorCost?: number
-      }
+  cssChunking?: CssChunkingConfig
   disablePostcssPresetEnv?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean

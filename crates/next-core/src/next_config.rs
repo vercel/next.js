@@ -1111,15 +1111,12 @@ pub struct CssChunkingGraphOptions {
 }
 
 impl CssChunkingConfig {
-    /// Normalize all input shapes to the canonical object form. This is what should be used
-    /// downstream.
+    /// Normalize all input shapes (booleans, strings, object form) to the canonical object form.
     pub fn normalize(&self) -> CssChunkingObject {
         match self {
-            // `true` -> dependencies (default loose behaviour).
-            CssChunkingConfig::Bool(true) => CssChunkingObject::Dependencies,
-            // `false` -> dependencies as well; the legacy "off" path is selected by the existing
-            // ChunkingContext defaults, not this option, so map it to the default.
-            CssChunkingConfig::Bool(false) => CssChunkingObject::Dependencies,
+            // `false` is treated like `true`/loose: the "off" path is selected via the existing
+            // `ChunkingContext` defaults, not via this option.
+            CssChunkingConfig::Bool(_) => CssChunkingObject::Dependencies,
             CssChunkingConfig::String(CssChunkingMode::Strict) => CssChunkingObject::Strict,
             CssChunkingConfig::String(CssChunkingMode::Loose) => CssChunkingObject::Dependencies,
             CssChunkingConfig::String(CssChunkingMode::Graph) => {
@@ -1136,14 +1133,14 @@ const DEFAULT_REQUEST_COST: u64 = 20_000;
 const DEFAULT_MODULE_FACTOR_COST: f32 = 1.0;
 
 /// Resolve `experimental.cssChunking` to the [`StyleGroupsAlgorithm`] Turbopack should use.
+///
+/// Both `strict` and `dependencies` map to [`StyleGroupsAlgorithm::Default`]; `strict` on
+/// Turbopack is rejected at config-validation time and should never reach this code path.
 fn resolve_css_chunking_algorithm(config: Option<&CssChunkingConfig>) -> StyleGroupsAlgorithm {
     let Some(config) = config else {
         return StyleGroupsAlgorithm::Default;
     };
     match config.normalize() {
-        // Both `strict` and `dependencies` use the existing default Turbopack algorithm. Strict
-        // is rejected at the Next.js config validation step when running with Turbopack, so we
-        // never actually reach this path with `Strict`; map it conservatively anyway.
         CssChunkingObject::Strict | CssChunkingObject::Dependencies => {
             StyleGroupsAlgorithm::Default
         }

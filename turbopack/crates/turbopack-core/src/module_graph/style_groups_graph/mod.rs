@@ -97,6 +97,16 @@ pub async fn compute_style_groups_graph(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     config: &StyleGroupsConfig,
 ) -> Result<Vc<StyleGroups>> {
+    compute_style_groups_graph_inner(module_graph, chunking_context, config)
+        .instrument(tracing::trace_span!("compute_style_groups_graph"))
+        .await
+}
+
+async fn compute_style_groups_graph_inner(
+    module_graph: Vc<ModuleGraph>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    config: &StyleGroupsConfig,
+) -> Result<Vc<StyleGroups>> {
     let StyleGroupsAlgorithm::Graph {
         request_cost,
         module_factor_cost_bits,
@@ -104,16 +114,14 @@ pub async fn compute_style_groups_graph(
     else {
         unreachable!("compute_style_groups_graph called with non-Graph algorithm");
     };
-    let module_factor_cost = f32::from_bits(module_factor_cost_bits as u32);
-    // The cost model uses f32 throughout; convert at the boundary.
+    // The cost model uses f32 throughout; widen at the boundary.
     let request_cost = request_cost as f32;
+    let module_factor_cost = f32::from_bits(module_factor_cost_bits as u32);
 
     // 1. Walk every chunk group post-order and collect, for each group, the ordered list of CSS
     //    modules. Module ids are densely allocated as we encounter modules for the first time.
     let (chunk_groups, modules_in_order) = collect_chunk_groups(module_graph, chunking_context)
-        .instrument(tracing::trace_span!(
-            "compute_style_groups_graph: collect_chunk_groups"
-        ))
+        .instrument(tracing::trace_span!("collect_chunk_groups"))
         .await?;
 
     if modules_in_order.is_empty() {
@@ -122,38 +130,33 @@ pub async fn compute_style_groups_graph(
 
     // 2. Resolve each module's `ChunkItemWithAsyncModuleInfo` and byte size in parallel.
     let module_data = resolve_module_data(module_graph, chunking_context, &modules_in_order)
-        .instrument(tracing::trace_span!(
-            "compute_style_groups_graph: resolve_module_data"
-        ))
+        .instrument(tracing::trace_span!("resolve_module_data"))
         .await?;
 
     let module_sizes: Vec<u64> = module_data.iter().map(|m| m.size).collect();
     let module_style_types: Vec<StyleType> = module_data.iter().map(|m| m.style_type).collect();
 
-    // 3. Run the chunking pipeline.
-    let mut graph = tracing::trace_span!("compute_style_groups_graph: create_graph")
+    // 3. Run the synchronous chunking pipeline.
+    let mut graph = tracing::trace_span!("create_graph")
         .in_scope(|| algorithm::create_graph(&chunk_groups, modules_in_order.len()));
-    tracing::trace_span!("compute_style_groups_graph: make_acyclic")
-        .in_scope(|| algorithm::make_acyclic(&mut graph));
-    let global_order = tracing::trace_span!("compute_style_groups_graph: linearize")
-        .in_scope(|| algorithm::linearize(&graph));
-    let chunks =
-        tracing::trace_span!("compute_style_groups_graph: split_into_chunks").in_scope(|| {
-            algorithm::split_into_chunks(
-                &global_order,
-                &chunk_groups,
-                &module_sizes,
-                &module_style_types,
-                request_cost,
-                module_factor_cost,
-                config.max_chunk_size as u64,
-            )
-        });
+    tracing::trace_span!("make_acyclic").in_scope(|| algorithm::make_acyclic(&mut graph));
+    let global_order = tracing::trace_span!("linearize").in_scope(|| algorithm::linearize(&graph));
+    let chunks = tracing::trace_span!("split_into_chunks").in_scope(|| {
+        algorithm::split_into_chunks(
+            &global_order,
+            &chunk_groups,
+            &module_sizes,
+            &module_style_types,
+            request_cost,
+            module_factor_cost,
+            config.max_chunk_size as u64,
+        )
+    });
 
     // 4. Assemble the result. Each multi-item chunk becomes a `ChunkItemBatch`; singletons get a
     //    `batch = None` entry so the production sort still places them at the right `order`.
     assemble_style_groups(&chunks, &module_data)
-        .instrument(tracing::trace_span!("compute_style_groups_graph: assemble"))
+        .instrument(tracing::trace_span!("assemble"))
         .await
 }
 
