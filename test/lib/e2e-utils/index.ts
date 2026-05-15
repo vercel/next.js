@@ -238,13 +238,10 @@ const setupTracing = () => {
  * test mode. The next instance will be isolated from the monorepo
  * to prevent relying on modules that shouldn't be.
  *
- * Most tests should use {@link nextTestSetup} which wraps `createNext` with
- * the appropriate `beforeAll`/`afterAll` lifecycle. The one current exception
- * is the `create-next-app` test suite, which needs to create an isolated
- * instance per `it` block (one per CNA-generated project) — see
- * `test/production/create-next-app/utils.ts`.
+ * Internal helper used by `nextTestSetup`. Tests should call
+ * `nextTestSetup` directly instead of `createNext`.
  */
-export async function createNext(
+async function createNext(
   opts: NextInstanceOpts & { skipStart?: boolean; patchFileDelay?: number }
 ): Promise<NextInstance> {
   try {
