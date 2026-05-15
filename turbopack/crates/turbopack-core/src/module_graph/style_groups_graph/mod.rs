@@ -195,15 +195,15 @@ async fn assemble_style_groups(
         }
     }
 
-    // Defensive fallback: emit any module that the algorithm didn't reach (e.g. a node dropped
-    // by `linearize` because a residual cycle survived `make_acyclic`) as a singleton at the
-    // end. In practice this loop is a no-op — `linearize` operates on a DAG and processes every
-    // node — but it keeps the result complete if a future change ever breaks that invariant.
-    for data in module_data {
-        if !shared_chunk_items.contains_key(&data.chunk_item) {
-            push(&mut shared_chunk_items, data.chunk_item, None);
-        }
-    }
+    // `linearize` operates on a DAG and processes every node, so every module the algorithm saw
+    // must already have been emitted. Catch a future regression of that invariant in dev builds.
+    debug_assert!(
+        module_data
+            .iter()
+            .all(|data| shared_chunk_items.contains_key(&data.chunk_item)),
+        "linearize dropped a module: every module reached by the chunk-group walk must appear in \
+         the final chunk-item map",
+    );
 
     Ok(make_style_groups(shared_chunk_items))
 }
@@ -213,16 +213,6 @@ async fn assemble_style_groups(
 ///   empty groups),
 /// * `modules_in_order` is the densely-numbered list of distinct CSS modules referenced by any
 ///   chunk group, in insertion order.
-///
-/// The outer traversal — `chunk_group_info`, `batches_graph`, the parallel-edge filter inside
-/// `traverse_edges_from_entries_dfs`, the `ModuleOrBatch` match — is structurally identical to
-/// [`super::style_groups_loose::collect_style_modules_per_chunk_group`]. The two diverge in the
-/// per-module bookkeeping they need (loose builds [`super::style_groups_loose::ModuleInfo`]
-/// with per-chunk-group positions, an `index_sum`, an `ident`, etc.; the graph algorithm only
-/// needs a densely-packed CSS module id per group plus a parallel sidecast vector), so an
-/// earlier extraction attempt got reverted (commits `37d983f9` → `c05c4587`). Keep the two
-/// walks separate until something concrete changes; a generic "collect modules per chunk
-/// group" callback isn't worth the API surface.
 async fn collect_chunk_groups(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
