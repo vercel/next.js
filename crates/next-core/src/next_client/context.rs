@@ -24,7 +24,7 @@ use turbopack_core::{
     free_var_references,
     issue::IssueSeverity,
     module_graph::{
-        binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
+        binding_usage_info::OptionBindingUsageInfo, style_groups_loose::StyleGroupsAlgorithm,
     },
     resolve::{parse::Request, pattern::Pattern},
 };

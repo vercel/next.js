@@ -70,7 +70,7 @@ use crate::{
         GraphTraversalAction, ModuleGraph,
         module_batch::ModuleOrBatch,
         module_batches::ModuleBatchesGraphEdge,
-        style_groups::{StyleGroups, StyleItemInfo, make_style_groups},
+        style_groups_loose::{StyleGroups, StyleItemInfo, make_style_groups},
     },
 };
 
