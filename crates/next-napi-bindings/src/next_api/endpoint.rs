@@ -105,21 +105,18 @@ impl Deref for ExternalEndpoint {
 /// If the upstream endpoint operation fails to resolve (e.g. because the build
 /// graph cannot be evaluated transiently — for example during a mid-session
 /// `node_modules` reshuffle), this falls back to a default filter rather than
-/// propagating the error. The caller then drives the underlying operation via
-/// `strongly_consistent_catch_collectables`, which converts the same upstream
-/// failure into Issues that this default filter can surface.
-async fn issue_filter_from_endpoint(
-    endpoint_op: OperationVc<OptionEndpoint>,
-) -> Result<Vc<IssueFilter>> {
+/// propagating the error.  In this scenario we believe the caller will already be observing the
+/// same error
+async fn issue_filter_from_endpoint(endpoint_op: OperationVc<OptionEndpoint>) -> Vc<IssueFilter> {
     match endpoint_op.connect().await {
         Ok(endpoint_option) => {
             if let Some(ep) = &*endpoint_option {
-                Ok(ep.project().issue_filter())
+                ep.project().issue_filter()
             } else {
-                Ok(IssueFilter::warnings_and_foreign_errors().cell())
+                IssueFilter::warnings_and_foreign_errors().cell()
             }
         }
-        Err(_) => Ok(IssueFilter::warnings_and_foreign_errors().cell()),
+        Err(_) => IssueFilter::warnings_and_foreign_errors().cell(),
     }
 }
 
@@ -135,7 +132,7 @@ async fn get_written_endpoint_with_issues_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
     let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
-    let filter = issue_filter_from_endpoint(endpoint_op).await?;
+    let filter = issue_filter_from_endpoint(endpoint_op).await;
     let (written, issues, effects) =
         strongly_consistent_catch_collectables(write_to_disk_op, filter).await?;
     Ok(WrittenEndpointWithIssues {
@@ -241,7 +238,7 @@ async fn subscribe_issues_and_diags_operation(
     let changed_op = endpoint_server_changed_operation(endpoint_op);
 
     if should_include_issues {
-        let filter = issue_filter_from_endpoint(endpoint_op).await?;
+        let filter = issue_filter_from_endpoint(endpoint_op).await;
         let (changed_value, issues, effects) =
             strongly_consistent_catch_collectables(changed_op, filter).await?;
         Ok(EndpointIssuesAndDiags {

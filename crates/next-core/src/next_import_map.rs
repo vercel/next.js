@@ -1195,6 +1195,9 @@ impl Issue for MissingNextFolderIssue {
     }
 
     fn severity(&self) -> IssueSeverity {
+        // In theory this should be fatal (how can we ever recover from next missing when we are
+        // next), but we actually might be detecting an ephemeral scenario where 'next' is moving
+        // and we can recover.
         IssueSeverity::Error
     }
 
