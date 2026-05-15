@@ -25,6 +25,10 @@ pub(super) trait ReadonlyGraph<'a>: Copy {
 
     fn nodes(self) -> Self::NodesIter;
     fn node_count(self) -> usize;
+    /// Upper bound on `NodeIndex::index()` values returned by this view. Always equals the
+    /// underlying [`DiGraph`]'s node count, regardless of any subset filtering. Useful for
+    /// sizing scratch arrays keyed by node id.
+    fn index_bound(self) -> usize;
     fn outgoing_edges(self, node: NodeIndex) -> Self::OutgoingIter;
     fn outgoing_edges_with_weight(self, node: NodeIndex) -> Self::OutgoingWithWeightIter;
     fn incoming_edges(self, node: NodeIndex) -> Self::IncomingIter;
@@ -42,6 +46,9 @@ impl<'a, N: 'a> ReadonlyGraph<'a> for &'a DiGraph<N, u32> {
         self.node_indices()
     }
     fn node_count(self) -> usize {
+        DiGraph::node_count(self)
+    }
+    fn index_bound(self) -> usize {
         DiGraph::node_count(self)
     }
     fn outgoing_edges(self, node: NodeIndex) -> Self::OutgoingIter {
@@ -114,10 +121,11 @@ impl<'a, N: 'a> ReadonlyGraph<'a> for SubgraphView<'a, N> {
         }
     }
     fn node_count(self) -> usize {
-        self.subset
-            .iter()
-            .filter(|n| self.graph.node_weight(**n).is_some())
-            .count()
+        // Nodes are never removed from the graph, so every subset element is valid.
+        self.subset.len()
+    }
+    fn index_bound(self) -> usize {
+        self.graph.node_count()
     }
     fn outgoing_edges(self, node: NodeIndex) -> Self::OutgoingIter {
         SubgraphNeighbors {

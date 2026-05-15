@@ -62,9 +62,12 @@ pub(super) fn strongly_connected_components<'a, G>(graph: G) -> Vec<FxHashSet<No
 where
     G: ReadonlyGraph<'a>,
 {
-    let mut indices: FxHashMap<NodeIndex, u32> = FxHashMap::default();
-    let mut lowlinks: FxHashMap<NodeIndex, u32> = FxHashMap::default();
-    let mut on_stack: FxHashSet<NodeIndex> = FxHashSet::default();
+    let bound = graph.index_bound();
+    // `u32::MAX` as the "unvisited" sentinel. Tarjan only assigns strictly increasing indices
+    // up to `bound`, well within `u32::MAX` for any realistic graph.
+    let mut indices: Vec<u32> = vec![u32::MAX; bound];
+    let mut lowlinks: Vec<u32> = vec![u32::MAX; bound];
+    let mut on_stack: Vec<bool> = vec![false; bound];
     let mut scc_stack: Vec<NodeIndex> = Vec::new();
     let mut result: Vec<FxHashSet<NodeIndex>> = Vec::new();
     let mut next_index: u32 = 0;
@@ -76,14 +79,15 @@ where
     let mut call_stack: Vec<Frame<G::OutgoingIter>> = Vec::new();
 
     for root in graph.nodes() {
-        if indices.contains_key(&root) {
+        let root_i = root.index();
+        if indices[root_i] != u32::MAX {
             continue;
         }
-        indices.insert(root, next_index);
-        lowlinks.insert(root, next_index);
+        indices[root_i] = next_index;
+        lowlinks[root_i] = next_index;
         next_index += 1;
         scc_stack.push(root);
-        on_stack.insert(root);
+        on_stack[root_i] = true;
         call_stack.push(Frame {
             node: root,
             iter: graph.outgoing_edges(root),
@@ -93,13 +97,14 @@ where
             let v = frame.node;
             match frame.iter.next() {
                 None => {
-                    let v_index = indices[&v];
-                    let v_low = lowlinks[&v];
+                    let v_i = v.index();
+                    let v_index = indices[v_i];
+                    let v_low = lowlinks[v_i];
                     if v_low == v_index {
                         let mut component: FxHashSet<NodeIndex> = FxHashSet::default();
                         loop {
                             let top = scc_stack.pop().unwrap();
-                            on_stack.remove(&top);
+                            on_stack[top.index()] = false;
                             component.insert(top);
                             if top == v {
                                 break;
@@ -109,29 +114,29 @@ where
                     }
                     call_stack.pop();
                     if let Some(parent_frame) = call_stack.last() {
-                        let parent = parent_frame.node;
-                        let parent_low = lowlinks[&parent];
-                        if v_low < parent_low {
-                            lowlinks.insert(parent, v_low);
+                        let parent_i = parent_frame.node.index();
+                        if v_low < lowlinks[parent_i] {
+                            lowlinks[parent_i] = v_low;
                         }
                     }
                 }
                 Some(w) => {
-                    if let std::collections::hash_map::Entry::Vacant(e) = indices.entry(w) {
-                        e.insert(next_index);
-                        lowlinks.insert(w, next_index);
+                    let w_i = w.index();
+                    if indices[w_i] == u32::MAX {
+                        indices[w_i] = next_index;
+                        lowlinks[w_i] = next_index;
                         next_index += 1;
                         scc_stack.push(w);
-                        on_stack.insert(w);
+                        on_stack[w_i] = true;
                         call_stack.push(Frame {
                             node: w,
                             iter: graph.outgoing_edges(w),
                         });
-                    } else if on_stack.contains(&w) {
-                        let w_index = indices[&w];
-                        let v_low = lowlinks[&v];
-                        if w_index < v_low {
-                            lowlinks.insert(v, w_index);
+                    } else if on_stack[w_i] {
+                        let w_index = indices[w_i];
+                        let v_i = v.index();
+                        if w_index < lowlinks[v_i] {
+                            lowlinks[v_i] = w_index;
                         }
                     }
                 }
@@ -402,29 +407,30 @@ pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
                 break;
             };
 
-            // Restrict further to just the cycle's nodes.
-            let cycle_set: FxHashSet<NodeIndex> = short_cycle.iter().copied().collect();
-            let cycle_view = SubgraphView::new(&*graph, &cycle_set);
-
+            // Walk the cycle's k edges directly (closing wrap implicit) and find the minimum-
+            // weight one. Considering edges *on the cycle path* — rather than any edge between
+            // cycle nodes — guarantees the chosen cut breaks this cycle, not an unrelated chord.
             let mut min_weight: Option<u32> = None;
-            let mut min_from: Option<NodeIndex> = None;
+            let mut min_edge: Option<EdgeIndex> = None;
             let mut min_to: Option<NodeIndex> = None;
-            for node in cycle_view.nodes() {
-                for (target, weight) in cycle_view.outgoing_edges_with_weight(node) {
-                    if min_weight.is_none_or(|w| weight < w) {
-                        min_weight = Some(weight);
-                        min_from = Some(node);
-                        min_to = Some(target);
-                    }
+            for i in 0..short_cycle.len() {
+                let from = short_cycle[i];
+                let to = short_cycle[(i + 1) % short_cycle.len()];
+                let Some(edge) = graph.find_edge(from, to) else {
+                    continue;
+                };
+                let weight = *graph.edge_weight(edge).unwrap();
+                if min_weight.is_none_or(|w| weight < w) {
+                    min_weight = Some(weight);
+                    min_edge = Some(edge);
+                    min_to = Some(to);
                 }
             }
 
-            let (Some(from), Some(to)) = (min_from, min_to) else {
+            let (Some(edge), Some(to)) = (min_edge, min_to) else {
                 break;
             };
-            if let Some(edge) = graph.find_edge(from, to) {
-                graph.remove_edge(edge);
-            }
+            graph.remove_edge(edge);
             seed_node = Some(to);
         }
 
@@ -539,8 +545,24 @@ pub(super) fn split_into_chunks(
         .map(|g| g.iter().map(|&id| module_sizes[id]).sum::<u64>().max(1))
         .collect();
 
+    // Inverse index: for each module id, the sorted, deduplicated list of chunk-group indices
+    // that contain it. Built once so `chunk_cost` can collect "loading groups" as the union
+    // over the chunk's modules — and answer "does group gi contain module id?" via a binary
+    // search rather than a linear scan of the (potentially large) chunk group.
+    let mut module_to_groups: Vec<Vec<u32>> = vec![Vec::new(); module_sizes.len()];
+    for (gi, group) in chunk_groups.iter().enumerate() {
+        let gi32 = gi as u32;
+        for &id in group {
+            module_to_groups[id].push(gi32);
+        }
+    }
+    for list in module_to_groups.iter_mut() {
+        list.sort_unstable();
+        list.dedup();
+    }
+
     let cx = CostContext {
-        chunk_groups,
+        module_to_groups: &module_to_groups,
         group_total_size: &group_total_size,
         module_sizes,
         module_style_types,
@@ -629,7 +651,10 @@ fn affected_range(split_points: &[bool], index: usize) -> (usize, usize) {
 /// Constant inputs to [`CostContext::chunk_cost`]. Bundled together so we don't have to pass
 /// seven arguments at every call site.
 struct CostContext<'a> {
-    chunk_groups: &'a [Vec<usize>],
+    /// Inverse of `chunk_groups`: per module id, the sorted list of group indices containing
+    /// that module. Built once in [`split_into_chunks`] and reused for every `chunk_cost`
+    /// invocation.
+    module_to_groups: &'a [Vec<u32>],
     group_total_size: &'a [u64],
     module_sizes: &'a [u64],
     module_style_types: &'a [StyleType],
@@ -653,25 +678,28 @@ impl CostContext<'_> {
             return f32::INFINITY;
         }
 
-        // Chunk groups that load this chunk = those sharing ≥ 1 module with `chunk`.
-        let chunk_set: FxHashSet<usize> = chunk.iter().copied().collect();
-        let loading_groups: Vec<usize> = self
-            .chunk_groups
-            .iter()
-            .enumerate()
-            .filter(|(_, g)| g.iter().any(|id| chunk_set.contains(id)))
-            .map(|(i, _)| i)
-            .collect();
+        // Chunk groups that load this chunk = union of `module_to_groups[id]` for `id` in
+        // `chunk`. The inverse index lets us avoid scanning every input chunk group on each
+        // call.
+        let mut loading_groups: Vec<u32> = Vec::new();
+        for &id in chunk {
+            loading_groups.extend_from_slice(&self.module_to_groups[id]);
+        }
+        loading_groups.sort_unstable();
+        loading_groups.dedup();
 
-        // Global CSS leakage check: every group that would end up loading this chunk must
-        // already be loading each of its `GlobalStyle` modules.
+        // Global CSS leakage check: every loading group must already be a "container" of each
+        // `GlobalStyle` module in the chunk — i.e. `module_to_groups[id]` ⊇ `loading_groups`.
+        // Tested via binary search on the (sorted) container list rather than scanning the
+        // group's module list.
         for &id in chunk {
             if self.module_style_types[id] != StyleType::GlobalStyle {
                 continue;
             }
+            let containing = &self.module_to_groups[id];
             if loading_groups
                 .iter()
-                .any(|&gi| !self.chunk_groups[gi].contains(&id))
+                .any(|gi| containing.binary_search(gi).is_err())
             {
                 return f32::INFINITY;
             }
@@ -683,7 +711,7 @@ impl CostContext<'_> {
         loading_groups
             .iter()
             .map(|&gi| {
-                let group_total = self.group_total_size[gi] as f32;
+                let group_total = self.group_total_size[gi as usize] as f32;
                 chunk_size_f
                     + (chunk_size_f / group_total) * self.module_factor_cost
                     + self.request_cost
