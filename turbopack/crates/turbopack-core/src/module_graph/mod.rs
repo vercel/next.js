@@ -35,7 +35,10 @@ use crate::{
         chunk_group_info::{ChunkGroupEntry, ChunkGroupInfo, compute_chunk_group_info},
         merged_modules::{MergedModuleInfo, compute_merged_modules},
         module_batches::{ModuleBatchesGraph, compute_module_batches},
-        style_groups::{StyleGroups, StyleGroupsConfig, compute_style_groups},
+        style_groups::{
+            StyleGroups, StyleGroupsAlgorithm, StyleGroupsConfig, compute_style_groups,
+        },
+        style_groups_graph::compute_style_groups_graph,
         traced_di_graph::TracedDiGraph,
     },
     reference::{ModuleReference, primary_chunkable_referenced_modules},
@@ -49,7 +52,8 @@ pub mod merged_modules;
 pub mod module_batch;
 pub(crate) mod module_batches;
 mod side_effect_module_info;
-pub(crate) mod style_groups;
+pub mod style_groups;
+pub mod style_groups_graph;
 mod traced_di_graph;
 
 pub use self::module_batches::BatchingConfig;
@@ -760,7 +764,14 @@ impl ModuleGraph {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         config: StyleGroupsConfig,
     ) -> Result<Vc<StyleGroups>> {
-        compute_style_groups(self, chunking_context, &config).await
+        match &config.algorithm {
+            StyleGroupsAlgorithm::Default => {
+                compute_style_groups(self, chunking_context, &config).await
+            }
+            StyleGroupsAlgorithm::Graph { .. } => {
+                compute_style_groups_graph(self, chunking_context, &config).await
+            }
+        }
     }
 
     #[turbo_tasks::function(root)]

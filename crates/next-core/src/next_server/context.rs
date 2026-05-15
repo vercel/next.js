@@ -1021,6 +1021,7 @@ pub struct ServerChunkingContextOptions {
     pub asset_prefix: RcStr,
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
+    pub style_groups_algorithm: turbopack_core::module_graph::style_groups::StyleGroupsAlgorithm,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1048,6 +1049,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         asset_prefix,
         css_url_suffix,
         hash_salt,
+        style_groups_algorithm,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
 
@@ -1117,6 +1119,7 @@ pub async fn get_server_chunking_context_with_client_assets(
                 Vc::<CssChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
                     max_merge_chunk_size: 100_000,
+                    style_groups_algorithm: style_groups_algorithm.clone(),
                     ..Default::default()
                 },
             )
@@ -1151,6 +1154,7 @@ pub async fn get_server_chunking_context(
         asset_prefix,
         css_url_suffix,
         hash_salt,
+        style_groups_algorithm,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
@@ -1221,6 +1225,7 @@ pub async fn get_server_chunking_context(
                 Vc::<CssChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
                     max_merge_chunk_size: 100_000,
+                    style_groups_algorithm: style_groups_algorithm.clone(),
                     ..Default::default()
                 },
             )

@@ -272,7 +272,18 @@ export const experimentalSchema = {
   middlewareClientMaxBodySize: zSizeLimit.optional(),
   proxyClientMaxBodySize: zSizeLimit.optional(),
   multiZoneDraftMode: z.boolean().optional(),
-  cssChunking: z.union([z.boolean(), z.literal('strict')]).optional(),
+  cssChunking: z
+    .union([
+      z.boolean(),
+      z.literal('strict'),
+      z.literal('graph'),
+      z.strictObject({
+        type: z.literal('graph'),
+        requestCost: z.number().nonnegative().optional(),
+        moduleFactorCost: z.number().nonnegative().optional(),
+      }),
+    ])
+    .optional(),
   nextScriptWorkers: z.boolean().optional(),
   // The critter option is unknown, use z.any() here
   optimizeCss: z.union([z.boolean(), z.any()]).optional(),

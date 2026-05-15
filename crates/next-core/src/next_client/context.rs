@@ -476,6 +476,7 @@ pub struct ClientChunkingContextOptions {
     pub hash_salt: ResolvedVc<RcStr>,
     pub cross_origin: Vc<CrossOrigin>,
     pub chunk_loading_global: Vc<Option<RcStr>>,
+    pub style_groups_algorithm: turbopack_core::module_graph::style_groups::StyleGroupsAlgorithm,
 }
 
 #[turbo_tasks::function]
@@ -505,6 +506,7 @@ pub async fn get_client_chunking_context(
         hash_salt,
         cross_origin,
         chunk_loading_global,
+        style_groups_algorithm,
     } = options;
 
     let next_mode = mode.await?;
@@ -575,6 +577,7 @@ pub async fn get_client_chunking_context(
                 Vc::<CssChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
                     max_merge_chunk_size: 100_000,
+                    style_groups_algorithm: style_groups_algorithm.clone(),
                     ..Default::default()
                 },
             )

@@ -30,12 +30,43 @@ pub async fn make_style_production_chunks(
                 *chunking_context,
                 StyleGroupsConfig {
                     max_chunk_size: chunking_config.max_merge_chunk_size,
+                    algorithm: chunking_config.style_groups_algorithm.clone(),
                 },
             )
             .await?;
+
+        // Flatten the input to a sequence of chunk items (preserving input order, which is the
+        // tie-breaker for items without an explicit `order`).
+        let mut flat_items: Vec<ChunkItemWithAsyncModuleInfo> =
+            Vec::with_capacity(chunk_items.len());
+        for chunk_item in chunk_items {
+            match chunk_item {
+                ChunkItemOrBatchWithInfo::ChunkItem { chunk_item, .. } => {
+                    flat_items.push(chunk_item.clone());
+                }
+                ChunkItemOrBatchWithInfo::Batch { batch, .. } => {
+                    for chunk_item in &batch.await?.chunk_items {
+                        flat_items.push(chunk_item.clone());
+                    }
+                }
+            }
+        }
+
+        // Stable sort by `order` (None keeps original input position relative to other None
+        // entries). This is what the graph algorithm uses to dictate chunk order; the legacy
+        // algorithm produces all `None` so the sort is a no-op for it.
+        flat_items.sort_by_key(|item| {
+            style_groups
+                .shared_chunk_items
+                .get(item)
+                .and_then(|info| info.order)
+        });
+
         let mut handled = FxHashSet::default();
-        let mut handle_chunk_item = async |chunk_item: &ChunkItemWithAsyncModuleInfo| {
-            if let Some(&batch) = style_groups.shared_chunk_items.get(chunk_item) {
+        for chunk_item in &flat_items {
+            if let Some(info) = style_groups.shared_chunk_items.get(chunk_item)
+                && let Some(batch) = info.batch
+            {
                 if handled.insert(batch) {
                     make_chunk(
                         vec![&ChunkItemOrBatchWithInfo::Batch { batch, size: 0 }],
@@ -45,32 +76,19 @@ pub async fn make_style_production_chunks(
                     )
                     .await?;
                 }
-            } else {
-                make_chunk(
-                    vec![&ChunkItemOrBatchWithInfo::ChunkItem {
-                        chunk_item: *chunk_item,
-                        size: 0,
-                        asset_ident: rcstr!(""),
-                    }],
-                    vec![],
-                    &mut String::new(),
-                    &mut split_context,
-                )
-                .await?;
+                continue;
             }
-            anyhow::Ok(())
-        };
-        for chunk_item in chunk_items {
-            match chunk_item {
-                ChunkItemOrBatchWithInfo::ChunkItem { chunk_item, .. } => {
-                    handle_chunk_item(chunk_item).await?;
-                }
-                ChunkItemOrBatchWithInfo::Batch { batch, .. } => {
-                    for chunk_item in &batch.await?.chunk_items {
-                        handle_chunk_item(chunk_item).await?;
-                    }
-                }
-            };
+            make_chunk(
+                vec![&ChunkItemOrBatchWithInfo::ChunkItem {
+                    chunk_item: chunk_item.clone(),
+                    size: 0,
+                    asset_ident: rcstr!(""),
+                }],
+                vec![],
+                &mut String::new(),
+                &mut split_context,
+            )
+            .await?;
         }
 
         Ok(())

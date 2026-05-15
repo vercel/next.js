@@ -510,10 +510,34 @@ export interface ExperimentalConfig {
   /**
    * CSS Chunking strategy. Defaults to `true` ("loose" mode), which guesses dependencies
    * between CSS files to keep ordering of them.
-   * An alternative is 'strict', which will try to keep correct ordering as
-   * much as possible, even when this leads to many requests.
+   *
+   * - `true` / `'loose'` — default heuristic-based chunking.
+   * - `'strict'` — preserve correct ordering as much as possible, even when this leads to
+   *   many requests.
+   * - `false` — disable chunking; emit one chunk per CSS module.
+   * - `'graph'` — Turbopack only. Selects a CSS chunking strategy that analyzes the most
+   *   common style orderings across the application and produces shared chunks accordingly.
+   *   Compared to the default mode it intentionally overships some styles in order to reduce
+   *   the number of CSS requests per page.
+   * - `{ type: 'graph', requestCost?: number, moduleFactorCost?: number }` — Turbopack only.
+   *   Same as `'graph'` with explicit cost parameters:
+   *     - `requestCost` (bytes, default `20000`) — additional cost charged for every CSS
+   *       request a chunk group makes. Larger values bias the algorithm toward fewer, larger
+   *       shared chunks; smaller values toward more, smaller chunks.
+   *     - `moduleFactorCost` (default `1`) — controls how much the algorithm cares about
+   *       small chunk groups. `0` distributes overshipped bytes evenly across chunk groups.
+   *       Higher values penalize overshipping in small chunk groups proportionally more, so
+   *       small pages ship fewer unrelated styles at the expense of more requests overall.
    */
-  cssChunking?: boolean | 'strict'
+  cssChunking?:
+    | boolean
+    | 'strict'
+    | 'graph'
+    | {
+        type: 'graph'
+        requestCost?: number
+        moduleFactorCost?: number
+      }
   disablePostcssPresetEnv?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean

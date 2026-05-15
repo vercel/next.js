@@ -30,6 +30,7 @@ const PAGES: Record<
     brokenLoadingDev?: boolean
     requests?: number
     requestsLoose?: number
+    requestsGraph?: number
   }
 > = {
   first: {
@@ -240,17 +241,60 @@ const PAGES: Record<
 
 const allPairs = getPairs(Object.keys(PAGES))
 
-const options = (mode: string) => ({
+// Modes that enable Turbopack's graph chunking. Each entry is `[label, value]`,
+// where `label` is shown in test names and `value` is what the test writes
+// into `experimental.cssChunking` (or `undefined` to leave it unset, which is
+// the existing Turbopack default).
+type GraphCssChunkingObject = {
+  type: 'graph'
+  requestCost?: number
+  moduleFactorCost?: number
+}
+type CssChunkingValue =
+  | boolean
+  | 'strict'
+  | 'loose'
+  | 'graph'
+  | GraphCssChunkingObject
+  | undefined
+
+type Mode = readonly [string, CssChunkingValue]
+
+const TURBO_MODES: readonly Mode[] = [
+  // The default Turbopack behaviour is the existing loose algorithm; leave
+  // `cssChunking` unset to exercise it.
+  ['turbo', undefined],
+  ['graph', 'graph'],
+  ['graph-object', { type: 'graph', requestCost: 1, moduleFactorCost: 1 }],
+]
+const WEBPACK_MODES: readonly Mode[] = [
+  ['strict', 'strict'],
+  ['true', true],
+]
+const WEBPACK_MODES_LOOSE: readonly Mode[] = [
+  ['strict', 'strict'],
+  ['loose', 'loose'],
+]
+
+function isGraphMode(value: CssChunkingValue): boolean {
+  return (
+    value === 'graph' ||
+    (typeof value === 'object' && value !== null && value.type === 'graph')
+  )
+}
+
+const options = (value: CssChunkingValue) => ({
   files: {
     app: new FileRef(path.join(__dirname, 'app')),
     pages: new FileRef(path.join(__dirname, 'pages')),
-    'next.config.js': process.env.IS_TURBOPACK_TEST
-      ? `
+    'next.config.js':
+      value === undefined
+        ? `
             module.exports = {}`
-      : `
+        : `
             module.exports = {
               experimental: {
-                cssChunking: ${JSON.stringify(mode)}
+                cssChunking: ${JSON.stringify(value)}
               }
             }`,
   },
@@ -259,10 +303,26 @@ const options = (mode: string) => ({
   },
   skipDeployment: true,
 })
-describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', true])(
+
+function expectedRequests(
+  value: CssChunkingValue,
+  pageInfo: {
+    requests?: number
+    requestsLoose?: number
+    requestsGraph?: number
+  }
+): number | undefined {
+  if (isGraphMode(value)) {
+    return pageInfo.requestsGraph ?? pageInfo.requestsLoose ?? pageInfo.requests
+  }
+  if (value === 'strict') return pageInfo.requests
+  // `undefined` (Turbopack default), `true`, or `'loose'` all map to loose.
+  return pageInfo.requestsLoose ?? pageInfo.requests
+}
+describe.each(process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES)(
   'css-order %s',
-  (mode: string) => {
-    const { next, isNextDev, skipped } = nextTestSetup(options(mode))
+  (_label: string, value: CssChunkingValue) => {
+    const { next, isNextDev, skipped } = nextTestSetup(options(value))
     if (skipped) return
     for (const ordering of allPairs) {
       const name = `should load correct styles navigating back again ${ordering.join(
@@ -272,7 +332,10 @@ describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', true])(
         ordering
           .map((page) => PAGES[page])
           .some((page) =>
-            mode === 'turbo'
+            // Treat any Turbopack mode (including graph) the same as the legacy
+            // `'turbo'` label for the conflict-skip logic; graph mode does not
+            // preserve strict ordering either.
+            process.env.IS_TURBOPACK_TEST
               ? page.conflictTurbo || page.conflict
               : page.conflict
           )
@@ -321,94 +384,89 @@ describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', true])(
     }
   }
 )
-describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', 'loose'])(
-  'css-order %s',
-  (mode: string) => {
-    const { next, isNextDev } = nextTestSetup(options(mode))
-    for (const ordering of allPairs) {
-      const name = `should load correct styles navigating ${ordering.join(
-        ' -> '
-      )}`
-      if (
-        ordering
-          .map((page) => PAGES[page])
-          .some((page) =>
-            mode === 'turbo'
-              ? page.conflictTurbo || page.conflict
-              : page.conflict
-          )
-      ) {
-        // Conflict scenarios won't support that case
-        continue
-      }
-      // TODO fix this case
-      let broken = ordering.some(
-        (page) =>
-          PAGES[page].brokenLoading ||
-          (isNextDev && PAGES[page].brokenLoadingDev)
-      )
-      if (broken) {
-        it.todo(name)
-        continue
-      }
-      it(name, async () => {
-        const start = PAGES[ordering[0]]
-        const browser = await next.browser(start.url)
-        const check = async (pageInfo) => {
-          expect(
-            await browser
-              .waitForElementByCss(pageInfo.selector)
-              .getComputedCss('color')
-          ).toBe(pageInfo.color)
-        }
-        const navigate = async (page) => {
-          await browser.waitForElementByCss('#' + page).click()
-        }
-        await check(start)
-        for (const page of ordering.slice(1)) {
-          await navigate(page)
-          await check(PAGES[page])
-        }
-        await browser.close()
-      })
+describe.each(
+  process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_LOOSE
+)('css-order %s', (_label: string, value: CssChunkingValue) => {
+  const { next, isNextDev } = nextTestSetup(options(value))
+  for (const ordering of allPairs) {
+    const name = `should load correct styles navigating ${ordering.join(
+      ' -> '
+    )}`
+    if (
+      ordering
+        .map((page) => PAGES[page])
+        .some((page) =>
+          process.env.IS_TURBOPACK_TEST
+            ? page.conflictTurbo || page.conflict
+            : page.conflict
+        )
+    ) {
+      // Conflict scenarios won't support that case
+      continue
     }
-  }
-)
-describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', 'loose'])(
-  'css-order %s',
-  (mode: string) => {
-    const { next, isNextDev } = nextTestSetup(options(mode))
-    for (const [page, pageInfo] of Object.entries(PAGES)) {
-      const name = `should load correct styles on ${page}`
-      if (
-        (mode !== 'strict' && pageInfo.conflict) ||
-        (mode === 'turbo' && pageInfo.conflictTurbo)
-      ) {
-        // Conflict scenarios won't support that case
-        continue
-      }
-      it(name, async () => {
-        const browser = await next.browser(pageInfo.url)
+    // TODO fix this case
+    let broken = ordering.some(
+      (page) =>
+        PAGES[page].brokenLoading || (isNextDev && PAGES[page].brokenLoadingDev)
+    )
+    if (broken) {
+      it.todo(name)
+      continue
+    }
+    it(name, async () => {
+      const start = PAGES[ordering[0]]
+      const browser = await next.browser(start.url)
+      const check = async (pageInfo) => {
         expect(
           await browser
             .waitForElementByCss(pageInfo.selector)
             .getComputedCss('color')
         ).toBe(pageInfo.color)
-        if (!isNextDev) {
-          const stylesheets = await browser.elementsByCss(
-            "link[rel='stylesheet']"
-          )
-          const files = await Promise.all(
-            Array.from(stylesheets).map((e) => e.getAttribute('href'))
-          )
-          expect(files).toHaveLength(
-            mode === 'turbo' || mode === 'loose'
-              ? pageInfo.requestsLoose || pageInfo.requests
-              : pageInfo.requests
-          )
-        }
-        await browser.close()
-      })
-    }
+      }
+      const navigate = async (page) => {
+        await browser.waitForElementByCss('#' + page).click()
+      }
+      await check(start)
+      for (const page of ordering.slice(1)) {
+        await navigate(page)
+        await check(PAGES[page])
+      }
+      await browser.close()
+    })
   }
-)
+})
+describe.each(
+  process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_LOOSE
+)('css-order %s', (_label: string, value: CssChunkingValue) => {
+  const { next, isNextDev } = nextTestSetup(options(value))
+  for (const [page, pageInfo] of Object.entries(PAGES)) {
+    const name = `should load correct styles on ${page}`
+    if (
+      // strict preserves ordering for conflict scenarios; loose / turbo / graph
+      // do not. conflictTurbo applies to any Turbopack mode.
+      (value !== 'strict' && pageInfo.conflict) ||
+      (process.env.IS_TURBOPACK_TEST && pageInfo.conflictTurbo)
+    ) {
+      // Conflict scenarios won't support that case
+      continue
+    }
+    it(name, async () => {
+      const browser = await next.browser(pageInfo.url)
+      expect(
+        await browser
+          .waitForElementByCss(pageInfo.selector)
+          .getComputedCss('color')
+      ).toBe(pageInfo.color)
+      if (!isNextDev) {
+        const stylesheets = await browser.elementsByCss(
+          "link[rel='stylesheet']"
+        )
+        const files = await Promise.all(
+          Array.from(stylesheets).map((e) => e.getAttribute('href'))
+        )
+        expect(files).toHaveLength(expectedRequests(value, pageInfo))
+      }
+      await browser.close()
+    })
+  }
+})

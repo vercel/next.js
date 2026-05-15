@@ -456,6 +456,20 @@ function assignDefaultsAndValidate(
     )
   }
 
+  // Validate experimental.cssChunking graph mode is only used with Turbopack
+  const cssChunking = result.experimental.cssChunking
+  const isGraphCssChunking =
+    cssChunking === 'graph' ||
+    (typeof cssChunking === 'object' &&
+      cssChunking !== null &&
+      cssChunking.type === 'graph')
+  if (isGraphCssChunking && !process.env.TURBOPACK) {
+    throw new Error(
+      `\`experimental.cssChunking: "graph"\` is only supported with Turbopack. ` +
+        `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+    )
+  }
+
   if (result.experimental.cachedNavigations && !result.cacheComponents) {
     throw new Error(
       `\`experimental.cachedNavigations\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`

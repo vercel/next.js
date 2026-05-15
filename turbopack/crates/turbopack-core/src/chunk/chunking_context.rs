@@ -274,6 +274,10 @@ pub struct ChunkingConfig {
     /// This makes sure that code in big chunks is not duplicated in multiple chunks.
     pub max_merge_chunk_size: usize,
 
+    /// Selects the algorithm used to compute [`crate::module_graph::style_groups::StyleGroups`].
+    /// Only consulted for the CSS chunk type.
+    pub style_groups_algorithm: crate::module_graph::style_groups::StyleGroupsAlgorithm,
+
     #[allow(dead_code)]
     pub placeholder_for_future_extensions: (),
 }

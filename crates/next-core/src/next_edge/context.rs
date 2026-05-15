@@ -202,6 +202,7 @@ pub struct EdgeChunkingContextOptions {
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
     pub cross_origin: Vc<CrossOrigin>,
+    pub style_groups_algorithm: turbopack_core::module_graph::style_groups::StyleGroupsAlgorithm,
 }
 
 /// Like `get_edge_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -229,6 +230,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         css_url_suffix,
         hash_salt,
         cross_origin,
+        style_groups_algorithm,
     } = options;
     let cross_origin_loading = *cross_origin.await?;
     let output_root = node_root.join("server/edge")?;
@@ -280,6 +282,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
                 Vc::<CssChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
                     max_merge_chunk_size: 100_000,
+                    style_groups_algorithm: style_groups_algorithm.clone(),
                     ..Default::default()
                 },
             )
@@ -314,6 +317,7 @@ pub async fn get_edge_chunking_context(
         css_url_suffix,
         hash_salt,
         cross_origin,
+        style_groups_algorithm,
     } = options;
     let cross_origin = *cross_origin.await?;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
@@ -382,6 +386,7 @@ pub async fn get_edge_chunking_context(
                 Vc::<CssChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
                     max_merge_chunk_size: 100_000,
+                    style_groups_algorithm: style_groups_algorithm.clone(),
                     ..Default::default()
                 },
             )

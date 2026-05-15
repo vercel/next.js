@@ -22,34 +22,76 @@ use crate::{
     },
 };
 
+/// Selects the algorithm used to compute [`StyleGroups`].
+#[derive(
+    TaskInput,
+    Debug,
+    Clone,
+    Default,
+    PartialEq,
+    Eq,
+    Hash,
+    NonLocalValue,
+    TraceRawVcs,
+    Encode,
+    Decode,
+)]
+pub enum StyleGroupsAlgorithm {
+    /// Default ("loose") algorithm, see [`compute_style_groups`].
+    #[default]
+    Default,
+    /// Graph-analysis based algorithm, see
+    /// [`crate::module_graph::style_groups_graph::compute_style_groups_graph`].
+    Graph {
+        /// See `experimental.cssChunking.requestCost` in Next.js.
+        request_cost: u64,
+        /// See `experimental.cssChunking.moduleFactorCost` in Next.js.
+        module_factor_cost: u64,
+    },
+}
+
 #[derive(
     TaskInput, Debug, Clone, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode,
 )]
 pub struct StyleGroupsConfig {
     pub max_chunk_size: usize,
+    pub algorithm: StyleGroupsAlgorithm,
+}
+
+/// Per-item metadata produced by the style chunking algorithms.
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode, TaskInput,
+)]
+pub struct StyleItemInfo {
+    /// Stable sort key applied by the production-chunking pass when ordering chunks within a chunk
+    /// group. `None` means "no preferred order" — entries with `None` keep their original input
+    /// position relative to each other (the legacy algorithm produces all `None`).
+    pub order: Option<u32>,
+    /// `Some(batch)` when this chunk item shares its emitted chunk with other items. `None` for
+    /// items that end up alone in their own chunk under the graph algorithm.
+    pub batch: Option<ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>>,
 }
 
 /// Styling must not be duplicated in the application. The simplest way to achieve this is to put
 /// every styling chunk item into a separate chunk. That works, but isn't efficient since it would
 /// cause a lot of requests. Instead we multiple chunk items are groups together and placed in a
 /// single shared chunk. `StyleGroups` specifies how chunk items are grouped together.
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 pub struct StyleGroups {
-    /// The key chunk item is contained in the value chunk item batch. All chunk items that are not
-    /// contained in this map are placed in a separate chunk per chunk item.
+    /// Per-item info keyed by chunk item. Items not present in this map are emitted as a separate
+    /// chunk per item with the original input order.
     #[bincode(with = "turbo_bincode::indexmap")]
-    pub shared_chunk_items:
-        FxIndexMap<ChunkItemWithAsyncModuleInfo, ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>>,
+    pub shared_chunk_items: FxIndexMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo>,
 }
 
 #[derive(Debug)]
-struct ModuleInfo {
-    style_type: StyleType,
-    ident: RcStr,
-    chunk_group_indices: FxHashMap<usize, usize>,
-    index_sum: usize,
-    size: usize,
-    chunk_item: Option<ChunkItemWithAsyncModuleInfo>,
+pub(super) struct ModuleInfo {
+    pub(super) style_type: StyleType,
+    pub(super) ident: RcStr,
+    pub(super) chunk_group_indices: FxHashMap<usize, usize>,
+    pub(super) index_sum: usize,
+    pub(super) size: usize,
+    pub(super) chunk_item: Option<ChunkItemWithAsyncModuleInfo>,
 }
 
 impl ModuleInfo {
@@ -65,16 +107,36 @@ impl ModuleInfo {
     }
 }
 
-struct ChunkGroupState {
-    styles: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
-    requests: usize,
+pub(super) struct ChunkGroupState {
+    pub(super) styles: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+    /// Number of distinct chunks this chunk group still needs to load. The legacy algorithm
+    /// decrements this as it merges items into shared chunks; the graph algorithm leaves it
+    /// untouched.
+    pub(super) requests: usize,
 }
 
-pub async fn compute_style_groups(
+/// Per-chunk-group style module collection plus per-module metadata.
+pub(super) struct StyleCollection {
+    /// Per-module info, keyed by chunkable module. After collection, every value is `Some`
+    /// (vacant entries used while traversing have been dropped). The map is sorted by
+    /// `(index_sum, ident)` so insertion order is deterministic.
+    pub(super) module_info_map:
+        FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, Option<ModuleInfo>>,
+    /// Per-chunk-group state. Indexed by the same `idx` stored in
+    /// `ModuleInfo::chunk_group_indices`.
+    pub(super) chunk_group_state: Vec<ChunkGroupState>,
+}
+
+/// Walk every chunk group in `module_graph` post-order, collecting:
+///  * the ordered list of CSS modules each chunk group loads,
+///  * per-module metadata (style type, ident, size, chunk item, and per-group position).
+///
+/// Both [`compute_style_groups`] (legacy) and
+/// [`crate::module_graph::style_groups_graph::compute_style_groups_graph`] use this output.
+pub(super) async fn collect_style_modules_per_chunk_group(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    config: &StyleGroupsConfig,
-) -> Result<Vc<StyleGroups>> {
+) -> Result<StyleCollection> {
     let chunk_group_info = module_graph.chunk_group_info().await?;
     let batches_graph = module_graph
         .module_batches(chunking_context.batching_config())
@@ -84,7 +146,7 @@ pub async fn compute_style_groups(
         FxIndexMap::default();
 
     // Compute the style modules in each chunk group
-    let mut chunk_group_state = Vec::new();
+    let mut chunk_group_state: Vec<ChunkGroupState> = Vec::new();
     let mut idx = 0;
     for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
         let ordered_entries = batches_graph.get_ordered_entries(&chunk_group_info, i);
@@ -183,6 +245,50 @@ pub async fn compute_style_groups(
             .then_with(|| a.ident.cmp(&b.ident))
     });
 
+    // Compute the chunk item and size of each module
+    let chunk_item_and_sizes = module_info_map
+        .keys()
+        .map(async |&module| {
+            let chunk_item = attach_async_info_to_chunkable_module(
+                module,
+                async_module_info,
+                module_graph,
+                chunking_context,
+            )
+            .await?;
+            let size = *chunk_item
+                .chunk_type
+                .chunk_item_size(chunking_context, *chunk_item.chunk_item, None)
+                .await?;
+            Ok((chunk_item, size))
+        })
+        .try_join()
+        .await?;
+    module_info_map
+        .iter_mut()
+        .zip(chunk_item_and_sizes)
+        .for_each(|((_, info), (chunk_item, size))| {
+            let info = info.as_mut().unwrap();
+            info.size = size;
+            info.chunk_item = Some(chunk_item);
+        });
+
+    Ok(StyleCollection {
+        module_info_map,
+        chunk_group_state,
+    })
+}
+
+pub async fn compute_style_groups(
+    module_graph: Vc<ModuleGraph>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    config: &StyleGroupsConfig,
+) -> Result<Vc<StyleGroups>> {
+    let StyleCollection {
+        module_info_map,
+        mut chunk_group_state,
+    } = collect_style_modules_per_chunk_group(module_graph, chunking_context).await?;
+
     // Compute the dependents of each module
     let mut module_dependents: FxHashMap<_, Vec<_>> = FxHashMap::default();
     for (&module, info) in &module_info_map {
@@ -220,34 +326,6 @@ pub async fn compute_style_groups(
             module_dependents.insert(module, dependents);
         }
     }
-
-    // Compute the chunk item and size of each module
-    let chunk_item_and_sizes = module_info_map
-        .keys()
-        .map(async |&module| {
-            let chunk_item = attach_async_info_to_chunkable_module(
-                module,
-                async_module_info,
-                module_graph,
-                chunking_context,
-            )
-            .await?;
-            let size = *chunk_item
-                .chunk_type
-                .chunk_item_size(chunking_context, *chunk_item.chunk_item, None)
-                .await?;
-            Ok((chunk_item, size))
-        })
-        .try_join()
-        .await?;
-    module_info_map
-        .iter_mut()
-        .zip(chunk_item_and_sizes)
-        .for_each(|((_, info), (chunk_item, size))| {
-            let info = info.as_mut().unwrap();
-            info.size = size;
-            info.chunk_item = Some(chunk_item);
-        });
 
     let mut ordered_modules_with_state = module_info_map
         .keys()
@@ -387,7 +465,13 @@ pub async fn compute_style_groups(
                 .to_resolved()
                 .await?;
             for chunk_item in new_chunk_items {
-                shared_chunk_items.insert(chunk_item, style_group);
+                shared_chunk_items.insert(
+                    chunk_item,
+                    StyleItemInfo {
+                        order: None,
+                        batch: Some(style_group),
+                    },
+                );
             }
         }
     }

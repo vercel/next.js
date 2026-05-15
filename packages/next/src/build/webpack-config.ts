@@ -2191,6 +2191,12 @@ export default async function getBaseWebpackConfig(
       !dev &&
         isClient &&
         config.experimental.cssChunking &&
+        config.experimental.cssChunking !== 'graph' &&
+        !(
+          typeof config.experimental.cssChunking === 'object' &&
+          (config.experimental.cssChunking as { type?: string }).type ===
+            'graph'
+        ) &&
         (isRspack
           ? new (getRspackCore().experiments.CssChunkingPlugin)({
               strict: config.experimental.cssChunking === 'strict',
