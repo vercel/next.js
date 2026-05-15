@@ -390,6 +390,10 @@ export default async function getBaseWebpackConfig(
   const isNodeServer = compilerType === COMPILER_NAMES.server
 
   const isRspack = Boolean(process.env.NEXT_RSPACK)
+  const CompleteRuntimePlugin = isRspack
+    ? // @ts-ignore @next/rspack-core extends Rspack's core export with Next-only native plugins.
+      bundler.ForceCompleteRuntimePlugin
+    : ForceCompleteRuntimePlugin
 
   const FlightClientEntryPlugin =
     isRspack && process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN
@@ -1991,9 +1995,7 @@ export default async function getBaseWebpackConfig(
     plugins: [
       // In prod Webpack will already have a runtime for all reachable chunks.
       // During dev, it will update the runtime as chunks come in which may be too late for Flight.
-      //
-      // TODO: Rspack currently does not support the hooks and chunk methods required by ForceCompleteRuntimePlugin.
-      dev && !isRspack && new ForceCompleteRuntimePlugin(),
+      dev && new CompleteRuntimePlugin(),
       // Handle deferred entries - must be added early to intercept entry processing
       !isRspack &&
         config.experimental.deferredEntries?.length &&
