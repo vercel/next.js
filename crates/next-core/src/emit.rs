@@ -103,9 +103,9 @@ pub async fn emit_assets(
     ) -> Result<()> {
         let mut iter = assets.into_iter();
         let first = iter.next().unwrap();
-        for next in iter {
-            let ext: RcStr = path.extension().unwrap_or_default().into();
-            if let Some(detail) = assets_diff(*next, *first, ext, node_root.clone())
+        let ext: RcStr = path.extension().unwrap_or_default().into();
+        iter.map(async |next| {
+            if let Some(detail) = assets_diff(*next, *first, ext.clone(), node_root.clone())
                 .owned()
                 .await?
             {
@@ -116,7 +116,10 @@ pub async fn emit_assets(
                 .resolved_cell()
                 .emit();
             }
-        }
+            Ok(())
+        })
+        .try_join()
+        .await?;
         Ok(())
     }
 
