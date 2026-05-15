@@ -158,6 +158,8 @@ const PAGES: Record<
     selector: '#hellosbb',
     color: 'rgb(0, 0, 255)',
     requests: 3,
+    // TODO loose merges shared1 and shared2 into a single chunk despite uniqueB sitting
+    // between them on the page; the correct value is 3 (matching `requests`).
     requestsLoose: 2,
     requestsGraph: 3,
   },
