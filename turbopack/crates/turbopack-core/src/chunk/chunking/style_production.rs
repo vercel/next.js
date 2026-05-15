@@ -11,7 +11,7 @@ use crate::{
     },
     module_graph::{
         ModuleGraph,
-        style_groups::{StyleGroups, StyleGroupsConfig},
+        style_groups::{StyleGroups, StyleGroupsConfig, StyleItemInfo},
     },
 };
 
@@ -38,14 +38,15 @@ pub async fn make_style_production_chunks(
             )
             .await?;
 
-        // Flatten the input to a sequence of chunk items (preserving input order as the
-        // tie-breaker for items without an explicit `order`), then stably sort by
-        // `StyleItemInfo::order`.
+        // Flatten the input to a sequence of (chunk item, info) pairs (preserving input order
+        // as the tie-breaker for items without an explicit `order`), then stably sort by
+        // `StyleItemInfo::order`. Each item's `StyleItemInfo` is fetched once here so the loop
+        // below doesn't have to re-query the map.
         let flat_items = flatten_and_sort(chunk_items, &style_groups).await?;
 
         let mut handled = FxHashSet::default();
-        for chunk_item in &flat_items {
-            if let Some(info) = style_groups.shared_chunk_items.get(chunk_item)
+        for (chunk_item, info) in &flat_items {
+            if let Some(info) = info
                 && let Some(batch) = info.batch
             {
                 if handled.insert(batch) {
@@ -61,7 +62,7 @@ pub async fn make_style_production_chunks(
             }
             make_chunk(
                 vec![&ChunkItemOrBatchWithInfo::ChunkItem {
-                    chunk_item: chunk_item.clone(),
+                    chunk_item: *chunk_item,
                     size: 0,
                     asset_ident: rcstr!(""),
                 }],
@@ -78,32 +79,33 @@ pub async fn make_style_production_chunks(
     .await
 }
 
-/// Flatten input batches into a single ordered list of chunk items and stably sort by
-/// `StyleItemInfo::order`. Entries without a `StyleItemInfo` (i.e. items the algorithm did not
-/// touch) keep their input position relative to each other. The legacy algorithm produces all
-/// `None` orders, so the sort is effectively a no-op for it.
-async fn flatten_and_sort(
+/// Flatten input batches into a single ordered list of `(chunk_item, info)` pairs and stably
+/// sort by `StyleItemInfo::order`. Entries without a `StyleItemInfo` (i.e. items the algorithm
+/// did not touch) keep their input position relative to each other. The legacy algorithm
+/// produces all `None` orders, so the sort is effectively a no-op for it.
+///
+/// Returns the `StyleItemInfo` reference for each item so the caller can avoid re-querying
+/// `style_groups.shared_chunk_items`.
+async fn flatten_and_sort<'a>(
     chunk_items: Vec<&ChunkItemOrBatchWithInfo>,
-    style_groups: &StyleGroups,
-) -> Result<Vec<ChunkItemWithAsyncModuleInfo>> {
-    let mut flat_items: Vec<ChunkItemWithAsyncModuleInfo> = Vec::with_capacity(chunk_items.len());
+    style_groups: &'a StyleGroups,
+) -> Result<Vec<(ChunkItemWithAsyncModuleInfo, Option<&'a StyleItemInfo>)>> {
+    let mut flat_items: Vec<(ChunkItemWithAsyncModuleInfo, Option<&'a StyleItemInfo>)> =
+        Vec::with_capacity(chunk_items.len());
     for chunk_item in chunk_items {
         match chunk_item {
             ChunkItemOrBatchWithInfo::ChunkItem { chunk_item, .. } => {
-                flat_items.push(chunk_item.clone());
+                let info = style_groups.shared_chunk_items.get(chunk_item);
+                flat_items.push((*chunk_item, info));
             }
             ChunkItemOrBatchWithInfo::Batch { batch, .. } => {
                 for chunk_item in &batch.await?.chunk_items {
-                    flat_items.push(chunk_item.clone());
+                    let info = style_groups.shared_chunk_items.get(chunk_item);
+                    flat_items.push((*chunk_item, info));
                 }
             }
         }
     }
-    flat_items.sort_by_key(|item| {
-        style_groups
-            .shared_chunk_items
-            .get(item)
-            .and_then(|info| info.order)
-    });
+    flat_items.sort_by_key(|(_, info)| info.and_then(|i| i.order));
     Ok(flat_items)
 }
