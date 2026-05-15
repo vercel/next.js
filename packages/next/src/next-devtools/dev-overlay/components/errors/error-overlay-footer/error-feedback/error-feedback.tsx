@@ -122,7 +122,7 @@ export const styles = `
   .feedback-button {
     background: none;
     border: none;
-    border-radius: var(--rounded-md);
+    border-radius: var(--rounded-full);
     width: var(--size-24);
     height: var(--size-24);
     display: flex;

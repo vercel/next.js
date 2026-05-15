@@ -1,9 +1,21 @@
 import type { Meta, StoryObj } from '@storybook/react'
 
 import { Errors } from './errors'
-import { withShadowPortal } from '../storybook/with-shadow-portal'
+import { withShadowPortal } from '../../../../.storybook/decorators/with-shadow-portal'
 import { lorem } from '../utils/lorem'
-import { runtimeErrors } from '../storybook/errors'
+import {
+  instantCurrentTimeErrors,
+  instantClientMathRandomErrors,
+  instantCryptoRandomUUIDErrors,
+  instantMetadataErrors,
+  instantMetadataUncachedErrors,
+  instantMathRandomErrors,
+  instantRuntimeDataErrors,
+  instantUncachedDataErrors,
+  instantViewportErrors,
+  instantViewportUncachedErrors,
+  runtimeErrors,
+} from '../../../../.storybook/fixtures/errors'
 
 const meta: Meta<typeof Errors> = {
   component: Errors,
@@ -94,5 +106,75 @@ export const WithHydrationWarning: Story = {
     ],
     debugInfo: { devtoolsFrontendUrl: undefined },
     onClose: () => {},
+  },
+}
+
+export const InstantRuntimeData: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: instantRuntimeDataErrors,
+  },
+}
+
+export const InstantUncachedData: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: instantUncachedDataErrors,
+  },
+}
+
+export const InstantGenerateViewport: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: instantViewportErrors,
+  },
+}
+
+export const InstantGenerateViewportUncached: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: instantViewportUncachedErrors,
+  },
+}
+
+export const InstantGenerateMetadata: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: instantMetadataErrors,
+  },
+}
+
+export const InstantGenerateMetadataUncached: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: instantMetadataUncachedErrors,
+  },
+}
+
+export const InstantCurrentTime: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: instantCurrentTimeErrors,
+  },
+}
+
+export const InstantMathRandom: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: instantMathRandomErrors,
+  },
+}
+
+export const InstantCryptoRandomUUID: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: instantCryptoRandomUUIDErrors,
+  },
+}
+
+export const InstantClientMathRandom: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: instantClientMathRandomErrors,
   },
 }
