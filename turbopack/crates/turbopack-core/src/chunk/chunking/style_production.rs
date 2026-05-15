@@ -11,7 +11,8 @@ use crate::{
     },
     module_graph::{
         ModuleGraph,
-        style_groups_loose::{StyleGroups, StyleGroupsConfig, StyleItemInfo},
+        style_groups::{StyleGroups, StyleItemInfo},
+        style_groups_loose::StyleGroupsConfig,
     },
 };
 

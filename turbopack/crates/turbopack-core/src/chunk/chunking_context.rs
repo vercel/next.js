@@ -275,8 +275,8 @@ pub struct ChunkingConfig {
     pub max_merge_chunk_size: usize,
 
     /// Selects the algorithm used to compute
-    /// [`crate::module_graph::style_groups_loose::StyleGroups`]. Only consulted for the CSS
-    /// chunk type.
+    /// [`crate::module_graph::style_groups::StyleGroups`]. Only consulted for the CSS chunk
+    /// type.
     pub style_groups_algorithm: StyleGroupsAlgorithm,
 
     #[allow(dead_code)]
