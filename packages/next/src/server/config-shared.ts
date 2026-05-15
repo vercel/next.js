@@ -415,14 +415,14 @@ export type CssChunkingConfig =
   | 'loose'
   | 'graph'
   | { type: 'strict' }
-  | { type: 'dependencies' }
+  | { type: 'loose' }
   | { type: 'graph'; requestCost?: number; moduleFactorCost?: number }
 
 /**
  * Normalize any [`CssChunkingConfig`] value to one of the four modes the build pipeline cares
  * about:
  *   - `'off'`  — `false`/`undefined`: do not run a CSS chunking plugin.
- *   - `'loose'` — `true` / `'loose'` / `{ type: 'dependencies' }`: heuristic-based chunking
+ *   - `'loose'` — `true` / `'loose'` / `{ type: 'loose' }`: heuristic-based chunking
  *     (the default).
  *   - `'strict'` — `'strict'` / `{ type: 'strict' }`: webpack-only ordered-chunking plugin.
  *   - `'graph'` — `'graph'` / `{ type: 'graph', … }`: Turbopack-only graph algorithm.
@@ -542,10 +542,10 @@ export interface ExperimentalConfig {
   proxyPrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
-   * CSS Chunking strategy. Defaults to `true` ("loose"/"dependencies" mode), which guesses
-   * dependencies between CSS files to keep ordering of them.
+   * CSS Chunking strategy. Defaults to `true` (loose mode), which guesses dependencies between
+   * CSS files to keep ordering of them.
    *
-   * - `true` / `'loose'` / `{ type: 'dependencies' }` — default heuristic-based chunking.
+   * - `true` / `'loose'` / `{ type: 'loose' }` — default heuristic-based chunking.
    * - `'strict'` / `{ type: 'strict' }` — preserve correct ordering as much as possible, even
    *   when this leads to many requests. Webpack only.
    * - `false` — disable chunking; emit one chunk per CSS module. Webpack only.

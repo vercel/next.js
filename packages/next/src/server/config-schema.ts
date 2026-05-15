@@ -279,7 +279,7 @@ export const experimentalSchema = {
       z.literal('loose'),
       z.literal('graph'),
       z.strictObject({ type: z.literal('strict') }),
-      z.strictObject({ type: z.literal('dependencies') }),
+      z.strictObject({ type: z.literal('loose') }),
       z.strictObject({
         type: z.literal('graph'),
         requestCost: z.number().nonnegative().finite().optional(),

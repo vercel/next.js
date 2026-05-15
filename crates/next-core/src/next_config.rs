@@ -1044,10 +1044,10 @@ pub struct TurbopackIgnoreIssueRule {
 /// `experimental.cssChunking` accepts the following shapes (all normalized to a single canonical
 /// object form via [`CssChunkingConfig::normalize`]):
 ///
-/// * `true` — equivalent to `{ type: "dependencies" }` (default loose behaviour).
+/// * `true` — equivalent to `{ type: "loose" }` (default loose behaviour).
 /// * `false` — disabled chunking.
 /// * `"strict"` / `"loose"` / `"graph"` — string shorthands.
-/// * `{ type: "strict" }` / `{ type: "dependencies" }` — object form for the legacy modes.
+/// * `{ type: "strict" }` / `{ type: "loose" }` — object form for the legacy modes.
 /// * `{ type: "graph", requestCost?, moduleFactorCost? }` — object form for the graph algorithm.
 #[derive(
     Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
@@ -1087,7 +1087,7 @@ pub enum CssChunkingMode {
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum CssChunkingObject {
     Strict,
-    Dependencies,
+    Loose,
     Graph(CssChunkingGraphOptions),
 }
 
@@ -1116,9 +1116,9 @@ impl CssChunkingConfig {
         match self {
             // `false` is treated like `true`/loose: the "off" path is selected via the existing
             // `ChunkingContext` defaults, not via this option.
-            CssChunkingConfig::Bool(_) => CssChunkingObject::Dependencies,
+            CssChunkingConfig::Bool(_) => CssChunkingObject::Loose,
             CssChunkingConfig::String(CssChunkingMode::Strict) => CssChunkingObject::Strict,
-            CssChunkingConfig::String(CssChunkingMode::Loose) => CssChunkingObject::Dependencies,
+            CssChunkingConfig::String(CssChunkingMode::Loose) => CssChunkingObject::Loose,
             CssChunkingConfig::String(CssChunkingMode::Graph) => {
                 CssChunkingObject::Graph(CssChunkingGraphOptions::default())
             }
@@ -1134,16 +1134,14 @@ const DEFAULT_MODULE_FACTOR_COST: f32 = 1.0;
 
 /// Resolve `experimental.cssChunking` to the [`StyleGroupsAlgorithm`] Turbopack should use.
 ///
-/// Both `strict` and `dependencies` map to [`StyleGroupsAlgorithm::Default`]; `strict` on
-/// Turbopack is rejected at config-validation time and should never reach this code path.
+/// Both `strict` and `loose` map to [`StyleGroupsAlgorithm::Default`]; `strict` on Turbopack is
+/// rejected at config-validation time and should never reach this code path.
 fn resolve_css_chunking_algorithm(config: Option<&CssChunkingConfig>) -> StyleGroupsAlgorithm {
     let Some(config) = config else {
         return StyleGroupsAlgorithm::Default;
     };
     match config.normalize() {
-        CssChunkingObject::Strict | CssChunkingObject::Dependencies => {
-            StyleGroupsAlgorithm::Default
-        }
+        CssChunkingObject::Strict | CssChunkingObject::Loose => StyleGroupsAlgorithm::Default,
         CssChunkingObject::Graph(opts) => StyleGroupsAlgorithm::graph(
             opts.request_cost.unwrap_or(DEFAULT_REQUEST_COST),
             opts.module_factor_cost
