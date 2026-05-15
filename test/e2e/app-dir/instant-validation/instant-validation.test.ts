@@ -3422,7 +3422,7 @@ describe('instant validation', () => {
 
            Ways to fix this:
              - Render the missing segment
-             - Set \`export const instant = false\` on the layout to silence this warning
+             - Set \`export const instant = false\` to allow no validation
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
              "environmentLabel": "Server",
@@ -3446,7 +3446,7 @@ describe('instant validation', () => {
 
            Ways to fix this:
              - Render the missing segment
-             - Set \`export const instant = false\` on the layout to silence this warning
+             - Set \`export const instant = false\` to allow no validation
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
                at ignore-listed frames
@@ -3484,7 +3484,7 @@ describe('instant validation', () => {
 
            Ways to fix this:
              - Render the missing segment
-             - Set \`export const instant = false\` on the layout to silence this warning
+             - Set \`export const instant = false\` to allow no validation
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
              "environmentLabel": "Server",
@@ -3508,7 +3508,7 @@ describe('instant validation', () => {
 
            Ways to fix this:
              - Render the missing segment
-             - Set \`export const instant = false\` on the layout to silence this warning
+             - Set \`export const instant = false\` to allow no validation
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
                at ignore-listed frames
@@ -3545,7 +3545,7 @@ describe('instant validation', () => {
 
            Ways to fix this:
              - Render the missing segment
-             - Set \`export const instant = false\` on the layout to silence this warning
+             - Set \`export const instant = false\` to allow no validation
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
              "environmentLabel": "Server",
@@ -3570,7 +3570,7 @@ describe('instant validation', () => {
 
            Ways to fix this:
              - Render the missing segment
-             - Set \`export const instant = false\` on the layout to silence this warning
+             - Set \`export const instant = false\` to allow no validation
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
                at ignore-listed frames

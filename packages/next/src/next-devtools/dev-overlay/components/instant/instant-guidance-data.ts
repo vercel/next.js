@@ -11,6 +11,7 @@ export type FixCardGroup =
   | 'defer'
   | 'measure'
   | 'silence'
+  | 'render'
 
 export type FixCardIcon =
   | 'align-left'
@@ -37,6 +38,7 @@ export const FIX_CARD_GROUPS: Record<
   defer: { label: 'Defer', color: 'amber', icon: 'pointer-click' },
   measure: { label: 'Measure', color: 'gray', icon: 'timer' },
   silence: { label: 'Silence', color: 'red', icon: 'octagon' },
+  render: { label: 'Render', color: 'blue', icon: 'layout' },
 }
 
 export type FixCard = {
@@ -154,18 +156,19 @@ const unrenderedSegmentCards: FixCard[] = [
   {
     id: 'render-the-missing-segment',
     title: 'Render the missing segment',
-    group: 'stream',
+    group: 'render',
     link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#render-the-missing-segment',
     snippets: [
-      { text: '// in the parent' },
-      { text: '{children}', highlight: true },
+      { text: 'function Layout({ children }) {' },
+      { text: '  return <main>{children}</main>', highlight: true },
+      { text: '}' },
     ],
   },
   {
-    id: 'silence-this-warning',
-    title: 'Silence this warning',
+    id: 'allow-no-validation',
+    title: 'Allow no validation',
     group: 'silence',
-    link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#silence-this-warning',
+    link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#allow-no-validation',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },

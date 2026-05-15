@@ -1482,7 +1482,7 @@ export function getNavigationDisallowedDynamicReasons(
           `\n\nIssues that would prevent instant navigation in this segment will go undetected.` +
           `\n\nWays to fix this:` +
           `\n  - Render the missing segment` +
-          `\n  - Set \`export const instant = false\` on the layout to silence this warning` +
+          `\n  - Set \`export const instant = false\` to allow no validation` +
           `\n\nLearn more: https://nextjs.org/docs/messages/unrendered-instant-segment`
       }
       const error = new Error(message)
