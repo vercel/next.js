@@ -166,16 +166,25 @@ struct Candidate {
     distance: u64,
 }
 
-/// Find a short cycle inside `graph`. Returns `None` if `graph` is empty or has no cycles
-/// reachable from the first node (callers in this module always pass a multi-node SCC, where a
-/// cycle is guaranteed to exist, so they unwrap). The cycle is returned as an array of distinct
-/// node ids; every consecutive pair has an edge and the last node has an edge back to the first
-/// (the closing wrap is implicit, not repeated).
-pub(super) fn find_short_cycle<'a, G>(graph: G) -> Option<Vec<NodeIndex>>
+/// Find a short cycle inside `graph`. Returns `None` if `graph` is empty or has no cycle
+/// reachable from `start_node` (or, when `start_node` is `None`, from the first node yielded
+/// by `graph.nodes()`). The cycle is returned as an array of distinct node ids; every
+/// consecutive pair has an edge and the last node has an edge back to the first (the closing
+/// wrap is implicit, not repeated).
+///
+/// The result is "a short" cycle, not necessarily the global shortest: only starts that
+/// already appear on the current best cycle are tried.
+pub(super) fn find_short_cycle<'a, G>(
+    graph: G,
+    start_node: Option<NodeIndex>,
+) -> Option<Vec<NodeIndex>>
 where
     G: ReadonlyGraph<'a>,
 {
-    let start = graph.nodes().next()?;
+    let start = match start_node {
+        Some(n) => n,
+        None => graph.nodes().next()?,
+    };
 
     let initial = find_shortest_cycle_from_node(graph, start)?;
     let mut cycle: VecDeque<NodeIndex> = initial.into();
@@ -186,7 +195,10 @@ where
             break;
         };
         cycle.push_back(shifted);
-        let new_cycle = find_shortest_cycle_from_node(graph, shifted)?;
+        // Every node on a cycle is itself on a cycle (within the same graph snapshot), so this
+        // call is expected to find one.
+        let new_cycle = find_shortest_cycle_from_node(graph, shifted)
+            .expect("every node on a cycle must itself be on a cycle");
         if new_cycle.len() < cycle.len() {
             remaining_shifts = new_cycle.len();
             cycle = new_cycle.into();
@@ -378,33 +390,42 @@ pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
     }
 
     while let Some(scc) = queue.pop() {
-        // Live view restricted to the current SCC.
-        let view = SubgraphView::new(&*graph, &scc);
-        // A multi-node SCC is guaranteed to contain a cycle, so `find_short_cycle` returns Some.
-        let short_cycle = find_short_cycle(view).expect("multi-node SCC always contains a cycle");
+        // Inner loop: keep cutting edges from cycles inside this SCC, seeding each subsequent
+        // search at the previous cut's target. The seed is likely still on a cycle until the
+        // local cycles around it are gone, at which point `find_short_cycle` returns `None` and
+        // we re-run SCC to discover any remaining components.
+        let mut seed_node: Option<NodeIndex> = None;
+        loop {
+            // Live view restricted to the current SCC.
+            let view = SubgraphView::new(&*graph, &scc);
+            let Some(short_cycle) = find_short_cycle(view, seed_node) else {
+                break;
+            };
 
-        // Restrict further to just the cycle's nodes.
-        let cycle_set: FxHashSet<NodeIndex> = short_cycle.iter().copied().collect();
-        let cycle_view = SubgraphView::new(&*graph, &cycle_set);
+            // Restrict further to just the cycle's nodes.
+            let cycle_set: FxHashSet<NodeIndex> = short_cycle.iter().copied().collect();
+            let cycle_view = SubgraphView::new(&*graph, &cycle_set);
 
-        let mut min_weight: Option<u32> = None;
-        let mut min_from: Option<NodeIndex> = None;
-        let mut min_to: Option<NodeIndex> = None;
-        for node in cycle_view.nodes() {
-            for (target, weight) in cycle_view.outgoing_edges_with_weight(node) {
-                if min_weight.is_none_or(|w| weight < w) {
-                    min_weight = Some(weight);
-                    min_from = Some(node);
-                    min_to = Some(target);
+            let mut min_weight: Option<u32> = None;
+            let mut min_from: Option<NodeIndex> = None;
+            let mut min_to: Option<NodeIndex> = None;
+            for node in cycle_view.nodes() {
+                for (target, weight) in cycle_view.outgoing_edges_with_weight(node) {
+                    if min_weight.is_none_or(|w| weight < w) {
+                        min_weight = Some(weight);
+                        min_from = Some(node);
+                        min_to = Some(target);
+                    }
                 }
             }
-        }
 
-        let (Some(from), Some(to)) = (min_from, min_to) else {
-            continue;
-        };
-        if let Some(edge) = graph.find_edge(from, to) {
-            graph.remove_edge(edge);
+            let (Some(from), Some(to)) = (min_from, min_to) else {
+                break;
+            };
+            if let Some(edge) = graph.find_edge(from, to) {
+                graph.remove_edge(edge);
+            }
+            seed_node = Some(to);
         }
 
         // Re-check this SCC for residual multi-node SCCs.
