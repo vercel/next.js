@@ -6,7 +6,10 @@ import Nav from '../../nav'
 export default function Page() {
   return (
     <div>
-      <p className={`${shared1.name} ${shared2.name}`} id="hellosbb">
+      <p
+        className={`${shared1.name} sandwich-b-marker ${shared2.name}`}
+        id="hellosbb"
+      >
         hello world
       </p>
       <Nav />
