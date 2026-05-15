@@ -10,6 +10,8 @@ import { isConsoleError } from '../shared/console-error'
 import type { CacheIndicatorState } from './cache-indicator'
 import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
 import { isBlockingRouteInNavError } from './container/errors'
+import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
+import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 
 export type DevToolsConfig = {
   theme?: 'light' | 'dark' | 'system'
@@ -291,6 +293,17 @@ function getInstantErrorRoute(error: unknown): string | null {
   return prefixMatch ? prefixMatch[1] : null
 }
 
+// The route stored on an instant error is the route *template* from
+// `workStore.route` (e.g. `/foo/[slug]`), but the page we track in dev
+// overlay state is the resolved URL (e.g. `/foo/123`). For dynamic routes
+// we compile the template to a regex so the clear-on-nav reducer keeps
+// errors whose template matches the page the user just landed on.
+function routeTemplateMatchesPath(template: string, path: string): boolean {
+  if (template === path) return true
+  if (!isDynamicRoute(template)) return false
+  return getRouteRegex(template).re.test(path)
+}
+
 const shouldDisableDevIndicator =
   process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
 
@@ -560,7 +573,7 @@ export function useErrorOverlayReducer(
           const remaining = state.errors.filter((event) => {
             const route = getInstantErrorRoute(event.error)
             if (route === null) return true
-            return route === action.currentPath
+            return routeTemplateMatchesPath(route, action.currentPath)
           })
           if (remaining.length === state.errors.length) {
             return state
