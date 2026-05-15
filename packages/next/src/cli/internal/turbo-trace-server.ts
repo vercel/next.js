@@ -136,10 +136,10 @@ export async function startTurboTraceServerCli(
             'When true (default), aggregate spans with the same name into a single entry. Set to false to see individual raw spans.'
           ),
         sort: z
-          .boolean()
+          .enum(['value', 'name'])
           .optional()
           .describe(
-            'When true, sort results by corrected duration descending. Default false.'
+            'Sort mode: "value" for corrected duration descending, "name" for alphabetical. Omit for execution order.'
           ),
         search: z
           .string()
@@ -160,7 +160,7 @@ export async function startTurboTraceServerCli(
       const result = bindings.turbo.queryTraceSpans(handle, {
         parent: args.parent,
         aggregated: args.aggregated ?? true,
-        sort: args.sort ?? false,
+        sort: args.sort,
         search: args.search,
         page: args.page ?? 1,
       })

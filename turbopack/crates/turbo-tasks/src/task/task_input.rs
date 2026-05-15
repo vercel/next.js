@@ -22,9 +22,9 @@ use turbo_tasks_hash::HashAlgorithm;
 
 // This import is necessary for derive macros to work, as their expansion refers to the crate
 // name directly.
-use crate as turbo_tasks;
+use crate::{self as turbo_tasks, ReadRef};
 use crate::{
-    MagicAny, ReadRef, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
+    DynTaskInputs, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
     trace::TraceRawVcs,
 };
 
@@ -284,7 +284,7 @@ where
 
 impl<T> TaskInput for TransientValue<T>
 where
-    T: MagicAny + Clone + Debug + Hash + Eq + TraceRawVcs + 'static,
+    T: DynTaskInputs + Clone + Debug + Hash + Eq + TraceRawVcs + 'static,
 {
     fn is_transient(&self) -> bool {
         true

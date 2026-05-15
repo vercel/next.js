@@ -2,7 +2,8 @@ use std::{path::PathBuf, sync::Arc};
 
 use napi_derive::napi;
 use turbopack_trace_server::{
-    QueryOptions, query_spans, start_turbopack_trace_server, store_container::StoreContainer,
+    QueryOptions, SortMode, query_spans, start_turbopack_trace_server,
+    store_container::StoreContainer,
 };
 
 /// An opaque handle to a running trace server instance.
@@ -21,8 +22,9 @@ pub struct TraceQueryOptions {
     pub parent: Option<String>,
     /// When `true` (default), aggregate child spans with the same name.
     pub aggregated: Option<bool>,
-    /// When `true`, sort results by corrected duration descending. Default `false`.
-    pub sort: Option<bool>,
+    /// Sort mode: `"value"` for duration descending, `"name"` for alphabetical.
+    /// Omit for execution order (no sorting).
+    pub sort: Option<String>,
     /// Optional substring search query applied to span name/category.
     pub search: Option<String>,
     /// 1-based page number. Default `1`.
@@ -94,7 +96,11 @@ pub fn query_trace_spans(
         QueryOptions {
             parent: options.parent,
             aggregated: options.aggregated.unwrap_or(true),
-            sort: options.sort.unwrap_or(false),
+            sort: match options.sort.as_deref() {
+                Some("value") => SortMode::Value,
+                Some("name") => SortMode::Name,
+                _ => SortMode::ExecutionOrder,
+            },
             search: options.search,
             page: options.page.unwrap_or(1) as usize,
         },

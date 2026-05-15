@@ -107,45 +107,40 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
     for (const dir of repoDirs) {
       logger(`Running initial build for ${dir}`)
       if (!actionInfo.skipClone) {
-        const usePnpm = existsSync(path.join(dir, 'pnpm-lock.yaml'))
-        if (usePnpm) {
-          // TODO: we can remove this `packageManager` modification once Next.js
-          // 16.3 is released, but we must override it for now because 16.2 uses
-          // pnpm 9.6.0, which supports different arguments. `diffRepoDir`
-          // points to the most recent stable tag.
-          const packageJson = path.join(dir, 'package.json')
-          const packageJsonContents = JSON.parse(
-            await fs.readFile(packageJson, { encoding: 'utf8' })
-          )
-          packageJsonContents.packageManager = 'pnpm@10.33.0'
-          if (packageJsonContents.engines != null) {
-            delete packageJsonContents.engines.pnpm
-          }
-          await fs.writeFile(
-            packageJson,
-            JSON.stringify(packageJsonContents, null, '  ')
-          )
+        // TODO: we can remove this `packageManager` modification once Next.js
+        // 16.3 is released, but we must override it for now because 16.2 uses
+        // pnpm 9.6.0, which supports different arguments. `diffRepoDir`
+        // points to the most recent stable tag.
+        const packageJson = path.join(dir, 'package.json')
+        const packageJsonContents = JSON.parse(
+          await fs.readFile(packageJson, { encoding: 'utf8' })
+        )
+        packageJsonContents.packageManager = 'pnpm@10.33.0'
+        if (packageJsonContents.engines != null) {
+          delete packageJsonContents.engines.pnpm
         }
+        await fs.writeFile(
+          packageJson,
+          JSON.stringify(packageJsonContents, null, '  ')
+        )
 
         if (!statsConfig.skipInitialInstall) {
-          const command = usePnpm
-            ? 'pnpm install ' +
-              // tolerate lockfile changes from merging latest changes
-              '--no-frozen-lockfile ' +
-              // avoid hardlink issues on self-hosted runners,
-              '--package-import-method=clone-or-copy ' +
-              // the store is colocated with the workdir to avoid EXDEV copy
-              // failures on overlayfs runners.
-              `--store-dir=${pnpmStoreDir}`
-            : 'yarn install --network-timeout=1000000'
+          const command =
+            'pnpm install ' +
+            // tolerate lockfile changes from merging latest changes
+            '--no-frozen-lockfile ' +
+            // avoid hardlink issues on self-hosted runners,
+            '--package-import-method=clone-or-copy ' +
+            // the store is colocated with the workdir to avoid EXDEV copy
+            // failures on overlayfs runners.
+            `--store-dir=${pnpmStoreDir}`
           await exec.spawnPromise(command, {
             env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1' },
             cwd: dir,
           })
 
           await exec.spawnPromise(
-            statsConfig.initialBuildCommand ||
-              (usePnpm ? 'pnpm build' : 'echo built'),
+            statsConfig.initialBuildCommand || 'pnpm build',
             { cwd: dir }
           )
         }

@@ -354,7 +354,7 @@ impl EdgeWorkerEnvironment {
 
 // TODO preset_env_base::Version implements Serialize/Deserialize incorrectly
 #[derive(Debug)]
-#[turbo_tasks::value(transparent, serialization = "none")]
+#[turbo_tasks::value(transparent, serialization = "skip")]
 pub struct RuntimeVersions(#[turbo_tasks(trace_ignore)] pub Versions);
 
 #[turbo_tasks::value_impl]

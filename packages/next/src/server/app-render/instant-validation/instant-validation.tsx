@@ -53,6 +53,10 @@ import {
   DEFAULT_SEGMENT_KEY,
   NOT_FOUND_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
+import {
+  isFrameworkErrorRoute,
+  isImplicitValidationSegment,
+} from './instant-config'
 import type { NextParsedUrlQuery } from '../../request-meta'
 
 const filterStackFrame =
@@ -778,6 +782,13 @@ type TreeResult = {
   seedData: CacheNodeSeedData
   requiresInstantUI: boolean
   createInstantStack: (() => Error) | null
+  /** First module file path encountered (DFS) inside this subtree,
+   * or null if unavailable. The boundary's own segment may not own a
+   * layout/page module (e.g. a directory whose page lives in a
+   * __PAGE__ child), so we propagate the first one we find upward.
+   * Surfaced in the missing-boundary fallback message as a pointer
+   * to "something inside the subtree that didn't render". */
+  firstModFilePath: string | null
   /** How deep in the tree the config was found. Higher = more specific.
    * Used to prefer deeper configs over shallower ones when multiple
    * slots have configs. */
@@ -930,6 +941,14 @@ export async function createCombinedPayloadAtDepth(
   stageEndTimes: StageEndTimes,
   useRuntimeStageForPartialSegments: boolean
 ): Promise<ValidationPayloadResult | null> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError(
+      'createCombinedPayloadAtDepth must run inside a WorkStore'
+    )
+  }
+  const { validationLevel, route } = workStore
+
   let hasStaticSegments = false
   let hasRuntimeSegments = false
   // Index 0 is reserved for the root config. Slot markers start at 1.
@@ -1051,6 +1070,12 @@ export async function createCombinedPayloadAtDepth(
       let requiresInstantUI = false
       let createInstantStack: (() => Error) | null = null
       let bestConfigDepth = -1
+      // Collect the first mod file path from each slot's subtree.
+      // Don't include the boundary segment's own layout/page — that
+      // file DID render (it wraps the boundary). What didn't render
+      // is the content inside the children slots.
+      const slotModFilePaths: string[] = []
+      let firstModFilePath: string | null = null
 
       for (const parallelRouteKey in parallelRoutes) {
         const result = await buildNewTreeSeedData(
@@ -1062,6 +1087,12 @@ export async function createCombinedPayloadAtDepth(
         )
         slotResults.set(parallelRouteKey, result)
         slots[parallelRouteKey] = result.seedData
+        if (result.firstModFilePath !== null) {
+          slotModFilePaths.push(result.firstModFilePath)
+          if (firstModFilePath === null) {
+            firstModFilePath = result.firstModFilePath
+          }
+        }
         if (result.requiresInstantUI) {
           requiresInstantUI = true
           if (
@@ -1079,7 +1110,7 @@ export async function createCombinedPayloadAtDepth(
       // instant config. Unconfigured slot subtrees are allowed to not
       // render (e.g. conditionally excluded by a layout).
       if (requiresInstantUI) {
-        boundaryState.requiredIds.add(path)
+        boundaryState.requiredIds.set(path, slotModFilePaths)
       }
 
       wrapSlotsWithMarkers(slots, slotResults)
@@ -1088,6 +1119,7 @@ export async function createCombinedPayloadAtDepth(
         seedData: getCacheNodeSeedDataFromSegment(finalSegmentData, slots),
         requiresInstantUI,
         createInstantStack,
+        firstModFilePath,
         configDepth: bestConfigDepth,
       }
     }
@@ -1098,6 +1130,7 @@ export async function createCombinedPayloadAtDepth(
     let requiresInstantUI = false
     let createInstantStack: (() => Error) | null = null
     let bestConfigDepth = -1
+    let firstModFilePath: string | null = null
     for (const parallelRouteKey in parallelRoutes) {
       const result = await buildSharedTreeSeedData(
         parallelRoutes[parallelRouteKey],
@@ -1108,6 +1141,9 @@ export async function createCombinedPayloadAtDepth(
       )
       slotResults.set(parallelRouteKey, result)
       slots[parallelRouteKey] = result.seedData
+      if (firstModFilePath === null) {
+        firstModFilePath = result.firstModFilePath
+      }
       if (result.requiresInstantUI) {
         requiresInstantUI = true
         if (
@@ -1127,6 +1163,7 @@ export async function createCombinedPayloadAtDepth(
       seedData: getCacheNodeSeedDataFromSegment(segmentData, slots),
       requiresInstantUI,
       createInstantStack,
+      firstModFilePath,
       configDepth: bestConfigDepth,
     }
   }
@@ -1139,7 +1176,9 @@ export async function createCombinedPayloadAtDepth(
     segmentDepth: number
   ): Promise<TreeResult> {
     const { parallelRoutes } = parseLoaderTree(lt)
-    const { mod: layoutOrPageMod } = await getLayoutOrPageModule(lt)
+    const { mod: layoutOrPageMod, filePath: layoutOrPageFilePath } =
+      await getLayoutOrPageModule(lt)
+    const localModFilePath: string | null = layoutOrPageFilePath ?? null
 
     const segment = getSegment(lt)
     const path: SegmentPath =
@@ -1155,7 +1194,25 @@ export async function createCombinedPayloadAtDepth(
         (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
       prefetchConfig =
         (layoutOrPageMod as AppSegmentConfig).unstable_prefetch ?? null
-      if (instantConfig && typeof instantConfig === 'object') {
+
+      // When the default validation level is active and this is a page or
+      // default segment without an explicit config, treat it as if
+      // unstable_instant = true was exported. Framework-synthesized error
+      // routes are excluded — see isFrameworkErrorRoute.
+      if (
+        instantConfig === null &&
+        validationLevel !== 'manual-warning' &&
+        validationLevel !== 'experimental-manual-error' &&
+        isImplicitValidationSegment(segment) &&
+        !isFrameworkErrorRoute(route)
+      ) {
+        instantConfig = true
+      }
+
+      if (
+        instantConfig === true ||
+        (typeof instantConfig === 'object' && instantConfig !== null)
+      ) {
         const rawFactory: unknown = (layoutOrPageMod as any)
           .__debugCreateInstantConfigStack
         localCreateInstantStack =
@@ -1163,7 +1220,7 @@ export async function createCombinedPayloadAtDepth(
       }
     }
 
-    const segmentHasRuntimePrefetch = prefetchConfig === 'runtime'
+    const segmentHasRuntimePrefetch = prefetchConfig === 'force-runtime'
 
     let childIsInsideRuntimePrefetch = isInsideRuntimePrefetch
     let stage: SegmentStage
@@ -1207,6 +1264,7 @@ export async function createCombinedPayloadAtDepth(
     let childrenRequireInstantUI = false
     let childCreateInstantStack: (() => Error) | null = null
     let bestChildConfigDepth = -1
+    let childFirstModFilePath: string | null = null
     for (const parallelRouteKey in parallelRoutes) {
       const childSegmentDepth = segmentConsumesURLDepth(segment)
         ? segmentDepth + 1
@@ -1220,6 +1278,9 @@ export async function createCombinedPayloadAtDepth(
       )
       slotResults.set(parallelRouteKey, result)
       slots[parallelRouteKey] = result.seedData
+      if (childFirstModFilePath === null) {
+        childFirstModFilePath = result.firstModFilePath
+      }
       if (result.requiresInstantUI) {
         childrenRequireInstantUI = true
         if (
@@ -1243,7 +1304,10 @@ export async function createCombinedPayloadAtDepth(
       requiresInstantUI = false
       createInstantStack = null
       configDepth = -1
-    } else if (instantConfig && typeof instantConfig === 'object') {
+    } else if (
+      instantConfig === true ||
+      (typeof instantConfig === 'object' && instantConfig !== null)
+    ) {
       requiresInstantUI = true
       createInstantStack = localCreateInstantStack
       configDepth = segmentDepth
@@ -1253,10 +1317,15 @@ export async function createCombinedPayloadAtDepth(
       configDepth = bestChildConfigDepth
     }
 
+    // First mod we find in DFS order: this segment's own layout/page if
+    // any, otherwise the first non-null we got from a child.
+    const firstModFilePath = localModFilePath ?? childFirstModFilePath
+
     return {
       seedData: getCacheNodeSeedDataFromSegment(segmentData, slots),
       requiresInstantUI,
       createInstantStack,
+      firstModFilePath,
       configDepth,
     }
   }

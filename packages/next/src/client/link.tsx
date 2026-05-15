@@ -147,9 +147,9 @@ const prefetched = new Set<string>()
 type PrefetchOptions = RouterPrefetchOptions & {
   /**
    * bypassPrefetchedCheck will bypass the check to see if the `href` has
-   * already been fetched.
+   * already been fetched i.e. unconditionally prefetch the `href`.
    */
-  bypassPrefetchedCheck?: boolean
+  bypassPrefetchedCheck: boolean
 }
 
 function prefetch(
@@ -576,7 +576,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       }
 
       // Prefetch the URL.
-      prefetch(router, href, as, { locale })
+      prefetch(router, href, as, {
+        // dedupe across appear/disappear of the Link.
+        bypassPrefetchedCheck: false,
+        locale,
+      })
     }, [as, href, isVisible, locale, prefetchEnabled, router?.locale, router])
 
     const childProps: {

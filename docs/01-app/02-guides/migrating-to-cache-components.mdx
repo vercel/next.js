@@ -2,6 +2,12 @@
 title: Migrating to Cache Components
 nav_title: Migrating to Cache Components
 description: Learn how to migrate from route segment configs to Cache Components in Next.js.
+related:
+  title: Next Steps
+  description: Learn about other behavior changes when Cache Components is enabled.
+  links:
+    - app/guides/preserving-ui-state
+    - app/api-reference/config/next-config-js/cacheComponents
 ---
 
 When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, route segment configs like `dynamic`, `revalidate`, and `fetchCache` are replaced by [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
@@ -172,4 +178,16 @@ export default async function Page() {
 
 ## `runtime = 'edge'`
 
-**Not supported.** Cache Components requires the Node.js runtime. Switch to the Node.js runtime (the default) by removing the `runtime = 'edge'` export. If you need edge behavior for specific routes, use [Proxy](/docs/app/api-reference/file-conventions/proxy) instead.
+**Not supported.** Cache Components requires the Node.js runtime. Switch to the Node.js runtime (the default) by removing the [deprecated](/docs/messages/edge-runtime-deprecated) `runtime = 'edge'` export. If you need edge behavior for specific routes, use [Proxy](/docs/app/api-reference/file-conventions/proxy) instead.
+
+## UI state preservation
+
+**Component state now persists across navigations.** With Cache Components, Next.js preserves routes using React's [`<Activity>`](https://react.dev/reference/react/Activity) component in [`"hidden"`](https://react.dev/reference/react/Activity#activity) mode instead of unmounting them. Effects clean up and re-run normally, but `useState` values, form inputs, and scroll position are no longer reset when navigating away and back.
+
+If your code relied on unmounting to clear state, you may need to add explicit reset logic:
+
+- **Dropdowns and popovers** — stay open when navigating back. Close them in a `useLayoutEffect` cleanup function.
+- **Dialogs with initialization logic** — Effects that depend on dialog state (like focusing an input) won't re-fire if the state was preserved. Derive dialog state from the URL instead.
+- **Forms after submission** — input values and `useActionState` results (success/error messages) persist when returning. Reset in the submit handler or user action when possible, otherwise use a cleanup effect.
+
+See [Preserving UI state across navigations](/docs/app/guides/preserving-ui-state) for detailed examples of each pattern.

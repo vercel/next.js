@@ -2,6 +2,7 @@ import { isMetadataPage } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
 import { interpolateDynamicPath } from '../../server/server-utils'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
+import { PARAMETER_PATTERN } from '../../shared/lib/router/utils/get-dynamic-param'
 import { djb2Hash } from '../../shared/lib/hash'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
@@ -48,6 +49,55 @@ function getMetadataRouteSuffix(page: string) {
   return suffix
 }
 
+function getMetadataRouteFilename(segment: string, lastSegment: string) {
+  const { name, ext } = path.parse(lastSegment)
+  const pagePath = path.posix.join(segment, name)
+  const suffix = getMetadataRouteSuffix(pagePath)
+  const routeSuffix = suffix ? `-${suffix}` : ''
+
+  return `${name}${routeSuffix}${ext}`
+}
+
+function normalizeStaticMetadataRouteSegment(segment: string) {
+  let normalizedSegment = segment
+  let match = normalizedSegment.match(PARAMETER_PATTERN)
+
+  while (match) {
+    normalizedSegment = `${match[1]}-${match[3]}`
+    match = normalizedSegment.match(PARAMETER_PATTERN)
+  }
+
+  return normalizedSegment
+}
+
+function getStaticMetadataRoute(segment: string) {
+  const pathname = normalizeAppPath(segment)
+
+  return normalizePathSep(
+    path.join(
+      '/',
+      ...pathname
+        .split('/')
+        .filter(Boolean)
+        .map((pathnameSegment) =>
+          normalizeStaticMetadataRouteSegment(pathnameSegment)
+        )
+    )
+  )
+}
+
+export function fillStaticMetadataSegment(
+  segment: string,
+  lastSegment: string
+) {
+  return normalizePathSep(
+    path.join(
+      getStaticMetadataRoute(segment),
+      getMetadataRouteFilename(segment, lastSegment)
+    )
+  )
+}
+
 /**
  * Fill the dynamic segment in the metadata route
  *
@@ -66,31 +116,19 @@ export function fillMetadataSegment(
   lastSegment: string,
   isStatic: boolean
 ) {
+  if (isStatic) {
+    return fillStaticMetadataSegment(segment, lastSegment)
+  }
+
   const pathname = normalizeAppPath(segment)
   const routeRegex = getNamedRouteRegex(pathname, {
     prefixRouteKeys: false,
   })
+  const route = interpolateDynamicPath(pathname, params, routeRegex)
 
-  // For static metadata files, fill all dynamic segments with "-" placeholder
-  const routeParams = isStatic
-    ? Object.keys(routeRegex.groups).reduce(
-        (acc, key) => {
-          const { repeat } = routeRegex.groups[key]
-          // Use array for catch-all segments, string for regular segments
-          acc[key] = repeat ? ['-'] : '-'
-          return acc
-        },
-        {} as Record<string, string | string[]>
-      )
-    : params
-
-  const route = interpolateDynamicPath(pathname, routeParams, routeRegex)
-  const { name, ext } = path.parse(lastSegment)
-  const pagePath = path.posix.join(segment, name)
-  const suffix = getMetadataRouteSuffix(pagePath)
-  const routeSuffix = suffix ? `-${suffix}` : ''
-
-  return normalizePathSep(path.join(route, `${name}${routeSuffix}${ext}`))
+  return normalizePathSep(
+    path.join(route, getMetadataRouteFilename(segment, lastSegment))
+  )
 }
 
 /**
