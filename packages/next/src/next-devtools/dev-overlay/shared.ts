@@ -295,6 +295,31 @@ function getInstantErrorRoute(error: unknown): string | null {
   return lineMatch ? lineMatch[1] : null
 }
 
+// The route stored on an instant error is the route *template* from
+// `workStore.route` (e.g. `/foo/[slug]`), but the page we track in dev
+// overlay state is the resolved URL (e.g. `/foo/123`). Convert the template
+// to a regex so the clear-on-nav reducer keeps errors whose template matches
+// the page the user just landed on.
+function routeTemplateMatchesPath(template: string, path: string): boolean {
+  if (template === path) return true
+  let hasParam = false
+  // Split on `[...param]` / `[param]` segments, escape the literal pieces,
+  // and replace each placeholder with a regex segment matcher. Catch-all
+  // placeholders match across `/`, single placeholders match one segment.
+  const tokens = template.split(/(\[(?:\.{3})?[^\]]+\])/)
+  const pattern = tokens
+    .map((token) => {
+      if (token.startsWith('[')) {
+        hasParam = true
+        return token.startsWith('[...') ? '.+' : '[^/]+'
+      }
+      return token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    })
+    .join('')
+  if (!hasParam) return false
+  return new RegExp(`^${pattern}$`).test(path)
+}
+
 const shouldDisableDevIndicator =
   process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
 
@@ -564,7 +589,7 @@ export function useErrorOverlayReducer(
           const remaining = state.errors.filter((event) => {
             const route = getInstantErrorRoute(event.error)
             if (route === null) return true
-            return route === action.currentPath
+            return routeTemplateMatchesPath(route, action.currentPath)
           })
           if (remaining.length === state.errors.length) {
             return state
