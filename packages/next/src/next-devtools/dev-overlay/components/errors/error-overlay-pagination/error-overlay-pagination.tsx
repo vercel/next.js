@@ -157,15 +157,21 @@ export const styles = `
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     width: fit-content;
+  }
+
+  @media (max-width: 575px) {
+    .error-overlay-pagination {
+      gap: 4px;
+    }
   }
 
   .error-overlay-pagination-count {
     color: var(--color-gray-900);
     text-align: center;
     font-size: var(--size-14);
-    font-weight: 500;
+    font-family: var(--font-mono);
     line-height: var(--size-16);
     font-variant-numeric: tabular-nums;
   }
@@ -177,7 +183,7 @@ export const styles = `
 
     width: var(--size-24);
     height: var(--size-24);
-    background: var(--color-gray-300);
+    background: none;
     flex-shrink: 0;
 
     border: none;
@@ -192,8 +198,12 @@ export const styles = `
       outline: var(--focus-ring);
     }
 
+    &:not(:disabled):hover {
+      background: var(--color-gray-alpha-100);
+    }
+
     &:not(:disabled):active {
-      background: var(--color-gray-500);
+      background: var(--color-gray-alpha-200);
     }
 
     &:disabled {

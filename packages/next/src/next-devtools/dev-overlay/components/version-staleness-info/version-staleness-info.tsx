@@ -57,12 +57,9 @@ export const styles = `
     align-items: center;
     gap: 4px;
 
-    height: var(--size-26);
+    height: var(--size-24);
     padding: 6px 8px 6px 6px;
     background: var(--color-background-100);
-    background-clip: padding-box;
-    border: 1px solid var(--color-gray-alpha-400);
-    box-shadow: var(--shadow-small);
     border-radius: var(--rounded-full);
 
     color: var(--color-gray-900);

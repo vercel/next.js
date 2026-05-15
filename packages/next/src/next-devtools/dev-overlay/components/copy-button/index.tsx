@@ -215,6 +215,6 @@ export const COPY_BUTTON_STYLES = `
     color: var(--color-ansi-red);
   }
   .nextjs-data-copy-button--success:not([aria-disabled="true"]) {
-    color: var(--color-ansi-green);
+    color: var(--color-gray-900);
   }
 `

@@ -2,12 +2,18 @@ import { useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import {
   DevOverlayContext,
   useDevOverlayContext,
-} from '../../dev-overlay.browser'
-import { RenderErrorContext } from '../dev-overlay'
-import { PanelRouterContext, type PanelStateKind } from '../menu/context'
-import { INITIAL_OVERLAY_STATE } from '../shared'
-import type { OverlayState, DispatcherEvent } from '../shared'
-import type { ReadyRuntimeError } from '../utils/get-error-by-type'
+} from '../../src/next-devtools/dev-overlay.browser'
+import { RenderErrorContext } from '../../src/next-devtools/dev-overlay/dev-overlay'
+import {
+  PanelRouterContext,
+  type PanelStateKind,
+} from '../../src/next-devtools/dev-overlay/menu/context'
+import { INITIAL_OVERLAY_STATE } from '../../src/next-devtools/dev-overlay/shared'
+import type {
+  OverlayState,
+  DispatcherEvent,
+} from '../../src/next-devtools/dev-overlay/shared'
+import type { ReadyRuntimeError } from '../../src/next-devtools/dev-overlay/utils/get-error-by-type'
 
 interface WithDevOverlayContextsOptions {
   state?: Partial<OverlayState>

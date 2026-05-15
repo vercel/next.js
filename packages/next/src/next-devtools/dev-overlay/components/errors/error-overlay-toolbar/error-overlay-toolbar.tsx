@@ -1,13 +1,17 @@
+import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import type { DebugInfo } from '../../../../shared/types'
 import { NodejsInspectorButton } from './nodejs-inspector-button'
 import { CopyErrorButton } from './copy-error-button'
 import { DocsLinkButton } from './docs-link-button'
+import { VersionStalenessInfo } from '../../version-staleness-info/version-staleness-info'
 
 type ErrorOverlayToolbarProps = {
   error: Error
   debugInfo: DebugInfo | undefined
   feedbackButton?: React.ReactNode
   generateErrorInfo: () => Promise<string>
+  versionInfo?: VersionInfo
+  bundlerName?: 'Turbopack' | 'Webpack' | 'Rspack'
 }
 
 export function ErrorOverlayToolbar({
@@ -15,6 +19,8 @@ export function ErrorOverlayToolbar({
   debugInfo,
   feedbackButton,
   generateErrorInfo,
+  versionInfo,
+  bundlerName,
 }: ErrorOverlayToolbarProps) {
   return (
     <span className="error-overlay-toolbar">
@@ -26,6 +32,12 @@ export function ErrorOverlayToolbar({
         key={debugInfo?.devtoolsFrontendUrl}
         defaultDevtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
       />
+      {versionInfo && bundlerName && (
+        <VersionStalenessInfo
+          versionInfo={versionInfo}
+          bundlerName={bundlerName}
+        />
+      )}
     </span>
   )
 }
@@ -36,6 +48,12 @@ export const styles = `
     gap: 6px;
   }
 
+  @media (max-width: 575px) {
+    .error-overlay-toolbar {
+      gap: 4px;
+    }
+  }
+
   .nodejs-inspector-button,
   .copy-error-button,
   .docs-link-button {
@@ -43,12 +61,10 @@ export const styles = `
     justify-content: center;
     align-items: center;
 
-    width: var(--size-28);
-    height: var(--size-28);
-    background: var(--color-background-100);
-    background-clip: padding-box;
-    border: 1px solid var(--color-gray-alpha-400);
-    box-shadow: var(--shadow-small);
+    width: var(--size-24);
+    height: var(--size-24);
+    background: none;
+    border: none;
     border-radius: var(--rounded-full);
 
     svg {
@@ -69,7 +85,7 @@ export const styles = `
     }
 
     &:disabled {
-      background-color: var(--color-gray-100);
+      opacity: 0.5;
       cursor: not-allowed;
     }
   }
