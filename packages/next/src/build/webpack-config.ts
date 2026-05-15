@@ -823,6 +823,12 @@ export default async function getBaseWebpackConfig(
       : {}) as any),
   }
 
+  // Resolve server-relative imports (e.g. `/styles/foo`) from the app
+  // directory. Webpack defaults this to `context`; Rspack needs it explicit.
+  if (isRspack) {
+    resolveConfig!.roots = [dir]
+  }
+
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
   // 'node_modules/meow/node_modules/object-assign' are not included.
