@@ -1106,7 +1106,7 @@ pub enum CssChunkingObject {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct CssChunkingGraphOptions {
-    pub request_cost: Option<u64>,
+    pub request_cost: Option<f32>,
     pub module_factor_cost: Option<f32>,
 }
 
@@ -1128,7 +1128,7 @@ impl CssChunkingConfig {
 }
 
 /// Default `requestCost` for the graph algorithm (in bytes).
-const DEFAULT_REQUEST_COST: u64 = 20_000;
+const DEFAULT_REQUEST_COST: f32 = 20_000.0;
 /// Default `moduleFactorCost` for the graph algorithm.
 const DEFAULT_MODULE_FACTOR_COST: f32 = 1.0;
 

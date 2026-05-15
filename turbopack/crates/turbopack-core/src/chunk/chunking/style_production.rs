@@ -9,7 +9,10 @@ use crate::{
         ChunkItemBatchGroup, ChunkItemWithAsyncModuleInfo, ChunkingConfig, ChunkingContext,
         chunking::{ChunkItemOrBatchWithInfo, SplitContext, make_chunk},
     },
-    module_graph::{ModuleGraph, style_groups::StyleGroupsConfig},
+    module_graph::{
+        ModuleGraph,
+        style_groups::{StyleGroups, StyleGroupsConfig},
+    },
 };
 
 pub async fn make_style_production_chunks(
@@ -35,32 +38,10 @@ pub async fn make_style_production_chunks(
             )
             .await?;
 
-        // Flatten the input to a sequence of chunk items (preserving input order, which is the
-        // tie-breaker for items without an explicit `order`).
-        let mut flat_items: Vec<ChunkItemWithAsyncModuleInfo> =
-            Vec::with_capacity(chunk_items.len());
-        for chunk_item in chunk_items {
-            match chunk_item {
-                ChunkItemOrBatchWithInfo::ChunkItem { chunk_item, .. } => {
-                    flat_items.push(chunk_item.clone());
-                }
-                ChunkItemOrBatchWithInfo::Batch { batch, .. } => {
-                    for chunk_item in &batch.await?.chunk_items {
-                        flat_items.push(chunk_item.clone());
-                    }
-                }
-            }
-        }
-
-        // Stable sort by `order` (None keeps original input position relative to other None
-        // entries). This is what the graph algorithm uses to dictate chunk order; the legacy
-        // algorithm produces all `None` so the sort is a no-op for it.
-        flat_items.sort_by_key(|item| {
-            style_groups
-                .shared_chunk_items
-                .get(item)
-                .and_then(|info| info.order)
-        });
+        // Flatten the input to a sequence of chunk items (preserving input order as the
+        // tie-breaker for items without an explicit `order`), then stably sort by
+        // `StyleItemInfo::order`.
+        let flat_items = flatten_and_sort(chunk_items, &style_groups).await?;
 
         let mut handled = FxHashSet::default();
         for chunk_item in &flat_items {
@@ -95,4 +76,34 @@ pub async fn make_style_production_chunks(
     }
     .instrument(span_outer)
     .await
+}
+
+/// Flatten input batches into a single ordered list of chunk items and stably sort by
+/// `StyleItemInfo::order`. Entries without a `StyleItemInfo` (i.e. items the algorithm did not
+/// touch) keep their input position relative to each other. The legacy algorithm produces all
+/// `None` orders, so the sort is effectively a no-op for it.
+async fn flatten_and_sort(
+    chunk_items: Vec<&ChunkItemOrBatchWithInfo>,
+    style_groups: &StyleGroups,
+) -> Result<Vec<ChunkItemWithAsyncModuleInfo>> {
+    let mut flat_items: Vec<ChunkItemWithAsyncModuleInfo> = Vec::with_capacity(chunk_items.len());
+    for chunk_item in chunk_items {
+        match chunk_item {
+            ChunkItemOrBatchWithInfo::ChunkItem { chunk_item, .. } => {
+                flat_items.push(chunk_item.clone());
+            }
+            ChunkItemOrBatchWithInfo::Batch { batch, .. } => {
+                for chunk_item in &batch.await?.chunk_items {
+                    flat_items.push(chunk_item.clone());
+                }
+            }
+        }
+    }
+    flat_items.sort_by_key(|item| {
+        style_groups
+            .shared_chunk_items
+            .get(item)
+            .and_then(|info| info.order)
+    });
+    Ok(flat_items)
 }

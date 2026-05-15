@@ -548,7 +548,7 @@ export interface ExperimentalConfig {
    * - `true` / `'loose'` / `{ type: 'dependencies' }` — default heuristic-based chunking.
    * - `'strict'` / `{ type: 'strict' }` — preserve correct ordering as much as possible, even
    *   when this leads to many requests. Webpack only.
-   * - `false` — disable chunking; emit one chunk per CSS module.
+   * - `false` — disable chunking; emit one chunk per CSS module. Webpack only.
    * - `'graph'` / `{ type: 'graph', requestCost?, moduleFactorCost? }` — Turbopack only.
    *   Selects a CSS chunking strategy that analyzes the most common style orderings across the
    *   application and produces shared chunks accordingly. Compared to the default mode it

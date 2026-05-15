@@ -160,16 +160,18 @@ struct Candidate {
     distance: u64,
 }
 
-/// Find a short cycle inside an SCC. Returns the cycle as an array of distinct node ids; every
-/// consecutive pair has an edge and the last node has an edge back to the first (the closing
-/// wrap is implicit, not repeated).
-pub(super) fn find_short_cycle<'a, G>(graph: G) -> Vec<NodeIndex>
+/// Find a short cycle inside `graph`. Returns `None` if `graph` is empty or has no cycles
+/// reachable from the first node (callers in this module always pass a multi-node SCC, where a
+/// cycle is guaranteed to exist, so they unwrap). The cycle is returned as an array of distinct
+/// node ids; every consecutive pair has an edge and the last node has an edge back to the first
+/// (the closing wrap is implicit, not repeated).
+pub(super) fn find_short_cycle<'a, G>(graph: G) -> Option<Vec<NodeIndex>>
 where
     G: ReadonlyGraph<'a>,
 {
-    let start = graph.nodes().next().expect("find_short_cycle: empty graph");
+    let start = graph.nodes().next()?;
 
-    let mut cycle = find_shortest_cycle_from_node(graph, start);
+    let mut cycle = find_shortest_cycle_from_node(graph, start)?;
     let mut remaining_shifts = cycle.len();
 
     while remaining_shifts > 0 {
@@ -178,7 +180,7 @@ where
         }
         let shifted = cycle.remove(0);
         cycle.push(shifted);
-        let new_cycle = find_shortest_cycle_from_node(graph, shifted);
+        let new_cycle = find_shortest_cycle_from_node(graph, shifted)?;
         if new_cycle.len() < cycle.len() {
             remaining_shifts = new_cycle.len();
             cycle = new_cycle;
@@ -186,10 +188,11 @@ where
             remaining_shifts -= 1;
         }
     }
-    cycle
+    Some(cycle)
 }
 
-fn find_shortest_cycle_from_node<'a, G>(graph: G, start: NodeIndex) -> Vec<NodeIndex>
+/// Returns `None` if no cycle is reachable from `start`.
+fn find_shortest_cycle_from_node<'a, G>(graph: G, start: NodeIndex) -> Option<Vec<NodeIndex>>
 where
     G: ReadonlyGraph<'a>,
 {
@@ -224,10 +227,11 @@ where
         let (node, current_distance) = candidates
             .iter()
             .min_by_key(|(_, v)| v.distance)
-            .map(|(&k, v)| (k, v.distance))
-            .expect("no cycles found");
+            .map(|(&k, v)| (k, v.distance))?;
         if current_distance == u64::MAX {
-            panic!("no cycles found");
+            // All remaining candidates have been visited and none collided with the opposite
+            // frontier — `start` lies on no cycle.
+            return None;
         }
         let direction = candidates[&node].direction;
 
@@ -240,7 +244,7 @@ where
             // `backward_path` always begins with the cycle's start node; drop that head before
             // reversing.
             result.extend(cand.backward_path.into_iter().skip(1).rev());
-            return result;
+            return Some(result);
         }
 
         // Mark `node` as visited (sentinel `u64::MAX` distance).
@@ -330,7 +334,8 @@ pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
     while let Some(scc) = queue.pop() {
         // Live view restricted to the current SCC.
         let view = SubgraphView::new(&*graph, &scc);
-        let short_cycle = find_short_cycle(view);
+        // A multi-node SCC is guaranteed to contain a cycle, so `find_short_cycle` returns Some.
+        let short_cycle = find_short_cycle(view).expect("multi-node SCC always contains a cycle");
 
         // Restrict further to just the cycle's nodes.
         let cycle_set: FxHashSet<NodeIndex> = short_cycle.iter().copied().collect();

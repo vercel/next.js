@@ -461,10 +461,9 @@ function assignDefaultsAndValidate(
   }
 
   // Validate experimental.cssChunking compatibility with the active bundler. Graph mode is
-  // Turbopack-only; strict mode is webpack-only.
-  const cssChunkingMode = resolveCssChunkingMode(
-    result.experimental.cssChunking
-  )
+  // Turbopack-only; strict mode and `false` (single-chunk-per-module) are webpack-only.
+  const cssChunkingValue = result.experimental.cssChunking
+  const cssChunkingMode = resolveCssChunkingMode(cssChunkingValue)
   if (cssChunkingMode === 'graph' && !process.env.TURBOPACK) {
     throw new Error(
       `\`experimental.cssChunking: "graph"\` is only supported with Turbopack. ` +
@@ -474,6 +473,14 @@ function assignDefaultsAndValidate(
   if (cssChunkingMode === 'strict' && process.env.TURBOPACK) {
     throw new Error(
       `\`experimental.cssChunking: "strict"\` is only supported with webpack. ` +
+        `Please remove the option or run Next.js with webpack in ${configFileName}.`
+    )
+  }
+  // Only error when `false` was set explicitly. `undefined` (the default) also resolves to
+  // `'off'` but that's the implicit default and must not error on Turbopack.
+  if (cssChunkingValue === false && process.env.TURBOPACK) {
+    throw new Error(
+      `\`experimental.cssChunking: false\` is only supported with webpack. ` +
         `Please remove the option or run Next.js with webpack in ${configFileName}.`
     )
   }

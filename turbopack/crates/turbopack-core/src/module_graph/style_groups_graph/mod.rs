@@ -90,6 +90,18 @@ struct ModuleData {
     chunk_item: ChunkItemWithAsyncModuleInfo,
 }
 
+/// A module that has been classified as a style module during the chunk-group walk. Carries both
+/// the chunkable view (for size + chunk-item resolution) and the style view (for `style_type`),
+/// so [`resolve_module_data`] doesn't need to repeat the sidecast.
+struct StyleModuleRef {
+    chunkable: ResolvedVc<Box<dyn ChunkableModule>>,
+    style: ResolvedVc<Box<dyn StyleModule>>,
+}
+
+/// Per-discovered-chunkable-module classification: `Some((id, style))` for CSS modules and
+/// `None` for non-CSS modules.
+type ClassifiedModule = Option<(usize, ResolvedVc<Box<dyn StyleModule>>)>;
+
 /// Build [`StyleGroups`] using the graph-analysis algorithm. See the module-level docs for
 /// details.
 pub async fn compute_style_groups_graph(
@@ -109,14 +121,13 @@ async fn compute_style_groups_graph_inner(
 ) -> Result<Vc<StyleGroups>> {
     let StyleGroupsAlgorithm::Graph {
         request_cost,
-        module_factor_cost_bits,
+        module_factor_cost,
     } = config.algorithm
     else {
         unreachable!("compute_style_groups_graph called with non-Graph algorithm");
     };
-    // The cost model uses f32 throughout; widen at the boundary.
-    let request_cost = request_cost as f32;
-    let module_factor_cost = f32::from_bits(module_factor_cost_bits as u32);
+    let request_cost = request_cost.get();
+    let module_factor_cost = module_factor_cost.get();
 
     // 1. Walk every chunk group post-order and collect, for each group, the ordered list of CSS
     //    modules. Module ids are densely allocated as we encounter modules for the first time.
@@ -167,37 +178,42 @@ async fn assemble_style_groups(
     let mut shared_chunk_items: FxIndexMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo> =
         FxIndexMap::default();
     let mut order_counter: u32 = 0;
-    let chunk_item_for = |id: usize| module_data[id].chunk_item.clone();
+    let mut push =
+        |map: &mut FxIndexMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo>,
+         chunk_item: ChunkItemWithAsyncModuleInfo,
+         batch: Option<ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>>| {
+            map.insert(
+                chunk_item,
+                StyleItemInfo {
+                    order: Some(order_counter),
+                    batch,
+                },
+            );
+            order_counter += 1;
+        };
 
     for chunk in chunks {
         if chunk.is_empty() {
             continue;
         }
         if chunk.len() == 1 {
-            shared_chunk_items.insert(
-                chunk_item_for(chunk[0]),
-                StyleItemInfo {
-                    order: Some(order_counter),
-                    batch: None,
-                },
+            push(
+                &mut shared_chunk_items,
+                module_data[chunk[0]].chunk_item.clone(),
+                None,
             );
-            order_counter += 1;
             continue;
         }
 
-        let chunk_items: Vec<_> = chunk.iter().map(|&id| chunk_item_for(id)).collect();
+        let chunk_items: Vec<_> = chunk
+            .iter()
+            .map(|&id| module_data[id].chunk_item.clone())
+            .collect();
         let batch = ChunkItemBatchWithAsyncModuleInfo::new(chunk_items.clone())
             .to_resolved()
             .await?;
         for chunk_item in chunk_items {
-            shared_chunk_items.insert(
-                chunk_item,
-                StyleItemInfo {
-                    order: Some(order_counter),
-                    batch: Some(batch),
-                },
-            );
-            order_counter += 1;
+            push(&mut shared_chunk_items, chunk_item, Some(batch));
         }
     }
 
@@ -205,14 +221,7 @@ async fn assemble_style_groups(
     // remaining cycle) are emitted as singletons at the end so the result is still complete.
     for data in module_data {
         if !shared_chunk_items.contains_key(&data.chunk_item) {
-            shared_chunk_items.insert(
-                data.chunk_item.clone(),
-                StyleItemInfo {
-                    order: Some(order_counter),
-                    batch: None,
-                },
-            );
-            order_counter += 1;
+            push(&mut shared_chunk_items, data.chunk_item.clone(), None);
         }
     }
 
@@ -227,12 +236,14 @@ async fn assemble_style_groups(
 async fn collect_chunk_groups(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<(Vec<Vec<usize>>, Vec<ResolvedVc<Box<dyn ChunkableModule>>>)> {
+) -> Result<(Vec<Vec<usize>>, Vec<StyleModuleRef>)> {
     let chunk_group_info = module_graph.chunk_group_info().await?;
     let batches_graph = module_graph
         .module_batches(chunking_context.batching_config())
         .await?;
-    let mut module_id_map: FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, Option<usize>> =
+    // Per discovered chunkable module: `Some((id, sidecast_style))` for CSS modules and `None`
+    // for non-CSS modules (which still occupy an entry so we don't repeat the classification).
+    let mut module_id_map: FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, ClassifiedModule> =
         FxIndexMap::default();
     let mut chunk_groups: Vec<Vec<usize>> = Vec::new();
 
@@ -269,24 +280,23 @@ async fn collect_chunk_groups(
             },
         )?;
 
-        // Collect CSS module ids for this group, classifying modules on first sight.
+        // Collect CSS module ids for this group, classifying modules on first sight. `seen`
+        // dedups within a single group in O(1); the parallel `ids` Vec preserves insertion
+        // order.
         let mut ids: Vec<usize> = Vec::new();
+        let mut seen: FxHashSet<usize> = FxHashSet::default();
         let mut handle_module = async |module| -> Result<()> {
             let id_slot = match module_id_map.entry(module) {
                 Entry::Occupied(e) => *e.get(),
                 Entry::Vacant(e) => {
-                    let assigned =
-                        if ResolvedVc::try_sidecast::<Box<dyn StyleModule>>(module).is_some() {
-                            Some(e.index())
-                        } else {
-                            None
-                        };
+                    let assigned = ResolvedVc::try_sidecast::<Box<dyn StyleModule>>(module)
+                        .map(|style| (e.index(), style));
                     e.insert(assigned);
                     assigned
                 }
             };
-            if let Some(id) = id_slot
-                && !ids.contains(&id)
+            if let Some((id, _)) = id_slot
+                && seen.insert(id)
             {
                 ids.push(id);
             }
@@ -314,11 +324,12 @@ async fn collect_chunk_groups(
         }
     }
 
-    // Compact the id space: drop entries for modules that never got a CSS id (`None`) and keep
-    // the rest in insertion order. Returns the dense list of modules.
-    let modules_in_order: Vec<_> = module_id_map
+    // Compact the id space: drop entries for non-CSS modules and keep CSS modules in insertion
+    // order. The sidecast `StyleModule` is carried through so [`resolve_module_data`] doesn't
+    // need to redo it.
+    let modules_in_order: Vec<StyleModuleRef> = module_id_map
         .iter()
-        .filter_map(|(m, id)| id.map(|_| *m))
+        .filter_map(|(&chunkable, slot)| slot.map(|(_, style)| StyleModuleRef { chunkable, style }))
         .collect();
     Ok((chunk_groups, modules_in_order))
 }
@@ -328,17 +339,15 @@ async fn collect_chunk_groups(
 async fn resolve_module_data(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    modules: &[ResolvedVc<Box<dyn ChunkableModule>>],
+    modules: &[StyleModuleRef],
 ) -> Result<Vec<ModuleData>> {
     let async_module_info = module_graph.async_module_info();
     modules
         .iter()
-        .map(async |&module| -> Result<ModuleData> {
-            let style_module = ResolvedVc::try_sidecast::<Box<dyn StyleModule>>(module)
-                .expect("modules vec only contains modules previously classified as StyleModule");
-            let style_type = *style_module.style_type().await?;
+        .map(async |m| -> Result<ModuleData> {
+            let style_type = *m.style.style_type().await?;
             let chunk_item = attach_async_info_to_chunkable_module(
-                module,
+                m.chunkable,
                 async_module_info,
                 module_graph,
                 chunking_context,

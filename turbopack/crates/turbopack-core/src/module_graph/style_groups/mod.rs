@@ -22,6 +22,24 @@ use crate::{
     },
 };
 
+/// Wrapper around an `f32` that implements [`TaskInput`] (and the other derives the
+/// `StyleGroupsAlgorithm` enum needs) by going through the IEEE-754 bit pattern. Use
+/// [`F32TaskInput::get`] / [`F32TaskInput::from`] at the boundary; do not match on the inner
+/// `u32` directly.
+#[derive(
+    TaskInput, Debug, Clone, Copy, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode,
+)]
+pub struct F32TaskInput(u32);
+
+impl F32TaskInput {
+    pub const fn from(value: f32) -> Self {
+        Self(value.to_bits())
+    }
+    pub const fn get(self) -> f32 {
+        f32::from_bits(self.0)
+    }
+}
+
 /// Selects the algorithm used to compute [`StyleGroups`].
 #[derive(
     TaskInput,
@@ -44,21 +62,18 @@ pub enum StyleGroupsAlgorithm {
     /// [`crate::module_graph::style_groups_graph::compute_style_groups_graph`].
     Graph {
         /// See `experimental.cssChunking.requestCost` in Next.js.
-        request_cost: u64,
-        /// See `experimental.cssChunking.moduleFactorCost` in Next.js. Stored as the IEEE-754
-        /// bit pattern of an `f32` (widened to `u64` so the enum can derive
-        /// `Eq` / `Hash` / `TaskInput`). Build via [`StyleGroupsAlgorithm::graph`] and read
-        /// with `f32::from_bits(bits as u32)`.
-        module_factor_cost_bits: u64,
+        request_cost: F32TaskInput,
+        /// See `experimental.cssChunking.moduleFactorCost` in Next.js.
+        module_factor_cost: F32TaskInput,
     },
 }
 
 impl StyleGroupsAlgorithm {
-    /// Build a [`StyleGroupsAlgorithm::Graph`] variant from a real `f32` `module_factor_cost`.
-    pub fn graph(request_cost: u64, module_factor_cost: f32) -> Self {
+    /// Build a [`StyleGroupsAlgorithm::Graph`] variant from real `f32` cost parameters.
+    pub fn graph(request_cost: f32, module_factor_cost: f32) -> Self {
         Self::Graph {
-            request_cost,
-            module_factor_cost_bits: module_factor_cost.to_bits() as u64,
+            request_cost: F32TaskInput::from(request_cost),
+            module_factor_cost: F32TaskInput::from(module_factor_cost),
         }
     }
 }

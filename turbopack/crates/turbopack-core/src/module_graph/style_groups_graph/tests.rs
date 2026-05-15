@@ -401,7 +401,7 @@ fn find_short_cycle_two_node_scc() {
         g.add_edge(n(0), n(1), 1);
         g.add_edge(n(1), n(0), 1);
     });
-    let cycle = find_short_cycle(&g);
+    let cycle = find_short_cycle(&g).expect("test graph has a cycle");
     assert!(is_valid_cycle(&g, &cycle));
     assert_eq!(to_set(&cycle), [n(0), n(1)].into_iter().collect());
 }
@@ -413,7 +413,7 @@ fn find_short_cycle_three_cycle() {
         g.add_edge(n(1), n(2), 1);
         g.add_edge(n(2), n(0), 1);
     });
-    let cycle = find_short_cycle(&g);
+    let cycle = find_short_cycle(&g).expect("test graph has a cycle");
     assert!(is_valid_cycle(&g, &cycle));
     assert_eq!(cycle.len(), 3);
 }
@@ -428,7 +428,7 @@ fn find_short_cycle_prefers_two_cycle_when_longer_exists() {
         g.add_edge(n(3), n(0), 1);
         g.add_edge(n(2), n(1), 1);
     });
-    let cycle = find_short_cycle(&g);
+    let cycle = find_short_cycle(&g).expect("test graph has a cycle");
     assert!(is_valid_cycle(&g, &cycle));
     assert_eq!(cycle.len(), 2);
     assert_eq!(to_set(&cycle), [n(1), n(2)].into_iter().collect());
@@ -444,7 +444,7 @@ fn find_short_cycle_uses_edge_weights_to_pick_lowest_total_weight() {
         g.add_edge(n(1), n(2), 100);
         g.add_edge(n(2), n(1), 100);
     });
-    let cycle = find_short_cycle(&g);
+    let cycle = find_short_cycle(&g).expect("test graph has a cycle");
     assert!(is_valid_cycle(&g, &cycle));
     assert_eq!(cycle.len(), 2);
     assert_eq!(to_set(&cycle), [n(0), n(2)].into_iter().collect());
