@@ -1,5 +1,18 @@
 // @ts-nocheck - On isolated test, this will be a type error.
+import { promises as fs } from 'fs'
+import path from 'path'
 import type { Playwright } from 'e2e-utils'
+
+// Fixture files live in this directory (`test/e2e/app-dir/metadata-static-file`),
+// so we read them from the repo on the test runner. Using `next.readFile` would
+// hit the deployed filesystem, which is not available in deploy test mode.
+export function readFixtureBuffer(relativePath: string) {
+  return fs.readFile(path.join(__dirname, relativePath))
+}
+
+export function readFixtureText(relativePath: string) {
+  return fs.readFile(path.join(__dirname, relativePath), 'utf8')
+}
 
 async function getMetadataLinks(browser: Playwright) {
   const links = await browser.locator('link').evaluateAll((elements: any[]) => {

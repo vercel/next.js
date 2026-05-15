@@ -1,10 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getCommonMetadataHeadTags } from './utils'
+import {
+  getCommonMetadataHeadTags,
+  readFixtureBuffer,
+  readFixtureText,
+} from './utils'
 
 describe('metadata-files-static-output-group-route', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   if (skipped) {
@@ -96,11 +99,11 @@ describe('metadata-files-static-output-group-route', () => {
       actualTwitterImage,
       actualSitemap,
     ] = await Promise.all([
-      next.readFileBuffer('app/(group)/group/apple-icon.png'),
-      next.readFileBuffer('app/(group)/group/icon.png'),
-      next.readFileBuffer('app/(group)/group/opengraph-image.png'),
-      next.readFileBuffer('app/(group)/group/twitter-image.png'),
-      next.readFile('app/(group)/group/sitemap.xml'),
+      readFixtureBuffer('app/(group)/group/apple-icon.png'),
+      readFixtureBuffer('app/(group)/group/icon.png'),
+      readFixtureBuffer('app/(group)/group/opengraph-image.png'),
+      readFixtureBuffer('app/(group)/group/twitter-image.png'),
+      readFixtureText('app/(group)/group/sitemap.xml'),
     ])
 
     expect({
