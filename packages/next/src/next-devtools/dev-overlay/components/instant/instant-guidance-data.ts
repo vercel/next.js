@@ -10,6 +10,7 @@ export type FixCardGroup =
   | 'client'
   | 'defer'
   | 'measure'
+  | 'silence'
 
 export type FixCardIcon =
   | 'align-left'
@@ -35,6 +36,7 @@ export const FIX_CARD_GROUPS: Record<
   client: { label: 'Client', color: 'amber', icon: 'layout' },
   defer: { label: 'Defer', color: 'amber', icon: 'pointer-click' },
   measure: { label: 'Measure', color: 'gray', icon: 'timer' },
+  silence: { label: 'Silence', color: 'red', icon: 'octagon' },
 }
 
 export type FixCard = {
@@ -139,6 +141,31 @@ const dynamicCards: FixCard[] = [
     title: 'Allow blocking route',
     group: 'block',
     link: 'https://nextjs.org/docs/messages/blocking-route#allow-blocking-route',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ],
+  },
+]
+
+// ── Unrendered-segment cards ──────────────────────
+
+const unrenderedSegmentCards: FixCard[] = [
+  {
+    id: 'render-the-missing-segment',
+    title: 'Render the missing segment',
+    group: 'stream',
+    link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#render-the-missing-segment',
+    snippets: [
+      { text: '// in the parent' },
+      { text: '{children}', highlight: true },
+    ],
+  },
+  {
+    id: 'silence-this-warning',
+    title: 'Silence this warning',
+    group: 'silence',
+    link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#silence-this-warning',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
@@ -485,6 +512,7 @@ export type GuidanceKind =
   | 'viewport'
   | 'sync-io'
   | 'sync-io-client'
+  | 'unrendered-segment'
 
 export type GuidanceVariant = 'runtime' | 'dynamic'
 
@@ -494,6 +522,8 @@ export const DOCS_URLS: Record<GuidanceKind, string> = {
   viewport: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport',
   'sync-io': '',
   'sync-io-client': '',
+  'unrendered-segment':
+    'https://nextjs.org/docs/messages/unrendered-instant-segment',
 }
 
 export const SYNC_IO_DOCS: Record<string, string> = {
@@ -560,6 +590,8 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'sync-io': '',
   'sync-io-client':
     'This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.',
+  'unrendered-segment':
+    'Issues that would prevent instant navigation in this segment will go undetected.',
 }
 
 export const BLOCKING_ROUTE_NAVIGATION_EXPLANATION =
@@ -613,6 +645,8 @@ export function getCards(
       return (cause && syncCardsByCause[cause]) || []
     case 'sync-io-client':
       return (cause && syncClientCardsByCause[cause]) || []
+    case 'unrendered-segment':
+      return unrenderedSegmentCards
     default:
       return kind satisfies never
   }

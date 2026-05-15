@@ -29,6 +29,7 @@ import {
   type GuidanceVariant,
 } from '../components/instant/instant-guidance'
 import { BLOCKING_ROUTE_NAVIGATION_EXPLANATION } from '../components/instant/instant-guidance-data'
+import { UnrenderedSegmentInfo } from '../components/instant/unrendered-segment-info'
 import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './runtime-error/error-cause'
@@ -116,6 +117,7 @@ type ErrorDetails =
   | DynamicViewportErrorDetails
   | SyncIOErrorDetails
   | SyncIOClientErrorDetails
+  | UnrenderedSegmentErrorDetails
 
 type NoErrorDetails = {
   type: 'empty'
@@ -154,6 +156,12 @@ type SyncIOClientErrorDetails = {
   cause: string
 }
 
+type UnrenderedSegmentErrorDetails = {
+  type: 'unrendered-segment'
+  route: string
+  files: string[]
+}
+
 const noErrorDetails: ErrorDetails = {
   type: 'empty',
 }
@@ -178,6 +186,11 @@ export function useErrorDetails(
     const blockingRouteErrorDetails = getBlockingRouteErrorDetails(error)
     if (blockingRouteErrorDetails) {
       return blockingRouteErrorDetails
+    }
+
+    const unrenderedSegmentDetails = getUnrenderedSegmentErrorDetails(error)
+    if (unrenderedSegmentDetails) {
+      return unrenderedSegmentDetails
     }
 
     return noErrorDetails
@@ -383,6 +396,49 @@ export function getBlockingRouteErrorDetails(
   }
 
   return null
+}
+
+// Detects the navigation-time "unrendered segment" wrapper produced by the
+// missing-segment branch in
+// `packages/next/src/server/app-render/dynamic-rendering.ts` when validation
+// can't complete because a required boundary segment didn't render. The
+// framework writes the headline `Route "<path>": Could not validate instant
+// UI because an expected segment was not rendered.` followed by an
+// `Unrendered segment(s):` block listing project-relative file paths.
+export function getUnrenderedSegmentErrorDetails(
+  error: Error
+): UnrenderedSegmentErrorDetails | null {
+  const message = error.message
+  if (typeof message !== 'string') return null
+  if (
+    !message.includes(
+      'Could not validate instant UI because an expected segment was not rendered'
+    )
+  ) {
+    return null
+  }
+  const routeMatch = /^Route "([^"]+)":/.exec(message)
+  if (!routeMatch) return null
+  const route = routeMatch[1]
+
+  // The body lists `Unrendered segment:` or `Unrendered segments:` followed
+  // by indented file paths on subsequent lines until the next blank line.
+  const files: string[] = []
+  const filesBlockMatch = /\nUnrendered segments?:\n([^]*?)(?:\n\n|$)/.exec(
+    message
+  )
+  if (filesBlockMatch) {
+    for (const rawLine of filesBlockMatch[1].split('\n')) {
+      const trimmed = rawLine.replace(/^\s+/, '')
+      if (trimmed) files.push(trimmed)
+    }
+  }
+
+  return {
+    type: 'unrendered-segment',
+    route,
+    files,
+  }
 }
 
 export function Errors({
@@ -755,6 +811,33 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
+        </ErrorOverlayLayout>
+      )
+    case 'unrendered-segment':
+      return (
+        <ErrorOverlayLayout
+          errorCode={errorCode}
+          errorType={errorType}
+          errorMessage="Next.js could not validate instant UI because an expected segment was not rendered."
+          headerChildren={
+            <InstantHeaderExplanation kind="unrendered-segment" />
+          }
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={runtimeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <UnrenderedSegmentInfo files={errorDetails.files} />
+          <InstantGuidance
+            kind="unrendered-segment"
+            variant="dynamic"
+            showExplanation={false}
+          />
         </ErrorOverlayLayout>
       )
     case 'empty':

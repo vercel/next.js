@@ -3413,17 +3413,16 @@ describe('instant validation', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1248",
-             "description": "Could not validate instant UI because an expected segment was not rendered.
+             "description": "Route "/suspense-in-root/static/multi-depth-deferred-fallback/inner": Could not validate instant UI because an expected segment was not rendered.
 
            Unrendered segment:
              app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
 
-           Route: /suspense-in-root/static/multi-depth-deferred-fallback/inner
+           Issues that would prevent instant navigation in this segment will go undetected.
 
-           This can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.
-           This can happen when a client component opts out of rendering during SSR.
-
-           You can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.
+           Ways to fix this:
+             - Render the missing segment
+             - Set \`export const instant = false\` on the layout to silence this warning
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
              "environmentLabel": "Server",
@@ -3438,17 +3437,16 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Could not validate instant UI because an expected segment was not rendered.
+           "Error: Route "/suspense-in-root/static/multi-depth-deferred-fallback/inner": Could not validate instant UI because an expected segment was not rendered.
 
            Unrendered segment:
              app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
 
-           Route: /suspense-in-root/static/multi-depth-deferred-fallback/inner
+           Issues that would prevent instant navigation in this segment will go undetected.
 
-           This can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.
-           This can happen when a client component opts out of rendering during SSR.
-
-           You can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.
+           Ways to fix this:
+             - Render the missing segment
+             - Set \`export const instant = false\` on the layout to silence this warning
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
                at ignore-listed frames
@@ -3477,17 +3475,16 @@ describe('instant validation', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1248",
-             "description": "Could not validate instant UI because an expected segment was not rendered.
+             "description": "Route "/suspense-in-root/static/test-firstmod/inter/inner": Could not validate instant UI because an expected segment was not rendered.
 
            Unrendered segment:
              app/suspense-in-root/static/test-firstmod/inter/layout.tsx
 
-           Route: /suspense-in-root/static/test-firstmod/inter/inner
+           Issues that would prevent instant navigation in this segment will go undetected.
 
-           This can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.
-           This can happen when a client component opts out of rendering during SSR.
-
-           You can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.
+           Ways to fix this:
+             - Render the missing segment
+             - Set \`export const instant = false\` on the layout to silence this warning
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
              "environmentLabel": "Server",
@@ -3502,17 +3499,16 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Could not validate instant UI because an expected segment was not rendered.
+           "Error: Route "/suspense-in-root/static/test-firstmod/inter/inner": Could not validate instant UI because an expected segment was not rendered.
 
            Unrendered segment:
              app/suspense-in-root/static/test-firstmod/inter/layout.tsx
 
-           Route: /suspense-in-root/static/test-firstmod/inter/inner
+           Issues that would prevent instant navigation in this segment will go undetected.
 
-           This can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.
-           This can happen when a client component opts out of rendering during SSR.
-
-           You can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.
+           Ways to fix this:
+             - Render the missing segment
+             - Set \`export const instant = false\` on the layout to silence this warning
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
                at ignore-listed frames
@@ -3539,18 +3535,17 @@ describe('instant validation', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1248",
-             "description": "Could not validate instant UI because an expected segment was not rendered.
+             "description": "Route "/suspense-in-root/static/test-multi-unrendered": Could not validate instant UI because an expected segment was not rendered.
 
            Unrendered segments:
              app/suspense-in-root/static/test-multi-unrendered/@sidebar/page.tsx
              app/suspense-in-root/static/test-multi-unrendered/page.tsx
 
-           Route: /suspense-in-root/static/test-multi-unrendered
+           Issues that would prevent instant navigation in this segment will go undetected.
 
-           This can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.
-           This can happen when a client component opts out of rendering during SSR.
-
-           You can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.
+           Ways to fix this:
+             - Render the missing segment
+             - Set \`export const instant = false\` on the layout to silence this warning
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
              "environmentLabel": "Server",
@@ -3565,18 +3560,17 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Could not validate instant UI because an expected segment was not rendered.
+           "Error: Route "/suspense-in-root/static/test-multi-unrendered": Could not validate instant UI because an expected segment was not rendered.
 
            Unrendered segments:
              app/suspense-in-root/static/test-multi-unrendered/@sidebar/page.tsx
              app/suspense-in-root/static/test-multi-unrendered/page.tsx
 
-           Route: /suspense-in-root/static/test-multi-unrendered
+           Issues that would prevent instant navigation in this segment will go undetected.
 
-           This can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.
-           This can happen when a client component opts out of rendering during SSR.
-
-           You can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.
+           Ways to fix this:
+             - Render the missing segment
+             - Set \`export const instant = false\` on the layout to silence this warning
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
                at ignore-listed frames
