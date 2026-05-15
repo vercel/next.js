@@ -110,8 +110,7 @@ impl<'a, N: 'a> ReadonlyGraph<'a> for SubgraphView<'a, N> {
 
     fn nodes(self) -> Self::NodesIter {
         SubgraphNodes {
-            iter: self.graph.node_indices(),
-            subset: self.subset,
+            iter: self.subset.iter(),
         }
     }
     fn node_count(self) -> usize {
@@ -177,14 +176,13 @@ impl<'a, N: 'a> ReadonlyGraph<'a> for SubgraphView<'a, N> {
 }
 
 pub(super) struct SubgraphNodes<'a> {
-    iter: petgraph::graph::NodeIndices<u32>,
-    subset: &'a FxHashSet<NodeIndex>,
+    iter: std::collections::hash_set::Iter<'a, NodeIndex>,
 }
 
 impl<'a> Iterator for SubgraphNodes<'a> {
     type Item = NodeIndex;
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter.by_ref().find(|n| self.subset.contains(n))
+        self.iter.next().copied()
     }
 }
 

@@ -3,6 +3,11 @@
 //! Direct port of the proof-of-concept TypeScript implementation. See the parent module's
 //! documentation for the high-level pipeline.
 
+use std::{
+    cmp::Reverse,
+    collections::{BinaryHeap, VecDeque},
+};
+
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -151,12 +156,13 @@ enum Direction2 {
 #[derive(Debug, Clone)]
 struct Candidate {
     direction: Direction2,
-    /// `path` is the unidirectional path while `direction != Cycle`; once the candidate becomes
-    /// a `Cycle` the two halves are tracked in `forward_path` and `backward_path`.
-    path: Vec<NodeIndex>,
-    forward_path: Vec<NodeIndex>,
-    backward_path: Vec<NodeIndex>,
-    /// `u32::MAX` is used as the sentinel for "visited / +infinity" — matches the JS `Infinity`.
+    /// Predecessor on the forward half of the search tree. `Some` for nodes reached by the
+    /// forward frontier (`Forward` or `Cycle` direction); `None` for the start node and for
+    /// nodes reached only by the backward frontier.
+    forward_predecessor: Option<NodeIndex>,
+    /// Predecessor on the backward half of the search tree. Mirror of `forward_predecessor`.
+    backward_predecessor: Option<NodeIndex>,
+    /// `u64::MAX` is used as the sentinel for "visited / +infinity" — matches the JS `Infinity`.
     distance: u64,
 }
 
@@ -171,24 +177,24 @@ where
 {
     let start = graph.nodes().next()?;
 
-    let mut cycle = find_shortest_cycle_from_node(graph, start)?;
+    let initial = find_shortest_cycle_from_node(graph, start)?;
+    let mut cycle: VecDeque<NodeIndex> = initial.into();
     let mut remaining_shifts = cycle.len();
 
     while remaining_shifts > 0 {
-        if cycle.is_empty() {
+        let Some(shifted) = cycle.pop_front() else {
             break;
-        }
-        let shifted = cycle.remove(0);
-        cycle.push(shifted);
+        };
+        cycle.push_back(shifted);
         let new_cycle = find_shortest_cycle_from_node(graph, shifted)?;
         if new_cycle.len() < cycle.len() {
             remaining_shifts = new_cycle.len();
-            cycle = new_cycle;
+            cycle = new_cycle.into();
         } else {
             remaining_shifts -= 1;
         }
     }
-    Some(cycle)
+    Some(cycle.into())
 }
 
 /// Returns `None` if no cycle is reachable from `start`.
@@ -197,65 +203,67 @@ where
     G: ReadonlyGraph<'a>,
 {
     let mut candidates: FxHashMap<NodeIndex, Candidate> = FxHashMap::default();
+    // Min-heap keyed by `(distance, seq)`. `seq` is a strictly-increasing counter so ties break
+    // by insertion order (earlier insertions win). Entries are never removed on relaxation;
+    // stale entries are filtered when popped by comparing to `candidates[node].distance`.
+    let mut heap: BinaryHeap<Reverse<(u64, u32, NodeIndex)>> = BinaryHeap::new();
+    let mut next_seq: u32 = 0;
+
     // Seed: a backward "stub" at the start node, plus a forward step over each outgoing edge.
     candidates.insert(
         start,
         Candidate {
             direction: Direction2::Backward,
-            path: Vec::new(),
-            forward_path: Vec::new(),
-            backward_path: Vec::new(),
+            forward_predecessor: None,
+            backward_predecessor: None,
             distance: 0,
         },
     );
+    heap.push(Reverse((0, next_seq, start)));
+    next_seq += 1;
+
     for (edge, weight) in graph.outgoing_edges_with_weight(start) {
+        let distance = weight as u64;
         candidates.insert(
             edge,
             Candidate {
                 direction: Direction2::Forward,
-                path: vec![start],
-                forward_path: Vec::new(),
-                backward_path: Vec::new(),
-                distance: weight as u64,
+                forward_predecessor: Some(start),
+                backward_predecessor: None,
+                distance,
             },
         );
+        heap.push(Reverse((distance, next_seq, edge)));
+        next_seq += 1;
     }
 
     loop {
-        // Linear scan for the lowest-distance unvisited candidate. Strict `<` so insertion order
-        // wins on ties — this matches the JS PoC.
-        let (node, current_distance) = candidates
-            .iter()
-            .min_by_key(|(_, v)| v.distance)
-            .map(|(&k, v)| (k, v.distance))?;
-        if current_distance == u64::MAX {
-            // All remaining candidates have been visited and none collided with the opposite
-            // frontier — `start` lies on no cycle.
-            return None;
-        }
+        // Pop the lowest-distance live entry, skipping stale ones.
+        let (node, current_distance) = loop {
+            let Reverse((dist, _, node)) = heap.pop()?;
+            match candidates.get(&node) {
+                Some(cand) if cand.distance == dist => break (node, dist),
+                _ => continue,
+            }
+        };
+
         let direction = candidates[&node].direction;
 
         // A node with `direction == Cycle` is one where the forward and backward frontiers
         // collided. Splice the two halves back into a cycle and return.
         if direction == Direction2::Cycle {
             let cand = candidates.remove(&node).unwrap();
-            let mut result = cand.forward_path;
+            let mut result = reconstruct_path(&candidates, cand.forward_predecessor, true);
             result.push(node);
             // `backward_path` always begins with the cycle's start node; drop that head before
             // reversing.
-            result.extend(cand.backward_path.into_iter().skip(1).rev());
+            let backward = reconstruct_path(&candidates, cand.backward_predecessor, false);
+            result.extend(backward.into_iter().skip(1).rev());
             return Some(result);
         }
 
         // Mark `node` as visited (sentinel `u64::MAX` distance).
         candidates.get_mut(&node).unwrap().distance = u64::MAX;
-        // Snapshot the path extended through `node` for use when relaxing neighbours.
-        let path_extended = {
-            let cand = &candidates[&node];
-            let mut p = cand.path.clone();
-            p.push(node);
-            p
-        };
         // Snapshot neighbours before mutating `candidates` (avoids overlapping borrows).
         let neighbours: Vec<(NodeIndex, u32)> = match direction {
             Direction2::Forward => graph.outgoing_edges_with_weight(node).collect(),
@@ -268,16 +276,22 @@ where
             match candidates.get_mut(&edge) {
                 None => {
                     // Unseen neighbour — extend the unidirectional frontier.
+                    let (fwd, bwd) = match direction {
+                        Direction2::Forward => (Some(node), None),
+                        Direction2::Backward => (None, Some(node)),
+                        Direction2::Cycle => unreachable!(),
+                    };
                     candidates.insert(
                         edge,
                         Candidate {
                             direction,
-                            path: path_extended.clone(),
-                            forward_path: Vec::new(),
-                            backward_path: Vec::new(),
+                            forward_predecessor: fwd,
+                            backward_predecessor: bwd,
                             distance: new_distance,
                         },
                     );
+                    heap.push(Reverse((new_distance, next_seq, edge)));
+                    next_seq += 1;
                 }
                 Some(existing) if existing.distance == u64::MAX => {
                     // Already visited — leave it.
@@ -285,36 +299,68 @@ where
                 Some(existing) if existing.direction == direction => {
                     // Same-direction relaxation.
                     if new_distance < existing.distance {
-                        existing.path = path_extended.clone();
+                        if direction == Direction2::Forward {
+                            existing.forward_predecessor = Some(node);
+                        } else {
+                            existing.backward_predecessor = Some(node);
+                        }
                         existing.distance = new_distance;
+                        heap.push(Reverse((new_distance, next_seq, edge)));
+                        next_seq += 1;
                     }
                 }
                 Some(existing) if existing.direction == Direction2::Cycle => {
                     // Already a cycle candidate — relax the half coming from `direction`.
                     if new_distance < existing.distance {
                         if direction == Direction2::Forward {
-                            existing.forward_path = path_extended.clone();
+                            existing.forward_predecessor = Some(node);
                         } else {
-                            existing.backward_path = path_extended.clone();
+                            existing.backward_predecessor = Some(node);
                         }
                         existing.distance = new_distance;
+                        heap.push(Reverse((new_distance, next_seq, edge)));
+                        next_seq += 1;
                     }
                 }
                 Some(existing) => {
                     // Opposite unidirectional frontiers met → upgrade to a cycle candidate.
-                    let other_path = std::mem::take(&mut existing.path);
+                    // The opposite-direction predecessor was already populated when `existing`
+                    // joined the frontier; we just fill in our side.
                     existing.direction = Direction2::Cycle;
                     if direction == Direction2::Forward {
-                        existing.forward_path = path_extended.clone();
-                        existing.backward_path = other_path;
+                        existing.forward_predecessor = Some(node);
                     } else {
-                        existing.forward_path = other_path;
-                        existing.backward_path = path_extended.clone();
+                        existing.backward_predecessor = Some(node);
                     }
+                    // Distance is unchanged; the existing heap entry at the old distance is
+                    // still valid and will pop the upgraded `Cycle` candidate.
                 }
             }
         }
     }
+}
+
+/// Walk back through predecessors to reconstruct the path from `start` to (but not including)
+/// the cycle node. `forward = true` follows forward predecessors; `false` follows backward.
+/// Returns the path in order `[start, ..., last_predecessor]`.
+fn reconstruct_path(
+    candidates: &FxHashMap<NodeIndex, Candidate>,
+    from: Option<NodeIndex>,
+    forward: bool,
+) -> Vec<NodeIndex> {
+    let mut path: Vec<NodeIndex> = Vec::new();
+    let mut cur = from;
+    while let Some(n) = cur {
+        path.push(n);
+        let c = &candidates[&n];
+        cur = if forward {
+            c.forward_predecessor
+        } else {
+            c.backward_predecessor
+        };
+    }
+    path.reverse();
+    path
 }
 
 // ---------------------------------------------------------------------------
