@@ -11,8 +11,7 @@ use crate::{
     },
     module_graph::{
         ModuleGraph,
-        style_groups::{StyleGroups, StyleItemInfo},
-        style_groups_loose::StyleGroupsConfig,
+        style_groups::{StyleGroups, StyleGroupsConfig, StyleItemInfo},
     },
 };
 
@@ -81,9 +80,12 @@ pub async fn make_style_production_chunks(
 }
 
 /// Flatten input batches into a single ordered list of `(chunk_item, info)` pairs and stably
-/// sort by `StyleItemInfo::order`. Entries without a `StyleItemInfo` (i.e. items the algorithm
-/// did not touch) keep their input position relative to each other. The legacy algorithm
-/// produces all `None` orders, so the sort is effectively a no-op for it.
+/// sort by `StyleItemInfo::order`. In practice each [`StyleGroups`] result is uniform:
+/// * the loose algorithm produces all `None` orders, so the sort is a no-op and items keep their
+///   input position;
+/// * the graph algorithm produces all `Some(_)` orders (including for singleton chunks; see
+///   [`crate::module_graph::style_groups_graph::compute_style_groups_graph`]), so the sort key
+///   fully determines the final order and any missing-from-map sentinel can't slip in.
 ///
 /// Returns the `StyleItemInfo` reference for each item so the caller can avoid re-querying
 /// `style_groups.shared_chunk_items`.

@@ -1,14 +1,10 @@
 use std::cmp::Reverse;
 
 use anyhow::Result;
-use bincode::{Decode, Encode};
 use indexmap::map::Entry;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, OperationValue, ResolvedVc, TaskInput, TryJoinIterExt,
-    ValueToString, Vc, trace::TraceRawVcs,
-};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 
 use crate::{
     chunk::{
@@ -20,73 +16,9 @@ use crate::{
         GraphTraversalAction, ModuleGraph,
         module_batch::ModuleOrBatch,
         module_batches::ModuleBatchesGraphEdge,
-        style_groups::{StyleGroups, StyleItemInfo},
+        style_groups::{StyleGroups, StyleGroupsConfig, StyleItemInfo},
     },
 };
-
-/// Wrapper around an `f32` that implements [`TaskInput`] (and the other derives the
-/// `StyleGroupsAlgorithm` enum needs) by going through the IEEE-754 bit pattern. Use
-/// [`F32TaskInput::get`] / [`F32TaskInput::from`] at the boundary; do not match on the inner
-/// `u32` directly.
-#[derive(
-    TaskInput,
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    NonLocalValue,
-    OperationValue,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
-pub struct F32TaskInput(u32);
-
-impl F32TaskInput {
-    pub const fn from(value: f32) -> Self {
-        Self(value.to_bits())
-    }
-    pub const fn get(self) -> f32 {
-        f32::from_bits(self.0)
-    }
-}
-
-/// Selects the algorithm used to compute [`StyleGroups`].
-#[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug, Default, Hash, TaskInput)]
-pub enum StyleGroupsAlgorithm {
-    /// Default ("loose") algorithm, see [`compute_style_groups`].
-    #[default]
-    Default,
-    /// Graph-analysis based algorithm, see
-    /// [`crate::module_graph::style_groups_graph::compute_style_groups_graph`].
-    Graph {
-        /// See `experimental.cssChunking.requestCost` in Next.js.
-        request_cost: F32TaskInput,
-        /// See `experimental.cssChunking.moduleFactorCost` in Next.js.
-        module_factor_cost: F32TaskInput,
-    },
-}
-
-impl StyleGroupsAlgorithm {
-    /// Build a [`StyleGroupsAlgorithm::Graph`] variant from real `f32` cost parameters.
-    pub fn graph(request_cost: f32, module_factor_cost: f32) -> Self {
-        Self::Graph {
-            request_cost: F32TaskInput::from(request_cost),
-            module_factor_cost: F32TaskInput::from(module_factor_cost),
-        }
-    }
-}
-
-#[derive(
-    TaskInput, Debug, Clone, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode,
-)]
-pub struct StyleGroupsConfig {
-    pub max_chunk_size: usize,
-    pub algorithm: StyleGroupsAlgorithm,
-}
 
 #[derive(Debug)]
 struct ModuleInfo {

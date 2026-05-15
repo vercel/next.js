@@ -26,7 +26,7 @@ use turbopack_core::{
     issue::{
         IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage, StyledString,
     },
-    module_graph::style_groups_loose::StyleGroupsAlgorithm,
+    module_graph::style_groups::StyleGroupsAlgorithm,
     resolve::ResolveAliasMap,
 };
 use turbopack_ecmascript::{OptionTreeShaking, TreeShakingMode};

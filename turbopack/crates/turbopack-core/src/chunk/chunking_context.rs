@@ -20,7 +20,7 @@ use crate::{
     module::Module,
     module_graph::{
         ModuleGraph, binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroup,
-        module_batches::BatchingConfig, style_groups_loose::StyleGroupsAlgorithm,
+        module_batches::BatchingConfig, style_groups::StyleGroupsAlgorithm,
     },
     output::{
         ExpandOutputAssetsInput, OutputAsset, OutputAssets, OutputAssetsReferences,
