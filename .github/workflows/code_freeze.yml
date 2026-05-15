@@ -20,6 +20,9 @@ env:
   TURBO_VERSION: 2.9.4
   NODE_LTS_VERSION: 20
 
+permissions:
+  contents: read
+
 jobs:
   start:
     runs-on: ubuntu-latest
