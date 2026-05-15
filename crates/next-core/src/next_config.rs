@@ -1081,11 +1081,16 @@ pub enum CssChunkingMode {
 }
 
 /// Object form of `experimental.cssChunking`.
+///
+/// `None` is the normalized representation of `false` ("CSS chunking is disabled"). It is not
+/// reachable through deserialization — users write `false`, not `{ type: "none" }`.
 #[derive(
     Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum CssChunkingObject {
+    #[serde(skip)]
+    None,
     Strict,
     Loose,
     Graph(CssChunkingGraphOptions),
@@ -1112,11 +1117,11 @@ pub struct CssChunkingGraphOptions {
 
 impl CssChunkingConfig {
     /// Normalize all input shapes (booleans, strings, object form) to the canonical object form.
+    /// `false` maps to [`CssChunkingObject::None`]; `true` is equivalent to `'loose'`.
     pub fn normalize(&self) -> CssChunkingObject {
         match self {
-            // `false` is treated like `true`/loose: the "off" path is selected via the existing
-            // `ChunkingContext` defaults, not via this option.
-            CssChunkingConfig::Bool(_) => CssChunkingObject::Loose,
+            CssChunkingConfig::Bool(false) => CssChunkingObject::None,
+            CssChunkingConfig::Bool(true) => CssChunkingObject::Loose,
             CssChunkingConfig::String(CssChunkingMode::Strict) => CssChunkingObject::Strict,
             CssChunkingConfig::String(CssChunkingMode::Loose) => CssChunkingObject::Loose,
             CssChunkingConfig::String(CssChunkingMode::Graph) => {
@@ -1134,25 +1139,36 @@ const DEFAULT_MODULE_FACTOR_COST: f32 = 1.0;
 
 /// Resolve `experimental.cssChunking` to the [`StyleGroupsAlgorithm`] Turbopack should use.
 ///
-/// Both `strict` and `loose` map to [`StyleGroupsAlgorithm::Default`]; `strict` on Turbopack is
-/// rejected at config-validation time and should never reach this code path.
-fn resolve_css_chunking_algorithm(config: Option<&CssChunkingConfig>) -> StyleGroupsAlgorithm {
+/// `strict` and `false` (`CssChunkingObject::None`) are bundler-incompatible with Turbopack and
+/// are rejected at config-validation time on the JS side; if one slips through, we bail rather
+/// than silently falling back. `loose` and `true` map to [`StyleGroupsAlgorithm::Default`].
+fn resolve_css_chunking_algorithm(
+    config: Option<&CssChunkingConfig>,
+) -> Result<StyleGroupsAlgorithm> {
     let Some(config) = config else {
-        return StyleGroupsAlgorithm::Default;
+        return Ok(StyleGroupsAlgorithm::Default);
     };
-    match config.normalize() {
-        CssChunkingObject::Strict | CssChunkingObject::Loose => StyleGroupsAlgorithm::Default,
+    Ok(match config.normalize() {
+        CssChunkingObject::None => {
+            anyhow::bail!(
+                "`experimental.cssChunking: false` is not supported by Turbopack; this should \
+                 have been rejected at config validation time"
+            )
+        }
+        CssChunkingObject::Strict => {
+            anyhow::bail!(
+                "`experimental.cssChunking: \"strict\"` is not supported by Turbopack; this \
+                 should have been rejected at config validation time"
+            )
+        }
+        CssChunkingObject::Loose => StyleGroupsAlgorithm::Default,
         CssChunkingObject::Graph(opts) => StyleGroupsAlgorithm::graph(
             opts.request_cost.unwrap_or(DEFAULT_REQUEST_COST),
             opts.module_factor_cost
                 .unwrap_or(DEFAULT_MODULE_FACTOR_COST),
         ),
-    }
+    })
 }
-
-/// `Vc`-wrapped variant of [`StyleGroupsAlgorithm`] returned from [`NextConfig::css_chunking`].
-#[turbo_tasks::value(transparent)]
-pub struct CssChunkingAlgorithm(pub StyleGroupsAlgorithm);
 
 #[derive(
     Clone,
@@ -1937,10 +1953,8 @@ impl NextConfig {
     /// Resolve `experimental.cssChunking` to a [`StyleGroupsAlgorithm`] (with defaults applied
     /// for the cost parameters of the graph algorithm).
     #[turbo_tasks::function]
-    pub fn css_chunking(&self) -> Vc<CssChunkingAlgorithm> {
-        Vc::cell(resolve_css_chunking_algorithm(
-            self.experimental.css_chunking.as_ref(),
-        ))
+    pub fn css_chunking(&self) -> Result<Vc<StyleGroupsAlgorithm>> {
+        Ok(resolve_css_chunking_algorithm(self.experimental.css_chunking.as_ref())?.cell())
     }
 
     #[turbo_tasks::function]

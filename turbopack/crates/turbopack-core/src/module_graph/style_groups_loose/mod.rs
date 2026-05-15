@@ -6,8 +6,8 @@ use indexmap::map::Entry;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
-    Vc, trace::TraceRawVcs,
+    FxIndexMap, FxIndexSet, NonLocalValue, OperationValue, ResolvedVc, TaskInput, TryJoinIterExt,
+    ValueToString, Vc, trace::TraceRawVcs,
 };
 
 use crate::{
@@ -29,7 +29,18 @@ use crate::{
 /// [`F32TaskInput::get`] / [`F32TaskInput::from`] at the boundary; do not match on the inner
 /// `u32` directly.
 #[derive(
-    TaskInput, Debug, Clone, Copy, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode,
+    TaskInput,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    NonLocalValue,
+    OperationValue,
+    TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub struct F32TaskInput(u32);
 
@@ -43,19 +54,8 @@ impl F32TaskInput {
 }
 
 /// Selects the algorithm used to compute [`StyleGroups`].
-#[derive(
-    TaskInput,
-    Debug,
-    Clone,
-    Default,
-    PartialEq,
-    Eq,
-    Hash,
-    NonLocalValue,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::value(shared, operation)]
+#[derive(Clone, Debug, Default, Hash, TaskInput)]
 pub enum StyleGroupsAlgorithm {
     /// Default ("loose") algorithm, see [`compute_style_groups`].
     #[default]
