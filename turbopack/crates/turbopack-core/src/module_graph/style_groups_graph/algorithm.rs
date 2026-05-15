@@ -605,9 +605,9 @@ pub(super) fn split_into_chunks(
     let mut heap: BinaryHeap<Reverse<(OrdF32, usize)>> = BinaryHeap::new();
 
     // Seed: compute every initial metric, push the negatives.
-    for i in 0..split_points.len() {
+    for (i, slot) in metrics.iter_mut().enumerate() {
         let m = cx.split_metric(&split_points, &order, i);
-        metrics[i] = Some(m);
+        *slot = Some(m);
         if m < 0.0 {
             heap.push(Reverse((OrdF32(m), i)));
         }

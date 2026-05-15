@@ -180,16 +180,13 @@ async fn assemble_style_groups(
         if chunk.len() == 1 {
             push(
                 &mut shared_chunk_items,
-                module_data[chunk[0]].chunk_item.clone(),
+                module_data[chunk[0]].chunk_item,
                 None,
             );
             continue;
         }
 
-        let chunk_items: Vec<_> = chunk
-            .iter()
-            .map(|&id| module_data[id].chunk_item.clone())
-            .collect();
+        let chunk_items: Vec<_> = chunk.iter().map(|&id| module_data[id].chunk_item).collect();
         let batch = ChunkItemBatchWithAsyncModuleInfo::new(chunk_items.clone())
             .to_resolved()
             .await?;
@@ -202,7 +199,7 @@ async fn assemble_style_groups(
     // remaining cycle) are emitted as singletons at the end so the result is still complete.
     for data in module_data {
         if !shared_chunk_items.contains_key(&data.chunk_item) {
-            push(&mut shared_chunk_items, data.chunk_item.clone(), None);
+            push(&mut shared_chunk_items, data.chunk_item, None);
         }
     }
 
