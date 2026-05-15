@@ -768,8 +768,18 @@ impl ModuleGraph {
             StyleGroupsAlgorithm::Default => {
                 compute_style_groups(self, chunking_context, &config).await
             }
-            StyleGroupsAlgorithm::Graph { .. } => {
-                compute_style_groups_graph(self, chunking_context, &config).await
+            StyleGroupsAlgorithm::Graph {
+                module_factor_cost,
+                request_cost,
+            } => {
+                compute_style_groups_graph(
+                    self,
+                    chunking_context,
+                    request_cost.get(),
+                    module_factor_cost.get(),
+                    config.max_chunk_size as u64,
+                )
+                .await
             }
         }
     }

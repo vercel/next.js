@@ -57,7 +57,7 @@
 use anyhow::Result;
 use indexmap::map::Entry;
 use rustc_hash::FxHashSet;
-use tracing::Instrument;
+use tracing::{Instrument, instrument};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
@@ -70,9 +70,7 @@ use crate::{
         GraphTraversalAction, ModuleGraph,
         module_batch::ModuleOrBatch,
         module_batches::ModuleBatchesGraphEdge,
-        style_groups::{
-            StyleGroups, StyleGroupsAlgorithm, StyleGroupsConfig, StyleItemInfo, make_style_groups,
-        },
+        style_groups::{StyleGroups, StyleItemInfo, make_style_groups},
     },
 };
 
@@ -104,31 +102,14 @@ type ClassifiedModule = Option<(usize, ResolvedVc<Box<dyn StyleModule>>)>;
 
 /// Build [`StyleGroups`] using the graph-analysis algorithm. See the module-level docs for
 /// details.
+#[instrument(skip(module_graph, chunking_context))]
 pub async fn compute_style_groups_graph(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    config: &StyleGroupsConfig,
+    request_cost: f32,
+    module_factor_cost: f32,
+    max_chunk_size: u64,
 ) -> Result<Vc<StyleGroups>> {
-    compute_style_groups_graph_inner(module_graph, chunking_context, config)
-        .instrument(tracing::trace_span!("compute_style_groups_graph"))
-        .await
-}
-
-async fn compute_style_groups_graph_inner(
-    module_graph: Vc<ModuleGraph>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    config: &StyleGroupsConfig,
-) -> Result<Vc<StyleGroups>> {
-    let StyleGroupsAlgorithm::Graph {
-        request_cost,
-        module_factor_cost,
-    } = config.algorithm
-    else {
-        unreachable!("compute_style_groups_graph called with non-Graph algorithm");
-    };
-    let request_cost = request_cost.get();
-    let module_factor_cost = module_factor_cost.get();
-
     // 1. Walk every chunk group post-order and collect, for each group, the ordered list of CSS
     //    modules. Module ids are densely allocated as we encounter modules for the first time.
     let (chunk_groups, modules_in_order) = collect_chunk_groups(module_graph, chunking_context)
@@ -160,7 +141,7 @@ async fn compute_style_groups_graph_inner(
             &module_style_types,
             request_cost,
             module_factor_cost,
-            config.max_chunk_size as u64,
+            max_chunk_size,
         )
     });
 
