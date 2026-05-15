@@ -141,8 +141,9 @@ const PAGES: Record<
   // either side of the unique stylesheet. uniqueB is a global stylesheet specifically so the
   // algorithm can't collapse everything into one big shared chunk: a global stylesheet must
   // never be loaded by chunk groups that don't import it (i.e. `/sandwich/a`), so uniqueB has
-  // to stay isolated. Optimal output is 3 chunks per page (`requests: 3`, realised by strict);
-  // both loose and graph fall short of that today.
+  // to stay isolated. Optimal output is 3 chunks per page (`requests: 3`, realised by strict and graph);
+  // loose mode falls short here. Note that page a can have 2 requests by overshipping uniqueA into the
+  // shared chunk
   'sandwich-a': {
     group: 'sandwich',
     url: '/sandwich/a',
