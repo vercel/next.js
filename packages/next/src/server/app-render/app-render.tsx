@@ -1469,7 +1469,9 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     isBuildTimePrerendering = false,
   } = renderOpts
 
+  let didErrorObservably = false
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
+    didErrorObservably = true
     return onInstrumentationRequestError?.(
       err,
       req,
@@ -1579,7 +1581,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         ctx,
         finalRequestStore,
         fallbackParams,
-        validationDebugChannelClient
+        validationDebugChannelClient,
+        didErrorObservably
       )
     } else {
       logValidationSkipped(ctx)
@@ -3401,7 +3404,11 @@ async function renderToStream(
   return getTracer().withSpan(renderSpan, async () => {
     // MARK: renderToStream errorHandlers
     const { reactServerErrorsByDigest } = workStore
+
+    // We use this to determine if we should suppress other derivative errors
+    let didErrorObservably = false
     function onHTMLRenderRSCError(err: DigestedError, silenceLog: boolean) {
+      didErrorObservably = true
       return onInstrumentationRequestError?.(
         err,
         req,
@@ -3533,7 +3540,8 @@ async function renderToStream(
               ctx,
               finalRequestStore,
               fallbackParams,
-              validationDebugChannelClient
+              validationDebugChannelClient,
+              didErrorObservably
             )
 
             reactServerResult = new ReactServerResult(serverStream)
@@ -3652,7 +3660,8 @@ async function renderToStream(
               ctx,
               finalRequestStore,
               fallbackParams,
-              validationDebugChannelClient
+              validationDebugChannelClient,
+              didErrorObservably
             )
 
             reactServerResult = new ReactServerResult(serverStream)
@@ -3716,6 +3725,12 @@ async function renderToStream(
 
           requestStore.stale = INFINITE_CACHE
           requestStore.stagedRendering = stageController
+          requestStore.asyncApiPromises = createAsyncApiPromises(
+            stageController,
+            requestStore.cookies,
+            requestStore.mutableCookies,
+            requestStore.headers
+          )
           requestStore.varyParamsAccumulator =
             createResponseVaryParamsAccumulator()
 
@@ -3845,6 +3860,12 @@ async function renderToStream(
 
           requestStore.stale = INFINITE_CACHE
           requestStore.stagedRendering = stageController
+          requestStore.asyncApiPromises = createAsyncApiPromises(
+            stageController,
+            requestStore.cookies,
+            requestStore.mutableCookies,
+            requestStore.headers
+          )
           requestStore.varyParamsAccumulator =
             createResponseVaryParamsAccumulator()
 
@@ -5592,7 +5613,8 @@ async function spawnStaticShellValidationInDevImpl(
   ctx: AppRenderContext,
   requestStore: RequestStore,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  debugChannelClient: AnyStream | undefined
+  debugChannelClient: AnyStream | undefined,
+  devRenderDidError: boolean
 ): Promise<void> {
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
@@ -5723,7 +5745,8 @@ async function spawnStaticShellValidationInDevImpl(
       fallbackRouteParams,
       ctx,
       hmrRefreshHash,
-      validationSamples
+      validationSamples,
+      devRenderDidError
     )
 
     if (instantConfigsResult.length > 0) {
@@ -6081,7 +6104,8 @@ async function validateInstantConfigs(
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   ctx: AppRenderContext,
   hmrRefreshHash: string | undefined,
-  validationSamples: ValidationStoreClient['validationSamples'] | null
+  validationSamples: ValidationStoreClient['validationSamples'] | null,
+  devRenderDidError: boolean
 ): Promise<Array<unknown>> {
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
@@ -6153,8 +6177,8 @@ async function validateInstantConfigs(
     if (previousBoundaryState) {
       // We're doing a followup render to better discriminate error types
       useRuntimeStageForPartialSegments = true
-      for (const id of previousBoundaryState.requiredIds) {
-        boundaryState.requiredIds.add(id)
+      for (const [id, filePath] of previousBoundaryState.requiredIds) {
+        boundaryState.requiredIds.set(id, filePath)
       }
     }
 
@@ -6328,7 +6352,8 @@ async function validateInstantConfigs(
         preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
         instantValidationState,
         validationSampleTracking,
-        boundaryState
+        boundaryState,
+        devRenderDidError
       )
     } catch (thrownValue) {
       result = getNavigationDisallowedDynamicReasons(
@@ -6336,7 +6361,8 @@ async function validateInstantConfigs(
         PreludeState.Errored,
         instantValidationState,
         validationSampleTracking,
-        boundaryState
+        boundaryState,
+        devRenderDidError
       )
     }
 
@@ -6410,10 +6436,12 @@ async function validateInstantConfigs(
         // There was no validation to perform at this level
         debug?.(`  No config at depth ${depth}+${currentGroupDepth}, skipping.`)
       } else {
-        // Something prevented this level from fully validating but there were no detected errors
-        if (impairedValidation === null) {
-          impairedValidation = result
-        }
+        // Something prevented this level from fully validating but there
+        // were no detected errors. Always overwrite — prefer the
+        // shallowest deferred fallback. If a high-level layout drops
+        // children, everything below is unreachable; the shallowest
+        // unrendered segment is closest to the actual cause.
+        impairedValidation = result
       }
     }
   }
@@ -7095,7 +7123,8 @@ async function validateInstantConfigInBuildWithSample(
       fallbackRouteParams,
       validationCtx,
       undefined, // hmrRefreshHash,
-      validationSamples
+      validationSamples,
+      false // build has no shared dev render that would surface errors
     )
   })
 }
