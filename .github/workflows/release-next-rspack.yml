@@ -118,6 +118,7 @@ jobs:
         run: |
           npm config set access public
           npm config set provenance true
+          npm config set tag "${{ inputs.npm-tag }}"
           pnpm napi pre-publish --no-gh-release -t npm ${{ inputs.dry-run && '--dry-run' || '' }}
         working-directory: ${{ steps.napi-info.outputs.binding-directory }}
 
