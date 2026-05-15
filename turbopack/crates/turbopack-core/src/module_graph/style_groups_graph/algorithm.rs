@@ -193,7 +193,9 @@ where
 
     let initial = find_shortest_cycle_from_node(graph, start)?;
     let mut cycle: VecDeque<NodeIndex> = initial.into();
-    let mut remaining_shifts = cycle.len();
+    // 2-cycles are already minimal — no shift can produce a shorter one. Skip the (otherwise
+    // up-to-k-call) shift loop in this common case.
+    let mut remaining_shifts = if cycle.len() <= 2 { 0 } else { cycle.len() };
 
     while remaining_shifts > 0 {
         let Some(shifted) = cycle.pop_front() else {
@@ -507,6 +509,22 @@ where
 // split_into_chunks
 // ---------------------------------------------------------------------------
 
+/// Newtype wrapper that lets `f32` participate in a [`BinaryHeap`]: `f32` itself doesn't
+/// implement [`Ord`] because of NaN, so we wrap it and use [`f32::total_cmp`].
+#[derive(Copy, Clone, PartialEq)]
+struct OrdF32(f32);
+impl Eq for OrdF32 {}
+impl Ord for OrdF32 {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.total_cmp(&other.0)
+    }
+}
+impl PartialOrd for OrdF32 {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 /// Greedy bottom-up chunk merger over the `global_order` produced by [`linearize`].
 ///
 /// Inputs:
@@ -573,51 +591,52 @@ pub(super) fn split_into_chunks(
 
     // Active split point bitmap: `split_points[i] = true` means there's a boundary between
     // `order[i]` and `order[i+1]`. Parallel `metrics` cache stores `cost(merged) - cost(left) -
-    // cost(right)` for the active split at `i` (or `None` if the metric needs (re)computing).
+    // cost(right)` for the active split at `i` (or `None` if the split has been merged away).
     let mut split_points = vec![true; n.saturating_sub(1)];
     let mut metrics: Vec<Option<f32>> = vec![None; split_points.len()];
 
-    loop {
-        // 1. Refresh metrics for active splits with a stale entry.
-        for i in 0..split_points.len() {
-            if !split_points[i] || metrics[i].is_some() {
-                continue;
-            }
-            let (start, end) = affected_range(&split_points, i);
-            let left = &order[start..=i];
-            let right = &order[i + 1..=end];
-            let merged = &order[start..=end];
-            metrics[i] = Some(cx.chunk_cost(merged) - cx.chunk_cost(left) - cx.chunk_cost(right));
-        }
+    // Min-heap of `(metric, split_index)`. Only negative metrics are pushed — a non-negative
+    // metric would never improve cost and is never popped. When `metrics[i]` is invalidated
+    // we recompute and push a fresh entry; old entries become stale and are filtered on pop
+    // by checking against the current value in `metrics`.
+    //
+    // Tie-break on metric equality: smaller `i` pops first (matches the PoC's strict `<`
+    // selection where the lowest-index winner survives).
+    let mut heap: BinaryHeap<Reverse<(OrdF32, usize)>> = BinaryHeap::new();
 
-        // 2. Pick the most-negative metric. Stop if no merge would reduce cost. On ties keep the
-        //    lowest index (strict `<`), matching the PoC.
-        let mut best_i: Option<usize> = None;
-        let mut best_metric = 0.0_f32;
-        for i in 0..split_points.len() {
-            if !split_points[i] {
-                continue;
-            }
-            if let Some(m) = metrics[i]
-                && m < best_metric
-            {
-                best_metric = m;
-                best_i = Some(i);
-            }
+    // Seed: compute every initial metric, push the negatives.
+    for i in 0..split_points.len() {
+        let m = cx.split_metric(&split_points, &order, i);
+        metrics[i] = Some(m);
+        if m < 0.0 {
+            heap.push(Reverse((OrdF32(m), i)));
         }
-        let Some(best_i) = best_i else {
-            break;
-        };
+    }
 
-        // 3. Merge at `best_i` and invalidate the metrics of the two adjacent active splits (their
-        //    `affected_range` now extends across the merged region).
-        split_points[best_i] = false;
-        metrics[best_i] = None;
-        if let Some(left) = (0..best_i).rev().find(|&i| split_points[i]) {
-            metrics[left] = None;
+    while let Some(Reverse((OrdF32(popped_m), i))) = heap.pop() {
+        // Skip stale entries: either the split has been merged, or its metric was recomputed
+        // and a newer entry exists elsewhere in the heap.
+        if !split_points[i] || metrics[i] != Some(popped_m) {
+            continue;
         }
-        if let Some(right) = ((best_i + 1)..split_points.len()).find(|&i| split_points[i]) {
-            metrics[right] = None;
+        // `popped_m < 0` by construction.
+
+        // Merge at `i` and invalidate the metrics of the two adjacent active splits (their
+        // `affected_range` now extends across the merged region).
+        split_points[i] = false;
+        metrics[i] = None;
+        for neighbour in [
+            (0..i).rev().find(|&j| split_points[j]),
+            ((i + 1)..split_points.len()).find(|&j| split_points[j]),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            let new_m = cx.split_metric(&split_points, &order, neighbour);
+            metrics[neighbour] = Some(new_m);
+            if new_m < 0.0 {
+                heap.push(Reverse((OrdF32(new_m), neighbour)));
+            }
         }
     }
 
@@ -664,6 +683,17 @@ struct CostContext<'a> {
 }
 
 impl CostContext<'_> {
+    /// Cost-delta of merging the split at `i`: `cost(merged) - cost(left) - cost(right)`,
+    /// where left/right are the two would-be neighbours and merged is their concatenation
+    /// across the gap. Negative means the merge reduces total cost.
+    fn split_metric(&self, split_points: &[bool], order: &[usize], i: usize) -> f32 {
+        let (start, end) = affected_range(split_points, i);
+        let left = &order[start..=i];
+        let right = &order[i + 1..=end];
+        let merged = &order[start..=end];
+        self.chunk_cost(merged) - self.chunk_cost(left) - self.chunk_cost(right)
+    }
+
     /// Cost of loading a single chunk: summed over the chunk groups that load it (a group
     /// "loads" a chunk if it shares ≥ 1 module with it).
     ///
