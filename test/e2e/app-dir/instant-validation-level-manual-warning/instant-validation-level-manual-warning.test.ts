@@ -330,9 +330,9 @@ describe('instant validation - level manual-warning', () => {
           expectBuildFailedWithoutInstantValidation(result)
           expect(getPrerenderOutput(result.cliOutput, { isMinified: true }))
             .toMatchInlineSnapshot(`
-           "Error: Route "/without-root-suspense/bare": Next.js encountered uncached or runtime data during the initial render or a navigation.
+           "Error: Route "/without-root-suspense/bare": Next.js encountered uncached or runtime data during the initial render.
 
-           \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
              - Cache the data access with \`"use cache"\`
@@ -356,9 +356,9 @@ describe('instant validation - level manual-warning', () => {
           expectBuildFailedWithoutInstantValidation(result)
           expect(getPrerenderOutput(result.cliOutput, { isMinified: true }))
             .toMatchInlineSnapshot(`
-           "Error: Route "/without-root-suspense/explicit-true": Next.js encountered uncached or runtime data during the initial render or a navigation.
+           "Error: Route "/without-root-suspense/explicit-true": Next.js encountered uncached or runtime data during the initial render.
 
-           \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
              - Cache the data access with \`"use cache"\`
@@ -384,9 +384,9 @@ describe('instant validation - level manual-warning', () => {
           expectBuildFailedWithoutInstantValidation(result)
           expect(getPrerenderOutput(result.cliOutput, { isMinified: true }))
             .toMatchInlineSnapshot(`
-           "Error: Route "/without-root-suspense/explicit-warning": Next.js encountered uncached or runtime data during the initial render or a navigation.
+           "Error: Route "/without-root-suspense/explicit-warning": Next.js encountered uncached or runtime data during the initial render.
 
-           \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
              - Cache the data access with \`"use cache"\`
@@ -416,9 +416,9 @@ describe('instant validation - level manual-warning', () => {
           expectBuildFailedWithoutInstantValidation(result)
           expect(getPrerenderOutput(result.cliOutput, { isMinified: true }))
             .toMatchInlineSnapshot(`
-           "Error: Route "/without-root-suspense/explicit-error": Next.js encountered uncached or runtime data during the initial render or a navigation.
+           "Error: Route "/without-root-suspense/explicit-error": Next.js encountered uncached or runtime data during the initial render.
 
-           \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+           \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
 
            Ways to fix this:
              - Cache the data access with \`"use cache"\`
