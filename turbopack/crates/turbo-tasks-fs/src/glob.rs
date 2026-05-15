@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, hash::Hash};
 
 use anyhow::{Result, bail};
 use bincode::{
@@ -27,7 +27,7 @@ use crate::globset::parse;
 // separators
 
 #[turbo_tasks::value(eq = "manual", serialization = "custom", operation)]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone)]
 pub struct Glob {
     glob: RcStr,
     #[turbo_tasks(trace_ignore)]
@@ -41,6 +41,12 @@ pub struct Glob {
 impl TaskInput for Glob {
     fn is_transient(&self) -> bool {
         false
+    }
+}
+
+impl Hash for Glob {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.glob.hash(state);
     }
 }
 

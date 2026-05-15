@@ -296,6 +296,7 @@ impl IgnoreIssuePattern {
     Encode,
     Decode,
     OperationValue,
+    Hash,
     TaskInput,
 )]
 pub struct IgnoreIssue {
@@ -427,6 +428,83 @@ impl IssueFilter {
 
         Ok(true)
     }
+
+    pub async fn matches_ref(&self, issue: &dyn Issue) -> Result<bool> {
+        Ok(self.matches_all_fast_path() || self.matches_ref_slow_path(issue).await?)
+    }
+
+    fn matches_all_fast_path(&self) -> bool {
+        self.severity == IssueSeverity::Info
+            && self.foreign_severity == IssueSeverity::Info
+            && self.ignore_rules.is_empty()
+    }
+
+    async fn matches_ref_slow_path(&self, issue: &dyn Issue) -> Result<bool> {
+        // Fetch the file path once — it's used by both severity and ignore-rule
+        // checks.
+        let file_path = issue.file_path().await?;
+
+        // Check severity first — this is cheap and avoids fetching
+        // title/description for issues that would be filtered out anyway.
+        let severity = issue.severity();
+        // NOTE: Lower severities are _more_ severe
+        let severity_allowed = if severity <= self.severity || severity <= self.foreign_severity {
+            // we need to check the path to see if it is foreign or not.  Only await the
+            // path if it might possibly matter
+            if severity <= self.severity && severity <= self.foreign_severity {
+                // it matches no matter where the path is
+                true
+            } else if ContextCondition::InNodeModules.matches(&file_path) {
+                severity <= self.foreign_severity
+            } else {
+                severity <= self.severity
+            }
+        } else {
+            // it is too low severity to match either way
+            false
+        };
+
+        if !severity_allowed {
+            return Ok(false);
+        }
+
+        // Check ignore rules — if any rule matches, the issue is dropped.
+        // Title and description are fetched lazily: only when a rule's path
+        // matches and the rule also specifies a title/description pattern.
+        if !self.ignore_rules.is_empty() {
+            let file_path_str = file_path.to_string();
+            let mut title_str: Option<String> = None;
+            let mut description_text: Option<Option<String>> = None;
+
+            for rule in &self.ignore_rules {
+                if !rule.path.matches(&file_path_str) {
+                    continue;
+                }
+                if let Some(ref title_pat) = rule.title {
+                    if title_str.is_none() {
+                        title_str = Some(issue.title().await?.to_unstyled_string());
+                    }
+                    if !title_pat.matches(title_str.as_deref().unwrap()) {
+                        continue;
+                    }
+                }
+                if let Some(ref desc_pat) = rule.description {
+                    if description_text.is_none() {
+                        description_text =
+                            Some(issue.description().await?.map(|s| s.to_unstyled_string()));
+                    }
+                    match description_text.as_ref().unwrap().as_deref() {
+                        Some(desc) if desc_pat.matches(desc) => {}
+                        _ => continue,
+                    }
+                }
+                // All specified fields matched — ignore this issue.
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
 }
 
 /// A list of issues captured with [`CollectibleIssuesExt::peek_issues`].
@@ -449,7 +527,7 @@ impl CapturedIssues {
             .issues
             .iter()
             .map(async |issue| {
-                if filter.matches(*issue).await? {
+                if filter.matches(issue).await? {
                     Ok(Some(
                         PlainIssue::from_issue(**issue, Some(*self.tracer)).await?,
                     ))

@@ -128,7 +128,7 @@ struct WrittenEndpointWithIssues {
     written: Option<ReadRef<EndpointOutputPaths>>,
     issues: Arc<[ReadRef<PlainIssue>]>,
     effects: Arc<Effects>,
-    filter: ResolvedVc<IssueFilter>,
+    filter: ReadRef<IssueFilter>,
 }
 
 #[turbo_tasks::function(operation, root)]
