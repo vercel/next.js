@@ -10,6 +10,8 @@ import { isConsoleError } from '../shared/console-error'
 import type { CacheIndicatorState } from './cache-indicator'
 import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
 import { isBlockingRouteInNavError } from './container/errors'
+import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
+import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 
 export type DevToolsConfig = {
   theme?: 'light' | 'dark' | 'system'
@@ -297,27 +299,13 @@ function getInstantErrorRoute(error: unknown): string | null {
 
 // The route stored on an instant error is the route *template* from
 // `workStore.route` (e.g. `/foo/[slug]`), but the page we track in dev
-// overlay state is the resolved URL (e.g. `/foo/123`). Convert the template
-// to a regex so the clear-on-nav reducer keeps errors whose template matches
-// the page the user just landed on.
+// overlay state is the resolved URL (e.g. `/foo/123`). For dynamic routes
+// we compile the template to a regex so the clear-on-nav reducer keeps
+// errors whose template matches the page the user just landed on.
 function routeTemplateMatchesPath(template: string, path: string): boolean {
   if (template === path) return true
-  let hasParam = false
-  // Split on `[...param]` / `[param]` segments, escape the literal pieces,
-  // and replace each placeholder with a regex segment matcher. Catch-all
-  // placeholders match across `/`, single placeholders match one segment.
-  const tokens = template.split(/(\[(?:\.{3})?[^\]]+\])/)
-  const pattern = tokens
-    .map((token) => {
-      if (token.startsWith('[')) {
-        hasParam = true
-        return token.startsWith('[...') ? '.+' : '[^/]+'
-      }
-      return token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    })
-    .join('')
-  if (!hasParam) return false
-  return new RegExp(`^${pattern}$`).test(path)
+  if (!isDynamicRoute(template)) return false
+  return getRouteRegex(template).re.test(path)
 }
 
 const shouldDisableDevIndicator =
