@@ -26,7 +26,6 @@ import {
   type GuidanceVariant,
 } from '../components/instant/instant-guidance'
 import { BLOCKING_ROUTE_NAVIGATION_EXPLANATION } from '../components/instant/instant-guidance-data'
-import { isBlockingRouteInNavError } from '../shared'
 import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './runtime-error/error-cause'
@@ -315,6 +314,19 @@ export function isSyncIOError(message: string): boolean {
 export function isSyncIOClientError(message: string): boolean {
   const match = SYNC_IO_DOCS_PATTERN.exec(message)
   return match !== null && match[2] === '-client'
+}
+
+// Detects errors emitted during navigation-phase instant validation: body
+// errors from `createRuntimeBodyErrorInNavigation` /
+// `createDynamicBodyErrorInNavigation` (SSR factories instead say "during
+// the initial render"), and validation errors from
+// `trackDynamicHoleInNavigation` / `getNavigationDisallowedDynamicReasons`.
+export function isBlockingRouteInNavError(message: string): boolean {
+  return (
+    message.includes('or a navigation') ||
+    message.includes('Could not validate `unstable_instant`') ||
+    message.includes('Could not validate instant UI')
+  )
 }
 
 export function getBlockingRouteErrorDetails(
