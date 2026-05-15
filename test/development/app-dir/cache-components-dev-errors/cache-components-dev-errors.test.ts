@@ -21,7 +21,7 @@ describe('Cache Components Dev Errors', () => {
     // soft-navigating to the page (see test below).
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1247",
+       "code": "E1242",
        "description": "Next.js encountered Math.random() without an explicit rendering intent.",
        "environmentLabel": "Server",
        "label": "Instant",
@@ -51,7 +51,7 @@ describe('Cache Components Dev Errors', () => {
     // TODO: React should not include the anon stack in the Owner Stack.
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1247",
+       "code": "E1242",
        "description": "Next.js encountered Math.random() without an explicit rendering intent.",
        "environmentLabel": "Server",
        "label": "Instant",

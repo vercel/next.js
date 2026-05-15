@@ -1,7 +1,6 @@
 import { cacheLife } from 'next/cache'
 import { cookies, headers } from 'next/headers'
 import { connection } from 'next/server'
-import { setTimeout } from 'timers/promises'
 import { Suspense } from 'react'
 
 export default async function Page({
@@ -48,7 +47,6 @@ async function SearchParamsContent({
   searchParams: Promise<{ q?: string }>
 }) {
   const { q } = await searchParams
-  await setTimeout(300)
   return (
     <p>
       Search params: {q ?? 'none'} ({new Date().toISOString()})
@@ -60,7 +58,6 @@ async function CookiesContent() {
   const cookieStore = await cookies()
   const value = cookieStore.get('testCookie')?.value ?? 'none'
   const date = await getShortLivedCachedDate()
-  await setTimeout(300)
   return (
     <p>
       Cookie: {value}, Cached at: {date}
@@ -77,7 +74,6 @@ async function getShortLivedCachedDate() {
 async function HeadersContent() {
   const headerStore = await headers()
   const value = headerStore.get('x-test-header') ?? 'none'
-  await setTimeout(300)
   return (
     <p>
       Header: {value} ({new Date().toISOString()})
@@ -87,6 +83,5 @@ async function HeadersContent() {
 
 async function ConnectionContent() {
   await connection()
-  await setTimeout(600)
   return <p>Dynamic content ({new Date().toISOString()})</p>
 }
