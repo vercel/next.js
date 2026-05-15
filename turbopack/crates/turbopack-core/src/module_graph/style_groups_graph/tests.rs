@@ -403,7 +403,10 @@ fn find_short_cycle_two_node_scc() {
     });
     let cycle = find_short_cycle(&g).expect("test graph has a cycle");
     assert!(is_valid_cycle(&g, &cycle));
-    assert_eq!(to_set(&cycle), [n(0), n(1)].into_iter().collect());
+    assert_eq!(
+        to_set(&cycle),
+        [n(0), n(1)].into_iter().collect::<FxHashSet<_>>()
+    );
 }
 
 #[test]
@@ -431,7 +434,10 @@ fn find_short_cycle_prefers_two_cycle_when_longer_exists() {
     let cycle = find_short_cycle(&g).expect("test graph has a cycle");
     assert!(is_valid_cycle(&g, &cycle));
     assert_eq!(cycle.len(), 2);
-    assert_eq!(to_set(&cycle), [n(1), n(2)].into_iter().collect());
+    assert_eq!(
+        to_set(&cycle),
+        [n(1), n(2)].into_iter().collect::<FxHashSet<_>>()
+    );
 }
 
 #[test]
@@ -447,7 +453,10 @@ fn find_short_cycle_uses_edge_weights_to_pick_lowest_total_weight() {
     let cycle = find_short_cycle(&g).expect("test graph has a cycle");
     assert!(is_valid_cycle(&g, &cycle));
     assert_eq!(cycle.len(), 2);
-    assert_eq!(to_set(&cycle), [n(0), n(2)].into_iter().collect());
+    assert_eq!(
+        to_set(&cycle),
+        [n(0), n(2)].into_iter().collect::<FxHashSet<_>>()
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -489,7 +498,7 @@ fn make_acyclic_breaks_a_two_cycle_by_removing_lowest_weight_edge() {
         g.add_edge(n(1), n(0), 3);
     });
     make_acyclic(&mut g);
-    assert_eq!(edge_set(&g), [(0, 1)].into_iter().collect());
+    assert_eq!(edge_set(&g), [(0, 1)].into_iter().collect::<FxHashSet<_>>());
 }
 
 #[test]
@@ -500,7 +509,10 @@ fn make_acyclic_breaks_a_three_cycle() {
         g.add_edge(n(2), n(0), 8);
     });
     make_acyclic(&mut g);
-    assert_eq!(edge_set(&g), [(0, 1), (2, 0)].into_iter().collect());
+    assert_eq!(
+        edge_set(&g),
+        [(0, 1), (2, 0)].into_iter().collect::<FxHashSet<_>>()
+    );
 }
 
 #[test]
@@ -509,7 +521,7 @@ fn make_acyclic_does_not_remove_self_loops() {
         g.add_edge(n(0), n(0), 5);
     });
     make_acyclic(&mut g);
-    assert_eq!(edge_set(&g), [(0, 0)].into_iter().collect());
+    assert_eq!(edge_set(&g), [(0, 0)].into_iter().collect::<FxHashSet<_>>());
 }
 
 #[test]

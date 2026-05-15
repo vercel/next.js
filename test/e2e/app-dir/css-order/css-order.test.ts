@@ -326,7 +326,7 @@ function expectedRequests(
  * conflict that the active chunking mode can't preserve. `'strict'` preserves ordering for
  * conflict scenarios; everything else does not.
  */
-function shouldSkipConflict(ordering: string[]): boolean {
+function shouldSkipConflict(ordering: readonly string[]): boolean {
   return ordering
     .map((page) => PAGES[page])
     .some((page) =>

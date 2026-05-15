@@ -243,8 +243,11 @@ async fn collect_chunk_groups(
         .await?;
     // Per discovered chunkable module: `Some((id, sidecast_style))` for CSS modules and `None`
     // for non-CSS modules (which still occupy an entry so we don't repeat the classification).
+    // Ids are densely packed in `0..modules_in_order.len()` — assigned via a separate counter
+    // because the underlying `IndexMap`'s insertion order also includes non-CSS entries.
     let mut module_id_map: FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, ClassifiedModule> =
         FxIndexMap::default();
+    let mut next_css_id: usize = 0;
     let mut chunk_groups: Vec<Vec<usize>> = Vec::new();
 
     for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
@@ -289,8 +292,12 @@ async fn collect_chunk_groups(
             let id_slot = match module_id_map.entry(module) {
                 Entry::Occupied(e) => *e.get(),
                 Entry::Vacant(e) => {
-                    let assigned = ResolvedVc::try_sidecast::<Box<dyn StyleModule>>(module)
-                        .map(|style| (e.index(), style));
+                    let assigned =
+                        ResolvedVc::try_sidecast::<Box<dyn StyleModule>>(module).map(|style| {
+                            let id = next_css_id;
+                            next_css_id += 1;
+                            (id, style)
+                        });
                     e.insert(assigned);
                     assigned
                 }
