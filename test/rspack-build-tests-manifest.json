@@ -5920,8 +5920,7 @@
       "partial-fallback-shell-upgrade should not keep upgrading once only fully dynamic params remain",
       "partial-fallback-shell-upgrade should not upgrade a route shell when no params were prerendered",
       "partial-fallback-shell-upgrade should upgrade a generic shell into the most specific prerendered shell",
-      "partial-fallback-shell-upgrade should upgrade the fallback shell to a route shell",
-      "partial-fallback-shell-upgrade when disabled should keep serving the generic shell when partialFallbacks is disabled"
+      "partial-fallback-shell-upgrade should upgrade the fallback shell to a route shell"
     ],
     "failed": [],
     "pending": [],
