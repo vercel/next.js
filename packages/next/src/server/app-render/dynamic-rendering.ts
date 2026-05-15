@@ -1390,7 +1390,8 @@ export function getNavigationDisallowedDynamicReasons(
   prelude: PreludeState,
   dynamicValidation: InstantValidationState,
   validationSampleTracking: InstantValidationSampleTracking | null,
-  boundaryState: ValidationBoundaryTracking
+  boundaryState: ValidationBoundaryTracking,
+  devRenderDidError: boolean
 ): NavigationValidationResult {
   // If we have errors related to missing samples, those should take precedence over everything else.
   if (validationSampleTracking) {
@@ -1402,6 +1403,12 @@ export function getNavigationDisallowedDynamicReasons(
 
   const { validationPreventingErrors } = dynamicValidation
   if (validationPreventingErrors.length > 0) {
+    if (process.env.__NEXT_DEV_SERVER && devRenderDidError) {
+      // The dev render already surfaced server errors to the user.
+      // The same errors likely caused validation to be inconclusive,
+      // so reporting them again as validation failures would be noisy.
+      return []
+    }
     return validationPreventingErrors
   }
 
@@ -1449,11 +1456,42 @@ export function getNavigationDisallowedDynamicReasons(
     const { thrownErrorsOutsideBoundary } = dynamicValidation
     const rootInstantStack = dynamicValidation.slotStacks[0]
     if (thrownErrorsOutsideBoundary.length === 0) {
-      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.`
-      const error = rootInstantStack !== null ? rootInstantStack() : new Error()
-      error.name = 'Error'
-      error.message = message
+      const missingFiles: string[] = []
+      for (const [id, filePaths] of boundaryState.requiredIds) {
+        if (!boundaryState.renderedIds.has(id)) {
+          for (const filePath of filePaths) {
+            let normalized = filePath
+              .replace(/^\[project\][\\/]?/, '')
+              .replace(process.cwd() + '/', '')
+              .replace(process.cwd() + '\\', '')
+            missingFiles.push(normalized)
+          }
+        }
+      }
+      missingFiles.sort()
+      let message = `Could not validate instant UI because an expected segment was not rendered.`
+      if (missingFiles.length > 0) {
+        const label =
+          missingFiles.length === 1
+            ? 'Unrendered segment'
+            : 'Unrendered segments'
+        message +=
+          `\n\n${label}:\n${missingFiles.map((p) => `  ${p}`).join('\n')}` +
+          `\n\nRoute: ${workStore.route}` +
+          `\n\nThis can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.` +
+          `\nThis can happen when a client component opts out of rendering during SSR.` +
+          `\n\nYou can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.` +
+          `\n\nLearn more: https://nextjs.org/docs/messages/unrendered-instant-segment`
+      } else {
+        message += `\n\nRoute: ${workStore.route}`
+      }
+      const error = new Error(message)
       return error
+    } else if (process.env.__NEXT_DEV_SERVER && devRenderDidError) {
+      // Errors outside the boundary likely blocked it from rendering,
+      // but they're already being reported to the user via the dev
+      // render. Suppress the validation failure to avoid noise.
+      return []
     } else if (thrownErrorsOutsideBoundary.length === 1) {
       const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.`
       const error = rootInstantStack !== null ? rootInstantStack() : new Error()
