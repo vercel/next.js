@@ -832,7 +832,10 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
-          <UnrenderedSegmentInfo files={errorDetails.files} />
+          <UnrenderedSegmentInfo
+            route={errorDetails.route}
+            files={errorDetails.files}
+          />
           <InstantGuidance
             kind="unrendered-segment"
             variant="dynamic"
