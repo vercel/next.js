@@ -52,6 +52,7 @@ pub mod merged_modules;
 pub mod module_batch;
 pub(crate) mod module_batches;
 mod side_effect_module_info;
+mod style_groups;
 pub mod style_groups_graph;
 pub mod style_groups_loose;
 mod traced_di_graph;
