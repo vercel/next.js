@@ -593,7 +593,7 @@ describe('instant validation - parallel slot configs', () => {
 
            Ways to fix this:
              - Render the missing segment
-             - Set \`export const instant = false\` on the parent layout or page to allow no validation and silence this warning
+             - Set \`export const instant = false\` on the unrendered segment to allow no validation and silence this warning
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
              "environmentLabel": "Server",
@@ -615,7 +615,7 @@ describe('instant validation - parallel slot configs', () => {
 
            Ways to fix this:
              - Render the missing segment
-             - Set \`export const instant = false\` on the parent layout or page to allow no validation and silence this warning
+             - Set \`export const instant = false\` on the unrendered segment to allow no validation and silence this warning
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
                at ignore-listed frames

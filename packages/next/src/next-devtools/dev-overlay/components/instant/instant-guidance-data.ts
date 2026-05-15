@@ -38,7 +38,7 @@ export const FIX_CARD_GROUPS: Record<
   defer: { label: 'Defer', color: 'amber', icon: 'pointer-click' },
   measure: { label: 'Measure', color: 'gray', icon: 'timer' },
   silence: { label: 'Silence', color: 'red', icon: 'octagon' },
-  render: { label: 'Render', color: 'blue', icon: 'layout' },
+  render: { label: 'Render', color: 'gray', icon: 'layout' },
 }
 
 export type FixCard = {
