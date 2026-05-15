@@ -1,0 +1,787 @@
+---
+title: Building interactive apps
+description: Learn how to build responsive interactions with Server Functions, transitions, optimistic UI, action props, and pending feedback.
+nav_title: Interactive apps
+---
+
+Server Components render the current server data. Client Components start interactions before the next server render is ready. Without additional state, the UI keeps showing the old server props while a Server Function, form action, or navigation is still running.
+
+This guide shows how to coordinate that pending work in a task management board called _Taskboard_.
+
+## Example
+
+We'll start with an instant priority toggle, then stream slow data behind loading boundaries, build a reusable filter with action props, show comments before they're confirmed, move cards between columns on drop, manage form lifecycle for a create dialog, and signal pending deletion to a parent. The final step caches the reusable reads so navigations stay instant.
+
+You can find the resources used in this example here:
+
+- [Demo](https://async-react-demo.labs.vercel.dev)
+- [Code](https://github.com/vercel-labs/async-react-demo)
+
+The starting point is a Server Component app that fetches tasks and comments at the root of each page, with no [`<Suspense>`](/docs/app/guides/streaming) boundaries and no caching. Client Components call [Server Functions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) to mutate that data. After each mutation, the Server Function calls [`refresh()`](/docs/app/api-reference/functions/refresh) so the server re-renders with fresh data:
+
+```ts filename="data/actions/task.ts"
+'use server'
+
+import { refresh } from 'next/cache'
+
+export async function cyclePriority(taskId: string) {
+  const task = await db.task.findUnique({ where: { id: taskId } })
+  await db.task.update({
+    where: { id: taskId },
+    data: { priority: PRIORITY_CYCLE[task.priority] },
+  })
+  refresh()
+}
+```
+
+### Step 1: Respond instantly to a toggle
+
+Each task card has a priority indicator. Clicking it cycles through low, medium, and high.
+
+The button renders the `priority` prop from the server. Calling a Server Function starts the mutation, but it does not change that prop in the current render.
+
+The starting point calls the Server Function directly:
+
+```tsx filename="components/task-card.tsx"
+'use client'
+
+import { cyclePriority } from '@/data/actions/task'
+
+export function TaskCard({ id, priority }) {
+  return (
+    <button onClick={() => cyclePriority(id)} className={priorityDot[priority]}>
+      {priority}
+    </button>
+  )
+}
+```
+
+If we click the dot, the Server Function runs, but the button keeps rendering the old `priority` prop until the next server render arrives.
+
+Replace the direct call with `useOptimistic` and `startTransition`. `useOptimistic` renders a temporary value while the Server Function is pending. `startTransition` scopes the async work so React knows when to keep or discard the optimistic value:
+
+```tsx filename="components/task-card.tsx"
+'use client'
+
+import { startTransition, useOptimistic } from 'react'
+import { cyclePriority } from '@/data/actions/task'
+import { PRIORITY_CYCLE } from '@/lib/data'
+
+export function TaskCard({ id, priority }) {
+  const [optimisticPriority, setOptimisticPriority] = useOptimistic(priority)
+
+  function handlePriority() {
+    startTransition(async () => {
+      setOptimisticPriority((current) => PRIORITY_CYCLE[current])
+      await cyclePriority(id)
+    })
+  }
+
+  return (
+    <button
+      onClick={handlePriority}
+      className={priorityDot[optimisticPriority]}
+    >
+      {optimisticPriority}
+    </button>
+  )
+}
+```
+
+The `setOptimisticPriority` call updates the UI on the current frame. The updater function `(current) => PRIORITY_CYCLE[current]` computes from the latest optimistic state, so rapid double-clicks cycle correctly instead of reading a stale closure value.
+
+`startTransition` wraps the async work so React tracks it as a pending transition. If the Server Function throws, the optimistic value reverts. The standalone `startTransition` import does not bubble errors to error boundaries. If you need errors to reach an error boundary, use `useTransition` instead (shown in Step 5).
+
+If we click the priority dot now, the color changes the moment the mouse lifts. Clicking again cycles to the next value without waiting for the first mutation to finish.
+
+#### `useOptimistic` vs `useState`
+
+`useOptimistic(priority)` re-derives from the prop on each render. When `refresh()` delivers fresh data, the component shows it. `useState(priority)` captures the initial value on mount and ignores subsequent prop changes, so after a mutation it shows stale data.
+
+### Step 2: Filter with pending feedback
+
+The board has label filter chips (Design, Frontend, Backend). Clicking a chip navigates via query params to filter the task list.
+
+The selected filter comes from the URL. Calling `router.push()` starts a client navigation, and the server re-renders the board with the new search params. Until that navigation completes, the current page keeps rendering the old URL state.
+
+The filter also separates into two components. `LabelFilter` owns the query string update. `ChipGroup` owns the selected visual state. Passing an action prop lets `ChipGroup` update its own optimistic state while `LabelFilter` decides how the app navigates.
+
+The starting point calls `router.push()` directly:
+
+```tsx filename="components/label-filter.tsx"
+'use client'
+
+import { useRouter, useSearchParams } from 'next/navigation'
+
+export function LabelFilter() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  function handleFilter(value: string | null) {
+    const params = new URLSearchParams(searchParams.toString())
+    if (value) params.set('label', value)
+    else params.delete('label')
+    router.push(`/?${params.toString()}`)
+  }
+
+  // ...render chips with onClick={handleFilter}
+}
+```
+
+If we click a chip, `router.push()` starts the navigation, but there is no local pending state. The chip keeps rendering the old URL value, and the board gives no indication that a new server render is loading.
+
+Wrap `router.push()` in `useTransition` and set a `data-pending` attribute while the transition runs:
+
+```tsx filename="components/label-filter.tsx"
+'use client'
+
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useTransition } from 'react'
+import { ChipGroup } from './design/chip-group'
+
+const labels = [
+  { label: 'Design', value: 'design' },
+  { label: 'Frontend', value: 'frontend' },
+  { label: 'Backend', value: 'backend' },
+]
+
+export function LabelFilter() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
+  const current = searchParams.get('label') ?? null
+
+  function filterAction(value: string | null) {
+    const params = new URLSearchParams(searchParams.toString())
+    if (value) {
+      params.set('label', value)
+    } else {
+      params.delete('label')
+    }
+    startTransition(() => {
+      router.push(`/?${params.toString()}`)
+    })
+  }
+
+  return (
+    <div data-pending={isPending ? '' : undefined}>
+      <ChipGroup items={labels} value={current} changeAction={filterAction} />
+    </div>
+  )
+}
+```
+
+The `data-pending` attribute on the wrapper lets parent components react via CSS. The board on the home page uses `group-has-data-pending:opacity-50` to dim while the transition runs, without replacing the board with a skeleton.
+
+If we click a chip now, the board dims while the filtered data loads. The `data-pending` attribute stays on the wrapper until the navigation completes, then the board updates with the filtered tasks.
+
+But the chip itself still doesn't highlight until after the transition. The `isPending` boolean tells us the navigation is in flight, but it doesn't help the chip show a selected state before the new data arrives.
+
+#### Compose reusable controls with action props
+
+`ChipGroup` solves the selected-state problem by accepting a `changeAction` prop. It wraps the callback in its own `startTransition` and manages `useOptimistic` internally:
+
+```tsx filename="components/design/chip-group.tsx"
+'use client'
+
+import { startTransition, useOptimistic } from 'react'
+
+export function ChipGroup({ items, value, changeAction }) {
+  const [optimisticValue, setOptimisticValue] = useOptimistic(value)
+
+  function handleClick(newValue) {
+    startTransition(async () => {
+      setOptimisticValue(newValue)
+      await changeAction(newValue)
+    })
+  }
+
+  return (
+    <div className="flex gap-1.5">
+      {items.map((item) => (
+        <button
+          key={item.value}
+          onClick={() =>
+            handleClick(item.value === optimisticValue ? null : item.value)
+          }
+          className={item.value === optimisticValue ? 'active' : ''}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+```
+
+The consumer passes a callback (`changeAction`). The design component handles the transition and optimistic state. Props named `action` or suffixed with `Action` signal that the component may call them inside a transition.
+
+If we click the "Frontend" chip now, it highlights on the current frame. The board dims while the filtered data loads, then updates with the filtered tasks.
+
+### Step 3: Stream slow data with Suspense
+
+The task detail page reads two things from the server: the task itself and its comments. The starting point awaits both at the top of the page component, so the whole page blocks until the slowest read resolves.
+
+```tsx filename="app/task/[id]/page.tsx"
+import { getTask } from '@/data/queries/task'
+import { TaskDetail } from './_components/task-detail'
+import { CommentSection } from './_components/comment-section'
+
+export default async function TaskPage({ params }) {
+  const { id } = await params
+  const task = await getTask(id)
+
+  return (
+    <div>
+      <TaskDetail task={task} />
+      <CommentSection taskId={id} />
+    </div>
+  )
+}
+```
+
+If we navigate to a task, nothing renders until `getTask` resolves, and the comments fetch starts only after that.
+
+Split the reads into separate components, pass each one a promise, and wrap them in [`<Suspense>`](https://react.dev/reference/react/Suspense). The page becomes synchronous — it returns the shell immediately, and the server streams each section in as its data resolves:
+
+```tsx filename="app/task/[id]/page.tsx"
+import { Suspense } from 'react'
+import { getTask } from '@/data/queries/task'
+import { TaskDetail, TaskDetailSkeleton } from './_components/task-detail'
+import {
+  CommentSection,
+  CommentSectionSkeleton,
+} from './_components/comment-section'
+
+export default function TaskPage({ params }) {
+  const taskPromise = params.then(({ id }) => getTask(id))
+  const taskIdPromise = params.then(({ id }) => id)
+
+  return (
+    <div>
+      <Suspense fallback={<TaskDetailSkeleton />}>
+        <TaskDetail taskPromise={taskPromise} />
+      </Suspense>
+      <Suspense fallback={<CommentSectionSkeleton />}>
+        <CommentSection taskIdPromise={taskIdPromise} />
+      </Suspense>
+    </div>
+  )
+}
+```
+
+Each section component awaits its own promise:
+
+```tsx filename="app/task/[id]/_components/task-detail.tsx"
+export async function TaskDetail({ taskPromise }) {
+  const task = await taskPromise
+  return <TaskHeader task={task} />
+}
+```
+
+Passing promises down (instead of awaiting `params` once and passing the resolved values) lets the page component stay synchronous. A synchronous page can return its shell immediately, with each `<Suspense>` boundary's fallback in place, and the server streams the real content in as each promise resolves. If the page itself awaited a promise, every section would have to wait for that await before any of them could start.
+
+This also avoids coupling unrelated sections. The page doesn't need to know what each section reads. Each component reads what it needs, right next to the JSX that uses it — the same instinct as `useEffect` or a query library, except a server component can `await` directly with no client state to plumb through.
+
+If we navigate to a task now, the page shell paints immediately, the task header streams in when `getTask` resolves, and the comments stream in independently when `getComments` resolves.
+
+For more on streaming patterns, see the [Streaming](/docs/app/guides/streaming) guide.
+
+### Step 4: Add comments with instant feedback
+
+The task detail page has a comment section.
+
+Submitting a comment writes new data on the server. The persisted comment list is rendered by a server component, so it cannot include the new comment until the next server render arrives.
+
+The starting point calls the Server Function from a form action:
+
+```tsx filename="app/task/[id]/_components/comment-form.tsx"
+'use client'
+
+import { addComment } from '@/data/actions/comment'
+
+export function CommentForm({ taskId }) {
+  return (
+    <form
+      action={async (formData) => {
+        await addComment(taskId, formData.get('content'))
+      }}
+    >
+      <input name="content" placeholder="Write a comment..." required />
+      <button type="submit">Send</button>
+    </form>
+  )
+}
+```
+
+If we type a comment and press Send, the form action runs, but the input stays filled and the list does not change until the server responds.
+
+Split the comment list into two parts. A server component renders the persisted comments. A client component tracks only **pending** comments using `useOptimistic([])` with an empty initial array. When the transition completes and `refresh()` delivers fresh data, the pending list resets to empty and the real comment appears in the server-rendered list:
+
+```tsx filename="app/task/[id]/_components/optimistic-comments.tsx"
+'use client'
+
+import { useOptimistic, useRef } from 'react'
+import { addComment } from '@/data/actions/comment'
+import { CommentCard } from './comment-card'
+
+export function OptimisticComments({ taskId }) {
+  const [pendingComments, setPendingComments] = useOptimistic([])
+  const formRef = useRef(null)
+
+  return (
+    <>
+      <form
+        ref={formRef}
+        action={async (formData) => {
+          const content = formData.get('content')?.trim()
+          if (!content) return
+          formRef.current?.reset()
+
+          const id = crypto.randomUUID()
+          setPendingComments((current) => [
+            {
+              id,
+              content,
+              userName: 'You',
+              createdAt: new Date().toISOString(),
+            },
+            ...current,
+          ])
+
+          await addComment(taskId, content)
+        }}
+      >
+        <input name="content" placeholder="Write a comment..." required />
+        <button type="submit">Send</button>
+      </form>
+      {pendingComments.map((comment) => (
+        <CommentCard key={comment.id} comment={comment} pending />
+      ))}
+    </>
+  )
+}
+```
+
+Three things happen when the user submits:
+
+1. `formRef.current?.reset()` clears the input using direct DOM manipulation. Inside a transition, `useState` setters are deferred until the transition completes. `useOptimistic` setters and direct DOM calls like `formRef.reset()` apply on the current frame.
+2. `setPendingComments` adds the new comment to the pending list with a client-generated UUID.
+3. The form `action` wraps the handler in a transition automatically.
+
+The server component renders the real list alongside:
+
+```tsx filename="app/task/[id]/_components/comment-section.tsx"
+import { getComments } from '@/data/queries/comment'
+import { CommentCard } from './comment-card'
+import { OptimisticComments } from './optimistic-comments'
+
+async function CommentSection({ taskIdPromise }) {
+  const taskId = await taskIdPromise
+  const comments = await getComments(taskId)
+
+  return (
+    <div>
+      <OptimisticComments taskId={taskId} />
+      {comments.map((comment) => (
+        <CommentCard key={comment.id} comment={comment} />
+      ))}
+    </div>
+  )
+}
+```
+
+If we type a comment and press Send, the input clears and a faded comment card appears at the top of the list. When the server confirms, the faded card disappears and the real comment takes its place in the server-rendered list.
+
+### Step 5: Move cards between columns
+
+The board has three columns: Todo, In Progress, and Done. Each column renders tasks from the server-provided `tasks` prop.
+
+Dropping a card starts a Server Function that writes the new status. The `tasks` prop does not change until the next server render arrives, so the client needs a temporary task list for the pending move.
+
+The starting point calls the Server Function on drop:
+
+```tsx filename="components/board-client.tsx"
+'use client'
+
+import { updateStatus } from '@/data/actions/task'
+
+export function BoardClient({ tasks }) {
+  function handleDrop(targetStatus, taskId) {
+    updateStatus(taskId, targetStatus)
+  }
+
+  // ...render columns from tasks
+}
+```
+
+If we drag a card from "Todo" to "In Progress", the card stays in the old column while the server processes the update, then jumps to the new column after the response arrives.
+
+Add `useOptimistic` with a reducer to remap the card's status on the current frame. The reducer receives the full task list and an action describing which card moved where:
+
+```tsx filename="components/board-client.tsx"
+'use client'
+
+import { useOptimistic, useTransition } from 'react'
+import { updateStatus } from '@/data/actions/task'
+
+export function BoardClient({ tasks }) {
+  const [, startTransition] = useTransition()
+  const [optimisticTasks, moveTask] = useOptimistic(
+    tasks,
+    (currentTasks, action: { taskId: string; status: Status }) =>
+      currentTasks.map((t) =>
+        t.id === action.taskId ? { ...t, status: action.status } : t
+      )
+  )
+
+  function handleDrop(targetStatus, taskId) {
+    startTransition(async () => {
+      moveTask({ taskId, status: targetStatus })
+      await updateStatus(taskId, targetStatus)
+    })
+  }
+
+  return (
+    <div className="grid grid-cols-3 gap-4">
+      {columns.map((col) => (
+        <Column
+          key={col.status}
+          tasks={optimisticTasks.filter((t) => t.status === col.status)}
+          onDrop={(taskId) => handleDrop(col.status, taskId)}
+        />
+      ))}
+    </div>
+  )
+}
+```
+
+The reducer maps over the task list and updates the status of the dragged card. The rest of the list stays unchanged. If a background refresh arrives mid-drag (e.g., from polling or another user's mutation), React re-runs the reducer with the updated base data, so the optimistic move sits on top of fresh data.
+
+`useTransition` is used here instead of the standalone `startTransition` import. The hook version bubbles thrown errors to the nearest [error boundary](/docs/app/api-reference/file-conventions/error), so if the Server Function fails, the user sees the error page instead of a silent revert.
+
+If we drag a card from "Todo" to "In Progress" now, the card lands in the target column the moment we release. If the Server Function throws, the card snaps back to "Todo" and the error boundary renders.
+
+### Step 6: Manage form lifecycle with useActionState
+
+The board has a "New Task" button that opens a create dialog. The form action creates the task on the server and then refreshes the board.
+
+The dialog has three pieces of client state to coordinate while the action is pending: the submit button, the field values, and whether the dialog is open.
+
+The starting point calls the Server Function from a form action:
+
+```tsx filename="components/create-task-modal.tsx"
+'use client'
+
+import { useState } from 'react'
+import { createTask } from '@/data/actions/task'
+
+export function CreateTaskModal() {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <form
+        action={async (formData) => {
+          await createTask({ title: formData.get('title') /* ... */ })
+          setIsOpen(false)
+        }}
+      >
+        <input name="title" placeholder="Task title..." required />
+        <button type="submit">Create Task</button>
+      </form>
+    </Dialog>
+  )
+}
+```
+
+If we fill out the form and click "Create Task", the button stays enabled with no progress text. The form fields keep their values. The dialog closes before the board shows the new task (because `setIsOpen(false)` runs outside the transition scope after the `await`).
+
+`useActionState` handles all three: `isPending` for the button, key-based reset for the fields, and a double-transition to batch the dialog close with the board update:
+
+```tsx filename="components/create-task-modal.tsx"
+'use client'
+
+import { useActionState, startTransition, useState } from 'react'
+import { createTask } from '@/data/actions/task'
+
+export function CreateTaskModal() {
+  const [isOpen, setIsOpen] = useState(false)
+
+  const [{ key }, formAction, isPending] = useActionState(
+    async (prev, formData) => {
+      const title = formData.get('title')
+      if (!title.trim()) return prev
+
+      await createTask({
+        title,
+        description: formData.get('description'),
+        status: 'todo',
+        priority: 'medium',
+      })
+
+      startTransition(() => setIsOpen(false))
+      return { key: prev.key + 1 }
+    },
+    { key: 0 }
+  )
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <form action={formAction}>
+        <div key={key}>
+          <input name="title" placeholder="Task title..." required />
+          <input name="description" placeholder="Describe the task..." />
+        </div>
+        <button type="submit" disabled={isPending}>
+          {isPending ? 'Creating...' : 'Create Task'}
+        </button>
+      </form>
+    </Dialog>
+  )
+}
+```
+
+The `key` in the returned state controls form reset. On success, `key` increments, which remounts the `<div key={key}>` and resets all inputs inside it.
+
+The `startTransition(() => setIsOpen(false))` after the `await` uses a double-transition. Post-`await` state updates fall outside the original transition scope. Wrapping in another `startTransition` batches the dialog close with the re-render triggered by `refresh()` inside `createTask`. Without it, the dialog closes before the board shows the new task.
+
+The same post-`await` window is where side effects like toasts belong:
+
+```tsx
+await createTask({
+  /* … */
+})
+
+startTransition(() => setIsOpen(false))
+toast.success('Task created')
+```
+
+Side effects that don't affect rendered state — analytics, toasts, focus changes — run after the `await` resolves. They don't need a transition because they don't update React state.
+
+If we fill out the form and click "Create Task", the button text changes to "Creating..." and dims. When the server responds, the fields clear, the dialog closes, the new task appears on the board, and a toast confirms the action.
+
+### Step 7: Signal pending deletion to a parent
+
+Each comment card has a delete button. Clicking it removes the comment on the server. After the next render, the comment disappears from the list.
+
+Between the click and the next render, the card still renders the old data. The list itself can't show the pending removal — that has to come from the button.
+
+This step reuses the `data-pending` CSS hook from Step 2, but drives it from `useOptimistic(false)` instead of `useTransition`'s `isPending`.
+
+The starting point calls the Server Function directly:
+
+```tsx filename="app/task/[id]/_components/delete-button.tsx"
+'use client'
+
+import { Trash2 } from 'lucide-react'
+import { deleteComment } from '@/data/actions/comment'
+
+export function DeleteButton({ commentId }) {
+  return (
+    <button
+      onClick={() => deleteComment(commentId)}
+      aria-label="Delete comment"
+    >
+      <Trash2 className="size-3" />
+    </button>
+  )
+}
+```
+
+If we click delete, the Server Function runs, but the comment stays fully visible until the next server render.
+
+Wrap the action in a `<form>`, use `useOptimistic(false)` to track pending state, and expose it via a `data-pending` attribute. Accept the action as a `deleteAction` prop so the comment card parent can react with CSS:
+
+```tsx filename="app/task/[id]/_components/delete-button.tsx"
+'use client'
+
+import { useOptimistic } from 'react'
+import { Trash2 } from 'lucide-react'
+
+export function DeleteButton({
+  deleteAction,
+}: {
+  deleteAction: () => void | Promise<void>
+}) {
+  const [isPending, setIsPending] = useOptimistic(false)
+
+  return (
+    <form
+      action={async () => {
+        setIsPending(true)
+        await deleteAction()
+      }}
+    >
+      <button
+        type="submit"
+        disabled={isPending}
+        data-pending={isPending ? '' : undefined}
+        aria-label="Delete comment"
+      >
+        <Trash2 className="size-3" />
+      </button>
+    </form>
+  )
+}
+```
+
+The parent comment card uses Tailwind's `has-data-pending:` variant to fade itself when any descendant has the `data-pending` attribute set:
+
+```tsx filename="app/task/[id]/_components/comment-card.tsx"
+<div className="rounded-lg px-3 transition-all has-data-pending:opacity-30">
+  {/* comment content */}
+  {deleteAction && <DeleteButton deleteAction={deleteAction} />}
+</div>
+```
+
+The Server Function is bound to the comment ID by the parent server component, which keeps `DeleteButton` reusable:
+
+```tsx filename="app/task/[id]/_components/comment-section.tsx"
+<CommentCard
+  comment={comment}
+  deleteAction={
+    comment.userName === 'You'
+      ? deleteComment.bind(null, comment.id)
+      : undefined
+  }
+/>
+```
+
+If we click delete now, the card fades to 30% opacity the moment the click registers. When the server confirms and the next render arrives, the card unmounts from the list.
+
+#### Why a CSS attribute instead of a prop
+
+The button is the only component that knows when deletion is pending. Passing `isPending` up to the card would require lifting state or threading callbacks. A `data-pending` attribute lets the parent react via CSS without coordination — any ancestor that wants to dim itself can opt in with `has-data-pending:`.
+
+### Step 8: Make repeat navigation instant
+
+Every pattern so far smooths a single interaction. Across navigations, the same reads still rerun and the same fallbacks still paint. Caching reusable reads — and prefetching them with the real request — closes that gap without moving the data model into the browser.
+
+For each server read, ask: _would the next viewer see the same thing?_ Most tasks and comments would.
+
+| Read                       | Reusable?     |
+| -------------------------- | ------------- |
+| `getTasks` / board columns | Yes           |
+| `getTask(id)`              | Yes, per task |
+| `getComments(taskId)`      | Yes, per task |
+
+Mark each reusable read with [`'use cache'`](/docs/app/api-reference/directives/use-cache) and tag it so mutations can invalidate the right entries:
+
+```ts filename="data/queries/task.ts"
+import { cache } from 'react'
+import { cacheTag } from 'next/cache'
+import { tasks } from '@/lib/data'
+
+export const getTask = cache(async (id: string) => {
+  'use cache'
+  cacheTag('tasks', `task-${id}`)
+
+  return tasks.find((t) => t.id === id) ?? null
+})
+```
+
+The function's arguments form the cache key. `getTask('a')` and `getTask('b')` end up as separate entries. `cacheTag` labels each entry so a Server Function can invalidate it later. The per-id tag `task-${id}` gives a single task its own handle; the broader `tasks` tag covers the list.
+
+Comments take the same shape, tagged per task:
+
+```ts filename="data/queries/comment.ts"
+export const getComments = cache(async (taskId: string) => {
+  'use cache'
+  cacheTag(`comments-${taskId}`)
+  // …
+})
+```
+
+> **Good to know**: Per-viewer reads (like the current user) belong in [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) so each viewer gets their own entry. For a durable cache that's shared across server instances, use [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote).
+
+#### Invalidate from mutations with `updateTag`
+
+Once reads are cached, [`refresh()`](/docs/app/api-reference/functions/refresh) reruns dynamic work but leaves cached entries in place. Lists can stay stale after a mutation.
+
+Replace `refresh()` with [`updateTag`](/docs/app/api-reference/functions/updateTag) for the entries each write touched. The next render reads the fresh value:
+
+```ts filename="data/actions/task.ts"
+'use server'
+
+import { updateTag } from 'next/cache'
+
+export async function updateStatus(taskId: string, newStatus: Status) {
+  // …mutate
+  updateTag('tasks')
+  updateTag(`task-${taskId}`)
+}
+```
+
+Every Server Function follows the same shape: run the write, then call `updateTag` for whichever cached reads changed.
+
+#### Prefetch the destination with the real request
+
+By default, [`<Link>`](/docs/app/api-reference/components/link) prefetches its destinations against build-time inputs only, which covers the static shell and any cached read keyed on build-time inputs.
+
+[Runtime prefetching](/docs/app/guides/runtime-prefetching) renders the destination with the real cookies, headers, and `params` the navigation would carry, then stores the result in the [Client Cache](/docs/app/glossary#client-cache). Opt a route in with the [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) segment export:
+
+```tsx filename="app/task/[id]/page.tsx"
+export const prefetch = 'force-runtime'
+
+export default function TaskPage({ params }) {
+  // …
+}
+```
+
+Apply the same export to any route whose destination reads depend on the real request. For example, the home page reads `searchParams.label` to filter the board, so navigating back from a task detail page benefits from runtime prefetch there too:
+
+```tsx filename="app/page.tsx"
+export const prefetch = 'force-runtime'
+
+export default function Home({ searchParams }) {
+  // …
+}
+```
+
+Prefetch only sticks if the destination reads are cached. Without `'use cache'` and tags on those reads, the prefetched output has no entry to reuse and the next click rerenders from scratch. The reads above already carry tags, so prefetched output has a stable slot.
+
+As task cards scroll into view, the detail page prefetches into the Client Cache. By the time the user clicks, the destination paints instantly. If a card hasn't been prefetched yet, the existing `<Suspense>` fallbacks still cover the gap.
+
+#### Choosing what to cache and prefetch
+
+Three layers combine for instant repeat navigation, each with a different cost:
+
+| Layer                        | Cost                         | Apply to                                                 |
+| ---------------------------- | ---------------------------- | -------------------------------------------------------- |
+| `<Suspense>`                 | None                         | Any uncached read that can stream                        |
+| `'use cache'` + `cacheTag`   | Server memory                | Reads that return the same value for the next viewer     |
+| `prefetch = 'force-runtime'` | Server work per visible link | Destinations where the read is keyed on the real request |
+
+## Next steps
+
+Each pattern adds state for a different kind of pending work:
+
+| Pattern            | Use it when                                                   |
+| ------------------ | ------------------------------------------------------------- |
+| Optimistic value   | One value should update before the server responds            |
+| Pending navigation | A URL change triggers a new server render                     |
+| Suspense boundary  | Slow data should stream in without blocking the page shell    |
+| Action prop        | A reusable component owns part of the pending UI              |
+| Pending-only list  | A new item should appear before it exists on the server       |
+| Optimistic reducer | A collection needs a temporary structural change              |
+| Action state       | A form needs pending state, reset behavior, and result state  |
+| Pending attribute  | A parent should style itself while a child action is pending  |
+| Cached read + tag  | A reusable read should survive across renders and navigations |
+| Runtime prefetch   | A cached destination should be filled before the user clicks  |
+
+For API details:
+
+- [React `useOptimistic`](https://react.dev/reference/react/useOptimistic)
+- [React `useTransition`](https://react.dev/reference/react/useTransition)
+- [React `useActionState`](https://react.dev/reference/react/useActionState)
+- [Server Functions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations)
+- [`refresh()`](/docs/app/api-reference/functions/refresh)
+- [`'use cache'`](/docs/app/api-reference/directives/use-cache), [`cacheTag`](/docs/app/api-reference/functions/cacheTag), [`updateTag`](/docs/app/api-reference/functions/updateTag)
+- [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch)
+
+Related guides:
+
+- [Streaming](/docs/app/guides/streaming) for loading boundaries and `<Suspense>` patterns
+- [Instant Navigation](/docs/app/guides/instant-navigation) for validating that navigations stay instant
+- [View Transitions](/docs/app/guides/view-transitions) for animating state changes
