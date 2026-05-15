@@ -19,6 +19,7 @@ import {
 } from '../../../server/app-render/sync-io-messages'
 import {
   getBlockingRouteErrorDetails,
+  getUnrenderedSegmentErrorDetails,
   isRuntimeVariant,
   isSyncIOClientError,
   isSyncIOError,
@@ -259,5 +260,79 @@ describe('getBlockingRouteErrorDetails', () => {
 
   it('returns null for an unrelated error', () => {
     expect(getBlockingRouteErrorDetails(new Error('regular bug'))).toBe(null)
+  })
+})
+
+// `getUnrenderedSegmentErrorDetails` parses the `Route "<path>":` prefix and
+// the `Unrendered segment(s):` block out of the inline message built in
+// `dynamic-rendering.ts`. There's no exported factory for this message
+// family — these tests reproduce the wire format the framework emits and
+// assert the parsed shape the dev overlay reads.
+describe('getUnrenderedSegmentErrorDetails', () => {
+  function createUnrenderedSegmentError(
+    route: string,
+    files: string[] = []
+  ): Error {
+    let message = `Route "${route}": Could not validate instant UI because an expected segment was not rendered.`
+    if (files.length > 0) {
+      const label =
+        files.length === 1 ? 'Unrendered segment' : 'Unrendered segments'
+      message +=
+        `\n\n${label}:\n${files.map((p) => `  ${p}`).join('\n')}` +
+        `\n\nIssues that would prevent instant navigation in this segment will go undetected.` +
+        `\n\nWays to fix this:` +
+        `\n  - Render the missing segment` +
+        `\n  - Set \`export const instant = false\` on the unrendered segment to allow no validation and silence this warning` +
+        `\n\nLearn more: https://nextjs.org/docs/messages/unrendered-instant-segment`
+    }
+    return new Error(message)
+  }
+
+  it('parses route and a single unrendered segment file', () => {
+    const error = createUnrenderedSegmentError(ROUTE, ['app/example/page.tsx'])
+    expect(getUnrenderedSegmentErrorDetails(error)).toEqual({
+      type: 'unrendered-segment',
+      route: ROUTE,
+      files: ['app/example/page.tsx'],
+    })
+  })
+
+  it('parses route and multiple unrendered segment files', () => {
+    const error = createUnrenderedSegmentError(ROUTE, [
+      'app/example/@sidebar/page.tsx',
+      'app/example/page.tsx',
+    ])
+    expect(getUnrenderedSegmentErrorDetails(error)).toEqual({
+      type: 'unrendered-segment',
+      route: ROUTE,
+      files: ['app/example/@sidebar/page.tsx', 'app/example/page.tsx'],
+    })
+  })
+
+  it('parses route with no segment list (defensive — framework currently always emits one)', () => {
+    const error = createUnrenderedSegmentError(ROUTE, [])
+    expect(getUnrenderedSegmentErrorDetails(error)).toEqual({
+      type: 'unrendered-segment',
+      route: ROUTE,
+      files: [],
+    })
+  })
+
+  it('returns null when the headline substring is absent', () => {
+    expect(getUnrenderedSegmentErrorDetails(new Error('regular bug'))).toBe(
+      null
+    )
+  })
+
+  it('returns null when the headline matches but the route prefix is missing', () => {
+    // The framework always prefixes `Route "X":`. If a future refactor drops
+    // it, we'd rather skip classification than parse garbage.
+    expect(
+      getUnrenderedSegmentErrorDetails(
+        new Error(
+          'Could not validate instant UI because an expected segment was not rendered.'
+        )
+      )
+    ).toBe(null)
   })
 })
