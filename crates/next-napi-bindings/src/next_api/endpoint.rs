@@ -101,14 +101,25 @@ impl Deref for ExternalEndpoint {
 
 /// Build an `IssueFilter` by reading the project from the endpoint's
 /// `OperationVc<OptionEndpoint>` and extracting ignore rules from its config.
+///
+/// If the upstream endpoint operation fails to resolve (e.g. because the build
+/// graph cannot be evaluated transiently — for example during a mid-session
+/// `node_modules` reshuffle), this falls back to a default filter rather than
+/// propagating the error. The caller then drives the underlying operation via
+/// `strongly_consistent_catch_collectables`, which converts the same upstream
+/// failure into Issues that this default filter can surface.
 async fn issue_filter_from_endpoint(
     endpoint_op: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<IssueFilter>> {
-    let endpoint_option = endpoint_op.connect().await?;
-    if let Some(ep) = &*endpoint_option {
-        Ok(ep.project().issue_filter())
-    } else {
-        Ok(IssueFilter::warnings_and_foreign_errors().cell())
+    match endpoint_op.connect().await {
+        Ok(endpoint_option) => {
+            if let Some(ep) = &*endpoint_option {
+                Ok(ep.project().issue_filter())
+            } else {
+                Ok(IssueFilter::warnings_and_foreign_errors().cell())
+            }
+        }
+        Err(_) => Ok(IssueFilter::warnings_and_foreign_errors().cell()),
     }
 }
 

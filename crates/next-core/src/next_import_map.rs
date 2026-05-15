@@ -1195,7 +1195,7 @@ impl Issue for MissingNextFolderIssue {
     }
 
     fn severity(&self) -> IssueSeverity {
-        IssueSeverity::Fatal
+        IssueSeverity::Error
     }
 
     fn stage(&self) -> IssueStage {
@@ -1203,48 +1203,67 @@ impl Issue for MissingNextFolderIssue {
     }
 
     async fn title(&self) -> Result<StyledString> {
-        let system_path = match to_sys_path(self.path.clone()).await? {
-            Some(path) => path.to_str().unwrap_or("{unknown}").to_string(),
-            _ => "{unknown}".to_string(),
+        Ok(StyledString::Text(rcstr!(
+            "Could not find the Next.js package (next/package.json)"
+        )))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let context_path: RcStr = match to_sys_path(self.path.clone()).await? {
+            Some(path) => path.to_str().unwrap_or("{unknown}").into(),
+            _ => rcstr!("{unknown}"),
         };
-        let root_path = match to_sys_path(self.root.clone()).await? {
-            Some(path) => path.to_str().unwrap_or("{unknown}").to_string(),
-            _ => "{unknown}".to_string(),
+        let root_path: RcStr = match to_sys_path(self.root.clone()).await? {
+            Some(path) => path.to_str().unwrap_or("{unknown}").into(),
+            _ => rcstr!("{unknown}"),
         };
 
-        Ok(StyledString::Stack(vec![
+        Ok(Some(StyledString::Stack(vec![
             StyledString::Line(vec![
-                StyledString::Text(
-                    "Error: Next.js inferred your workspace root, but it may not be correct."
-                        .into(),
-                ),
+                StyledString::Text(rcstr!("Resolved from: ")),
+                StyledString::Strong(context_path),
             ]),
             StyledString::Line(vec![
-                StyledString::Text("We couldn't find the Next.js package (".into()),
-                StyledString::Strong("next/package.json".into()),
-                StyledString::Text(") from the project directory: ".into()),
-                StyledString::Strong(system_path.into()),
+                StyledString::Text(rcstr!("Filesystem root used for resolution: ")),
+                StyledString::Strong(root_path),
             ]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(""))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!("Possible causes:"))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "  - node_modules is being reorganized by a concurrent install (e.g. pnpm adding \
+                 a package with a `next` peer dependency). This is transient and should clear \
+                 once the install completes."
+            ))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "  - node_modules/next was removed, renamed, or has a broken symlink."
+            ))]),
             StyledString::Line(vec![
-                StyledString::Text("Filesystem root used for resolution: ".into()),
-                StyledString::Strong(root_path.into()),
+                StyledString::Text(rcstr!("  - The workspace root is incorrect — see ")),
+                StyledString::Code(rcstr!("turbopack.root")),
+                StyledString::Text(rcstr!(
+                    " in the Next.js config docs for how to configure it."
+                )),
             ]),
-            StyledString::Line(vec![
-                StyledString::Text("To fix this, set ".into()),
-                StyledString::Code("turbopack.root".into()),
-                StyledString::Text(
-                    " in your Next.js config, or ensure the Next.js package is resolvable from the project directory.".into(),
-                ),
-            ]),
-            StyledString::Line(vec![
-                StyledString::Text("Note: For security and performance reasons, files outside of the project directory will not be compiled.".into()),
-            ]),
-            StyledString::Line(vec![
-                StyledString::Text("See ".into()),
-                StyledString::Strong("https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory".into()),
-                StyledString::Text(" for more information.".into()),
-            ]),
-        ]))
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "  - In a monorepo, the Next.js package is hoisted to a directory above the \
+                 workspace root and is not reachable from there."
+            ))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "  - Next.js is installed globally rather than as a project dependency. This is \
+                 rare and not recommended; install it locally."
+            ))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(""))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "Note: For security and performance reasons, files outside of the workspace root \
+                 are not compiled."
+            ))]),
+        ])))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        rcstr!(
+            "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory"
+        )
     }
 }
 
