@@ -28,6 +28,11 @@ const PAGES: Record<
     conflictTurbo?: boolean
     brokenLoading?: boolean
     brokenLoadingDev?: boolean
+    /**
+     * The page loads correctly, but the chunker doesn't produce the ideal layout for it. Skips
+     * the per-page request-count assertion. Color/navigation assertions still run.
+     */
+    brokenChunking?: boolean
     requests?: number
     requestsLoose?: number
     requestsGraph?: number
@@ -133,6 +138,31 @@ const PAGES: Record<
     color: 'rgb(255, 55, 255)',
     background: 'rgba(0, 0, 0, 0)',
     requests: 4,
+  },
+  // Two pages where shared CSS modules sandwich a unique stylesheet:
+  //   /sandwich/a: shared1 → uniqueA (module) → shared2
+  //   /sandwich/b: shared1 → uniqueB (GLOBAL)  → shared2
+  // The chunker must not merge shared1 and shared2 into a single chunk because they sit on
+  // either side of the unique stylesheet. uniqueB is a global stylesheet specifically so the
+  // algorithm can't collapse everything into one big shared chunk: a global stylesheet must
+  // never be loaded by chunk groups that don't import it (i.e. `/sandwich/a`), so uniqueB has
+  // to stay isolated. Optimal output is 3 chunks per page (shared1, unique[A|B], shared2),
+  // but the current chunkers don't produce that — see `brokenChunking`.
+  'sandwich-a': {
+    group: 'sandwich',
+    url: '/sandwich/a',
+    selector: '#hellosba',
+    color: 'rgb(0, 0, 255)',
+    requests: 3,
+    brokenChunking: true,
+  },
+  'sandwich-b': {
+    group: 'sandwich',
+    url: '/sandwich/b',
+    selector: '#hellosbb',
+    color: 'rgb(0, 0, 255)',
+    requests: 3,
+    brokenChunking: true,
   },
   'pages-first': {
     group: 'pages-basic',
@@ -457,7 +487,7 @@ describe.each(
           .waitForElementByCss(pageInfo.selector)
           .getComputedCss('color')
       ).toBe(pageInfo.color)
-      if (!isNextDev) {
+      if (!isNextDev && !pageInfo.brokenChunking) {
         const stylesheets = await browser.elementsByCss(
           "link[rel='stylesheet']"
         )
