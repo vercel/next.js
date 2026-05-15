@@ -2,9 +2,8 @@
 
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox, check } from 'next-test-utils'
-import { NextInstance } from 'e2e-utils'
 
 const installCheckVisible = (browser) => {
   return browser.eval(`(function() {
@@ -24,17 +23,12 @@ const installCheckVisible = (browser) => {
 }
 
 describe('GS(S)P Server-Side Change Reloading', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, '../pages')),
-        lib: new FileRef(join(__dirname, '../lib')),
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, '../pages')),
+      lib: new FileRef(join(__dirname, '../lib')),
+    },
   })
-  afterAll(() => next.destroy())
 
   it('should not reload page when client-side is changed too GSP', async () => {
     const browser = await webdriver(next.url, '/gsp-blog/first')

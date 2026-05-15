@@ -601,11 +601,66 @@ internal
       parseValidPositiveInteger
     )
   )
-  .action((file: string, options: { port: number | undefined }) => {
-    return import('../cli/internal/turbo-trace-server.js').then((mod) =>
-      mod.startTurboTraceServerCli(file, options.port)
+  .addOption(
+    new Option(
+      '--mcp-port <mcpPort>',
+      'Port for the MCP (Model Context Protocol) server. Defaults to --port + 1.'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .action(
+    (
+      file: string,
+      options: { port: number | undefined; mcpPort: number | undefined }
+    ) => {
+      return import('../cli/internal/turbo-trace-server.js').then((mod) =>
+        mod.startTurboTraceServerCli(file, options.port, options.mcpPort)
+      )
+    }
+  )
+
+internal
+  .command('query-trace')
+  .description(
+    'Query a running turbopack trace server (started with `next internal trace --mcp-port <port>`).'
+  )
+  .addOption(
+    new Option(
+      '--port <port>',
+      'MCP port of the running trace server. Defaults to 5748.'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .addOption(
+    new Option(
+      '--parent <parent>',
+      'Span ID to enumerate children of. Omit for root level.'
     )
-  })
+  )
+  .addOption(
+    new Option(
+      '--no-aggregated',
+      'Disable aggregation of spans by name (aggregated by default).'
+    )
+  )
+  .addOption(
+    new Option(
+      '--sort <mode>',
+      'Sort mode: "value" for corrected duration descending, "name" for alphabetical.'
+    ).choices(['value', 'name'])
+  )
+  .addOption(
+    new Option('--search <search>', 'Substring filter on span name/category.')
+  )
+  .addOption(new Option('--json', 'Output as JSON instead of markdown.'))
+  .addOption(
+    new Option('--page <page>', 'Page number (1-based, default 1).').argParser(
+      parseValidPositiveInteger
+    )
+  )
+  .action((options) =>
+    import('../cli/internal/query-trace.js').then((mod) =>
+      mod.queryTraceCli(options)
+    )
+  )
 
 internal
   .command('post-build')
@@ -643,6 +698,48 @@ internal
       mod.uploadTraceToBlob({ directory })
     )
   })
+  .usage('[directory] [options]')
+
+internal
+  .command('static-routes-info')
+  .description(
+    'Analyze a built Next.js app and report per-route bundle sizes across server bundled JS, server source maps, server unbundled, client JS, client source maps, and client CSS categories.'
+  )
+  .argument(
+    '[directory]',
+    `A directory containing the built Next.js application. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .option('--json', 'Output as JSON instead of markdown.')
+  .option(
+    '--limit <n>',
+    'Only show the first N routes after sorting (totals always reflect all routes).',
+    parseInt
+  )
+  .option(
+    '--sort <key>',
+    'Sort routes by: name (default, ascending), or one of client, client-js, client-css, client-map, server, server-bundled-js, server-unbundled, server-map, total (descending).'
+  )
+  .option(
+    '--files',
+    'Include the list of files (relative to the output directory) per category in the JSON output. Requires --json.'
+  )
+  .action(
+    (
+      directory: string,
+      options: {
+        json?: boolean
+        limit?: number
+        sort?: string
+        files?: boolean
+      }
+    ) => {
+      return import('../cli/internal/static-routes-info.js').then((mod) =>
+        mod.staticRoutesInfoCli(options, directory)
+      )
+    }
+  )
   .usage('[directory] [options]')
 
 program.parse(process.argv)

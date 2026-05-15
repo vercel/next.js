@@ -29,6 +29,7 @@ import {
   NodeNextResponse,
 } from '../../server/base-http/node' with { 'turbopack-transition': 'next-server-utility' }
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr' with { 'turbopack-transition': 'next-server-utility' }
+import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getFallbackRouteParams,
   getPlaceholderFallbackRouteParams,
@@ -47,7 +48,6 @@ import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
-  NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_INSTANT_TEST_COOKIE,
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
@@ -246,6 +246,7 @@ export async function handler(
     clientReferenceManifest,
     subresourceIntegrityManifest,
     prerenderManifest,
+    prefetchHintsManifest,
     isDraftMode,
     resolvedPathname,
     revalidateOnlyGenerated,
@@ -293,7 +294,8 @@ export async function handler(
   // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
 
   const isRSCRequest =
-    getRequestMeta(req, 'isRSCRequest') ?? Boolean(req.headers[RSC_HEADER])
+    getRequestMeta(req, 'isRSCRequest') ??
+    isRSCRequestHeader(req.headers[RSC_HEADER])
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
 
@@ -417,17 +419,20 @@ export async function handler(
   // Enable the Instant Navigation Testing API. Renders only the prefetched
   // portion of the page, excluding dynamic content. This allows tests to
   // assert on the prefetched UI state deterministically.
-  // - Header: Used for client-side navigations where we can set request headers
-  // - Cookie: Used for MPA navigations (page reload, full page load) where we
-  //   can't set request headers. Only applies to document requests (no RSC
-  //   header) - RSC requests should proceed normally even during a locked scope,
-  //   with blocking happening on the client side.
+  //
+  // The instant test cookie is sent automatically with all requests while a
+  // navigation lock is held. We treat a request as a test render when the
+  // cookie is present and either:
+  // - it's a document request (no RSC header) — covers MPA navigations
+  // - it's a prefetch RSC request — covers client-side prefetches
+  // Regular RSC navigation requests proceed normally even during a locked
+  // scope; blocking happens on the client side.
   const isInstantNavigationTest =
     exposeTestingApi &&
-    (req.headers[NEXT_INSTANT_PREFETCH_HEADER] === '1' ||
-      (req.headers[RSC_HEADER] === undefined &&
-        typeof req.headers.cookie === 'string' &&
-        req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=')))
+    typeof req.headers.cookie === 'string' &&
+    req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
+    (!isRSCRequestHeader(req.headers[RSC_HEADER]) ||
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1')
 
   // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
   // prerender manifest and this is an app page.
@@ -534,6 +539,8 @@ export async function handler(
     // If we're in development, we always support dynamic HTML, unless it's
     // a data request, in which case we only produce static HTML.
     routeModule.isDev === true ||
+    // If this is a draft mode request, it supports dynamic HTML.
+    isDraftMode ||
     // If this is not SSG or does not have static paths, then it supports
     // dynamic HTML.
     !isSSG ||
@@ -590,7 +597,6 @@ export async function handler(
       : null
 
     if (
-      nextConfig.experimental.partialFallbacks === true &&
       fallbackPathname &&
       prerenderInfo?.fallbackRouteParams?.length &&
       !hasUnresolvedRootFallbackParams
@@ -675,7 +681,6 @@ export async function handler(
     routerServerContext?.isWrappedByNextServer
   )
   const remainingFallbackRouteParams =
-    nextConfig.experimental.partialFallbacks === true &&
     remainingPrerenderableParams.length > 0
       ? (prerenderInfo?.fallbackRouteParams?.filter(
           (param) =>
@@ -856,8 +861,10 @@ export async function handler(
           reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
           multiZoneDraftMode,
+          prefetchHints: prefetchHintsManifest,
           incrementalCache,
           cacheLifeProfiles: nextConfig.cacheLife,
+          staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
           basePath: nextConfig.basePath,
           serverActions: nextConfig.experimental.serverActions,
           logServerFunctions:
@@ -875,6 +882,8 @@ export async function handler(
               }
             : {}),
           cacheComponents: Boolean(nextConfig.cacheComponents),
+          validationLevel:
+            nextConfig.experimental.instantInsights.validationLevel,
           experimental: {
             isRoutePPREnabled,
             expireTime: nextConfig.expireTime,
@@ -886,6 +895,7 @@ export async function handler(
             inlineCss: Boolean(nextConfig.experimental.inlineCss),
             prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+            useCacheTimeout: nextConfig.experimental.useCacheTimeout,
             cachedNavigations: Boolean(
               nextConfig.experimental.cachedNavigations
             ),
@@ -938,6 +948,23 @@ export async function handler(
         fetchTags: cacheTags,
         fetchMetrics,
       } = metadata
+
+      // Apply the `expireTime` fallback as soon as we have the render's
+      // `cacheControl`, so every downstream consumer (the cache stored via
+      // `incrementalCache.set`, the response Cache-Control header, the outgoing
+      // entry returned to `handleResponse`) sees a finalized `cacheControl`
+      // with a populated `expire`. This mirrors the build-time fallback in
+      // `build/index.ts` so we don't apply an expire to routes that opt out of
+      // revalidation entirely (`revalidate: false`) or that are dynamic
+      // (`revalidate: 0`).
+      if (
+        cacheControl &&
+        cacheControl.revalidate !== false &&
+        cacheControl.revalidate > 0 &&
+        cacheControl.expire === undefined
+      ) {
+        cacheControl.expire = nextConfig.expireTime
+      }
 
       if (cacheTags) {
         headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
@@ -1023,7 +1050,6 @@ export async function handler(
         }
 
         if (
-          nextConfig.experimental.partialFallbacks === true &&
           prerenderInfo?.fallback === null &&
           !hasOmittedConcreteFallbackParam &&
           !hasUnresolvedRootFallbackParams &&
@@ -1101,22 +1127,44 @@ export async function handler(
                 ? prerenderInfo.fallback
                 : normalizedSrcPage
 
-            const fallbackRouteParams =
-              // In production or when debugging the static shell (e.g. instant
-              // navigation testing), use the prerender manifest's fallback
-              // route params which correctly identifies which params are
-              // unknown. Note: in dev, this block is only entered for
-              // non-prerendered URLs (guarded by the outer condition).
-              (isProduction || isDebugStaticShell) &&
-              prerenderInfo?.fallbackRouteParams
-                ? createOpaqueFallbackRouteParams(
-                    prerenderInfo.fallbackRouteParams
-                  )
-                : // When debugging the fallback shell, treat all params as
-                  // fallback (simulating the worst-case shell).
-                  isDebugFallbackShell
-                  ? getFallbackRouteParams(normalizedSrcPage, routeModule)
-                  : null
+            let fallbackRouteParams: OpaqueFallbackRouteParams | null
+            if (isProduction) {
+              // In production, rely on the prerender manifest's fallback
+              // entry — the authoritative set computed at build time by
+              // `buildAppStaticPaths`.
+              if (prerenderInfo?.fallbackRouteParams) {
+                fallbackRouteParams = createOpaqueFallbackRouteParams(
+                  prerenderInfo.fallbackRouteParams
+                )
+              } else if (isDebugFallbackShell) {
+                fallbackRouteParams = getFallbackRouteParams(
+                  normalizedSrcPage,
+                  routeModule
+                )
+              } else {
+                fallbackRouteParams = null
+              }
+            } else {
+              // In dev, the prerender manifest isn't populated for ad-hoc
+              // prefetches. The outer `!isPrerendered` guard means every URL
+              // reaching this block has params not covered by
+              // `generateStaticParams`, so the worst-case fallback set —
+              // every dynamic segment from the loader tree — matches what a
+              // static prerender would use. This keeps the prefetch response
+              // from baking resolved param values into the shell.
+              //
+              // `isDebugStaticShell` covers the `?__nextppronly=1` query and
+              // the Instant Navigation testing cookie; `isDebugFallbackShell`
+              // is the explicit fallback-shell debug flow.
+              if (isDebugStaticShell || isDebugFallbackShell) {
+                fallbackRouteParams = getFallbackRouteParams(
+                  normalizedSrcPage,
+                  routeModule
+                )
+              } else {
+                fallbackRouteParams = null
+              }
+            }
 
             // When rendering a debug static shell, override the fallback
             // params on the request so that the staged rendering correctly
@@ -1163,7 +1211,6 @@ export async function handler(
                 // Match the build-time contract: only fallback shells that can
                 // still be completed with prerenderable params should upgrade.
                 remainingPrerenderableParams.length > 0 &&
-                nextConfig.experimental.partialFallbacks === true &&
                 ssgCacheKey &&
                 incrementalCache &&
                 !isOnDemandRevalidate &&
@@ -1174,11 +1221,7 @@ export async function handler(
                 !exposeTestingApi &&
                 // Instant Navigation Testing API requests intentionally keep
                 // the route in shell mode; don't upgrade these in background.
-                !isInstantNavigationTest &&
-                // Avoid background revalidate during prefetches; this can trigger
-                // static prerender errors that surface as 500s for the prefetch
-                // request itself.
-                !isPrefetchRSCRequest
+                !isInstantNavigationTest
               ) {
                 scheduleOnNextTick(async () => {
                   const responseCache = routeModule.getResponseCache(req)
@@ -1583,7 +1626,7 @@ export async function handler(
 
             cacheControl = {
               revalidate: cacheEntry.cacheControl.revalidate,
-              expire: cacheEntry.cacheControl?.expire ?? nextConfig.expireTime,
+              expire: cacheEntry.cacheControl.expire,
             }
           }
           // Otherwise if the revalidate value is false, then we should use the
@@ -1606,7 +1649,7 @@ export async function handler(
       ) {
         // This is a prefetch request issued by the client Segment Cache. These
         // should never reach the application layer (lambda). We should either
-        // respond from the cache (HIT) or respond with 204 No Content (MISS).
+        // respond from the cache (HIT) or respond with 404 (MISS).
 
         // Set a header to indicate that PPR is enabled for this route. This
         // lets the client distinguish between a regular cache miss and a cache
@@ -1642,10 +1685,8 @@ export async function handler(
         // Cache miss. Either a cache entry for this route has not been generated
         // (which technically should not be possible when PPR is enabled, because
         // at a minimum there should always be a fallback entry) or there's no
-        // match for the requested segment. Respond with a 204 No Content. We
-        // don't bother to respond with 404, because these requests are only
-        // issued as part of a prefetch.
-        res.statusCode = 204
+        // match for the requested segment. Respond with a 404.
+        res.statusCode = 404
         return sendRenderResult({
           req,
           res,
@@ -1795,7 +1836,9 @@ export async function handler(
         const instantTestRequestId =
           routeModule.isDev === true ? crypto.randomUUID() : null
         body.pipeThrough(
-          createInstantTestScriptInsertionTransformStream(instantTestRequestId)
+          await createInstantTestScriptInsertionTransformStream(
+            instantTestRequestId
+          )
         )
         return sendRenderResult({
           req,
@@ -1875,14 +1918,29 @@ export async function handler(
       const transformer = new TransformStream<Uint8Array, Uint8Array>()
       body.push(transformer.readable)
 
+      // Plumb fallback params via request meta so the RequestStore created
+      // downstream in app-render.tsx knows which params to defer during the
+      // resume. We don't pass them as `fallbackRouteParams` because that
+      // would replace actual param values with opaque placeholders during
+      // segment resolution; the resolved values are baked into the URL and
+      // already interpolated into the postponed state.
+      if (nextConfig.cacheComponents && prerenderInfo?.fallbackRouteParams) {
+        const fallbackParams = createOpaqueFallbackRouteParams(
+          prerenderInfo.fallbackRouteParams
+        )
+        if (fallbackParams) {
+          addRequestMeta(req, 'fallbackParams', fallbackParams)
+        }
+      }
+
       // Perform the render again, but this time, provide the postponed state.
       // We don't await because we want the result to start streaming now, and
       // we've already chained the transformer's readable to the render result.
       doRender({
         span,
         postponed: cachedData.postponed,
-        // This is a resume render, not a fallback render, so we don't need to
-        // set this.
+        // This is a resume render, not a fallback render. Fallback params
+        // (for cacheComponents routes) are plumbed via request meta above.
         fallbackRouteParams: null,
         forceStaticRender: false,
       })

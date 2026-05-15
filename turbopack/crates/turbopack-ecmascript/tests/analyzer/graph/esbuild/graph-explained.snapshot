@@ -1,4 +1,4 @@
-*arrow function 2666* (const after eval) = (...) => (
+*arrow function 2666* = (...) => (
   | [
         "node",
         [

@@ -13,9 +13,7 @@ describe('app dir - instant-validation-client', () => {
   }
 
   it('should error when a client component exports unstable_instant', async () => {
-    const expectedErrMsg = process.env.IS_TURBOPACK_TEST
-      ? `Next.js can't recognize the exported \`unstable_instant\` field in route. App pages cannot export "unstable_instant" from a Client Component module. To use this API, convert this module to a Server Component by removing the "use client" directive.`
-      : `Page "/page" cannot export "unstable_instant" from a Client Component module. To use this API, convert this module to a Server Component by removing the "use client" directive.`
+    const expectedErrMsg = `"unstable_instant" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive`
 
     if (isNextDev) {
       await next.start().catch(() => {})

@@ -60,6 +60,24 @@ rustflags = [
   "-Clink-arg=/Brepro",
 ]
 
+# Why `linker-flavor=gnu-lld-cc` instead of `linker = "rust-lld"`?
+#
+# `linker = "rust-lld"` invokes lld directly, bypassing the cc linker driver.
+# This fails because lld alone can't find system libraries (-lgcc_s, -lc) and
+# doesn't understand -Wl, prefixed args from crate build scripts.
+# `gnu-lld-cc` + `link-self-contained=+linker` routes lld through cc, which
+# resolves library paths and translates -Wl, args.
+#
+# On x86_64-unknown-linux-gnu, this is already the nightly default since
+# Rust 1.90, so no explicit config is needed for GNU targets.
+# Not yet default on aarch64-unknown-linux-gnu or any musl target.
+# https://blog.rust-lang.org/2025/09/01/rust-lld-on-1.90.0-stable/
+[target.'cfg(all(target_os = "linux", target_env = "gnu", not(target_arch = "x86_64")))']
+rustflags = [
+  "-Clinker-flavor=gnu-lld-cc",
+  "-Clink-self-contained=+linker",
+]
+
 # Musl targets: disable static CRT linking. We produce dynamic .node shared
 # libraries (N-API addons), not static binaries.
 [target.'cfg(all(target_os = "linux", target_env = "musl"))']

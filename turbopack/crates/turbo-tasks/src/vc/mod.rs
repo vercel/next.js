@@ -36,9 +36,10 @@ pub use self::{
     resolved::ResolvedVc,
     traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
 };
+#[cfg(debug_assertions)]
+use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
 use crate::{
     CellId, RawVc, ResolveRawVcFuture,
-    debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     keyed::{KeyedAccess, KeyedEq},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
@@ -476,6 +477,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for Vc<T>
 where
     T: UpcastStrict<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
@@ -498,7 +500,7 @@ macro_rules! into_future {
             type Output = <ReadVcFuture<T> as Future>::Output;
             type IntoFuture = ReadVcFuture<T>;
             fn into_future(self) -> Self::IntoFuture {
-                self.node.into_read(T::has_serialization()).into()
+                self.node.into_read().into()
             }
         }
     };
@@ -515,28 +517,19 @@ where
     /// Do not use this: Use [`OperationVc::read_strongly_consistent`] instead.
     #[cfg(feature = "non_operation_vc_strongly_consistent")]
     pub fn strongly_consistent(self) -> ReadVcFuture<T> {
-        self.node
-            .into_read(T::has_serialization())
-            .strongly_consistent()
-            .into()
+        self.node.into_read().strongly_consistent().into()
     }
 
     /// Returns a untracked read of the value. This will not invalidate the current function when
     /// the read value changed.
     pub fn untracked(self) -> ReadVcFuture<T> {
-        self.node
-            .into_read(T::has_serialization())
-            .untracked()
-            .into()
+        self.node.into_read().untracked().into()
     }
 
     /// Read the value with the hint that this is the final read of the value. This might drop the
     /// cell content. Future reads might need to recompute the value.
     pub fn final_read_hint(self) -> ReadVcFuture<T> {
-        self.node
-            .into_read(T::has_serialization())
-            .final_read_hint()
-            .into()
+        self.node.into_read().final_read_hint().into()
     }
 }
 
@@ -547,7 +540,7 @@ where
 {
     /// Read the value and returns a owned version of it. It might clone the value.
     pub fn owned(self) -> ReadOwnedVcFuture<T> {
-        let future: ReadVcFuture<T> = self.node.into_read(T::has_serialization()).into();
+        let future: ReadVcFuture<T> = self.node.into_read().into();
         future.owned()
     }
 }
@@ -564,7 +557,7 @@ where
         Q: Hash + ?Sized,
         VcReadTarget<T>: KeyedAccess<Q>,
     {
-        let future: ReadVcFuture<T> = self.node.into_read(T::has_serialization()).into();
+        let future: ReadVcFuture<T> = self.node.into_read().into();
         future.get(key)
     }
 
@@ -575,7 +568,7 @@ where
         Q: Hash + ?Sized,
         VcReadTarget<T>: KeyedAccess<Q>,
     {
-        let future: ReadVcFuture<T> = self.node.into_read(T::has_serialization()).into();
+        let future: ReadVcFuture<T> = self.node.into_read().into();
         future.contains_key(key)
     }
 }
@@ -592,9 +585,7 @@ where
     /// have the same future-like semantics as value vcs when it comes to producing refs. This
     /// behavior is rarely needed, so in most cases, `.await`ing a trait vc is a mistake.
     pub fn into_trait_ref(self) -> ReadVcFuture<T, VcValueTraitCast<T>> {
-        self.node
-            .into_read_with_unknown_is_serializable_cell_content()
-            .into()
+        self.node.into_read().into()
     }
 }
 

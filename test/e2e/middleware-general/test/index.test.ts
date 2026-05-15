@@ -3,99 +3,87 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { isNextStart, NextInstance } from 'e2e-utils'
+import { FileRef, isNextStart, nextTestSetup } from 'e2e-utils'
 import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
-import { createNext, FileRef } from 'e2e-utils'
 
 const urlsError = 'Please use only absolute URLs'
 
 describe('Middleware Runtime', () => {
-  let next: NextInstance
-
   const isNodeMiddleware = Boolean(process.env.TEST_NODE_MIDDLEWARE)
 
-  if (isNodeMiddleware && (global as any).isNextDeploy) {
-    return it('should skip deploy for node middleware for now', () => {})
-  }
-
   const setup = ({ i18n }: { i18n: boolean }) => {
-    afterAll(async () => {
-      await next.destroy()
-    })
-    beforeAll(async () => {
-      next = await createNext({
-        files: {
-          'middleware.js': new FileRef(
-            join(
-              __dirname,
-              '../app',
-              isNodeMiddleware ? 'middleware-node.js' : 'middleware.js'
-            )
-          ),
-          lib: new FileRef(join(__dirname, '../app/lib')),
-          pages: new FileRef(join(__dirname, '../app/pages')),
-          'shared-package': new FileRef(
-            join(__dirname, '../app/node_modules/shared-package')
-          ),
+    return nextTestSetup({
+      files: {
+        'middleware.js': new FileRef(
+          join(
+            __dirname,
+            '../app',
+            isNodeMiddleware ? 'middleware-node.js' : 'middleware.js'
+          )
+        ),
+        lib: new FileRef(join(__dirname, '../app/lib')),
+        pages: new FileRef(join(__dirname, '../app/pages')),
+        'shared-package': new FileRef(
+          join(__dirname, '../app/node_modules/shared-package')
+        ),
+      },
+      nextConfig: {
+        experimental: {
+          webpackBuildWorker: true,
         },
-        nextConfig: {
-          experimental: {
-            webpackBuildWorker: true,
-          },
-          ...(i18n
-            ? {
-                i18n: {
-                  locales: ['en', 'fr', 'nl'],
-                  defaultLocale: 'en',
-                },
-              }
-            : {}),
-          async redirects() {
-            return [
-              {
-                source: '/redirect-1',
-                destination: '/somewhere/else',
-                permanent: false,
+        ...(i18n
+          ? {
+              i18n: {
+                locales: ['en', 'fr', 'nl'],
+                defaultLocale: 'en',
               },
-            ]
-          },
-          async rewrites() {
-            return [
-              {
-                source: '/rewrite-1',
-                destination: '/ssr-page?from=config',
-              },
-              {
-                source: '/rewrite-2',
-                destination: '/about/a?from=next-config',
-              },
-              {
-                source: '/sha',
-                destination: '/shallow',
-              },
-              {
-                source: '/rewrite-3',
-                destination: '/blog/middleware-rewrite?hello=config',
-              },
-            ]
-          },
+            }
+          : {}),
+        async redirects() {
+          return [
+            {
+              source: '/redirect-1',
+              destination: '/somewhere/else',
+              permanent: false,
+            },
+          ]
         },
-        packageJson: {
-          scripts: {
-            setup: `cp -r ./shared-package ./node_modules`,
-            build: 'pnpm run setup && next build',
-            dev: 'pnpm run setup && next dev',
-            start: 'next start',
-          },
+        async rewrites() {
+          return [
+            {
+              source: '/rewrite-1',
+              destination: '/ssr-page?from=config',
+            },
+            {
+              source: '/rewrite-2',
+              destination: '/about/a?from=next-config',
+            },
+            {
+              source: '/sha',
+              destination: '/shallow',
+            },
+            {
+              source: '/rewrite-3',
+              destination: '/blog/middleware-rewrite?hello=config',
+            },
+          ]
         },
-        startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
-        buildCommand: 'pnpm build',
-        env: {
-          ANOTHER_MIDDLEWARE_TEST: 'asdf2',
-          STRING_ENV_VAR: 'asdf3',
-          MIDDLEWARE_TEST: 'asdf',
+      },
+      packageJson: {
+        scripts: {
+          setup: `cp -r ./shared-package ./node_modules`,
+          build: 'pnpm run setup && next build',
+          dev: 'pnpm run setup && next dev',
+          start: 'next start',
         },
-      })
+      },
+      startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+      buildCommand: 'pnpm build',
+      env: {
+        ANOTHER_MIDDLEWARE_TEST: 'asdf2',
+        STRING_ENV_VAR: 'asdf3',
+        MIDDLEWARE_TEST: 'asdf',
+      },
     })
   }
 
@@ -107,7 +95,23 @@ describe('Middleware Runtime', () => {
     return response.headers.get('error')
   }
 
-  function runTests({ i18n }: { i18n?: boolean }) {
+  function runTests(
+    next: ReturnType<typeof nextTestSetup>['next'],
+    { i18n }: { i18n?: boolean }
+  ) {
+    it('should not treat as _next/data request with just header', async () => {
+      const res = await next.fetch('/redirect-to-somewhere', {
+        redirect: 'manual',
+        headers: {
+          'x-nextjs-data': '1',
+        },
+      })
+
+      expect(res.status).toBe(307)
+      expect(res.headers.get('Location')).toContain('/somewhere')
+      expect(res.headers.get('x-nextjs-redirect')).toBe(null)
+    })
+
     if (isNodeMiddleware) {
       it('should be able to use node builtins with node runtime', async () => {
         const res = await next.fetch('/test-node-fs')
@@ -752,6 +756,23 @@ describe('Middleware Runtime', () => {
         `/_next/data/${next.buildId}${i18n ? '/en' : ''}/send-url.json`
       )
       expect(res.headers.get('req-url-path')).toEqual('/send-url')
+
+      if (i18n) {
+        expect(res.headers.get('req-url-pathname')).toEqual('/send-url')
+        expect(res.headers.get('req-url-locale')).toEqual('en')
+
+        const defaultLocaleRes = await fetchViaHTTP(
+          next.url,
+          `/_next/data/${next.buildId}/send-url.json`
+        )
+        expect(defaultLocaleRes.headers.get('req-url-path')).toEqual(
+          '/send-url'
+        )
+        expect(defaultLocaleRes.headers.get('req-url-pathname')).toEqual(
+          '/send-url'
+        )
+        expect(defaultLocaleRes.headers.get('req-url-locale')).toEqual('en')
+      }
     })
 
     it('should keep non data requests in their original shape', async () => {
@@ -778,6 +799,18 @@ describe('Middleware Runtime', () => {
       expect(dataRes.headers.get('x-nextjs-matched-path')).toEqual(
         `${i18n ? '/en' : ''}/ssr-page-2`
       )
+
+      if (i18n) {
+        const defaultLocaleDataRes = await fetchViaHTTP(
+          next.url,
+          `/_next/data/${next.buildId}/ssr-page.json`
+        )
+        const defaultLocaleJson = await defaultLocaleDataRes.json()
+        expect(defaultLocaleJson.pageProps.message).toEqual('Bye Cruel World')
+        expect(defaultLocaleDataRes.headers.get('x-nextjs-matched-path')).toBe(
+          '/en/ssr-page-2'
+        )
+      }
     })
 
     it(`hard-navigates when the data request failed`, async () => {
@@ -819,12 +852,12 @@ describe('Middleware Runtime', () => {
     })
   }
   describe('with i18n', () => {
-    setup({ i18n: true })
-    runTests({ i18n: true })
+    const { next } = setup({ i18n: true })
+    runTests(next, { i18n: true })
   })
 
   describe('without i18n', () => {
-    setup({ i18n: false })
-    runTests({ i18n: false })
+    const { next } = setup({ i18n: false })
+    runTests(next, { i18n: false })
   })
 })

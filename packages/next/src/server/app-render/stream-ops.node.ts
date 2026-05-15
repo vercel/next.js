@@ -31,7 +31,10 @@ import {
 import { indexOfUint8Array } from '../stream-utils/uint8array-helpers'
 import { ENCODED_TAGS } from '../stream-utils/encoded-tags'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
-import { htmlEscapeJsonString } from '../htmlescape'
+import {
+  htmlEscapeAttributeString,
+  htmlEscapeJsonString,
+} from '../../shared/lib/htmlescape'
 import { createInlinedDataReadableStream } from './use-flight-response'
 import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
 import { DetachedPromise } from '../../lib/detached-promise'
@@ -597,11 +600,13 @@ export { renderToWebFizzStream } from './stream-ops.web'
 
 export async function renderToNodeFizzStream(
   element: React.ReactElement,
-  streamOptions: any
+  streamOptions: any,
+  options?: { waitForAllReady?: boolean }
 ): Promise<FizzStreamResult> {
   const pt = new PassThrough()
   const shellReady = new DetachedPromise<void>()
   const allReady = new DetachedPromise<void>()
+  const deferPipe = options?.waitForAllReady === true
 
   const pipeable = getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
     renderToPipeableStream(element, {
@@ -609,7 +614,9 @@ export async function renderToNodeFizzStream(
       onHeaders: streamOptions?.onHeaders,
       onShellReady() {
         streamOptions?.onShellReady?.()
-        pipeable.pipe(pt)
+        if (!deferPipe) {
+          pipeable.pipe(pt)
+        }
         shellReady.resolve()
       },
       onShellError(error: unknown) {
@@ -618,6 +625,9 @@ export async function renderToNodeFizzStream(
       },
       onAllReady() {
         streamOptions?.onAllReady?.()
+        if (deferPipe) {
+          pipeable.pipe(pt)
+        }
         allReady.resolve()
       },
       onError: streamOptions?.onError,
@@ -812,7 +822,52 @@ export async function continueStaticFallbackPrerender(
   return webToReadable(webResult)
 }
 
-export async function continueDynamicHTMLResume(
+export async function continueDynamicHTMLResumeNode(
+  renderStream: AnyStream,
+  {
+    delayDataUntilFirstHtmlChunk,
+    inlinedDataStream,
+    getServerInsertedHTML,
+    getServerInsertedMetadata,
+    deploymentId,
+  }: import('./stream-ops.web').ContinueDynamicHTMLResumeOptions
+): Promise<AnyStream> {
+  await waitAtLeastOneReactRenderTask()
+
+  const buffered = createBufferedTransformStream()
+  webToReadable(renderStream).pipe(buffered)
+
+  let source: Readable = buffered
+
+  if (deploymentId) {
+    const dplId = createHtmlDataDplIdTransform(deploymentId)
+    source.pipe(dplId)
+    source = dplId
+  }
+
+  const headInsertion = createHeadInsertionTransform(getServerInsertedHTML)
+  source.pipe(headInsertion)
+  source = headInsertion
+
+  const metadata = createMetadataTransform(getServerInsertedMetadata)
+  source.pipe(metadata)
+  source = metadata
+
+  const flightInjection = createFlightDataInjectionTransform(
+    webToReadable(inlinedDataStream),
+    delayDataUntilFirstHtmlChunk
+  )
+  source.pipe(flightInjection)
+  source = flightInjection
+
+  const moveSuffix = createMoveSuffixTransform()
+  source.pipe(moveSuffix)
+  source = moveSuffix
+
+  return source
+}
+
+export async function continueDynamicHTMLResumeWeb(
   renderStream: AnyStream,
   opts: import('./stream-ops.web').ContinueDynamicHTMLResumeOptions
 ): Promise<AnyStream> {
@@ -885,7 +940,7 @@ export function createNodeInlinedDataStream(
   formState: unknown | null
 ): AnyStream {
   const startScriptTag = nonce
-    ? `<script nonce=${JSON.stringify(nonce)}>`
+    ? `<script nonce="${htmlEscapeAttributeString(nonce)}">`
     : '<script>'
 
   const dataStream = webToReadable(source)

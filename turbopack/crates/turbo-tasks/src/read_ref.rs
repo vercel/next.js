@@ -17,9 +17,10 @@ use bincode::{
 use serde::{Deserialize, Serialize};
 use turbo_tasks_hash::DeterministicHash;
 
+#[cfg(debug_assertions)]
+use crate::debug::{ValueDebugFormat, ValueDebugFormatString};
 use crate::{
     ResolvedVc, SharedReference, Vc, VcRead, VcValueType,
-    debug::{ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::VcCellMode,
 };
@@ -78,6 +79,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for ReadRef<T>
 where
     T: VcValueType,

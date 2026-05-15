@@ -46,6 +46,7 @@ const DEFINE_ENV_EXPRESSION = Symbol('DEFINE_ENV_EXPRESSION')
 interface DefineEnv {
   [key: string]:
     | string
+    | number
     | string[]
     | boolean
     | { [DEFINE_ENV_EXPRESSION]: string }
@@ -246,7 +247,6 @@ export function getDefineEnv({
       config.experimental.dynamicOnHover
     ),
     'process.env.__NEXT_USE_OFFLINE': Boolean(config.experimental.useOffline),
-    'process.env.__NEXT_UNSTABLE_IO': Boolean(config.experimental.unstableIO),
     'process.env.__NEXT_PREFETCH_INLINING': Boolean(
       config.experimental.prefetchInlining
     ),

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue,
-    debug::{ValueDebugFormat, ValueDebugFormatString, internal::PassthroughDebug},
+    debug::ValueDebugFormat,
     trace::{TraceRawVcs, TraceRawVcsContext},
 };
 
@@ -72,11 +72,13 @@ where
 
 unsafe impl<T: NonLocalValue> NonLocalValue for AliasMap<T> {}
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for AliasMap<T>
 where
     T: ValueDebugFormat,
 {
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+    fn value_debug_format(&self, depth: usize) -> turbo_tasks::debug::ValueDebugFormatString<'_> {
+        use turbo_tasks::debug::{ValueDebugFormatString, internal::PassthroughDebug};
         if depth == 0 {
             return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
         }
@@ -115,6 +117,9 @@ where
         }))
     }
 }
+
+#[cfg(not(debug_assertions))]
+impl<T> ValueDebugFormat for AliasMap<T> {}
 
 impl<T> Debug for AliasMap<T>
 where

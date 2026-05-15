@@ -1,9 +1,8 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup } from 'e2e-utils'
 
 // FIXME: If NEXT_TEST_REACT_VERSION is set, skip the test for now. Need to address react/compiler-runtime
 // compatibility with React below 19.
 // _describe for cleaner git history.
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 const _describe = isReact18 ? describe.skip : describe
 
 _describe('app-dir - unstable_catchError with react compiler', () => {
@@ -73,7 +72,7 @@ _describe('app-dir - unstable_catchError with react compiler', () => {
     expect(await browser.elementByCss('#error-boundary-message').text()).toBe(
       isNextDev
         ? 'this is a test'
-        : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+        : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
     )
 
     await browser.elementByCss('#retry').click().waitForElementByCss('#recover')

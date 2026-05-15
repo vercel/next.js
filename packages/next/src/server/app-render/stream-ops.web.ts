@@ -141,7 +141,7 @@ export async function continueStaticFallbackPrerender(
   )
 }
 
-export async function continueDynamicHTMLResume(
+export async function continueDynamicHTMLResumeWeb(
   renderStream: AnyStream,
   opts: ContinueDynamicHTMLResumeOptions
 ): Promise<AnyStream> {
@@ -152,6 +152,13 @@ export async function continueDynamicHTMLResume(
       inlinedDataStream: opts.inlinedDataStream as ReadableStream<Uint8Array>,
     }
   )
+}
+
+export function continueDynamicHTMLResumeNode(
+  _renderStream: AnyStream,
+  _opts: ContinueDynamicHTMLResumeOptions
+): Promise<AnyStream> {
+  throw new Error('not implemented')
 }
 
 export async function streamToBuffer(stream: AnyStream): Promise<Buffer> {
@@ -246,7 +253,8 @@ export async function streamToString(stream: AnyStream): Promise<string> {
 
 export async function renderToWebFizzStream(
   element: React.ReactElement,
-  streamOptions: any
+  streamOptions: any,
+  _options?: { waitForAllReady?: boolean }
 ): Promise<FizzStreamResult> {
   const stream = await renderToInitialFizzStream({
     ReactDOMServer: { renderToReadableStream },
@@ -258,7 +266,8 @@ export async function renderToWebFizzStream(
 
 export async function renderToNodeFizzStream(
   _element: React.ReactElement,
-  _streamOptions: any
+  _streamOptions: any,
+  _options?: { waitForAllReady?: boolean }
 ): Promise<FizzStreamResult> {
   throw new Error('Not implemented')
 }

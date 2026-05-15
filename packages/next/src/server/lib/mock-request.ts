@@ -142,6 +142,7 @@ export interface MockedResponseOptions {
   socket?: Socket | null
   headers?: OutgoingHttpHeaders
   resWriter?: (chunk: Uint8Array | Buffer | string) => boolean
+  maximumResponseBody?: number
 }
 
 export class MockedResponse extends Stream.Writable implements ServerResponse {
@@ -174,6 +175,8 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
   public readonly headers: Headers
 
   private resWriter: MockedResponseOptions['resWriter']
+  private maximumResponseBody?: number
+  private totalSize: number = 0
 
   public readonly headPromise: Promise<void>
   private headPromiseResolve?: () => void
@@ -186,6 +189,7 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     this.headers = res.headers
       ? fromNodeOutgoingHttpHeaders(res.headers)
       : new Headers()
+    this.maximumResponseBody = res.maximumResponseBody
 
     this.headPromise = new Promise<void>((resolve) => {
       this.headPromiseResolve = resolve
@@ -238,12 +242,29 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     if (this.resWriter) {
       return this.resWriter(chunk)
     }
-    this.buffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
 
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+
+    if (this.maximumResponseBody !== undefined) {
+      this.totalSize += buffer.byteLength
+      if (this.totalSize > this.maximumResponseBody) {
+        const error = new Error(
+          `Response body exceeded maximum size of ${this.maximumResponseBody} bytes`
+        ) as NodeJS.ErrnoException
+        error.code = 'ERR_MAX_BODY_SIZE_EXCEEDED'
+        this.destroy(error)
+        return true
+      }
+    }
+
+    this.buffers.push(buffer)
     return true
   }
 
   public end() {
+    if (this.destroyed) {
+      return this
+    }
     this.finished = true
     return super.end(...arguments)
   }
@@ -260,7 +281,7 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
   public _write(
     chunk: Buffer | string,
     _encoding: string,
-    callback: () => void
+    callback: (error?: Error | null) => void
   ) {
     this.write(chunk)
 
@@ -269,7 +290,13 @@ export class MockedResponse extends Stream.Writable implements ServerResponse {
     // invoked, the 'finish' event will not be emitted.
     //
     // https://nodejs.org/docs/latest-v16.x/api/stream.html#writable_writechunk-encoding-callback
-    callback()
+    //
+    // If the stream was destroyed due to an error, we should propagate it
+    if (this.destroyed && this.errored) {
+      callback(this.errored)
+    } else {
+      callback()
+    }
   }
 
   public writeHead(
@@ -445,6 +472,7 @@ interface RequestResponseMockerOptions {
   bodyReadable?: Stream.Readable
   resWriter?: (chunk: Uint8Array | Buffer | string) => boolean
   socket?: Socket | null
+  maximumResponseBody?: number
 }
 
 export function createRequestResponseMocks({
@@ -454,6 +482,7 @@ export function createRequestResponseMocks({
   bodyReadable,
   resWriter,
   socket = null,
+  maximumResponseBody,
 }: RequestResponseMockerOptions) {
   return {
     req: new MockedRequest({
@@ -463,6 +492,6 @@ export function createRequestResponseMocks({
       socket,
       readable: bodyReadable,
     }),
-    res: new MockedResponse({ socket, resWriter }),
+    res: new MockedResponse({ socket, resWriter, maximumResponseBody }),
   }
 }

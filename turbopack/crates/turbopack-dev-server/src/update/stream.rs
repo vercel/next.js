@@ -103,7 +103,7 @@ fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn versioned_content_update_operation(
     content: ResolvedVc<Box<dyn VersionedContent>>,
     from: ResolvedVc<Box<dyn Version>>,
@@ -111,7 +111,7 @@ fn versioned_content_update_operation(
     content.update(*from)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_update_stream_item_operation(
     resource: RcStr,
     from: ResolvedVc<VersionState>,
@@ -359,7 +359,7 @@ impl Stream for UpdateStream {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 #[derive(Debug)]
 pub enum UpdateStreamItem {
     NotFound,
@@ -369,7 +369,7 @@ pub enum UpdateStreamItem {
     },
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct FatalStreamIssue {
     description: ResolvedVc<StyledString>,
     resource: RcStr,
@@ -413,7 +413,7 @@ pub mod test {
 
     use super::*;
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     pub fn noop_operation() -> Vc<ResolveSourceRequestResult> {
         ResolveSourceRequestResult::NotFound.cell()
     }

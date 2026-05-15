@@ -1,6 +1,5 @@
 import cheerio from 'cheerio'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 
@@ -9,29 +8,24 @@ const mockedGoogleFontResponses = require.resolve(
 )
 
 describe('next/font/google without-preloaded-fonts without _app', () => {
-  let next: NextInstance
-
   if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
   }
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/no-preload.js': new FileRef(
-          join(__dirname, 'without-preloaded-fonts/pages/no-preload.js')
-        ),
-        'pages/without-fonts.js': new FileRef(
-          join(__dirname, 'without-preloaded-fonts/pages/without-fonts.js')
-        ),
-      },
-      env: {
-        NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      'pages/no-preload.js': new FileRef(
+        join(__dirname, 'without-preloaded-fonts/pages/no-preload.js')
+      ),
+      'pages/without-fonts.js': new FileRef(
+        join(__dirname, 'without-preloaded-fonts/pages/without-fonts.js')
+      ),
+    },
+    env: {
+      NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
+    },
   })
-  afterAll(() => next.destroy())
 
   test('without preload', async () => {
     const html = await renderViaHTTP(next.url, '/no-preload')
@@ -60,32 +54,27 @@ describe('next/font/google without-preloaded-fonts without _app', () => {
 })
 
 describe('next/font/google no preloads with _app', () => {
-  let next: NextInstance
-
   if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
   }
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/_app.js': new FileRef(
-          join(__dirname, 'without-preloaded-fonts/pages/_app.js')
-        ),
-        'pages/no-preload.js': new FileRef(
-          join(__dirname, 'without-preloaded-fonts/pages/no-preload.js')
-        ),
-        'pages/without-fonts.js': new FileRef(
-          join(__dirname, 'without-preloaded-fonts/pages/without-fonts.js')
-        ),
-      },
-      env: {
-        NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      'pages/_app.js': new FileRef(
+        join(__dirname, 'without-preloaded-fonts/pages/_app.js')
+      ),
+      'pages/no-preload.js': new FileRef(
+        join(__dirname, 'without-preloaded-fonts/pages/no-preload.js')
+      ),
+      'pages/without-fonts.js': new FileRef(
+        join(__dirname, 'without-preloaded-fonts/pages/without-fonts.js')
+      ),
+    },
+    env: {
+      NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
+    },
   })
-  afterAll(() => next.destroy())
 
   test('without preload', async () => {
     const html = await renderViaHTTP(next.url, '/no-preload')

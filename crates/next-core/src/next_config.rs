@@ -22,7 +22,7 @@ use turbopack::module_options::{
     WebpackRules, module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
-    chunk::SourceMapsType,
+    chunk::{CrossOrigin, SourceMapsType},
     issue::{
         IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage, StyledString,
     },
@@ -112,7 +112,7 @@ pub struct NextConfig {
     skip_proxy_url_normalize: Option<bool>,
     skip_trailing_slash_redirect: Option<bool>,
     i18n: Option<I18NConfig>,
-    cross_origin: Option<CrossOriginConfig>,
+    cross_origin: CrossOrigin,
     dev_indicators: Option<DevIndicatorsConfig>,
     output: Option<OutputType>,
     turbopack: Option<TurbopackConfig>,
@@ -161,6 +161,8 @@ pub struct NextConfig {
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     cache_components: Option<bool>,
+
+    adapter_path: Option<RcStr>,
     //
     // These are never used by Turbopack, and potentially non-serializable anyway:
     // cache_life: (),
@@ -179,28 +181,6 @@ impl NextConfig {
         new.cell()
     }
 }
-
-#[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
-)]
-#[serde(rename_all = "kebab-case")]
-pub enum CrossOriginConfig {
-    Anonymous,
-    UseCredentials,
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionCrossOriginConfig(Option<CrossOriginConfig>);
 
 #[derive(
     Clone,
@@ -614,6 +594,7 @@ pub struct TurbopackConfig {
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub debug_ids: Option<bool>,
+    pub chunk_loading_global: Option<RcStr>,
     /// Issue patterns to ignore (suppress) from Turbopack output.
     #[serde(default)]
     pub ignore_issue: Option<Vec<TurbopackIgnoreIssueRule>>,
@@ -1112,6 +1093,10 @@ pub struct ExperimentalConfig {
     runtime_server_deployment_id: Option<bool>,
     supports_immutable_assets: Option<bool>,
 
+    /// A salt to mix into chunk and asset content hashes. Empty string means
+    /// no salt.
+    output_hash_salt: Option<RcStr>,
+
     // ---
     // UNSUPPORTED
     // ---
@@ -1175,6 +1160,17 @@ pub struct ExperimentalConfig {
     turbopack_input_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
+    /// Custom URL prefix for Web Worker URLs (the entrypoint and the module
+    /// chunks loaded inside the worker) produced by
+    /// `new Worker(new URL(..., import.meta.url))`. Mirrors webpack's
+    /// `output.workerPublicPath`. When unset, Worker URLs use the regular
+    /// chunk base path (i.e. `assetPrefix` + `/_next/`).
+    ///
+    /// Like `assetPrefix`, the value is a prefix without a trailing slash
+    /// and without `/_next` — `/_next/` is appended automatically. An empty
+    /// string is a literal empty prefix; only `None` falls back to
+    /// `assetPrefix`.
+    turbopack_worker_asset_prefix: Option<RcStr>,
     turbopack_client_side_nested_async_chunking: Option<bool>,
     turbopack_server_side_nested_async_chunking: Option<bool>,
     turbopack_import_type_bytes: Option<bool>,
@@ -1484,7 +1480,9 @@ pub struct OptionJsonValue(
 );
 
 fn turbopack_config_documentation_link() -> RcStr {
-    rcstr!("https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders")
+    rcstr!(
+        "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders"
+    )
 }
 
 #[turbo_tasks::value(shared)]
@@ -2042,6 +2040,11 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn is_using_adapter(&self) -> Vc<bool> {
+        Vc::cell(self.adapter_path.is_some())
+    }
+
+    #[turbo_tasks::function]
     pub fn should_append_server_deployment_id_at_runtime(&self) -> Vc<bool> {
         let needs_dpl_id = self
             .experimental
@@ -2291,6 +2294,27 @@ impl NextConfig {
         )
     }
 
+    /// Returns the resolved worker chunk base path with `/_next/` appended,
+    /// or `None` to fall back to the regular chunk base path.
+    #[turbo_tasks::function]
+    pub fn turbopack_worker_asset_prefix(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(
+            self.experimental
+                .turbopack_worker_asset_prefix
+                .as_ref()
+                .map(|prefix| format!("{}/_next/", prefix.trim_end_matches('/')).into()),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_chunk_loading_global(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(
+            self.turbopack
+                .as_ref()
+                .and_then(|t| t.chunk_loading_global.clone()),
+        )
+    }
+
     #[turbo_tasks::function]
     pub fn typescript_tsconfig_path(&self) -> Result<Vc<Option<RcStr>>> {
         Ok(Vc::cell(
@@ -2302,8 +2326,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn cross_origin(&self) -> Vc<OptionCrossOriginConfig> {
-        Vc::cell(self.cross_origin.clone())
+    pub fn cross_origin(&self) -> Vc<CrossOrigin> {
+        *self.cross_origin.resolved_cell()
     }
 
     #[turbo_tasks::function]
@@ -2370,6 +2394,16 @@ impl NextConfig {
             })
             .collect::<Result<Vec<_>>>()?;
         Ok(Vc::cell(rules))
+    }
+
+    #[turbo_tasks::function]
+    pub fn output_hash_salt(&self) -> Vc<RcStr> {
+        Vc::cell(
+            self.experimental
+                .output_hash_salt
+                .clone()
+                .unwrap_or_default(),
+        )
     }
 }
 

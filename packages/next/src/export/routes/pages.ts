@@ -113,7 +113,7 @@ export async function exportPagesPage(
     renderResult && !renderResult.isNull ? renderResult.toUnchunkedString() : ''
 
   const metadata = renderResult?.metadata || {}
-  if (metadata.pageData && !ssgNotFound) {
+  if (metadata.pageData) {
     const dataFile = join(
       pagesDataDir,
       htmlFilename.replace(/\.html$/, NEXT_DATA_SUFFIX)

@@ -82,10 +82,7 @@ import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-de
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { ModernSourceMapPayload } from '../lib/source-maps'
 import { isDeferredEntry } from '../../build/entries'
-import {
-  isMetadataRoute,
-  isMetadataRouteFile,
-} from '../../lib/metadata/is-metadata-route'
+import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
 import {
@@ -105,10 +102,7 @@ import { getRestartDevServerMiddleware } from '../../next-devtools/server/restar
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../../build/get-supported-browsers'
 import { printBuildErrors } from '../../build/print-build-errors'
-import {
-  receiveBrowserLogsTurbopack,
-  handleClientFileLogs,
-} from './browser-logs/receive-logs'
+import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
 import { normalizePath } from '../../lib/normalize-path'
 import {
   devToolsConfigMiddleware,
@@ -417,7 +411,6 @@ export async function createHotReloaderTurbopack(
       ),
       nextVersion: process.env.__NEXT_VERSION as string,
       serverHmr: serverFastRefresh,
-      hashSalt: opts.nextConfig.hashSalt,
     },
     {
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
@@ -606,20 +599,15 @@ export async function createHotReloaderTurbopack(
       join(distDir, p)
     )
 
-    const { type: entryType, page: entryPage } = splitEntryKey(key)
+    const { type: entryType } = splitEntryKey(key)
 
     // Server HMR applies to App Router entries built with the Turbopack Node.js
-    // runtime: app pages and regular route handlers. Edge routes, Pages Router
-    // pages, middleware/instrumentation, and metadata routes (manifest.ts,
-    // robots.ts, sitemap.ts, icon.tsx, etc.) are excluded. Metadata routes are
-    // excluded because they serve HTTP responses directly and must re-execute
-    // on every request to pick up file changes; the in-place module update
-    // model of Server HMR does not apply to them.
+    // runtime: app pages and route handlers (including metadata routes). Edge
+    // routes, Pages Router pages, and middleware/instrumentation are excluded.
     const usesServerHmr =
       serverFastRefresh &&
       entryType === 'app' &&
-      writtenEndpoint.type !== 'edge' &&
-      !isMetadataRoute(entryPage)
+      writtenEndpoint.type !== 'edge'
 
     const filesToDelete: string[] = []
     for (const file of serverPaths) {
@@ -627,9 +615,10 @@ export async function createHotReloaderTurbopack(
 
       const relativePath = relative(distDir, file)
       if (
-        // For Pages Router, edge routes, middleware, and manifest files:
-        // clear the sharedCache in evalManifest(), Node.js require.cache,
-        // and edge runtime module contexts.
+        // For Pages Router, edge routes, middleware, and any entry not
+        // participating in server HMR: clear the sharedCache in
+        // evalManifest(), Node.js require.cache, and edge runtime module
+        // contexts.
         force ||
         !usesServerHmr ||
         !serverHmrSubscriptions?.has(relativePath)
@@ -1263,24 +1252,18 @@ export async function createHotReloaderTurbopack(
               // TODO
               break
             case 'browser-logs': {
-              const browserToTerminalConfig =
-                nextConfig.logging && nextConfig.logging.browserToTerminal
-              if (browserToTerminalConfig) {
-                await receiveBrowserLogsTurbopack({
-                  entries: parsedData.entries,
-                  router: parsedData.router,
-                  sourceType: parsedData.sourceType,
-                  project,
-                  projectPath,
-                  distDir,
-                  config: browserToTerminalConfig,
-                })
-              }
-              break
-            }
-            case 'client-file-logs': {
-              // Always log to file regardless of terminal flag
-              await handleClientFileLogs(parsedData.logs)
+              await receiveBrowserLogsTurbopack({
+                entries: parsedData.entries,
+                router: parsedData.router,
+                sourceType: parsedData.sourceType,
+                project,
+                projectPath,
+                distDir,
+                config:
+                  (nextConfig.logging &&
+                    nextConfig.logging.browserToTerminal) ||
+                  false,
+              })
               break
             }
             case 'ping': {

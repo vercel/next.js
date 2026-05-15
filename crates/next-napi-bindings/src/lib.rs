@@ -106,6 +106,7 @@ fn init() {
                     *cell = Some(Instant::now());
                 }
             });
+            TurboMalloc::thread_park();
         })
         .worker_threads(worker_threads)
         // Avoid a limit on threads to avoid deadlocks due to usage of block_in_place

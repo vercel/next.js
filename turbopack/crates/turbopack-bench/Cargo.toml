@@ -23,7 +23,6 @@ chromiumoxide = { workspace = true, features = [
 ], default-features = false }
 criterion = { workspace = true, features = ["async_tokio"] }
 futures = { workspace = true }
-once_cell = { workspace = true }
 owo-colors = { workspace = true }
 parking_lot = { workspace = true }
 portpicker = "0.1.1"

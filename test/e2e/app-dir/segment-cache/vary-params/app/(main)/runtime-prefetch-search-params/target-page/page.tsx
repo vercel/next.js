@@ -8,9 +8,9 @@ import { connection } from 'next/server'
  * varyParams, and different search param values share the cached segment.
  */
 export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ searchParams: { q: '1' } }],
+  unstable_samples: [{ searchParams: { q: '1' } }],
 }
+export const unstable_prefetch = 'force-runtime'
 
 export default async function RuntimePrefetchSearchParamsTargetPage() {
   // Intentionally NOT accessing searchParams

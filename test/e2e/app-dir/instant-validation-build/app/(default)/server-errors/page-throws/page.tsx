@@ -1,9 +1,7 @@
 import { cookies } from 'next/headers'
 
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ cookies: [] }],
-}
+export const unstable_instant = { level: 'experimental-error' }
+export const unstable_prefetch = 'force-runtime'
 
 export default function Page() {
   return (
