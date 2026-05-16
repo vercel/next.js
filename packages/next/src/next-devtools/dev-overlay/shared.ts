@@ -284,7 +284,7 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
   return stack?.split(REACT_ERROR_STACK_BOTTOM_FRAME_REGEX)[0]
 }
 
-function getInstantErrorRoute(error: unknown): string | null {
+export function getInstantErrorRoute(error: unknown): string | null {
   if (!error || typeof error !== 'object') return null
   const message = (error as Error).message
   if (typeof message !== 'string') return null
@@ -302,7 +302,10 @@ function getInstantErrorRoute(error: unknown): string | null {
 // overlay state is the resolved URL (e.g. `/foo/123`). For dynamic routes
 // we compile the template to a regex so the clear-on-nav reducer keeps
 // errors whose template matches the page the user just landed on.
-function routeTemplateMatchesPath(template: string, path: string): boolean {
+export function routeTemplateMatchesPath(
+  template: string,
+  path: string
+): boolean {
   if (template === path) return true
   if (!isDynamicRoute(template)) return false
   return getRouteRegex(template).re.test(path)
