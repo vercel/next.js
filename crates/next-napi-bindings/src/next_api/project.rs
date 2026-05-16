@@ -1808,7 +1808,7 @@ struct HmrVersionStateWithIssues {
 /// example during a pnpm reshuffle), fall back to a [`NotFoundVersion`] so the
 /// subscriber callback does not crash; the issues collected here are surfaced
 /// to JS and the next `hmr_update` cycle will re-resolve.
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn hmr_version_state_with_issues_operation(
     project: ResolvedVc<Project>,
     chunk_name: RcStr,

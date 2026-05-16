@@ -19,12 +19,20 @@ import path from 'path'
 // when the harness performs the real isolated install. With NEXT_SKIP_ISOLATE
 // (the local dev-loop optimization), no install is performed and the dev server
 // resolves `next` from the repo's dist/ instead — there's nothing to move.
+//
+// It also only exercises the Turbopack resolve path: the
+// `MissingNextFolderIssue` and "Could not find the Next.js package" output are
+// emitted by `crates/next-core/src/next_import_map.rs`, which webpack does not
+// use. Under webpack the dev server keeps serving from the already-compiled
+// graph and the failure mode this guards against doesn't manifest.
 const describeMaybe = process.env.NEXT_SKIP_ISOLATE ? describe.skip : describe
 
 describeMaybe('concurrent-install', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
+
+  const itTurbopack = isTurbopack ? it : it.skip
 
   async function getNextPath(): Promise<string> {
     const nextPath = path.join(next.testDir, 'node_modules', 'next')
@@ -50,72 +58,77 @@ describeMaybe('concurrent-install', () => {
     await fs.rename(stash, original)
   }
 
-  it('does not crash when node_modules/next is moved mid-session', async () => {
-    await next.browser('/')
+  itTurbopack(
+    'does not crash when node_modules/next is moved mid-session',
+    async () => {
+      await next.browser('/')
 
-    const getOutput = next.getCliOutputFromHere()
-    const stashInfo = await moveNextAside()
-    try {
-      // Force a recompile while next is missing. Touching the page should
-      // trigger Turbopack to re-resolve, which is when the failure surfaces.
-      await next.patchFile(
-        'app/page.tsx',
-        `export default function Page() {
+      const getOutput = next.getCliOutputFromHere()
+      const stashInfo = await moveNextAside()
+      try {
+        // Force a recompile while next is missing. Touching the page should
+        // trigger Turbopack to re-resolve, which is when the failure surfaces.
+        await next.patchFile(
+          'app/page.tsx',
+          `export default function Page() {
   return <p>hello world (edited)</p>
 }
 `
-      )
+        )
 
-      // Give the dev server time to react. We're not asserting on a specific
-      // user-visible behavior here — we just want the failure path to fire.
-      await retry(
-        async () => {
-          // The friendly Issue should be surfaced.
-          expect(getOutput()).toContain('Could not find the Next.js package')
-        },
-        5000,
-        500
+        // Give the dev server time to react. We're not asserting on a specific
+        // user-visible behavior here — we just want the failure path to fire.
+        await retry(
+          async () => {
+            // The friendly Issue should be surfaced.
+            expect(getOutput()).toContain('Could not find the Next.js package')
+          },
+          5000,
+          500
+        )
+      } finally {
+        await restoreNext(stashInfo)
+      }
+
+      // The dev server must not have died from a TurbopackInternalError.
+      // (Whether the page itself recovers without a manual reload is a separate
+      // dev-server caching concern; the catastrophic failure mode is the crash.)
+      expect(getOutput()).not.toContain(
+        'FATAL: An unexpected Turbopack error occurred'
       )
-    } finally {
-      await restoreNext(stashInfo)
+      expect(getOutput()).not.toContain('TurbopackInternalError')
     }
+  )
 
-    // The dev server must not have died from a TurbopackInternalError.
-    // (Whether the page itself recovers without a manual reload is a separate
-    // dev-server caching concern; the catastrophic failure mode is the crash.)
-    expect(getOutput()).not.toContain(
-      'FATAL: An unexpected Turbopack error occurred'
-    )
-    expect(getOutput()).not.toContain('TurbopackInternalError')
-  })
+  itTurbopack(
+    'surfaces a friendly issue when node_modules/next is missing',
+    async () => {
+      await next.browser('/')
 
-  it('surfaces a friendly issue when node_modules/next is missing', async () => {
-    await next.browser('/')
-
-    const getOutput = next.getCliOutputFromHere()
-    const stashInfo = await moveNextAside()
-    try {
-      await next.patchFile(
-        'app/page.tsx',
-        `export default function Page() {
+      const getOutput = next.getCliOutputFromHere()
+      const stashInfo = await moveNextAside()
+      try {
+        await next.patchFile(
+          'app/page.tsx',
+          `export default function Page() {
   return <p>hello world (while-missing)</p>
 }
 `
-      )
+        )
 
-      // Wait for the Issue to be rendered to stdout.
-      await retry(
-        async () => {
-          expect(getOutput()).toContain('Could not find the Next.js package')
-        },
-        10000,
-        500
-      )
+        // Wait for the Issue to be rendered to stdout.
+        await retry(
+          async () => {
+            expect(getOutput()).toContain('Could not find the Next.js package')
+          },
+          10000,
+          500
+        )
 
-      // The full issue text. Normalize path-like values that vary per run
-      // (the test-dir is a random tmpdir).
-      const issueText = extractMissingNextIssue(getOutput(), next.testDir)
-      expect(issueText).toMatchInlineSnapshot(`
+        // The full issue text. Normalize path-like values that vary per run
+        // (the test-dir is a random tmpdir).
+        const issueText = extractMissingNextIssue(getOutput(), next.testDir)
+        expect(issueText).toMatchInlineSnapshot(`
         "Turbopack build encountered 1 errors:
         ./app
         Could not find the Next.js package (next/package.json)
@@ -134,14 +147,15 @@ describeMaybe('concurrent-install', () => {
         https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory"
       `)
 
-      expect(getOutput()).not.toContain(
-        'FATAL: An unexpected Turbopack error occurred'
-      )
-      expect(getOutput()).not.toContain('TurbopackInternalError')
-    } finally {
-      await restoreNext(stashInfo)
+        expect(getOutput()).not.toContain(
+          'FATAL: An unexpected Turbopack error occurred'
+        )
+        expect(getOutput()).not.toContain('TurbopackInternalError')
+      } finally {
+        await restoreNext(stashInfo)
+      }
     }
-  })
+  )
 })
 
 /**
