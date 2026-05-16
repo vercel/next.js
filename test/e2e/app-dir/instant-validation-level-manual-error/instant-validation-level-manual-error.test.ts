@@ -180,7 +180,7 @@ describe('instant validation - level manual-error', () => {
         const result = await prerender('/explicit-error')
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/explicit-error": Next.js encountered uncached data during the initial render or a navigation.
+         "Error: Route "/explicit-error": Next.js encountered uncached data during prerendering or a navigation.
 
          \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
@@ -206,7 +206,7 @@ describe('instant validation - level manual-error', () => {
         const result = await prerender('/explicit-true')
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/explicit-true": Next.js encountered uncached data during the initial render or a navigation.
+         "Error: Route "/explicit-true": Next.js encountered uncached data during prerendering or a navigation.
 
          \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 

@@ -22,7 +22,7 @@ describe('Cache Components Dev Errors', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "code": "E1242",
-       "description": "Next.js encountered Math.random() without an explicit rendering intent.",
+       "description": "Next.js encountered the unstable value Math.random() while prerendering.",
        "environmentLabel": "Server",
        "label": "Instant",
        "source": "app/error/page.tsx (2:23) @ Page
@@ -52,7 +52,7 @@ describe('Cache Components Dev Errors', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "code": "E1242",
-       "description": "Next.js encountered Math.random() without an explicit rendering intent.",
+       "description": "Next.js encountered the unstable value Math.random() while prerendering.",
        "environmentLabel": "Server",
        "label": "Instant",
        "source": "app/error/page.tsx (2:23) @ Page
@@ -99,7 +99,7 @@ describe('Cache Components Dev Errors', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "code": "E1220",
-       "description": "Next.js encountered uncached data during the initial render.",
+       "description": "Next.js encountered uncached data during prerendering.",
        "environmentLabel": "Server",
        "label": "Instant",
        "source": "app/no-accessed-data/page.js (2:9) @ Page

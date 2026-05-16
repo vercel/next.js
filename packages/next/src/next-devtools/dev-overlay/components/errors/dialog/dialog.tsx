@@ -39,6 +39,7 @@ export const DIALOG_STYLES = `
 
   .error-overlay-dialog-scroll {
     overflow-y: auto;
+    scrollbar-gutter: stable;
     height: 100%;
   }
 `
