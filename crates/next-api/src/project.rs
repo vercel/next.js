@@ -1186,7 +1186,7 @@ impl Project {
     pub async fn issue_filter(self: Vc<Self>) -> Result<Vc<IssueFilter>> {
         let ignore_rules = self.next_config().turbopack_ignore_issue_rules().await?;
         Ok(IssueFilter::warnings_and_foreign_errors()
-            .with_ignore_rules(ignore_rules.to_vec())
+            .with_ignore_rules(ReadRef::into_owned(ignore_rules))
             .cell())
     }
 

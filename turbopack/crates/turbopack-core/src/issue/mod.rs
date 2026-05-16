@@ -282,7 +282,7 @@ pub struct IssueFilter {
     /// The minimum severity for issues in node_modules
     foreign_severity: IssueSeverity,
     /// Issues matching any of these rules are ignored (dropped from results).
-    ignore_rules: Vec<IgnoreIssue>,
+    ignore_rules: Box<[IgnoreIssue]>,
 }
 
 impl IssueFilter {
@@ -291,7 +291,7 @@ impl IssueFilter {
         IssueFilter {
             severity: IssueSeverity::Info,
             foreign_severity: IssueSeverity::Info,
-            ignore_rules: Vec::new(),
+            ignore_rules: Box::from([]),
         }
     }
 
@@ -300,12 +300,12 @@ impl IssueFilter {
         IssueFilter {
             severity: IssueSeverity::Warning,
             foreign_severity: IssueSeverity::Error,
-            ignore_rules: Vec::new(),
+            ignore_rules: Box::from([]),
         }
     }
 
     /// Set the ignore rules for this filter.
-    pub fn with_ignore_rules(mut self, rules: Vec<IgnoreIssue>) -> Self {
+    pub fn with_ignore_rules(mut self, rules: Box<[IgnoreIssue]>) -> Self {
         self.ignore_rules = rules;
         self
     }
