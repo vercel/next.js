@@ -285,32 +285,16 @@ pub struct IssueFilter {
     ignore_rules: Vec<IgnoreIssue>,
 }
 
-#[turbo_tasks::value_impl]
 impl IssueFilter {
     /// A filter that lets everything through.
-    #[turbo_tasks::function]
-    pub fn everything() -> Vc<Self> {
+    pub fn everything() -> Self {
         IssueFilter {
             severity: IssueSeverity::Info,
             foreign_severity: IssueSeverity::Info,
             ignore_rules: Vec::new(),
         }
-        .cell()
     }
 
-    /// Returns true if the issue is allowed by this filter.
-    #[turbo_tasks::function]
-    pub async fn matches(&self, issue: ResolvedVc<Box<dyn Issue>>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.matches_all_fast_path()
-                || self
-                    .matches_ref_slow_path(&*issue.into_trait_ref().await?)
-                    .await?,
-        ))
-    }
-}
-
-impl IssueFilter {
     /// Construct a filter with the standard warning/foreign-error severities.
     pub fn warnings_and_foreign_errors() -> Self {
         IssueFilter {
@@ -324,6 +308,14 @@ impl IssueFilter {
     pub fn with_ignore_rules(mut self, rules: Vec<IgnoreIssue>) -> Self {
         self.ignore_rules = rules;
         self
+    }
+
+    /// Returns true if the issue is allowed by this filter.
+    pub async fn matches(&self, issue: ResolvedVc<Box<dyn Issue>>) -> Result<bool> {
+        Ok(self.matches_all_fast_path()
+            || self
+                .matches_ref_slow_path(&*issue.into_trait_ref().await?)
+                .await?)
     }
 
     pub async fn matches_ref(&self, issue: &dyn Issue) -> Result<bool> {
@@ -424,7 +416,7 @@ impl CapturedIssues {
             .issues
             .iter()
             .map(async |issue| {
-                if *filter.matches_ref(**issue).await? {
+                if filter.matches(*issue).await? {
                     Ok(Some(
                         PlainIssue::from_issue(**issue, Some(*self.tracer)).await?,
                     ))
