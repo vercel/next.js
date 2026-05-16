@@ -586,7 +586,7 @@ describe('instant validation - parallel slot configs', () => {
              "code": "E1248",
              "description": "Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked": Could not validate that a segment in your UI has instant navigation.
 
-           A segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.
+           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
 
 
            Dropped segment:
@@ -609,7 +609,7 @@ describe('instant validation - parallel slot configs', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked": Could not validate that a segment in your UI has instant navigation.
 
-           A segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.
+           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
 
 
            Dropped segment:

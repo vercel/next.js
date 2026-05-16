@@ -277,7 +277,7 @@ describe('getUnrenderedSegmentErrorDetails', () => {
     if (files.length > 0) {
       const label = files.length === 1 ? 'Dropped segment' : 'Dropped segments'
       message +=
-        `\n\nA segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.` +
+        `\n\nThis segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.` +
         `\n\n${label}:\n${files.map((p) => `  ${p}`).join('\n')}` +
         `\n\nWays to fix this:` +
         `\n  - Render the dropped segment` +

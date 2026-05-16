@@ -179,10 +179,10 @@ const unrenderedSegmentCards: FixCard[] = [
     ],
   },
   {
-    id: 'skip-validation-on-segment',
-    title: 'Skip validation on segment',
+    id: 'skip-validation-on-the-segment',
+    title: 'Skip validation on the segment',
     group: 'silence',
-    link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#skip-validation-on-segment',
+    link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#skip-validation-on-the-segment',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
@@ -608,7 +608,7 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'sync-io-client':
     'This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.',
   'unrendered-segment':
-    'A segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.',
+    'This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.',
 }
 
 export const BLOCKING_ROUTE_NAVIGATION_EXPLANATION =

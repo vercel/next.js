@@ -61,9 +61,15 @@ export function UnrenderedSegmentInfo({
         firstMissingFile ? `Open ${firstMissingFile} in editor` : undefined
       }
     >
+      <div data-nextjs-codeframe-line="">
+        <span data-nextjs-unrendered-segment-tree-prefix>│</span>
+      </div>
       {nodes.map((node, i) => (
         <TreeRow key={i} node={node} />
       ))}
+      <div data-nextjs-codeframe-line="">
+        <span data-nextjs-unrendered-segment-tree-prefix>│</span>
+      </div>
     </CodeFrameShell>
   )
 }
@@ -76,7 +82,7 @@ function TreeRow({ node }: { node: TreeNode }) {
     lineProps['data-nextjs-codeframe-line--errored'] = true
   }
 
-  let prefix = ''
+  let prefix = '│ '
   for (let i = 0; i < node.depth; i++) {
     prefix += node.pipeMask[i] ? '   ' : '│  '
   }
@@ -89,7 +95,7 @@ function TreeRow({ node }: { node: TreeNode }) {
       {node.isMissing && (
         <span data-nextjs-unrendered-segment-tree-pointer>
           {' '}
-          ← dropped segment
+          ← dropped from rendering
         </span>
       )}
     </div>
@@ -164,15 +170,15 @@ export const UNRENDERED_SEGMENT_INFO_STYLES = css`
     color: var(--color-gray-alpha-700) !important;
   }
 
-  [data-nextjs-unrendered-segment-tree-pointer] {
-    color: var(--color-red-900);
-    margin-left: 8px;
-    white-space: pre;
+  [data-nextjs-unrendered-segment-tree]
+    [data-nextjs-codeframe-line--errored='true']
+    [data-nextjs-unrendered-segment-tree-prefix] {
+    color: var(--color-gray-alpha-1000) !important;
   }
 
-  [data-nextjs-unrendered-segment-tree] .code-frame-lines::after {
-    content: '';
-    display: block;
-    height: var(--code-frame-line-height);
+  [data-nextjs-unrendered-segment-tree-pointer] {
+    color: var(--color-red-900) !important;
+    margin-left: 8px;
+    white-space: pre;
   }
 `

@@ -3415,7 +3415,7 @@ describe('instant validation', () => {
              "code": "E1248",
              "description": "Route "/suspense-in-root/static/multi-depth-deferred-fallback/inner": Could not validate that a segment in your UI has instant navigation.
 
-           A segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.
+           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
 
 
            Dropped segment:
@@ -3440,7 +3440,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/multi-depth-deferred-fallback/inner": Could not validate that a segment in your UI has instant navigation.
 
-           A segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.
+           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
 
 
            Dropped segment:
@@ -3479,7 +3479,7 @@ describe('instant validation', () => {
              "code": "E1248",
              "description": "Route "/suspense-in-root/static/test-firstmod/inter/inner": Could not validate that a segment in your UI has instant navigation.
 
-           A segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.
+           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
 
 
            Dropped segment:
@@ -3504,7 +3504,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/test-firstmod/inter/inner": Could not validate that a segment in your UI has instant navigation.
 
-           A segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.
+           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
 
 
            Dropped segment:
@@ -3541,7 +3541,7 @@ describe('instant validation', () => {
              "code": "E1248",
              "description": "Route "/suspense-in-root/static/test-multi-unrendered": Could not validate that a segment in your UI has instant navigation.
 
-           A segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.
+           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
 
 
            Dropped segments:
@@ -3567,7 +3567,7 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/static/test-multi-unrendered": Could not validate that a segment in your UI has instant navigation.
 
-           A segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.
+           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
 
 
            Dropped segments:
