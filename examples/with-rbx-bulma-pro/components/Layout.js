@@ -1,0 +1,58 @@
+import Link from "next/link";
+import {
+  Generic,
+  Container,
+  Content,
+  Navbar,
+  Section,
+  Hero,
+  Title,
+  Footer,
+} from "rbx";
+
+const Layout = ({ children }) => {
+  return (
+    <Generic>
+      <Navbar fixed="top" color="primary">
+        <Navbar.Brand>
+          <Navbar.Item href="#">Bulma</Navbar.Item>
+          <Navbar.Burger />
+        </Navbar.Brand>
+        <Navbar.Menu>
+          <Navbar.Segment align="start">
+            <Navbar.Item as={Link} href="/">
+              Home
+            </Navbar.Item>
+            <Navbar.Item as={Link} href="/about">
+              About
+            </Navbar.Item>
+            <Navbar.Item as={Link} href="/contact">
+              Contact
+            </Navbar.Item>
+          </Navbar.Segment>
+        </Navbar.Menu>
+      </Navbar>
+      <Section backgroundColor="primary">
+        <Hero>
+          <Hero.Body>
+            <Container>
+              <Title as="h1" align="center" color="white">
+                Welcome to Next!
+              </Title>
+            </Container>
+          </Hero.Body>
+        </Hero>
+      </Section>
+      <Container>
+        <Content>{children}</Content>
+      </Container>
+      <Footer>
+        <Content textAlign="centered">
+          <p>&copy; Vercel, Inc. All rights reserved.</p>
+        </Content>
+      </Footer>
+    </Generic>
+  );
+};
+
+export default Layout;

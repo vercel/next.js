@@ -1,0 +1,69 @@
+name: Update Font Data
+
+on:
+  # Run every every day at midnight https://crontab.guru/#0_0_*_*_*/1
+  schedule:
+    - cron: '0 0 * * */1'
+  # Allow manual runs
+  workflow_dispatch:
+
+env:
+  NODE_LTS_VERSION: 20
+
+jobs:
+  create-pull-request:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'vercel'
+    steps:
+      - name: Create GitHub App token
+        id: release-app-token
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: next.js
+          permission-contents: write
+
+      - name: Get GitHub App user ID
+        id: release-app-user
+        run: |
+          user_id="$(gh api "/users/${{ steps.release-app-token.outputs.app-slug }}[bot]" --jq .id)"
+          echo "user-id=$user_id" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
+
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # Commits made with the default `GITHUB_TOKEN` won't trigger workflows.
+          # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
+          token: ${{ steps.release-app-token.outputs.token }}
+
+      - name: Setup node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: pnpm i
+
+      - name: Create Pull Request
+        shell: bash
+        run: node scripts/automated-update-workflow.js
+        env:
+          RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
+          RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
+          RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
+          PR_GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
+          BRANCH_NAME: fonts-data
+          SCRIPT: scripts/update-google-fonts.js
+          PR_TITLE: Update font data
+          PR_BODY: This auto-generated PR updates font data with latest available

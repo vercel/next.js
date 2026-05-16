@@ -1,0 +1,27 @@
+{
+  "private": true,
+  "scripts": {
+    "predev": "npm run i18n:compile",
+    "dev": "next dev",
+    "prebuild": "npm run i18n:compile",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "i18n:extract": "formatjs extract 'pages/**/*.ts*' 'components/**/*.ts*' --out-file lang/en.json",
+    "i18n:compile": "formatjs compile-folder lang compiled-lang"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-intl": "6.1.1"
+  },
+  "devDependencies": {
+    "@formatjs/cli": "5.1.0",
+    "@types/node": "18.7.23",
+    "@types/react": "18.2.8",
+    "babel-plugin-formatjs": "10.3.28",
+    "eslint-plugin-formatjs": "4.3.1",
+    "typescript": "4.8.4"
+  }
+}

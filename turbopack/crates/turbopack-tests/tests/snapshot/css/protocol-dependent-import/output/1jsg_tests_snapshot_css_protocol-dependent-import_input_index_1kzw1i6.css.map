@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/protocol-dependent-import/input/index.css"],"sourcesContent":["@import url('//example.com/something.css');\n@import '//somewhere.com/example.css';\n\n.foo {\n  background: red;\n}\n"],"names":[],"mappings":"AAGA"}}]
+}

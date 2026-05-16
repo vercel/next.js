@@ -1,0 +1,84 @@
+[
+    Member {
+        obj: WellKnownObject(
+            ImportMeta,
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "prop",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    0,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 9..25,
+    },
+    ImportMeta {
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    0,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Member,
+            ),
+            MemberExpr(
+                Obj,
+            ),
+            Expr(
+                MetaProp,
+            ),
+        ],
+        span: 9..20,
+    },
+]

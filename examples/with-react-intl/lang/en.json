@@ -1,0 +1,30 @@
+{
+  "9CBSZS": {
+    "defaultMessage": "An example app integrating React Intl with Next.js",
+    "description": "Index Page: Meta Description"
+  },
+  "I0B7AG": {
+    "defaultMessage": "Hello, World!",
+    "description": "Index Page: Content"
+  },
+  "Lg2S9x": {
+    "defaultMessage": "React Intl Next.js Example",
+    "description": "Default document title"
+  },
+  "Ml7614": {
+    "defaultMessage": "Home",
+    "description": "Nav: Index name"
+  },
+  "WIATrC": {
+    "defaultMessage": "This page is powered by Next.js",
+    "description": "Default document description"
+  },
+  "lyiQWH": {
+    "defaultMessage": "Home",
+    "description": "Index Page: document title"
+  },
+  "n5ul5I": {
+    "defaultMessage": "About",
+    "description": "Nav: About item"
+  }
+}

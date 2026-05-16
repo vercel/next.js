@@ -1,0 +1,24 @@
+---
+title: nonce contained invalid characters
+---
+
+## Why This Error Occurred
+
+A request to your Next.js application contained a `Content-Security-Policy`
+header with a `script-src` directive and `nonce` that contains
+invalid characters (any one of `<>&` characters). For example:
+
+- `'nonce-<script />'`: not allowed
+- `'nonce-/>script<>'`: not allowed
+- `'nonce-PHNjcmlwdCAvPg=='`: allowed
+- `'nonce-Lz5zY3JpcHQ8Pg=='`: allowed
+
+## Possible Ways to Fix It
+
+We recommend using a randomly generated UUID for your nonce.
+
+Learn more about how to use nonces with Next.js in our [Content Security Policy](/docs/app/guides/content-security-policy) docs.
+
+## Useful Links
+
+- [Content Security Policy](/docs/app/guides/content-security-policy)

@@ -1,0 +1,37 @@
+name: 'Setup Datadog CI'
+description: 'Installs the datadog-ci binary and sets $DATADOG_CI_PATH'
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Install datadog-ci'
+      shell: bash
+      run: |
+        echo "DATADOG_CI_PATH=/bin/false" >> $GITHUB_ENV
+
+        DATADOG_CI_VERSION=v5.12.1
+        DATADOG_CI_PATH="/tmp/nextjs-ci-bin-datadog-ci-$DATADOG_CI_VERSION"
+        case "$RUNNER_OS" in
+          Windows)
+            DATADOG_CI_PATH="$DATADOG_CI_PATH.exe"
+            DATADOG_CI_SHA256=4b8320d0b5644c9370e01fd9e38e6f0306c709757c45238416b8eae679c41f75
+            DATADOG_CI_ASSET=datadog-ci_win-x64
+            ;;
+          *)
+            DATADOG_CI_SHA256=86fcf24d5211f5ae714e947354ccb621e74e2bba4162247890454c6461e74ca5
+            DATADOG_CI_ASSET=datadog-ci_linux-x64
+            ;;
+        esac
+
+        if [[ ! -x "$DATADOG_CI_PATH" ]]; then
+          echo "Downloading $DATADOG_CI_PATH"
+          curl -L --fail --retry 2 -o "$DATADOG_CI_PATH" \
+            "https://github.com/DataDog/datadog-ci/releases/download/$DATADOG_CI_VERSION/$DATADOG_CI_ASSET"
+          if ! echo "$DATADOG_CI_SHA256  $DATADOG_CI_PATH" | sha256sum --check --status; then
+            echo "Checksum mismatch of $DATADOG_CI_PATH"
+            rm -f "$DATADOG_CI_PATH"
+            exit 1
+          fi
+          chmod +x "$DATADOG_CI_PATH"
+        fi
+
+        echo "DATADOG_CI_PATH=$DATADOG_CI_PATH" >> $GITHUB_ENV

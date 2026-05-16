@@ -1,0 +1,27 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "setup": "node ./lib/setup.js"
+  },
+  "dependencies": {
+    "@contentful/rich-text-react-renderer": "^15.17.1",
+    "@contentful/rich-text-types": "^16.2.1",
+    "@contentful/vercel-nextjs-toolkit": "latest",
+    "@tailwindcss/typography": "0.5.9",
+    "@types/node": "^20.5.0",
+    "@types/react": "^18.2.20",
+    "@types/react-dom": "^18.2.7",
+    "autoprefixer": "10.4.15",
+    "contentful-import": "^9.0.4",
+    "date-fns": "2.30.0",
+    "next": "latest",
+    "postcss": "8.4.31",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tailwindcss": "^3.3.3",
+    "typescript": "^5.1.6"
+  }
+}

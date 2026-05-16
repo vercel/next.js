@@ -1,0 +1,15 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "realm-web": "0.9.0",
+    "swr": "^2.0.0"
+  }
+}

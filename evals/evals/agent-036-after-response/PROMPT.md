@@ -1,0 +1,1 @@
+Create a server component that displays a welcome message and logs the page view to an analytics service. The logging should NOT block the response - use Next.js's recommended approach for scheduling work after the response is sent.

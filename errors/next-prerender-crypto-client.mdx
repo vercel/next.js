@@ -1,0 +1,149 @@
+---
+title: Cannot access `crypto.getRandomValue()`, `crypto.randomUUID()`, or another web or node crypto API that generates random values synchronously from a Client Component without a fallback UI defined
+---
+
+## Why This Error Occurred
+
+A Client Component is accessing a random value synchronously from the Web Crypto API or from Node's `crypto` API.
+
+Client Components primarily run in the browser however on an initial page visit, Next.js will serve an HTML page produced by simulating the client environment on the server. This process is called Server Side Rendering or SSR. Next.js will attempt to prerender this HTML ahead of time however if a Client Component accesses a random source during this prerender, it cannot include this component in the prerendered HTML, otherwise the value will be fixed on each user request and not random like expected. Next.js will use the nearest Suspense boundary around this component to prerender a fallback instead however in this instance there was no Suspense boundary.
+
+There are a number of ways you might fix this issue depending on the specifics of your use case.
+
+## Possible Ways to Fix It
+
+### Provide Fallback UI
+
+If your random value is intended to be unique per Request, add a Suspense boundary around the component that calls the crypto API that produces this value. This allows Next.js to prerender a fallback UI and fill in an actual random value when the user requests the page.
+
+Before:
+
+```jsx filename="app/blog/new/page.js"
+'use client'
+
+export default function Page() {
+  const newBlogId = crypto.randomUUID()
+  return <BlogAuthoringView id={newBlogId} />
+}
+```
+
+After:
+
+```jsx filename="app/blog/new/page.js"
+"use client"
+
+import { Suspense } from 'react'
+
+export default function Page() {
+  return (
+    <Suspense fallback={<BlogAuthorSkeleton />}>
+      <DynamicAuthoringView />
+    </Suspense>
+  )
+}
+
+function BlogAuthorSkeleton() {
+  ...
+}
+
+function DynamicAuthoringView() {
+  const newBlogId = crypto.randomUUID()
+  return <BlogAuthoringView id={newBlogId} />
+}
+```
+
+### Only access crypto in the browser
+
+If your random value is only intended for use in the browser you can move the call into an effect or event handler. React does not run effects during server rendering and there are no events during server rendering so neither option will require the prerender to exclude this component.
+
+Before:
+
+```jsx filename="app/workflow.js"
+'use client'
+
+function createSecureId() {
+  const array = new Uint8Array(16)
+  crypto.getRandomValues(array)
+  return array[0].toString(16)
+}
+
+export default function Workflow({ currentStep, onNext, onPrev }) {
+  const [id] = useState(createSecureId)
+
+  const next = onNext
+    ? () => {
+        trackEvent(id, 'forward')
+        onNext()
+      }
+    : null
+
+  const previous = onPrev
+    ? () => {
+        trackEvent(id, 'previous')
+        onPrev()
+      }
+    : null
+
+  return (
+    <>
+      {currentStep}
+      {next ? <button onClick={next}>Next</button> : null}
+      {previous ? <button onClick={previous}>Previous</button> : null}
+    </>
+  )
+}
+```
+
+After:
+
+```jsx filename="app/workflow.js"
+'use client'
+
+import { useRef } from 'react'
+
+function createSecureId() {
+  const array = new Uint8Array(16)
+  crypto.getRandomValues(array)
+  return array[0].toString(16)
+}
+
+function getOrCreateId(ref) {
+  if (!ref.current) {
+    ref.current = createSecureId()
+  }
+  return ref.current
+}
+
+export default function Workflow({ currentStep, onNext, onPrev }) {
+  const idRef = useRef(null)
+
+  const next = onNext
+    ? () => {
+        trackEvent(getOrCreateId(idRef), 'forward')
+        onNext()
+      }
+    : null
+
+  const previous = onPrev
+    ? () => {
+        trackEvent(getOrCreateId(idRef), 'previous')
+        onPrev()
+      }
+    : null
+
+  return (
+    <>
+      {currentStep}
+      {next ? <button onClick={next}>Next</button> : null}
+      {previous ? <button onClick={previous}>Previous</button> : null}
+    </>
+  )
+}
+```
+
+## Useful Links
+
+- [`connection` function](/docs/app/api-reference/functions/connection)
+- [Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API)
+- [Node Crypto API](https://nodejs.org/docs/latest/api/crypto.html)
+- [`Suspense` React API](https://react.dev/reference/react/Suspense)

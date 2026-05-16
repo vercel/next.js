@@ -1,0 +1,4 @@
+.myClass {
+  composes: something from './not-a-css-module.txt';
+  color: red;
+}

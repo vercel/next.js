@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question or discuss a topic
+    url: https://github.com/vercel/next.js/discussions
+    about: Ask questions or discuss with other Next.js users in discussions.
+  - name: Feature or documentation request
+    url: https://github.com/vercel/next.js/discussions/new?category=ideas
+    about: Open a feature or documentation request in discussions.
+  - name: Next.js Learn course
+    url: https://github.com/vercel/next-learn/issues/new
+    about: Next.js Learn course-related issues should be reported in this repository instead.

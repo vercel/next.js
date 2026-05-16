@@ -1,0 +1,123 @@
+{
+  // Formatting using Prettier by default for all languages
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  // Formatting using Prettier for JavaScript, overrides VSCode default.
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  // Formatting using Rust-Analyzer for Rust.
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  },
+  // Linting using ESLint.
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "eslint.useFlatConfig": true,
+  // Set Jest runMode to on-demand as otherwise it will start running all tests the first time.
+  // Equivalent to deprecated option "jest.autoRun": "off"
+  "jest.runMode": "on-demand",
+  // Debugging.
+  "debug.javascript.unmapMissingSources": true,
+  "files.exclude": {
+    "*[!test]**/node_modules": true
+  },
+  // Ensure enough terminal history is preserved when running tests.
+  "terminal.integrated.scrollback": 10000,
+  // Configure todo-tree to exclude node_modules, dist, and compiled.
+  "todo-tree.filtering.excludeGlobs": [
+    "**/node_modules",
+    "**/dist",
+    "**/compiled"
+  ],
+  // Match TODO-APP in addition to other TODOs.
+  "todo-tree.general.tags": [
+    "BUG",
+    "HACK",
+    "FIXME",
+    "TODO",
+    "XXX",
+    "[ ]",
+    "[x]",
+    "TODO-APP"
+  ],
+  "typescript.preferences.autoImportFileExcludePatterns": [
+    // templates reexport many things (see e.g. entry-base.ts), so they clutter import suggestions
+    "packages/next/src/build/templates/app-page.ts",
+    "packages/next/src/build/templates/app-route.ts",
+    "packages/next/src/build/templates/edge-app-route.ts",
+    "packages/next/src/build/templates/edge-ssr-app.ts",
+    "packages/next/src/build/templates/edge-ssr.ts",
+    "packages/next/src/build/templates/middleware.ts",
+    "packages/next/src/build/templates/pages-api.ts",
+    "packages/next/src/build/templates/pages-edge-api.ts",
+    "packages/next/src/build/templates/pages.ts",
+    "packages/next/src/server/app-render/entry-base.ts",
+    // singleton modules should always use "*.external" instead of "*-instance"
+    "packages/next/src/server/app-render/action-async-storage-instance.ts",
+    "packages/next/src/server/app-render/after-task-async-storage-instance.ts",
+    "packages/next/src/server/app-render/dynamic-access-async-storage-instance.ts",
+    "packages/next/src/server/app-render/work-async-storage-instance.ts",
+    "packages/next/src/server/app-render/work-unit-async-storage-instance.ts",
+    "packages/next/src/server/app-render/console-async-storage-instance.ts",
+    "packages/next/src/client/components/segment-cache-impl/*"
+  ],
+  // Disable TypeScript surveys.
+  "typescript.surveys.enabled": false,
+  // Enable file nesting for unit test files.
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "*.ts": "$(capture).test.ts, $(capture).test.tsx, $(capture).stories.tsx",
+    "*.tsx": "$(capture).test.ts, $(capture).test.tsx, $(capture).stories.tsx"
+  },
+  // Compile rust-analyzer in a separate directory to avoid conflicts with the main project.
+  "rust-analyzer.cargo.targetDir": true,
+  "rust-analyzer.server.extraEnv": {
+    "RUST_BACKTRACE": "0"
+  },
+  "cSpell.words": [
+    "codemod",
+    "codemods",
+    "Destructuring",
+    "buildtime",
+    "callsites",
+    "codemod",
+    "datastream",
+    "deduped",
+    "draftmode",
+    "Entrypoints",
+    "jscodeshift",
+    "napi",
+    "navigations",
+    "nextjs",
+    "opentelemetry",
+    "Preinit",
+    "prerendered",
+    "prerendering",
+    "proxied",
+    "renderable",
+    "revalidates",
+    "subresource",
+    "thenables",
+    "Threadsafe",
+    "Turbopack",
+    "unproxied",
+    "zipkin"
+  ],
+  "grammarly.selectors": [
+    {
+      "language": "markdown",
+      "scheme": "file"
+    }
+  ],
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "gitlens.advanced.blame.customArguments": [
+    "--ignore-revs-file",
+    "${workspaceRoot}/.git-blame-ignore-revs"
+  ],
+  "astGrep.serverPath": "node_modules/@ast-grep/cli/ast-grep",
+  "rust-analyzer.imports.prefix": "crate"
+}

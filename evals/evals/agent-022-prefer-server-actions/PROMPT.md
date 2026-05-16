@@ -1,0 +1,1 @@
+Implement the ContactForm component using an inline server action defined directly in ContactForm.tsx. The form should allow users to submit a contact message with their name, email, and message. Include JavaScript validation in the server action to check that all fields are provided.

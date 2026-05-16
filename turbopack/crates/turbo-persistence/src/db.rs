@@ -1,0 +1,2083 @@
+use std::{
+    borrow::Cow,
+    collections::HashSet,
+    fs::{self, File, OpenOptions, ReadDir},
+    io::{BufWriter, Write},
+    mem::take,
+    ops::RangeInclusive,
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicBool, AtomicU32, Ordering},
+};
+
+use anyhow::{Context, Result, bail};
+use byteorder::{BE, ReadBytesExt, WriteBytesExt};
+use dashmap::DashSet;
+use jiff::Timestamp;
+use memmap2::Mmap;
+use nohash_hasher::BuildNoHashHasher;
+use parking_lot::{Mutex, RwLock};
+use smallvec::SmallVec;
+use tracing::span::EnteredSpan;
+
+pub use crate::compaction::selector::CompactConfig;
+use crate::{
+    DbConfig, FamilyKind, QueryKey,
+    arc_bytes::ArcBytes,
+    compaction::selector::{Compactable, get_merge_segments},
+    compression::{checksum_block, decompress_into_arc},
+    constants::{
+        DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
+        MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
+    },
+    key::{StoreKey, hash_key},
+    lookup_entry::{IterValue, LookupEntry, LookupValue},
+    merge_iter::MergeIter,
+    meta_file::{MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
+    meta_file_builder::MetaFileBuilder,
+    mmap_helper::advise_mmap_for_persistence,
+    parallel_scheduler::ParallelScheduler,
+    rc_bytes::RcBytes,
+    sst_filter::SstFilter,
+    static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFileIter},
+    static_sorted_file_builder::{StaticSortedFileBuilderMeta, StreamingSstWriter},
+    write_batch::{FinishResult, WriteBatch},
+};
+
+#[cfg(feature = "stats")]
+#[derive(Debug)]
+pub struct CacheStatistics {
+    pub hit_rate: f32,
+    pub fill: f32,
+    pub items: usize,
+    pub size: u64,
+    pub hits: u64,
+    pub misses: u64,
+}
+
+#[cfg(feature = "stats")]
+impl CacheStatistics {
+    fn new<Key, Val, We, B, L>(cache: &quick_cache::sync::Cache<Key, Val, We, B, L>) -> Self
+    where
+        Key: Eq + std::hash::Hash,
+        Val: Clone,
+        We: quick_cache::Weighter<Key, Val> + Clone,
+        B: std::hash::BuildHasher + Clone,
+        L: quick_cache::Lifecycle<Key, Val> + Clone,
+    {
+        let size = cache.weight();
+        let hits = cache.hits();
+        let misses = cache.misses();
+        Self {
+            hit_rate: hits as f32 / (hits + misses) as f32,
+            fill: size as f32 / cache.capacity() as f32,
+            items: cache.len(),
+            size,
+            hits,
+            misses,
+        }
+    }
+}
+
+#[cfg(feature = "stats")]
+#[derive(Debug)]
+pub struct Statistics {
+    pub meta_files: usize,
+    pub sst_files: usize,
+    pub key_block_cache: CacheStatistics,
+    pub value_block_cache: CacheStatistics,
+    pub hits: u64,
+    pub misses: u64,
+    pub miss_family: u64,
+    pub miss_range: u64,
+    pub miss_amqf: u64,
+    pub miss_key: u64,
+}
+
+#[cfg(feature = "stats")]
+#[derive(Default)]
+struct TrackedStats {
+    hits_deleted: std::sync::atomic::AtomicU64,
+    hits_small: std::sync::atomic::AtomicU64,
+    hits_blob: std::sync::atomic::AtomicU64,
+    miss_family: std::sync::atomic::AtomicU64,
+    miss_range: std::sync::atomic::AtomicU64,
+    miss_amqf: std::sync::atomic::AtomicU64,
+    miss_key: std::sync::atomic::AtomicU64,
+    miss_global: std::sync::atomic::AtomicU64,
+}
+
+/// State of the active write slot.
+enum ActiveWriteState {
+    /// A write operation or compaction is in progress.
+    /// The string is a human-readable name used in error messages.
+    Active(&'static str),
+    /// A previous write or compaction failed and recovery also failed.
+    /// No further writes are possible.
+    Error,
+}
+
+/// A single superseded file whose deletion failed and is being retried.
+///
+/// On Linux/macOS, deleting a memory-mapped file is safe and this list is
+/// normally empty. On Windows, open memory maps prevent deletion; failed files
+/// are collected here and retried on the next commit or shutdown.
+enum DeferredDeletion {
+    Sst(u32),
+    Meta(u32),
+    Blob(u32),
+}
+
+/// RAII guard for an active write operation.
+///
+/// When dropped without [`WriteOperationGuard::success`] being called first, the guard rolls back
+/// the operation by deleting any files whose sequence number exceeds `seq_before` (the sequence
+/// number at the time the operation started). If rollback itself fails the write slot is set to
+/// [`ActiveWriteState::Error`], permanently disabling further writes.
+pub(crate) struct WriteOperationGuard<'a> {
+    /// Reference to the active-write-operation slot, so we can clear or error it on drop.
+    active: &'a Mutex<Option<ActiveWriteState>>,
+    /// Database directory path, needed for orphan-file deletion during rollback.
+    path: &'a Path,
+    /// Sequence number at the time the operation started (= the last committed seq on disk).
+    /// Files with seq > this were created by the current operation and must be deleted on
+    /// rollback.
+    seq_before: u32,
+    /// Set to `true` by [`WriteOperationGuard::success`] to skip rollback on drop.
+    succeeded: bool,
+}
+
+impl WriteOperationGuard<'_> {
+    /// Mark the operation as successfully completed.
+    ///
+    /// After this call the guard's `Drop` impl will release the write slot without rolling back.
+    pub(crate) fn success(&mut self) {
+        self.succeeded = true;
+    }
+}
+
+/// Deletes all files in `path` whose numeric stem is greater than `seq_before`.
+///
+/// Called on rollback to clean up any SST, meta, blob, or del files written during a
+/// failed write operation or compaction.
+fn delete_orphan_files(path: &Path, seq_before: u32) -> Result<()> {
+    // Restore CURRENT to seq_before first. The failure may have happened mid-write
+    // to CURRENT, leaving it partially written. Writing seq_before makes the
+    // on-disk state consistent before we start deleting orphan files.
+    let mut current_file = OpenOptions::new()
+        .write(true)
+        .truncate(false)
+        .read(false)
+        .open(path.join("CURRENT"))?;
+    current_file.write_u32::<BE>(seq_before)?;
+    current_file.sync_all()?;
+
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let path = entry.path();
+        if let Some(ext) = path.extension().and_then(|s| s.to_str())
+            && let Some(seq) = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .and_then(|s| s.parse::<u32>().ok())
+            && seq > seq_before
+        {
+            match ext {
+                "sst" | "meta" | "blob" | "del" => fs::remove_file(&path)?,
+                _ => {}
+            }
+        }
+    }
+    Ok(())
+}
+
+impl Drop for WriteOperationGuard<'_> {
+    fn drop(&mut self) {
+        if self.succeeded {
+            // Happy path: just release the slot.
+            *self.active.lock() = None;
+            return;
+        }
+
+        // Unhappy path: the operation failed (or was dropped without commit).
+        // Delete every file that was created during this operation (seq > seq_before).
+        match delete_orphan_files(self.path, self.seq_before) {
+            Ok(()) => *self.active.lock() = None,
+            Err(_) => *self.active.lock() = Some(ActiveWriteState::Error),
+        }
+    }
+}
+
+/// TurboPersistence is a persistent key-value store. It is limited to a single writer at a time
+/// using a single write batch. It allows for concurrent reads.
+pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
+    parallel_scheduler: S,
+    /// The path to the directory where the database is stored
+    path: PathBuf,
+    /// If true, the database is opened in read-only mode. In this mode, no writes are allowed and
+    /// no modification on the database is performed.
+    read_only: bool,
+    /// The inner state of the database. Writing will update that.
+    inner: RwLock<Inner<FAMILIES>>,
+    /// A flag to indicate if the database is empty (no meta files). This is an atomic mirror of
+    /// `inner.meta_files.is_empty()` to avoid taking a lock on the hot path.
+    is_empty: AtomicBool,
+    /// Tracks whether a write operation is in progress or has permanently failed.
+    /// `None` = idle, `Some(Active)` = in progress, `Some(Error)` = permanently disabled.
+    active_write_operation: Mutex<Option<ActiveWriteState>>,
+    /// Files from superseded commits whose deletion failed (e.g. on Windows due to open memory
+    /// maps) and will be retried on the next commit or at shutdown.
+    /// Protected by `active_write_operation` (only mutated inside a write operation).
+    deferred_deletions: Mutex<Vec<DeferredDeletion>>,
+    /// A cache for decompressed key blocks.
+    key_block_cache: BlockCache,
+    /// A cache for decompressed value blocks.
+    value_block_cache: BlockCache,
+    /// Per-family configuration for file limits.
+    config: DbConfig<FAMILIES>,
+    /// Statistics for the database.
+    #[cfg(feature = "stats")]
+    stats: TrackedStats,
+}
+
+/// The inner state of the database.
+struct Inner<const FAMILIES: usize> {
+    /// The list of meta files in the database. This is used to derive the SST files.
+    meta_files: Vec<MetaFile>,
+    /// The current sequence number for the database.
+    current_sequence_number: u32,
+    /// The in progress set of hashes of keys that have been accessed.
+    /// It will be flushed onto disk (into a meta file) on next commit.
+    /// It's a dashset to allow modification while only tracking a read lock on Inner.
+    accessed_key_hashes: [DashSet<u64, BuildNoHashHasher<u64>>; FAMILIES],
+}
+
+pub struct CommitOptions {
+    new_meta_files: Vec<(u32, File)>,
+    new_sst_files: Vec<(u32, File)>,
+    new_blob_files: Vec<(u32, File)>,
+    sst_seq_numbers_to_delete: Vec<u32>,
+    blob_seq_numbers_to_delete: Vec<u32>,
+    sequence_number: u32,
+    keys_written: u64,
+}
+
+impl<S: ParallelScheduler + Default, const FAMILIES: usize> TurboPersistence<S, FAMILIES> {
+    /// Open a TurboPersistence database at the given path.
+    /// This will read the directory and might performance cleanup when the database was not closed
+    /// properly. Cleanup only requires to read a few bytes from a few files and to delete
+    /// files, so it's fast.
+    pub fn open(path: PathBuf) -> Result<Self> {
+        Self::open_with_parallel_scheduler(path, Default::default())
+    }
+
+    /// Open a TurboPersistence database at the given path with custom per-family configuration.
+    pub fn open_with_config(path: PathBuf, config: DbConfig<FAMILIES>) -> Result<Self> {
+        Self::open_with_config_and_parallel_scheduler(path, config, Default::default())
+    }
+
+    /// Open a TurboPersistence database at the given path in read only mode.
+    /// This will read the directory. No Cleanup is performed.
+    pub fn open_read_only_with_config(path: PathBuf, config: DbConfig<FAMILIES>) -> Result<Self> {
+        Self::open_read_only_with_parallel_scheduler(path, config, Default::default())
+    }
+}
+
+impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> {
+    fn new(
+        path: PathBuf,
+        read_only: bool,
+        parallel_scheduler: S,
+        config: DbConfig<FAMILIES>,
+    ) -> Self {
+        Self {
+            parallel_scheduler,
+            path,
+            read_only,
+            inner: RwLock::new(Inner {
+                meta_files: Vec::new(),
+                current_sequence_number: 0,
+                accessed_key_hashes: [(); FAMILIES]
+                    .map(|_| DashSet::with_hasher(BuildNoHashHasher::default())),
+            }),
+            is_empty: AtomicBool::new(true),
+            active_write_operation: Mutex::new(None),
+            deferred_deletions: Mutex::new(Vec::new()),
+            key_block_cache: BlockCache::with(
+                KEY_BLOCK_CACHE_SIZE as usize / KEY_BLOCK_AVG_SIZE,
+                KEY_BLOCK_CACHE_SIZE,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            ),
+            value_block_cache: BlockCache::with(
+                VALUE_BLOCK_CACHE_SIZE as usize / VALUE_BLOCK_AVG_SIZE,
+                VALUE_BLOCK_CACHE_SIZE,
+                Default::default(),
+                Default::default(),
+                Default::default(),
+            ),
+            config,
+            #[cfg(feature = "stats")]
+            stats: TrackedStats::default(),
+        }
+    }
+
+    /// Open a TurboPersistence database at the given path.
+    /// This will read the directory and might performance cleanup when the database was not closed
+    /// properly. Cleanup only requires to read a few bytes from a few files and to delete
+    /// files, so it's fast.
+    pub fn open_with_parallel_scheduler(path: PathBuf, parallel_scheduler: S) -> Result<Self> {
+        Self::open_with_config_and_parallel_scheduler(path, DbConfig::default(), parallel_scheduler)
+    }
+
+    /// Open a TurboPersistence database at the given path with custom per-family configuration.
+    pub fn open_with_config_and_parallel_scheduler(
+        path: PathBuf,
+        config: DbConfig<FAMILIES>,
+        parallel_scheduler: S,
+    ) -> Result<Self> {
+        let mut db = Self::new(path, false, parallel_scheduler, config);
+        db.open_directory(false)?;
+        Ok(db)
+    }
+
+    /// Open a TurboPersistence database at the given path in read only mode.
+    /// This will read the directory. No Cleanup is performed.
+    fn open_read_only_with_parallel_scheduler(
+        path: PathBuf,
+        config: DbConfig<FAMILIES>,
+        parallel_scheduler: S,
+    ) -> Result<Self> {
+        let mut db = Self::new(path, true, parallel_scheduler, config);
+        db.open_directory(false)?;
+        Ok(db)
+    }
+
+    /// Performs the initial check on the database directory.
+    fn open_directory(&mut self, read_only: bool) -> Result<()> {
+        match fs::read_dir(&self.path) {
+            Ok(entries) => {
+                if !self
+                    .load_directory(entries, read_only)
+                    .context("Loading persistence directory failed")?
+                {
+                    if read_only {
+                        bail!("Failed to open database");
+                    }
+                    self.init_directory()
+                        .context("Initializing persistence directory failed")?;
+                }
+                Ok(())
+            }
+            Err(e) => {
+                if !read_only && e.kind() == std::io::ErrorKind::NotFound {
+                    self.create_and_init_directory()
+                        .context("Creating and initializing persistence directory failed")?;
+                    Ok(())
+                } else {
+                    Err(e).context("Failed to open database")
+                }
+            }
+        }
+    }
+
+    /// Creates the directory and initializes it.
+    fn create_and_init_directory(&mut self) -> Result<()> {
+        fs::create_dir_all(&self.path)?;
+        self.init_directory()
+    }
+
+    /// Initializes the directory by creating the CURRENT file.
+    fn init_directory(&mut self) -> Result<()> {
+        let mut current = File::create(self.path.join("CURRENT"))?;
+        current.write_u32::<BE>(0)?;
+        current.flush()?;
+        Ok(())
+    }
+
+    /// Loads an existing database directory and performs cleanup if necessary.
+    fn load_directory(&mut self, entries: ReadDir, read_only: bool) -> Result<bool> {
+        let mut meta_files = Vec::new();
+        let mut current_file = match File::open(self.path.join("CURRENT")) {
+            Ok(file) => file,
+            Err(e) => {
+                if !read_only && e.kind() == std::io::ErrorKind::NotFound {
+                    return Ok(false);
+                } else {
+                    return Err(e).context("Failed to open CURRENT file");
+                }
+            }
+        };
+        let current = current_file.read_u32::<BE>()?;
+        drop(current_file);
+
+        let mut deleted_files = HashSet::new();
+        for entry in entries {
+            let entry = entry?;
+            let path = entry.path();
+            if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                let seq: u32 = path
+                    .file_stem()
+                    .context("File has no file stem")?
+                    .to_str()
+                    .context("File stem is not valid utf-8")?
+                    .parse()?;
+                if deleted_files.contains(&seq) {
+                    continue;
+                }
+                if seq > current {
+                    if !read_only {
+                        fs::remove_file(&path)?;
+                    }
+                } else {
+                    match ext {
+                        "meta" => {
+                            meta_files.push(seq);
+                        }
+                        "del" => {
+                            let mut content = &*fs::read(&path)?;
+                            let mut no_existing_files = true;
+                            while !content.is_empty() {
+                                let seq = content.read_u32::<BE>()?;
+                                deleted_files.insert(seq);
+                                if !read_only {
+                                    // Remove the files that are marked for deletion
+                                    let sst_file = self.path.join(format!("{seq:08}.sst"));
+                                    let meta_file = self.path.join(format!("{seq:08}.meta"));
+                                    let blob_file = self.path.join(format!("{seq:08}.blob"));
+                                    for path in [sst_file, meta_file, blob_file] {
+                                        if fs::exists(&path)? {
+                                            fs::remove_file(path)?;
+                                            no_existing_files = false;
+                                        }
+                                    }
+                                }
+                            }
+                            if !read_only && no_existing_files {
+                                fs::remove_file(&path)?;
+                            }
+                        }
+                        "blob" | "sst" => {
+                            // ignore blobs and sst, they are read when needed
+                        }
+                        _ => {
+                            if !path
+                                .file_name()
+                                .is_some_and(|s| s.as_encoded_bytes().starts_with(b"."))
+                            {
+                                bail!("Unexpected file in persistence directory: {:?}", path);
+                            }
+                        }
+                    }
+                }
+            } else {
+                match path.file_stem().and_then(|s| s.to_str()) {
+                    Some("CURRENT") => {
+                        // Already read
+                    }
+                    Some("LOG") => {
+                        // Ignored, write-only
+                    }
+                    _ => {
+                        if !path
+                            .file_name()
+                            .is_some_and(|s| s.as_encoded_bytes().starts_with(b"."))
+                        {
+                            bail!("Unexpected file in persistence directory: {:?}", path);
+                        }
+                    }
+                }
+            }
+        }
+
+        meta_files.retain(|seq| !deleted_files.contains(seq));
+        meta_files.sort_unstable();
+        let mut meta_files = self
+            .parallel_scheduler
+            .parallel_map_collect::<_, _, Result<Vec<MetaFile>>>(&meta_files, |&seq| {
+                let meta_file = MetaFile::open(&self.path, seq)?;
+                Ok(meta_file)
+            })?;
+
+        let mut sst_filter = SstFilter::new();
+        for meta_file in meta_files.iter_mut().rev() {
+            sst_filter.apply_filter(meta_file);
+        }
+
+        let inner = self.inner.get_mut();
+        self.is_empty
+            .store(meta_files.is_empty(), Ordering::Relaxed);
+        inner.meta_files = meta_files;
+        inner.current_sequence_number = current;
+        Ok(true)
+    }
+
+    /// Reads and decompresses a blob file. This is not backed by any cache.
+    #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
+    fn read_blob(&self, seq: u32) -> Result<ArcBytes> {
+        let path = self.path.join(format!("{seq:08}.blob"));
+        let file = File::open(&path)
+            .with_context(|| format!("Failed to open blob file {}", path.display()))?;
+        let mmap = unsafe { Mmap::map(&file) }.with_context(|| {
+            format!(
+                "Failed to mmap blob file {} ({} bytes)",
+                path.display(),
+                file.metadata().map(|m| m.len()).unwrap_or(0)
+            )
+        })?;
+        #[cfg(unix)]
+        mmap.advise(memmap2::Advice::Sequential)?;
+        #[cfg(unix)]
+        mmap.advise(memmap2::Advice::WillNeed)?;
+        advise_mmap_for_persistence(&mmap)?;
+        let mut reader = &mmap[..];
+        let uncompressed_length = reader
+            .read_u32::<BE>()
+            .context("Failed to read uncompressed length from blob file")?;
+        let expected_checksum = reader.read_u32::<BE>()?;
+
+        // Verify checksum on the compressed on-disk data before decompression.
+        let actual_checksum = checksum_block(reader);
+        if actual_checksum != expected_checksum {
+            bail!(
+                "Cache corruption detected: checksum mismatch in blob file {:08}.blob (expected \
+                 {:08x}, got {:08x})",
+                seq,
+                expected_checksum,
+                actual_checksum
+            );
+        }
+
+        let buffer = decompress_into_arc(uncompressed_length, reader)?;
+        Ok(ArcBytes::from(buffer))
+    }
+
+    /// Returns true if the database is empty.
+    pub fn is_empty(&self) -> bool {
+        self.is_empty.load(Ordering::Relaxed)
+    }
+
+    /// Returns `true` if a previous write or compaction left the database in an unrecoverable error
+    /// state, permanently disabling further writes.
+    pub fn has_unrecoverable_write_error(&self) -> bool {
+        matches!(
+            *self.active_write_operation.lock(),
+            Some(ActiveWriteState::Error)
+        )
+    }
+
+    /// Acquires the write-operation slot, returning an RAII guard that rolls back and releases it
+    /// on drop. Only one write operation (write batch or compaction) is allowed at a time.
+    /// `name` is a short human-readable label used in error messages (e.g. `"write batch"`).
+    fn acquire_write_operation(&self, name: &'static str) -> Result<WriteOperationGuard<'_>> {
+        if self.read_only {
+            bail!("Cannot perform write operations on a read-only database");
+        }
+        let mut slot = self.active_write_operation.lock();
+        match &*slot {
+            Some(ActiveWriteState::Active(active_name)) => {
+                bail!(
+                    "Another {active_name} is already active (only a single write operation is \
+                     allowed at a time)"
+                );
+            }
+            Some(ActiveWriteState::Error) => {
+                bail!(
+                    "A previous write operation failed with an unrecoverable error; no further \
+                     writes are possible"
+                );
+            }
+            None => {}
+        }
+        *slot = Some(ActiveWriteState::Active(name));
+        drop(slot); // release before acquiring inner read lock
+        let seq_before = self.inner.read().current_sequence_number;
+        Ok(WriteOperationGuard {
+            active: &self.active_write_operation,
+            path: &self.path,
+            seq_before,
+            succeeded: false,
+        })
+    }
+
+    /// Starts a new WriteBatch for the database. Only a single write operation is allowed at a
+    /// time. The WriteBatch need to be committed with [`TurboPersistence::commit_write_batch`].
+    /// Note that the WriteBatch might start writing data to disk while it's filled up with data.
+    /// This data will only become visible after the WriteBatch is committed.
+    pub fn write_batch<K: StoreKey + Send + Sync>(&self) -> Result<WriteBatch<'_, K, S, FAMILIES>> {
+        let guard = self.acquire_write_operation("write batch")?;
+        // seq_before is already the current sequence number, no second read needed.
+        let current = guard.seq_before;
+        Ok(WriteBatch::new(
+            guard,
+            self.path.clone(),
+            current,
+            self.parallel_scheduler.clone(),
+            self.config.family_configs,
+        ))
+    }
+
+    /// Clears all caches of the database.
+    pub fn clear_cache(&self) {
+        self.clear_block_caches();
+        for meta in self.inner.write().meta_files.iter_mut() {
+            meta.clear_cache();
+        }
+    }
+
+    /// Clears block caches of the database.
+    pub fn clear_block_caches(&self) {
+        self.key_block_cache.clear();
+        self.value_block_cache.clear();
+    }
+
+    /// Prefetches all SST files which are usually lazy loaded. This can be used to reduce latency
+    /// for the first queries after opening the database.
+    pub fn prepare_all_sst_caches(&self) {
+        for meta in self.inner.write().meta_files.iter_mut() {
+            meta.prepare_sst_cache();
+        }
+    }
+
+    fn open_log(&self) -> Result<BufWriter<File>> {
+        if self.read_only {
+            unreachable!("Only write operations can open the log file");
+        }
+        let log_path = self.path.join("LOG");
+        let log_file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(log_path)?;
+        Ok(BufWriter::new(log_file))
+    }
+
+    /// Commits a WriteBatch to the database. This will finish writing the data to disk and make it
+    /// visible to readers.
+    pub fn commit_write_batch<K: StoreKey + Send + Sync>(
+        &self,
+        mut write_batch: WriteBatch<'_, K, S, FAMILIES>,
+    ) -> Result<()> {
+        if self.read_only {
+            unreachable!("It's not possible to create a write batch for a read-only database");
+        }
+        let FinishResult {
+            sequence_number,
+            new_meta_files,
+            new_sst_files,
+            new_blob_files,
+            keys_written,
+        } = write_batch.finish(|family| {
+            let inner = self.inner.read();
+            let set = &inner.accessed_key_hashes[family as usize];
+            // len is only a snapshot at that time and it can change while we create the filter.
+            // So we give it 5% more space to make resizes less likely.
+            let initial_capacity = set.len() * 20 / 19;
+            // TODO: Using u64::BITS as fingerprint size is wasteful for a
+            // probabilistic membership filter. A smaller fingerprint (e.g. via
+            // Filter::new with a target fp_rate) would significantly reduce size,
+            // but would make merging slower since mismatched fingerprint sizes
+            // fall back to one-by-one insertion instead of sorted merge.
+            let mut amqf =
+                qfilter::Filter::with_fingerprint_size(initial_capacity as u64, u64::BITS as u8)
+                    .unwrap();
+            // This drains items from the set. But due to concurrency it might not be empty
+            // afterwards, but that's fine. It will be part of the next commit.
+            set.retain(|hash| {
+                // Performance-wise it would usually be better to insert sorted fingerprints, but we
+                // assume that hashes are equally distributed, which makes it unnecessary.
+                // Good for cache locality is that we insert in the order of the dashset's buckets.
+                amqf.insert_fingerprint(false, *hash)
+                    .expect("Failed to insert fingerprint");
+                false
+            });
+            amqf
+        })?;
+        self.commit(CommitOptions {
+            new_meta_files,
+            new_sst_files,
+            new_blob_files,
+            sst_seq_numbers_to_delete: vec![],
+            blob_seq_numbers_to_delete: vec![],
+            sequence_number,
+            keys_written,
+        })?;
+        // Mark the guard inside the write batch as succeeded so it skips the rollback on drop.
+        write_batch.mark_succeeded();
+        Ok(())
+    }
+
+    /// fsyncs the new files and updates the CURRENT file. Updates the database state to include the
+    /// new files.
+    fn commit(
+        &self,
+        CommitOptions {
+            mut new_meta_files,
+            new_sst_files,
+            new_blob_files,
+            mut sst_seq_numbers_to_delete,
+            mut blob_seq_numbers_to_delete,
+            sequence_number: mut seq,
+            keys_written,
+        }: CommitOptions,
+    ) -> Result<(), anyhow::Error> {
+        let time = Timestamp::now();
+
+        new_meta_files.sort_unstable_by_key(|(seq, _)| *seq);
+
+        let sync_span = tracing::trace_span!("sync new files").entered();
+
+        enum SyncItem {
+            Meta(u32, File),
+            Sst(File),
+            Blob(u32, File),
+        }
+        enum SyncResult {
+            Meta(MetaFile),
+            Sst,
+            Blob(u32, File),
+        }
+
+        let mut sync_items: Vec<SyncItem> =
+            Vec::with_capacity(new_meta_files.len() + new_sst_files.len() + new_blob_files.len());
+        for (seq, file) in new_meta_files {
+            sync_items.push(SyncItem::Meta(seq, file));
+        }
+        for (_, file) in new_sst_files {
+            sync_items.push(SyncItem::Sst(file));
+        }
+        for (seq, file) in new_blob_files {
+            sync_items.push(SyncItem::Blob(seq, file));
+        }
+
+        let results: Vec<SyncResult> = self
+            .parallel_scheduler
+            .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(sync_items, |item| match item {
+                SyncItem::Meta(seq, file) => {
+                    file.sync_data()?;
+                    let meta_file = MetaFile::open(&self.path, seq)?;
+                    Ok(SyncResult::Meta(meta_file))
+                }
+                SyncItem::Sst(file) => {
+                    file.sync_data()?;
+                    Ok(SyncResult::Sst)
+                }
+                SyncItem::Blob(seq, file) => {
+                    file.sync_data()?;
+                    Ok(SyncResult::Blob(seq, file))
+                }
+            })?;
+
+        let mut new_meta_files: Vec<MetaFile> = Vec::new();
+        let mut new_blob_files: Vec<(u32, File)> = Vec::new();
+        for result in results {
+            match result {
+                SyncResult::Meta(mf) => new_meta_files.push(mf),
+                SyncResult::Sst => {}
+                SyncResult::Blob(seq, file) => new_blob_files.push((seq, file)),
+            }
+        }
+
+        let mut sst_filter = SstFilter::new();
+        for meta_file in new_meta_files.iter_mut().rev() {
+            sst_filter.apply_filter(meta_file);
+        }
+
+        // Sync the directory to ensure the new directory entries (file name → inode mappings)
+        // are durable before we update CURRENT. Without this, a crash could leave CURRENT pointing
+        // to files whose directory entries were lost even though their data was flushed.
+        File::open(&self.path)?.sync_data()?;
+        drop(sync_span);
+
+        let new_meta_info = new_meta_files
+            .iter()
+            .map(|meta| {
+                let ssts = meta
+                    .entries()
+                    .iter()
+                    .map(|entry| {
+                        let seq = entry.sequence_number();
+                        let range = entry.range();
+                        let size = entry.size();
+                        let flags = entry.flags();
+                        (seq, range.min_hash, range.max_hash, size, flags)
+                    })
+                    .collect::<Vec<_>>();
+                (
+                    meta.sequence_number(),
+                    meta.family(),
+                    ssts,
+                    meta.obsolete_sst_files().to_vec(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        // ── Phase A: compute what will change without modifying inner. ──
+        //
+        // We need `meta_seq_numbers_to_delete` and `has_delete_file` to write
+        // the .del file BEFORE writing CURRENT. We must not modify `inner` at
+        // all — if a disk error occurs before CURRENT is durable, the
+        // WriteOperationGuard rollback can only clean up orphan files, not undo
+        // in-memory mutations. The MetaFile in-memory optimization
+        // (retain_entries) is deferred to Phase C.
+        let has_delete_file;
+        let mut meta_seq_numbers_to_delete = Vec::new();
+        let entries_to_remove;
+
+        {
+            let inner = self.inner.read();
+
+            // (A1) Run the SST filter on existing meta files. This only
+            // updates the SstFilter state — the MetaFile in-memory layout is
+            // not modified yet (that happens in Phase C via retain_entries).
+            // Collects the set of SST entry sequence numbers to remove from
+            // each meta file, keyed by position in `inner.meta_files`.
+            entries_to_remove = inner
+                .meta_files
+                .iter()
+                .rev()
+                .map(|meta_file| sst_filter.apply_filter_collect(meta_file))
+                .collect::<Vec<_>>();
+
+            // (A2) Determine which meta files are fully obsolete by running
+            // `apply_and_get_remove` in newest-first order. Process new metas
+            // first (they are newer than existing ones) to advance the filter
+            // state, then existing ones. New metas are never candidates for
+            // removal (just created), so only their filter-state side-effects
+            // matter.
+            for meta_file in new_meta_files.iter().rev() {
+                let should_remove = sst_filter.apply_and_get_remove(meta_file);
+                debug_assert!(
+                    !should_remove,
+                    "newly created meta file should never be a candidate for removal"
+                );
+            }
+            for i in (0..inner.meta_files.len()).rev() {
+                if sst_filter.apply_and_get_remove(&inner.meta_files[i]) {
+                    meta_seq_numbers_to_delete.push(inner.meta_files[i].sequence_number());
+                }
+            }
+
+            // (A3) Compute the final sequence number that will be written to
+            // CURRENT. A .del file is created only when there are files to
+            // delete, which consumes one extra sequence number.
+            has_delete_file = !sst_seq_numbers_to_delete.is_empty()
+                || !blob_seq_numbers_to_delete.is_empty()
+                || !meta_seq_numbers_to_delete.is_empty();
+        }
+        if has_delete_file {
+            seq += 1;
+        }
+
+        self.parallel_scheduler.block_in_place(|| {
+            if has_delete_file {
+                sst_seq_numbers_to_delete.sort_unstable();
+                meta_seq_numbers_to_delete.sort_unstable();
+                blob_seq_numbers_to_delete.sort_unstable();
+                // Write *.del file, marking the selected files as to delete
+                let mut buf = Vec::with_capacity(
+                    (sst_seq_numbers_to_delete.len()
+                        + meta_seq_numbers_to_delete.len()
+                        + blob_seq_numbers_to_delete.len())
+                        * size_of::<u32>(),
+                );
+                for seq in sst_seq_numbers_to_delete.iter() {
+                    buf.write_u32::<BE>(*seq)?;
+                }
+                for seq in meta_seq_numbers_to_delete.iter() {
+                    buf.write_u32::<BE>(*seq)?;
+                }
+                for seq in blob_seq_numbers_to_delete.iter() {
+                    buf.write_u32::<BE>(*seq)?;
+                }
+                let mut file = File::create(self.path.join(format!("{seq:08}.del")))?;
+                file.write_all(&buf)?;
+                file.sync_data()?;
+            }
+
+            let mut current_file = OpenOptions::new()
+                .write(true)
+                .truncate(false)
+                .read(false)
+                .open(self.path.join("CURRENT"))?;
+            current_file.write_u32::<BE>(seq)?;
+            current_file.sync_data()?;
+
+            // ── Point of no return ──────────────────────────────────────────
+            //
+            // CURRENT has been durably updated. The commit is now visible to
+            // future readers (including after a crash/restart via
+            // `load_directory`). Everything below is best-effort cleanup:
+            //
+            // • Writing the LOG is purely informational.
+            //
+            // • Superseded files are NOT deleted here — Phase C handles that
+            //   after `inner` is updated. On Linux/macOS they are deleted
+            //   immediately; on Windows (where open memory maps prevent
+            //   deletion) they are retried on the next commit or shutdown.
+            //
+            // Errors here must NOT propagate, because the WriteOperationGuard
+            // would then run its rollback and delete the *newly committed*
+            // files, corrupting the database.
+
+            if let Err(e) = (|| {
+                let mut log = self.open_log()?;
+                writeln!(log, "Time {time}")?;
+                let span = time.until(Timestamp::now())?;
+                writeln!(log, "Commit {seq:08} {keys_written} keys in {span:#}")?;
+                writeln!(log, "FAM | META SEQ | SST SEQ         | RANGE")?;
+                for (meta_seq, family, ssts, obsolete) in new_meta_info {
+                    for (seq, min, max, size, flags) in ssts {
+                        writeln!(
+                            log,
+                            "{family:3} | {meta_seq:08} | {seq:08} SST    | {} ({} MiB, {})",
+                            range_to_str(min, max),
+                            size / 1024 / 1024,
+                            flags
+                        )?;
+                    }
+                    for obsolete in obsolete.chunks(15) {
+                        write!(log, "{family:3} | {meta_seq:08} |")?;
+                        for seq in obsolete {
+                            write!(log, " {seq:08}")?;
+                        }
+                        writeln!(log, " OBSOLETE SST")?;
+                    }
+                }
+
+                fn write_seq_numbers<W: std::io::Write, T>(
+                    log: &mut W,
+                    items: &[T],
+                    label: &str,
+                    extract_seq: fn(&T) -> u32,
+                ) -> std::io::Result<()> {
+                    for chunk in items.chunks(15) {
+                        write!(log, "    |          |")?;
+                        for item in chunk {
+                            write!(log, " {:08}", extract_seq(item))?;
+                        }
+                        writeln!(log, " {}", label)?;
+                    }
+                    Ok(())
+                }
+
+                new_blob_files.sort_unstable_by_key(|(seq, _)| *seq);
+                write_seq_numbers(&mut log, &new_blob_files, "NEW BLOB", |&(seq, _)| seq)?;
+                write_seq_numbers(
+                    &mut log,
+                    &blob_seq_numbers_to_delete,
+                    "BLOB DELETED",
+                    |&seq| seq,
+                )?;
+                write_seq_numbers(
+                    &mut log,
+                    &sst_seq_numbers_to_delete,
+                    "SST DELETED",
+                    |&seq| seq,
+                )?;
+                write_seq_numbers(
+                    &mut log,
+                    &meta_seq_numbers_to_delete,
+                    "META DELETED",
+                    |&seq| seq,
+                )?;
+                anyhow::Ok(())
+            })() {
+                eprintln!("turbo-persistence: failed to write LOG after commit {seq:08}: {e:#}");
+            }
+
+            anyhow::Ok(())
+        })?;
+
+        // ── Phase C: structurally update inner (CURRENT is already durable). ──
+        //
+        // Between Phase A's read-lock drop and this point no other writer can
+        // run (WriteOperationGuard ensures exclusivity) and readers never mutate
+        // inner, so the snapshot from Phase A is still valid.
+        {
+            let mut inner = self.inner.write();
+
+            // Apply the deferred MetaFile mutations from Phase A1. apply_filter
+            // was called read-only earlier; now we actually move superseded
+            // entries from active to obsolete inside each MetaFile.
+            // entries_to_remove was collected in reverse order, so iterate it
+            // in reverse to match the forward order of inner.meta_files.
+            for (meta_file, to_remove) in inner
+                .meta_files
+                .iter_mut()
+                .zip(entries_to_remove.into_iter().rev())
+            {
+                if !to_remove.is_empty() {
+                    meta_file.retain_entries(|seq| !to_remove.contains(&seq));
+                }
+            }
+
+            inner.meta_files.append(&mut new_meta_files);
+            if !meta_seq_numbers_to_delete.is_empty() {
+                let to_delete: HashSet<u32> = meta_seq_numbers_to_delete.iter().copied().collect();
+                inner
+                    .meta_files
+                    .retain(|meta| !to_delete.contains(&meta.sequence_number()));
+            }
+            inner.current_sequence_number = seq;
+            self.is_empty
+                .store(inner.meta_files.is_empty(), Ordering::Relaxed);
+        }
+
+        // Try to delete superseded files immediately. On Linux/macOS this always
+        // works even if readers have the files memory-mapped. On Windows, open
+        // memory maps prevent deletion; any file that fails is kept in
+        // `deferred_deletions` and retried on the next commit or at shutdown.
+        self.deferred_deletions.lock().extend(
+            Self::try_delete_files(&self.path, &sst_seq_numbers_to_delete, "sst")
+                .map(DeferredDeletion::Sst)
+                .chain(
+                    Self::try_delete_files(&self.path, &meta_seq_numbers_to_delete, "meta")
+                        .map(DeferredDeletion::Meta),
+                )
+                .chain(
+                    Self::try_delete_files(&self.path, &blob_seq_numbers_to_delete, "blob")
+                        .map(DeferredDeletion::Blob),
+                ),
+        );
+
+        // Retry any deletions that failed in earlier commits.
+        self.retry_deferred_deletions();
+
+        // Best-effort verbose log of the new database state after Phase C.
+        #[cfg(feature = "verbose_log")]
+        {
+            let _: Result<(), _> = (|| -> anyhow::Result<()> {
+                let mut log = self.open_log()?;
+                writeln!(log, "New database state:")?;
+                writeln!(log, "FAM | META SEQ | SST SEQ  FLAGS | RANGE")?;
+                let inner = self.inner.read();
+                let families = inner.meta_files.iter().map(|meta| meta.family()).filter({
+                    let mut set = HashSet::new();
+                    move |family| set.insert(*family)
+                });
+                for family in families {
+                    for meta in inner.meta_files.iter() {
+                        if meta.family() != family {
+                            continue;
+                        }
+                        let meta_seq = meta.sequence_number();
+                        for entry in meta.entries().iter() {
+                            let seq = entry.sequence_number();
+                            let range = entry.range();
+                            writeln!(
+                                log,
+                                "{family:3} | {meta_seq:08} | {seq:08} {:>6} | {}",
+                                entry.flags(),
+                                range_to_str(range.min_hash, range.max_hash)
+                            )?;
+                        }
+                    }
+                }
+                Ok(())
+            })();
+        }
+
+        Ok(())
+    }
+
+    /// Runs a full compaction on the database. This will rewrite all SST files, removing all
+    /// duplicate keys and separating all key ranges into unique files.
+    pub fn full_compact(&self) -> Result<()> {
+        self.compact(&CompactConfig {
+            min_merge_count: 2,
+            optimal_merge_count: usize::MAX,
+            max_merge_count: usize::MAX,
+            max_merge_bytes: u64::MAX,
+            min_merge_duplication_bytes: 0,
+            optimal_merge_duplication_bytes: u64::MAX,
+            max_merge_segment_count: usize::MAX,
+        })?;
+        Ok(())
+    }
+
+    /// Runs a (partial) compaction. Compaction will only be performed if the coverage of the SST
+    /// files is above the given threshold. The coverage is the average number of SST files that
+    /// need to be read to find a key. It also limits the maximum number of SST files that are
+    /// merged at once, which is the main factor for the runtime of the compaction.
+    pub fn compact(&self, compact_config: &CompactConfig) -> Result<bool> {
+        let mut guard = self.acquire_write_operation("compaction")?;
+
+        // Free block caches and SST mmaps before compaction. The block caches
+        // are not used during compaction (we iterate uncached), and any cached
+        // SST mmaps would use MADV_RANDOM which is wrong for sequential scans.
+        // Clearing them upfront frees memory for the merge work.
+        self.clear_cache();
+
+        let mut sequence_number;
+        let mut new_meta_files = Vec::new();
+        let mut new_sst_files = Vec::new();
+        let mut sst_seq_numbers_to_delete = Vec::new();
+        let mut blob_seq_numbers_to_delete = Vec::new();
+        let mut keys_written = 0;
+
+        {
+            let inner = self.inner.read();
+            sequence_number = AtomicU32::new(inner.current_sequence_number);
+            self.compact_internal(
+                &inner.meta_files,
+                &sequence_number,
+                &mut new_meta_files,
+                &mut new_sst_files,
+                &mut sst_seq_numbers_to_delete,
+                &mut blob_seq_numbers_to_delete,
+                &mut keys_written,
+                compact_config,
+            )
+            .context("Failed to compact database")?;
+        }
+
+        let has_changes = !new_meta_files.is_empty();
+        if has_changes {
+            self.commit(CommitOptions {
+                new_meta_files,
+                new_sst_files,
+                new_blob_files: Vec::new(),
+                sst_seq_numbers_to_delete,
+                blob_seq_numbers_to_delete,
+                sequence_number: *sequence_number.get_mut(),
+                keys_written,
+            })
+            .context("Failed to commit the database compaction")?;
+        }
+
+        guard.success();
+        Ok(has_changes)
+    }
+
+    /// Internal function to perform a compaction.
+    fn compact_internal(
+        &self,
+        meta_files: &[MetaFile],
+        sequence_number: &AtomicU32,
+        new_meta_files: &mut Vec<(u32, File)>,
+        new_sst_files: &mut Vec<(u32, File)>,
+        sst_seq_numbers_to_delete: &mut Vec<u32>,
+        blob_seq_numbers_to_delete: &mut Vec<u32>,
+        keys_written: &mut u64,
+        compact_config: &CompactConfig,
+    ) -> Result<()> {
+        if meta_files.is_empty() {
+            return Ok(());
+        }
+
+        struct SstWithRange {
+            meta_index: usize,
+            index_in_meta: u32,
+            seq: u32,
+            range: StaticSortedFileRange,
+            size: u64,
+            flags: MetaEntryFlags,
+        }
+
+        impl Compactable for SstWithRange {
+            fn range(&self) -> RangeInclusive<u64> {
+                self.range.min_hash..=self.range.max_hash
+            }
+
+            fn size(&self) -> u64 {
+                self.size
+            }
+
+            fn category(&self) -> u8 {
+                // Cold and non-cold files are placed separately so we pass different category
+                // values to ensure they are not merged together.
+                if self.flags.cold() { 1 } else { 0 }
+            }
+        }
+
+        let ssts_with_ranges = meta_files
+            .iter()
+            .enumerate()
+            .flat_map(|(meta_index, meta)| {
+                meta.entries()
+                    .iter()
+                    .enumerate()
+                    .map(move |(index_in_meta, entry)| SstWithRange {
+                        meta_index,
+                        index_in_meta: index_in_meta as u32,
+                        seq: entry.sequence_number(),
+                        range: entry.range(),
+                        size: entry.size(),
+                        flags: entry.flags(),
+                    })
+            })
+            .collect::<Vec<_>>();
+
+        let mut sst_by_family = [(); FAMILIES].map(|_| Vec::new());
+
+        for sst in ssts_with_ranges {
+            sst_by_family[sst.range.family as usize].push(sst);
+        }
+
+        let path = &self.path;
+
+        let log_mutex = Mutex::new(());
+
+        struct PartialResultPerFamily {
+            new_meta_file: Option<(u32, File)>,
+            new_sst_files: Vec<(u32, File)>,
+            sst_seq_numbers_to_delete: Vec<u32>,
+            blob_seq_numbers_to_delete: Vec<u32>,
+            keys_written: u64,
+        }
+
+        let mut compact_config = compact_config.clone();
+        let merge_jobs = sst_by_family
+            .into_iter()
+            .enumerate()
+            .filter_map(|(family, ssts_with_ranges)| {
+                if compact_config.max_merge_segment_count == 0 {
+                    return None;
+                }
+                let (merge_jobs, real_merge_job_size) =
+                    get_merge_segments(&ssts_with_ranges, &compact_config);
+                compact_config.max_merge_segment_count -= real_merge_job_size;
+                Some((family, ssts_with_ranges, merge_jobs))
+            })
+            .collect::<Vec<_>>();
+
+        let result = self
+            .parallel_scheduler
+            .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(
+                merge_jobs,
+                |(family, ssts_with_ranges, merge_jobs)| {
+                    let family = family as u32;
+
+                    if merge_jobs.is_empty() {
+                        return Ok(PartialResultPerFamily {
+                            new_meta_file: None,
+                            new_sst_files: Vec::new(),
+                            sst_seq_numbers_to_delete: Vec::new(),
+                            blob_seq_numbers_to_delete: Vec::new(),
+                            keys_written: 0,
+                        });
+                    }
+
+                    // Deserialize and merge used key hash filters per-family into
+                    // a single filter. This avoids O(entries × N) filter probes
+                    // during the merge loop. Empty filters (from commits with no
+                    // reads) are discarded.
+                    let used_key_hashes: Option<qfilter::Filter> = {
+                        let filters: Vec<qfilter::FilterRef<'_>> = meta_files
+                            .iter()
+                            .filter(|m| m.family() == family)
+                            .filter_map(|meta_file| {
+                                meta_file.deserialize_used_key_hashes_amqf().transpose()
+                            })
+                            .collect::<Result<Vec<_>>>()?
+                            .into_iter()
+                            .filter(|amqf| !amqf.is_empty())
+                            .collect();
+                        if filters.is_empty() {
+                            None
+                        } else if filters.len() == 1 {
+                            // Just directly use the single item
+                            Some(filters[0].to_owned())
+                        } else {
+                            let total_len: u64 = filters.iter().map(|f| f.len()).sum();
+                            // Fingerprint size must match the source filters to
+                            // enable the efficient sorted merge path in qfilter.
+                            let mut merged =
+                                qfilter::Filter::with_fingerprint_size(total_len, u64::BITS as u8)
+                                    .expect("Failed to create merged AMQF filter");
+                            for filter in &filters {
+                                merged
+                                    .merge(false, filter)
+                                    .expect("Failed to merge AMQF filters");
+                            }
+                            merged.shrink_to_fit();
+                            Some(merged)
+                        }
+                    };
+
+                    // Later we will remove the merged files
+                    let sst_seq_numbers_to_delete = merge_jobs
+                        .iter()
+                        .filter(|l| l.len() > 1)
+                        .flat_map(|l| l.iter().copied())
+                        .map(|index| ssts_with_ranges[index].seq)
+                        .collect::<Vec<_>>();
+
+                    // Merge SST files
+                    let span = tracing::trace_span!(
+                        "merge files",
+                        family = self.config.family_configs[family as usize].name
+                    );
+                    enum PartialMergeResult<'l> {
+                        Merged {
+                            new_sst_files: Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
+                            blob_seq_numbers_to_delete: Vec<u32>,
+                            keys_written: u64,
+                            indices: SmallVec<[usize; 1]>,
+                        },
+                        Move {
+                            seq: u32,
+                            meta: StaticSortedFileBuilderMeta<'l>,
+                        },
+                    }
+                    let merge_result = self
+                        .parallel_scheduler
+                        .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(merge_jobs, |indices| {
+                            let _span = span.clone().entered();
+                            if indices.len() == 1 {
+                                // If we only have one file, we can just move it
+                                let index = indices[0];
+                                let meta_index = ssts_with_ranges[index].meta_index;
+                                let index_in_meta = ssts_with_ranges[index].index_in_meta;
+                                let meta_file = &meta_files[meta_index];
+                                let entry = meta_file.entry(index_in_meta);
+                                let amqf = Cow::Borrowed(entry.raw_amqf(meta_file.amqf_data()));
+                                let meta = StaticSortedFileBuilderMeta {
+                                    min_hash: entry.min_hash(),
+                                    max_hash: entry.max_hash(),
+                                    amqf,
+                                    block_count: entry.block_count(),
+                                    size: entry.size(),
+                                    flags: entry.flags(),
+                                    entries: 0,
+                                };
+                                return Ok(PartialMergeResult::Move {
+                                    seq: entry.sequence_number(),
+                                    meta,
+                                });
+                            }
+
+                            // Open SST files independently for compaction.
+                            // Uses MADV_SEQUENTIAL for better OS page management
+                            // and avoids caching mmaps on MetaEntry's OnceLock.
+                            let iters = indices
+                                .iter()
+                                .map(|&index| {
+                                    let meta_index = ssts_with_ranges[index].meta_index;
+                                    let index_in_meta = ssts_with_ranges[index].index_in_meta;
+                                    let entry = meta_files[meta_index].entry(index_in_meta);
+                                    StaticSortedFileIter::open(path, entry.sst_metadata())
+                                })
+                                .collect::<Result<Vec<_>>>()?;
+
+                            let iter = MergeIter::new(iters.into_iter())?;
+
+                            let mut blob_seq_numbers_to_delete: Vec<u32> = Vec::new();
+
+                            struct Collector {
+                                /// The active writer and its sequence number. `None` if no
+                                /// entries have been added since the last flush. We defer
+                                /// allocation to avoid creating empty SST files for collectors
+                                /// that receive no entries (e.g., the unused_collector when
+                                /// all keys are in the
+                                /// used set).
+                                writer: Option<(u32, StreamingSstWriter<LookupEntry>)>,
+                                flags: MetaEntryFlags,
+                                new_sst_files:
+                                    Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
+                                /// Hash of the last key added. Used to ensure we only split
+                                /// SST files at key boundaries (not mid-key-group for MultiValue).
+                                last_hash: Option<u64>,
+                            }
+                            impl Collector {
+                                fn new(flags: MetaEntryFlags) -> Self {
+                                    Self {
+                                        writer: None,
+                                        flags,
+                                        new_sst_files: Vec::new(),
+                                        last_hash: None,
+                                    }
+                                }
+
+                                /// Ensures a writer is open, creating one if needed.
+                                fn ensure_writer(
+                                    &mut self,
+                                    path: &Path,
+                                    sequence_number: &AtomicU32,
+                                ) -> Result<&mut StreamingSstWriter<LookupEntry>>
+                                {
+                                    if self.writer.is_none() {
+                                        let seq =
+                                            sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+                                        let sst_path = path.join(format!("{seq:08}.sst"));
+                                        let writer = StreamingSstWriter::new(
+                                            &sst_path,
+                                            self.flags,
+                                            MAX_ENTRIES_PER_COMPACTED_FILE as u64,
+                                        )?;
+                                        self.writer = Some((seq, writer));
+                                    }
+                                    Ok(&mut self.writer.as_mut().unwrap().1)
+                                }
+
+                                /// Closes the current SST file (flushing remaining blocks and
+                                /// writing the index) and records it in the completed files
+                                /// list.
+                                fn close_sst_file(&mut self, keys_written: &mut u64) -> Result<()> {
+                                    if let Some((seq, writer)) = self.writer.take() {
+                                        let _span =
+                                            tracing::trace_span!("close merged sst file").entered();
+                                        let (meta, file) = writer.close()?;
+                                        *keys_written += meta.entries;
+                                        self.new_sst_files.push((seq, file, meta));
+                                    }
+                                    Ok(())
+                                }
+
+                                /// Adds an entry to the collector. Only splits the SST file at
+                                /// key boundaries to avoid breaking key groups for MultiValue
+                                /// families.
+                                fn add_entry(
+                                    &mut self,
+                                    entry: LookupEntry,
+                                    path: &Path,
+                                    sequence_number: &AtomicU32,
+                                    keys_written: &mut u64,
+                                ) -> Result<()> {
+                                    let key_changed = self.last_hash != Some(entry.hash);
+                                    // Only check fullness at key boundaries to avoid splitting
+                                    // a key group across two SST files.
+                                    if key_changed
+                                        && let Some((_, ref writer)) = self.writer
+                                        && writer.is_full(
+                                            MAX_ENTRIES_PER_COMPACTED_FILE,
+                                            DATA_THRESHOLD_PER_COMPACTED_FILE,
+                                        )
+                                    {
+                                        self.close_sst_file(keys_written)?;
+                                    }
+                                    self.last_hash = Some(entry.hash);
+                                    let writer = self.ensure_writer(path, sequence_number)?;
+                                    writer.add(entry)?;
+                                    Ok(())
+                                }
+                            }
+                            #[cfg(debug_assertions)]
+                            impl Drop for Collector {
+                                fn drop(&mut self) {
+                                    if !std::thread::panicking() {
+                                        assert!(
+                                            self.writer.is_none(),
+                                            "Collector dropped with an open writer"
+                                        );
+                                    }
+                                }
+                            }
+                            let mut used_collector = Collector::new(MetaEntryFlags::WARM);
+                            let mut unused_collector = Collector::new(MetaEntryFlags::COLD);
+                            let mut current_key: Option<RcBytes> = None;
+                            let mut keys_written = 0;
+
+                            // MergeIter yields entries from newer SSTs first (by SST sequence
+                            // number). Within each SST, tombstones sort last within key groups.
+                            // Use a skip flag to handle:
+                            // - SingleValue: skip all older entries after writing the first
+                            // - MultiValue: skip all older entries after encountering a tombstone
+                            //   (which signals deletion of all prior values for this key)
+                            let mut skip_remaining_for_this_key = false;
+                            let family_config = &self.config.family_configs[family as usize];
+
+                            for entry in iter {
+                                let entry = entry?;
+                                if current_key.as_ref() != Some(&entry.key) {
+                                    // we changed keys so undo this flag
+                                    skip_remaining_for_this_key = false;
+                                    current_key = Some(entry.key.clone());
+                                }
+                                if !skip_remaining_for_this_key {
+                                    let is_used = used_key_hashes
+                                        .as_ref()
+                                        .is_some_and(|amqf| amqf.contains_fingerprint(entry.hash));
+                                    let collector = if is_used {
+                                        &mut used_collector
+                                    } else {
+                                        &mut unused_collector
+                                    };
+                                    match family_config.kind {
+                                        FamilyKind::MultiValue => {
+                                            // For MultiValue families we only skip remaining if we
+                                            // see a tombstone
+                                            if matches!(entry.value, IterValue::Deleted) {
+                                                skip_remaining_for_this_key = true;
+                                            }
+                                        }
+                                        FamilyKind::SingleValue => {
+                                            // Since MergeItr is in newest to oldest order anything
+                                            // else that comes out must be skipped
+                                            skip_remaining_for_this_key = true;
+                                        }
+                                    }
+                                    collector.add_entry(
+                                        entry,
+                                        path,
+                                        sequence_number,
+                                        &mut keys_written,
+                                    )?;
+                                } else {
+                                    // Entry is being dropped (superseded by newer entry or
+                                    // pruned by tombstone). If it references a blob file,
+                                    // mark that blob for deletion.
+                                    if let IterValue::Blob { sequence_number } = &entry.value {
+                                        blob_seq_numbers_to_delete.push(*sequence_number);
+                                    }
+                                }
+                            }
+
+                            // Close remaining writers
+                            used_collector.close_sst_file(&mut keys_written)?;
+                            unused_collector.close_sst_file(&mut keys_written)?;
+
+                            let mut new_sst_files = take(&mut unused_collector.new_sst_files);
+                            new_sst_files.append(&mut used_collector.new_sst_files);
+                            Ok(PartialMergeResult::Merged {
+                                new_sst_files,
+                                blob_seq_numbers_to_delete,
+                                keys_written,
+                                indices,
+                            })
+                        })
+                        .with_context(|| {
+                            format!("Failed to merge database files for family {family}")
+                        })?;
+
+                    let Some((sst_files_len, blob_delete_len)) = merge_result
+                        .iter()
+                        .map(|r| {
+                            if let PartialMergeResult::Merged {
+                                new_sst_files,
+                                blob_seq_numbers_to_delete,
+                                indices: _,
+                                keys_written: _,
+                            } = r
+                            {
+                                (new_sst_files.len(), blob_seq_numbers_to_delete.len())
+                            } else {
+                                (0, 0)
+                            }
+                        })
+                        .reduce(|(a1, a2), (b1, b2)| (a1 + b1, a2 + b2))
+                    else {
+                        unreachable!()
+                    };
+
+                    let mut new_sst_files = Vec::with_capacity(sst_files_len);
+                    let mut blob_seq_numbers_to_delete = Vec::with_capacity(blob_delete_len);
+
+                    let meta_seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+                    let mut meta_file_builder = MetaFileBuilder::new(family);
+
+                    let mut keys_written = 0;
+                    self.parallel_scheduler.block_in_place(|| {
+                        let guard = log_mutex.lock();
+                        let mut log = self.open_log()?;
+                        writeln!(log, "{family:3} | {meta_seq:08} | Compaction:",)?;
+                        for result in merge_result {
+                            match result {
+                                PartialMergeResult::Merged {
+                                    new_sst_files: merged_new_sst_files,
+                                    blob_seq_numbers_to_delete: merged_blob_seq_numbers_to_delete,
+                                    keys_written: merged_keys_written,
+                                    indices,
+                                } => {
+                                    writeln!(
+                                        log,
+                                        "{family:3} | {meta_seq:08} | MERGE \
+                                         ({merged_keys_written} keys):"
+                                    )?;
+                                    for i in indices.iter() {
+                                        let seq = ssts_with_ranges[*i].seq;
+                                        let (min, max) = ssts_with_ranges[*i].range().into_inner();
+                                        writeln!(
+                                            log,
+                                            "{family:3} | {meta_seq:08} | {seq:08} INPUT  | {}",
+                                            range_to_str(min, max)
+                                        )?;
+                                    }
+                                    for (seq, file, meta) in merged_new_sst_files {
+                                        let min = meta.min_hash;
+                                        let max = meta.max_hash;
+                                        writeln!(
+                                            log,
+                                            "{family:3} | {meta_seq:08} | {seq:08} OUTPUT | {} \
+                                             ({})",
+                                            range_to_str(min, max),
+                                            meta.flags
+                                        )?;
+
+                                        meta_file_builder.add(seq, meta);
+                                        new_sst_files.push((seq, file));
+                                    }
+                                    blob_seq_numbers_to_delete
+                                        .extend(merged_blob_seq_numbers_to_delete);
+                                    keys_written += merged_keys_written;
+                                }
+                                PartialMergeResult::Move { seq, meta } => {
+                                    let min = meta.min_hash;
+                                    let max = meta.max_hash;
+                                    writeln!(
+                                        log,
+                                        "{family:3} | {meta_seq:08} | {seq:08} MOVED  | {}",
+                                        range_to_str(min, max)
+                                    )?;
+
+                                    meta_file_builder.add(seq, meta);
+                                }
+                            }
+                        }
+                        drop(log);
+                        drop(guard);
+
+                        anyhow::Ok(())
+                    })?;
+
+                    for &seq in sst_seq_numbers_to_delete.iter() {
+                        meta_file_builder.add_obsolete_sst_file(seq);
+                    }
+
+                    let meta_file = {
+                        let _span = tracing::trace_span!("write meta file").entered();
+                        self.parallel_scheduler
+                            .block_in_place(|| meta_file_builder.write(&self.path, meta_seq))?
+                    };
+
+                    Ok(PartialResultPerFamily {
+                        new_meta_file: Some((meta_seq, meta_file)),
+                        new_sst_files,
+                        sst_seq_numbers_to_delete,
+                        blob_seq_numbers_to_delete,
+                        keys_written,
+                    })
+                },
+            )?;
+
+        for PartialResultPerFamily {
+            new_meta_file: inner_new_meta_file,
+            new_sst_files: mut inner_new_sst_files,
+            sst_seq_numbers_to_delete: mut inner_sst_seq_numbers_to_delete,
+            blob_seq_numbers_to_delete: mut inner_blob_seq_numbers_to_delete,
+            keys_written: inner_keys_written,
+        } in result
+        {
+            new_meta_files.extend(inner_new_meta_file);
+            new_sst_files.append(&mut inner_new_sst_files);
+            sst_seq_numbers_to_delete.append(&mut inner_sst_seq_numbers_to_delete);
+            blob_seq_numbers_to_delete.append(&mut inner_blob_seq_numbers_to_delete);
+            *keys_written += inner_keys_written;
+        }
+
+        Ok(())
+    }
+
+    /// Get a value from the database. Returns None if the key is not found. The returned value
+    /// might hold onto a block of the database and it should not be hold long-term.
+    pub fn get<K: QueryKey>(&self, family: usize, key: &K) -> Result<Option<ArcBytes>> {
+        debug_assert!(family < FAMILIES, "Family index out of bounds");
+        if self.config.family_configs[family].kind != FamilyKind::SingleValue {
+            // This is an error in our caller so just panic
+            panic!(
+                "only single valued tables can be queried with `get', call `get_multiple` instead"
+            )
+        }
+        let span = tracing::trace_span!(
+            "database read",
+            name = self.config.family_configs[family].name,
+            result_size = tracing::field::Empty
+        )
+        .entered();
+        let results = self.get_impl::<K, false>(family, key, &span)?;
+        debug_assert!(results.len() <= 1, "get() should return at most one result");
+        Ok(results.into_iter().next())
+    }
+
+    /// Looks up a key and returns all matching values.
+    ///
+    /// This is useful for keyspaces where keys are not unique and multiple mappings are possible.
+    /// Unlike `get`, which returns only the first match, this method returns all
+    /// entries with the same key from all SST files.  By default however we assume these
+    /// collections are small and thus optimize for there being exactly 0 or 1 results.
+    ///
+    /// The order of returned values is undefined and duplicates are preserved. Callers must not
+    /// rely on any particular ordering (neither insertion order nor byte order).
+    pub fn get_multiple<K: QueryKey>(
+        &self,
+        family: usize,
+        key: &K,
+    ) -> Result<SmallVec<[ArcBytes; 1]>> {
+        debug_assert!(family < FAMILIES, "Family index out of bounds");
+        if self.config.family_configs[family].kind != FamilyKind::MultiValue {
+            // This is an error in our caller so just panic
+            panic!("only multi-valued tables can be queried with `get_multiple`")
+        }
+        let span = tracing::trace_span!(
+            "database read multiple",
+            name = self.config.family_configs[family].name,
+            result_count = tracing::field::Empty,
+            result_size = tracing::field::Empty
+        )
+        .entered();
+        let results = self.get_impl::<K, true>(family, key, &span)?;
+        Ok(results)
+    }
+
+    /// Shared implementation for `get` and `get_multiple`.
+    ///
+    /// If `FIND_ALL` is false, stops after finding the first match.
+    /// If `FIND_ALL` is true, continues to find all matches across all meta files.
+    fn get_impl<K: QueryKey, const FIND_ALL: bool>(
+        &self,
+        family: usize,
+        key: &K,
+        span: &EnteredSpan,
+    ) -> Result<SmallVec<[ArcBytes; 1]>> {
+        let hash = hash_key(key);
+        let inner = self.inner.read();
+        let mut output: SmallVec<[ArcBytes; 1]> = SmallVec::new();
+        // Track whether we found the key in any SST (even if deleted).
+        // Used for miss_global stat: only fires if key was never found anywhere.
+        #[cfg(feature = "stats")]
+        let mut found_in_sst = false;
+
+        let mut size = 0;
+
+        for meta in inner.meta_files.iter().rev() {
+            match meta.lookup::<K, FIND_ALL>(
+                family as u32,
+                hash,
+                key,
+                &self.key_block_cache,
+                &self.value_block_cache,
+            )? {
+                MetaLookupResult::FamilyMiss => {
+                    #[cfg(feature = "stats")]
+                    self.stats.miss_family.fetch_add(1, Ordering::Relaxed);
+                }
+                MetaLookupResult::RangeMiss => {
+                    #[cfg(feature = "stats")]
+                    self.stats.miss_range.fetch_add(1, Ordering::Relaxed);
+                }
+                MetaLookupResult::QuickFilterMiss => {
+                    #[cfg(feature = "stats")]
+                    self.stats.miss_amqf.fetch_add(1, Ordering::Relaxed);
+                }
+                MetaLookupResult::SstLookup(result) => match result {
+                    SstLookupResult::Found(values) => {
+                        #[cfg(feature = "stats")]
+                        {
+                            found_in_sst = true;
+                        }
+                        inner.accessed_key_hashes[family].insert(hash);
+                        // Process values. Tombstones sort last within a key group,
+                        // so when we see a tombstone, we can return immediately.
+                        for value in values {
+                            match value {
+                                LookupValue::Deleted => {
+                                    #[cfg(feature = "stats")]
+                                    self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
+                                    if !FIND_ALL {
+                                        span.record("result_size", "deleted");
+                                        return Ok(SmallVec::new());
+                                    }
+                                    // Tombstone is last in key group. Return accumulated
+                                    // values (from this SST and newer layers). Stop
+                                    // searching older SSTs.
+                                    if output.is_empty() {
+                                        span.record("result_size", "deleted");
+                                    } else {
+                                        span.record("result_size", size);
+                                    }
+                                    return Ok(output);
+                                }
+                                LookupValue::Slice { value } => {
+                                    #[cfg(feature = "stats")]
+                                    self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
+                                    if !FIND_ALL {
+                                        span.record("result_size", value.len());
+                                        return Ok(SmallVec::from_buf([value]));
+                                    }
+                                    size += value.len();
+                                    output.push(value);
+                                }
+                                LookupValue::Blob { sequence_number } => {
+                                    #[cfg(feature = "stats")]
+                                    self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
+                                    let blob = self.read_blob(sequence_number)?;
+                                    if !FIND_ALL {
+                                        span.record("result_size", blob.len());
+                                        return Ok(SmallVec::from_buf([blob]));
+                                    }
+                                    size += blob.len();
+                                    output.push(blob);
+                                }
+                            }
+                        }
+                    }
+                    SstLookupResult::NotFound => {
+                        #[cfg(feature = "stats")]
+                        self.stats.miss_key.fetch_add(1, Ordering::Relaxed);
+                    }
+                },
+            }
+        }
+
+        #[cfg(feature = "stats")]
+        if !found_in_sst {
+            self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
+        }
+
+        if FIND_ALL {
+            span.record("result_count", output.len());
+        }
+        if output.is_empty() {
+            span.record("result_size", "not_found");
+        } else {
+            span.record("result_size", size);
+        }
+        Ok(output)
+    }
+
+    pub fn batch_get<K: QueryKey>(
+        &self,
+        family: usize,
+        keys: &[K],
+    ) -> Result<Vec<Option<ArcBytes>>> {
+        debug_assert!(family < FAMILIES, "Family index out of bounds");
+        if self.config.family_configs[family].kind != FamilyKind::SingleValue {
+            // This is an error in our caller so just panic
+            panic!("only single valued tables can be queried with `batch_get'")
+        }
+        let span = tracing::trace_span!(
+            "database batch read",
+            name = self.config.family_configs[family].name,
+            keys = keys.len(),
+            not_found = tracing::field::Empty,
+            deleted = tracing::field::Empty,
+            result_size = tracing::field::Empty
+        )
+        .entered();
+        let mut cells: Vec<(u64, usize, Option<LookupValue>)> = Vec::with_capacity(keys.len());
+        let mut empty_cells = keys.len();
+        for (index, key) in keys.iter().enumerate() {
+            let hash = hash_key(key);
+            cells.push((hash, index, None));
+        }
+        cells.sort_by_key(|(hash, _, _)| *hash);
+        let inner = self.inner.read();
+        for meta in inner.meta_files.iter().rev() {
+            let _result = meta.batch_lookup(
+                family as u32,
+                keys,
+                &mut cells,
+                &mut empty_cells,
+                &self.key_block_cache,
+                &self.value_block_cache,
+            )?;
+
+            #[cfg(feature = "stats")]
+            {
+                let crate::meta_file::MetaBatchLookupResult {
+                    family_miss,
+                    range_misses,
+                    quick_filter_misses,
+                    sst_misses,
+                    hits: _,
+                } = _result;
+                if family_miss {
+                    self.stats.miss_family.fetch_add(1, Ordering::Relaxed);
+                }
+                if range_misses > 0 {
+                    self.stats
+                        .miss_range
+                        .fetch_add(range_misses as u64, Ordering::Relaxed);
+                }
+                if quick_filter_misses > 0 {
+                    self.stats
+                        .miss_amqf
+                        .fetch_add(quick_filter_misses as u64, Ordering::Relaxed);
+                }
+                if sst_misses > 0 {
+                    self.stats
+                        .miss_key
+                        .fetch_add(sst_misses as u64, Ordering::Relaxed);
+                }
+            }
+
+            if empty_cells == 0 {
+                break;
+            }
+        }
+        let mut deleted = 0;
+        let mut not_found = 0;
+        let mut result_size = 0;
+        let mut results = vec![None; keys.len()];
+        for (hash, index, result) in cells {
+            if let Some(result) = result {
+                inner.accessed_key_hashes[family].insert(hash);
+                let result = match result {
+                    LookupValue::Deleted => {
+                        #[cfg(feature = "stats")]
+                        self.stats.hits_deleted.fetch_add(1, Ordering::Relaxed);
+                        deleted += 1;
+                        None
+                    }
+                    LookupValue::Slice { value } => {
+                        #[cfg(feature = "stats")]
+                        self.stats.hits_small.fetch_add(1, Ordering::Relaxed);
+                        result_size += value.len();
+                        Some(value)
+                    }
+                    LookupValue::Blob { sequence_number } => {
+                        #[cfg(feature = "stats")]
+                        self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
+                        let blob = self.read_blob(sequence_number)?;
+                        result_size += blob.len();
+                        Some(blob)
+                    }
+                };
+                results[index] = result;
+            } else {
+                #[cfg(feature = "stats")]
+                self.stats.miss_global.fetch_add(1, Ordering::Relaxed);
+                not_found += 1;
+            }
+        }
+        span.record("not_found", not_found);
+        span.record("deleted", deleted);
+        span.record("result_size", result_size);
+        Ok(results)
+    }
+
+    /// Returns database statistics.
+    #[cfg(feature = "stats")]
+    pub fn statistics(&self) -> Statistics {
+        let inner = self.inner.read();
+        Statistics {
+            meta_files: inner.meta_files.len(),
+            sst_files: inner.meta_files.iter().map(|m| m.entries().len()).sum(),
+            key_block_cache: CacheStatistics::new(&self.key_block_cache),
+            value_block_cache: CacheStatistics::new(&self.value_block_cache),
+            hits: self.stats.hits_deleted.load(Ordering::Relaxed)
+                + self.stats.hits_small.load(Ordering::Relaxed)
+                + self.stats.hits_blob.load(Ordering::Relaxed),
+            misses: self.stats.miss_global.load(Ordering::Relaxed),
+            miss_family: self.stats.miss_family.load(Ordering::Relaxed),
+            miss_range: self.stats.miss_range.load(Ordering::Relaxed),
+            miss_amqf: self.stats.miss_amqf.load(Ordering::Relaxed),
+            miss_key: self.stats.miss_key.load(Ordering::Relaxed),
+        }
+    }
+
+    pub fn meta_info(&self) -> Result<Vec<MetaFileInfo>> {
+        Ok(self
+            .inner
+            .read()
+            .meta_files
+            .iter()
+            .rev()
+            .map(|meta_file| {
+                let entries = meta_file
+                    .entries()
+                    .iter()
+                    .map(|entry| {
+                        let amqf = entry.raw_amqf(meta_file.amqf_data());
+                        MetaFileEntryInfo {
+                            sequence_number: entry.sequence_number(),
+                            min_hash: entry.min_hash(),
+                            max_hash: entry.max_hash(),
+                            sst_size: entry.size(),
+                            flags: entry.flags(),
+                            amqf_size: entry.amqf_size(),
+                            amqf_entries: amqf.len(),
+                            block_count: entry.block_count(),
+                        }
+                    })
+                    .collect();
+                MetaFileInfo {
+                    sequence_number: meta_file.sequence_number(),
+                    family: meta_file.family(),
+                    obsolete_sst_files: meta_file.obsolete_sst_files().to_vec(),
+                    entries,
+                }
+            })
+            .collect())
+    }
+
+    /// Shuts down the database. This will print statistics if the `print_stats` feature is enabled.
+    /// Retries deletion of all previously-deferred files and clears successfully deleted batches.
+    pub fn shutdown(&self) -> Result<()> {
+        #[cfg(feature = "print_stats")]
+        println!("{:#?}", self.statistics());
+        self.retry_deferred_deletions();
+        Ok(())
+    }
+
+    /// Attempts to delete files with the given extension, returning an iterator of sequence
+    /// numbers for files that could not be deleted (e.g. due to open memory maps on Windows).
+    fn try_delete_files<'a>(
+        dir: &'a Path,
+        seqs: &'a [u32],
+        ext: &'a str,
+    ) -> impl Iterator<Item = u32> + 'a {
+        seqs.iter()
+            .copied()
+            .filter(move |&seq| fs::remove_file(dir.join(format!("{seq:08}.{ext}"))).is_err())
+    }
+
+    /// Retries deletion of files that previously failed (typically due to open memory maps on
+    /// Windows). Any file that still fails is kept for the next retry.
+    /// Best-effort: persistent failures are acceptable because `load_directory` cleans up
+    /// any leftover files on the next open via the `.del` file.
+    fn retry_deferred_deletions(&self) {
+        let mut deferred = self.deferred_deletions.lock();
+        deferred.retain(|entry| {
+            let (seq, ext) = match *entry {
+                DeferredDeletion::Sst(seq) => (seq, "sst"),
+                DeferredDeletion::Meta(seq) => (seq, "meta"),
+                DeferredDeletion::Blob(seq) => (seq, "blob"),
+            };
+            // Keep the entry only if deletion still fails.
+            fs::remove_file(self.path.join(format!("{seq:08}.{ext}"))).is_err()
+        });
+    }
+}
+
+fn range_to_str(min: u64, max: u64) -> String {
+    use std::fmt::Write;
+    const DISPLAY_SIZE: usize = 100;
+    const TOTAL_SIZE: u64 = u64::MAX;
+    let start_pos = (min as u128 * DISPLAY_SIZE as u128 / TOTAL_SIZE as u128) as usize;
+    let end_pos = (max as u128 * DISPLAY_SIZE as u128 / TOTAL_SIZE as u128) as usize;
+    let mut range_str = String::new();
+    for i in 0..DISPLAY_SIZE {
+        if i == start_pos && i == end_pos {
+            range_str.push('O');
+        } else if i == start_pos {
+            range_str.push('[');
+        } else if i == end_pos {
+            range_str.push(']');
+        } else if i > start_pos && i < end_pos {
+            range_str.push('=');
+        } else {
+            range_str.push(' ');
+        }
+    }
+    write!(range_str, " | {min:016x}-{max:016x}").unwrap();
+    range_str
+}
+
+pub struct MetaFileInfo {
+    pub sequence_number: u32,
+    pub family: u32,
+    pub obsolete_sst_files: Vec<u32>,
+    pub entries: Vec<MetaFileEntryInfo>,
+}
+
+pub struct MetaFileEntryInfo {
+    pub sequence_number: u32,
+    pub min_hash: u64,
+    pub max_hash: u64,
+    pub amqf_size: u32,
+    pub amqf_entries: usize,
+    pub sst_size: u64,
+    pub flags: MetaEntryFlags,
+    pub block_count: u16,
+}

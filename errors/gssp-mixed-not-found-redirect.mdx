@@ -1,0 +1,18 @@
+---
+title: 'Mixed `notFound` and `redirect`'
+---
+
+## Why This Error Occurred
+
+In one of your page's `getStaticProps` or `getServerSideProps` `notFound` and `redirect` values were both returned.
+
+These values can not both be returned at the same time and one or the other needs to be returned at a time.
+
+## Possible Ways to Fix It
+
+Make sure only `notFound` **or** `redirect` is being returned on your page's `getStaticProps` or `getServerSideProps`
+
+## Useful Links
+
+- [`getStaticProps` Documentation](/docs/pages/building-your-application/data-fetching/get-static-props)
+- [`getServerSideProps` Documentation](/docs/pages/building-your-application/data-fetching/get-server-side-props)

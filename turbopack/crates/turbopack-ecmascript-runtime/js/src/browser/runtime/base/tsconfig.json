@@ -1,0 +1,8 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    // environment, we need WebWorker for WebAssembly types
+    "lib": ["ESNext", "WebWorker"]
+  },
+  "include": ["runtime-base.ts", "dummy.ts"]
+}

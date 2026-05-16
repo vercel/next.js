@@ -1,0 +1,18 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@clerk/nextjs": "^4.17.3",
+    "@types/node": "20.5.7",
+    "@types/react": "18.2.8",
+    "@types/react-dom": "18.2.7",
+    "next": "13.4.2",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "typescript": "5.2.2"
+  }
+}

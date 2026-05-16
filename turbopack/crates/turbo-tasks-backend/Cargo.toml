@@ -1,0 +1,80 @@
+[package]
+name = "turbo-tasks-backend"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[features]
+default = []
+print_cache_item_size_with_compressed = ["print_cache_item_size", "dep:lzzzz"]
+print_cache_item_size = []
+no_fast_stale = []
+aggregation_update_no_batch = []
+verify_serialization = []
+verify_aggregation_graph = []
+verify_immutable = []
+verify_determinism = ["turbo-tasks/verify_determinism"]
+trace_aggregation_update_stats = []
+trace_aggregation_update_queue = []
+trace_aggregation_update = ["trace_aggregation_update_queue"]
+trace_leaf_distance_update = []
+trace_find_and_schedule = ["trace_aggregation_update_queue"]
+trace_task_completion = []
+trace_task_modification = []
+trace_task_dirty = ["trace_aggregation_update_queue"]
+trace_task_output_dependencies = []
+trace_task_details = []
+trace_prepare_tasks = []
+
+[dependencies]
+anyhow = { workspace = true }
+bincode = { workspace = true }
+auto-hash-map = { workspace = true }
+bitfield = { workspace = true }
+crossbeam-utils = { workspace = true }
+dashmap = { workspace = true, features = ["raw-api"]}
+either = { workspace = true }
+hashbrown = { workspace = true, features = ["raw"] }
+indexmap = { workspace = true }
+lzzzz = { workspace = true, optional = true }
+parking_lot = { workspace = true }
+rand = { workspace = true }
+ringmap = { workspace = true, features = ["serde"] }
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_path_to_error = { workspace = true }
+smallvec = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+turbo-bincode = { workspace = true }
+turbo-persistence = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbo-tasks-malloc = { workspace = true, default-features = false }
+thread_local = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
+futures = { workspace = true }
+indoc = { workspace = true }
+regex = { workspace = true }
+tempfile = { workspace = true }
+triomphe = { workspace = true }
+turbo-tasks-malloc = { workspace = true }
+rstest = { workspace = true }
+turbo-tasks-testing = { workspace = true }
+
+
+[[bench]]
+name = "mod"
+harness = false

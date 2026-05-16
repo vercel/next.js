@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
+
+id: resolved-vc-in-trait-arguments
+message: Using `ResolvedVc` in a turbo tasks trait is unsound. Consider making `$FN_NAME` take `Vc` instead.
+severity: warning # error, warning, info, hint
+language: Rust
+rule:
+  pattern:
+    context: 'let x: ResolvedVc<$A> = 1;'
+    selector: generic_type
+  inside:
+    kind: function_signature_item
+    stopBy: end
+    pattern: fn $FN_NAME($_ARGS)
+    inside:
+      inside:
+        kind: trait_item
+        follows:
+          pattern: '#[turbo_tasks::value_trait]'
+fix: Vc<$A>

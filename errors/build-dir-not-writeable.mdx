@@ -1,0 +1,35 @@
+---
+title: Handling "Build Directory Not Writeable" Error in Next.js
+description: This document explains the "Build Directory Not Writeable" error in Next.js and provides a solution to resolve this issue.
+---
+
+## Why This Error Occurred
+
+The "Build Directory Not Writeable" error usually occurs when the file system does not permit writing to the designated directory. A common scenario for this error is when you initiate a [custom server](/docs/pages/guides/custom-server) in development mode on a production server.
+
+These production servers often disallow writing to the filesystem after your application is built, causing this error.
+
+## Possible Ways to Fix It
+
+If you're deploying a custom server with a server file (let's assume it's named `server.js`), you should modify the scripts key in your `package.json` to the following:
+
+```json filename="package.json"
+{
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js"
+  }
+}
+```
+
+Ensure that your custom server starts Next.js in production mode when `NODE_ENV` is set to `production`:
+
+```js filename="server.js"
+const dev = process.env.NODE_ENV !== 'production'
+const app = next({ dev })
+```
+
+## Useful Links
+
+- [Custom Server documentation + examples](/docs/pages/guides/custom-server) - Learn more about how to effectively set up and manage an ejected server in Next.js.

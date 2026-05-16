@@ -1,0 +1,64 @@
+.container {
+  padding: 0 2rem;
+  width: 800px;
+  margin: 0 auto;
+}
+
+.main {
+  min-height: 100vh;
+  padding: 4rem 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.main h2 {
+  width: 100%;
+  margin-top: 20px;
+}
+
+.footer {
+  display: flex;
+  flex: 1;
+  padding: 2rem 0;
+  border-top: 1px solid #eaeaea;
+  justify-content: center;
+  align-items: center;
+}
+
+.footer a {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-grow: 1;
+}
+
+.title a {
+  color: #0070f3;
+  text-decoration: none;
+}
+
+.title a:hover,
+.title a:focus,
+.title a:active {
+  text-decoration: underline;
+}
+
+.title {
+  margin: 0;
+  line-height: 1.15;
+  font-size: 4rem;
+}
+
+.title,
+.description {
+  text-align: center;
+}
+
+.description {
+  margin: 4rem 0;
+  line-height: 1.5;
+  font-size: 1.5rem;
+}

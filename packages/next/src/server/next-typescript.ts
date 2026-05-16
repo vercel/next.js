@@ -1,0 +1,1 @@
+export { createTSPlugin } from './typescript'

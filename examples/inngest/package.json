@@ -1,0 +1,25 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm:dev:*\"",
+    "dev:next": "next dev --turbo",
+    "dev:inngest": "inngest-cli dev --no-discovery -u http://localhost:3000/api/inngest",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "inngest": "3.x",
+    "next": "latest",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.7.0",
+    "@types/react": "18.2.23",
+    "@types/react-dom": "18.2.7",
+    "concurrently": "^8.2.1",
+    "encoding": "^0.1.13",
+    "inngest-cli": "latest",
+    "typescript": "5.5.4"
+  }
+}

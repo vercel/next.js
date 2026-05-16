@@ -1,0 +1,54 @@
+/* eslint-env jest */
+import { join } from 'path'
+import cheerio from 'cheerio'
+import webdriver from 'next-webdriver'
+import { fetchViaHTTP } from 'next-test-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
+
+describe('Middleware base tests', () => {
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, '../app/pages')),
+      'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
+      'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
+    },
+  })
+
+  it('should execute from absolute paths', async () => {
+    const browser = await webdriver(next.url, '/redirect-with-basepath')
+    try {
+      expect(await browser.eval(`window.location.pathname`)).toBe(
+        '/root/redirect-with-basepath'
+      )
+    } finally {
+      await browser.close()
+    }
+
+    const res = await fetchViaHTTP(next.url, '/root/redirect-with-basepath')
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('.title').text()).toBe('About Page')
+  })
+
+  it('router.query must exist when Link clicked page routing', async () => {
+    const browser = await webdriver(next.url, '/root')
+    try {
+      await browser.elementById('go-to-hello-world-anchor').click()
+      const routeName = await browser.elementById('route-name').text()
+      expect(routeName).toMatch('hello-world')
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should allow client-side navigation to the root', async () => {
+    const browser = await webdriver(next.url, '/root/other')
+    try {
+      await browser.elementById('go-to-home').click()
+      const title = await browser.waitForElementByCss('.title').text()
+      expect(title).toMatch('Hello World')
+    } finally {
+      await browser.close()
+    }
+  })
+})

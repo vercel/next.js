@@ -1,0 +1,7 @@
+CODE_OF_CONDUCT.md
+examples/
+**/*/LICENSE.md
+.claude/
+AGENTS.md
+CLAUDE.md
+packages/next/dist/docs/

@@ -1,0 +1,10 @@
+!node_modules
+.vscode
+
+e2e/**/tsconfig.json
+production/**/tsconfig.json
+development/**/tsconfig.json
+
+rspack-test-junit-report/
+test-junit-report/
+turbopack-test-junit-report/

@@ -1,0 +1,20 @@
+.nav {
+  display: flex;
+}
+
+.li {
+  list-style: none;
+  margin-right: 1rem;
+}
+
+.active {
+  color: red;
+}
+
+.divider {
+  list-style: none;
+  width: 1px;
+  margin-right: 1rem;
+  background: black;
+  margin-left: auto;
+}

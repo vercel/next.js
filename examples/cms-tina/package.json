@@ -1,0 +1,29 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "tina-dev": "yarn tinacms server:start -c \"next dev\"",
+    "tina-build": "yarn tinacms server:start -c \"next build\"",
+    "tina-start": "yarn tinacms server:start -c \"next start\""
+  },
+  "dependencies": {
+    "@tinacms/cli": "^0.60.16",
+    "classnames": "2.3.1",
+    "date-fns": "2.29.3",
+    "gray-matter": "4.0.3",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "remark": "14.0.2",
+    "remark-html": "15.0.1",
+    "styled-components": "^5.3.3",
+    "tinacms": "^0.68.4"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.2",
+    "postcss": "^8.4.7",
+    "tailwindcss": "^3.0.23"
+  }
+}
