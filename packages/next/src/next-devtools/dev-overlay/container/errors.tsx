@@ -21,7 +21,10 @@ import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
 import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
+  InstantHeaderExplanation,
   InstantGuidance,
+  SYNC_IO_CLIENT_DOCS,
+  SYNC_IO_DOCS,
   type GuidanceKind,
   type GuidanceVariant,
 } from '../components/instant/instant-guidance'
@@ -217,6 +220,7 @@ function InstantRuntimeError({
   kind = 'blocking-route',
   explanation,
   cause,
+  showExplanation = true,
   dialogResizerRef,
 }: {
   error: ReadyRuntimeError
@@ -224,6 +228,7 @@ function InstantRuntimeError({
   kind?: GuidanceKind
   explanation?: string
   cause?: string
+  showExplanation?: boolean
   dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }) {
   const frames = useFrames(error)
@@ -251,6 +256,7 @@ function InstantRuntimeError({
         kind={kind}
         explanation={explanation}
         cause={cause}
+        showExplanation={showExplanation}
       />
       {frames.length > 0 && (
         <ErrorOverlayCallStack
@@ -537,6 +543,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               ? 'Next.js encountered runtime data during the initial render.'
               : 'Next.js encountered uncached data during the initial render.'
           }
+          headerChildren={<InstantHeaderExplanation kind="blocking-route" />}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
@@ -552,6 +559,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               key={activeError.id.toString()}
               error={activeError}
               variant={errorDetails.variant}
+              showExplanation={false}
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
@@ -575,6 +583,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               </>
             )
           }
+          headerChildren={<InstantHeaderExplanation kind="metadata" />}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
@@ -591,6 +600,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               error={activeError}
               variant={errorDetails.variant}
               kind="metadata"
+              showExplanation={false}
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
@@ -614,6 +624,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               </>
             )
           }
+          headerChildren={<InstantHeaderExplanation kind="viewport" />}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
@@ -630,6 +641,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               error={activeError}
               variant={errorDetails.variant}
               kind="viewport"
+              showExplanation={false}
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
@@ -645,6 +657,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               Next.js encountered <code>{errorDetails.cause}</code> without an
               explicit rendering intent.
             </>
+          }
+          headerChildren={
+            <InstantHeaderExplanation
+              explanation="This value can change between renders, so it must be either prerendered or computed later."
+              docsUrl={SYNC_IO_DOCS[errorDetails.cause]}
+            />
           }
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
@@ -663,7 +681,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               variant="runtime"
               kind="sync-io"
               cause={errorDetails.cause}
-              explanation="This value can change between renders, so it must be either prerendered or computed later."
+              showExplanation={false}
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
@@ -679,6 +697,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               Next.js encountered <code>{errorDetails.cause}</code> in a Client
               Component.
             </>
+          }
+          headerChildren={
+            <InstantHeaderExplanation
+              explanation="This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit."
+              docsUrl={SYNC_IO_CLIENT_DOCS[errorDetails.cause]}
+            />
           }
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
@@ -697,6 +721,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               variant="runtime"
               kind="sync-io-client"
               cause={errorDetails.cause}
+              showExplanation={false}
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
@@ -786,17 +811,21 @@ export const styles = `
   }
   .nextjs__container_errors__error_title {
     display: flex;
-    align-items: center;
+    align-items: start;
     justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 14px;
+    gap: 12px;
+    position: relative;
   }
   .error-overlay-notes-container {
     margin: 8px 2px;
   }
   .error-overlay-notes-container p {
     white-space: pre-wrap;
+  }
+  @media (max-width: 767px) {
+    .nextjs__container_errors__error_title {
+      flex-direction: column-reverse;
+    }
   }
   .external-link, .external-link:hover {
     color:inherit;

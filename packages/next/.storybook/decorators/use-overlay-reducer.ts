@@ -1,4 +1,7 @@
-import type { DispatcherEvent, OverlayState } from '../shared'
+import type {
+  DispatcherEvent,
+  OverlayState,
+} from '../../src/next-devtools/dev-overlay/shared'
 
 import { useReducer } from 'react'
 import {
@@ -29,7 +32,7 @@ import {
   ACTION_UNHANDLED_REJECTION,
   ACTION_VERSION_INFO,
   INITIAL_OVERLAY_STATE,
-} from '../shared'
+} from '../../src/next-devtools/dev-overlay/shared'
 
 export const storybookDefaultOverlayState: OverlayState = {
   ...INITIAL_OVERLAY_STATE,
