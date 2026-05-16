@@ -3413,16 +3413,17 @@ describe('instant validation', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1248",
-             "description": "Route "/suspense-in-root/static/multi-depth-deferred-fallback/inner": Could not validate instant UI because an expected segment was not rendered.
+             "description": "Route "/suspense-in-root/static/multi-depth-deferred-fallback/inner": Could not validate that a segment in your UI has instant navigation.
 
-           Unrendered segment:
+           A segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.
+
+
+           Dropped segment:
              app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
 
-           Issues that would prevent instant navigation in this segment will go undetected.
-
            Ways to fix this:
-             - Render the missing segment
-             - Set \`export const instant = false\` on the unrendered segment to allow no validation and silence this warning
+             - Render the dropped segment
+             - Set \`export const instant = false\` on the dropped segment to skip validation
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
              "environmentLabel": "Server",
@@ -3437,16 +3438,17 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/multi-depth-deferred-fallback/inner": Could not validate instant UI because an expected segment was not rendered.
+           "Error: Route "/suspense-in-root/static/multi-depth-deferred-fallback/inner": Could not validate that a segment in your UI has instant navigation.
 
-           Unrendered segment:
+           A segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.
+
+
+           Dropped segment:
              app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
 
-           Issues that would prevent instant navigation in this segment will go undetected.
-
            Ways to fix this:
-             - Render the missing segment
-             - Set \`export const instant = false\` on the unrendered segment to allow no validation and silence this warning
+             - Render the dropped segment
+             - Set \`export const instant = false\` on the dropped segment to skip validation
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
                at ignore-listed frames
@@ -3475,16 +3477,17 @@ describe('instant validation', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1248",
-             "description": "Route "/suspense-in-root/static/test-firstmod/inter/inner": Could not validate instant UI because an expected segment was not rendered.
+             "description": "Route "/suspense-in-root/static/test-firstmod/inter/inner": Could not validate that a segment in your UI has instant navigation.
 
-           Unrendered segment:
+           A segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.
+
+
+           Dropped segment:
              app/suspense-in-root/static/test-firstmod/inter/layout.tsx
 
-           Issues that would prevent instant navigation in this segment will go undetected.
-
            Ways to fix this:
-             - Render the missing segment
-             - Set \`export const instant = false\` on the unrendered segment to allow no validation and silence this warning
+             - Render the dropped segment
+             - Set \`export const instant = false\` on the dropped segment to skip validation
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
              "environmentLabel": "Server",
@@ -3499,16 +3502,17 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/test-firstmod/inter/inner": Could not validate instant UI because an expected segment was not rendered.
+           "Error: Route "/suspense-in-root/static/test-firstmod/inter/inner": Could not validate that a segment in your UI has instant navigation.
 
-           Unrendered segment:
+           A segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.
+
+
+           Dropped segment:
              app/suspense-in-root/static/test-firstmod/inter/layout.tsx
 
-           Issues that would prevent instant navigation in this segment will go undetected.
-
            Ways to fix this:
-             - Render the missing segment
-             - Set \`export const instant = false\` on the unrendered segment to allow no validation and silence this warning
+             - Render the dropped segment
+             - Set \`export const instant = false\` on the dropped segment to skip validation
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
                at ignore-listed frames
@@ -3535,17 +3539,18 @@ describe('instant validation', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1248",
-             "description": "Route "/suspense-in-root/static/test-multi-unrendered": Could not validate instant UI because an expected segment was not rendered.
+             "description": "Route "/suspense-in-root/static/test-multi-unrendered": Could not validate that a segment in your UI has instant navigation.
 
-           Unrendered segments:
+           A segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.
+
+
+           Dropped segments:
              app/suspense-in-root/static/test-multi-unrendered/@sidebar/page.tsx
              app/suspense-in-root/static/test-multi-unrendered/page.tsx
 
-           Issues that would prevent instant navigation in this segment will go undetected.
-
            Ways to fix this:
-             - Render the missing segment
-             - Set \`export const instant = false\` on the unrendered segment to allow no validation and silence this warning
+             - Render the dropped segment
+             - Set \`export const instant = false\` on the dropped segment to skip validation
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
              "environmentLabel": "Server",
@@ -3560,17 +3565,18 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/test-multi-unrendered": Could not validate instant UI because an expected segment was not rendered.
+           "Error: Route "/suspense-in-root/static/test-multi-unrendered": Could not validate that a segment in your UI has instant navigation.
 
-           Unrendered segments:
+           A segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.
+
+
+           Dropped segments:
              app/suspense-in-root/static/test-multi-unrendered/@sidebar/page.tsx
              app/suspense-in-root/static/test-multi-unrendered/page.tsx
 
-           Issues that would prevent instant navigation in this segment will go undetected.
-
            Ways to fix this:
-             - Render the missing segment
-             - Set \`export const instant = false\` on the unrendered segment to allow no validation and silence this warning
+             - Render the dropped segment
+             - Set \`export const instant = false\` on the dropped segment to skip validation
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
                at ignore-listed frames

@@ -100,6 +100,9 @@ export function getErrorTypeLabel(
   if (errorDetails.type === 'sync-io-client') {
     return `Instant`
   }
+  if (errorDetails.type === 'unrendered-segment') {
+    return `Instant`
+  }
   if (type === 'recoverable') {
     return `Recoverable ${error.name}`
   }
@@ -344,7 +347,9 @@ export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
     message.includes('Could not validate `unstable_instant`') ||
-    message.includes('Could not validate instant UI')
+    message.includes(
+      'Could not validate that a segment in your UI has instant navigation'
+    )
   )
 }
 
@@ -398,13 +403,9 @@ export function getBlockingRouteErrorDetails(
   return null
 }
 
-// Detects the navigation-time "unrendered segment" wrapper produced by the
-// missing-segment branch in
-// `packages/next/src/server/app-render/dynamic-rendering.ts` when validation
-// can't complete because a required boundary segment didn't render. The
-// framework writes the headline `Route "<path>": Could not validate instant
-// UI because an expected segment was not rendered.` followed by an
-// `Unrendered segment(s):` block listing project-relative file paths.
+// Detects the unrendered-segment wrapper emitted from
+// `packages/next/src/server/app-render/dynamic-rendering.ts` when a
+// required boundary segment didn't render.
 export function getUnrenderedSegmentErrorDetails(
   error: Error
 ): UnrenderedSegmentErrorDetails | null {
@@ -412,7 +413,7 @@ export function getUnrenderedSegmentErrorDetails(
   if (typeof message !== 'string') return null
   if (
     !message.includes(
-      'Could not validate instant UI because an expected segment was not rendered'
+      'Could not validate that a segment in your UI has instant navigation'
     )
   ) {
     return null
@@ -421,10 +422,10 @@ export function getUnrenderedSegmentErrorDetails(
   if (!routeMatch) return null
   const route = routeMatch[1]
 
-  // The body lists `Unrendered segment:` or `Unrendered segments:` followed
+  // The body lists `Dropped segment:` or `Dropped segments:` followed
   // by indented file paths on subsequent lines until the next blank line.
   const files: string[] = []
-  const filesBlockMatch = /\nUnrendered segments?:\n([^]*?)(?:\n\n|$)/.exec(
+  const filesBlockMatch = /\nDropped segments?:\n([^]*?)(?:\n\n|$)/.exec(
     message
   )
   if (filesBlockMatch) {
@@ -818,7 +819,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
         <ErrorOverlayLayout
           errorCode={errorCode}
           errorType={errorType}
-          errorMessage="Next.js could not validate instant UI because an expected segment was not rendered."
+          errorMessage="Next.js could not validate that a segment in your UI has instant navigation."
           headerChildren={
             <InstantHeaderExplanation kind="unrendered-segment" />
           }

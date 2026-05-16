@@ -154,21 +154,35 @@ const dynamicCards: FixCard[] = [
 
 const unrenderedSegmentCards: FixCard[] = [
   {
-    id: 'render-the-missing-segment',
-    title: 'Render the missing segment',
+    id: 'render-the-dropped-segment',
+    title: 'Render the dropped segment',
     group: 'render',
-    link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#render-the-missing-segment',
+    link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#render-the-dropped-segment',
     snippets: [
-      { text: 'function Layout({ children }) {' },
-      { text: '  return <main>{children}</main>', highlight: true },
+      {
+        text: 'function Layout({ children }) {',
+        parts: [
+          { text: 'function Layout({ ' },
+          { text: 'children', highlight: true },
+          { text: ' }) {' },
+        ],
+      },
+      {
+        text: '  return <><Nav />{children}</>',
+        parts: [
+          { text: '  return <><Nav />{' },
+          { text: 'children', highlight: true },
+          { text: '}</>' },
+        ],
+      },
       { text: '}' },
     ],
   },
   {
-    id: 'allow-no-validation',
-    title: 'Allow no validation',
+    id: 'skip-validation-on-segment',
+    title: 'Skip validation on segment',
     group: 'silence',
-    link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#allow-no-validation',
+    link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#skip-validation-on-segment',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
@@ -594,7 +608,7 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'sync-io-client':
     'This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.',
   'unrendered-segment':
-    'Issues that would prevent instant navigation in this segment will go undetected.',
+    'A segment in your route tree was dropped from rendering, so issues that would prevent instant navigation here go undetected.',
 }
 
 export const BLOCKING_ROUTE_NAVIGATION_EXPLANATION =
