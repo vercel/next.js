@@ -196,7 +196,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Prerender params if known with \`generateStaticParams\`
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -224,7 +224,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Prerender params if known with \`generateStaticParams\`
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -248,7 +248,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Prerender params if known with \`generateStaticParams\`
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -276,7 +276,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Prerender params if known with \`generateStaticParams\`
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -821,7 +821,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Prerender params if known with \`generateStaticParams\`
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -843,7 +843,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Prerender params if known with \`generateStaticParams\`
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -872,7 +872,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Prerender params if known with \`generateStaticParams\`
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -897,7 +897,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Prerender params if known with \`generateStaticParams\`
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -921,7 +921,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Prerender params if known with \`generateStaticParams\`
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -943,7 +943,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Prerender params if known with \`generateStaticParams\`
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -972,7 +972,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Prerender params if known with \`generateStaticParams\`
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1011,7 +1011,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Prerender params if known with \`generateStaticParams\`
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2358,7 +2358,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Cache the data access with \`"use cache"\`
                    - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Prerender params if known with \`generateStaticParams\`
+                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2386,7 +2386,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Cache the data access with \`"use cache"\`
                    - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Prerender params if known with \`generateStaticParams\`
+                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2412,7 +2412,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Cache the data access with \`"use cache"\`
                    - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Prerender params if known with \`generateStaticParams\`
+                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3069,7 +3069,7 @@ describe('Cache Components Errors', () => {
                    Ways to fix this:
                      - Cache the data access with \`"use cache"\`
                      - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Prerender params if known with \`generateStaticParams\`
+                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3096,7 +3096,7 @@ describe('Cache Components Errors', () => {
                    Ways to fix this:
                      - Cache the data access with \`"use cache"\`
                      - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Prerender params if known with \`generateStaticParams\`
+                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3123,7 +3123,7 @@ describe('Cache Components Errors', () => {
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Prerender params if known with \`generateStaticParams\`
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -3137,7 +3137,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Prerender params if known with \`generateStaticParams\`
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -3191,7 +3191,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    Ways to fix this:
                      - Cache the data access with \`"use cache"\`
                      - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Prerender params if known with \`generateStaticParams\`
+                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3218,7 +3218,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    Ways to fix this:
                      - Cache the data access with \`"use cache"\`
                      - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Prerender params if known with \`generateStaticParams\`
+                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3245,7 +3245,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Prerender params if known with \`generateStaticParams\`
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -3259,7 +3259,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Prerender params if known with \`generateStaticParams\`
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -3472,7 +3472,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    Ways to fix this:
                      - Cache the data access with \`"use cache"\`
                      - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Prerender params if known with \`generateStaticParams\`
+                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3499,7 +3499,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    Ways to fix this:
                      - Cache the data access with \`"use cache"\`
                      - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Prerender params if known with \`generateStaticParams\`
+                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3526,7 +3526,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Prerender params if known with \`generateStaticParams\`
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -3540,7 +3540,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Prerender params if known with \`generateStaticParams\`
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -3594,7 +3594,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    Ways to fix this:
                      - Cache the data access with \`"use cache"\`
                      - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Prerender params if known with \`generateStaticParams\`
+                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3621,7 +3621,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                     Ways to fix this:
                       - Cache the data access with \`"use cache"\`
                       - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                      - Prerender params if known with \`generateStaticParams\`
+                      - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                       - Set \`export const instant = false\` to allow a blocking route
 
                     Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3648,7 +3648,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Prerender params if known with \`generateStaticParams\`
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -3662,7 +3662,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Prerender params if known with \`generateStaticParams\`
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -3874,7 +3874,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  Ways to fix this:
                    - Cache the data access with \`"use cache"\`
                    - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Prerender params if known with \`generateStaticParams\`
+                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3899,7 +3899,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  Ways to fix this:
                    - Cache the data access with \`"use cache"\`
                    - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Prerender params if known with \`generateStaticParams\`
+                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -4778,7 +4778,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  Ways to fix this:
                    - Cache the data access with \`"use cache"\`
                    - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Prerender params if known with \`generateStaticParams\`
+                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -4806,7 +4806,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  Ways to fix this:
                    - Cache the data access with \`"use cache"\`
                    - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Prerender params if known with \`generateStaticParams\`
+                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -4833,7 +4833,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Prerender params if known with \`generateStaticParams\`
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -4847,7 +4847,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  Ways to fix this:
                    - Cache the data access with \`"use cache"\`
                    - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Prerender params if known with \`generateStaticParams\`
+                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -4982,7 +4982,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - For telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/date/page.tsx:19:16)
@@ -5009,7 +5009,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - For telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/date/page.tsx:19:16)
@@ -5038,7 +5038,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - For telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (app/sync-io-current-time/date/page.tsx:19:16)
@@ -5064,7 +5064,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - For telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (<next-dist-dir>)
@@ -5127,7 +5127,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - For telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/date-now/page.tsx:19:21)
@@ -5154,7 +5154,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - For telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/date-now/page.tsx:19:21)
@@ -5183,7 +5183,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - For telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (app/sync-io-current-time/date-now/page.tsx:19:21)
@@ -5209,7 +5209,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - For telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (<next-dist-dir>)
@@ -5272,7 +5272,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - For telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/new-date/page.tsx:19:16)
@@ -5299,7 +5299,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - For telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/new-date/page.tsx:19:16)
@@ -5328,7 +5328,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - For telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (app/sync-io-current-time/new-date/page.tsx:19:16)
@@ -5354,7 +5354,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - For telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (<next-dist-dir>)
@@ -7300,7 +7300,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Prerender params if known with \`generateStaticParams\`
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -7328,7 +7328,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Prerender params if known with \`generateStaticParams\`
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -7359,7 +7359,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Prerender params if known with \`generateStaticParams\`
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -7387,7 +7387,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Prerender params if known with \`generateStaticParams\`
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route

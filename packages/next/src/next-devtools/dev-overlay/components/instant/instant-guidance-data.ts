@@ -77,7 +77,7 @@ const runtimeCards: FixCard[] = [
   },
   {
     id: 'prerender-known-params',
-    title: 'Prerender params if known',
+    title: 'For known params, prerender',
     group: 'cache',
     link: 'https://nextjs.org/docs/messages/blocking-route#prerender-known-params',
     snippets: [

@@ -4,7 +4,7 @@ export function createRuntimeBodyError(route: string): Error {
       `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
-      `  - Prerender params if known with \`generateStaticParams\`\n` +
+      `  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`\n` +
       `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-route`
   )
@@ -28,7 +28,7 @@ export function createRuntimeBodyErrorInNavigation(route: string): Error {
       `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
-      `  - Prerender params if known with \`generateStaticParams\`\n` +
+      `  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`\n` +
       `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-route`
   )
@@ -58,7 +58,7 @@ export function createDynamicOrRuntimeBodyError(route: string): Error {
       `Ways to fix this:\n` +
       `  - Cache the data access with \`"use cache"\`\n` +
       `  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
-      `  - Prerender params if known with \`generateStaticParams\`\n` +
+      `  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`\n` +
       `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-route`
   )

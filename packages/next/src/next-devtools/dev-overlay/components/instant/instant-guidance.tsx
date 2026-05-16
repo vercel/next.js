@@ -237,7 +237,6 @@ export const INSTANT_GUIDANCE_STYLES = css`
     display: flex;
     flex-direction: column;
     min-width: 0;
-    overflow: hidden;
     position: relative;
     text-decoration: none;
   }
@@ -249,8 +248,18 @@ export const INSTANT_GUIDANCE_STYLES = css`
     text-decoration: none;
   }
 
+  [data-nextjs-fix-card]:hover {
+    border-color: var(--color-gray-500);
+    background: var(--color-background-200);
+  }
+
   [data-nextjs-fix-card]:hover [data-nextjs-fix-card-link-icon] {
     color: var(--color-gray-1000);
+  }
+
+  [data-nextjs-fix-card]:hover [data-nextjs-fix-snippet] {
+    border-color: var(--color-gray-500);
+    background: var(--color-gray-100);
   }
 
   a[data-nextjs-fix-card]:focus-visible {

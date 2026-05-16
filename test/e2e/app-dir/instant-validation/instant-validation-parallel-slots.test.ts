@@ -148,7 +148,7 @@ describe('instant validation - parallel slot configs', () => {
 
            Ways to fix this:
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - Prerender params if known with \`generateStaticParams\`
+             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -208,7 +208,7 @@ describe('instant validation - parallel slot configs', () => {
 
            Ways to fix this:
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - Prerender params if known with \`generateStaticParams\`
+             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -268,7 +268,7 @@ describe('instant validation - parallel slot configs', () => {
 
            Ways to fix this:
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - Prerender params if known with \`generateStaticParams\`
+             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -330,7 +330,7 @@ describe('instant validation - parallel slot configs', () => {
 
            Ways to fix this:
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - Prerender params if known with \`generateStaticParams\`
+             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -417,7 +417,7 @@ describe('instant validation - parallel slot configs', () => {
 
            Ways to fix this:
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - Prerender params if known with \`generateStaticParams\`
+             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -431,7 +431,7 @@ describe('instant validation - parallel slot configs', () => {
 
            Ways to fix this:
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - Prerender params if known with \`generateStaticParams\`
+             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -557,7 +557,7 @@ describe('instant validation - parallel slot configs', () => {
 
            Ways to fix this:
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - Prerender params if known with \`generateStaticParams\`
+             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -672,7 +672,7 @@ describe('instant validation - parallel slot configs', () => {
 
            Ways to fix this:
              - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - Prerender params if known with \`generateStaticParams\`
+             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
