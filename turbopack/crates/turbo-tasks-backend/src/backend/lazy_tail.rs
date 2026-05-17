@@ -191,16 +191,7 @@ impl LazyTail {
     /// `trailing_zeros` / `count_ones` but no built-in set-bit iterator;
     /// `bits &= bits - 1` is the canonical equivalent.
     #[inline]
-    fn sum_padded_sizes(mask: u32) -> usize {
-        Self::sum_padded_sizes_for_bits(mask)
-    }
-
-    /// Public alias of `sum_padded_sizes` so the macro-generated decode
-    /// path can preallocate exactly enough tail capacity for the
-    /// bitmap-prefixed wire format. The macro reads the wire bitmap, then
-    /// asks how many tail bytes the eventual payloads will occupy.
-    #[inline]
-    pub(crate) fn sum_padded_sizes_for_bits(mut mask: u32) -> usize {
+    fn sum_padded_sizes(mut mask: u32) -> usize {
         let mut offset = 0usize;
         while mask != 0 {
             let bit_idx = mask.trailing_zeros();

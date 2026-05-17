@@ -398,23 +398,6 @@ impl TaskStorage {
         target_total.min(max_total)
     }
 
-    /// Pre-grow the tail to fit `min_tail_bytes` total before a batch
-    /// of `lazy_insert`s — used by the macro-generated decode path to
-    /// avoid N reallocs as N payloads install. Wraps the private
-    /// `grow_to` (which has the same contract) with a stable
-    /// `pub(crate)` symbol so the macro doesn't have to depend on
-    /// private impl details.
-    ///
-    /// # Safety
-    /// Same as [`Self::grow_to`]: no outstanding `&mut TaskStorageInner`
-    /// reference may exist when this returns, because the realloc
-    /// relocates the buffer.
-    #[inline]
-    pub(crate) unsafe fn grow_to_for_decode(&mut self, min_tail_bytes: usize) {
-        // SAFETY: forwarded caller contract.
-        unsafe { self.grow_to(min_tail_bytes) }
-    }
-
     /// Grow the allocation so the tail has at least `min_tail_bytes`
     /// capacity. Uses `mi_good_size` to pre-round to the allocator bin.
     ///
