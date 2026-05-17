@@ -3,13 +3,11 @@ import { Dialog } from '../../dialog/dialog'
 type ErrorOverlayDialogProps = {
   children?: React.ReactNode
   onClose?: () => void
-  footer?: React.ReactNode
 } & React.HTMLAttributes<HTMLDivElement>
 
 export function ErrorOverlayDialog({
   children,
   onClose,
-  footer,
   ...props
 }: ErrorOverlayDialogProps) {
   return (
@@ -23,7 +21,6 @@ export function ErrorOverlayDialog({
       >
         {children}
       </Dialog>
-      {footer}
     </div>
   )
 }
@@ -34,8 +31,7 @@ export const DIALOG_STYLES = `
     flex-direction: column;
     background: var(--color-background-100);
     background-clip: padding-box;
-    border: var(--next-dialog-border-width) solid var(--color-gray-400);
-    border-radius: 0 0 var(--next-dialog-radius) var(--next-dialog-radius);
+    border-radius: var(--next-dialog-radius);
     box-shadow: var(--shadow-menu);
     position: relative;
     overflow: hidden;

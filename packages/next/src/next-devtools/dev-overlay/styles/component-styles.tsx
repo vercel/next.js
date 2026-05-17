@@ -1,7 +1,6 @@
 import { CODE_FRAME_STYLES } from '../components/code-frame/code-frame'
 import { styles as dialog } from '../components/dialog'
 import { styles as errorLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
-import { styles as bottomStack } from '../components/errors/error-overlay-bottom-stack'
 import { styles as pagination } from '../components/errors/error-overlay-pagination/error-overlay-pagination'
 import { styles as overlay } from '../components/overlay/styles'
 import { styles as footer } from '../components/errors/error-overlay-footer/error-overlay-footer'
@@ -16,7 +15,6 @@ import { css } from '../utils/css'
 import { EDITOR_LINK_STYLES } from '../components/terminal/editor-link'
 import { ENVIRONMENT_NAME_LABEL_STYLES } from '../components/errors/environment-name-label/environment-name-label'
 import { DEV_TOOLS_INFO_USER_PREFERENCES_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/user-preferences'
-import { FADER_STYLES } from '../components/fader'
 import { CALL_STACK_STYLES } from '../components/call-stack/call-stack'
 import { SHORTCUT_RECORDER_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/shortcut-recorder'
 import { INSTANT_GUIDANCE_STYLES } from '../components/instant/instant-guidance'
@@ -33,7 +31,6 @@ export function ComponentStyles() {
         ${dialog}
         ${errorLayout}
         ${footer}
-        ${bottomStack}
         ${pagination}
         ${CODE_FRAME_STYLES}
         ${TERMINAL_STYLES}
@@ -43,7 +40,6 @@ export function ComponentStyles() {
         ${containerRuntimeErrorStyles}
         ${versionStaleness}
         ${DEV_TOOLS_INFO_USER_PREFERENCES_STYLES}
-        ${FADER_STYLES}
         ${SHORTCUT_RECORDER_STYLES}
         ${INSTANT_GUIDANCE_STYLES}
       `}
