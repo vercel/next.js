@@ -281,6 +281,18 @@ impl FieldInfo {
             proc_macro2::Span::call_site(),
         )
     }
+
+    /// Identifier of the schema-emitted `LAZY_TAG_<FIELD_NAME>` constant
+    /// for this field. Lazy fields are addressed by tag everywhere in
+    /// generated code (typed accessors, encode/decode, dispatch tables),
+    /// so the construction `LAZY_TAG_<uppercase field name>` shows up
+    /// many times — keep it in one place.
+    fn tag_ident(&self) -> syn::Ident {
+        syn::Ident::new(
+            &format!("LAZY_TAG_{}", self.field_name.to_string().to_uppercase()),
+            proc_macro2::Span::call_site(),
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1049,28 +1061,25 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         .iter()
         .enumerate()
         .map(|(idx, field)| {
-            // Field names are already snake_case so just uppercase them for the
-            // `LAZY_TAG_<UPPER>` constant.
-            let tag_ident = syn::Ident::new(
-                &format!("LAZY_TAG_{}", field.field_name.to_string().to_uppercase()),
-                proc_macro2::Span::call_site(),
-            );
-            let tag = (idx + 1) as u8;
+            let tag_ident = field.tag_ident();
+            let tag = idx as u8;
+            let ty = &field.field_type;
             let doc = format!(
-                "Tag for the `{}` lazy variant. Used to address its payload in the byte tail.",
+                "Tag for the `{}` lazy variant, carrying the payload type `{}` in the type \
+                 system. Used to address its payload in the byte tail. Pass to typed \
+                 `TaskStorage::lazy_*` methods which infer the payload type from this constant.",
                 field.variant_name,
+                quote::quote!(#ty),
             );
             quote! {
                 #[doc = #doc]
-                pub const #tag_ident: crate::backend::lazy_tail::Tag =
+                pub const #tag_ident: crate::backend::lazy_tail::Tag<#ty> =
                     crate::backend::lazy_tail::Tag::new(#tag);
             }
         })
         .collect();
 
-    // Per-tag payload size (in bytes), indexed by tag. Slot 0 (the sentinel)
-    // is `0` to keep indexing clean. Used to compute byte offsets when walking
-    // the tail.
+    // Per-tag payload size (in bytes), indexed by tag (0-based).
     let size_entries: Vec<_> = all_lazy_fields
         .iter()
         .map(|field| {
@@ -1079,7 +1088,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         })
         .collect();
 
-    // Per-tag payload alignment (in bytes), indexed by tag. Slot 0 is `1`.
+    // Per-tag payload alignment (in bytes), indexed by tag (0-based).
     let align_entries: Vec<_> = all_lazy_fields
         .iter()
         .map(|field| {
@@ -1112,20 +1121,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         })
         .collect();
 
-    // Per-tag payload `TypeId`, indexed by tag. Used by
-    // `Tag::debug_assert_type::<T>()` to catch wrong-type casts at the call
-    // site rather than producing UB downstream. Only consulted in debug
-    // builds, but the table is always emitted so a single binary layout
-    // works for both.
-    let type_id_entries: Vec<_> = all_lazy_fields
-        .iter()
-        .map(|field| {
-            let ty = &field.field_type;
-            quote! { std::any::TypeId::of::<#ty>() }
-        })
-        .collect();
-
-    // Per-category presence-bitmap masks. Bit `tag - 1` is set for variants
+    // Per-category presence-bitmap masks. Bit `tag` is set for variants
     // belonging to the category. `LAZY_PERSISTENT_MASK` is `LAZY_META_MASK |
     // LAZY_DATA_MASK`.
     let mut persistent_mask: u32 = 0;
@@ -1148,12 +1144,12 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
 
     // Per-tag dispatch arms for `lazy_drop_dispatch`. Each arm casts the byte
     // pointer to the right payload type and calls `drop_in_place`.
-    // Match arms read `tag.raw()` for terse pattern syntax (`1u8 => …`).
+    // Match arms read `tag.raw()` for terse pattern syntax (`0u8 => …`).
     let drop_dispatch_arms: Vec<_> = all_lazy_fields
         .iter()
         .enumerate()
         .map(|(idx, field)| {
-            let tag = (idx + 1) as u8;
+            let tag = idx as u8;
             let ty = &field.field_type;
             quote! {
                 #tag => {
@@ -1172,7 +1168,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         .iter()
         .enumerate()
         .map(|(idx, field)| {
-            let tag = (idx + 1) as u8;
+            let tag = idx as u8;
             let ty = &field.field_type;
             let body = match field.storage_type {
                 StorageType::Direct => quote! { false },
@@ -1192,7 +1188,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         .iter()
         .enumerate()
         .map(|(idx, field)| {
-            let tag = (idx + 1) as u8;
+            let tag = idx as u8;
             let ty = &field.field_type;
             let field_name_str = field.field_name.to_string();
             quote! {
@@ -1209,11 +1205,11 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         // =====================================================================
         // Lazy-field tag layout tables.
         //
-        // Each lazy variant in the schema is assigned a 1-based tag (so tag 0
-        // is reserved as the bincode encode sentinel). The byte-tail layout
-        // (see `LazyTail`) stores payloads packed in tag order. Presence is
-        // tracked by a `u32` bitmap; payload positions are computed from
-        // `LAZY_PADDED_SIZE[tag]` for each set bit below the target tag.
+        // Each lazy variant in the schema is assigned a 0-based tag. The
+        // byte-tail layout (see `LazyTail`) stores payloads packed in tag
+        // order. Presence is tracked by a `u32` bitmap; payload positions
+        // are computed from `LAZY_PADDED_SIZE[tag]` for each set bit
+        // below the target tag.
         //
         // These constants live at the schema's module level so storage
         // primitives in `storage_schema.rs` and per-variant accessors emitted
@@ -1222,7 +1218,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
 
         #(#tag_constants)*
 
-        #[doc = "Number of lazy variants. Tags are `1..=LAZY_N`."]
+        #[doc = "Number of lazy variants. Tags are `0..LAZY_N`."]
         pub const LAZY_N: u8 = #num_variants as u8;
 
         #[doc = "Compile-time assertion that the bitmap fits in `u32`."]
@@ -1231,19 +1227,19 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
             "lazy_present is u32; schema declares too many lazy variants",
         );
 
-        #[doc = "Per-tag payload size in bytes. Index 0 is unused (sentinel)."]
-        pub const LAZY_SIZE: [u16; LAZY_N as usize + 1] = [0 #(, #size_entries)*];
+        #[doc = "Per-tag payload size in bytes (0-based index)."]
+        pub const LAZY_SIZE: [u16; LAZY_N as usize] = [#(#size_entries),*];
 
-        #[doc = "Per-tag payload alignment in bytes. Index 0 is unused (sentinel)."]
-        pub const LAZY_ALIGN: [u8; LAZY_N as usize + 1] = [1 #(, #align_entries)*];
+        #[doc = "Per-tag payload alignment in bytes (0-based index)."]
+        const LAZY_ALIGN: [u8; LAZY_N as usize] = [#(#align_entries),*];
 
         #[doc = "Maximum alignment across all lazy payloads. The tail buffer is"]
         #[doc = "allocated with at least this alignment so every payload sits at a"]
         #[doc = "valid offset."]
         pub const LAZY_MAX_ALIGN: usize = {
-            let mut i = 1;
+            let mut i = 0;
             let mut m: u8 = 1;
-            while i <= LAZY_N as usize {
+            while i < LAZY_N as usize {
                 if LAZY_ALIGN[i] > m { m = LAZY_ALIGN[i]; }
                 i += 1;
             }
@@ -1252,23 +1248,15 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
 
         #[doc = "Per-tag padded payload size (size rounded up to align). Used to"]
         #[doc = "compute byte offsets into the tail without re-doing alignment math."]
-        pub const LAZY_PADDED_SIZE: [u16; LAZY_N as usize + 1] = [0 #(, #padded_size_entries)*];
+        pub const LAZY_PADDED_SIZE: [u16; LAZY_N as usize] = [#(#padded_size_entries),*];
 
-        #[doc = "Per-tag payload `TypeId`. Index 0 is `TypeId::of::<()>()` as an"]
-        #[doc = "unused sentinel (real tags are 1-based). Consulted by"]
-        #[doc = "`Tag::debug_assert_type::<T>()` in debug builds to catch a caller"]
-        #[doc = "passing the wrong `T` to a typed `LazyTail` / `TaskStorage`"]
-        #[doc = "method before the unsafe pointer cast turns it into UB."]
-        pub const LAZY_TYPE_IDS: [std::any::TypeId; LAZY_N as usize + 1] =
-            [std::any::TypeId::of::<()>() #(, #type_id_entries)*];
-
-        #[doc = "Bitmap of persistent (non-transient) variants. Bit `tag - 1` set."]
+        #[doc = "Bitmap of persistent (non-transient) variants. Bit `tag` set."]
         pub const LAZY_PERSISTENT_MASK: u32 = #persistent_mask;
 
-        #[doc = "Bitmap of meta-category variants. Bit `tag - 1` set."]
+        #[doc = "Bitmap of meta-category variants. Bit `tag` set."]
         pub const LAZY_META_MASK: u32 = #meta_mask;
 
-        #[doc = "Bitmap of data-category variants. Bit `tag - 1` set."]
+        #[doc = "Bitmap of data-category variants. Bit `tag` set."]
         pub const LAZY_DATA_MASK: u32 = #data_mask;
 
         #[doc = "Drop the payload at `ptr` interpreted as the type whose tag is `tag`."]
@@ -1278,7 +1266,10 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         #[doc = "`ptr` must point to a live payload whose runtime type matches the"]
         #[doc = "compile-time payload type assigned to `tag` in the schema. After this"]
         #[doc = "call the bytes at `ptr` are uninitialized."]
-        pub(crate) unsafe fn lazy_drop_dispatch(tag: crate::backend::lazy_tail::Tag, ptr: *mut u8) {
+        pub(crate) unsafe fn lazy_drop_dispatch(
+            tag: crate::backend::lazy_tail::Tag,
+            ptr: *mut std::mem::MaybeUninit<u8>,
+        ) {
             match tag.raw() {
                 #(#drop_dispatch_arms)*
                 _ => debug_assert!(false, "lazy_drop_dispatch: invalid tag {}", tag.raw()),
@@ -1294,7 +1285,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         #[doc = "Same as `lazy_drop_dispatch`."]
         pub(crate) unsafe fn lazy_is_empty_dispatch(
             tag: crate::backend::lazy_tail::Tag,
-            ptr: *const u8,
+            ptr: *const std::mem::MaybeUninit<u8>,
         ) -> bool {
             match tag.raw() {
                 #(#is_empty_dispatch_arms,)*
@@ -1313,7 +1304,7 @@ fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
         #[doc = "Same as `lazy_drop_dispatch`."]
         pub(crate) unsafe fn lazy_debug_dispatch(
             tag: crate::backend::lazy_tail::Tag,
-            ptr: *const u8,
+            ptr: *const std::mem::MaybeUninit<u8>,
             map: &mut std::fmt::DebugMap<'_, '_>,
         ) {
             match tag.raw() {
@@ -1548,30 +1539,21 @@ fn generate_direct_field_accessors_split(field: &FieldInfo) -> (TokenStream, Tok
         // &TaskStorageInner` reference has provenance only for the head
         // bytes and would be UB under Stacked Borrows to read past
         // `size_of::<TaskStorageInner>()`.
-        let tag_ident = syn::Ident::new(
-            &format!("LAZY_TAG_{}", field.field_name.to_string().to_uppercase()),
-            proc_macro2::Span::call_site(),
-        );
+        let tag_ident = field.tag_ident();
         let on_box = quote! {
             #vis fn #get_name(&self) -> Option<&#field_type> {
-                // SAFETY: `#tag_ident` is the schema tag for `#field_type`.
-                unsafe { self.lazy_find::<#field_type>(#tag_ident) }
+                self.lazy_find(#tag_ident)
             }
 
             #vis fn #take_name(&mut self) -> Option<#field_type> {
-                // SAFETY: `#tag_ident` matches `#field_type`. `take` only
-                // shrinks the tail.
-                unsafe { self.lazy_take::<#field_type>(#tag_ident) }
+                self.lazy_take(#tag_ident)
             }
 
             #[doc = "Get a mutable reference to the field value (if present)."]
             #[doc = ""]
             #[doc = "Does NOT allocate if the field is absent — returns None instead."]
             #vis fn #get_mut_name(&mut self) -> Option<&mut #field_type> {
-                // SAFETY: `#tag_ident` matches `#field_type`. Mutation in
-                // place doesn't change `lazy_tail.len`, so no realloc is
-                // needed.
-                unsafe { self.lazy_find_mut::<#field_type>(#tag_ident) }
+                self.lazy_find_mut(#tag_ident)
             }
 
             #[doc = "Set the field value, returning the old value if present."]
@@ -1579,8 +1561,7 @@ fn generate_direct_field_accessors_split(field: &FieldInfo) -> (TokenStream, Tok
             #[doc = "May reallocate the underlying buffer when the variant"]
             #[doc = "wasn't previously present."]
             #vis fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
-                // SAFETY: `#tag_ident` matches `#field_type` per the schema.
-                unsafe { self.lazy_replace::<#field_type>(#tag_ident, value) }
+                self.lazy_replace(#tag_ident, value)
             }
         };
         (quote! {}, on_box)
@@ -1628,28 +1609,32 @@ fn generate_collection_field_accessors_split(
         // head+tail allocation). Reading the tail from an
         // `&TaskStorageInner` would be UB under Stacked Borrows since
         // that reference's provenance only covers the head bytes.
-        let tag_ident = syn::Ident::new(
-            &format!("LAZY_TAG_{}", field.field_name.to_string().to_uppercase()),
-            proc_macro2::Span::call_site(),
-        );
+        let tag_ident = field.tag_ident();
+        let get_mut_name = field.get_mut_ident();
         let on_box = quote! {
             #vis fn #ref_name(&self) -> Option<&#field_type> {
-                // SAFETY: `#tag_ident` is the schema tag for `#field_type`.
-                unsafe { self.lazy_find::<#field_type>(#tag_ident) }
+                self.lazy_find(#tag_ident)
             }
 
             #vis fn #take_name(&mut self) -> Option<#field_type> {
-                // SAFETY: `#tag_ident` matches `#field_type`. `take` only
-                // shrinks the tail.
-                unsafe { self.lazy_take::<#field_type>(#tag_ident) }
+                self.lazy_take(#tag_ident)
+            }
+
+            #[doc = "Get a mutable reference to the collection if present,"]
+            #[doc = "without allocating. Returns `None` for absent variants."]
+            #[doc = ""]
+            #[doc = "Use this when the caller wants to mutate the collection"]
+            #[doc = "in-place (e.g. `shrink_to_fit`) without paying the byte"]
+            #[doc = "shifts of `take` + `<name>_mut()` reinstall."]
+            #vis fn #get_mut_name(&mut self) -> Option<&mut #field_type> {
+                self.lazy_find_mut(#tag_ident)
             }
 
             #[doc = "Get a mutable reference to the collection, installing a"]
             #[doc = "fresh `Default::default()` if absent. May reallocate the"]
             #[doc = "underlying buffer when installing."]
             #vis fn #mut_name(&mut self) -> &mut #field_type {
-                // SAFETY: `#tag_ident` matches `#field_type` per the schema.
-                unsafe { self.lazy_get_or_create::<#field_type>(#tag_ident) }
+                self.lazy_get_or_create(#tag_ident)
             }
         };
         (quote! {}, on_box)
@@ -2801,9 +2786,7 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
 
     // Generate per-variant cleanup blocks for lazy fields with cleanup attrs.
     // Each block uses typed accessors so we don't depend on iterating
-    // `&LazyField`. The "take, inspect, reinstall" pattern means we briefly
-    // remove the variant from storage; that's fine because cleanup runs on a
-    // task whose execution has just completed and nothing else is reading.
+    // `&LazyField`.
     let mut lazy_cleanups = Vec::new();
 
     for field in grouped_fields.all_lazy() {
@@ -2820,27 +2803,29 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
             StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
         );
         let take_name = field.take_ident();
-        let mut_name = field.mut_ident();
+        let get_mut_name = field.get_mut_ident();
 
         if drop_if_immutable && shrink && is_collection {
             // Drop for immutable, shrink-or-remove-if-empty for mutable.
             lazy_cleanups.push(quote! {
                 if is_immutable {
                     let _ = typed.#take_name();
-                } else if let Some(mut c) = typed.#take_name() {
-                    if !c.is_empty() {
+                } else if let Some(c) = typed.#get_mut_name() {
+                    if c.is_empty() {
+                        let _ = typed.#take_name();
+                    } else {
                         c.shrink_to_fit();
-                        *typed.#mut_name() = c;
                     }
                 }
             });
         } else if shrink && is_collection {
-            // Shrink or remove-if-empty.
+            // Shrink or remove-if-empty, in place where possible.
             lazy_cleanups.push(quote! {
-                if let Some(mut c) = typed.#take_name() {
-                    if !c.is_empty() {
+                if let Some(c) = typed.#get_mut_name() {
+                    if c.is_empty() {
+                        let _ = typed.#take_name();
+                    } else {
                         c.shrink_to_fit();
-                        *typed.#mut_name() = c;
                     }
                 }
             });
@@ -3445,9 +3430,6 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
     }
 }
 
-/// Sentinel byte marking the end of lazy fields in serialization.
-const LAZY_FIELD_SENTINEL: u8 = 0x00;
-
 // =============================================================================
 // Transient Filtering Helpers
 // =============================================================================
@@ -3505,8 +3487,16 @@ fn generate_filter_predicate(field: &FieldInfo) -> Option<(TokenStream, FilterPr
 /// is already a reference from the match arm).
 ///
 /// For non-filtered fields, encodes the value directly.
-/// For filtered fields, uses a single-pass collect to a Vec, then encodes.
-/// This avoids multiple iterations (check non-empty + count + encode).
+///
+/// For filtered fields, we materialize a *same-typed* container with the
+/// filtered entries and encode that container through its own
+/// `bincode::Encode` impl. That way the encode wire shape is whatever the
+/// container's own `Encode` produces — and the decode side's
+/// `bincode::Decode::decode(decoder)?` reads the matching shape. Earlier
+/// versions emitted a hand-rolled `len + element*` format, which only
+/// happened to match the container's `Encode` impl by coincidence — a
+/// container that later switched to a tagged wire form (struct prefix,
+/// custom varint) would silently produce unparsable bytes here.
 fn generate_encode_value(field: &FieldInfo, value_ref: TokenStream) -> TokenStream {
     let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
         // No filtering needed, just encode normally
@@ -3515,9 +3505,12 @@ fn generate_encode_value(field: &FieldInfo, value_ref: TokenStream) -> TokenStre
         };
     };
 
+    let field_type = &field.field_type;
     match pred_type {
         FilterPredicateType::Option => {
-            // For Option<T>, check if the value is transient and encode None if so
+            // For Option<T>, check if the value is transient and encode None if so.
+            // bincode encodes `Option<&T>` and `Option<T>` with the same
+            // wire shape, so the decode side reads back into `Option<T>`.
             quote! {
                 {
                     let filtered_value = (#value_ref).as_ref().filter(#predicate);
@@ -3526,40 +3519,33 @@ fn generate_encode_value(field: &FieldInfo, value_ref: TokenStream) -> TokenStre
             }
         }
         FilterPredicateType::Set => {
-            // For AutoSet<K>, filter out transient keys - collect once then encode
+            // Build a fresh same-typed set with the filtered entries, then
+            // delegate to its bincode `Encode` impl — guaranteeing the
+            // encode/decode wire shapes match by construction.
             quote! {
                 {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for key in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                    }
+                    let mut filtered: #field_type = Default::default();
+                    filtered.extend(
+                        (#value_ref).iter().filter(#predicate).cloned()
+                    );
+                    bincode::Encode::encode(&filtered, encoder)?;
                 }
             }
         }
-        FilterPredicateType::CounterMap => {
-            // For counter maps, filter out entries with transient keys - collect once
+        FilterPredicateType::CounterMap | FilterPredicateType::Map => {
+            // Same pattern as Set: materialize a same-typed container of
+            // the filtered (key, value) pairs and delegate to its bincode
+            // `Encode` impl.
             quote! {
                 {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for (key, value) in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                        bincode::Encode::encode(value, encoder)?;
-                    }
-                }
-            }
-        }
-        FilterPredicateType::Map => {
-            // For maps, filter out entries with transient keys or values - collect once
-            quote! {
-                {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for (key, value) in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                        bincode::Encode::encode(value, encoder)?;
-                    }
+                    let mut filtered: #field_type = Default::default();
+                    filtered.extend(
+                        (#value_ref)
+                            .iter()
+                            .filter(#predicate)
+                            .map(|(k, v)| (k.clone(), v.clone()))
+                    );
+                    bincode::Encode::encode(&filtered, encoder)?;
                 }
             }
         }
@@ -3574,76 +3560,25 @@ fn generate_encode_inline_field(field: &FieldInfo) -> TokenStream {
     generate_encode_value(field, quote! { &self.inline.#field_name })
 }
 
-/// Generate code to encode a lazy field value with index.
-///
-/// For filtered fields, collects to a Vec first, then checks if non-empty before
-/// writing index. This avoids multiple iterations over the data.
-fn generate_encode_lazy_field_with_index(field: &FieldInfo, index: u8) -> TokenStream {
-    let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
-        // No filtering needed - encode directly
-        return quote! {
-            bincode::Encode::encode(&#index, encoder)?;
-            bincode::Encode::encode(data, encoder)?;
-        };
-    };
-
-    match pred_type {
-        FilterPredicateType::Option => {
-            // For Option<T>, check if the value is transient
-            quote! {
-                {
-                    let filtered_value = data.as_ref().filter(#predicate);
-                    if filtered_value.is_some() {
-                        bincode::Encode::encode(&#index, encoder)?;
-                        bincode::Encode::encode(&filtered_value, encoder)?;
-                    }
-                }
-            }
-        }
-        FilterPredicateType::Set => {
-            // Collect once, check if non-empty, then encode
-            quote! {
-                {
-                    let filtered: Vec<_> = data.iter().filter(#predicate).collect();
-                    if !filtered.is_empty() {
-                        bincode::Encode::encode(&#index, encoder)?;
-                        bincode::Encode::encode(&filtered.len(), encoder)?;
-                        for key in filtered {
-                            bincode::Encode::encode(key, encoder)?;
-                        }
-                    }
-                }
-            }
-        }
-        FilterPredicateType::CounterMap | FilterPredicateType::Map => {
-            // Collect once, check if non-empty, then encode
-            quote! {
-                {
-                    let filtered: Vec<_> = data.iter().filter(#predicate).collect();
-                    if !filtered.is_empty() {
-                        bincode::Encode::encode(&#index, encoder)?;
-                        bincode::Encode::encode(&filtered.len(), encoder)?;
-                        for (key, value) in filtered {
-                            bincode::Encode::encode(key, encoder)?;
-                            bincode::Encode::encode(value, encoder)?;
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 /// Generate code to encode lazy fields to bincode.
-/// Uses sentinel-terminated format: [index, data]... [sentinel]
 ///
-/// Walks the presence bitmap once (via `try_for_each_present_in_mask`)
-/// and dispatches per-tag to the variant's encode body. Compared to the
-/// previous "ask every variant if present, then encode" form this:
-/// - Skips offset recomputation for the absent variants (`for_each_present` maintains a running
-///   offset)
-/// - Reads each present payload from a pointer the iterator already computed, instead of redoing
-///   the `present & mask_below()` popcount inside the per-variant accessor.
+/// Wire format: `(present: u32) (payload)*` — the bitmap covers
+/// this category's lazy variants (`present & LAZY_<CAT>_MASK`),
+/// payloads follow in ascending tag order. No per-payload index byte
+/// and no sentinel: the bitmap uniquely identifies each payload by
+/// position.
+///
+/// Compared to the old `(idx, data)...0` format this saves one byte per
+/// present payload (the index) plus the trailing sentinel, and — more
+/// importantly — lets the decode side preallocate the exact tail
+/// capacity up front via `with_tail_capacity(sum_padded_sizes(present))`,
+/// turning N grows-during-decode into one allocation.
+///
+/// For `filter_transient` fields we build the filtered container into a
+/// local up front; if it ends up empty the bit is cleared from the
+/// emitted bitmap (preserving the "absent vs present-and-empty"
+/// distinction the old encoder maintained). Non-filtered fields always
+/// emit when present.
 fn generate_encode_lazy_fields(category: Category, fields: &[&FieldInfo]) -> TokenStream {
     if fields.is_empty() {
         return quote! {};
@@ -3658,121 +3593,229 @@ fn generate_encode_lazy_fields(category: Category, fields: &[&FieldInfo]) -> Tok
         }
     };
 
-    let arms: Vec<_> = fields
-        .iter()
-        .enumerate()
-        .map(|(idx, field)| {
-            // Per-category wire index. `+1` so 0 stays reserved for the
-            // bincode encode sentinel that terminates the stream.
-            let wire_idx = idx as u8 + 1;
-            let field_type = &field.field_type;
-            let tag_ident = syn::Ident::new(
-                &format!("LAZY_TAG_{}", field.field_name.to_string().to_uppercase()),
-                proc_macro2::Span::call_site(),
-            );
-            let body = generate_encode_lazy_field_with_index(field, wire_idx);
-            quote! {
+    // Per-field locals: each filter_transient field gets a
+    // `Option<#field_type>` holding the prebuilt filtered container,
+    // which we encode in the second pass once the bitmap is written.
+    // Non-filter fields don't need a local — the second pass re-reads
+    // them from the tail through their tag pointer.
+    let mut buffer_decls = Vec::new();
+    let mut filter_arms = Vec::new();
+    let mut emit_arms = Vec::new();
+    for field in fields {
+        let field_type = &field.field_type;
+        let tag_ident = field.tag_ident();
+        let buf_ident = syn::Ident::new(
+            &format!("__lazy_buf_{}", field.field_name),
+            proc_macro2::Span::call_site(),
+        );
+
+        if field.filter_transient {
+            // Stash the filter predicate; the same machinery as the
+            // inline `generate_encode_value` path constructs the
+            // same-typed container with filtered entries.
+            let (predicate, pred_type) = generate_filter_predicate(field)
+                .expect("filter_transient field must produce a filter predicate");
+            // Direct lazy fields are rejected at parse time when
+            // combined with filter_transient (we only support
+            // collection storage here), so we don't need an Option arm.
+            let build_filtered = match pred_type {
+                FilterPredicateType::Set => quote! {
+                    let mut f: #field_type = Default::default();
+                    f.extend(data.iter().filter(#predicate).cloned());
+                    f
+                },
+                FilterPredicateType::CounterMap | FilterPredicateType::Map => quote! {
+                    let mut f: #field_type = Default::default();
+                    f.extend(
+                        data.iter()
+                            .filter(#predicate)
+                            .map(|(k, v)| (k.clone(), v.clone()))
+                    );
+                    f
+                },
+                FilterPredicateType::Option => {
+                    // filter_transient on Option-shaped fields means
+                    // `output: Option<OutputValue>` (inline), which never
+                    // goes through this path — inline fields are encoded
+                    // by `generate_encode_inline_field`, not here.
+                    unreachable!(
+                        "filter_transient + Option predicate on lazy collection field is \
+                         impossible per the parser's constraints"
+                    );
+                }
+            };
+
+            buffer_decls.push(quote! {
+                let mut #buf_ident: Option<#field_type> = None;
+            });
+            filter_arms.push(quote! {
                 t if t == #tag_ident.raw() => {
                     // SAFETY: `tag` is `#tag_ident`, whose schema-declared
-                    // payload type is `#field_type`. `ptr` is the payload
-                    // pointer the iterator computed for that tag.
+                    // payload type is `#field_type`.
                     let data: &#field_type = unsafe { &*ptr.cast::<#field_type>() };
-                    #body
+                    let filtered = { #build_filtered };
+                    if !filtered.is_empty() {
+                        encoded_bits |= #tag_ident.bit();
+                        #buf_ident = Some(filtered);
+                    }
                 }
-            }
-        })
-        .collect();
+            });
+            emit_arms.push(quote! {
+                t if t == #tag_ident.raw() => {
+                    // SAFETY: filter pass set this bit only when
+                    // `#buf_ident` is `Some(filtered)`.
+                    let value = unsafe { #buf_ident.as_ref().unwrap_unchecked() };
+                    bincode::Encode::encode(value, encoder)?;
+                }
+            });
+        } else {
+            // Non-filtered: always emit when present in the source.
+            filter_arms.push(quote! {
+                t if t == #tag_ident.raw() => {
+                    encoded_bits |= #tag_ident.bit();
+                }
+            });
+            emit_arms.push(quote! {
+                t if t == #tag_ident.raw() => {
+                    // SAFETY: `tag` is `#tag_ident`, whose schema-declared
+                    // payload type is `#field_type`. The bit is set in
+                    // `encoded_bits` (we wrote it during the filter pass)
+                    // iff the tail also holds the payload, so the
+                    // `lazy_tail.find` lookup must succeed.
+                    let data: &#field_type = unsafe {
+                        self.lazy_find(#tag_ident).unwrap_unchecked()
+                    };
+                    bincode::Encode::encode(data, encoder)?;
+                }
+            });
+        }
+    }
 
     quote! {
-        // Walk every present payload and filter by this category's mask
-        // inside the closure. The iterator already maintains the running
-        // byte-tail offset, so the per-arm body doesn't recompute it.
+        // First pass: walk the tail, build filter buffers for
+        // filter_transient fields, decide which bits to emit.
         //
         // SAFETY: `tail_base` is derived from the owning `TaskStorage`'s
         // `NonNull<TaskStorageInner>`, which has provenance over the full
         // head+tail allocation. Each arm matches on a tag whose payload
         // type is fixed by the schema.
-        let mut __encode_result: Result<(), bincode::error::EncodeError> = Ok(());
+        let mut encoded_bits: u32 = 0;
+        #(#buffer_decls)*
         let tail_base = self.tail_ptr();
         unsafe {
-            let _ = self.lazy_tail.try_for_each_present(tail_base, |tag, ptr| {
+            self.lazy_tail.for_each_present(tail_base, |tag, ptr| {
                 if (tag.bit() & #category_mask_ident) == 0 {
-                    return std::ops::ControlFlow::Continue(());
+                    return;
                 }
-                let mut inner = || -> Result<(), bincode::error::EncodeError> {
-                    match tag.raw() {
-                        #(#arms)*
-                        _ => {
-                            debug_assert!(false, "tag {} not in this category mask", tag.raw());
-                        }
-                    }
-                    Ok(())
-                };
-                match inner() {
-                    Ok(()) => std::ops::ControlFlow::Continue(()),
-                    Err(e) => {
-                        __encode_result = Err(e);
-                        std::ops::ControlFlow::Break(())
+                match tag.raw() {
+                    #(#filter_arms)*
+                    _ => {
+                        debug_assert!(false, "tag {} not in this category mask", tag.raw());
                     }
                 }
             });
         }
-        __encode_result?;
-        // Write sentinel to mark end of lazy fields
-        bincode::Encode::encode(&#LAZY_FIELD_SENTINEL, encoder)?;
+        // Second pass: write the bitmap, then payloads in ascending
+        // tag order. We re-walk `encoded_bits` rather than the original
+        // `present` so we skip filter_transient fields whose filtered
+        // form is empty.
+        bincode::Encode::encode(&encoded_bits, encoder)?;
+        let mut bits = encoded_bits;
+        while bits != 0 {
+            let bit_idx = bits.trailing_zeros();
+            let tag_raw = bit_idx as u8;
+            match tag_raw {
+                #(#emit_arms)*
+                _ => {
+                    debug_assert!(false, "encoded_bits {tag_raw:?} has no emit arm");
+                }
+            }
+            bits &= bits - 1;
+        }
     }
 }
 
 /// Generate code to decode lazy fields from bincode.
-/// Reads until sentinel byte (0x00) is encountered.
+///
+/// Wire format mirror of `generate_encode_lazy_fields`: read a `u32`
+/// bitmap, then a payload per set bit in ascending tag order. Computes
+/// the total padded tail size up front and pre-grows the buffer so
+/// every payload installs without triggering a per-field realloc.
 fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
     if fields.is_empty() {
         return quote! {};
     }
 
-    // Generate match arms for decoding each field variant. The encoded
-    // tag is a per-category index (`1..=#fields.len()`); we map it back to
-    // the schema's global `LAZY_TAG_<NAME>` constant to install the payload
-    // at the correct bitmap position. The per-category tag is a stable on-
-    // disk format choice that predates the byte-tail layout.
+    // One match arm per persistent lazy field in this category. We
+    // dispatch by the global tag (`#global_tag_ident.raw()`),
+    // which matches what the encoder wrote into the bitmap.
     let decode_arms: Vec<_> = fields
         .iter()
-        .enumerate()
-        .map(|(idx, field)| {
+        .map(|field| {
             let field_type = &field.field_type;
-            let stream_tag = idx as u8 + 1;
-            let global_tag_ident = syn::Ident::new(
-                &format!("LAZY_TAG_{}", field.field_name.to_string().to_uppercase()),
-                proc_macro2::Span::call_site(),
-            );
+            let global_tag_ident = field.tag_ident();
             quote! {
-                #stream_tag => {
+                t if t == #global_tag_ident.raw() => {
                     let payload: #field_type = bincode::Decode::decode(decoder)?;
-                    // SAFETY: `#global_tag_ident` matches `#field_type` per
-                    // the schema's tag → type mapping. Decoded values are
-                    // pushed once per tag (sentinel-terminated stream
-                    // produced by encode_*).
-                    unsafe { self.lazy_insert::<#field_type>(#global_tag_ident, payload) };
+                    // SAFETY: payload type is inferred from
+                    // `#global_tag_ident`'s `Tag` parameter; the
+                    // schema's tag→type mapping is enforced by the type
+                    // system. The bitmap ensures each tag is decoded
+                    // at most once.
+                    unsafe { self.lazy_insert(#global_tag_ident, payload) };
                 }
             }
         })
         .collect();
 
+    // Build a per-category mask so we can reject bits set outside this
+    // category (which would indicate a corrupted on-disk record from a
+    // version skew).
+    let category_bits: Vec<_> = fields
+        .iter()
+        .map(|field| {
+            let tag_ident = field.tag_ident();
+            quote! { #tag_ident.bit() }
+        })
+        .collect();
+
     quote! {
-        // Decode lazy fields until LAZY_FIELD_SENTINEL
-        loop {
-            let idx: u8 = bincode::Decode::decode(decoder)?;
-            match idx {
-                #(#decode_arms,)*
-                #LAZY_FIELD_SENTINEL => {
-                    break
-                }
+        let encoded_bits: u32 = bincode::Decode::decode(decoder)?;
+        let valid_mask: u32 = 0u32#(| #category_bits)*;
+        if encoded_bits & !valid_mask != 0 {
+            return Err(bincode::error::DecodeError::OtherString(
+                format!(
+                    "lazy bitmap has bits outside this category's mask (bits=0x{:08x}, mask=0x{:08x})",
+                    encoded_bits, valid_mask,
+                ),
+            ));
+        }
+        // Pre-grow the tail so every payload installs without a realloc.
+        // `sum_padded_sizes` walks set bits with the same Lemire trick
+        // the encoder uses, so the size is exact (not an over-estimate).
+        let extra_tail_bytes = crate::backend::lazy_tail::LazyTail::sum_padded_sizes_for_bits(
+            encoded_bits,
+        );
+        let already_used = self.lazy_tail.len as usize;
+        let needed = already_used + extra_tail_bytes;
+        if needed > self.lazy_tail.cap as usize {
+            // SAFETY: `grow_to` reallocates the buffer to fit `needed`
+            // tail bytes; subsequent `lazy_insert`s won't grow again.
+            unsafe { self.grow_to_for_decode(needed) };
+        }
+        let mut bits = encoded_bits;
+        while bits != 0 {
+            let bit_idx = bits.trailing_zeros();
+            let tag_raw = bit_idx as u8;
+            match tag_raw {
+                #(#decode_arms)*
                 _ => {
                     return Err(bincode::error::DecodeError::OtherString(
-                        format!("Unknown lazy field index: {idx}"),
+                        format!("unknown lazy tag: {tag_raw}"),
                     ));
                 }
             }
+            bits &= bits - 1;
         }
     }
 }
@@ -3797,21 +3840,17 @@ fn gen_clone_lazy_arms_for_category(
     grouped_fields
         .persistent_lazy(category)
         .map(|field| {
-            let field_type = &field.field_type;
-            let tag_ident = syn::Ident::new(
-                &format!("LAZY_TAG_{}", field.field_name.to_string().to_uppercase()),
-                proc_macro2::Span::call_site(),
-            );
+            let tag_ident = field.tag_ident();
             let getter = match field.storage_type {
                 StorageType::Direct => field.get_ident(),
                 _ => field.ref_ident(),
             };
-            // SAFETY: `#tag_ident` is the schema tag for `#field_type` and
+            // SAFETY: `#tag_ident` carries the payload type, and
             // `snapshot` was just constructed with an empty lazy area, so
             // no entry exists for `#tag_ident` yet.
             quote! {
                 if let Some(data) = self.#getter() {
-                    unsafe { snapshot.lazy_insert::<#field_type>(#tag_ident, data.clone()) };
+                    unsafe { snapshot.lazy_insert(#tag_ident, data.clone()) };
                 }
             }
         })
@@ -3848,20 +3887,36 @@ fn gen_restore_lazy_blocks<'a>(fields: impl Iterator<Item = &'a FieldInfo>) -> V
                 // `set_<name>(value) -> Option<T>`; collection lazy fields only
                 // expose `<name>_mut() -> &mut T` (with implicit allocation),
                 // so we route through the right one per storage type.
-                let install = match field.storage_type {
+                //
+                // The "self has no residue" invariant is checked with a
+                // non-mutating accessor. Earlier versions used
+                // `self.#take_name().is_none()` which would silently consume
+                // the existing value in debug builds and panic, leaving
+                // release and debug builds with divergent post-violation
+                // state. Now both builds agree: the assert reads, then the
+                // install overwrites.
+                let (presence_check, install) = match field.storage_type {
                     StorageType::Direct => {
                         let set_name = field.set_ident();
-                        quote! { let _: Option<_> = self.#set_name(incoming); }
+                        let get_name = field.get_ident();
+                        (
+                            quote! { self.#get_name().is_none() },
+                            quote! { let _: Option<_> = self.#set_name(incoming); },
+                        )
                     }
                     _ => {
+                        let ref_name = field.ref_ident();
                         let mut_name = field.mut_ident();
-                        quote! { *self.#mut_name() = incoming; }
+                        (
+                            quote! { self.#ref_name().is_none() },
+                            quote! { *self.#mut_name() = incoming; },
+                        )
                     }
                 };
                 quote! {
                     if let Some(incoming) = source.#take_name() {
                         debug_assert!(
-                            self.#take_name().is_none(),
+                            #presence_check,
                             "restore_*_from called on storage that already has persistent lazy field {}",
                             #field_name_str,
                         );

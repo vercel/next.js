@@ -1,6 +1,6 @@
 //! Bitmap + byte-counter record for `TaskStorageInner`'s lazy fields.
 //!
-//! Each lazy variant is assigned a 1-based tag at macro time (see
+//! Each lazy variant is assigned a 0-based tag at macro time (see
 //! `LAZY_TAG_*` constants, all typed as [`Tag`]). A presence bitmap
 //! (`present`) records which tags have a payload stored; the byte buffer
 //! holds payloads packed in tag order. Per-tag size and alignment are
@@ -12,71 +12,96 @@
 //! `TaskStorageInner` head in the same heap allocation managed by
 //! [`crate::backend::task_storage::TaskStorage`]. None of
 //! `LazyTail`'s methods own or reallocate that buffer — `TaskStorage`
-//! does the alloc/dealloc/realloc, then passes a `tail_base: *mut u8`
-//! pointer into `LazyTail`'s typed methods so they can read/write payloads.
+//! does the alloc/dealloc/realloc, then passes a
+//! `tail_base: *mut MaybeUninit<u8>` pointer into `LazyTail`'s typed
+//! methods so they can read/write payloads. The `MaybeUninit` element
+//! type is load-bearing: padding bytes between packed payloads (where
+//! `size_of::<T>() < LAZY_PADDED_SIZE[tag]`) stay uninitialized and the
+//! `ptr::copy` shifts that move payloads around must be allowed to copy
+//! those uninit bytes without UB. `*mut u8` would require every byte
+//! in the read range to be initialized — `*mut MaybeUninit<u8>` does
+//! not.
 
-use std::{num::NonZeroU8, ops::ControlFlow};
+use std::{marker::PhantomData, mem::MaybeUninit, ops::ControlFlow};
 
 use turbo_tasks::ShrinkToFit;
 
 use crate::backend::storage_schema::LAZY_PADDED_SIZE;
-#[cfg(debug_assertions)]
-use crate::backend::storage_schema::LAZY_TYPE_IDS;
 
-/// Maximum alignment used for the tail buffer. Must be at least the largest
-/// per-tag alignment in `LAZY_ALIGN`. The schema-emitted constant
-/// `LAZY_MAX_ALIGN` is asserted equal at construction time.
-pub(crate) const TAIL_BUFFER_ALIGN: usize = 8;
-
-/// A 1-based lazy-variant tag. Constructed from the schema-emitted
-/// `LAZY_TAG_<NAME>` constants. Tag 0 is reserved as the bincode encode
-/// sentinel and never appears as a `Tag` value — that invariant is carried
-/// at the type level via [`NonZeroU8`], so `Option<Tag>` also gets a
-/// 1-byte niche representation.
+/// A 0-based lazy-variant tag, optionally annotated with the payload
+/// type the schema assigned to it.
 ///
-/// The presence bitmap on [`LazyTail`] uses bit `tag - 1` for each variant,
-/// so this newtype centralizes the bit/mask math instead of repeating
-/// `1u32 << (tag - 1)` everywhere.
-#[repr(transparent)]
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub(crate) struct Tag(NonZeroU8);
+/// - `Tag<T>` (e.g. the schema-emitted `LAZY_TAG_FOO: Tag<FooType>`) is the typed form: typed
+///   accessors (`TaskStorage::lazy_*`) take `Tag<T>` and infer `T` from it, so the schema's
+///   tag→type pairing is enforced by the type system at every callsite — including hand-written
+///   ones outside the macro.
+/// - `Tag` / `Tag<()>` is the untyped form, used by the bitmap iteration helpers (which can't know
+///   the payload type at iteration time) and by `Tag::raw()` consumers (dispatch tables, wire
+///   index). When a typed accessor needs the raw byte it just calls `.raw()`; when iteration
+///   produces a runtime tag it lives as `Tag<()>` and is matched on `.raw()` to dispatch.
+///
+/// Tags run `0..LAZY_N`; the bit for tag `t` is `1 << t`. (An earlier
+/// iteration used `NonZeroU8` and 1-based tags to give `Option<Tag>` a
+/// niche representation, but no caller actually used `Option<Tag>` —
+/// only the dropped sentinel-terminated wire format did. 0-based math
+/// is one fewer `- 1` everywhere.) `#[repr(transparent)]` plus the ZST
+/// `PhantomData` keeps `Tag<T>` the same layout as `Tag<()>` for any
+/// `T`, so swapping the type parameter is free at the ABI level.
+pub(crate) struct Tag<T: 'static = ()> {
+    raw: u8,
+    _marker: PhantomData<fn() -> T>,
+}
 
-impl Tag {
-    /// Construct from a raw 1-based tag. Compiles to a no-op when `raw` is
-    /// a non-zero literal.
+// Manual impls needed to avoid propagating bounds to the captured types
+impl<T: 'static> Copy for Tag<T> {}
+impl<T: 'static> Clone for Tag<T> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T: 'static> std::fmt::Debug for Tag<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Tag").field(&self.raw).finish()
+    }
+}
+
+impl<T: 'static> Tag<T> {
+    /// Construct from a raw 0-based tag.
     ///
     /// # Panics
-    /// Panics if `raw == 0` (in both debug and release) and in debug if
-    /// `raw > 32`. Callers should use the schema-emitted `LAZY_TAG_<NAME>`
-    /// constants rather than constructing tags directly.
+    /// In debug builds if `raw >= 32` (the bitmap capacity). Callers
+    /// should use the schema-emitted `LAZY_TAG_<NAME>` constants rather
+    /// than constructing tags directly.
     #[inline]
     pub(crate) const fn new(raw: u8) -> Self {
-        debug_assert!(raw <= 32, "Tag exceeds bitmap capacity (max 32)");
-        match NonZeroU8::new(raw) {
-            Some(n) => Self(n),
-            None => panic!("Tag must be 1-based; raw=0 is the sentinel"),
+        debug_assert!(raw < 32, "Tag exceeds bitmap capacity (max 32)");
+        Self {
+            raw,
+            _marker: PhantomData,
         }
     }
 
-    /// The raw 1-based tag value, used for wire serialization.
+    /// The raw 0-based tag value, used for wire serialization and dispatch
+    /// table indexing.
     #[inline]
     pub(crate) const fn raw(self) -> u8 {
-        self.0.get()
+        self.raw
     }
 
     /// Index into the per-tag tables (`LAZY_SIZE`, `LAZY_ALIGN`,
-    /// `LAZY_PADDED_SIZE`, `LAZY_TYPE_IDS`). Identical to `raw()` for
-    /// 1-based tags — slot 0 in those tables is reserved.
+    /// `LAZY_PADDED_SIZE`). Identical to `raw()`.
     #[inline]
     pub(crate) const fn table_index(self) -> usize {
-        self.0.get() as usize
+        self.raw as usize
     }
 
-    /// The single-bit mask `1u32 << (raw - 1)`. Used to check presence and
-    /// to set / clear this variant's bit in the bitmap.
+    /// The single-bit mask `1u32 << raw`. Used to check presence and to
+    /// set / clear this variant's bit in the bitmap.
     #[inline]
     pub(crate) const fn bit(self) -> u32 {
-        1u32 << (self.0.get() - 1)
+        1u32 << self.raw
     }
 
     /// Mask of every bit strictly below this tag's bit. Used to compute the
@@ -85,25 +110,6 @@ impl Tag {
     #[inline]
     pub(crate) const fn mask_below(self) -> u32 {
         self.bit() - 1
-    }
-
-    /// Assert that the caller's `T` matches the payload type the schema
-    /// assigned to this tag. The schema-emitted `LAZY_TYPE_IDS` table
-    /// records `TypeId::of::<PayloadT>()` at each tag's slot; we compare
-    /// against `TypeId::of::<T>()`. Compiles to nothing in release builds.
-    ///
-    /// Catches the most common wrong-type-cast bug at the call site rather
-    /// than producing UB downstream of the unsafe pointer cast.
-    #[inline]
-    pub(crate) fn debug_assert_type<T: 'static>(self) {
-        #[cfg(debug_assertions)]
-        debug_assert_eq!(
-            LAZY_TYPE_IDS[self.table_index()],
-            std::any::TypeId::of::<T>(),
-            "lazy tag {} expects a different payload type than T = {}",
-            self.raw(),
-            std::any::type_name::<T>(),
-        );
     }
 }
 
@@ -124,7 +130,7 @@ impl Tag {
 #[repr(C)]
 #[derive(Default)]
 pub(crate) struct LazyTail {
-    /// Presence bitmap: bit `tag - 1` is set iff the variant with that tag
+    /// Presence bitmap: bit `tag` is set iff the variant with that tag
     /// is stored in the tail buffer.
     pub(crate) present: u32,
     /// Bytes used in the tail buffer.
@@ -163,13 +169,13 @@ impl LazyTail {
     /// the new payload would go) and by `offset_of` (which gates this on
     /// the present-bit being set).
     #[inline]
-    pub(crate) fn offset_for(&self, tag: Tag) -> usize {
+    pub(crate) fn offset_for<T: 'static>(&self, tag: Tag<T>) -> usize {
         Self::sum_padded_sizes(self.present & tag.mask_below())
     }
 
     /// Byte offset of `tag`'s payload, or `None` if it isn't present.
     #[inline]
-    pub(crate) fn offset_of(&self, tag: Tag) -> Option<usize> {
+    pub(crate) fn offset_of<T: 'static>(&self, tag: Tag<T>) -> Option<usize> {
         if self.present & tag.bit() == 0 {
             return None;
         }
@@ -185,12 +191,21 @@ impl LazyTail {
     /// `trailing_zeros` / `count_ones` but no built-in set-bit iterator;
     /// `bits &= bits - 1` is the canonical equivalent.
     #[inline]
-    fn sum_padded_sizes(mut mask: u32) -> usize {
+    fn sum_padded_sizes(mask: u32) -> usize {
+        Self::sum_padded_sizes_for_bits(mask)
+    }
+
+    /// Public alias of `sum_padded_sizes` so the macro-generated decode
+    /// path can preallocate exactly enough tail capacity for the
+    /// bitmap-prefixed wire format. The macro reads the wire bitmap, then
+    /// asks how many tail bytes the eventual payloads will occupy.
+    #[inline]
+    pub(crate) fn sum_padded_sizes_for_bits(mut mask: u32) -> usize {
         let mut offset = 0usize;
         while mask != 0 {
             let bit_idx = mask.trailing_zeros();
-            // `bit_idx` is in 0..32; tag is `bit_idx + 1`, in 1..=LAZY_N.
-            offset += LAZY_PADDED_SIZE[bit_idx as usize + 1] as usize;
+            // `bit_idx` is in 0..32 and equals the 0-based tag itself.
+            offset += LAZY_PADDED_SIZE[bit_idx as usize] as usize;
             mask &= mask - 1;
         }
         offset
@@ -218,21 +233,21 @@ impl LazyTail {
     /// - `tail_base` must point to this `LazyTail`'s byte buffer (at least `self.cap` bytes), with
     ///   provenance over the full head+tail allocation.
     /// - `f` may read the bytes at the supplied pointer as the payload type the schema assigned to
-    ///   that tag (per `LAZY_TYPE_IDS`). Bytes outside the per-tag payload region are not
-    ///   guaranteed to be initialized.
+    ///   that tag. Bytes outside the per-tag payload region (padding) are not guaranteed to be
+    ///   initialized — the `MaybeUninit<u8>` element type encodes this directly.
     #[inline]
     pub(crate) unsafe fn try_for_each_present<B>(
         &self,
-        tail_base: *const u8,
-        mut f: impl FnMut(Tag, *const u8) -> ControlFlow<B>,
+        tail_base: *const MaybeUninit<u8>,
+        mut f: impl FnMut(Tag, *const MaybeUninit<u8>) -> ControlFlow<B>,
     ) -> ControlFlow<B> {
         let mut bits = self.present;
         let mut offset = 0usize;
         while bits != 0 {
             let bit_idx = bits.trailing_zeros();
-            // `bit_idx` is in `0..32` because `bits != 0`, so `bit_idx + 1`
-            // is a valid 1-based tag.
-            let tag = Tag::new((bit_idx + 1) as u8);
+            // `bit_idx` is in `0..32` because `bits != 0`, so it is a
+            // valid 0-based tag.
+            let tag = Tag::<()>::new(bit_idx as u8);
             // SAFETY: `offset < self.len <= cap`, so `tail_base.add(offset)`
             // is in-bounds of the unified head+tail allocation.
             let ptr = unsafe { tail_base.add(offset) };
@@ -248,8 +263,8 @@ impl LazyTail {
     #[inline]
     pub(crate) unsafe fn for_each_present(
         &self,
-        tail_base: *const u8,
-        mut f: impl FnMut(Tag, *const u8),
+        tail_base: *const MaybeUninit<u8>,
+        mut f: impl FnMut(Tag, *const MaybeUninit<u8>),
     ) {
         // SAFETY: forwarded — the caller has already signed the contract
         // documented on `try_for_each_present`.
@@ -263,7 +278,7 @@ impl LazyTail {
 
     /// `true` iff the variant with `tag` has a payload in the tail.
     #[inline]
-    pub(crate) fn has(&self, tag: Tag) -> bool {
+    pub(crate) fn has<T: 'static>(&self, tag: Tag<T>) -> bool {
         self.present & tag.bit() != 0
     }
 
@@ -275,10 +290,12 @@ impl LazyTail {
     /// - `tail_base` must point to a buffer of at least `self.len` initialized bytes, with the
     ///   payloads laid out as the install protocol writes them.
     #[inline]
-    pub(crate) unsafe fn find<T: 'static>(&self, tag: Tag, tail_base: *const u8) -> Option<&T> {
+    pub(crate) unsafe fn find<T: 'static>(
+        &self,
+        tag: Tag<T>,
+        tail_base: *const MaybeUninit<u8>,
+    ) -> Option<&T> {
         let offset = self.offset_of(tag)?;
-        tag.debug_assert_type::<T>();
-
         // SAFETY: `offset < self.len <= cap`, so `tail_base.add(offset)` is
         // inside the buffer. The bytes at that offset were written as a `T`
         // by `install`; the caller's `T` matches the tag per the contract.
@@ -290,15 +307,21 @@ impl LazyTail {
     /// # Safety
     /// Same as [`Self::find`]; caller has exclusive access via the `&mut`
     /// chain from `TaskStorage`.
+    ///
+    /// Under Stacked Borrows: `tail_base` must be a raw pointer whose
+    /// provenance includes the tail bytes `[head_size, head_size + cap)`.
+    /// The `&mut self` reborrow only retags the head bytes; the tail
+    /// bytes accessed through `tail_base` and `tag`'s slot are disjoint,
+    /// so the typed reborrow does not invalidate the raw pointer for
+    /// tail access. Callers therefore typically derive `tail_base` from
+    /// `TaskStorage::tail_ptr_mut()` before the `&mut LazyTail` reborrow.
     #[inline]
     pub(crate) unsafe fn find_mut<T: 'static>(
         &mut self,
-        tag: Tag,
-        tail_base: *mut u8,
+        tag: Tag<T>,
+        tail_base: *mut MaybeUninit<u8>,
     ) -> Option<&mut T> {
         let offset = self.offset_of(tag)?;
-        tag.debug_assert_type::<T>();
-
         // SAFETY: see `find`.
         unsafe { Some(&mut *tail_base.add(offset).cast::<T>()) }
     }
@@ -308,10 +331,12 @@ impl LazyTail {
     /// # Safety
     /// - `T` must match the payload type for `tag`.
     /// - `tail_base` must point to a buffer matching this `LazyTail`'s metadata.
-    pub(crate) unsafe fn take<T: 'static>(&mut self, tag: Tag, tail_base: *mut u8) -> Option<T> {
+    pub(crate) unsafe fn take<T: 'static>(
+        &mut self,
+        tag: Tag<T>,
+        tail_base: *mut MaybeUninit<u8>,
+    ) -> Option<T> {
         let offset = self.offset_of(tag)?;
-        tag.debug_assert_type::<T>();
-
         let payload_size = LAZY_PADDED_SIZE[tag.table_index()] as usize;
         // Bytes packed above this payload — by construction `self.len` is the
         // total used tail bytes, so everything past `offset + payload_size`
@@ -321,7 +346,9 @@ impl LazyTail {
         // SAFETY: `offset` is valid; we read the payload as `T` (caller
         // guarantees the type matches), then memmove the bytes above
         // `offset + payload_size` left by `payload_size` to repack the
-        // remaining payloads.
+        // remaining payloads. The buffer's element type is
+        // `MaybeUninit<u8>` so the memmove may legitimately copy
+        // padding bytes that are uninitialized.
         let value = unsafe {
             let value = std::ptr::read(tail_base.add(offset).cast::<T>());
             if above_bytes > 0 {
@@ -345,21 +372,19 @@ impl LazyTail {
     ///
     /// # Safety
     /// - `T` must match the payload type for `tag`.
-    /// - The variant must NOT already be present. To replace an existing payload, use
-    ///   [`Self::replace_in_place`] instead — it skips the shift work this method has to do.
+    /// - The variant must NOT already be present (debug-asserted).
     /// - `tail_base` must point to a buffer of at least `self.cap` bytes.
     pub(crate) unsafe fn insert_unchecked<T: 'static>(
         &mut self,
-        tag: Tag,
+        tag: Tag<T>,
         value: T,
-        tail_base: *mut u8,
+        tail_base: *mut MaybeUninit<u8>,
     ) -> &mut T {
         debug_assert!(
             !self.has(tag),
             "lazy variant tag {} already present",
             tag.raw()
         );
-        tag.debug_assert_type::<T>();
         let payload_size = LAZY_PADDED_SIZE[tag.table_index()] as usize;
         let offset = self.offset_for(tag);
         // Bytes packed above this tag's slot — by construction `self.len` is
@@ -386,6 +411,12 @@ impl LazyTail {
         // `offset` right by `payload_size`, write the new value, and return
         // a `&mut T` to it. The `&mut` borrows from `&mut self` via the
         // signature lifetime.
+        //
+        // The trailing padding bytes `[size_of::<T>(), padded_size)`
+        // stay uninitialized after `ptr::write`. That's fine because
+        // `tail_base` is `*mut MaybeUninit<u8>`: the buffer's element
+        // type permits uninit, so the shift `ptr::copy`s are allowed to
+        // move those padding bytes around without UB.
         let inserted = unsafe {
             if above_bytes > 0 {
                 std::ptr::copy(
@@ -403,38 +434,6 @@ impl LazyTail {
         self.present |= tag.bit();
         inserted
     }
-
-    /// Replace the payload for `tag` in place (same tag, same size).
-    /// Returns the old payload.
-    ///
-    /// # Safety
-    /// - `T` must match the payload type for `tag`.
-    /// - The variant must already be present (caller checked `has(tag)`).
-    /// - `tail_base` must point to a buffer matching this `LazyTail`.
-    pub(crate) unsafe fn replace_in_place<T: 'static>(
-        &mut self,
-        tag: Tag,
-        value: T,
-        tail_base: *mut u8,
-    ) -> T {
-        debug_assert!(
-            self.has(tag),
-            "replace_in_place expects tag {} to be present",
-            tag.raw(),
-        );
-        tag.debug_assert_type::<T>();
-        // SAFETY: `has(tag)` => `offset_of(tag)` is `Some`. Caller guarantees
-        // type match; same-tag replace has constant payload size so no
-        // shifts are needed.
-        unsafe {
-            let offset = self.offset_of(tag).unwrap_unchecked();
-
-            let ptr = tail_base.add(offset).cast::<T>();
-            let old = std::ptr::read(ptr);
-            std::ptr::write(ptr, value);
-            old
-        }
-    }
 }
 
 #[cfg(test)]
@@ -451,8 +450,8 @@ mod tests {
     fn sum_padded_sizes_single_bit_matches_table() {
         // For each valid tag, a mask with only that one bit set should sum
         // to that tag's padded size — the loop runs exactly once.
-        for tag_raw in 1..=LAZY_N {
-            let tag = Tag::new(tag_raw);
+        for tag_raw in 0..LAZY_N {
+            let tag = Tag::<()>::new(tag_raw);
             let expected = LAZY_PADDED_SIZE[tag.table_index()] as usize;
             assert_eq!(
                 LazyTail::sum_padded_sizes(tag.bit()),
@@ -465,11 +464,11 @@ mod tests {
     #[test]
     fn sum_padded_sizes_full_mask_sums_all_padded_sizes() {
         // Mask with every valid tag bit set should sum to the total of
-        // `LAZY_PADDED_SIZE[1..=LAZY_N]`.
+        // `LAZY_PADDED_SIZE[0..LAZY_N]`.
         let mut all_bits: u32 = 0;
         let mut expected: usize = 0;
-        for tag_raw in 1..=LAZY_N {
-            let tag = Tag::new(tag_raw);
+        for tag_raw in 0..LAZY_N {
+            let tag = Tag::<()>::new(tag_raw);
             all_bits |= tag.bit();
             expected += LAZY_PADDED_SIZE[tag.table_index()] as usize;
         }
@@ -478,15 +477,15 @@ mod tests {
 
     #[test]
     fn sum_padded_sizes_ignores_bits_above_lazy_n() {
-        // `LAZY_PADDED_SIZE[i]` for `i > LAZY_N` is undefined (the array is
-        // only `LAZY_N + 1` long), so bits above `LAZY_N` must never be
-        // present in a real mask. This test pins the contract: with only
-        // valid bits set, the sum equals the table sum.
+        // `LAZY_PADDED_SIZE[i]` for `i >= LAZY_N` is out of bounds (the
+        // array is exactly `LAZY_N` long), so bits at or above `LAZY_N`
+        // must never appear in a real mask. This test pins the contract:
+        // with only valid bits set, the sum equals the table sum.
         let mut mask: u32 = 0;
         let mut expected: usize = 0;
         // Use alternating bits to cover the popcount-iteration path.
-        for tag_raw in (1..=LAZY_N).step_by(2) {
-            let tag = Tag::new(tag_raw);
+        for tag_raw in (0..LAZY_N).step_by(2) {
+            let tag = Tag::<()>::new(tag_raw);
             mask |= tag.bit();
             expected += LAZY_PADDED_SIZE[tag.table_index()] as usize;
         }
@@ -501,43 +500,36 @@ mod tests {
         if LAZY_N < 3 {
             return;
         }
-        let t1 = Tag::new(1);
-        let t2 = Tag::new(2);
-        let t3 = Tag::new(3);
+        let t0 = Tag::<()>::new(0);
+        let t1 = Tag::<()>::new(1);
+        let t2 = Tag::<()>::new(2);
         let tail = LazyTail {
-            present: t1.bit() | t2.bit() | t3.bit(),
+            present: t0.bit() | t1.bit() | t2.bit(),
             ..Default::default()
         };
-        assert_eq!(tail.offset_of(t1), Some(0));
+        assert_eq!(tail.offset_of(t0), Some(0));
         assert_eq!(
-            tail.offset_of(t2),
-            Some(LAZY_PADDED_SIZE[t1.table_index()] as usize),
+            tail.offset_of(t1),
+            Some(LAZY_PADDED_SIZE[t0.table_index()] as usize),
         );
         assert_eq!(
-            tail.offset_of(t3),
+            tail.offset_of(t2),
             Some(
-                LAZY_PADDED_SIZE[t1.table_index()] as usize
-                    + LAZY_PADDED_SIZE[t2.table_index()] as usize,
+                LAZY_PADDED_SIZE[t0.table_index()] as usize
+                    + LAZY_PADDED_SIZE[t1.table_index()] as usize,
             ),
         );
     }
 
     #[test]
     fn offset_of_for_absent_tag_returns_none() {
-        let t1 = Tag::new(1);
-        let t2 = Tag::new(2);
+        let t0 = Tag::<()>::new(0);
+        let t1 = Tag::<()>::new(1);
         let tail = LazyTail {
-            present: t1.bit(),
+            present: t0.bit(),
             ..Default::default()
         };
-        assert_eq!(tail.offset_of(t1), Some(0));
-        assert_eq!(tail.offset_of(t2), None);
-    }
-
-    #[test]
-    fn option_tag_niches_to_one_byte() {
-        // Tag wraps `NonZeroU8`, so `Option<Tag>` should reuse the zero
-        // value as the `None` discriminant.
-        assert_eq!(std::mem::size_of::<Option<Tag>>(), 1);
+        assert_eq!(tail.offset_of(t0), Some(0));
+        assert_eq!(tail.offset_of(t1), None);
     }
 }

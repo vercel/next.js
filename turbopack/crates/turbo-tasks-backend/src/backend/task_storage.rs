@@ -20,6 +20,7 @@
 use std::{
     alloc::{Layout, alloc, dealloc, handle_alloc_error, realloc},
     fmt,
+    mem::MaybeUninit,
     ops::{ControlFlow, Deref, DerefMut},
     ptr::NonNull,
 };
@@ -27,7 +28,7 @@ use std::{
 use turbo_tasks::ShrinkToFit;
 
 use crate::backend::{
-    lazy_tail::{TAIL_BUFFER_ALIGN, Tag},
+    lazy_tail::Tag,
     storage_schema::{LAZY_MAX_ALIGN, LAZY_PADDED_SIZE, TaskStorageInner, lazy_drop_dispatch},
 };
 
@@ -57,13 +58,11 @@ unsafe impl Send for TaskStorage {}
 unsafe impl Sync for TaskStorage {}
 
 // The tail buffer starts immediately after the head, so the head's alignment
-// must satisfy the largest per-payload alignment in the schema, and the head's
-// size must be a multiple of that alignment so every payload offset is
-// aligned. `TAIL_BUFFER_ALIGN` and `LAZY_MAX_ALIGN` must agree because
-// callers index payloads assuming both constants describe the same number.
-// These are compile-time invariants — if a future schema change violates one,
-// the build fails rather than producing a release binary that reads
-// misaligned payloads.
+// must satisfy the largest per-payload alignment in the schema
+// (`LAZY_MAX_ALIGN`), and the head's size must be a multiple of that alignment
+// so every payload offset is aligned. These are compile-time invariants — if a
+// future schema change violates one, the build fails rather than producing a
+// release binary that reads misaligned payloads.
 const _: () = assert!(
     std::mem::align_of::<TaskStorageInner>() >= LAZY_MAX_ALIGN,
     "TaskStorageInner alignment must be ≥ LAZY_MAX_ALIGN so the tail starts at a valid offset for \
@@ -74,15 +73,13 @@ const _: () = assert!(
     "size_of::<TaskStorageInner>() must be a multiple of LAZY_MAX_ALIGN so the tail base is \
      aligned for every payload",
 );
-const _: () = assert!(
-    TAIL_BUFFER_ALIGN == LAZY_MAX_ALIGN,
-    "TAIL_BUFFER_ALIGN must equal LAZY_MAX_ALIGN",
-);
 
 impl TaskStorage {
     /// Allocate a fresh `TaskStorage` with no lazy payloads installed.
-    /// The initial allocation is sized to the head only — the first lazy
-    /// install triggers a grow.
+    /// The initial allocation is sized to the head, rounded up to the
+    /// nearest mimalloc bucket — any slack inside that bucket becomes
+    /// initial tail capacity, so the first few lazy installs typically
+    /// don't trigger a grow.
     pub fn new() -> Self {
         Self::with_tail_capacity(0)
     }
@@ -90,8 +87,19 @@ impl TaskStorage {
     /// Allocate a fresh `TaskStorage` with the given initial tail
     /// capacity. Useful when the caller knows several lazy fields will be
     /// installed (e.g. decode) and wants to skip the small-grow steps.
+    ///
+    /// The requested tail capacity is rounded through `mi_good_size` so
+    /// the recorded `lazy_tail.cap` matches the mimalloc bucket that was
+    /// actually reserved — the first install can use the full bucket
+    /// without triggering an immediate realloc. This mirrors the rounding
+    /// `grow_to` applies on subsequent grows, so `lazy_shrink_to_fit`'s
+    /// `mi_good_size(head + cap)` check sees a consistent value.
     pub fn with_tail_capacity(tail_cap: u16) -> Self {
-        let layout = Self::layout(tail_cap);
+        let head_size = std::mem::size_of::<TaskStorageInner>();
+        let total = Self::good_total_for_min_tail(tail_cap as usize);
+        let actual_cap = (total - head_size) as u16;
+        let layout = Layout::from_size_align(total, std::mem::align_of::<TaskStorageInner>())
+            .expect("TaskStorage layout: size+align always valid");
         // SAFETY: `layout` has non-zero size (head is non-empty) and a
         // valid alignment.
         let raw = unsafe { alloc(layout) };
@@ -104,25 +112,12 @@ impl TaskStorage {
         // value, then bump `tail_cap` to reflect the allocated capacity.
         unsafe {
             head_ptr.write(TaskStorageInner::default());
-            (*head_ptr).lazy_tail.cap = tail_cap;
+            (*head_ptr).lazy_tail.cap = actual_cap;
         }
         Self {
             // SAFETY: `head_ptr` is non-null (we checked above).
             ptr: unsafe { NonNull::new_unchecked(head_ptr) },
         }
-    }
-
-    /// Compute the `Layout` of a `TaskStorage` with `tail_cap` tail bytes.
-    /// Head alignment / size / `TAIL_BUFFER_ALIGN` invariants are enforced as
-    /// compile-time const asserts above.
-    #[inline]
-    fn layout(tail_cap: u16) -> Layout {
-        let head_size = std::mem::size_of::<TaskStorageInner>();
-        let align = std::mem::align_of::<TaskStorageInner>();
-        Layout::from_size_align(head_size + tail_cap as usize, align).expect(
-            "TaskStorage layout: size+align always valid (align is power of two, size ≤ head + \
-             u16::MAX)",
-        )
     }
 
     /// Read-only pointer to the first byte of the tail (immediately after
@@ -134,34 +129,45 @@ impl TaskStorage {
     /// Stacked Borrows even though a plain `&TaskStorageInner` reference
     /// only has provenance over the head bytes.
     ///
+    /// The element type is `MaybeUninit<u8>` because padding bytes
+    /// between packed payloads (when `size_of::<T>() < LAZY_PADDED_SIZE`)
+    /// are legitimately uninitialized — the `ptr::copy` shifts in
+    /// `LazyTail::insert_unchecked` / `take` must be able to copy those
+    /// bytes without UB. A `*const u8` would assert "every byte is
+    /// initialized", which doesn't hold for the tail buffer.
+    ///
     /// # Safety
     /// The returned pointer is valid for `head.lazy_tail.cap` bytes. Reads
-    /// must respect `head.lazy_tail.present` — only present payloads have
-    /// valid initialized bytes.
+    /// of the payload region must respect `head.lazy_tail.present` — only
+    /// present payloads have valid initialized bytes for the schema type.
     #[inline]
-    pub(crate) fn tail_ptr(&self) -> *const u8 {
+    pub(crate) fn tail_ptr(&self) -> *const MaybeUninit<u8> {
         let head_size = std::mem::size_of::<TaskStorageInner>();
         // SAFETY: the allocation has at least `head_size + cap` bytes, so
         // adding `head_size` to the head pointer is in-bounds.
-        unsafe { (self.ptr.as_ptr() as *const u8).add(head_size) }
+        unsafe { (self.ptr.as_ptr() as *const MaybeUninit<u8>).add(head_size) }
     }
 
-    /// Mutable pointer to the first byte of the tail.
+    /// Mutable pointer to the first byte of the tail. See [`Self::tail_ptr`]
+    /// for the `MaybeUninit<u8>` element type rationale.
     #[inline]
-    pub(crate) fn tail_ptr_mut(&mut self) -> *mut u8 {
+    pub(crate) fn tail_ptr_mut(&mut self) -> *mut MaybeUninit<u8> {
         let head_size = std::mem::size_of::<TaskStorageInner>();
         // SAFETY: see `tail_ptr`.
-        unsafe { (self.ptr.as_ptr() as *mut u8).add(head_size) }
+        unsafe { (self.ptr.as_ptr() as *mut MaybeUninit<u8>).add(head_size) }
     }
 
     /// Insert a payload for `tag` and return a mutable reference to it.
     /// Grows the allocation if needed. The variant must not already be
     /// present.
     ///
+    /// The `tag` is a `Tag<T>`, so the schema-emitted tag/type
+    /// pairing is enforced at the type system: passing a tag whose
+    /// schema-declared payload type differs from `T` will not compile.
+    ///
     /// # Safety
-    /// `T` must match the payload type for `tag` per the schema's tag → type
-    /// mapping.
-    pub(crate) unsafe fn lazy_insert<T: 'static>(&mut self, tag: Tag, value: T) -> &mut T {
+    /// The variant must not already be present (debug-asserted).
+    pub(crate) unsafe fn lazy_insert<T: 'static>(&mut self, tag: Tag<T>, value: T) -> &mut T {
         debug_assert!(
             !self.lazy_tail.has(tag),
             "lazy variant tag {} already present",
@@ -175,93 +181,108 @@ impl TaskStorage {
             // allocation.
             unsafe { self.grow_to(new_len) };
         }
-        // SAFETY: caller ensures `T` matches `tag`; capacity is sufficient.
-        // `tail_base` is derived after the grow so it points to the live
-        // allocation; the returned `&mut T` borrows from `self` through
-        // `head_mut`.
+        // SAFETY: `Tag<T>` guarantees `T` matches the schema's payload
+        // type for `tag`; capacity is sufficient. `tail_base` is derived
+        // from `self.ptr` (full-allocation provenance) BEFORE we reborrow
+        // as `&mut LazyTail` so that under Stacked Borrows the raw pointer
+        // sits below the typed reborrow on the parent's stack. The
+        // reborrow only retags the head bytes (sizeof::<TaskStorageInner>),
+        // which are disjoint from the tail bytes that `insert_unchecked`
+        // writes through `tail_base` — so the typed reborrow doesn't
+        // invalidate the raw pointer's access to the tail. The returned
+        // `&mut T` borrows from `self` through `head_mut`.
         unsafe {
             let tail_base = self.tail_ptr_mut();
             self.head_mut()
                 .lazy_tail
-                .insert_unchecked::<T>(tag, value, tail_base)
+                .insert_unchecked(tag, value, tail_base)
         }
     }
 
     /// Replace the payload for `tag` with `value`. If absent, inserts the
     /// new value (may grow). Returns the previous payload if any.
     ///
-    /// # Safety
-    /// `T` must match the payload type for `tag`.
-    pub(crate) unsafe fn lazy_replace<T: 'static>(&mut self, tag: Tag, value: T) -> Option<T> {
-        if self.lazy_tail.has(tag) {
-            // SAFETY: caller ensures type match; same-tag replace is
-            // in-place, no grow — so `tail_base` derived here stays valid.
-            unsafe {
-                let tail_base = self.tail_ptr_mut();
-                Some(
-                    self.head_mut()
-                        .lazy_tail
-                        .replace_in_place::<T>(tag, value, tail_base),
-                )
+    /// Uses a single `offset_of` lookup to decide between the in-place
+    /// replace and grow-and-insert paths. The previous shape did
+    /// `has(tag)` (popcount #1) then dispatched into `replace_in_place`
+    /// (popcount #2 in `offset_of`) or `lazy_insert` (popcount #3 in
+    /// `offset_for`); fusing the lookup here saves one popcount on every
+    /// `set_<lazy field>` call.
+    ///
+    /// Safe: `Tag<T>` fixes the payload type, the pointer comes from
+    /// `self.ptr` (full-allocation provenance), and `&mut self` gives
+    /// exclusive access.
+    pub(crate) fn lazy_replace<T: 'static>(&mut self, tag: Tag<T>, value: T) -> Option<T> {
+        match self.lazy_tail.offset_of(tag) {
+            Some(offset) => {
+                // SAFETY: `offset_of` returned `Some`, so the slot at
+                // `offset` holds an initialized `T` written by a prior
+                // `lazy_insert`. `tail_base` shares provenance with the
+                // full allocation; the disjoint head/tail byte ranges
+                // mean the typed `&mut LazyTail` reborrow doesn't
+                // invalidate raw access to the tail (see `lazy_insert`).
+                unsafe {
+                    let tail_base = self.tail_ptr_mut();
+                    let ptr = tail_base.add(offset).cast::<T>();
+                    let old = std::ptr::read(ptr);
+                    std::ptr::write(ptr, value);
+                    Some(old)
+                }
             }
-        } else {
-            // SAFETY: caller ensures type match; variant not present.
-            unsafe { self.lazy_insert(tag, value) };
-            None
+            None => {
+                // SAFETY: variant confirmed absent.
+                unsafe { self.lazy_insert(tag, value) };
+                None
+            }
         }
     }
 
     /// Get-or-create: if the variant is absent, insert `Default::default()`
     /// (which may grow), then return a mutable reference to the payload.
-    ///
-    /// # Safety
-    /// `T` must match the payload type for `tag`.
-    pub(crate) unsafe fn lazy_get_or_create<T: Default + 'static>(&mut self, tag: Tag) -> &mut T {
-        if self.lazy_tail.has(tag) {
-            // SAFETY: just confirmed presence; caller ensures `T` matches `tag`.
-            unsafe { self.lazy_find_mut::<T>(tag).unwrap_unchecked() }
+    pub(crate) fn lazy_get_or_create<T: Default + 'static>(&mut self, tag: Tag<T>) -> &mut T {
+        // Compute offset once. `offset_of` returns `Some(offset)` for
+        // present variants and `None` for absent ones — checking the
+        // `Option` is one branch and saves the second `has(tag)` +
+        // `offset_for(tag)` scan that the previous `has → find_mut → insert`
+        // path performed.
+        if let Some(offset) = self.lazy_tail.offset_of(tag) {
+            // SAFETY: `offset_of` returned `Some`, so the slot at
+            // `offset` is an initialized `T`. Provenance / Stacked
+            // Borrows argument matches `lazy_replace`.
+            unsafe {
+                let tail_base = self.tail_ptr_mut();
+                &mut *tail_base.add(offset).cast::<T>()
+            }
         } else {
-            // SAFETY: caller ensures `T` matches `tag`; variant not present.
-            // `lazy_insert` returns `&mut T` directly so we avoid the second
-            // lookup that `lazy_find_mut` would do.
-            unsafe { self.lazy_insert::<T>(tag, T::default()) }
+            // SAFETY: variant confirmed absent.
+            unsafe { self.lazy_insert(tag, T::default()) }
         }
     }
 
     /// Get a typed reference to a present lazy payload.
-    ///
-    /// # Safety
-    /// `T` must match the payload type for `tag`.
     #[inline]
-    pub(crate) unsafe fn lazy_find<T: 'static>(&self, tag: Tag) -> Option<&T> {
+    pub(crate) fn lazy_find<T: 'static>(&self, tag: Tag<T>) -> Option<&T> {
         let tail_base = self.tail_ptr();
-        // SAFETY: caller ensures `T` matches `tag`; `tail_base` is the start
-        // of the tail buffer for this allocation, with provenance over the
-        // full head+tail allocation (derived from `self.ptr`).
-        unsafe { self.head().lazy_tail.find::<T>(tag, tail_base) }
+        // SAFETY: `Tag<T>` fixes the payload type; the slot is either
+        // present (and was written as `T` by `lazy_insert`) or absent
+        // (in which case `find` returns `None`). `tail_base` derives
+        // from `self.ptr` with full-allocation provenance.
+        unsafe { self.head().lazy_tail.find(tag, tail_base) }
     }
 
     /// Get a typed mutable reference to a present lazy payload.
-    ///
-    /// # Safety
-    /// `T` must match the payload type for `tag`.
     #[inline]
-    pub(crate) unsafe fn lazy_find_mut<T: 'static>(&mut self, tag: Tag) -> Option<&mut T> {
+    pub(crate) fn lazy_find_mut<T: 'static>(&mut self, tag: Tag<T>) -> Option<&mut T> {
         let tail_base = self.tail_ptr_mut();
-        // SAFETY: caller ensures `T` matches `tag`; `tail_base` is the start
-        // of the tail buffer for this allocation.
-        unsafe { self.head_mut().lazy_tail.find_mut::<T>(tag, tail_base) }
+        // SAFETY: see `lazy_find`. `&mut self` gives exclusive access.
+        unsafe { self.head_mut().lazy_tail.find_mut(tag, tail_base) }
     }
 
     /// Take a present lazy payload, removing it. Returns `None` if absent.
-    ///
-    /// # Safety
-    /// `T` must match the payload type for `tag`.
-    pub(crate) unsafe fn lazy_take<T: 'static>(&mut self, tag: Tag) -> Option<T> {
+    pub(crate) fn lazy_take<T: 'static>(&mut self, tag: Tag<T>) -> Option<T> {
         let tail_base = self.tail_ptr_mut();
-        // SAFETY: caller ensures `T` matches `tag`; tail_base has provenance
-        // over the full allocation.
-        unsafe { self.head_mut().lazy_tail.take::<T>(tag, tail_base) }
+        // SAFETY: see `lazy_find`. Take only shrinks the tail.
+        unsafe { self.head_mut().lazy_tail.take(tag, tail_base) }
     }
 
     /// "Are all lazy data-category fields empty?" — used by eviction
@@ -356,6 +377,44 @@ impl TaskStorage {
         unsafe { self.ptr.as_mut() }
     }
 
+    /// Round a request of `head + min_tail_bytes` total bytes through
+    /// `mi_good_size` and then clamp the resulting tail capacity to
+    /// `u16::MAX` so it fits in `LazyTail::cap`. Used by both `grow_to`
+    /// and `with_tail_capacity` so the initial allocation and every
+    /// subsequent grow use the same rounding rule.
+    #[inline]
+    fn good_total_for_min_tail(min_tail_bytes: usize) -> usize {
+        let head_size = std::mem::size_of::<TaskStorageInner>();
+        // `min_tail_bytes` is asserted ≤ u16::MAX by the caller path, but
+        // `mi_good_size` can round upward by a non-trivial fraction (it has
+        // to land in an allocator bin). At the upper end of the u16 range
+        // that rounding can push the resulting tail past `u16::MAX`. We
+        // can't honor that — `cap` is a u16 — so clamp here. mimalloc still
+        // gives us a full bucket; we just won't *use* the bytes past the
+        // u16 ceiling.
+        let target_total =
+            turbo_tasks_malloc::TurboMalloc::get_bucket_size(head_size + min_tail_bytes);
+        let max_total = head_size + u16::MAX as usize;
+        target_total.min(max_total)
+    }
+
+    /// Pre-grow the tail to fit `min_tail_bytes` total before a batch
+    /// of `lazy_insert`s — used by the macro-generated decode path to
+    /// avoid N reallocs as N payloads install. Wraps the private
+    /// `grow_to` (which has the same contract) with a stable
+    /// `pub(crate)` symbol so the macro doesn't have to depend on
+    /// private impl details.
+    ///
+    /// # Safety
+    /// Same as [`Self::grow_to`]: no outstanding `&mut TaskStorageInner`
+    /// reference may exist when this returns, because the realloc
+    /// relocates the buffer.
+    #[inline]
+    pub(crate) unsafe fn grow_to_for_decode(&mut self, min_tail_bytes: usize) {
+        // SAFETY: forwarded caller contract.
+        unsafe { self.grow_to(min_tail_bytes) }
+    }
+
     /// Grow the allocation so the tail has at least `min_tail_bytes`
     /// capacity. Uses `mi_good_size` to pre-round to the allocator bin.
     ///
@@ -364,9 +423,15 @@ impl TaskStorage {
     /// allocation, which would invalidate it).
     unsafe fn grow_to(&mut self, min_tail_bytes: usize) {
         debug_assert!(min_tail_bytes > self.head().lazy_tail.cap as usize);
-        let head_size = std::mem::size_of::<TaskStorageInner>();
-        let target_total =
-            turbo_tasks_malloc::TurboMalloc::get_bucket_size(head_size + min_tail_bytes);
+        // Schema invariant: total padded payload size fits in u16. Callers
+        // that lazy-install only schema-emitted tags can never exceed this;
+        // we assert to catch a future schema overflow loudly.
+        assert!(
+            min_tail_bytes <= u16::MAX as usize,
+            "lazy tail capacity request {min_tail_bytes} exceeds u16::MAX; the schema's total \
+             padded payload size has overflowed",
+        );
+        let target_total = Self::good_total_for_min_tail(min_tail_bytes);
         // SAFETY: caller contract.
         unsafe { self.realloc_to_total(target_total) };
     }
@@ -375,17 +440,20 @@ impl TaskStorage {
     /// updating `self.ptr` and the head's `lazy_tail.cap`.
     ///
     /// # Safety
-    /// No outstanding `&mut TaskStorageInner` may exist.
+    /// No outstanding `&mut TaskStorageInner` may exist. `new_total` must
+    /// be `head_size + tail_cap` where `tail_cap <= u16::MAX` — `grow_to`
+    /// and `lazy_shrink_to_fit` are responsible for that clamp; this
+    /// function debug_asserts it.
     unsafe fn realloc_to_total(&mut self, new_total: usize) {
         let head_size = std::mem::size_of::<TaskStorageInner>();
         let align = std::mem::align_of::<TaskStorageInner>();
         let old_tail_cap = self.head().lazy_tail.cap as usize;
         let old_total = head_size + old_tail_cap;
         let new_tail_cap = new_total - head_size;
-        assert!(
+        debug_assert!(
             new_tail_cap <= u16::MAX as usize,
-            "tail capacity overflow: requested {new_tail_cap}, max {}",
-            u16::MAX,
+            "realloc_to_total invariant violated: caller must clamp tail capacity to u16::MAX \
+             (got {new_tail_cap})",
         );
 
         let old_layout = Layout::from_size_align(old_total, align)
@@ -442,24 +510,31 @@ impl Drop for TaskStorage {
     /// destructors are written by schema authors and expected to be
     /// panic-free.
     fn drop(&mut self) {
-        // Snapshot `cap` while the head is still a live `TaskStorageInner`;
-        // after `drop_in_place` we never reborrow it.
+        // Snapshot `cap` and `present` while the head is still a live
+        // `TaskStorageInner`; after `drop_in_place` we never reborrow it.
         let tail_cap = self.head().lazy_tail.cap as usize;
         let head_size = std::mem::size_of::<TaskStorageInner>();
-        let tail_base = self.tail_ptr_mut();
+        let present = self.head().lazy_tail.present;
 
-        // 1. Walk every present tag, run the per-tag drop dispatch on its payload.
-        // SAFETY: `tail_base` points to this storage's tail bytes with
-        // full-allocation provenance; `lazy_drop_dispatch` drops each payload
-        // as the type the schema assigned to that tag.
-        unsafe {
-            self.head()
-                .lazy_tail
-                .for_each_present(tail_base, |tag, ptr| {
-                    // Casting to mut is growss but safe because we have mutable access to tail_base
-                    // and this callback is fnmut and thus called sequentially
-                    lazy_drop_dispatch(tag, ptr as *mut u8)
-                });
+        // 1. Walk every present tag, run the per-tag drop dispatch on its payload. Skipped entirely
+        //    for tasks whose lazy tail is empty — transient leaves and freshly-allocated entries
+        //    hit this path constantly and don't need the for_each scaffolding.
+        if present != 0 {
+            let tail_base = self.tail_ptr_mut();
+            // SAFETY: `tail_base` points to this storage's tail bytes with
+            // full-allocation provenance. The iterator hands back
+            // `*const MaybeUninit<u8>`; we cast to `*mut MaybeUninit<u8>`
+            // because `tail_base` itself was derived from
+            // `self.tail_ptr_mut()` (a mut-rooted raw pointer), and the
+            // for_each closure runs sequentially under `FnMut`, so no two
+            // payloads are ever live as `&mut` simultaneously.
+            unsafe {
+                self.head()
+                    .lazy_tail
+                    .for_each_present(tail_base, |tag, ptr| {
+                        lazy_drop_dispatch(tag, ptr as *mut MaybeUninit<u8>)
+                    });
+            }
         }
 
         // 2. Drop the head fields (Arc, Box, AutoMap, etc.). `LazyTail::drop` is a no-op — payload

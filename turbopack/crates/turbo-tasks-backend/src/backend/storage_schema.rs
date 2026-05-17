@@ -703,10 +703,11 @@ impl TaskStorage {
         };
         if should_track_activeness {
             let activeness = ActivenessState::new_root(root_type, task_id);
-            // SAFETY: `LAZY_TAG_ACTIVENESS` is the schema tag for
-            // `ActivenessState`. This is a freshly-created task whose lazy
-            // tail does not yet contain an Activeness entry.
-            unsafe { self.lazy_insert::<ActivenessState>(LAZY_TAG_ACTIVENESS, activeness) };
+            // SAFETY: `LAZY_TAG_ACTIVENESS: Tag<ActivenessState>`
+            // enforces the tag→type pairing at the type system. This is a
+            // freshly-created task whose lazy tail does not yet contain an
+            // Activeness entry.
+            unsafe { self.lazy_insert(LAZY_TAG_ACTIVENESS, activeness) };
         }
 
         // Set the task as scheduled so it can be executed
