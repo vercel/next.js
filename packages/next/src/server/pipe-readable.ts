@@ -142,14 +142,27 @@ export async function pipeToNodeResponse(
     const writer = writable.getWriter()
     const abortReason = controller.signal.reason ?? new ResponseAborted()
 
+    const abortStreams = () => {
+      const reason = controller.signal.reason ?? new ResponseAborted()
+    
+      return Promise.allSettled([
+        reader.cancel(reason),
+        writer.abort(reason),
+      ])
+    }
+    
     controller.signal.addEventListener(
       'abort',
       () => {
-        void reader.cancel(abortReason).catch(() => {})
-        void writer.abort(abortReason).catch(() => {})
+        void abortStreams()
       },
-      { once: true }
+      { once: true },
     )
+    
+    if (controller.signal.aborted) {
+      await abortStreams()
+      return
+    }
 
     while (true) {
       const { done, value } = await reader.read()
