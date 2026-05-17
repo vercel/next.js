@@ -106,8 +106,17 @@ describe('create-next-app default template', () => {
             expect(imagesReady).toBe(true)
           })
 
+          // In dev, the browser may fire a "preloaded using link preload but
+          // not used within a few seconds from the window's load event"
+          // warning for next/font's woff2 files when the stylesheet that
+          // references them hasn't been applied by the time the browser's
+          // internal timer fires (relative to window.load). The font is in
+          // fact used moments later, so this is a benign timing race that
+          // doesn't reproduce reliably — filter it out.
           const messages = (await page.log()).filter(
-            (log) => log.source === 'warning' || log.source === 'error'
+            (log) =>
+              (log.source === 'warning' || log.source === 'error') &&
+              !/was preloaded using link preload but not used/.test(log.message)
           )
           expect(messages).toEqual([])
         } finally {
