@@ -41,7 +41,7 @@ use std::{
     io::{self, BufRead, BufReader, ErrorKind, Read, Write as _},
     mem::take,
     path::{MAIN_SEPARATOR, Path, PathBuf},
-    sync::{Arc, LazyLock, Weak},
+    sync::{Arc, LazyLock},
     time::Duration,
 };
 
@@ -63,8 +63,8 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effect, EffectStateStorage, InvalidationReason, NonLocalValue, ReadRef, ResolvedVc,
-    TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc, debug::ValueDebugFormat,
-    emit_effect, parallel, spawn, trace::TraceRawVcs, turbo_tasks_weak, turbobail, turbofmt,
+    TaskInput, ValueToString, ValueToStringRef, Vc, debug::ValueDebugFormat, emit_effect, parallel,
+    spawn, trace::TraceRawVcs, turbo_tasks_weak, turbobail, turbofmt,
 };
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
@@ -275,7 +275,7 @@ struct DiskFileSystemInner {
     /// watcher.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip, default = "turbo_tasks_weak")]
-    turbo_tasks: Weak<dyn TurboTasksApi>,
+    turbo_tasks: turbo_tasks::TurboTasksWeakHandle,
     /// Used by invalidators when called from a non-tokio thread, specifically in the fs watcher.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip, default = "Handle::current")]
@@ -336,7 +336,7 @@ impl DiskFileSystemInner {
                 path: full_path.to_string_lossy().into_owned(),
             };
             for invalidator in invalidators {
-                invalidator.invalidate_with_reason(&*turbo_tasks, reason.clone());
+                invalidator.invalidate_with_reason(&turbo_tasks, reason.clone());
             }
         }
     }
@@ -375,7 +375,7 @@ impl DiskFileSystemInner {
             .flat_map(|(_, invalidators)| invalidators.into_iter())
             .collect::<Vec<_>>();
         parallel::for_each_owned(invalidators, |invalidator| {
-            invalidator.invalidate(&*turbo_tasks)
+            invalidator.invalidate(&turbo_tasks)
         });
     }
 
@@ -405,7 +405,7 @@ impl DiskFileSystemInner {
             })
             .collect::<Vec<_>>();
         parallel::for_each_owned(invalidators, |(reason, invalidator)| {
-            invalidator.invalidate_with_reason(&*turbo_tasks, reason)
+            invalidator.invalidate_with_reason(&turbo_tasks, reason)
         });
     }
 
@@ -474,7 +474,7 @@ impl DiskFileSystemInner {
         drop(dir_invalidator_map);
 
         parallel::for_each_owned(invalidators, |(reason, invalidator)| {
-            invalidator.invalidate_with_reason(&*turbo_tasks, reason)
+            invalidator.invalidate_with_reason(&turbo_tasks, reason)
         });
     }
 

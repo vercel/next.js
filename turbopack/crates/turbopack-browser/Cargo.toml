@@ -41,3 +41,9 @@ turbopack-ecmascript = { workspace = true }
 turbopack-ecmascript-runtime = { workspace = true }
 turbopack-resolve = { workspace = true }
 
+
+# Dev-only link of `turbo-tasks-backend` so the `__tt_static_*` extern
+# symbols resolve in this crate's test binary. See the matching
+# `extern crate` in `src/lib.rs`.
+[dev-dependencies]
+turbo-tasks-backend = { workspace = true }

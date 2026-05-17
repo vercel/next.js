@@ -10,6 +10,14 @@
 #![feature(async_fn_traits)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(const_type_name)]
+#![feature(macro_metavar_expr_concat)]
+
+// Force linking `turbo-tasks-backend`'s `__tt_static_*` providers into
+// this crate's test/bench binaries (the circular dev-dep is declared in
+// `Cargo.toml`). rustc only adds rlibs to the link command for crates
+// Rust code references — this `extern crate` is the reference.
+#[cfg(test)]
+extern crate turbo_tasks_backend;
 
 pub mod backend;
 mod capture_future;
@@ -24,6 +32,7 @@ mod effect;
 mod error;
 pub mod event;
 pub mod graph;
+mod handle;
 mod id;
 mod id_factory;
 mod invalidation;
@@ -86,6 +95,7 @@ pub use crate::{
     },
     effect::{Effect, EffectError, EffectStateStorage, Effects, emit_effect, take_effects},
     error::PrettyPrintError,
+    handle::{TurboTasksHandle, TurboTasksWeakHandle},
     id::{
         ExecutionId, FunctionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId,
     },
@@ -98,9 +108,9 @@ pub use crate::{
         CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
         TaskPriority, TurboTasks, TurboTasksApi, TurboTasksCallApi, Unused, UpdateInfo,
         dynamic_call, emit, get_serialization_invalidator, mark_finished, mark_stateful,
-        mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason, trait_call,
-        turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
-        unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
+        mark_top_level_task, prevent_gc, trait_call, turbo_tasks, turbo_tasks_scope,
+        turbo_tasks_weak, unmark_top_level_task_may_leak_eventually_consistent_state,
+        with_turbo_tasks,
     },
     mapped_read_ref::MappedReadRef,
     output::OutputContent,

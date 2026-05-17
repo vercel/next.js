@@ -19,7 +19,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use hyper::{
     Request, Response, Server,
     server::{Builder, conn::AddrIncoming},
@@ -30,7 +30,7 @@ use socket2::{Domain, Protocol, Socket, Type};
 use tokio::task::JoinHandle;
 use tracing::{Instrument, Level, Span, event, info_span};
 use turbo_tasks::{
-    Effects, NonLocalValue, OperationVc, PrettyPrintError, TurboTasksApi, Vc, run_once_with_reason,
+    Effects, InvalidationReason, NonLocalValue, OperationVc, PrettyPrintError, TurboTasksApi, Vc,
     take_effects, trace::TraceRawVcs, util::FormatDuration,
 };
 use turbopack_core::issue::{IssueReporter, IssueSeverity, handle_issues};
@@ -122,12 +122,15 @@ impl DevServer {
 }
 
 impl DevServerBuilder {
-    pub fn serve(
+    pub fn serve<T>(
         self,
-        turbo_tasks: Arc<dyn TurboTasksApi>,
+        turbo_tasks: Arc<T>,
         source_provider: impl SourceProvider + NonLocalValue + TraceRawVcs + Sync,
         get_issue_reporter: Arc<dyn Fn() -> Vc<Box<dyn IssueReporter>> + Send + Sync>,
-    ) -> DevServer {
+    ) -> DevServer
+    where
+        T: TurboTasksApi + ?Sized + 'static,
+    {
         let ongoing_side_effects = Arc::new(Mutex::new(VecDeque::<
             Arc<tokio::sync::Mutex<Option<JoinHandle<Result<()>>>>>,
         >::with_capacity(16)));
@@ -181,103 +184,133 @@ impl DevServerBuilder {
                             method: request.method().clone(),
                             uri: request.uri().clone(),
                         };
-                        run_once_with_reason(tt.clone(), reason, async move {
-                            // TODO: `get_issue_reporter` should be an `OperationVc`, as there's a
-                            // risk it could be a task-local Vc, which is not safe for us to await.
-                            let issue_reporter = get_issue_reporter();
+                        let (response_tx, response_rx) =
+                            tokio::sync::oneshot::channel::<Response<hyper::Body>>();
+                        let request_tt = tt.clone();
+                        let request_inner = async move {
+                            let result: Result<Response<hyper::Body>> = async move {
+                                // TODO: `get_issue_reporter` should be an `OperationVc`, as there's
+                                // a risk it could be a task-local
+                                // Vc, which is not safe for us to await.
+                                let issue_reporter = get_issue_reporter();
 
-                            if hyper_tungstenite::is_upgrade_request(&request) {
+                                if hyper_tungstenite::is_upgrade_request(&request) {
+                                    let uri = request.uri();
+                                    let path = uri.path();
+
+                                    if path == "/turbopack-hmr" {
+                                        let (response, websocket) =
+                                            hyper_tungstenite::upgrade(request, None)?;
+                                        let update_server =
+                                            UpdateServer::new(source_provider, issue_reporter);
+                                        update_server.run(&tt, websocket);
+                                        return Ok(response);
+                                    }
+
+                                    println!("[404] {path} (WebSocket)");
+                                    if path == "/_next/hmr" {
+                                        // Special-case requests to hmr as these are made by
+                                        // Next.js clients built
+                                        // without turbopack, which may be making requests in
+                                        // development.
+                                        println!(
+                                            "A non-turbopack next.js client is trying to connect."
+                                        );
+                                        println!(
+                                            "Make sure to reload/close any browser window which \
+                                             has been opened without --turbo."
+                                        );
+                                    }
+
+                                    return Ok(Response::builder()
+                                        .status(404)
+                                        .body(hyper::Body::empty())?);
+                                }
+
                                 let uri = request.uri();
-                                let path = uri.path();
-
-                                if path == "/turbopack-hmr" {
-                                    let (response, websocket) =
-                                        hyper_tungstenite::upgrade(request, None)?;
-                                    let update_server =
-                                        UpdateServer::new(source_provider, issue_reporter);
-                                    update_server.run(&*tt, websocket);
-                                    return Ok(response);
-                                }
-
-                                println!("[404] {path} (WebSocket)");
-                                if path == "/_next/hmr" {
-                                    // Special-case requests to hmr as these are made by
-                                    // Next.js clients built
-                                    // without turbopack, which may be making requests in
-                                    // development.
-                                    println!(
-                                        "A non-turbopack next.js client is trying to connect."
-                                    );
-                                    println!(
-                                        "Make sure to reload/close any browser window which has \
-                                         been opened without --turbo."
-                                    );
-                                }
-
-                                return Ok(Response::builder()
-                                    .status(404)
-                                    .body(hyper::Body::empty())?);
-                            }
-
-                            let uri = request.uri();
-                            let path = uri.path().to_string();
-                            let source_with_issues_op =
-                                get_source_with_issues_operation(source_provider.get_source());
-                            let ContentSourceWithIssues { source_op, effects } =
-                                &*source_with_issues_op.read_strongly_consistent().await?;
-                            effects.apply().await?;
-                            handle_issues(
-                                source_with_issues_op,
-                                issue_reporter,
-                                IssueSeverity::Fatal,
-                                Some(&path),
-                                Some("get source"),
-                            )
-                            .await?;
-                            let (response, side_effects) =
-                                http::process_request_with_content_source(
-                                    // HACK: pass `source` here (instead of `resolved_source`
-                                    // because the underlying API wants to do it's own
-                                    // `.resolve().strongly_consistent()` call.
-                                    //
-                                    // It's unlikely (the calls happen one-after-another), but this
-                                    // could cause inconsistency between the reported issues and
-                                    // the generated HTTP response.
-                                    *source_op,
-                                    request,
+                                let path = uri.path().to_string();
+                                let source_with_issues_op =
+                                    get_source_with_issues_operation(source_provider.get_source());
+                                let ContentSourceWithIssues { source_op, effects } =
+                                    &*source_with_issues_op.read_strongly_consistent().await?;
+                                effects.apply().await?;
+                                handle_issues(
+                                    source_with_issues_op,
                                     issue_reporter,
+                                    IssueSeverity::Fatal,
+                                    Some(&path),
+                                    Some("get source"),
                                 )
                                 .await?;
-                            let status = response.status().as_u16();
-                            let is_error = response.status().is_client_error()
-                                || response.status().is_server_error();
-                            let elapsed = start.elapsed();
-                            if is_error
-                                || (cfg!(feature = "log_request_stats")
-                                    && elapsed > Duration::from_secs(1))
-                            {
-                                println!(
-                                    "[{status}] {path} ({duration})",
-                                    duration = FormatDuration(elapsed)
-                                );
+                                let (response, side_effects) =
+                                    http::process_request_with_content_source(
+                                        // HACK: pass `source` here (instead of `resolved_source`
+                                        // because the underlying API wants to do it's own
+                                        // `.resolve().strongly_consistent()` call.
+                                        //
+                                        // It's unlikely (the calls happen one-after-another), but
+                                        // this could cause
+                                        // inconsistency between the reported issues and
+                                        // the generated HTTP response.
+                                        *source_op,
+                                        request,
+                                        issue_reporter,
+                                    )
+                                    .await?;
+                                let status = response.status().as_u16();
+                                let is_error = response.status().is_client_error()
+                                    || response.status().is_server_error();
+                                let elapsed = start.elapsed();
+                                if is_error
+                                    || (cfg!(feature = "log_request_stats")
+                                        && elapsed > Duration::from_secs(1))
+                                {
+                                    println!(
+                                        "[{status}] {path} ({duration})",
+                                        duration = FormatDuration(elapsed)
+                                    );
+                                }
+                                if !side_effects.is_empty() {
+                                    let side_effects_tt = tt.clone();
+                                    let join_handle = tokio::spawn(async move {
+                                        side_effects_tt
+                                            .run_once_with_reason(
+                                                (Arc::new(side_effects_reason)
+                                                    as Arc<dyn InvalidationReason>)
+                                                    .into(),
+                                                Box::pin(async move {
+                                                    for side_effect in side_effects {
+                                                        side_effect.apply().await?;
+                                                    }
+                                                    Ok(())
+                                                }),
+                                            )
+                                            .await
+                                    });
+                                    ongoing_side_effects.lock().push_back(Arc::new(
+                                        tokio::sync::Mutex::new(Some(join_handle)),
+                                    ));
+                                }
+                                Ok(response)
                             }
-                            if !side_effects.is_empty() {
-                                let join_handle = tokio::spawn(run_once_with_reason(
-                                    tt.clone(),
-                                    side_effects_reason,
-                                    async move {
-                                        for side_effect in side_effects {
-                                            side_effect.apply().await?;
-                                        }
+                            .await;
+                            result
+                        };
+                        async move {
+                            request_tt
+                                .run_once_with_reason(
+                                    (Arc::new(reason) as Arc<dyn InvalidationReason>).into(),
+                                    Box::pin(async move {
+                                        let response = request_inner.await?;
+                                        let _ = response_tx.send(response);
                                         Ok(())
-                                    },
-                                ));
-                                ongoing_side_effects.lock().push_back(Arc::new(
-                                    tokio::sync::Mutex::new(Some(join_handle)),
-                                ));
-                            }
-                            Ok(response)
-                        })
+                                    }),
+                                )
+                                .await?;
+                            response_rx
+                                .await
+                                .map_err(|_| anyhow!("response channel closed"))
+                        }
                         .await
                     };
                     async move {

@@ -18,3 +18,10 @@ bytes = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }
 turbo-tasks = { workspace = true }
+
+# Dev-only link of `turbo-tasks-backend` so the `__tt_static_*` extern
+# symbols in `libturbo_tasks.rlib` resolve in this crate's test binary.
+# See the matching `extern crate` in `src/lib.rs` and the explanation in
+# `turbo-esregex/Cargo.toml`.
+[dev-dependencies]
+turbo-tasks-backend = { workspace = true }

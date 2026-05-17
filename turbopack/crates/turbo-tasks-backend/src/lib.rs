@@ -1,11 +1,13 @@
 #![feature(anonymous_lifetime_in_impl_trait)]
 #![feature(box_patterns)]
+#![feature(macro_metavar_expr_concat)]
 
 mod backend;
 mod backing_storage;
 mod data;
 mod database;
 mod error;
+mod handle_providers;
 mod kv_backing_storage;
 mod utils;
 

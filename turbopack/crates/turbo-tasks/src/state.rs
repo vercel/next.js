@@ -85,7 +85,7 @@ fn notify_mutated(
     let _span = trace_span!("state value changed").entered();
     with_turbo_tasks(|tt| {
         for invalidator in invalidators {
-            invalidator.invalidate(&**tt);
+            invalidator.invalidate(tt);
         }
         if let Some(serialization_invalidator) = serialization_invalidator {
             tt.invalidate_serialization(serialization_invalidator.task());

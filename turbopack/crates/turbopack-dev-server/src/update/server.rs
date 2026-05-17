@@ -1,6 +1,7 @@
 use std::{
     ops::ControlFlow,
     pin::Pin,
+    sync::Arc,
     task::{Context, Poll},
 };
 
@@ -13,8 +14,8 @@ use tokio::select;
 use tokio_stream::StreamMap;
 use tracing::{Level, instrument};
 use turbo_tasks::{
-    NonLocalValue, OperationVc, PrettyPrintError, ReadRef, TransientInstance, TurboTasksApi, Vc,
-    trace::TraceRawVcs,
+    NonLocalValue, OperationVc, PrettyPrintError, ReadRef, TransientInstance, TurboTasksCallApi,
+    Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::json::parse_json_with_source_context;
 use turbopack_core::{issue::IssueReporter, version::Update};
@@ -52,7 +53,10 @@ where
     }
 
     /// Run the update server loop.
-    pub fn run(self, tt: &dyn TurboTasksApi, ws: HyperWebsocket) {
+    pub fn run<T>(self, tt: &Arc<T>, ws: HyperWebsocket)
+    where
+        T: TurboTasksCallApi + ?Sized + 'static,
+    {
         tt.start_once_process(Box::pin(async move {
             if let Err(err) = self.run_internal(ws).await {
                 println!("[UpdateServer]: error {err:#}");

@@ -4749,6 +4749,7 @@ version = "0.1.0"
 dependencies = [
  "next-core",
  "turbo-rcstr",
+ "turbo-tasks-backend",
  "turbopack-core",
 ]
 
@@ -9721,6 +9722,7 @@ dependencies = [
  "regex",
  "regress",
  "turbo-tasks",
+ "turbo-tasks-backend",
 ]
 
 [[package]]
@@ -9836,6 +9838,7 @@ dependencies = [
  "turbo-dyn-eq-hash",
  "turbo-frozenmap",
  "turbo-rcstr",
+ "turbo-tasks-backend",
  "turbo-tasks-hash",
  "turbo-tasks-macros",
  "turbo-tasks-malloc",
@@ -9908,6 +9911,7 @@ dependencies = [
  "futures",
  "serde",
  "turbo-tasks",
+ "turbo-tasks-backend",
 ]
 
 [[package]]
@@ -9919,6 +9923,7 @@ dependencies = [
  "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-fs",
 ]
 
@@ -10146,7 +10151,7 @@ dependencies = [
  "tokio",
  "tungstenite 0.20.1",
  "turbo-tasks",
- "turbo-tasks-testing",
+ "turbo-tasks-backend",
  "turbopack-create-test-app",
  "url",
 ]
@@ -10167,6 +10172,7 @@ dependencies = [
  "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbopack",
@@ -10233,6 +10239,7 @@ dependencies = [
  "serde",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-resolve",
@@ -10318,6 +10325,7 @@ dependencies = [
  "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
@@ -10420,6 +10428,7 @@ dependencies = [
  "serde",
  "serde_json",
  "turbo-rcstr",
+ "turbo-tasks-backend",
  "turbopack-cli-utils",
  "turbopack-core",
 ]
@@ -10445,6 +10454,7 @@ dependencies = [
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
@@ -10459,6 +10469,7 @@ dependencies = [
  "serde",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
@@ -10472,6 +10483,7 @@ dependencies = [
  "async-trait",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbopack-core",
@@ -10494,6 +10506,7 @@ dependencies = [
  "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-fs",
  "turbopack-core",
 ]
@@ -10509,6 +10522,7 @@ dependencies = [
  "serde",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
@@ -10598,6 +10612,7 @@ dependencies = [
  "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbopack",
@@ -10621,6 +10636,7 @@ dependencies = [
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-fs",
  "turbopack-core",
 ]
@@ -10632,6 +10648,7 @@ dependencies = [
  "anyhow",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbopack-core",
@@ -10648,6 +10665,7 @@ dependencies = [
  "swc_core",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbopack-core",
 ]
 
@@ -10663,6 +10681,7 @@ dependencies = [
  "similar",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbopack-cli-utils",
@@ -10783,6 +10802,7 @@ dependencies = [
  "serde",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbopack-core",

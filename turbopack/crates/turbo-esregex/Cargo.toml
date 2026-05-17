@@ -11,5 +11,13 @@ regex = { workspace = true }
 regress = { workspace = true }
 turbo-tasks = { workspace = true }
 
+# Dev-only link of `turbo-tasks-backend` so the `__tt_static_*` extern
+# symbols in `libturbo_tasks.rlib` resolve in this crate's test binary.
+# Without something in this crate referencing `turbo-tasks-backend` from
+# Rust, rustc wouldn't put its rlib in the link command. See the
+# matching `extern crate` in `src/lib.rs`.
+[dev-dependencies]
+turbo-tasks-backend = { workspace = true }
+
 [lints]
 workspace = true

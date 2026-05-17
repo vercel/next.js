@@ -28,8 +28,8 @@ use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash128};
 
 use crate::{
     Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
-    ReadOutputOptions, ResolvedVc, SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead,
-    VcValueTrait, VcValueType,
+    ReadOutputOptions, ResolvedVc, SharedReference, TaskId, TraitMethod, TurboTasksHandle,
+    ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
     backend::{
         Backend, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType,
         TurboTasksExecutionError, TypedCellContent, VerificationMode,
@@ -83,14 +83,6 @@ pub trait TurboTasksCallApi: Sync + Send {
         persistence: TaskPersistence,
     ) -> RawVc;
 
-    fn run(
-        &self,
-        future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), TurboTasksExecutionError>> + Send>>;
-    fn run_once(
-        &self,
-        future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
     fn run_once_with_reason(
         &self,
         reason: StaticOrArc<dyn InvalidationReason>,
@@ -184,8 +176,6 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn spawn_detached_for_testing(&self, f: Pin<Box<dyn Future<Output = ()> + Send + 'static>>);
 
     fn task_statistics(&self) -> &TaskStatisticsApi;
-
-    fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send>>;
 
     fn subscribe_to_compilation_events(
         &self,
@@ -542,8 +532,11 @@ impl CurrentTaskState {
 
 // TODO implement our own thread pool and make these thread locals instead
 task_local! {
-    /// The current TurboTasks instance
-    static TURBO_TASKS: Arc<dyn TurboTasksApi>;
+    /// The current TurboTasks instance. A [`TurboTasksHandle`] is a
+    /// tagged pointer that dispatches `TurboTasksApi` method calls
+    /// through `extern "Rust"` symbols provided by `turbo-tasks-handle`.
+    /// See [`crate::handle`] for the dispatch design.
+    static TURBO_TASKS: TurboTasksHandle;
 
     static CURRENT_TASK_STATE: Arc<RwLock<CurrentTaskState>>;
 
@@ -590,6 +583,22 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
     pub fn pin(&self) -> Arc<Self> {
         self.this.upgrade().unwrap()
+    }
+
+    /// Builds a [`TurboTasksHandle`] that points at this `TurboTasks<B>`.
+    /// Consumes one strong refcount from the given `Arc<Self>`; the handle
+    /// will drop that refcount when itself dropped.
+    pub fn make_handle(self: Arc<Self>) -> crate::TurboTasksHandle {
+        let ptr = Arc::into_raw(self) as *mut ();
+        // Safety: `ptr` came from `Arc::into_raw` on a `TurboTasks<B>`,
+        // which the `__tt_static_*` providers (in `turbo-tasks-backend`)
+        // know how to cast back to.
+        unsafe { crate::TurboTasksHandle::from_static_raw(std::ptr::NonNull::new_unchecked(ptr)) }
+    }
+
+    /// Builds a [`TurboTasksHandle`] for this `TurboTasks<B>` instance.
+    fn make_handle_from_ref(&self) -> crate::TurboTasksHandle {
+        self.pin().make_handle()
     }
 
     /// Creates a new root task
@@ -670,7 +679,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
         let result = TURBO_TASKS
             .scope(
-                self.pin(),
+                self.make_handle_from_ref(),
                 CURRENT_TASK_STATE.scope(current_task_state, async {
                     let result = CaptureFuture::new(future).await;
 
@@ -902,17 +911,17 @@ impl<B: Backend + 'static> TurboTasks<B> {
         id: TaskId,
         consistency: ReadConsistency,
     ) -> Result<()> {
-        read_task_output(
-            self,
-            id,
-            ReadOutputOptions {
-                // INVALIDATION: This doesn't return a value, only waits for it to be ready.
-                tracking: ReadTracking::Untracked,
-                consistency,
-            },
-        )
-        .await?;
-        Ok(())
+        let options = ReadOutputOptions {
+            // INVALIDATION: This doesn't return a value, only waits for it to be ready.
+            tracking: ReadTracking::Untracked,
+            consistency,
+        };
+        loop {
+            match <Self as TurboTasksApi>::try_read_task_output(self, id, options)? {
+                Ok(_) => return Ok(()),
+                Err(listener) => listener.await,
+            }
+        }
     }
 
     /// Returns [UpdateInfo] with all updates aggregated over a given duration
@@ -1012,7 +1021,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     pub async fn stop_and_wait(&self) {
-        turbo_tasks_future_scope(self.pin(), async move {
+        turbo_tasks_future_scope(self.make_handle_from_ref(), async move {
             self.backend.stopping(self);
             self.stopped.store(true, Ordering::Release);
             {
@@ -1052,7 +1061,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         self.begin_background_job();
         tokio::spawn(
             TURBO_TASKS
-                .scope(this.clone(), async move {
+                .scope(this.clone().make_handle(), async move {
                     if !this.stopped.load(Ordering::Acquire) {
                         this = func(this).await;
                     }
@@ -1200,7 +1209,11 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                     .await
                 };
 
-                Either::Left(TURBO_TASKS.scope(this2, future).instrument(span))
+                Either::Left(
+                    TURBO_TASKS
+                        .scope(this2.make_handle(), future)
+                        .instrument(span),
+                )
             }
             ScheduledTask::LocalTask {
                 ty,
@@ -1267,7 +1280,11 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                 };
                 let future = CURRENT_TASK_STATE.scope(global_task_state, future);
 
-                Either::Right(TURBO_TASKS.scope(this2, future).instrument(span))
+                Either::Right(
+                    TURBO_TASKS
+                        .scope(this2.make_handle(), future)
+                        .instrument(span),
+                )
             }
         }
     }
@@ -1310,24 +1327,6 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         persistence: TaskPersistence,
     ) -> RawVc {
         self.trait_call(trait_method, this, arg, persistence)
-    }
-
-    #[track_caller]
-    fn run(
-        &self,
-        future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> Pin<Box<dyn Future<Output = Result<(), TurboTasksExecutionError>> + Send>> {
-        let this = self.pin();
-        Box::pin(async move { this.run(future).await })
-    }
-
-    #[track_caller]
-    fn run_once(
-        &self,
-        future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
-        let this = self.pin();
-        Box::pin(async move { this.run_once(future).await })
     }
 
     #[track_caller]
@@ -1550,13 +1549,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.task_statistics()
     }
 
-    fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
-        let this = self.pin();
-        Box::pin(async move {
-            this.stop_and_wait().await;
-        })
-    }
-
     fn subscribe_to_compilation_events(
         &self,
         event_types: Option<Vec<String>>,
@@ -1640,61 +1632,6 @@ pub(crate) fn debug_assert_not_in_top_level_task(operation: &str) {
     }
 }
 
-pub async fn run<T: Send + 'static>(
-    tt: Arc<dyn TurboTasksApi>,
-    future: impl Future<Output = Result<T>> + Send + 'static,
-) -> Result<T> {
-    let (tx, rx) = tokio::sync::oneshot::channel();
-
-    tt.run(Box::pin(async move {
-        let result = future.await?;
-        tx.send(result)
-            .map_err(|_| anyhow!("unable to send result"))?;
-        Ok(())
-    }))
-    .await?;
-
-    Ok(rx.await?)
-}
-
-pub async fn run_once<T: Send + 'static>(
-    tt: Arc<dyn TurboTasksApi>,
-    future: impl Future<Output = Result<T>> + Send + 'static,
-) -> Result<T> {
-    let (tx, rx) = tokio::sync::oneshot::channel();
-
-    tt.run_once(Box::pin(async move {
-        let result = future.await?;
-        tx.send(result)
-            .map_err(|_| anyhow!("unable to send result"))?;
-        Ok(())
-    }))
-    .await?;
-
-    Ok(rx.await?)
-}
-
-pub async fn run_once_with_reason<T: Send + 'static>(
-    tt: Arc<dyn TurboTasksApi>,
-    reason: impl InvalidationReason,
-    future: impl Future<Output = Result<T>> + Send + 'static,
-) -> Result<T> {
-    let (tx, rx) = tokio::sync::oneshot::channel();
-
-    tt.run_once_with_reason(
-        (Arc::new(reason) as Arc<dyn InvalidationReason>).into(),
-        Box::pin(async move {
-            let result = future.await?;
-            tx.send(result)
-                .map_err(|_| anyhow!("unable to send result"))?;
-            Ok(())
-        }),
-    )
-    .await?;
-
-    Ok(rx.await?)
-}
-
 /// Calls [`TurboTasks::dynamic_call`] for the current turbo tasks instance.
 pub fn dynamic_call(
     func: &'static NativeFunction,
@@ -1715,28 +1652,28 @@ pub fn trait_call(
     with_turbo_tasks(|tt| tt.trait_call(trait_method, this, arg, persistence))
 }
 
-pub fn turbo_tasks() -> Arc<dyn TurboTasksApi> {
-    TURBO_TASKS.with(|arc| arc.clone())
+pub fn turbo_tasks() -> TurboTasksHandle {
+    TURBO_TASKS.with(|h| h.clone())
 }
 
-pub fn turbo_tasks_weak() -> Weak<dyn TurboTasksApi> {
-    TURBO_TASKS.with(Arc::downgrade)
+pub fn turbo_tasks_weak() -> crate::TurboTasksWeakHandle {
+    TURBO_TASKS.with(|h| h.downgrade())
 }
 
-pub fn try_turbo_tasks() -> Option<Arc<dyn TurboTasksApi>> {
-    TURBO_TASKS.try_with(|arc| arc.clone()).ok()
+pub fn try_turbo_tasks() -> Option<TurboTasksHandle> {
+    TURBO_TASKS.try_with(|h| h.clone()).ok()
 }
 
-pub fn with_turbo_tasks<T>(func: impl FnOnce(&Arc<dyn TurboTasksApi>) -> T) -> T {
-    TURBO_TASKS.with(|arc| func(arc))
+pub fn with_turbo_tasks<T>(func: impl FnOnce(&TurboTasksHandle) -> T) -> T {
+    TURBO_TASKS.with(|h| func(h))
 }
 
-pub fn turbo_tasks_scope<T>(tt: Arc<dyn TurboTasksApi>, f: impl FnOnce() -> T) -> T {
+pub fn turbo_tasks_scope<T>(tt: TurboTasksHandle, f: impl FnOnce() -> T) -> T {
     TURBO_TASKS.sync_scope(tt, f)
 }
 
 pub fn turbo_tasks_future_scope<T>(
-    tt: Arc<dyn TurboTasksApi>,
+    tt: TurboTasksHandle,
     f: impl Future<Output = T>,
 ) -> impl Future<Output = T> {
     TURBO_TASKS.scope(tt, f)
@@ -1848,19 +1785,6 @@ pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {
         let raw_vc = collectible.node.node;
         tt.emit_collectible(T::get_trait_type_id(), raw_vc)
     })
-}
-
-pub(crate) async fn read_task_output(
-    this: &dyn TurboTasksApi,
-    id: TaskId,
-    options: ReadOutputOptions,
-) -> Result<RawVc> {
-    loop {
-        match this.try_read_task_output(id, options)? {
-            Ok(result) => return Ok(result),
-            Err(listener) => listener.await,
-        }
-    }
 }
 
 /// A reference to a task's cell with methods that allow updating the contents
@@ -2179,7 +2103,7 @@ pub fn find_cell_by_id(ty: ValueTypeId) -> CurrentCellRef {
 }
 
 pub(crate) async fn read_local_output(
-    this: &dyn TurboTasksApi,
+    this: &TurboTasksHandle,
     execution_id: ExecutionId,
     local_task_id: LocalTaskId,
 ) -> Result<RawVc> {

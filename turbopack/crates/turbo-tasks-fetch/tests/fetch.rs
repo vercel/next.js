@@ -335,15 +335,16 @@ async fn ttl_invalidates_within_session() {
 
     let TestInstance { tt, .. } =
         REGISTRATION.create_turbo_tasks("ttl_invalidates_within_session", true);
-    let body = turbo_tasks::run_once(tt.clone(), {
-        let url = url.clone();
-        async move {
-            let body = fetch_body(url).read_strongly_consistent().await?;
-            Ok((*body).clone())
-        }
-    })
-    .await
-    .unwrap();
+    let body = tt
+        .run_once({
+            let url = url.clone();
+            async move {
+                let body = fetch_body(url).read_strongly_consistent().await?;
+                Ok((*body).clone())
+            }
+        })
+        .await
+        .unwrap();
     assert_eq!(&*body, "v1");
 
     // Change the server response
@@ -360,15 +361,16 @@ async fn ttl_invalidates_within_session() {
 
     // The timer should have invalidated fetch_inner, so a new strongly consistent read
     // should re-fetch and return the updated body.
-    let body = turbo_tasks::run_once(tt.clone(), {
-        let url = url.clone();
-        async move {
-            let body = fetch_body(url).read_strongly_consistent().await?;
-            Ok((*body).clone())
-        }
-    })
-    .await
-    .unwrap();
+    let body = tt
+        .run_once({
+            let url = url.clone();
+            async move {
+                let body = fetch_body(url).read_strongly_consistent().await?;
+                Ok((*body).clone())
+            }
+        })
+        .await
+        .unwrap();
     assert_eq!(&*body, "v2");
 
     tt.stop_and_wait().await;
@@ -397,15 +399,16 @@ async fn ttl_invalidates_on_session_restore() {
     // Session 1: fetch and cache
     let TestInstance { tt, .. } =
         REGISTRATION.create_turbo_tasks("ttl_invalidates_on_session_restore", true);
-    let body = turbo_tasks::run_once(tt.clone(), {
-        let url = url.clone();
-        async move {
-            let body = fetch_body(url).read_strongly_consistent().await?;
-            Ok((*body).clone())
-        }
-    })
-    .await
-    .unwrap();
+    let body = tt
+        .run_once({
+            let url = url.clone();
+            async move {
+                let body = fetch_body(url).read_strongly_consistent().await?;
+                Ok((*body).clone())
+            }
+        })
+        .await
+        .unwrap();
     assert_eq!(&*body, "v1");
     tt.stop_and_wait().await;
 
@@ -429,7 +432,7 @@ async fn ttl_invalidates_on_session_restore() {
     // timer-triggered re-execution to settle.
     let TestInstance { tt, .. } =
         REGISTRATION.create_turbo_tasks("ttl_invalidates_on_session_restore", false);
-    turbo_tasks::run_once(tt.clone(), {
+    tt.run_once({
         let url = url.clone();
         async move {
             // First read returns the stale cached value, but triggers the timer
@@ -443,15 +446,16 @@ async fn ttl_invalidates_on_session_restore() {
     // Wait for the timer to fire and re-execution to settle
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
 
-    let body = turbo_tasks::run_once(tt.clone(), {
-        let url = url.clone();
-        async move {
-            let body = fetch_body(url).read_strongly_consistent().await?;
-            Ok((*body).clone())
-        }
-    })
-    .await
-    .unwrap();
+    let body = tt
+        .run_once({
+            let url = url.clone();
+            async move {
+                let body = fetch_body(url).read_strongly_consistent().await?;
+                Ok((*body).clone())
+            }
+        })
+        .await
+        .unwrap();
     assert_eq!(&*body, "v2");
     tt.stop_and_wait().await;
 }
@@ -487,15 +491,16 @@ async fn errors_retried_on_session_restore() {
 
     let TestInstance { tt, .. } =
         REGISTRATION.create_turbo_tasks("errors_retried_on_session_restore", true);
-    let is_err = turbo_tasks::run_once(tt.clone(), {
-        let url = url.clone();
-        async move {
-            let is_err = *fetch_is_err(url).read_strongly_consistent().await?;
-            Ok(is_err)
-        }
-    })
-    .await
-    .unwrap();
+    let is_err = tt
+        .run_once({
+            let url = url.clone();
+            async move {
+                let is_err = *fetch_is_err(url).read_strongly_consistent().await?;
+                Ok(is_err)
+            }
+        })
+        .await
+        .unwrap();
     assert!(is_err, "first fetch should be an error");
     tt.stop_and_wait().await;
 
@@ -509,15 +514,16 @@ async fn errors_retried_on_session_restore() {
 
     let TestInstance { tt, .. } =
         REGISTRATION.create_turbo_tasks("errors_retried_on_session_restore", false);
-    let is_err = turbo_tasks::run_once(tt.clone(), {
-        let url = url.clone();
-        async move {
-            let is_err = *fetch_is_err(url).read_strongly_consistent().await?;
-            Ok(is_err)
-        }
-    })
-    .await
-    .unwrap();
+    let is_err = tt
+        .run_once({
+            let url = url.clone();
+            async move {
+                let is_err = *fetch_is_err(url).read_strongly_consistent().await?;
+                Ok(is_err)
+            }
+        })
+        .await
+        .unwrap();
     assert!(!is_err, "second fetch should succeed after session restore");
     tt.stop_and_wait().await;
 }

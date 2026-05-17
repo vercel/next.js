@@ -2,7 +2,6 @@ use std::{
     fmt::{Debug, Display},
     future::Future,
     pin::Pin,
-    sync::Arc,
     task::{Poll, ready},
 };
 
@@ -13,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     CollectiblesSource, ReadCellOptions, ReadConsistency, ReadOutputOptions, ResolvedVc, TaskId,
-    TaskPersistence, TraitTypeId, ValueTypeId, VcValueTrait,
+    TaskPersistence, TraitTypeId, TurboTasksHandle, ValueTypeId, VcValueTrait,
     backend::TypedCellContent,
     event::EventListener,
     id::{ExecutionId, LocalTaskId},
@@ -152,7 +151,7 @@ impl RawVc {
         Ok(match self {
             RawVc::LocalOutput(execution_id, local_task_id, ..) => {
                 let tt = turbo_tasks();
-                let local_output = read_local_output(&*tt, execution_id, local_task_id).await?;
+                let local_output = read_local_output(&tt, execution_id, local_task_id).await?;
                 debug_assert!(
                     !matches!(local_output, RawVc::LocalOutput(_, _, _)),
                     "a LocalOutput cannot point at other LocalOutputs"
@@ -349,7 +348,7 @@ impl Future for ResolveRawVcFuture {
         // SAFETY: we are not moving self
         let this = unsafe { self.get_unchecked_mut() };
 
-        let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
+        let poll_fn = |tt: &TurboTasksHandle| -> Poll<Self::Output> {
             'outer: loop {
                 ready!(poll_listener(&mut this.listener, cx));
                 let listener = match this.current {
@@ -520,7 +519,7 @@ impl Future for ReadRawVcFuture {
         let index = *index;
         let read_cell_options = this.read_cell_options;
 
-        let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
+        let poll_fn = |tt: &TurboTasksHandle| -> Poll<Self::Output> {
             loop {
                 ready!(poll_listener(listener, cx));
                 let new_listener = match tt.try_read_task_cell(task, index, read_cell_options) {

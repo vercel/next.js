@@ -711,7 +711,7 @@ impl TurboTasksBackend {
 
             return result.map_err(|error| {
                 self.task_error_to_turbo_tasks_execution_error(&error, &mut ctx)
-                    .with_task_context(task_id, turbo_tasks.pin())
+                    .with_task_context(task_id, turbo_tasks::turbo_tasks())
                     .into()
             });
         }

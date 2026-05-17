@@ -7,7 +7,7 @@ use turbo_dyn_eq_hash::{
 };
 
 use crate::{
-    FxIndexMap, FxIndexSet, NonLocalValue, OperationValue, TaskId, TurboTasksApi,
+    FxIndexMap, FxIndexSet, NonLocalValue, OperationValue, TaskId,
     manager::{current_task_if_available, mark_invalidator},
     trace::TraceRawVcs,
     util::StaticOrArc,
@@ -33,13 +33,13 @@ pub struct Invalidator {
 }
 
 impl Invalidator {
-    pub fn invalidate(self, turbo_tasks: &dyn TurboTasksApi) {
+    pub fn invalidate(self, turbo_tasks: &crate::TurboTasksHandle) {
         turbo_tasks.invalidate(self.task);
     }
 
     pub fn invalidate_with_reason<T: InvalidationReason>(
         self,
-        turbo_tasks: &dyn TurboTasksApi,
+        turbo_tasks: &crate::TurboTasksHandle,
         reason: T,
     ) {
         turbo_tasks.invalidate_with_reason(
