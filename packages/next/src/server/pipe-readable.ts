@@ -2,6 +2,7 @@ import type { ServerResponse } from 'node:http'
 import type { Readable } from 'node:stream'
 
 import {
+  ResponseAborted,
   ResponseAbortedName,
   createAbortController,
 } from './web/spec-extension/adapters/next-request'
@@ -10,8 +11,9 @@ import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { getClientComponentLoaderMetrics } from './client-component-renderer-logger'
 
-export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
-  return e?.name === 'AbortError' || e?.name === ResponseAbortedName
+export function isAbortError(e: any): boolean {
+  if(e?.name === 'AbortError' || e?.name === ResponseAbortedName) return true;
+  return false;
 }
 
 const HAS_CLIENT_COMPONENT_METRICS_ENABLED =
@@ -135,9 +137,28 @@ export async function pipeToNodeResponse(
     // client disconnects.
     const controller = createAbortController(res)
 
-    const writer = createWriterFromResponse(res, waitUntilForEnd)
+    const writable = createWriterFromResponse(res, waitUntilForEnd)
+    const reader = readable.getReader()
+    const writer = writable.getWriter()
+    const abortReason = controller.signal.reason ?? new ResponseAborted()
 
-    await readable.pipeTo(writer, { signal: controller.signal })
+    controller.signal.addEventListener(
+      'abort',
+      () => {
+        void reader.cancel(abortReason).catch(() => {})
+        void writer.abort(abortReason).catch(() => {})
+      },
+      { once: true }
+    )
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      await writer.write(value)
+    }
+    try {
+      await writer.close()
+    } catch(e) {}
   } catch (err: any) {
     // If this isn't related to an abort error, re-throw it.
     if (isAbortError(err)) return
