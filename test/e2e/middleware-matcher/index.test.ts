@@ -1,19 +1,13 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check, fetchViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 
 describe('Middleware can set the matcher in its config', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(join(__dirname, 'app')),
-      dependencies: {},
-    })
+  const { next } = nextTestSetup({
+    files: new FileRef(join(__dirname, 'app')),
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   it('does add the header for root request', async () => {
     const response = await fetchViaHTTP(next.url, '/')
@@ -226,42 +220,38 @@ describe('Middleware can set the matcher in its config', () => {
 })
 
 describe('using a single matcher', () => {
-  let next: NextInstance
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/[...route].js': `
-          export default function Page({ message }) {
-            return <div>
-              <p>root page</p>
-              <p>{message}</p>
-            </div>
-          }
+  const { next } = nextTestSetup({
+    files: {
+      'pages/[...route].js': `
+        export default function Page({ message }) {
+          return <div>
+            <p>root page</p>
+            <p>{message}</p>
+          </div>
+        }
 
-          export const getServerSideProps = ({ params }) => {
-            return {
-              props: {
-                message: "Hello from /" + params.route.join("/")
-              }
+        export const getServerSideProps = ({ params }) => {
+          return {
+            props: {
+              message: "Hello from /" + params.route.join("/")
             }
           }
-        `,
-        'middleware.js': `
-          import { NextResponse } from 'next/server'
-          export const config = {
-            matcher: '/middleware/works'
-          };
-          export default (req) => {
-            const res = NextResponse.next();
-            res.headers.set('X-From-Middleware', 'true');
-            return res;
-          }
-        `,
-      },
-      dependencies: {},
-    })
+        }
+      `,
+      'middleware.js': `
+        import { NextResponse } from 'next/server'
+        export const config = {
+          matcher: '/middleware/works'
+        };
+        export default (req) => {
+          const res = NextResponse.next();
+          res.headers.set('X-From-Middleware', 'true');
+          return res;
+        }
+      `,
+    },
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   it('does not add the header for root request', async () => {
     const response = await fetchViaHTTP(next.url, '/')
@@ -325,50 +315,46 @@ describe.each([
 ])(
   'using a single matcher with i18n for a non-root route$title',
   ({ trailingSlash }) => {
-    let next: NextInstance
-    beforeAll(async () => {
-      next = await createNext({
-        files: {
-          'pages/[...route].js': `
-            export default function Page({ message }) {
-              return <div>
-                <p>catchall page</p>
-                <p>{message}</p>
-              </div>
-            }
+    const { next } = nextTestSetup({
+      files: {
+        'pages/[...route].js': `
+          export default function Page({ message }) {
+            return <div>
+              <p>catchall page</p>
+              <p>{message}</p>
+            </div>
+          }
 
-            export const getServerSideProps = ({ params, locale }) => ({
-              props: {
-                message: \`(\${locale}) Hello from /\${params.route.join("/")}\`
-              }
-            })
-          `,
-          'middleware.js': `
-            import { NextResponse } from 'next/server'
-            export const config = {
-              matcher: '/middleware/works'
-            };
-            export default (req) => {
-              const res = NextResponse.next();
-              res.headers.set('X-From-Middleware', 'true');
-              return res;
+          export const getServerSideProps = ({ params, locale }) => ({
+            props: {
+              message: \`(\${locale}) Hello from /\${params.route.join("/")}\`
             }
-          `,
-          'next.config.js': `
-            module.exports = {
-              ${trailingSlash ? 'trailingSlash: true,' : ''}
-              i18n: {
-                localeDetection: false,
-                locales: ['es', 'en'],
-                defaultLocale: 'en',
-              }
+          })
+        `,
+        'middleware.js': `
+          import { NextResponse } from 'next/server'
+          export const config = {
+            matcher: '/middleware/works'
+          };
+          export default (req) => {
+            const res = NextResponse.next();
+            res.headers.set('X-From-Middleware', 'true');
+            return res;
+          }
+        `,
+        'next.config.js': `
+          module.exports = {
+            ${trailingSlash ? 'trailingSlash: true,' : ''}
+            i18n: {
+              localeDetection: false,
+              locales: ['es', 'en'],
+              defaultLocale: 'en',
             }
-          `,
-        },
-        dependencies: {},
-      })
+          }
+        `,
+      },
+      dependencies: {},
     })
-    afterAll(() => next.destroy())
 
     it('adds the header for matched paths', async () => {
       const res1 = await fetchViaHTTP(next.url, '/middleware/works')
@@ -426,38 +412,34 @@ describe.each([
 )
 
 describe('using root matcher', () => {
-  let next: NextInstance
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/index.js': `
-          export function getStaticProps() {
-            return {
-              props: {
-                message: 'hello world'
-              }
+  const { next } = nextTestSetup({
+    files: {
+      'pages/index.js': `
+        export function getStaticProps() {
+          return {
+            props: {
+              message: 'hello world'
             }
           }
-          
-          export default function Home({ message }) {
-            return <div>Hi there!</div>
-          }
-        `,
-        'middleware.js': `
-          import { NextResponse } from 'next/server'
-          export default (req) => {
-            const res = NextResponse.next();
-            res.headers.set('X-From-Middleware', 'true');
-            return res;
-          }
+        }
 
-          export const config = { matcher: '/' };
-        `,
-      },
-      dependencies: {},
-    })
+        export default function Home({ message }) {
+          return <div>Hi there!</div>
+        }
+      `,
+      'middleware.js': `
+        import { NextResponse } from 'next/server'
+        export default (req) => {
+          const res = NextResponse.next();
+          res.headers.set('X-From-Middleware', 'true');
+          return res;
+        }
+
+        export const config = { matcher: '/' };
+      `,
+    },
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   it('adds the header to the /', async () => {
     const response = await fetchViaHTTP(next.url, '/')
@@ -507,55 +489,51 @@ describe.each([
   { title: '' },
   { title: ' and trailingSlash', trailingSlash: true },
 ])('using a single matcher with i18n$title', ({ trailingSlash }) => {
-  let next: NextInstance
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/index.js': `
-          export default function Page({ message }) {
-            return <div>
-              <p>{message}</p>
-            </div>
+  const { next } = nextTestSetup({
+    files: {
+      'pages/index.js': `
+        export default function Page({ message }) {
+          return <div>
+            <p>{message}</p>
+          </div>
+        }
+        export const getServerSideProps = ({ params, locale }) => ({
+          props: { message: \`(\${locale}) Hello from /\` }
+        })
+      `,
+      'pages/[...route].js': `
+        export default function Page({ message }) {
+          return <div>
+            <p>catchall page</p>
+            <p>{message}</p>
+          </div>
+        }
+        export const getServerSideProps = ({ params, locale }) => ({
+          props: { message: \`(\${locale}) Hello from /\` + params.route.join("/") }
+        })
+      `,
+      'middleware.js': `
+        import { NextResponse } from 'next/server'
+        export const config = { matcher: '/' };
+        export default (req) => {
+          const res = NextResponse.next();
+          res.headers.set('X-From-Middleware', 'true');
+          return res;
+        }
+      `,
+      'next.config.js': `
+        module.exports = {
+          ${trailingSlash ? 'trailingSlash: true,' : ''}
+          i18n: {
+            localeDetection: false,
+            locales: ['es', 'en'],
+            defaultLocale: 'en',
           }
-          export const getServerSideProps = ({ params, locale }) => ({
-            props: { message: \`(\${locale}) Hello from /\` }
-          })
-        `,
-        'pages/[...route].js': `
-          export default function Page({ message }) {
-            return <div>
-              <p>catchall page</p>
-              <p>{message}</p>
-            </div>
-          }
-          export const getServerSideProps = ({ params, locale }) => ({
-            props: { message: \`(\${locale}) Hello from /\` + params.route.join("/") }
-          })
-        `,
-        'middleware.js': `
-          import { NextResponse } from 'next/server'
-          export const config = { matcher: '/' };
-          export default (req) => {
-            const res = NextResponse.next();
-            res.headers.set('X-From-Middleware', 'true');
-            return res;
-          }
-        `,
-        'next.config.js': `
-          module.exports = {
-            ${trailingSlash ? 'trailingSlash: true,' : ''}
-            i18n: {
-              localeDetection: false,
-              locales: ['es', 'en'],
-              defaultLocale: 'en',
-            }
-          }
-        `,
-      },
-      dependencies: {},
-    })
+        }
+      `,
+    },
+    dependencies: {},
   })
-  afterAll(() => next.destroy())
 
   it(`adds the header for a matched path`, async () => {
     const res1 = await fetchViaHTTP(next.url, `/`)
@@ -610,11 +588,9 @@ describe.each([
 ])(
   'using a single matcher with i18n and basePath$title',
   ({ trailingSlash }) => {
-    let next: NextInstance
-    beforeAll(async () => {
-      next = await createNext({
-        files: {
-          'pages/index.js': `
+    const { next } = nextTestSetup({
+      files: {
+        'pages/index.js': `
           export default function Page({ message }) {
             return <div>
               <p>root page</p>
@@ -625,7 +601,7 @@ describe.each([
             props: { message: \`(\${locale}) Hello from /\` }
           })
         `,
-          'pages/[...route].js': `
+        'pages/[...route].js': `
           export default function Page({ message }) {
             return <div>
               <p>catchall page</p>
@@ -636,7 +612,7 @@ describe.each([
             props: { message: \`(\${locale}) Hello from /\` + params.route.join("/") }
           })
         `,
-          'middleware.js': `
+        'middleware.js': `
           import { NextResponse } from 'next/server'
           export const config = { matcher: '/' };
           export default (req) => {
@@ -645,7 +621,7 @@ describe.each([
             return res;
           }
         `,
-          'next.config.js': `
+        'next.config.js': `
           module.exports = {
             ${trailingSlash ? 'trailingSlash: true,' : ''}
             basePath: '/root',
@@ -656,11 +632,9 @@ describe.each([
             }
           }
         `,
-        },
-        dependencies: {},
-      })
+      },
+      dependencies: {},
     })
-    afterAll(() => next.destroy())
 
     it(`adds the header for a matched path`, async () => {
       const res1 = await fetchViaHTTP(next.url, `/root`)

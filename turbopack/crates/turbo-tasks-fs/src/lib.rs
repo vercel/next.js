@@ -64,8 +64,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effect, EffectStateStorage, InvalidationReason, NonLocalValue, ReadRef, ResolvedVc,
     TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc, debug::ValueDebugFormat,
-    emit_effect, mark_session_dependent, parallel, trace::TraceRawVcs, turbo_tasks_weak, turbobail,
-    turbofmt,
+    emit_effect, parallel, trace::TraceRawVcs, turbo_tasks_weak, turbobail, turbofmt,
 };
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
@@ -501,9 +500,14 @@ impl DiskFileSystemInner {
     }
 }
 
+/// `DiskFileSystem` carries serializable fields (`name`, `root`,
+/// `denied_paths`) inside `DiskFileSystemInner` alongside session-scoped
+/// state (the `notify` watcher, invalidator maps, weak `TurboTasksApi`,
+/// etc.) This is important to maintain invariants in a session and ensure invalidations work, so we
+/// never evict this data.
 #[derive(Clone, ValueToString)]
 #[value_to_string(self.inner.name)]
-#[turbo_tasks::value(cell = "new", eq = "manual")]
+#[turbo_tasks::value(cell = "new", eq = "manual", evict = "never")]
 pub struct DiskFileSystem {
     inner: Arc<DiskFileSystemInner>,
 }
@@ -707,10 +711,8 @@ impl Debug for DiskFileSystem {
 
 #[turbo_tasks::value_impl]
 impl FileSystem for DiskFileSystem {
-    #[turbo_tasks::function(fs)]
+    #[turbo_tasks::function(fs, session_dependent)]
     async fn read(&self, fs_path: FileSystemPath) -> Result<Vc<FileContent>> {
-        mark_session_dependent();
-
         // Check if path is denied - if so, treat as NotFound
         if self.inner.is_path_denied(&fs_path) {
             return Ok(FileContent::NotFound.cell());
@@ -735,10 +737,8 @@ impl FileSystem for DiskFileSystem {
         Ok(content.cell())
     }
 
-    #[turbo_tasks::function(fs)]
+    #[turbo_tasks::function(fs, session_dependent)]
     async fn raw_read_dir(&self, fs_path: FileSystemPath) -> Result<Vc<RawDirectoryContent>> {
-        mark_session_dependent();
-
         // Check if directory itself is denied - if so, treat as NotFound
         if self.inner.is_path_denied(&fs_path) {
             return Ok(RawDirectoryContent::not_found());
@@ -825,10 +825,8 @@ impl FileSystem for DiskFileSystem {
         Ok(RawDirectoryContent::new(entries))
     }
 
-    #[turbo_tasks::function(fs)]
+    #[turbo_tasks::function(fs, session_dependent)]
     async fn read_link(&self, fs_path: FileSystemPath) -> Result<Vc<LinkContent>> {
-        mark_session_dependent();
-
         // Check if path is denied - if so, treat as NotFound
         if self.inner.is_path_denied(&fs_path) {
             return Ok(LinkContent::NotFound.cell());
@@ -919,9 +917,9 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write(&self, fs_path: FileSystemPath, content: Vc<FileContent>) -> Result<()> {
-        // You might be tempted to use `mark_session_dependent` here, but
-        // `write` purely declares a side effect and does not need to be reexecuted in the next
-        // session. All side effects are reexecuted in general.
+        // You might be tempted to use `session_dependent` here, but `write` purely declares a side
+        // effect and does not need to be reexecuted in the next session. All side effects are
+        // reexecuted in general.
 
         // Check if path is denied - if so, return an error
         if self.inner.is_path_denied(&fs_path) {
@@ -1099,7 +1097,7 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write_link(&self, fs_path: FileSystemPath, target: Vc<LinkContent>) -> Result<()> {
-        // You might be tempted to use `mark_session_dependent` here, but we purely declare a side
+        // You might be tempted to use `session_dependent` here, but we purely declare a side
         // effect and does not need to be re-executed in the next session. All side effects are
         // re-executed in general.
 
@@ -1377,9 +1375,8 @@ impl FileSystem for DiskFileSystem {
         Ok(())
     }
 
-    #[turbo_tasks::function(fs)]
+    #[turbo_tasks::function(fs, session_dependent)]
     async fn metadata(&self, fs_path: FileSystemPath) -> Result<Vc<FileMeta>> {
-        mark_session_dependent();
         let full_path = self.to_sys_path(&fs_path);
 
         // Check if path is denied - if so, return an error (metadata shouldn't be readable)
@@ -2443,8 +2440,9 @@ impl FileContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn hash(&self) -> Result<Vc<u64>> {
-        Ok(Vc::cell(hash_xxh3_hash64(self)))
+    pub fn hash(&self, algorithm: HashAlgorithm) -> Vc<RcStr> {
+        // no_hash_salt
+        Vc::cell(RcStr::from(deterministic_hash("", self, algorithm)))
     }
 
     /// Converts this [`FileContent`] into a [`PersistedFileContent`] by cloning.
@@ -2946,7 +2944,7 @@ mod tests {
 
     use super::*;
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
         let _ = op.resolve().strongly_consistent().await?;
         Ok(take_effects(op).await?.cell())
@@ -3054,7 +3052,7 @@ mod tests {
         .unwrap();
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn assert_try_from_sys_path_operation(sys_root: RcStr) -> anyhow::Result<()> {
         let sys_root = Path::new(sys_root.as_str());
         let fs_vc = DiskFileSystem::new(
@@ -3157,7 +3155,7 @@ mod tests {
         use super::extract_effects_operation;
         use crate::{DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkType};
 
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn test_write_link_effect_operation(
             fs: ResolvedVc<DiskFileSystem>,
             path: FileSystemPath,
@@ -3267,7 +3265,7 @@ mod tests {
         const STRESS_TARGET_COUNT: usize = 20;
         const STRESS_SYMLINK_COUNT: usize = 16;
 
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
             DiskFileSystem::new(rcstr!("test"), Vc::cell(fs_root))
         }
@@ -3279,7 +3277,7 @@ mod tests {
             }
         }
 
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn write_symlink_stress_batch(
             fs: ResolvedVc<DiskFileSystem>,
             symlinks_dir: FileSystemPath,
@@ -3444,7 +3442,7 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read() {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
                 let fs = DiskFileSystem::new_with_denied_paths(
                     rcstr!("test"),
@@ -3507,7 +3505,7 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read_dir() {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
                 let fs = DiskFileSystem::new_with_denied_paths(
                     rcstr!("test"),
@@ -3569,7 +3567,7 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read_glob() {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
                 let fs = DiskFileSystem::new_with_denied_paths(
                     rcstr!("test"),
@@ -3635,7 +3633,7 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_write() {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn write_file_operation(
                 path: FileSystemPath,
                 contents: RcStr,
@@ -3650,7 +3648,7 @@ mod tests {
 
             /// Writes the allowed file and captures effects to be applied at
             /// the top level.
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn write_allowed_file_operation(
                 root: RcStr,
                 denied_path: RcStr,
@@ -3669,7 +3667,7 @@ mod tests {
                 Ok(take_effects(write_op).await?.cell())
             }
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn test_denied_writes_operation(
                 root: RcStr,
                 denied_path: RcStr,

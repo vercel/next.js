@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { createSandbox } from 'development-sandbox'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, isReact18, nextTestSetup } from 'e2e-utils'
 import {
   getRedboxTotalErrorCount,
   getRedboxCallStack,
@@ -9,8 +9,6 @@ import {
 } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('ReactRefreshLogBox', () => {
   const { isTurbopack, next, isRspack } = nextTestSetup({

@@ -10,6 +10,8 @@ description: |
   **Output type:** A markdown guide with YAML frontmatter, introduction, 2-4 progressive steps, and next steps section.
 agent: Plan
 context: fork
+metadata:
+  internal: true
 ---
 
 # Writing Guides

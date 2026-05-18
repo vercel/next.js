@@ -1,15 +1,21 @@
 import type * as Playwright from 'playwright'
-import webdriver from 'next-webdriver'
+import type { ChildProcess } from 'child_process'
+import type { Server } from 'http'
 import { createRouterAct } from 'router-act'
-import { findPort, nextBuild } from 'next-test-utils'
-import { isNextDeploy, isNextDev } from 'e2e-utils'
-import { start } from './server.mjs'
+import { findPort } from 'next-test-utils'
+import { isNextDeploy, isNextDev, nextTestSetup } from 'e2e-utils'
+import { createFakeCDN } from './server.mjs'
 
 describe('segment cache (CDN cache busting)', () => {
   if (isNextDev || isNextDeploy) {
     test('should not run during dev or deploy test runs', () => {})
     return
   }
+
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+  })
 
   // TODO(runtime-ppr): add tests for runtime prefetches
 
@@ -19,19 +25,43 @@ describe('segment cache (CDN cache busting)', () => {
   // This will start the Next app and also a proxy server that simulates a CDN.
   // Like certain real-world CDNs, our fake CDN doesn't respect the Vary header.
   // It only uses the URL.
-  let cleanup: () => Promise<void>
+  let nextChild: ChildProcess | undefined
+  let nextExit: Promise<any> | undefined
+  let cdnServer: Server
   let port: number
 
   beforeAll(async () => {
-    const appDir = __dirname
-    await nextBuild(appDir, undefined, { cwd: appDir })
-    const proxyPort = (port = await findPort())
+    await next.build()
     const nextPort = await findPort()
-    cleanup = await start(proxyPort, nextPort)
+    const proxyPort = (port = await findPort())
+
+    let resolveReady!: () => void
+    const readyPromise = new Promise<void>((r) => (resolveReady = r))
+    nextExit = next
+      .runCommand(['start', '-p', String(nextPort)], {
+        onStdout(msg) {
+          if (/Ready/.test(msg)) resolveReady()
+        },
+        instance(p) {
+          nextChild = p
+        },
+      })
+      .finally(() => resolveReady())
+    await readyPromise
+
+    cdnServer = await createFakeCDN(nextPort)
+    await new Promise<void>((resolve, reject) => {
+      cdnServer.on('error', reject)
+      cdnServer.listen(proxyPort, () => resolve())
+    })
   })
 
   afterAll(async () => {
-    await cleanup()
+    if (cdnServer) {
+      await new Promise<void>((resolve) => cdnServer.close(() => resolve()))
+    }
+    nextChild?.kill()
+    await nextExit?.catch(() => {})
   })
 
   it(
@@ -39,17 +69,13 @@ describe('segment cache (CDN cache busting)', () => {
       'the Vary header',
     async () => {
       let act
-      const browser = await webdriver(port, '/', {
+      const browser = await next.browser('/', {
+        baseUrl: port,
         beforePageLoad(p: Playwright.Page) {
           act = createRouterAct(p)
         },
       })
 
-      // Initiate a prefetch. Each segment will be prefetched individually,
-      // using the pathname of the target page and a custom header specifying
-      // the segment. If we didn't also set a cache-busting search param, then
-      // the fake CDN used by this test suite would incorrectly use the same
-      // entry for every segment, poisoning the cache.
       await act(
         async () => {
           const linkToggle = await browser.elementByCss(
@@ -62,13 +88,10 @@ describe('segment cache (CDN cache busting)', () => {
         }
       )
 
-      // Navigate to the prefetched target page.
       await act(async () => {
         const link = await browser.elementByCss('a[href="/target-page"]')
         await link.click()
 
-        // The page was prefetched, so we're able to render the target
-        // page immediately.
         const div = await browser.elementById('target-page')
         expect(await div.text()).toBe('Target page')
       }, 'no-requests')
@@ -80,7 +103,7 @@ describe('segment cache (CDN cache busting)', () => {
       'cache busting query param if a custom header is sent during a prefetch ' +
       'without a corresponding cache-busting search param',
     async () => {
-      const browser = await webdriver(port, '/')
+      const browser = await next.browser('/', { baseUrl: port })
       const { status, responseUrl, redirected } = await browser.eval(
         async () => {
           const res = await fetch('/target-page', {
@@ -133,7 +156,8 @@ describe('segment cache (CDN cache busting)', () => {
       'performs a redirect',
     async () => {
       let act
-      const browser = await webdriver(port, '/', {
+      const browser = await next.browser('/', {
+        baseUrl: port,
         beforePageLoad(p: Playwright.Page) {
           act = createRouterAct(p)
         },
@@ -151,15 +175,12 @@ describe('segment cache (CDN cache busting)', () => {
         }
       )
 
-      // Navigate to the prefetched target page.
       await act(async () => {
         const link = await browser.elementByCss(
           'a[href="/redirect-to-target-page"]'
         )
         await link.click()
 
-        // The page was prefetched, so we're able to render the target
-        // page immediately.
         const div = await browser.elementById('target-page')
         expect(await div.text()).toBe('Target page')
       }, 'no-requests')

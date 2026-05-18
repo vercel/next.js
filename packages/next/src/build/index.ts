@@ -1643,7 +1643,8 @@ export default async function build(
             ...rest
           } = await turbopackBuild(
             process.env.NEXT_TURBOPACK_USE_WORKER === undefined ||
-              process.env.NEXT_TURBOPACK_USE_WORKER !== '0'
+              process.env.NEXT_TURBOPACK_USE_WORKER !== '0',
+            telemetry
           )
           shutdownPromise = p
           traceMemoryUsage('Finished build', nextBuildSpan)
@@ -2110,8 +2111,6 @@ export default async function build(
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
               pprConfig: config.experimental.ppr,
-              partialFallbacksEnabled:
-                config.experimental.partialFallbacks === true,
               cacheLifeProfiles: config.cacheLife,
               buildId,
               deploymentId: config.deploymentId,
@@ -2345,8 +2344,6 @@ export default async function build(
                             cacheMaxMemorySize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             pprConfig: config.experimental.ppr,
-                            partialFallbacksEnabled:
-                              config.experimental.partialFallbacks === true,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
                             deploymentId: config.deploymentId,

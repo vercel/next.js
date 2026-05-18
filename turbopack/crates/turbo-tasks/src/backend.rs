@@ -674,14 +674,6 @@ pub trait Backend: Sync + Send {
         // Do nothing by default
     }
 
-    fn mark_own_task_as_session_dependent(
-        &self,
-        _task: TaskId,
-        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) {
-        // Do nothing by default
-    }
-
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,
@@ -723,6 +715,7 @@ mod cached_task_type_tests {
         ArgMeta::new::<(i32,)>(),
         &into_task_fn(dummy_fn_a),
         false,
+        false,
     );
 
     static FN_B: NativeFunction = NativeFunction::new(
@@ -730,6 +723,7 @@ mod cached_task_type_tests {
         "dummy_fn_b",
         ArgMeta::new::<(i32,)>(),
         &into_task_fn(dummy_fn_b),
+        false,
         false,
     );
 
