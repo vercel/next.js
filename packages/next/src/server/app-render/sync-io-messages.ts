@@ -20,7 +20,7 @@ const SYNC_IO_RUNTIME_DOCS: Record<SyncIOApiType, string> = {
 
 function elapsedTimeBullet(type: SyncIOApiType): string {
   return type === 'time'
-    ? `  - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`\n`
+    ? `  - If the value is for telemetry, use a timing API such as \`performance.now()\`\n`
     : ''
 }
 

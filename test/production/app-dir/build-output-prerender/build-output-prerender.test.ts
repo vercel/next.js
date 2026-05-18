@@ -78,7 +78,7 @@ describe('build-output-prerender', () => {
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
              - Move the read into a \`useEffect\` or event handler
-             - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+             - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                at <unknown> (app/client/page.tsx:4:28)
@@ -103,7 +103,7 @@ describe('build-output-prerender', () => {
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
              - Move the read into a \`useEffect\` or event handler
-             - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+             - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                at x (<next-dist-dir>)
@@ -219,7 +219,7 @@ describe('build-output-prerender', () => {
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
              - Move the read into a \`useEffect\` or event handler
-             - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+             - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                at Page (app/client/page.tsx:4:28)
@@ -266,7 +266,7 @@ describe('build-output-prerender', () => {
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
              - Move the read into a \`useEffect\` or event handler
-             - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+             - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                at Page (webpack:///app/client/page.tsx:4:28)

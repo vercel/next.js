@@ -2214,7 +2214,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
-                   - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2241,7 +2241,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
-                   - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2270,7 +2270,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
-                   - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at <unknown> (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2296,7 +2296,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
-                   - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at a (<next-dist-dir>)
@@ -2500,7 +2500,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
-                   - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2527,7 +2527,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
-                   - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2556,7 +2556,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
-                   - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at <unknown> (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2582,7 +2582,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
-                   - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at a (<next-dist-dir>)
@@ -4990,7 +4990,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/date/page.tsx:19:16)
@@ -5017,7 +5017,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/date/page.tsx:19:16)
@@ -5046,7 +5046,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (app/sync-io-current-time/date/page.tsx:19:16)
@@ -5072,7 +5072,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (<next-dist-dir>)
@@ -5135,7 +5135,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/date-now/page.tsx:19:21)
@@ -5162,7 +5162,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/date-now/page.tsx:19:21)
@@ -5191,7 +5191,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (app/sync-io-current-time/date-now/page.tsx:19:21)
@@ -5217,7 +5217,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (<next-dist-dir>)
@@ -5280,7 +5280,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/new-date/page.tsx:19:16)
@@ -5307,7 +5307,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/new-date/page.tsx:19:16)
@@ -5336,7 +5336,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (app/sync-io-current-time/new-date/page.tsx:19:16)
@@ -5362,7 +5362,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (<next-dist-dir>)
