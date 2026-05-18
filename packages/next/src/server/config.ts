@@ -1853,12 +1853,23 @@ export default async function loadConfig(
       throw err
     }
 
-    const loadedConfig = Object.freeze(
-      (await normalizeConfig(
-        phase,
-        interopDefault(userConfigModule)
-      )) as NextConfig
-    )
+    const configModule = interopDefault(userConfigModule)
+
+    if (
+      configModule == null ||
+      (typeof configModule !== 'object' && typeof configModule !== 'function')
+    ) {
+      throw new Error(
+        `Invalid next.config export. Expected an object or function, but received ${configModule}.`
+      )
+    }
+
+    const normalized = await normalizeConfig(phase, configModule)
+
+    // Spread into a plain object so Object.freeze works even if
+    // `normalized` is an exotic object (e.g. ESM module namespace)
+    // whose properties are already non-configurable.
+    const loadedConfig = Object.freeze({ ...normalized } as NextConfig)
 
     if (loadedConfig.experimental) {
       for (const name of Object.keys(
