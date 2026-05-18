@@ -1,86 +1,49 @@
+"use client";
+
 import Link from "next/link";
+import { useUser } from "@auth0/nextjs-auth0/client";
+import styles from "./header.module.css";
 
-type HeaderProps = {
-  user?: any;
-  loading: boolean;
-};
+export function Header() {
+  const { user, isLoading } = useUser();
 
-const Header = ({ user, loading }: HeaderProps) => {
   return (
-    <header>
-      <nav>
-        <ul>
-          <li>
+    <header className={styles.header}>
+      <nav className={styles.nav}>
+        <ul className={styles.ul}>
+          <li className={styles.li}>
             <Link href="/">Home</Link>
           </li>
-          <li>
+          <li className={styles.li}>
             <Link href="/about">About</Link>
           </li>
-          <li>
+          <li className={`${styles.li} ${styles.liSpacer}`}>
             <Link href="/advanced/api-profile">
               API rendered profile (advanced)
             </Link>
           </li>
-          {!loading &&
+          {!isLoading &&
             (user ? (
               <>
-                <li>
+                <li className={styles.li}>
                   <Link href="/profile">Client rendered profile</Link>
                 </li>
-                <li>
+                <li className={styles.li}>
                   <Link href="/advanced/ssr-profile">
                     Server rendered profile (advanced)
                   </Link>
                 </li>
-                <li>
+                <li className={styles.li}>
                   <a href="/api/auth/logout">Logout</a>
                 </li>
               </>
             ) : (
-              <li>
+              <li className={styles.li}>
                 <a href="/api/auth/login">Login</a>
               </li>
             ))}
         </ul>
       </nav>
-
-      <style jsx>{`
-        header {
-          padding: 0.2rem;
-          color: #fff;
-          background-color: #333;
-        }
-        nav {
-          max-width: 42rem;
-          margin: 1.5rem auto;
-        }
-        ul {
-          display: flex;
-          list-style: none;
-          margin-left: 0;
-          padding-left: 0;
-        }
-        li {
-          margin-right: 1rem;
-          padding-right: 2rem;
-        }
-        li:nth-child(3) {
-          margin-right: auto;
-        }
-        a {
-          color: #fff;
-          text-decoration: none;
-        }
-        button {
-          font-size: 1rem;
-          color: #fff;
-          cursor: pointer;
-          border: none;
-          background: none;
-        }
-      `}</style>
     </header>
   );
-};
-
-export default Header;
+}

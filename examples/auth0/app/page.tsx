@@ -1,11 +1,12 @@
-import { useUser } from "@auth0/nextjs-auth0/client";
-import Layout from "../components/layout";
+"use client";
 
-const Home = () => {
+import { useUser } from "@auth0/nextjs-auth0/client";
+
+export default function Home() {
   const { user, isLoading } = useUser();
 
   return (
-    <Layout user={user} loading={isLoading}>
+    <>
       <h1>Next.js and Auth0 Example</h1>
 
       {isLoading && <p>Loading login info...</p>}
@@ -31,9 +32,6 @@ const Home = () => {
           <p>name: {user.name}</p>
         </>
       )}
-    </Layout>
+    </>
   );
-};
-
-// fast/cached SSR page
-export default Home;
+}

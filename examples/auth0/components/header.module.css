@@ -1,0 +1,31 @@
+.header {
+  padding: 0.2rem;
+  color: #fff;
+  background-color: #333;
+}
+
+.nav {
+  max-width: 42rem;
+  margin: 1.5rem auto;
+}
+
+.ul {
+  display: flex;
+  list-style: none;
+  margin-left: 0;
+  padding-left: 0;
+}
+
+.li {
+  margin-right: 1rem;
+  padding-right: 2rem;
+}
+
+.li a {
+  color: #fff;
+  text-decoration: none;
+}
+
+.liSpacer {
+  margin-right: auto;
+}

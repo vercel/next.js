@@ -1,14 +1,14 @@
 # Next.js and Auth0 Example
 
-This example shows how you can use `@auth0/nextjs-auth` to easily add authentication support to your Next.js application. It tries to cover a few topics:
+This example shows how you can use `@auth0/nextjs-auth0` to easily add authentication support to your Next.js application using the App Router. It tries to cover a few topics:
 
 - Signing in
 - Signing out
-- Loading the user on the server side and adding it as part of SSR ([`pages/advanced/ssr-profile.tsx`](pages/advanced/ssr-profile.tsx))
-- Loading the user on the client side and using fast/cached SSR pages ([`pages/index.tsx`](pages/index.tsx))
-- Loading the user on the client side and checking authentication CSR pages ([`pages/profile.tsx`](pages/profile.tsx))
-- Loading the user on the client side by accessing API (Serverless function) CSR pages ([`pages/advanced/api-profile.tsx`](pages/advanced/api-profile.tsx))
-- Creates route handlers under the hood that perform different parts of the authentication flow ([`pages/auth/[...auth0].tsx`](pages/auth/[...auth0].tsx))
+- Loading the user on the server side in a Server Component ([`app/advanced/ssr-profile/page.tsx`](app/advanced/ssr-profile/page.tsx))
+- Loading the user on the client side with fast navigation ([`app/page.tsx`](app/page.tsx))
+- Loading the user on the client side with auth protection ([`app/profile/page.tsx`](app/profile/page.tsx))
+- Loading the user on the client side by accessing a protected Route Handler ([`app/advanced/api-profile/page.tsx`](app/advanced/api-profile/page.tsx))
+- Auth0 route handlers for login/logout/callback ([`app/api/auth/[...auth0]/route.ts`](app/api/auth/[...auth0]/route.ts))
 
 Read more: [https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/](https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/)
 

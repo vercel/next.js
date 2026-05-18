@@ -1,11 +1,6 @@
-import { useUser } from "@auth0/nextjs-auth0/client";
-import Layout from "../components/layout";
-
-const About = () => {
-  const { user, isLoading } = useUser();
-
+export default function About() {
   return (
-    <Layout user={user} loading={isLoading}>
+    <>
       <h1>About</h1>
       <p>
         This project shows different ways to display Profile info: using{" "}
@@ -17,8 +12,6 @@ const About = () => {
         takes more time because it uses SSR to fetch the user and then to
         display it
       </p>
-    </Layout>
+    </>
   );
-};
-
-export default About;
+}
