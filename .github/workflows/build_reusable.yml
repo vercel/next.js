@@ -112,7 +112,6 @@ on:
           `next-swc.linux-x64-gnu.node` native binary; an older base (e.g.
           `-jammy`) fails to dlopen the native binary at runtime with
           `GLIBC_2.39 not found`.
-          Keep in sync with `scripts/check-playwright-image-version.mjs`.
         required: false
         type: string
         default: 'mcr.microsoft.com/playwright:v1.58.2-noble'
@@ -197,27 +196,12 @@ jobs:
         # standalone default here so the bound address matches what tests
         # expect.
         HOSTNAME: 0.0.0.0
-        # Force Node's `dns.lookup` resolution order back to IPv4-first.
-        # Node 17+ defaults to `verbatim`, which returns addresses in
-        # whatever order `/etc/hosts` lists them. The Docker-managed
-        # `/etc/hosts` inside the Playwright container can list `::1`
-        # before `127.0.0.1` for `localhost`, so a `server.listen(0,
-        # 'localhost', …)` call ends up bound on `::1` while the test's
-        # subsequent `fetch('http://localhost:<port>')` resolves to
-        # `127.0.0.1` and gets ECONNREFUSED (e.g.
-        # `test/e2e/next-analyze/next-analyze.test.ts`). On bare
-        # runners (where `127.0.0.1` is listed first) the historical
-        # `ipv4first` ordering matches the resolved address, so this
-        # also keeps container behaviour aligned with the host runners.
-        NODE_OPTIONS: '--dns-result-order=ipv4first'
-        # Note: we cannot set `HOME` here. GitHub Actions hardcodes
-        # `HOME=/github/home` for every step in a container job and
-        # overrides anything set via `container.env`. The Microsoft
-        # Playwright image ships `/github/home` owned by `pwuser`
-        # (UID 1000), which makes Firefox refuse to launch with
-        # "Firefox is unable to launch if the $HOME folder isn't owned
-        # by the current user." We fix that by chowning `/github/home`
-        # to root in a separate step below.
+        # Opt out of Next.js's Docker auto-detection so build artifacts use
+        # the persistent on-disk cache. Without this, `cache-dir.ts`
+        # short-circuits to ephemeral storage on every build and breaks
+        # tests asserting determinism between consecutive builds in the
+        # same workspace (e.g. `test/production/deterministic-build`).
+        NEXT_IGNORE_IS_DOCKER: '1'
 
     defaults:
       run:
@@ -246,29 +230,16 @@ jobs:
             echo "found=false" >> $GITHUB_OUTPUT
           fi
 
-      # The Microsoft Playwright container images are browser-focused
-      # and do not ship a number of tools we need:
-      #   - `jq` + `unzip`: required by `fnm.vercel.app/install` and the
-      #     `fnm env --json` parse in the next step.
-      #   - `make` + `gcc` + `g++` (via `build-essential`): required by
-      #     `node-gyp` when test fixtures install native modules like
-      #     `node-pty` (used by `test/production/build-spinners`).
-      # Install all of them in one apt invocation when running as root
-      # (i.e. inside the container). On the host runners these are
-      # already present so this step is a fast no-op.
-      - name: Ensure container-only build dependencies are available (Linux)
-        if: ${{ runner.os == 'Linux' && steps.check-fnm.outputs.found != 'true' }}
+      # The Microsoft Playwright image is browser-focused and does not ship
+      # `jq`/`unzip` (required by the fnm install + `fnm env --json` parse
+      # below) or `build-essential` (required by `node-gyp` when test
+      # fixtures install native modules like `node-pty`). Install them
+      # unconditionally inside the container.
+      - name: Install container build dependencies (Linux container)
+        if: ${{ runner.os == 'Linux' && inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows') }}
         run: |
-          if [ "$(id -u)" = "0" ]; then
-            MISSING=()
-            command -v jq >/dev/null 2>&1 || MISSING+=(jq)
-            command -v unzip >/dev/null 2>&1 || MISSING+=(unzip)
-            command -v make >/dev/null 2>&1 || MISSING+=(build-essential)
-            if [ ${#MISSING[@]} -gt 0 ]; then
-              apt-get -o DPkg::Lock::Timeout=60 update
-              apt-get -o DPkg::Lock::Timeout=60 install -y --no-install-recommends "${MISSING[@]}"
-            fi
-          fi
+          apt-get update
+          apt-get install -y --no-install-recommends jq unzip build-essential
 
       # GitHub Actions sets `HOME=/github/home` for every step in a
       # container job and overrides anything set via `container.env`.
@@ -283,31 +254,6 @@ jobs:
         run: |
           if [ "$(id -u)" = "0" ] && [ -d /github/home ]; then
             chown -R root:root /github/home
-          fi
-
-      # Make Next.js's `is-docker` check return false inside the
-      # Playwright container so persistent storage is used for build
-      # artifacts.
-      #
-      # `packages/next/src/server/cache-dir.ts` short-circuits
-      # `getStorageDirectory()` to `undefined` when `isDockerFunction()`
-      # returns true, which forces `generatePreviewKeys` /
-      # server-action encryption-key generation to mint a fresh random
-      # key on every `next build`. That ephemeral-storage assumption is
-      # correct for the Vercel cold-start model but it breaks tests
-      # that assert determinism between two consecutive builds in the
-      # same workspace (e.g. `test/production/deterministic-build`,
-      # `test/production/app-dir/server-action-period-hash`). The
-      # `is-docker` package only checks `/.dockerenv` and `/proc/self/cgroup`
-      # for the string "docker"; on Ubuntu 24.04 (cgroups v2) the cgroup
-      # file does not contain that string, so deleting `/.dockerenv` is
-      # enough to make the detection return false. This is scoped to
-      # root so it's a no-op on host runners.
-      - name: Disable in-container Docker detection (Linux container)
-        if: ${{ runner.os == 'Linux' }}
-        run: |
-          if [ "$(id -u)" = "0" ] && [ -e /.dockerenv ]; then
-            rm -f /.dockerenv
           fi
 
       - name: Install fnm
@@ -479,22 +425,6 @@ jobs:
 
       - run: ANALYZE=1 pnpm build
         if: ${{ inputs.skipInstallBuild != 'yes' }}
-
-      # Linux test jobs run inside `inputs.playwrightDockerImage` (see the
-      # `container:` block above), which ships Chromium/Firefox/WebKit plus
-      # all system deps at `/ms-playwright`. We only need to verify the layout
-      # matches expectations so a mismatched image fails loudly here instead
-      # of mid-test.
-      - name: Verify preinstalled Playwright browsers
-        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' && inputs.usePlaywrightContainer != 'no' && runner.os != 'Windows' }}
-        run: |
-          echo "PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-<unset>}"
-          if [ ! -d /ms-playwright ]; then
-            echo "::error::Expected /ms-playwright to exist inside the Playwright container (image: ${{ inputs.playwrightDockerImage }}). Did the image tag drift from package.json?"
-            exit 1
-          fi
-          ls /ms-playwright
-          pnpm playwright --version
 
       # Fallback path used when:
       #   - The runner is Windows (no Linux container), or
