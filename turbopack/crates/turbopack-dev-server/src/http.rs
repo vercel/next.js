@@ -42,7 +42,7 @@ enum GetFromSourceResult {
 
 /// Resolves a [SourceRequest] within a [super::ContentSource], returning the
 /// corresponding content as a
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_from_source_operation(
     source: OperationVc<Box<dyn ContentSource>>,
     request: TransientInstance<SourceRequest>,
@@ -78,7 +78,7 @@ struct GetFromSourceResultWithCollectibles {
     content_source_side_effects: AutoSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>>,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_from_source_with_collectibles_operation(
     source_op: OperationVc<Box<dyn ContentSource>>,
     request: TransientInstance<SourceRequest>,

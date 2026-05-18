@@ -20,7 +20,15 @@ import type { HydrationErrorState } from '../../shared/hydration-error'
 import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
 import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { InstantGuidance } from '../components/instant/instant-guidance'
+import {
+  InstantHeaderExplanation,
+  InstantGuidance,
+  SYNC_IO_CLIENT_DOCS,
+  SYNC_IO_DOCS,
+  type GuidanceKind,
+  type GuidanceVariant,
+} from '../components/instant/instant-guidance'
+import { BLOCKING_ROUTE_NAVIGATION_EXPLANATION } from '../components/instant/instant-guidance-data'
 import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './runtime-error/error-cause'
@@ -71,389 +79,25 @@ function GenericErrorDescription({ error }: { error: Error }) {
   )
 }
 
-function DynamicMetadataErrorDescription({
-  variant,
-}: {
-  variant: 'navigation' | 'runtime'
-}) {
-  if (variant === 'navigation') {
-    return (
-      <div className="nextjs__blocking_page_load_error_description">
-        <h3 className="nextjs__blocking_page_load_error_description_title">
-          Data that blocks navigation was accessed inside{' '}
-          <code>generateMetadata()</code> in an otherwise prerenderable page
-        </h3>
-        <p>
-          When Document metadata is the only part of a page that cannot be
-          prerendered Next.js expects you to either make it prerenderable or
-          make some other part of the page non-prerenderable to avoid
-          unintentional partially dynamic pages. Uncached data such as{' '}
-          <code>fetch(...)</code>, cached data with a low expire time, or{' '}
-          <code>connection()</code> are all examples of data that only resolve
-          on navigation.
-        </p>
-        <h4>To fix this:</h4>
-        <p className="nextjs__blocking_page_load_error_fix_option">
-          <strong>
-            Move the asynchronous await into a Cache Component (
-            <code>"use cache"</code>)
-          </strong>
-          . This allows Next.js to statically prerender{' '}
-          <code>generateMetadata()</code> as part of the HTML document, so it's
-          instantly visible to the user.
-        </p>
-        <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
-          or
-        </h4>
-        <p className="nextjs__blocking_page_load_error_fix_option">
-          <strong>
-            add <code>connection()</code> inside a <code>{'<Suspense>'}</code>
-          </strong>{' '}
-          somewhere in a Page or Layout. This tells Next.js that the page is
-          intended to have some non-prerenderable parts.
-        </p>
-        <p>
-          Learn more:{' '}
-          <a href="https://nextjs.org/docs/messages/next-prerender-dynamic-metadata">
-            https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
-          </a>
-        </p>
-      </div>
-    )
-  } else {
-    return (
-      <div className="nextjs__blocking_page_load_error_description">
-        <h3 className="nextjs__blocking_page_load_error_description_title">
-          Runtime data was accessed inside <code>generateMetadata()</code> or
-          file-based metadata
-        </h3>
-        <p>
-          When Document metadata is the only part of a page that cannot be
-          prerendered Next.js expects you to either make it prerenderable or
-          make some other part of the page non-prerenderable to avoid
-          unintentional partially dynamic pages.
-        </p>
-        <h4>To fix this:</h4>
-        <p className="nextjs__blocking_page_load_error_fix_option">
-          <strong>
-            Remove the Runtime data access from <code>generateMetadata()</code>
-          </strong>
-          . This allows Next.js to statically prerender{' '}
-          <code>generateMetadata()</code> as part of the HTML document, so it's
-          instantly visible to the user.
-        </p>
-        <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
-          or
-        </h4>
-        <p className="nextjs__blocking_page_load_error_fix_option">
-          <strong>
-            add <code>connection()</code> inside a <code>{'<Suspense>'}</code>
-          </strong>{' '}
-          somewhere in a Page or Layout. This tells Next.js that the page is
-          intended to have some non-prerenderable parts.
-        </p>
-        <p>
-          Note that if you are using file-based metadata, such as icons, inside
-          a route with dynamic params then the only recourse is to make some
-          other part of the page non-prerenderable.
-        </p>
-        <p>
-          Learn more:{' '}
-          <a href="https://nextjs.org/docs/messages/next-prerender-dynamic-metadata">
-            https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
-          </a>
-        </p>
-      </div>
-    )
-  }
-}
-
-function BlockingPageLoadErrorDescription({
-  variant,
-  refinement,
-}: {
-  variant: 'navigation' | 'runtime'
-  refinement: '' | 'generateViewport' | 'generateMetadata'
-}) {
-  if (refinement === 'generateViewport') {
-    if (variant === 'navigation') {
-      return (
-        <div className="nextjs__blocking_page_load_error_description">
-          <h3 className="nextjs__blocking_page_load_error_description_title">
-            Data that blocks navigation was accessed inside{' '}
-            <code>generateViewport()</code>
-          </h3>
-          <p>
-            Viewport metadata needs to be available on page load so accessing
-            data that waits for a user navigation while producing it prevents
-            Next.js from prerendering an initial UI. Uncached data such as{' '}
-            <code>fetch(...)</code>, cached data with a low expire time, or{' '}
-            <code>connection()</code> are all examples of data that only resolve
-            on navigation.
-          </p>
-          <h4>To fix this:</h4>
-          <p className="nextjs__blocking_page_load_error_fix_option">
-            <strong>
-              Move the asynchronous await into a Cache Component (
-              <code>"use cache"</code>)
-            </strong>
-            . This allows Next.js to statically prerender{' '}
-            <code>generateViewport()</code> as part of the HTML document, so
-            it's instantly visible to the user.
-          </p>
-          <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
-            or
-          </h4>
-          <p className="nextjs__blocking_page_load_error_fix_option">
-            <strong>
-              Put a <code>{'<Suspense>'}</code> around your document{' '}
-              <code>{'<body>'}</code>.
-            </strong>
-            This indicate to Next.js that you are opting into allowing blocking
-            navigations for any page.
-          </p>
-          <p>
-            Learn more:{' '}
-            <a href="https://nextjs.org/docs/messages/next-prerender-dynamic-viewport">
-              https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
-            </a>
-          </p>
-        </div>
-      )
-    } else {
-      return (
-        <div className="nextjs__blocking_page_load_error_description">
-          <h3 className="nextjs__blocking_page_load_error_description_title">
-            Runtime data was accessed inside <code>generateViewport()</code>
-          </h3>
-          <p>
-            Viewport metadata needs to be available on page load so accessing
-            data that comes from a user Request while producing it prevents
-            Next.js from prerendering an initial UI.
-            <code>cookies()</code>, <code>headers()</code>, <code>params</code>,
-            and <code>searchParams</code> are examples of Runtime data that can
-            only come from a user request.
-          </p>
-          <h4>To fix this:</h4>
-          <p className="nextjs__blocking_page_load_error_fix_option">
-            <strong>Remove the Runtime data requirement</strong> from{' '}
-            <code>generateViewport</code>. This allows Next.js to statically
-            prerender <code>generateViewport()</code> as part of the HTML
-            document, so it's instantly visible to the user.
-          </p>
-          <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
-            or
-          </h4>
-          <p className="nextjs__blocking_page_load_error_fix_option">
-            <strong>
-              Put a <code>{'<Suspense>'}</code> around your document{' '}
-              <code>{'<body>'}</code>.
-            </strong>
-            This indicate to Next.js that you are opting into allowing blocking
-            navigations for any page.
-          </p>
-          <p>
-            <code>params</code> are usually considered Runtime data but if all
-            params are provided a value using <code>generateStaticParams</code>{' '}
-            they can be statically prerendered.
-          </p>
-          <p>
-            Learn more:{' '}
-            <a href="https://nextjs.org/docs/messages/next-prerender-dynamic-viewport">
-              https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
-            </a>
-          </p>
-        </div>
-      )
-    }
-  } else if (refinement === 'generateMetadata') {
-    if (variant === 'navigation') {
-      return (
-        <div className="nextjs__blocking_page_load_error_description">
-          <h3 className="nextjs__blocking_page_load_error_description_title">
-            Data that blocks navigation was accessed inside{' '}
-            <code>generateMetadata()</code> in an otherwise prerenderable page
-          </h3>
-          <p>
-            When Document metadata is the only part of a page that cannot be
-            prerendered Next.js expects you to either make it prerenderable or
-            make some other part of the page non-prerenderable to avoid
-            unintentional partially dynamic pages. Uncached data such as{' '}
-            <code>fetch(...)</code>, cached data with a low expire time, or{' '}
-            <code>connection()</code> are all examples of data that only resolve
-            on navigation.
-          </p>
-          <h4>To fix this:</h4>
-          <p className="nextjs__blocking_page_load_error_fix_option">
-            <strong>
-              Move the asynchronous await into a Cache Component (
-              <code>"use cache"</code>)
-            </strong>
-            . This allows Next.js to statically prerender{' '}
-            <code>generateMetadata()</code> as part of the HTML document, so
-            it's instantly visible to the user.
-          </p>
-          <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
-            or
-          </h4>
-          <p className="nextjs__blocking_page_load_error_fix_option">
-            <strong>
-              add <code>connection()</code> inside a <code>{'<Suspense>'}</code>
-            </strong>{' '}
-            somewhere in a Page or Layout. This tells Next.js that the page is
-            intended to have some non-prerenderable parts.
-          </p>
-          <p>
-            Learn more:{' '}
-            <a href="https://nextjs.org/docs/messages/next-prerender-dynamic-metadata">
-              https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
-            </a>
-          </p>
-        </div>
-      )
-    } else {
-      return (
-        <div className="nextjs__blocking_page_load_error_description">
-          <h3 className="nextjs__blocking_page_load_error_description_title">
-            Runtime data was accessed inside <code>generateMetadata()</code> or
-            file-based metadata
-          </h3>
-          <p>
-            When Document metadata is the only part of a page that cannot be
-            prerendered Next.js expects you to either make it prerenderable or
-            make some other part of the page non-prerenderable to avoid
-            unintentional partially dynamic pages.
-          </p>
-          <h4>To fix this:</h4>
-          <p className="nextjs__blocking_page_load_error_fix_option">
-            <strong>
-              Remove the Runtime data access from{' '}
-              <code>generateMetadata()</code>
-            </strong>
-            . This allows Next.js to statically prerender{' '}
-            <code>generateMetadata()</code> as part of the HTML document, so
-            it's instantly visible to the user.
-          </p>
-          <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
-            or
-          </h4>
-          <p className="nextjs__blocking_page_load_error_fix_option">
-            <strong>
-              add <code>connection()</code> inside a <code>{'<Suspense>'}</code>
-            </strong>{' '}
-            somewhere in a Page or Layout. This tells Next.js that the page is
-            intended to have some non-prerenderable parts.
-          </p>
-          <p>
-            Note that if you are using file-based metadata, such as icons,
-            inside a route with dynamic params then the only recourse is to make
-            some other part of the page non-prerenderable.
-          </p>
-          <p>
-            Learn more:{' '}
-            <a href="https://nextjs.org/docs/messages/next-prerender-dynamic-metadata">
-              https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
-            </a>
-          </p>
-        </div>
-      )
-    }
-  }
-
-  if (variant === 'runtime') {
-    return (
-      <div className="nextjs__blocking_page_load_error_description">
-        <h3 className="nextjs__blocking_page_load_error_description_title">
-          Runtime data was accessed outside of {'<Suspense>'}
-        </h3>
-        <p>
-          This delays the entire page from rendering, resulting in a slow user
-          experience. Next.js uses this error to ensure your app loads instantly
-          on every navigation. <code>cookies()</code>, <code>headers()</code>,{' '}
-          <code>params</code>, and <code>searchParams</code> are examples of
-          Runtime data that can only come from a user request.
-        </p>
-        <h4>To fix this:</h4>
-        <p className="nextjs__blocking_page_load_error_fix_option">
-          <strong>Provide a fallback UI using {'<Suspense>'}</strong> around
-          this component.
-        </p>
-        <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
-          or
-        </h4>
-        <p className="nextjs__blocking_page_load_error_fix_option">
-          <strong>
-            Move the Runtime data access into a deeper component wrapped in{' '}
-            {'<Suspense>'}.
-          </strong>
-        </p>
-        <p>
-          In either case this allows Next.js to stream its contents to the user
-          when they request the page, while still providing an initial UI that
-          is prerendered and prefetchable for instant navigations.
-        </p>
-        <p>
-          Learn more:{' '}
-          <a href="https://nextjs.org/docs/messages/blocking-route">
-            https://nextjs.org/docs/messages/blocking-route
-          </a>
-        </p>
-      </div>
-    )
-  } else {
-    return (
-      <div className="nextjs__blocking_page_load_error_description">
-        <h3 className="nextjs__blocking_page_load_error_description_title">
-          Data that blocks navigation was accessed outside of {'<Suspense>'}
-        </h3>
-        <p>
-          This delays the entire page from rendering, resulting in a slow user
-          experience. Next.js uses this error to ensure your app loads instantly
-          on every navigation. Uncached data such as <code>fetch(...)</code>,
-          cached data with a low expire time, or <code>connection()</code> are
-          all examples of data that only resolve on navigation.
-        </p>
-        <h4>To fix this, you can either:</h4>
-        <p className="nextjs__blocking_page_load_error_fix_option">
-          <strong>Provide a fallback UI using {'<Suspense>'}</strong> around
-          this component. This allows Next.js to stream its contents to the user
-          as soon as it's ready, without blocking the rest of the app.
-        </p>
-        <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
-          or
-        </h4>
-        <p className="nextjs__blocking_page_load_error_fix_option">
-          <strong>
-            Move the asynchronous await into a Cache Component (
-            <code>"use cache"</code>)
-          </strong>
-          . This allows Next.js to statically prerender the component as part of
-          the HTML document, so it's instantly visible to the user.
-        </p>
-        <p>
-          Learn more:{' '}
-          <a href="https://nextjs.org/docs/messages/blocking-route">
-            https://nextjs.org/docs/messages/blocking-route
-          </a>
-        </p>
-      </div>
-    )
-  }
-}
-
 export function getErrorTypeLabel(
   error: Error,
   type: ReadyRuntimeError['type'],
   errorDetails: ErrorDetails
 ): ErrorOverlayLayoutProps['errorType'] {
   if (errorDetails.type === 'blocking-route') {
-    if (errorDetails.refinement === '') {
-      return `Instant`
-    }
-    return `Blocking Route`
+    return `Instant`
   }
   if (errorDetails.type === 'dynamic-metadata') {
-    return `Ambiguous Metadata`
+    return `Instant`
+  }
+  if (errorDetails.type === 'dynamic-viewport') {
+    return `Instant`
+  }
+  if (errorDetails.type === 'sync-io') {
+    return `Instant`
+  }
+  if (errorDetails.type === 'sync-io-client') {
+    return `Instant`
   }
   if (type === 'recoverable') {
     return `Recoverable ${error.name}`
@@ -469,6 +113,9 @@ type ErrorDetails =
   | HydrationErrorDetails
   | BlockingRouteErrorDetails
   | DynamicMetadataErrorDetails
+  | DynamicViewportErrorDetails
+  | SyncIOErrorDetails
+  | SyncIOClientErrorDetails
 
 type NoErrorDetails = {
   type: 'empty'
@@ -483,13 +130,28 @@ type HydrationErrorDetails = {
 
 type BlockingRouteErrorDetails = {
   type: 'blocking-route'
-  variant: 'navigation' | 'runtime'
-  refinement: '' | 'generateViewport'
+  variant: 'dynamic' | 'runtime'
+  inNavigation: boolean
 }
 
 type DynamicMetadataErrorDetails = {
   type: 'dynamic-metadata'
-  variant: 'navigation' | 'runtime'
+  variant: 'dynamic' | 'runtime'
+}
+
+type DynamicViewportErrorDetails = {
+  type: 'dynamic-viewport'
+  variant: 'dynamic' | 'runtime'
+}
+
+type SyncIOErrorDetails = {
+  type: 'sync-io'
+  cause: string
+}
+
+type SyncIOClientErrorDetails = {
+  type: 'sync-io-client'
+  cause: string
 }
 
 const noErrorDetails: ErrorDetails = {
@@ -557,10 +219,18 @@ function getHydrationErrorDetails(
 function InstantRuntimeError({
   error,
   variant,
+  kind = 'blocking-route',
+  explanation,
+  cause,
+  showExplanation = true,
   dialogResizerRef,
 }: {
   error: ReadyRuntimeError
-  variant: 'runtime' | 'navigation'
+  variant: GuidanceVariant
+  kind?: GuidanceKind
+  explanation?: string
+  cause?: string
+  showExplanation?: boolean
   dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }) {
   const frames = useFrames(error)
@@ -583,9 +253,13 @@ function InstantRuntimeError({
           codeFrame={firstFrame.originalCodeFrame!}
         />
       )}
-
-      <InstantGuidance variant={variant} />
-
+      <InstantGuidance
+        variant={variant}
+        kind={kind}
+        explanation={explanation}
+        cause={cause}
+        showExplanation={showExplanation}
+      />
       {frames.length > 0 && (
         <ErrorOverlayCallStack
           dialogResizerRef={dialogResizerRef}
@@ -603,7 +277,7 @@ function InstantRuntimeError({
   )
 }
 
-function isRuntimeVariant(message: string): boolean {
+export function isRuntimeVariant(message: string): boolean {
   // Discriminates between `createRuntimeBodyError` and `createDynamicBodyError`
   return (
     message.includes('encountered runtime data') &&
@@ -611,35 +285,100 @@ function isRuntimeVariant(message: string): boolean {
   )
 }
 
-function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
-  const isBlockingPageLoadError = error.message.includes('/blocking-route')
+const SYNC_IO_APIS = [
+  // Math
+  'Math.random()',
+  // Date/Time — `new Date()` before `Date()` (substring false positive) and
+  // both before `Date.now()` (the `elapsedTimeBullet` text always contains
+  // `Date.now()` regardless of which API the user actually called).
+  'new Date()',
+  'Date()',
+  'Date.now()',
+  // Node Crypto — longer strings first to avoid substring false positives
+  "require('node:crypto').generateKeyPairSync(...)",
+  "require('node:crypto').generateKeySync(...)",
+  "require('node:crypto').generatePrimeSync(...)",
+  "require('node:crypto').randomFillSync(...)",
+  "require('node:crypto').randomBytes(size)",
+  "require('node:crypto').randomInt(min, max)",
+  "require('node:crypto').randomUUID()",
+  // Web Crypto
+  'crypto.getRandomValues()',
+  'crypto.randomUUID()',
+]
 
+const SYNC_IO_DOCS_PATTERN =
+  /https:\/\/nextjs\.org\/docs\/messages\/next-prerender-(?:runtime-)?(random|current-time|crypto)(-client)?/
+
+// Discriminate sync IO errors via the docs URL embedded in the user-facing
+// message by `createSyncIOError`, `createSyncIORuntimeError`, and
+// `createSyncIOClientError`.
+export function isSyncIOError(message: string): boolean {
+  return SYNC_IO_DOCS_PATTERN.test(message)
+}
+
+export function isSyncIOClientError(message: string): boolean {
+  const match = SYNC_IO_DOCS_PATTERN.exec(message)
+  return match !== null && match[2] === '-client'
+}
+
+// Detects errors emitted during navigation-phase instant validation: body
+// errors from `createRuntimeBodyErrorInNavigation` /
+// `createDynamicBodyErrorInNavigation` (SSR factories instead say "during
+// the initial render"), and validation errors from
+// `trackDynamicHoleInNavigation` / `getNavigationDisallowedDynamicReasons`.
+export function isBlockingRouteInNavError(message: string): boolean {
+  return (
+    message.includes('or a navigation') ||
+    message.includes('Could not validate `unstable_instant`') ||
+    message.includes('Could not validate instant UI')
+  )
+}
+
+export function getBlockingRouteErrorDetails(
+  error: Error
+): null | ErrorDetails {
+  const message = error.message
+  const inNavigation = isBlockingRouteInNavError(message)
+
+  const isBlockingPageLoadError = message.includes('/blocking-route')
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
-      variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
-      refinement: '',
+      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+      inNavigation,
     }
   }
 
-  const isDynamicMetadataError = error.message.includes(
+  const isDynamicMetadataError = message.includes(
     '/next-prerender-dynamic-metadata'
   )
   if (isDynamicMetadataError) {
     return {
       type: 'dynamic-metadata',
-      variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
     }
   }
 
-  const isBlockingViewportError = error.message.includes(
+  const isBlockingViewportError = message.includes(
     '/next-prerender-dynamic-viewport'
   )
   if (isBlockingViewportError) {
     return {
-      type: 'blocking-route',
-      variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
-      refinement: 'generateViewport',
+      type: 'dynamic-viewport',
+      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+    }
+  }
+
+  if (isSyncIOError(message)) {
+    const isClient = isSyncIOClientError(message)
+    for (const api of SYNC_IO_APIS) {
+      if (message.includes(api)) {
+        return {
+          type: isClient ? 'sync-io-client' : 'sync-io',
+          cause: api,
+        }
+      }
     }
   }
 
@@ -812,49 +551,212 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
       }
       break
     case 'blocking-route':
-      if (errorDetails.refinement === '') {
-        return (
-          <ErrorOverlayLayout
-            errorCode={errorCode}
-            errorType={errorType}
-            errorMessage={
-              errorDetails.variant === 'runtime'
-                ? 'Next.js encountered runtime data during the initial render.'
+      return (
+        <ErrorOverlayLayout
+          errorCode={errorCode}
+          errorType={errorType}
+          errorMessage={
+            errorDetails.variant === 'runtime'
+              ? errorDetails.inNavigation
+                ? 'Next.js encountered runtime data during a navigation.'
+                : 'Next.js encountered runtime data during the initial render.'
+              : errorDetails.inNavigation
+                ? 'Next.js encountered uncached data during a navigation.'
                 : 'Next.js encountered uncached data during the initial render.'
-            }
-            onClose={isServerError ? undefined : onClose}
-            debugInfo={debugInfo}
-            error={error}
-            runtimeErrors={runtimeErrors}
-            activeIdx={activeIdx}
-            setActiveIndex={setActiveIndex}
-            dialogResizerRef={dialogResizerRef}
-            generateErrorInfo={generateErrorInfo}
-            {...props}
-          >
-            <Suspense fallback={<div data-nextjs-error-suspended />}>
-              <InstantRuntimeError
-                key={activeError.id.toString()}
-                error={activeError}
-                variant={errorDetails.variant}
-                dialogResizerRef={dialogResizerRef}
-              />
-            </Suspense>
-          </ErrorOverlayLayout>
-        )
-      }
-      errorMessage = (
-        <BlockingPageLoadErrorDescription
-          variant={errorDetails.variant}
-          refinement={errorDetails.refinement}
-        />
+          }
+          headerChildren={
+            <InstantHeaderExplanation
+              kind="blocking-route"
+              explanation={
+                errorDetails.inNavigation
+                  ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
+                  : undefined
+              }
+            />
+          }
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={runtimeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant={errorDetails.variant}
+              showExplanation={false}
+              dialogResizerRef={dialogResizerRef}
+            />
+          </Suspense>
+        </ErrorOverlayLayout>
       )
-      break
     case 'dynamic-metadata':
-      errorMessage = (
-        <DynamicMetadataErrorDescription variant={errorDetails.variant} />
+      return (
+        <ErrorOverlayLayout
+          errorCode={errorCode}
+          errorType={errorType}
+          errorMessage={
+            errorDetails.variant === 'runtime' ? (
+              <>
+                Next.js encountered runtime data in{' '}
+                <code>generateMetadata()</code>.
+              </>
+            ) : (
+              <>
+                Next.js encountered uncached data in{' '}
+                <code>generateMetadata()</code>.
+              </>
+            )
+          }
+          headerChildren={<InstantHeaderExplanation kind="metadata" />}
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={runtimeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant={errorDetails.variant}
+              kind="metadata"
+              showExplanation={false}
+              dialogResizerRef={dialogResizerRef}
+            />
+          </Suspense>
+        </ErrorOverlayLayout>
       )
-      break
+    case 'dynamic-viewport':
+      return (
+        <ErrorOverlayLayout
+          errorCode={errorCode}
+          errorType={errorType}
+          errorMessage={
+            errorDetails.variant === 'runtime' ? (
+              <>
+                Next.js encountered runtime data in{' '}
+                <code>generateViewport()</code>.
+              </>
+            ) : (
+              <>
+                Next.js encountered uncached data in{' '}
+                <code>generateViewport()</code>.
+              </>
+            )
+          }
+          headerChildren={<InstantHeaderExplanation kind="viewport" />}
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={runtimeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant={errorDetails.variant}
+              kind="viewport"
+              showExplanation={false}
+              dialogResizerRef={dialogResizerRef}
+            />
+          </Suspense>
+        </ErrorOverlayLayout>
+      )
+    case 'sync-io':
+      return (
+        <ErrorOverlayLayout
+          errorCode={errorCode}
+          errorType={errorType}
+          errorMessage={
+            <>
+              Next.js encountered <code>{errorDetails.cause}</code> without an
+              explicit rendering intent.
+            </>
+          }
+          headerChildren={
+            <InstantHeaderExplanation
+              explanation="This value can change between renders, so it must be either prerendered or computed later."
+              docsUrl={SYNC_IO_DOCS[errorDetails.cause]}
+            />
+          }
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={runtimeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant="runtime"
+              kind="sync-io"
+              cause={errorDetails.cause}
+              showExplanation={false}
+              dialogResizerRef={dialogResizerRef}
+            />
+          </Suspense>
+        </ErrorOverlayLayout>
+      )
+    case 'sync-io-client':
+      return (
+        <ErrorOverlayLayout
+          errorCode={errorCode}
+          errorType={errorType}
+          errorMessage={
+            <>
+              Next.js encountered <code>{errorDetails.cause}</code> in a Client
+              Component.
+            </>
+          }
+          headerChildren={
+            <InstantHeaderExplanation
+              explanation="This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit."
+              docsUrl={SYNC_IO_CLIENT_DOCS[errorDetails.cause]}
+            />
+          }
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={runtimeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant="runtime"
+              kind="sync-io-client"
+              cause={errorDetails.cause}
+              showExplanation={false}
+              dialogResizerRef={dialogResizerRef}
+            />
+          </Suspense>
+        </ErrorOverlayLayout>
+      )
     case 'empty':
       errorMessage = <GenericErrorDescription error={error} />
       break
@@ -939,9 +841,10 @@ export const styles = `
   }
   .nextjs__container_errors__error_title {
     display: flex;
-    align-items: center;
+    align-items: start;
     justify-content: space-between;
-    margin-bottom: 14px;
+    gap: 12px;
+    position: relative;
   }
   .error-overlay-notes-container {
     margin: 8px 2px;
@@ -949,17 +852,10 @@ export const styles = `
   .error-overlay-notes-container p {
     white-space: pre-wrap;
   }
-  .nextjs__blocking_page_load_error_description {
-    color: var(--color-stack-notes);
-  }
-  .nextjs__blocking_page_load_error_description_title {
-    color: var(--color-title-color);
-  }
-  .nextjs__blocking_page_load_error_fix_option {
-    background-color: var(--color-background-200);
-    padding: 14px;
-    border-radius: var(--rounded-md-2);
-    border: 1px solid var(--color-gray-alpha-400);
+  @media (max-width: 767px) {
+    .nextjs__container_errors__error_title {
+      flex-direction: column-reverse;
+    }
   }
   .external-link, .external-link:hover {
     color:inherit;

@@ -72,7 +72,7 @@ impl EcmascriptBrowserWorkerEntrypoint {
         let ident = AssetIdent::from_path(chunk_root_path)
             .with_modifier(rcstr!("turbopack worker entrypoint"))
             .with_modifier(format!("{globals_hash:08x}").into());
-        Ok(ident)
+        Ok(ident.into_vc())
     }
 
     #[turbo_tasks::function]

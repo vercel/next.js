@@ -1036,7 +1036,7 @@ function generatePrTarballSection(actionInfo) {
 <summary><strong>📎 Tarball URL</strong></summary>
 
 \`\`\`
-https://vercel-packages.vercel.app/next/commits/${actionInfo.commitId}/next
+${actionInfo.previewBuildsBaseUrl}/commits/${actionInfo.commitId}/next
 \`\`\`
 
 </details>

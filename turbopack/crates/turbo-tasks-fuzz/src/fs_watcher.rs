@@ -89,7 +89,7 @@ impl SymlinkMode {
 #[derive(Default, NonLocalValue, TraceRawVcs)]
 struct PathInvalidations(#[turbo_tasks(trace_ignore)] Arc<Mutex<FxHashSet<RcStr>>>);
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
     let _ = op.resolve().strongly_consistent().await?;
     Ok(take_effects(op).await?.cell())

@@ -16,7 +16,6 @@ import {
 } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import {
   NEXT_DID_POSTPONE_HEADER,
-  NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_ROUTER_STALE_TIME_HEADER,
@@ -1598,9 +1597,6 @@ export async function fetchRouteOnCacheMiss(
   if (nextUrl !== null) {
     headers[NEXT_URL] = nextUrl
   }
-  // Tell the server to perform a static pre-render for the Instant Navigation
-  // Testing API. Static pre-renders don't normally happen during development.
-  addInstantPrefetchHeaderIfLocked(headers)
 
   try {
     const url = new URL(pathname + search, location.origin)
@@ -1930,9 +1926,6 @@ export async function fetchSegmentsOnCacheMiss(
   if (nextUrl !== null) {
     headers[NEXT_URL] = nextUrl
   }
-  // Tell the server to perform a static pre-render for the Instant Navigation
-  // Testing API. Static pre-renders don't normally happen during development.
-  addInstantPrefetchHeaderIfLocked(headers)
 
   const requestUrl = isOutputExportMode
     ? // In output: "export" mode, we need to add the segment path to the URL.
@@ -2869,22 +2862,6 @@ export function canNewFetchStrategyProvideMoreContent(
   newStrategy: FetchStrategy
 ): boolean {
   return currentStrategy < newStrategy
-}
-
-/**
- * Adds the instant prefetch header if the navigation lock is active.
- * Uses a lazy require to ensure dead code elimination.
- */
-function addInstantPrefetchHeaderIfLocked(
-  headers: Record<string, string>
-): void {
-  if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    const { isNavigationLocked } =
-      require('./navigation-testing-lock') as typeof import('./navigation-testing-lock')
-    if (isNavigationLocked()) {
-      headers[NEXT_INSTANT_PREFETCH_HEADER] = '1'
-    }
-  }
 }
 
 function getStaleAtFromHeader(
