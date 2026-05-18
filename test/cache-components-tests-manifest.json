@@ -325,6 +325,7 @@
       "test/e2e/next-link-errors/next-link-errors.test.ts",
       "test/e2e/nonce-head-manager/index.test.ts",
       "test/e2e/og-api/index.test.ts",
+      "test/e2e/og-api/standalone.test.ts",
       "test/e2e/og-routes-custom-font/og-routes-custom-font.test.ts",
       "test/e2e/on-request-error/basic/basic.test.ts",
       "test/e2e/on-request-error/dynamic-routes/dynamic-routes.test.ts",
