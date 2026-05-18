@@ -1805,6 +1805,7 @@ export default async function loadConfig(
     configFileName = basename(path)
 
     let userConfigModule: any
+    let loadedConfig: NextConfig
     try {
       const envBefore = Object.assign({}, process.env)
 
@@ -1845,6 +1846,18 @@ export default async function loadConfig(
 
         return userConfigModule
       }
+
+      // `normalizeConfig` invokes the user's exported config function (or
+      // awaits its returned promise) if it is one. Errors thrown from that
+      // call belong to the same "failed to load config" category as parse
+      // errors from `import()` above, so we keep them inside this try/catch
+      // to attach the same framing message.
+      loadedConfig = Object.freeze(
+        (await normalizeConfig(
+          phase,
+          interopDefault(userConfigModule)
+        )) as NextConfig
+      )
     } catch (err) {
       // Capture the error for MCP tool reporting
       NextInstanceErrorState.nextConfig.push(err)
@@ -1855,13 +1868,6 @@ export default async function loadConfig(
       )
       throw err
     }
-
-    const loadedConfig = Object.freeze(
-      (await normalizeConfig(
-        phase,
-        interopDefault(userConfigModule)
-      )) as NextConfig
-    )
 
     if (loadedConfig.experimental) {
       for (const name of Object.keys(
