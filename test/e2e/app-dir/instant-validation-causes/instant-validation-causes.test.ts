@@ -105,8 +105,8 @@ describe('instant validation causes', () => {
            ],
          },
        ],
-       "code": "E1221",
-       "description": "Next.js encountered runtime data during the initial render.",
+       "code": "E1251",
+       "description": "Next.js encountered runtime data during a navigation.",
        "environmentLabel": "Server",
        "label": "Instant",
        "source": "app/named-export/page.tsx (7:16) @ Page
@@ -136,8 +136,8 @@ describe('instant validation causes', () => {
            ],
          },
        ],
-       "code": "E1221",
-       "description": "Next.js encountered runtime data during the initial render.",
+       "code": "E1251",
+       "description": "Next.js encountered runtime data during a navigation.",
        "environmentLabel": "Server",
        "label": "Instant",
        "source": "app/aliased-export/page.tsx (7:16) @ Page
@@ -167,8 +167,8 @@ describe('instant validation causes', () => {
            ],
          },
        ],
-       "code": "E1221",
-       "description": "Next.js encountered runtime data during the initial render.",
+       "code": "E1251",
+       "description": "Next.js encountered runtime data during a navigation.",
        "environmentLabel": "Server",
        "label": "Instant",
        "source": "app/reexport/page.tsx (6:16) @ Page
@@ -201,8 +201,8 @@ describe('instant validation causes', () => {
            ],
          },
        ],
-       "code": "E1221",
-       "description": "Next.js encountered runtime data during the initial render.",
+       "code": "E1251",
+       "description": "Next.js encountered runtime data during a navigation.",
        "environmentLabel": "Server",
        "label": "Instant",
        "source": "app/indirect-export/page.tsx (8:16) @ Page

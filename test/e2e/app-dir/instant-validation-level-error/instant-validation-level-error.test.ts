@@ -60,8 +60,8 @@ describe('instant validation - level error', () => {
         const browser = await next.browser('/bare')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1220",
-           "description": "Next.js encountered uncached data during the initial render.",
+           "code": "E1249",
+           "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/bare/page.tsx (11:19) @ Page
@@ -90,8 +90,8 @@ describe('instant validation - level error', () => {
                ],
              },
            ],
-           "code": "E1220",
-           "description": "Next.js encountered uncached data during the initial render.",
+           "code": "E1249",
+           "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/explicit-error/page.tsx (11:19) @ Page
@@ -120,8 +120,8 @@ describe('instant validation - level error', () => {
                ],
              },
            ],
-           "code": "E1220",
-           "description": "Next.js encountered uncached data during the initial render.",
+           "code": "E1249",
+           "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/explicit-true/page.tsx (12:19) @ Page
@@ -150,8 +150,8 @@ describe('instant validation - level error', () => {
                ],
              },
            ],
-           "code": "E1220",
-           "description": "Next.js encountered uncached data during the initial render.",
+           "code": "E1249",
+           "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/explicit-warning/page.tsx (11:19) @ Page
@@ -177,8 +177,8 @@ describe('instant validation - level error', () => {
         const browser = await next.browser('/layered')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1220",
-           "description": "Next.js encountered uncached data during the initial render.",
+           "code": "E1249",
+           "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
            "source": "app/layered/page.tsx (8:19) @ Page
@@ -197,9 +197,9 @@ describe('instant validation - level error', () => {
         const result = await prerender('/bare')
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/bare": Next.js encountered uncached data during the initial render.
+         "Error: Route "/bare": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -223,9 +223,9 @@ describe('instant validation - level error', () => {
         const result = await prerender('/explicit-error')
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/explicit-error": Next.js encountered uncached data during the initial render.
+         "Error: Route "/explicit-error": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -249,9 +249,9 @@ describe('instant validation - level error', () => {
         const result = await prerender('/explicit-true')
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/explicit-true": Next.js encountered uncached data during the initial render.
+         "Error: Route "/explicit-true": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`
@@ -288,9 +288,9 @@ describe('instant validation - level error', () => {
         const result = await prerender('/layered')
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/layered": Next.js encountered uncached data during the initial render.
+         "Error: Route "/layered": Next.js encountered uncached data during the initial render or a navigation.
 
-         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
            - Cache the data access with \`"use cache"\`

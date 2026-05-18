@@ -93,8 +93,8 @@ describe('instant validation - level manual-warning', () => {
                  ],
                },
              ],
-             "code": "E1220",
-             "description": "Next.js encountered uncached data during the initial render.",
+             "code": "E1249",
+             "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/with-root-suspense/explicit-error/page.tsx (11:19) @ Page
@@ -125,8 +125,8 @@ describe('instant validation - level manual-warning', () => {
                  ],
                },
              ],
-             "code": "E1220",
-             "description": "Next.js encountered uncached data during the initial render.",
+             "code": "E1249",
+             "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/with-root-suspense/explicit-true/page.tsx (10:19) @ Page
@@ -157,8 +157,8 @@ describe('instant validation - level manual-warning', () => {
                  ],
                },
              ],
-             "code": "E1220",
-             "description": "Next.js encountered uncached data during the initial render.",
+             "code": "E1249",
+             "description": "Next.js encountered uncached data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/with-root-suspense/explicit-warning/page.tsx (9:19) @ Page
@@ -192,9 +192,9 @@ describe('instant validation - level manual-warning', () => {
           const result = await prerender('/with-root-suspense/explicit-error')
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/with-root-suspense/explicit-error": Next.js encountered uncached data during the initial render.
+           "Error: Route "/with-root-suspense/explicit-error": Next.js encountered uncached data during the initial render or a navigation.
 
-           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
              - Cache the data access with \`"use cache"\`
