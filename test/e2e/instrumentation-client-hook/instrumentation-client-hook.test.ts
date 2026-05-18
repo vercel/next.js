@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import path from 'path'
 
@@ -152,12 +152,12 @@ describe('Instrumentation Client Hook', () => {
     })
   })
 
-  describe('HMR in development mode', () => {
-    const { next, isNextDev } = nextTestSetup({
-      files: path.join(__dirname, 'app-router'),
-    })
+  if (isNextDev) {
+    describe('HMR in development mode', () => {
+      const { next } = nextTestSetup({
+        files: path.join(__dirname, 'app-router'),
+      })
 
-    if (isNextDev) {
       it('should reload instrumentation-client when modified', async () => {
         const browser = await next.browser('/')
         const initialTime = await browser.eval(
@@ -196,13 +196,6 @@ describe('Instrumentation Client Hook', () => {
         // Restore the original file
         await next.patchFile(instrumentationPath, originalContent)
       })
-    } else {
-      // Add a dummy test when not in dev mode
-      it('skips tests in non-dev mode', () => {
-        console.log(
-          'Skipping instrumentation-client-hook tests in non-dev mode'
-        )
-      })
-    }
-  })
+    })
+  }
 })
