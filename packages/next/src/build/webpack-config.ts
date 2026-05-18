@@ -2913,6 +2913,16 @@ function getNextRootParamsRules({
   const invalidClientImportRule = createInvalidImportRule(
     "'next/root-params' cannot be imported from a Client Component module. It should only be used from a Server Component."
   )
+  const invalidNonAppServerImportRule = {
+    resource: nextRootParamsModule,
+    loader: 'next-invalid-import-error-loader',
+    issuerLayer: {
+      or: [WEBPACK_LAYERS.instrument, WEBPACK_LAYERS.middleware],
+    },
+    options: {
+      message: "'next/root-params' can only be used inside the App Directory.",
+    } satisfies InvalidImportLoaderOpts,
+  } satisfies webpack.RuleSetRule
 
   // in the browser compilation we can skip the server rules, because we know all imports will be invalid.
   if (isClient) {
@@ -2922,6 +2932,7 @@ function getNextRootParamsRules({
   return [
     {
       oneOf: [
+        invalidNonAppServerImportRule,
         {
           resource: nextRootParamsModule,
           issuerLayer: shouldUseReactServerCondition as (
