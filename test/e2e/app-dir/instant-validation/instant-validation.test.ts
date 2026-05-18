@@ -771,7 +771,7 @@ describe('instant validation', () => {
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
            - Prerender and cache the value with \`"use cache"\`
            - Render the value on the client with \`"use client"\`
-           - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+           - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at a (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:8:20)
@@ -790,7 +790,7 @@ describe('instant validation', () => {
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
            - Prerender and cache the value with \`"use cache"\`
            - Render the value on the client with \`"use client"\`
-           - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+           - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at b (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:8:20)
@@ -849,7 +849,7 @@ describe('instant validation', () => {
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
            - Prerender and cache the value with \`"use cache"\`
            - Render the value on the client with \`"use client"\`
-           - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+           - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at a (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
@@ -868,7 +868,7 @@ describe('instant validation', () => {
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
            - Prerender and cache the value with \`"use cache"\`
            - Render the value on the client with \`"use client"\`
-           - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+           - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at b (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
@@ -887,7 +887,7 @@ describe('instant validation', () => {
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
            - Prerender and cache the value with \`"use cache"\`
            - Render the value on the client with \`"use client"\`
-           - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+           - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at c (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
@@ -1020,7 +1020,7 @@ describe('instant validation', () => {
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
            - Prerender and cache the value with \`"use cache"\`
            - Render the value on the client with \`"use client"\`
-           - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+           - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:9:20)
@@ -1039,7 +1039,7 @@ describe('instant validation', () => {
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
            - Prerender and cache the value with \`"use cache"\`
            - Render the value on the client with \`"use client"\`
-           - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+           - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:9:20)
@@ -1116,7 +1116,7 @@ describe('instant validation', () => {
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
            - Prerender and cache the value with \`"use cache"\`
            - Render the value on the client with \`"use client"\`
-           - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+           - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
@@ -1135,7 +1135,7 @@ describe('instant validation', () => {
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
            - Prerender and cache the value with \`"use cache"\`
            - Render the value on the client with \`"use client"\`
-           - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+           - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
@@ -1154,7 +1154,7 @@ describe('instant validation', () => {
            - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
            - Prerender and cache the value with \`"use cache"\`
            - Render the value on the client with \`"use client"\`
-           - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+           - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)

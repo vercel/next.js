@@ -566,7 +566,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1210",
+             "code": "E1255",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -676,7 +676,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1210",
+             "code": "E1255",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2177,8 +2177,8 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1228",
-               "description": "Next.js encountered new Date() in a Client Component.",
+               "code": "E1266",
+               "description": "Next.js encountered the unstable value new Date() in a Client Component.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
@@ -2214,6 +2214,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2240,6 +2241,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2268,6 +2270,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at <unknown> (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2293,6 +2296,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at a (<next-dist-dir>)
@@ -2459,8 +2463,8 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1228",
-               "description": "Next.js encountered new Date() in a Client Component.",
+               "code": "E1266",
+               "description": "Next.js encountered the unstable value new Date() in a Client Component.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
@@ -2496,6 +2500,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2522,6 +2527,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2550,6 +2556,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at <unknown> (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2575,6 +2582,7 @@ describe('Cache Components Errors', () => {
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at a (<next-dist-dir>)
@@ -4982,7 +4990,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/date/page.tsx:19:16)
@@ -5009,7 +5017,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/date/page.tsx:19:16)
@@ -5038,7 +5046,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (app/sync-io-current-time/date/page.tsx:19:16)
@@ -5064,7 +5072,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (<next-dist-dir>)
@@ -5127,7 +5135,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/date-now/page.tsx:19:21)
@@ -5154,7 +5162,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/date-now/page.tsx:19:21)
@@ -5183,7 +5191,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (app/sync-io-current-time/date-now/page.tsx:19:21)
@@ -5209,7 +5217,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (<next-dist-dir>)
@@ -5234,8 +5242,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1259",
-             "description": "Next.js encountered new Date() while prerendering.",
+             "code": "E1261",
+             "description": "Next.js encountered the unstable value new Date() while prerendering.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-current-time/new-date/page.tsx (19:16) @ DateReadingComponent
@@ -5264,7 +5272,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` while prerendering.
+               "Error: Route "/sync-io-current-time/new-date": Next.js encountered the unstable value \`new Date()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5272,7 +5280,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/new-date/page.tsx:19:16)
@@ -5291,7 +5299,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` while prerendering.
+               "Error: Route "/sync-io-current-time/new-date": Next.js encountered the unstable value \`new Date()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5299,7 +5307,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/new-date/page.tsx:19:16)
@@ -5320,7 +5328,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` while prerendering.
+               "Error: Route "/sync-io-current-time/new-date": Next.js encountered the unstable value \`new Date()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5328,7 +5336,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (app/sync-io-current-time/new-date/page.tsx:19:16)
@@ -5346,7 +5354,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` while prerendering.
+               "Error: Route "/sync-io-current-time/new-date": Next.js encountered the unstable value \`new Date()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5354,7 +5362,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Optionally, if the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (<next-dist-dir>)
@@ -5806,8 +5814,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1259",
-               "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) while prerendering.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').generateKeyPairSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24) @ SyncIOComponent
@@ -5822,8 +5830,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1259",
-               "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) while prerendering.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').generateKeyPairSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:17) @ SyncIOComponent
@@ -5853,7 +5861,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5880,7 +5888,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5908,7 +5916,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5935,7 +5943,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5968,8 +5976,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1259",
-               "description": "Next.js encountered require('node:crypto').generateKeySync(...) while prerendering.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').generateKeySync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6) @ SyncIOComponent
@@ -5984,8 +5992,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1259",
-               "description": "Next.js encountered require('node:crypto').generateKeySync(...) while prerendering.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').generateKeySync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (20:17) @ SyncIOComponent
@@ -6015,7 +6023,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeySync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6042,7 +6050,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeySync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6070,7 +6078,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeySync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6097,7 +6105,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeySync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6130,8 +6138,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1259",
-               "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) while prerendering.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').generatePrimeSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39) @ SyncIOComponent
@@ -6146,8 +6154,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1259",
-               "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) while prerendering.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').generatePrimeSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:32) @ SyncIOComponent
@@ -6177,7 +6185,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered the unstable value \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6204,7 +6212,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered the unstable value \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6232,7 +6240,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered the unstable value \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6259,7 +6267,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered the unstable value \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6454,8 +6462,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1259",
-               "description": "Next.js encountered require('node:crypto').randomBytes(size) while prerendering.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomBytes(size) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:24) @ SyncIOComponent
@@ -6470,8 +6478,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1259",
-               "description": "Next.js encountered require('node:crypto').randomBytes(size) while prerendering.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomBytes(size) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:17) @ SyncIOComponent
@@ -6501,7 +6509,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered the unstable value \`require('node:crypto').randomBytes(size)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6528,7 +6536,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered the unstable value \`require('node:crypto').randomBytes(size)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6556,7 +6564,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered the unstable value \`require('node:crypto').randomBytes(size)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6583,7 +6591,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered the unstable value \`require('node:crypto').randomBytes(size)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6616,8 +6624,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1259",
-               "description": "Next.js encountered require('node:crypto').randomFillSync(...) while prerendering.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomFillSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10) @ SyncIOComponent
@@ -6632,8 +6640,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1259",
-               "description": "Next.js encountered require('node:crypto').randomFillSync(...) while prerendering.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomFillSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:3) @ SyncIOComponent
@@ -6663,7 +6671,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered the unstable value \`require('node:crypto').randomFillSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6690,7 +6698,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered the unstable value \`require('node:crypto').randomFillSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6718,7 +6726,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered the unstable value \`require('node:crypto').randomFillSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6745,7 +6753,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered the unstable value \`require('node:crypto').randomFillSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6778,8 +6786,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1259",
-               "description": "Next.js encountered require('node:crypto').randomInt(min, max) while prerendering.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:24) @ SyncIOComponent
@@ -6794,8 +6802,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1259",
-               "description": "Next.js encountered require('node:crypto').randomInt(min, max) while prerendering.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:17) @ SyncIOComponent
@@ -6825,7 +6833,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6852,7 +6860,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6880,7 +6888,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6907,7 +6915,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6940,8 +6948,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1259",
-               "description": "Next.js encountered require('node:crypto').randomInt(min, max) while prerendering.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24) @ SyncIOComponent
@@ -6956,8 +6964,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1259",
-               "description": "Next.js encountered require('node:crypto').randomInt(min, max) while prerendering.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:17) @ SyncIOComponent
@@ -6987,7 +6995,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -7014,7 +7022,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -7042,7 +7050,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -7069,7 +7077,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -7102,8 +7110,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1259",
-               "description": "Next.js encountered require('node:crypto').randomUUID() while prerendering.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomUUID() while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:24) @ SyncIOComponent
@@ -7118,8 +7126,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1259",
-               "description": "Next.js encountered require('node:crypto').randomUUID() while prerendering.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomUUID() while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:17) @ SyncIOComponent
@@ -7149,7 +7157,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered the unstable value \`require('node:crypto').randomUUID()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -7176,7 +7184,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered the unstable value \`require('node:crypto').randomUUID()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -7204,7 +7212,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered the unstable value \`require('node:crypto').randomUUID()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -7231,7 +7239,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` while prerendering.
+               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered the unstable value \`require('node:crypto').randomUUID()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
