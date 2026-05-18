@@ -55,6 +55,7 @@ describe('adapter-config export', () => {
     }
 
     expect(ctx.nextVersion).toBe(nextVersion)
+    expect(ctx.projectDir).toBe(next.testDir)
     expect(config?.basePath).toBe('/docs')
 
     const combinedRouteOutputs = [
