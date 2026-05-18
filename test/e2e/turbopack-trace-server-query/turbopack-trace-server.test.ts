@@ -266,6 +266,30 @@ describe('turbopack-trace-server', () => {
     expect(childMd).toMatch(/Page \d+ of \d+/)
   })
 
+  it('should drill two levels deep using full path IDs', async () => {
+    // Get a root-level aggregated span.
+    const root = await querySpansJson(mcpPort, { sort: 'value' })
+    const rootId = root.spans[0].id
+    expect(rootId).toMatch(/^a\d+$/)
+
+    // Drill into its children.
+    const children = await querySpansJson(mcpPort, { parent: rootId })
+    expect(children.spans.length).toBeGreaterThan(0)
+    const childId = children.spans[0].id
+    // Child ID should include the parent path prefix.
+    expect(childId).toMatch(new RegExp(`^${rootId}-a\\d+$`))
+
+    // Drill one more level — pass the child's full path ID directly.
+    const grandchildren = await querySpansJson(mcpPort, { parent: childId })
+    expect(grandchildren.page).toBe(1)
+    if (grandchildren.spans.length > 0) {
+      // Grandchild ID should include the full parent chain.
+      expect(grandchildren.spans[0].id).toMatch(
+        new RegExp(`^${childId}-a\\d+$`)
+      )
+    }
+  })
+
   it('should return no results for an impossible search term', async () => {
     const md = await callMcpTool(mcpPort, 'query_spans', {
       search: 'zzz_unlikely_span_name_zzz',
