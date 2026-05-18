@@ -583,23 +583,19 @@ describe('instant validation - parallel slot configs', () => {
           const browser = await navigateTo(href)
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1248",
-             "description": "Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked": Could not validate that a segment in your UI has instant navigation.
-
-           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
-
-
-           Dropped segment:
-             app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked/page.tsx
-
-           Ways to fix this:
-             - Render the dropped segment
-             - Set \`export const instant = false\` on the dropped segment to skip validation
-
-           Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
+             "code": "E1253",
+             "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": null,
+             "label": "Instant",
+             "source": "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked
+           │
+           │ ├─ suspense-in-root/
+           │ │  ├─ parallel/
+           │ │  │  ├─ conditional-breadcrumbs/
+           │ │  │  │  ├─ show-only-breadcrumbs/
+           │ │  │  │  │  ├─ unblocked/
+           │                └─ page.tsx ← dropped from rendering
+           │",
              "stack": [],
            }
           `)
@@ -610,7 +606,6 @@ describe('instant validation - parallel slot configs', () => {
            "Error: Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked": Could not validate that a segment in your UI has instant navigation.
 
            This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
-
 
            Dropped segment:
              app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked/page.tsx

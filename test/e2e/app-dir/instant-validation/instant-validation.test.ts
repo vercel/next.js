@@ -3412,23 +3412,18 @@ describe('instant validation', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1248",
-             "description": "Route "/suspense-in-root/static/multi-depth-deferred-fallback/inner": Could not validate that a segment in your UI has instant navigation.
-
-           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
-
-
-           Dropped segment:
-             app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
-
-           Ways to fix this:
-             - Render the dropped segment
-             - Set \`export const instant = false\` on the dropped segment to skip validation
-
-           Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
+             "code": "E1253",
+             "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": null,
+             "label": "Instant",
+             "source": "/suspense-in-root/static/multi-depth-deferred-fallback/inner
+           │
+           │ ├─ suspense-in-root/
+           │ │  ├─ static/
+           │ │  │  ├─ multi-depth-deferred-fallback/
+           │ │  │  │  ├─ inner/
+           │             └─ page.tsx ← dropped from rendering
+           │",
              "stack": [],
            }
           `)
@@ -3441,7 +3436,6 @@ describe('instant validation', () => {
            "Error: Route "/suspense-in-root/static/multi-depth-deferred-fallback/inner": Could not validate that a segment in your UI has instant navigation.
 
            This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
-
 
            Dropped segment:
              app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
@@ -3476,23 +3470,18 @@ describe('instant validation', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1248",
-             "description": "Route "/suspense-in-root/static/test-firstmod/inter/inner": Could not validate that a segment in your UI has instant navigation.
-
-           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
-
-
-           Dropped segment:
-             app/suspense-in-root/static/test-firstmod/inter/layout.tsx
-
-           Ways to fix this:
-             - Render the dropped segment
-             - Set \`export const instant = false\` on the dropped segment to skip validation
-
-           Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
+             "code": "E1253",
+             "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": null,
+             "label": "Instant",
+             "source": "/suspense-in-root/static/test-firstmod/inter/inner
+           │
+           │ ├─ suspense-in-root/
+           │ │  ├─ static/
+           │ │  │  ├─ test-firstmod/
+           │ │  │  │  ├─ inter/
+           │             └─ layout.tsx ← dropped from rendering
+           │",
              "stack": [],
            }
           `)
@@ -3505,7 +3494,6 @@ describe('instant validation', () => {
            "Error: Route "/suspense-in-root/static/test-firstmod/inter/inner": Could not validate that a segment in your UI has instant navigation.
 
            This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
-
 
            Dropped segment:
              app/suspense-in-root/static/test-firstmod/inter/layout.tsx
@@ -3538,24 +3526,19 @@ describe('instant validation', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1248",
-             "description": "Route "/suspense-in-root/static/test-multi-unrendered": Could not validate that a segment in your UI has instant navigation.
-
-           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
-
-
-           Dropped segments:
-             app/suspense-in-root/static/test-multi-unrendered/@sidebar/page.tsx
-             app/suspense-in-root/static/test-multi-unrendered/page.tsx
-
-           Ways to fix this:
-             - Render the dropped segment
-             - Set \`export const instant = false\` on the dropped segment to skip validation
-
-           Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
+             "code": "E1253",
+             "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": null,
+             "label": "Instant",
+             "source": "/suspense-in-root/static/test-multi-unrendered
+           │
+           │ ├─ suspense-in-root/
+           │ │  ├─ static/
+           │ │  │  ├─ test-multi-unrendered/
+           │ │  │  │  ├─ @sidebar/
+           │ │  │  │  │  └─ page.tsx ← dropped from rendering
+           │          └─ page.tsx ← dropped from rendering
+           │",
              "stack": [],
            }
           `)
@@ -3568,7 +3551,6 @@ describe('instant validation', () => {
            "Error: Route "/suspense-in-root/static/test-multi-unrendered": Could not validate that a segment in your UI has instant navigation.
 
            This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
-
 
            Dropped segments:
              app/suspense-in-root/static/test-multi-unrendered/@sidebar/page.tsx
