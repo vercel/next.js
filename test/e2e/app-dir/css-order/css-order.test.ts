@@ -136,21 +136,24 @@ const PAGES: Record<
   },
   // Two pages where shared CSS modules sandwich a unique stylesheet:
   //   /sandwich/a: shared1 → uniqueA (module) → shared2
-  //   /sandwich/b: shared1 → uniqueB (GLOBAL)  → shared2
+  //   /sandwich/b: shared1 → uniqueB (GLOBAL) → shared2
   // The chunker must not merge shared1 and shared2 into a single chunk because they sit on
   // either side of the unique stylesheet. uniqueB is a global stylesheet specifically so the
   // algorithm can't collapse everything into one big shared chunk: a global stylesheet must
   // never be loaded by chunk groups that don't import it (i.e. `/sandwich/a`), so uniqueB has
-  // to stay isolated. Optimal output is 3 chunks per page (`requests: 3`, realised by strict and graph);
-  // loose mode falls short here. Note that page a can have 2 requests by overshipping uniqueA into the
-  // shared chunk
+  // to stay isolated.
   'sandwich-a': {
     group: 'sandwich',
     url: '/sandwich/a',
     selector: '#hellosba',
     color: 'rgb(0, 0, 255)',
-    requests: 3,
+    // 2 requests = `shared1 + uniqueA` fused into one chunk + `shared2` separate (still shared
+    // with /sandwich/b). 3 requests is a valid alternative (no overshipping; better cache reuse
+    // of shared1 across pages), but strict & graph here both prefer overshipping uniqueA.
+    requests: 2,
     requestsLoose: 1,
+    // Same as `requests`, but spelled out so `requestsLoose` doesn't shadow it via the fallback
+    // chain in `expectedRequests`.
     requestsGraph: 2,
   },
   'sandwich-b': {
@@ -158,10 +161,15 @@ const PAGES: Record<
     url: '/sandwich/b',
     selector: '#hellosbb',
     color: 'rgb(0, 0, 255)',
+    // 3 requests is forced: uniqueB is a global stylesheet so it can't fuse with the CSS
+    // modules on either side. shared1 and shared2 each stay in their own chunk so they can be
+    // shared with /sandwich/a.
     requests: 3,
     // TODO loose merges shared1 and shared2 into a single chunk despite uniqueB sitting
     // between them on the page; the correct value is 3 (matching `requests`).
     requestsLoose: 2,
+    // Same as `requests`, but spelled out so `requestsLoose` doesn't shadow it via the fallback
+    // chain in `expectedRequests`.
     requestsGraph: 3,
   },
   'pages-first': {
