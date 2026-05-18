@@ -204,7 +204,7 @@ export const CODE_FRAME_STYLES = `
   }
 
   [data-nextjs-codeframe-line] > span:first-child {
-    color: var(--color-gray-alpha-700) !important;
+    color: var(--color-gray-alpha-500) !important;
   }
 
   [data-nextjs-codeframe-line][data-nextjs-codeframe-line--errored="true"]
