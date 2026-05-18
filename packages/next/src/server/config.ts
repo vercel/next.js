@@ -1590,7 +1590,8 @@ function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
 async function applyModifyConfig(
   config: NextConfigComplete,
   phase: PHASE_TYPE,
-  silent: boolean
+  silent: boolean,
+  dir: string
 ): Promise<NextConfigComplete> {
   // we always call modify config  and phase can be used to only
   // modify for specific times
@@ -1607,6 +1608,7 @@ async function applyModifyConfig(
       config = await adapterMod.modifyConfig(config, {
         phase,
         nextVersion: process.env.__NEXT_VERSION as string,
+        projectDir: dir,
       })
     }
   }
@@ -1779,7 +1781,8 @@ export default async function loadConfig(
           phase
         ),
         phase,
-        silent
+        silent,
+        dir
       )
     )
 
@@ -1977,7 +1980,7 @@ export default async function loadConfig(
     )
 
     const finalConfig = finalizeConfig(
-      await applyModifyConfig(completeConfig, phase, silent)
+      await applyModifyConfig(completeConfig, phase, silent, dir)
     )
 
     // Cache the final result
@@ -2036,7 +2039,7 @@ export default async function loadConfig(
   setHttpClientAndAgentOptions(completeConfig)
 
   const finalConfig = finalizeConfig(
-    await applyModifyConfig(completeConfig, phase, silent)
+    await applyModifyConfig(completeConfig, phase, silent, dir)
   )
 
   // Cache the default config result
