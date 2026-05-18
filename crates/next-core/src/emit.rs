@@ -113,12 +113,18 @@ pub async fn emit_assets(
             .try_flat_join()
             .await?;
         if let Some(detail) = conflicts.into_iter().next() {
-            EmitConflictIssue {
-                asset_path: path.clone(),
-                detail,
+            #[turbo_tasks::function]
+            fn emit_conflict_issue(path: FileSystemPath, detail: RcStr) {
+                EmitConflictIssue {
+                    asset_path: path.clone(),
+                    detail,
+                }
+                .resolved_cell()
+                .emit();
             }
-            .resolved_cell()
-            .emit();
+            emit_conflict_issue(path.clone(), detail)
+                .as_side_effect()
+                .await?;
         }
         Ok(())
     }
