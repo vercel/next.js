@@ -27,14 +27,6 @@ import {
 
 const ROUTE = '/example'
 
-// Every detection helper in errors.tsx walks the user-facing error message
-// produced by the server-side factories in `blocking-route-messages.ts` and
-// `sync-io-messages.ts`. These tests guard the contract between the two
-// modules: if a factory's wording shifts in a way the detector can't
-// recognize, classification silently falls back to "not an instant error"
-// and the overlay shows the wrong UI. Three regressions in this exact spot
-// during the redesign motivated this test.
-
 describe('isRuntimeVariant', () => {
   it('returns true for runtime body factory output', () => {
     expect(isRuntimeVariant(createRuntimeBodyError(ROUTE).message)).toBe(true)
