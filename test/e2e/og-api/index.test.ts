@@ -6,9 +6,10 @@ import { join } from 'path'
 describe('og-api', () => {
   const { next, skipped } = nextTestSetup({
     files: new FileRef(join(__dirname, 'app')),
-    skipDeployment:  process.env.TEST_OUTPUT_STANDALONE === 'true',
+    skipDeployment: process.env.TEST_OUTPUT_STANDALONE === 'true',
   })
-if (skipped) return
+
+  if (skipped) return
 
   it('should respond from index', async () => {
     const html = await renderViaHTTP(next.url, '/')
