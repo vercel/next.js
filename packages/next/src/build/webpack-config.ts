@@ -32,6 +32,7 @@ import {
 import type { CompilerNameValues } from '../shared/lib/constants'
 import { execOnce } from '../shared/lib/utils'
 import type { NextConfigComplete } from '../server/config-shared'
+import { resolveCssChunkingMode } from '../server/config-shared'
 import { finalizeEntrypoint } from './entries'
 import * as Log from './output/log'
 import { buildConfiguration } from './webpack/config'
@@ -2188,17 +2189,21 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
+      // CSS chunking plugin. Graph mode is Turbopack-only and is rejected at config-validation
+      // time for webpack, so we only need to wire up `'loose'` (default) and `'strict'` here.
       !dev &&
         isClient &&
-        config.experimental.cssChunking &&
-        (isRspack
-          ? new (getRspackCore().experiments.CssChunkingPlugin)({
-              strict: config.experimental.cssChunking === 'strict',
-              nextjs: true,
-            })
-          : new CssChunkingPlugin(
-              config.experimental.cssChunking === 'strict'
-            )),
+        (() => {
+          const mode = resolveCssChunkingMode(config.experimental.cssChunking)
+          if (mode !== 'loose' && mode !== 'strict') return false
+          const strict = mode === 'strict'
+          return isRspack
+            ? new (getRspackCore().experiments.CssChunkingPlugin)({
+                strict,
+                nextjs: true,
+              })
+            : new CssChunkingPlugin(strict)
+        })(),
       telemetryPlugin,
       !dev &&
         isNodeServer &&

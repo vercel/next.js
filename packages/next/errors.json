@@ -1244,5 +1244,8 @@
   "1243": "This \"use cache\" has a dynamic cache life that was propagated to its parent.",
   "1244": "A \"use cache\" with short \\`expire\\` (under 5 minutes) is nested inside another \"use cache\" that has no explicit \\`cacheLife\\`, which is not allowed during prerendering. Add \\`cacheLife()\\` to the outer \"use cache\" to choose whether it should be prerendered (with longer \\`expire\\`) or remain dynamic (with short \\`expire\\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
   "1245": "A \"use cache\" with zero \\`revalidate\\` is nested inside another \"use cache\" that has no explicit \\`cacheLife\\`, which is not allowed during prerendering. Add \\`cacheLife()\\` to the outer \"use cache\" to choose whether it should be prerendered (with non-zero \\`revalidate\\`) or remain dynamic (with zero \\`revalidate\\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
-  "1246": "Could not validate instant UI because an expected segment was not rendered."
+  "1246": "Could not validate instant UI because an expected segment was not rendered.",
+  "1247": "\\`experimental.cssChunking: \"graph\"\\` is only supported with Turbopack. Please remove the option or run Next.js with Turbopack in %s.",
+  "1248": "\\`experimental.cssChunking: \"strict\"\\` is only supported with webpack. Please remove the option or run Next.js with webpack in %s.",
+  "1249": "\\`experimental.cssChunking: false\\` is only supported with webpack. Please remove the option or run Next.js with webpack in %s."
 }
