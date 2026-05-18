@@ -39,6 +39,36 @@ import {
 import { MIDDLEWARE_FILENAME, PROXY_FILENAME } from '../../lib/constants'
 
 const onceErrorSet = new Set()
+
+// Guards against concurrent writeToDisk() on shared global Endpoint objects
+// (_app, _document, _error). Both handleRouteType (for any pages-router page)
+// and handlePagesErrorRoute write these same endpoints, so concurrent
+// ensurePage() calls can race. Per-route endpoints (page HTML, app-page,
+// app-route, middleware, instrumentation) don't need this guard because they
+// are unique to a single route and are not written from multiple code paths.
+//
+// When a second caller coalesces onto an in-flight write, it receives the same
+// WrittenEndpoint result. Its subsequent handleWrittenEndpoint/clearRequireCache
+// call is effectively a no-op because serverPathState hashes already match.
+const sharedEndpointWriteInFlight = new WeakMap<
+  object,
+  Promise<TurbopackResult<WrittenEndpoint>>
+>()
+
+async function writeSharedEndpointToDisk(
+  endpoint: Endpoint
+): Promise<TurbopackResult<WrittenEndpoint>> {
+  const existing = sharedEndpointWriteInFlight.get(endpoint)
+  if (existing) return existing
+  const promise = endpoint.writeToDisk()
+  sharedEndpointWriteInFlight.set(endpoint, promise)
+  try {
+    return await promise
+  } finally {
+    sharedEndpointWriteInFlight.delete(endpoint)
+  }
+}
+
 /**
  * Check if given issue is a warning to be display only once.
  * This mimics behavior of get-page-static-info's warnOnce.
@@ -184,7 +214,9 @@ export async function handleRouteType({
         if (entrypoints.global.app) {
           const key = getEntryKey('pages', 'server', '_app')
 
-          const writtenEndpoint = await entrypoints.global.app.writeToDisk()
+          const writtenEndpoint = await writeSharedEndpointToDisk(
+            entrypoints.global.app
+          )
           documentOrAppChanged ||=
             hooks?.handleWrittenEndpoint(key, writtenEndpoint, false) ?? false
           processIssues(
@@ -201,8 +233,9 @@ export async function handleRouteType({
         if (entrypoints.global.document) {
           const key = getEntryKey('pages', 'server', '_document')
 
-          const writtenEndpoint =
-            await entrypoints.global.document.writeToDisk()
+          const writtenEndpoint = await writeSharedEndpointToDisk(
+            entrypoints.global.document
+          )
           documentOrAppChanged ||=
             hooks?.handleWrittenEndpoint(key, writtenEndpoint, false) ?? false
           processIssues(
@@ -867,7 +900,9 @@ export async function handlePagesErrorRoute({
   if (entrypoints.global.app) {
     const key = getEntryKey('pages', 'server', '_app')
 
-    const writtenEndpoint = await entrypoints.global.app.writeToDisk()
+    const writtenEndpoint = await writeSharedEndpointToDisk(
+      entrypoints.global.app
+    )
     hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
     hooks.subscribeToChanges(
       key,
@@ -896,7 +931,9 @@ export async function handlePagesErrorRoute({
   if (entrypoints.global.document) {
     const key = getEntryKey('pages', 'server', '_document')
 
-    const writtenEndpoint = await entrypoints.global.document.writeToDisk()
+    const writtenEndpoint = await writeSharedEndpointToDisk(
+      entrypoints.global.document
+    )
     hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
     hooks.subscribeToChanges(
       key,
@@ -922,7 +959,9 @@ export async function handlePagesErrorRoute({
   if (entrypoints.global.error) {
     const key = getEntryKey('pages', 'server', '_error')
 
-    const writtenEndpoint = await entrypoints.global.error.writeToDisk()
+    const writtenEndpoint = await writeSharedEndpointToDisk(
+      entrypoints.global.error
+    )
     hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
     hooks.subscribeToChanges(
       key,
