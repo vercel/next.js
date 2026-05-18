@@ -332,7 +332,7 @@ describe('instant validation - level manual-warning', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/without-root-suspense/bare": Next.js encountered uncached or runtime data during prerendering.
 
-           \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the initial page load and leading to a slower user experience.
+           \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
            Ways to fix this:
              - Cache the data access with \`"use cache"\`
@@ -358,7 +358,7 @@ describe('instant validation - level manual-warning', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/without-root-suspense/explicit-true": Next.js encountered uncached or runtime data during prerendering.
 
-           \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the initial page load and leading to a slower user experience.
+           \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
            Ways to fix this:
              - Cache the data access with \`"use cache"\`
@@ -386,7 +386,7 @@ describe('instant validation - level manual-warning', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/without-root-suspense/explicit-warning": Next.js encountered uncached or runtime data during prerendering.
 
-           \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the initial page load and leading to a slower user experience.
+           \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
            Ways to fix this:
              - Cache the data access with \`"use cache"\`
@@ -418,7 +418,7 @@ describe('instant validation - level manual-warning', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/without-root-suspense/explicit-error": Next.js encountered uncached or runtime data during prerendering.
 
-           \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the initial page load and leading to a slower user experience.
+           \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
            Ways to fix this:
              - Cache the data access with \`"use cache"\`
