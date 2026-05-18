@@ -1435,8 +1435,7 @@ async fn insert_instrumentation_client_alias(
     body.push_str("module.exports = { onRouterTransitionStart(url, type) {\n");
     for (i, _) in injects.enumerate() {
         body.push_str(&format!(
-            "    mod_{i} && mod_{i}.onRouterTransitionStart && \
-             mod_{i}.onRouterTransitionStart(url, type);\n"
+            "    mod_{i}?.onRouterTransitionStart?.(url, type);\n"
         ));
     }
     body.push_str("}};\n");

@@ -51,6 +51,7 @@ const NextInstrumentationClientLoader: webpack.LoaderDefinitionFunction<Instrume
         // hook running last.
         const hookCalls = allModules
           .map(
+            // Webpack doesn't transpile this, so use a manual version of optional chaining.
             (_, i) =>
               `    mod_${i} && mod_${i}.onRouterTransitionStart && mod_${i}.onRouterTransitionStart(url, type);`
           )
