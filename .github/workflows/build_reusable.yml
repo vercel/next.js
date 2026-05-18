@@ -243,14 +243,14 @@ jobs:
 
       # GitHub Actions sets `HOME=/github/home` for every step in a
       # container job and overrides anything set via `container.env`.
-      # The Microsoft Playwright image ships that directory owned by
-      # `pwuser` (UID 1000), and we run as root — so Firefox refuses to
-      # launch with "Firefox is unable to launch if the $HOME folder
-      # isn't owned by the current user". Re-own the directory tree to
-      # the user we're actually executing as. Scoped to root so it's a
-      # no-op on host runners (which run as the `runner` user).
+      # Playwright's GitHub Actions example runs the container as a
+      # non-root user, but this reusable workflow needs root so it can
+      # install jq/unzip/build-essential from the upstream image before
+      # bootstrapping. Firefox still requires $HOME to be owned by the
+      # current user, so re-own GitHub's mounted home directory in the
+      # Playwright container before tests run.
       - name: Take ownership of /github/home (Linux container)
-        if: ${{ runner.os == 'Linux' }}
+        if: ${{ runner.os == 'Linux' && inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows') }}
         run: |
           if [ "$(id -u)" = "0" ] && [ -d /github/home ]; then
             chown -R root:root /github/home
