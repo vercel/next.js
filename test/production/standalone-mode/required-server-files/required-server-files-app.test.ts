@@ -2,8 +2,7 @@ import glob from 'glob'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   createNowRouteMatches,
   fetchViaHTTP,
@@ -15,39 +14,37 @@ import {
 import { ChildProcess } from 'child_process'
 
 describe('required server files app router', () => {
-  let next: NextInstance
+  const { next } = nextTestSetup({
+    files: {
+      app: new FileRef(join(__dirname, 'app')),
+      lib: new FileRef(join(__dirname, 'lib')),
+      'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
+      'middleware.js': new FileRef(join(__dirname, 'middleware.js')),
+      'data.txt': new FileRef(join(__dirname, 'data.txt')),
+      '.env': new FileRef(join(__dirname, '.env')),
+      '.env.local': new FileRef(join(__dirname, '.env.local')),
+      '.env.production': new FileRef(join(__dirname, '.env.production')),
+    },
+    nextConfig: {
+      cacheHandler: './cache-handler.js',
+      cacheMaxMemorySize: 0,
+      output: 'standalone',
+    },
+    skipStart: true,
+  })
+
   let server: ChildProcess
   let appPort: number | string
 
-  const setupNext = async ({
-    nextEnv,
-    minimalMode,
-  }: {
-    nextEnv?: boolean
-    minimalMode?: boolean
-  }) => {
+  beforeAll(async () => {
     // test build against environment with next support
-    process.env.NOW_BUILDER = nextEnv ? '1' : ''
+    process.env.NOW_BUILDER = '1'
     process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
-    next = await createNext({
-      files: {
-        app: new FileRef(join(__dirname, 'app')),
-        lib: new FileRef(join(__dirname, 'lib')),
-        'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
-        'middleware.js': new FileRef(join(__dirname, 'middleware.js')),
-        'data.txt': new FileRef(join(__dirname, 'data.txt')),
-        '.env': new FileRef(join(__dirname, '.env')),
-        '.env.local': new FileRef(join(__dirname, '.env.local')),
-        '.env.production': new FileRef(join(__dirname, '.env.production')),
-      },
-      nextConfig: {
-        cacheHandler: './cache-handler.js',
-        cacheMaxMemorySize: 0,
-        output: 'standalone',
-      },
-    })
-    await next.stop()
+    const { exitCode } = await next.build()
+    if (exitCode !== 0) {
+      throw new Error(`Failed to build next: ${exitCode}`)
+    }
 
     await fs.move(
       join(next.testDir, '.next/standalone'),
@@ -70,6 +67,7 @@ describe('required server files app router', () => {
       }
     }
 
+    const minimalMode = true
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
@@ -92,15 +90,10 @@ describe('required server files app router', () => {
         cwd: next.testDir,
       }
     )
-  }
-
-  beforeAll(async () => {
-    await setupNext({ nextEnv: true, minimalMode: true })
   })
   afterAll(async () => {
     delete process.env.NOW_BUILDER
     delete process.env.NEXT_PRIVATE_TEST_HEADERS
-    await next.destroy()
     if (server) await killApp(server)
   })
 

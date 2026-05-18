@@ -20,7 +20,7 @@ use crate::{
     module::Module,
     module_graph::{
         ModuleGraph, binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroup,
-        module_batches::BatchingConfig,
+        module_batches::BatchingConfig, style_groups::StyleGroupsAlgorithm,
     },
     output::{
         ExpandOutputAssetsInput, OutputAsset, OutputAssets, OutputAssetsReferences,
@@ -273,6 +273,11 @@ pub struct ChunkingConfig {
     /// Never merges chunks bigger than this size with other chunks.
     /// This makes sure that code in big chunks is not duplicated in multiple chunks.
     pub max_merge_chunk_size: usize,
+
+    /// Selects the algorithm used to compute
+    /// [`crate::module_graph::style_groups::StyleGroups`]. Only consulted for the CSS chunk
+    /// type.
+    pub style_groups_algorithm: StyleGroupsAlgorithm,
 
     #[allow(dead_code)]
     pub placeholder_for_future_extensions: (),
