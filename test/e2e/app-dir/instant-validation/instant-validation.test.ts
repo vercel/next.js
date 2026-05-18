@@ -16,7 +16,6 @@ import {
   ErrorSnapshot,
   RedboxSnapshot,
 } from '../../../lib/add-redbox-matchers'
-import { Playwright } from '../../../lib/next-webdriver'
 
 describe('instant validation', () => {
   const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
@@ -76,7 +75,7 @@ describe('instant validation', () => {
   }
 
   async function expectNoDevValidationErrors(
-    browser: Playwright,
+    browser: Awaited<ReturnType<typeof next.browser>>,
     url: string
   ): Promise<void> {
     await waitForValidation(url, getCliOutputSinceMark)

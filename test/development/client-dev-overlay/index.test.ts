@@ -1,5 +1,4 @@
 import { FileRef } from 'e2e-utils'
-import { Playwright } from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import { waitForDevToolsIndicator, retry } from 'next-test-utils'
@@ -16,9 +15,9 @@ describe('client-dev-overlay', () => {
     },
   })
 
-  // The `Playwright.hasElementByCssSelector` cannot be used for elements inside a shadow DOM.
+  // The `Awaited<ReturnType<typeof next.browser>>.hasElementByCssSelector` cannot be used for elements inside a shadow DOM.
   function elementExistsInNextJSPortalShadowDOM(
-    browser: Playwright,
+    browser: Awaited<ReturnType<typeof next.browser>>,
     selector: string
   ) {
     return browser.eval(
@@ -34,19 +33,23 @@ describe('client-dev-overlay', () => {
     preferencesButton: '[data-preferences]',
     hideButton: '[data-hide-dev-tools]',
   }
-  function getToast(browser: Playwright) {
+  function getToast(browser: Awaited<ReturnType<typeof next.browser>>) {
     return browser.elementByCss(selectors.toast)
   }
-  function getPopover(browser: Playwright) {
+  function getPopover(browser: Awaited<ReturnType<typeof next.browser>>) {
     return browser.elementByCss(selectors.popover)
   }
-  function getMinimizeButton(browser: Playwright) {
+  function getMinimizeButton(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
     return browser.elementByCss(selectors.minimizeButton)
   }
-  function getHideButton(browser: Playwright) {
+  function getHideButton(browser: Awaited<ReturnType<typeof next.browser>>) {
     return browser.elementByCss(selectors.hideButton)
   }
-  function getPreferencesButton(browser: Playwright) {
+  function getPreferencesButton(
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) {
     return browser.elementByCss(selectors.preferencesButton)
   }
 

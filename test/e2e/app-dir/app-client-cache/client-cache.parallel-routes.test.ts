@@ -1,7 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
 import path from 'path'
-import { Playwright } from 'next-webdriver'
 import type { Page as PlaywrightPage } from 'playwright'
 
 // TODO: This suite is flaky in production and deploy modes, skip until stabilized.
@@ -16,7 +15,10 @@ describe.skip('app dir client cache with parallel routes', () => {
     return
   }
 
-  async function reveal(browser: Playwright, href: string) {
+  async function reveal(
+    browser: Awaited<ReturnType<typeof next.browser>>,
+    href: string
+  ) {
     // Get the reveal element and scroll it into view.
     const reveal = await browser.elementByCss(`[data-link-accordion="${href}"]`)
     await reveal.scrollIntoViewIfNeeded()

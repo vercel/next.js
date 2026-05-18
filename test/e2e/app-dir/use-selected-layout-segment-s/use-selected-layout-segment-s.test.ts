@@ -1,5 +1,4 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 import { check } from 'next-test-utils'
 
 describe('useSelectedLayoutSegment(s)', () => {
@@ -7,10 +6,9 @@ describe('useSelectedLayoutSegment(s)', () => {
     files: new FileRef(__dirname),
   })
 
-  let browser: Awaited<ReturnType<typeof webdriver>>
+  let browser: Awaited<ReturnType<typeof next.browser>>
   beforeEach(async () => {
-    browser = await webdriver(
-      next.url,
+    browser = await next.browser(
       '/segment-name/value1/segment-name2/value2/value3/value4'
     )
   })

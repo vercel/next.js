@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
-import { Playwright } from 'next-webdriver'
 import {
   browserConfigWithFixedTime,
   createRequestsListener,
@@ -35,7 +34,7 @@ describe('app dir client cache semantics (default semantics)', () => {
     })
   } else {
     describe('prefetch={true}', () => {
-      let browser: Playwright
+      let browser: Awaited<ReturnType<typeof next.browser>>
 
       beforeEach(async () => {
         browser = await next.browser('/', browserConfigWithFixedTime)
@@ -137,7 +136,7 @@ describe('app dir client cache semantics (default semantics)', () => {
       })
     })
     describe('prefetch={false}', () => {
-      let browser: Playwright
+      let browser: Awaited<ReturnType<typeof next.browser>>
 
       beforeEach(async () => {
         browser = await next.browser('/', browserConfigWithFixedTime)
@@ -192,7 +191,7 @@ describe('app dir client cache semantics (default semantics)', () => {
       })
     })
     describe('prefetch={undefined} - default', () => {
-      let browser: Playwright
+      let browser: Awaited<ReturnType<typeof next.browser>>
 
       beforeEach(async () => {
         browser = await next.browser('/', browserConfigWithFixedTime)

@@ -1,5 +1,4 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
 import { retry } from 'next-test-utils'
@@ -79,7 +78,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
 
     it('should forward client component logs', async () => {
-      browser = await webdriver(next.url, '/pages-client-log')
+      browser = await next.browser('/pages-client-log')
       await browser.waitForElementByCss('#log-button')
       await browser.elementByCss('#log-button').click()
 
@@ -92,7 +91,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
 
     it('should handle circular references safely', async () => {
-      browser = await webdriver(next.url, '/circular-refs')
+      browser = await next.browser('/circular-refs')
       await browser.waitForElementByCss('#circular-button')
       await browser.elementByCss('#circular-button').click()
 
@@ -104,7 +103,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
 
     it('should respect default depth limit', async () => {
-      browser = await webdriver(next.url, '/deep-objects')
+      browser = await next.browser('/deep-objects')
       await browser.waitForElementByCss('#deep-button')
       await browser.elementByCss('#deep-button').click()
 
@@ -118,7 +117,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
 
     it('should show source-mapped errors in pages router', async () => {
-      browser = await webdriver(next.url, '/pages-client-error')
+      browser = await next.browser('/pages-client-error')
       await browser.waitForElementByCss('#error-button')
 
       logCapture.clearLogs()
@@ -136,7 +135,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     it('should show source-mapped errors for server errors from pages router ', async () => {
       const outputIndex = logs.length
 
-      browser = await webdriver(next.url, '/pages-server-error')
+      browser = await next.browser('/pages-server-error')
 
       await retry(() => {
         const newLogs = logs.slice(outputIndex).join('\n')
@@ -192,7 +191,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     it('should show source-mapped errors for server components', async () => {
       const outputIndex = logs.length
 
-      const browser = await webdriver(next.url, '/server-error')
+      const browser = await next.browser('/server-error')
 
       await retry(() => {
         const newLogs = logs.slice(outputIndex).join('\n')
@@ -233,7 +232,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
 
     it('should forward client component logs in app router', async () => {
-      const browser = await webdriver(next.url, '/client-log')
+      const browser = await next.browser('/client-log')
       await browser.waitForElementByCss('#log-button')
       await browser.elementByCss('#log-button').click()
 
@@ -248,7 +247,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
 
     it('should show source-mapped errors for client components', async () => {
-      const browser = await webdriver(next.url, '/client-error')
+      const browser = await next.browser('/client-error')
       await browser.waitForElementByCss('#error-button')
 
       logCapture.clearLogs()
@@ -293,7 +292,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
 
     it('should show hydration errors with owner stack trace', async () => {
-      const browser = await webdriver(next.url, '/hydration-error')
+      const browser = await next.browser('/hydration-error')
 
       let hydrationErrorLog = ''
       await retry(() => {
@@ -391,7 +390,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
     })
 
     it('should handle edge runtime errors with source mapping', async () => {
-      const browser = await webdriver(next.url, '/edge-deep-stack')
+      const browser = await next.browser('/edge-deep-stack')
 
       await retry(() => {
         const logOutput = logs.join('\n')

@@ -1,4 +1,3 @@
-import type { Playwright } from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 import { check, assertNoConsoleErrors, retry } from 'next-test-utils'
 
@@ -10,14 +9,16 @@ describe('router autoscrolling on navigation', () => {
     files: __dirname,
   })
 
-  const getTopScroll = async (browser: Playwright) =>
-    await browser.eval('document.documentElement.scrollTop')
+  const getTopScroll = async (
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) => await browser.eval('document.documentElement.scrollTop')
 
-  const getLeftScroll = async (browser: Playwright) =>
-    await browser.eval('document.documentElement.scrollLeft')
+  const getLeftScroll = async (
+    browser: Awaited<ReturnType<typeof next.browser>>
+  ) => await browser.eval('document.documentElement.scrollLeft')
 
   const waitForScrollToComplete = async (
-    browser: Playwright,
+    browser: Awaited<ReturnType<typeof next.browser>>,
     options: { x: number; y: number }
   ) => {
     await retry(async function expectScrolledTo() {
@@ -29,7 +30,7 @@ describe('router autoscrolling on navigation', () => {
   }
 
   const scrollTo = async (
-    browser: Playwright,
+    browser: Awaited<ReturnType<typeof next.browser>>,
     options: { x: number; y: number }
   ) => {
     await browser.eval(`window.scrollTo(${options.x}, ${options.y})`)

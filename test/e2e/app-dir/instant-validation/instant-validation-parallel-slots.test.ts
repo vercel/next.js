@@ -5,7 +5,6 @@ import {
   waitForValidation,
 } from 'e2e-utils/instant-validation'
 import { retry, waitForNoErrorToast } from '../../../lib/next-test-utils'
-import type { Playwright } from '../../../lib/next-webdriver'
 
 describe('instant validation - parallel slot configs', () => {
   const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
@@ -64,7 +63,7 @@ describe('instant validation - parallel slot configs', () => {
   }
 
   async function expectNoDevValidationErrors(
-    browser: Playwright,
+    browser: Awaited<ReturnType<typeof next.browser>>,
     url: string
   ): Promise<void> {
     await waitForValidation(url, getCliOutputSinceMark)

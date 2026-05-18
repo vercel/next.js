@@ -1,5 +1,4 @@
 import { join } from 'path'
-import webdriver, { Playwright } from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
@@ -14,9 +13,9 @@ describe('emitDecoratorMetadata SWC option', () => {
   })
 
   it('should compile with emitDecoratorMetadata enabled', async () => {
-    let browser: Playwright
+    let browser: Awaited<ReturnType<typeof next.browser>>
     try {
-      browser = await webdriver(next.url, '/')
+      browser = await next.browser('/')
       const message = await browser.elementByCss('#message').text()
 
       expect(message).toBe('Hello, world!')

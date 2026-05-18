@@ -1,5 +1,4 @@
 import { join } from 'path'
-import webdriver, { Playwright } from 'next-webdriver'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
@@ -27,9 +26,9 @@ describe('TailwindCSS JIT', () => {
   })
 
   it('works with JIT enabled', async () => {
-    let browser: Playwright
+    let browser: Awaited<ReturnType<typeof next.browser>>
     try {
-      browser = await webdriver(next.url, '/')
+      browser = await next.browser('/')
       const text = await browser.elementByCss('.text-6xl').text()
       expect(text).toMatch(/Welcome to/)
       const cssBlue = await browser

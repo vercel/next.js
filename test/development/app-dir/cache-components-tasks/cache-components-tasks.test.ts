@@ -1,7 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import * as nodePath from 'node:path'
-import type { Playwright } from '../../../lib/next-webdriver'
 
 describe.each([
   {
@@ -67,7 +66,9 @@ describe.each([
 
     async function testInitialLoad(
       path: string,
-      assertLogs: (browser: Playwright) => Promise<void>
+      assertLogs: (
+        browser: Awaited<ReturnType<typeof next.browser>>
+      ) => Promise<void>
     ) {
       const browser = await next.browser(path)
 
@@ -105,7 +106,9 @@ describe.each([
 
     async function testNavigation(
       path: string,
-      assertLogs: (browser: Playwright) => Promise<void>
+      assertLogs: (
+        browser: Awaited<ReturnType<typeof next.browser>>
+      ) => Promise<void>
     ) {
       const browser = await next.browser('/')
 
@@ -163,7 +166,9 @@ describe.each([
     ])('$description', ({ isInitialLoad }) => {
       it('setImmediate resolves between tasks', async () => {
         const path = '/simple'
-        const assertLogs = async (browser: Playwright) => {
+        const assertLogs = async (
+          browser: Awaited<ReturnType<typeof next.browser>>
+        ) => {
           const logs = await browser.log()
           assertLog(logs, 'after immediate - static - layout', 'Prerender')
           assertLog(logs, 'after immediate - static - page', 'Prerender')

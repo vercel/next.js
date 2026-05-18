@@ -5,7 +5,6 @@ import {
 } from 'e2e-utils/instant-validation'
 import { retry, waitForRedbox } from '../../../lib/next-test-utils'
 import { createRedboxSnapshot } from '../../../lib/add-redbox-matchers'
-import { Playwright } from '../../../lib/next-webdriver'
 
 describe('instant validation - server errors', () => {
   const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
@@ -188,7 +187,9 @@ describe('instant validation - server errors', () => {
     })
   })
 
-  async function navigateViaClientNav(href: string): Promise<Playwright> {
+  async function navigateViaClientNav(
+    href: string
+  ): Promise<Awaited<ReturnType<typeof next.browser>>> {
     const browser = await next.browser('/suspense-in-root')
     await browser
       .elementByCss(`[data-link-type="soft"][href="${href}"]`)

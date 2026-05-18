@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import type { Playwright } from 'next-webdriver'
 import { retry } from 'next-test-utils'
 import { join } from 'path'
 
@@ -68,7 +67,9 @@ describe('CSS Support', () => {
       files: join(fixturesDir, 'csp-style-src-nonce'),
     })
 
-    async function checkGreenTitle(browser: Playwright) {
+    async function checkGreenTitle(
+      browser: Awaited<ReturnType<typeof next.browser>>
+    ) {
       await browser.elementByCss('#green-title')
       const titleColor = await browser.eval(
         `window.getComputedStyle(document.querySelector('#green-title')).color`
@@ -76,7 +77,9 @@ describe('CSS Support', () => {
       expect(titleColor).toBe('rgb(0, 128, 0)')
     }
 
-    async function checkBlueTitle(browser: Playwright) {
+    async function checkBlueTitle(
+      browser: Awaited<ReturnType<typeof next.browser>>
+    ) {
       await browser.elementByCss('#blue-title')
       const titleColor = await browser.eval(
         `window.getComputedStyle(document.querySelector('#blue-title')).color`
