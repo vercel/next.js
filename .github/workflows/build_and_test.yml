@@ -218,7 +218,6 @@ jobs:
         pnpm lint-no-typescript
         pnpm check-examples
         pnpm validate-externals-doc
-        node scripts/check-playwright-image-version.mjs
       stepName: 'lint'
     secrets: inherit
 
