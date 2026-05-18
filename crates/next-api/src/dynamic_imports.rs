@@ -123,7 +123,7 @@ pub async fn map_next_dynamic(
     let actions =
         graph
             .await?
-            .iter_nodes()
+            .iter_reachable_modules()?
             .map(|module| async move {
                 if let Some(dynamic_entry_module) =
                     ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(module)

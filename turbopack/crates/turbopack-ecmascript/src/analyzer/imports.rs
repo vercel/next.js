@@ -2,11 +2,10 @@ use std::{
     borrow::Cow,
     collections::{BTreeMap, hash_map::Entry},
     fmt::Display,
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
 use anyhow::{Context, Result};
-use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
@@ -58,11 +57,11 @@ pub struct ImportAnnotations {
 }
 
 /// Enables a specified transition for the annotated import
-static ANNOTATION_TRANSITION: Lazy<Wtf8Atom> =
-    Lazy::new(|| crate::annotations::ANNOTATION_TRANSITION.into());
+static ANNOTATION_TRANSITION: LazyLock<Wtf8Atom> =
+    LazyLock::new(|| crate::annotations::ANNOTATION_TRANSITION.into());
 
 /// Changes the type of the resolved module (only "json" is supported currently)
-static ATTRIBUTE_MODULE_TYPE: Lazy<Wtf8Atom> = Lazy::new(|| atom!("type").into());
+static ATTRIBUTE_MODULE_TYPE: LazyLock<Wtf8Atom> = LazyLock::new(|| atom!("type").into());
 
 impl ImportAnnotations {
     pub fn parse(with: Option<&ObjectLit>) -> Option<ImportAnnotations> {
@@ -1224,17 +1223,26 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_member_expr(&mut self, node: &MemberExpr) {
-        if let MemberProp::Ident(..) | MemberProp::PrivateName(..) = &node.prop
-            && node.obj.is_ident()
+        if matches!(
+            &node.prop,
+            MemberProp::Ident(..) | MemberProp::PrivateName(..)
+        ) && let Expr::Ident(ident) = &*node.obj
         {
-            // Skip traversing if obj is a Expr::Ident, so that it doesn't get added to
+            // Intentionally skipping over visit_expr(node.obj) here so that it doesn't get added to
             // full_star_imports below in visit_expr.
+            ident.visit_with(self);
+        } else {
+            node.visit_children_with(self);
+        }
+    }
 
-            // TODO this currently doesn't properly mark the import in self.program_decl_usage, see
-            // todo in
-            // turbopack/crates/turbopack-tests/tests/execution/turbopack/remove-unused-imports/
-            // import-star/input/index.js
-            return;
+    fn visit_expr(&mut self, node: &Expr) {
+        // Careful about adding anything here, visit_member_expr might skip over this method for
+        // some Expr::Ident-s.
+        if let Expr::Ident(i) = node
+            && let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id())
+        {
+            self.data.full_star_imports.insert(module_path.clone());
         }
         node.visit_children_with(self);
     }
@@ -1255,15 +1263,6 @@ impl Visit for Analyzer<'_> {
             if let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id()) {
                 self.data.full_star_imports.insert(module_path.clone());
             }
-        }
-        node.visit_children_with(self);
-    }
-
-    fn visit_expr(&mut self, node: &Expr) {
-        if let Expr::Ident(i) = node
-            && let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id())
-        {
-            self.data.full_star_imports.insert(module_path.clone());
         }
         node.visit_children_with(self);
     }

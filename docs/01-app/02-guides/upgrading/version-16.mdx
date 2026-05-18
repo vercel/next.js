@@ -843,6 +843,8 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
+This might be necessary when hosting Next.js in a VPC with split-horizon DNS and you receive status 400 Bad Request. Only enable once you understand the SSRF risk.
+
 ### Maximum Redirects (Breaking change)
 
 The default for `images.maximumRedirects` has changed from unlimited to 3 redirects maximum.

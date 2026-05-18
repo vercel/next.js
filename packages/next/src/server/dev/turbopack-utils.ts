@@ -15,6 +15,7 @@ import {
   HMR_MESSAGE_SENT_TO_BROWSER,
 } from './hot-reloader-types'
 import * as Log from '../../build/output/log'
+import { warnAboutEdgeRuntime } from '../../build/warn-about-edge-runtime'
 import type { PropagateToWorkersField } from '../lib/router-utils/types'
 import type { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import type { AppRoute, Entrypoints, PageRoute } from '../../build/swc/types'
@@ -227,6 +228,7 @@ export async function handleRouteType({
         await manifestLoader.loadBuildManifest(page)
         await manifestLoader.loadPagesManifest(page)
         if (type === 'edge') {
+          warnAboutEdgeRuntime()
           await manifestLoader.loadMiddlewareManifest(page, 'pages')
         } else {
           manifestLoader.deleteMiddlewareManifest(serverKey)
@@ -320,6 +322,7 @@ export async function handleRouteType({
 
       await manifestLoader.loadPagesManifest(page)
       if (type === 'edge') {
+        warnAboutEdgeRuntime()
         await manifestLoader.loadMiddlewareManifest(page, 'pages')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
@@ -373,6 +376,7 @@ export async function handleRouteType({
       const type = writtenEndpoint.type
 
       if (type === 'edge') {
+        warnAboutEdgeRuntime()
         manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
@@ -404,6 +408,7 @@ export async function handleRouteType({
       manifestLoader.loadAppPathsManifest(page)
 
       if (type === 'edge') {
+        warnAboutEdgeRuntime()
         manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)

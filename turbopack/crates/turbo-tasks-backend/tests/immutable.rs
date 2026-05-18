@@ -68,7 +68,7 @@ async fn create_input() -> Result<Vc<ChangingInput>> {
     .cell())
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn compute(input: Vc<ChangingInput>) -> Result<Vc<Value>> {
     println!("compute()");
     let input = input.await?;
@@ -76,14 +76,14 @@ async fn compute(input: Vc<ChangingInput>) -> Result<Vc<Value>> {
     Ok(Value { value: *value }.cell())
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn read_input(input: Vc<Value>) -> Result<Vc<u32>> {
     println!("read_input()");
     let value = input.await?;
     Ok(Vc::cell(value.value))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 fn immutable_fn(input: Vc<Value>) -> Vc<u32> {
     let _ = input;
     println!("immutable_fn()");
@@ -92,13 +92,13 @@ fn immutable_fn(input: Vc<Value>) -> Vc<u32> {
 
 #[turbo_tasks::value_impl]
 impl Value {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn read_self(&self) -> Vc<u32> {
         println!("read_self()");
         Vc::cell(self.value)
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     fn immutable_self_fn(self: Vc<Value>) -> Vc<u32> {
         let _ = self;
         println!("immutable_self_fn()");

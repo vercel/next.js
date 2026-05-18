@@ -14,7 +14,7 @@ pub fn prepare_new_children(
     parent_task: &mut impl TaskGuard,
     new_children: &FxHashSet<TaskId>,
     queue: &mut AggregationUpdateQueue,
-) {
+) -> u32 {
     debug_assert!(!new_children.is_empty());
     let children_count = new_children.len();
 
@@ -52,4 +52,6 @@ pub fn prepare_new_children(
             });
         }
     };
+
+    future_parent_aggregation
 }

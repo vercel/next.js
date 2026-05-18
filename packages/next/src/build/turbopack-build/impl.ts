@@ -15,6 +15,7 @@ import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
 import { hasCustomExportOutput } from '../../export/utils'
 import { Telemetry } from '../../telemetry/storage'
+import { eventBuildFeatureUsageFromTurbopack } from '../../telemetry/events/build'
 import {
   setGlobal,
   trace,
@@ -34,7 +35,7 @@ import type {
 } from '../swc/types'
 import { Bundler } from '../../lib/bundler'
 
-export async function turbopackBuild(): Promise<{
+export async function turbopackBuild(telemetry: Telemetry): Promise<{
   duration: number
   buildTraceContext: undefined
   shutdownPromise: Promise<void>
@@ -174,6 +175,20 @@ export async function turbopackBuild(): Promise<{
 
     const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
     printBuildErrors(entrypoints, dev)
+
+    // Skip when telemetry is fully off — featureUsage() isn't free.
+    if (telemetry.isEnabled || process.env.NEXT_TELEMETRY_DEBUG) {
+      try {
+        const featureUsage = await project.featureUsage()
+        const events = eventBuildFeatureUsageFromTurbopack(featureUsage)
+        if (events.length > 0) {
+          telemetry.record(events)
+        }
+      } catch (err) {
+        // Telemetry must never break a build.
+        console.warn('Failed to record Turbopack feature telemetry:', err)
+      }
+    }
 
     const routes = entrypoints.routes
     if (!routes) {
@@ -332,7 +347,7 @@ export async function workerMain(workerData: {
       shutdownPromise: resultShutdownPromise,
       buildTraceContext,
       duration,
-    } = await turbopackBuild()
+    } = await turbopackBuild(telemetry)
     shutdownPromise = resultShutdownPromise
     return {
       buildTraceContext,

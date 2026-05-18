@@ -65,7 +65,7 @@ impl Issue for AnalyzeIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source_ident.path().owned().await
+        Ok(self.source_ident.await?.path.clone())
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {

@@ -1,25 +1,19 @@
-import { createNext, FileRef, isNextDev } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, isNextDev, nextTestSetup } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 import path from 'path'
 
 const appDir = path.join(__dirname, 'child-a-tag-error')
 
 describe('New Link Behavior with <a> child', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(path.join(appDir, 'pages')),
-        'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
-      },
-      dependencies: {
-        next: 'latest',
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(path.join(appDir, 'pages')),
+      'next.config.js': new FileRef(path.join(appDir, 'next.config.js')),
+    },
+    dependencies: {
+      next: 'latest',
+    },
   })
-  afterAll(() => next.destroy())
 
   it('should throw error with <a> child', async () => {
     const browser = await webdriver(next.url, `/`)
