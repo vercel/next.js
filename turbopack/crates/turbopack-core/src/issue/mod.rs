@@ -497,7 +497,13 @@ impl IssueSource {
             let mut range = match range {
                 SourceRange::LineColumn(start, end) => Some((start, end)),
                 SourceRange::ByteOffset(start, end) => {
-                    if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
+                    // A read failure here should not crash issue formatting:
+                    // better to render the issue without a code frame than
+                    // to surface a reporter failure on top of whatever the
+                    // user was trying to debug.
+                    if let Ok(content) = self.source.content().lines().await
+                        && let FileLinesContent::Lines(lines) = &*content
+                    {
                         let start = find_line_and_column(lines.as_ref(), start);
                         let end = find_line_and_column(lines.as_ref(), end);
                         Some((start, end))
@@ -1034,15 +1040,23 @@ pub struct PlainSource {
 impl PlainSource {
     #[turbo_tasks::function]
     pub async fn from_source(asset: ResolvedVc<Box<dyn Source>>) -> Result<Vc<PlainSource>> {
-        let asset_content = asset.content().await?;
-        let content = match *asset_content {
-            AssetContent::File(file_content) => file_content.await?,
-            AssetContent::Redirect { .. } => ReadRef::new_owned(FileContent::NotFound),
+        // Crash-proofing: a failure to read the asset's content should never
+        // break the issue reporter. The CLI formatter renders no code frame
+        // for `FileContent::NotFound`, so degrading on error still yields a
+        // usable issue (path + message) rather than a cascade.
+        let content = if let Ok(asset_content) = asset.content().await
+            && let AssetContent::File(file_content) = &*asset_content
+            && let Ok(file_content) = file_content.await
+        {
+            file_content
+        } else {
+            ReadRef::new_owned(FileContent::NotFound)
         };
+        let ident = asset.ident();
 
         Ok(PlainSource {
-            ident: asset.ident().to_string().owned().await?,
-            file_path: asset.ident().await?.path.to_string_ref().await?,
+            ident: ident.to_string().owned().await?,
+            file_path: ident.await?.path.to_string_ref().await?,
             content,
         }
         .cell())

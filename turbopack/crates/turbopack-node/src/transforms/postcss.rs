@@ -588,6 +588,7 @@ impl PostCssTransformedAsset {
                 ResolvedVc::cell(source_map.into()),
             ],
             additional_invalidation: config_changed,
+            loader_names: vec![turbo_rcstr::rcstr!("postcss")],
         })
         .await?;
 
