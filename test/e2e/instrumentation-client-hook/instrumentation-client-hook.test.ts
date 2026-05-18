@@ -64,16 +64,6 @@ describe('Instrumentation Client Hook', () => {
       files: path.join(__dirname, 'app-router'),
     })
 
-    function filterNavigationStartLogs(logs: Array<{ message: string }>) {
-      const result = []
-      for (const log of logs) {
-        if (log.message.startsWith('[Router Transition Start]')) {
-          result.push(log.message)
-        }
-      }
-      return result
-    }
-
     it('onRouterTransitionStart fires at the start of a navigation', async () => {
       const browser = await next.browser('/')
 
