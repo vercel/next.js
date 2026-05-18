@@ -5,7 +5,12 @@ import { extractPathFromFlightRouterState } from './compute-changed-path'
 
 import type { AppRouterState } from './router-reducer-types'
 import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
-import { createInitialCacheNodeForHydration } from './ppr-navigations'
+import {
+  createInitialCacheNodeForHydration,
+  createInitialCacheNodeForInstantTest,
+  FreshnessPolicy,
+  spawnDynamicRequests,
+} from './ppr-navigations'
 import {
   convertRootFlightRouterStateToRouteTree,
   getStaleAt,
@@ -88,16 +93,49 @@ export function createInitialRouterState({
     acc
   )
   const metadataVaryPath = acc.metadataVaryPath
-  const initialTask = createInitialCacheNodeForHydration(
+  const isInstantTest =
+    typeof window !== 'undefined' && !!self.__next_instant_test
+
+  const seedDynamicStaleAt = computeDynamicStaleAt(
     navigatedAt,
-    initialRouteTree,
-    initialSeedData,
-    initialHead,
-    computeDynamicStaleAt(
-      navigatedAt,
-      initialDynamicStaleTimeSeconds ?? UnknownDynamicStaleTime
-    )
+    initialDynamicStaleTimeSeconds ?? UnknownDynamicStaleTime
   )
+
+  const initialTask = isInstantTest
+    ? createInitialCacheNodeForInstantTest(
+        navigatedAt,
+        initialRouteTree,
+        initialSeedData,
+        initialHead,
+        seedDynamicStaleAt
+      )
+    : createInitialCacheNodeForHydration(
+        navigatedAt,
+        initialRouteTree,
+        initialSeedData,
+        initialHead,
+        seedDynamicStaleAt
+      )
+
+  // The Next-URL of the referrer, used for interception, is always null during
+  // the initial render, because we never intercept the initial navigation.
+  const initialNextUrl = null
+
+  // During instant navigation testing, spawn dynamic requests immediately.
+  // The dynamic data fetch starts right away but is blocked by the navigation
+  // lock (waitForNavigationLockIfActive in fetchMissingDynamicData). When the
+  // lock releases, the data writes into the cache nodes and the UI updates.
+  if (isInstantTest && location !== null) {
+    spawnDynamicRequests(
+      initialTask,
+      new URL(location.href),
+      initialNextUrl,
+      FreshnessPolicy.InstantTest,
+      { separateRefreshUrls: null, scrollRef: null },
+      null, // routeCacheEntry
+      'replace' // navigateType
+    )
+  }
 
   // The following only applies in the browser (location !== null) since neither
   // route learning nor segment cache state persists from SSR to client.
@@ -106,7 +144,7 @@ export function createInitialRouterState({
     discoverKnownRoute(
       Date.now(),
       location.pathname,
-      null, // nextUrl — initial render is never an interception
+      initialNextUrl,
       null, // No pending entry
       initialRouteTree,
       metadataVaryPath,

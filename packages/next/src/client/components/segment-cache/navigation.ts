@@ -384,6 +384,7 @@ async function navigateToUnknownRoute(
     case FreshnessPolicy.Hydration: // <- shouldn't happen during client nav
     case FreshnessPolicy.RefreshAll:
     case FreshnessPolicy.HMRRefresh:
+    case FreshnessPolicy.InstantTest:
       dynamicRequestTree = DynamicRequestTreeForEntireRoute
       break
     default:

@@ -379,6 +379,47 @@ function ScrollAndMaybeFocusHandler({
 }
 
 /**
+ * Resolves the RSC content for a CacheNode field (segment rsc, head, etc.),
+ * using `useDeferredValue` to show prefetched (static) content on initial render
+ * and switch to the final (dynamic) content when it becomes available.
+ *
+ * This is the single codepath for rendering any CacheNode field that may arrive
+ * in two phases: a prefetch phase (static/partial data) and a dynamic phase
+ * (full server response). The root segment, child segments, and head all use
+ * this same hook — they are conceptually identical, even though the root was
+ * historically rendered without `useDeferredValue`.
+ *
+ * If the resolved value is a deferred RSC promise, it is unwrapped with `use()`.
+ * If the final value is `null` (meaning the server did not provide data for this
+ * field), the component suspends indefinitely until the router fills it in.
+ */
+export function useCacheNodeRsc(
+  rsc: React.ReactNode,
+  prefetchRsc: React.ReactNode
+): React.ReactNode {
+  const resolvedPrefetchRsc = prefetchRsc !== null ? prefetchRsc : rsc
+  const resolved = useDeferredValue(rsc, resolvedPrefetchRsc)
+
+  if (isDeferredRsc(resolved)) {
+    const unwrapped = use(resolved)
+    if (unwrapped === null) {
+      // The promise resolved to `null`, meaning data for this field was not
+      // returned by the server. Suspend indefinitely until the router fills it
+      // in with a new state update.
+      use(unresolvedThenable) as never
+    }
+    return unwrapped
+  }
+
+  if (resolved === null) {
+    // No data available. Suspend indefinitely.
+    use(unresolvedThenable) as never
+  }
+
+  return resolved
+}
+
+/**
  * InnerLayoutRouter handles rendering the provided segment based on the cache.
  */
 function InnerLayoutRouter({
@@ -419,42 +460,7 @@ function InnerLayoutRouter({
         (use(unresolvedThenable) as never)
 
   // `rsc` represents the renderable node for this segment.
-
-  // If this segment has a `prefetchRsc`, it's the statically prefetched data.
-  // We should use that on initial render instead of `rsc`. Then we'll switch
-  // to `rsc` when the dynamic response streams in.
-  //
-  // If no prefetch data is available, then we go straight to rendering `rsc`.
-  const resolvedPrefetchRsc =
-    cacheNode.prefetchRsc !== null ? cacheNode.prefetchRsc : cacheNode.rsc
-
-  // We use `useDeferredValue` to handle switching between the prefetched and
-  // final values. The second argument is returned on initial render, then it
-  // re-renders with the first argument.
-  const rsc: any = useDeferredValue(cacheNode.rsc, resolvedPrefetchRsc)
-
-  // `rsc` is either a React node or a promise for a React node, except we
-  // special case `null` to represent that this segment's data is missing. If
-  // it's a promise, we need to unwrap it so we can determine whether or not the
-  // data is missing.
-  let resolvedRsc: React.ReactNode
-  if (isDeferredRsc(rsc)) {
-    const unwrappedRsc = use(rsc)
-    if (unwrappedRsc === null) {
-      // If the promise was resolved to `null`, it means the data for this
-      // segment was not returned by the server. Suspend indefinitely. When this
-      // happens, the router is responsible for triggering a new state update to
-      // un-suspend this segment.
-      use(unresolvedThenable) as never
-    }
-    resolvedRsc = unwrappedRsc
-  } else {
-    // This is not a deferred RSC promise. Don't need to unwrap it.
-    if (rsc === null) {
-      use(unresolvedThenable) as never
-    }
-    resolvedRsc = rsc
-  }
+  const resolvedRsc = useCacheNodeRsc(cacheNode.rsc, cacheNode.prefetchRsc)
 
   // In dev, we create a NavigationPromisesContext containing the instrumented promises that provide
   // `useSelectedLayoutSegment` and `useSelectedLayoutSegments`.

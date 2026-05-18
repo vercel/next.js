@@ -13,7 +13,6 @@
 
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 import { NEXT_INSTANT_TEST_COOKIE } from '../app-router-headers'
-import { refreshOnInstantNavigationUnlock } from '../use-action-queue'
 
 type InstantNavCookieState = 'empty' | 'pending' | 'mpa' | 'spa'
 
@@ -205,7 +204,6 @@ export function startListeningForInstantNavigationCookie(): void {
       for (const cookie of event.deleted) {
         if (cookie.name === NEXT_INSTANT_TEST_COOKIE) {
           releaseLock()
-          refreshOnInstantNavigationUnlock()
           return
         }
       }

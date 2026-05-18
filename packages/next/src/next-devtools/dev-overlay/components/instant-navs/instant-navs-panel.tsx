@@ -64,9 +64,9 @@ export function InstantNavsPanel() {
 
   function handleContinueRendering() {
     // Delete the cookie to release the lock. The CookieStore change
-    // event triggers refreshOnInstantNavigationUnlock which does a
-    // soft refresh to fetch dynamic data. The panel stays open so
-    // the user can start another capture.
+    // event releases the navigation lock, which unblocks any in-flight
+    // dynamic requests spawned during hydration. The panel stays open
+    // so the user can start another capture.
     if (typeof cookieStore !== 'undefined') {
       cookieStore.delete(COOKIE_NAME)
     }
