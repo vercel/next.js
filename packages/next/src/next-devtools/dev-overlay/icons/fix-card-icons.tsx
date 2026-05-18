@@ -46,25 +46,6 @@ export function FixCardHistoryIcon() {
   )
 }
 
-export function FixCardOctagonIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        fill="currentColor"
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M14.5 8a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-5.5-2.5h-5v5h5z"
-      />
-    </svg>
-  )
-}
-
 export function FixCardLoadingIcon() {
   return (
     <svg

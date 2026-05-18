@@ -17,7 +17,6 @@ export type FixCardIcon =
   | 'history'
   | 'layout'
   | 'loading'
-  | 'octagon'
   | 'pointer-click'
   | 'server-stack'
   | 'timer'
