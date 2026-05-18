@@ -9827,6 +9827,41 @@ function lookupCoverageList(coverageList, contextParams) {
   }
   return lookupList;
 }
+function contextSubstitutionFormat3(contextParams, subtable) {
+  if (contextParams.context.length < subtable.coverages.length) {
+    return [];
+  }
+  var inputLookups = lookupCoverageList(
+    subtable.coverages,
+    contextParams
+  );
+  if (inputLookups === -1) {
+    return [];
+  }
+  var substitutions = [];
+  if (inputLookups.length === subtable.coverages.length) {
+    for (var i = 0; i < subtable.lookupRecords.length; i++) {
+      var lookupRecord = subtable.lookupRecords[i];
+      var lookupListIndex = lookupRecord.lookupListIndex;
+      var lookupTable = this.getLookupByIndex(lookupListIndex);
+      for (var s = 0; s < lookupTable.subtables.length; s++) {
+        var subtable$1 = lookupTable.subtables[s];
+        var lookup = this.getLookupMethod(lookupTable, subtable$1);
+        var substitutionType = this.getSubstitutionType(lookupTable, subtable$1);
+        if (substitutionType === "12") {
+          for (var n = 0; n < inputLookups.length; n++) {
+            var glyphIndex = contextParams.get(n);
+            var substitution = lookup(glyphIndex);
+            if (substitution) {
+              substitutions.push(substitution);
+            }
+          }
+        }
+      }
+    }
+  }
+  return substitutions;
+}
 function chainingSubstitutionFormat3(contextParams, subtable) {
   var lookupsCount = subtable.inputCoverage.length + subtable.lookaheadCoverage.length + subtable.backtrackCoverage.length;
   if (contextParams.context.length < lookupsCount) {
@@ -10007,6 +10042,13 @@ FeatureQuery.prototype.getLookupMethod = function(lookupTable, subtable) {
           [glyphIndex, subtable]
         );
       };
+    case "53":
+      return function(contextParams) {
+        return contextSubstitutionFormat3.apply(
+          this$1,
+          [contextParams, subtable]
+        );
+      };
     case "63":
       return function(contextParams) {
         return chainingSubstitutionFormat3.apply(
@@ -10072,6 +10114,16 @@ FeatureQuery.prototype.lookupFeature = function(query) {
           if (substitution) {
             substitutions.splice(currentIndex, 1, new SubstitutionAction({
               id: 12,
+              tag: query.tag,
+              substitution
+            }));
+          }
+          break;
+        case "53":
+          substitution = lookup(contextParams);
+          if (Array.isArray(substitution) && substitution.length) {
+            substitutions.splice(currentIndex, 1, new SubstitutionAction({
+              id: 53,
               tag: query.tag,
               substitution
             }));
@@ -10240,6 +10292,7 @@ function ligatureSubstitutionFormat1$1(action, tokens, index) {
 var SUBSTITUTIONS = {
   11: singleSubstitutionFormat1$1,
   12: singleSubstitutionFormat2$1,
+  53: chainingSubstitutionFormat3$1,
   63: chainingSubstitutionFormat3$1,
   41: ligatureSubstitutionFormat1$1
 };
@@ -17979,6 +18032,8 @@ async function* Ji(e, t) {
     let { textShadowColor: Y, textShadowOffset: j, textShadowRadius: fe } = r;
     Xe = Ya({ width: $e.width, height: $e.height, id: a }, { shadowColor: Y, shadowOffset: j, shadowRadius: fe }, Ki(r.color) || F && Ja(r.color)), Xe = M("defs", {}, Xe);
   }
+  var _rtlRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\u0590-\u05FF]/;
+  var _isRTL = _rtlRegex.test(ue);
   let ht = "", mt = "", Zt = "", qt = -1, Ge = {}, it = {}, Ze = null, gt = 0;
   for (let Y = 0; Y < Le.length; Y++) {
     let j = De[Y], fe = De[Y + 1];
@@ -17988,9 +18043,9 @@ async function* Ji(e, t) {
     if (Q === qt)
       continue;
     let ze = false;
-    if (Q === 0 && dr !== 0 && (te += dr), J.length > 1) {
+    if (Q === 0 && dr !== 0 && (te += dr), J.length > 1 || _isRTL) {
       let we = Qt - J[Q];
-      if (b === "right" || b === "end")
+      if (b === "right" || b === "end" || (_isRTL && b !== "center" && b !== "left" && b !== "justify"))
         te += we;
       else if (b === "center")
         te += we / 2;
@@ -18031,11 +18086,21 @@ async function* Ji(e, t) {
     if (xe)
       ee += 0;
     else if (l2) {
-      if (!K2.includes(Qi) && !da.includes(K2) && Le[Y + 1] && fe && !fe.isImage && ee === fe.y && !ae) {
+      if (Le[Y + 1] && fe && !fe.isImage && ee === fe.y && !ae && (_isRTL || (!K2.includes(Qi) && !da.includes(K2)))) {
         Ze === null && (gt = te), Ze = Ze === null ? K2 : Ze + K2;
         continue;
       }
-      let we = Ze === null ? K2 : Ze + K2, Te = Ze === null ? te : gt, et2 = j.width + te - Te, tt = Rt(ee), bt = ve.getSVG(we.replace(/(\t)+/g, ""), { fontSize: P2, left: Et + Te, top: pt + ee + Pe + qe, letterSpacing: O }, tt);
+      let we = Ze === null ? K2 : Ze + K2, Te = Ze === null ? te : gt;
+      if (_isRTL) {
+        we = we.trim();
+        var _rtlWidth = Ye(we.replace(/(\t)+/g, ""));
+        var _rtlOffset = Qt - _rtlWidth;
+        if (b === "center") _rtlOffset = _rtlOffset / 2;
+        else if (b === "left" || b === "justify") _rtlOffset = 0;
+        if (Q === 0 && dr !== 0) _rtlOffset += dr;
+        Te = _rtlOffset;
+      }
+      let et2 = j.width + te - Te, tt = Rt(ee), bt = ve.getSVG(we.replace(/(\t)+/g, ""), { fontSize: P2, left: Et + Te, top: pt + ee + Pe + qe, letterSpacing: O }, tt);
       ye = bt.path, We && bt.boxes && bt.boxes.length && (it[Q] || (it[Q] = [])).push(...bt.boxes), Ze = null, f && (Zt += M("rect", { x: Et + Te, y: pt + ee + qe, width: et2, height: er, fill: "transparent", stroke: "#575eff", "stroke-width": 1, transform: nt || void 0, "clip-path": Ne ? `url(#${Ne})` : void 0 }) + M("line", { x1: Et + te, x2: Et + te + j.width, y1: pt + ee + qe + Pe, y2: pt + ee + qe + Pe, stroke: "#14c000", "stroke-width": 1, transform: nt || void 0, "clip-path": Ne ? `url(#${Ne})` : void 0 }));
     } else if (ee += Pe + qe, We && !xe) {
       let we = Rt(ee), Te = ve.getSVG(K2.replace(/(\t)+/g, ""), { fontSize: P2, left: Et + te, top: pt + ee, letterSpacing: O }, we);
