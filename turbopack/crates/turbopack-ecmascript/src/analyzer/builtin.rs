@@ -1,5 +1,7 @@
 use std::mem::take;
 
+use turbo_rcstr::rcstr;
+
 use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty, ObjectPart};
 use crate::analyzer::JsValueUrlKind;
 
@@ -9,7 +11,8 @@ use crate::analyzer::JsValueUrlKind;
 pub fn early_replace_builtin(value: &mut JsValue) -> bool {
     match value {
         // matching calls like `callee(arg1, arg2, ...)`
-        JsValue::Call(_, box callee, args) => {
+        JsValue::Call(_, call) => {
+            let (args, callee) = call.as_parts_mut();
             let args_have_side_effects = || args.iter().any(|arg| arg.has_side_effects());
             match callee {
                 // We don't know what the callee is, so we can early return
@@ -19,7 +22,7 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
                     has_side_effects,
                 } => {
                     let has_side_effects = has_side_effects || args_have_side_effects();
-                    value.make_unknown(has_side_effects, "unknown callee");
+                    value.make_unknown(has_side_effects, rcstr!("unknown callee"));
                     true
                 }
                 // We known that these callee will lead to an error at runtime, so we can skip
@@ -34,14 +37,15 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
                 | JsValue::Add(_, _)
                 | JsValue::Not(_, _) => {
                     let has_side_effects = args_have_side_effects();
-                    value.make_unknown(has_side_effects, "non-function callee");
+                    value.make_unknown(has_side_effects, rcstr!("non-function callee"));
                     true
                 }
                 _ => false,
             }
         }
         // matching calls with this context like `obj.prop(arg1, arg2, ...)`
-        JsValue::MemberCall(_, box obj, box prop, args) => {
+        JsValue::MemberCall(_, call) => {
+            let (args, prop, obj) = call.as_parts_mut();
             let args_have_side_effects = || args.iter().any(|arg| arg.has_side_effects());
             match obj {
                 // We don't know what the callee is, so we can early return
@@ -52,7 +56,7 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
                 } => {
                     let side_effects =
                         has_side_effects || prop.has_side_effects() || args_have_side_effects();
-                    value.make_unknown(side_effects, "unknown callee object");
+                    value.make_unknown(side_effects, rcstr!("unknown callee object"));
                     true
                 }
                 // otherwise we need to look at the property
@@ -64,7 +68,7 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
                         has_side_effects,
                     } => {
                         let side_effects = has_side_effects || args_have_side_effects();
-                        value.make_unknown(side_effects, "unknown callee property");
+                        value.make_unknown(side_effects, rcstr!("unknown callee property"));
                         true
                     }
                     _ => false,
@@ -83,7 +87,7 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
             box ref mut prop,
         ) => {
             let side_effects = has_side_effects || prop.has_side_effects();
-            value.make_unknown(side_effects, "unknown object");
+            value.make_unknown(side_effects, rcstr!("unknown object"));
             true
         }
         _ => false,
@@ -137,7 +141,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     items.push(JsValue::unknown(
                         JsValue::member(Box::new(JsValue::array(Vec::new())), Box::new(take(prop))),
                         false,
-                        "unknown array prototype methods or values",
+                        rcstr!("unknown array prototype methods or values"),
                     ));
                     JsValue::alternatives(take(items))
                 }
@@ -156,19 +160,19 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 *value = JsValue::unknown(
                                     JsValue::member(Box::new(take(obj)), Box::new(take(prop))),
                                     false,
-                                    "invalid index",
+                                    rcstr!("invalid index"),
                                 );
                                 true
                             }
                         } else {
-                            value.make_unknown(false, "non-num constant property on array");
+                            value.make_unknown(false, rcstr!("non-num constant property on array"));
                             true
                         }
                     }
                     // accessing a non-numeric property on an array like `[1,2,3].length`
                     // We don't know what happens here
                     JsValue::Constant(_) => {
-                        value.make_unknown(false, "non-num constant property on array");
+                        value.make_unknown(false, rcstr!("non-num constant property on array"));
                         true
                     }
                     // accessing multiple alternative properties on an array like `[1,2,3][(1 | 2 |
@@ -218,7 +222,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                         prop.clone(),
                                     ),
                                     true,
-                                    "spread object",
+                                    rcstr!("spread object"),
                                 ));
                             }
                         }
@@ -230,7 +234,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 Box::new(take(prop)),
                             ),
                             true,
-                            "unknown object prototype methods or values",
+                            rcstr!("unknown object prototype methods or values"),
                         ));
                     }
                     JsValue::alternatives(values)
@@ -295,7 +299,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                     }
                                 }
                                 ObjectPart::Spread(_) => {
-                                    value.make_unknown(true, "spread object");
+                                    value.make_unknown(true, rcstr!("spread object"));
                                     return true;
                                 }
                             }
@@ -338,9 +342,12 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             }
             _ => false,
         },
-        // matching calls with this context like `obj.prop(arg1, arg2, ...)`
-        JsValue::MemberCall(_, box obj, box prop, args) => {
-            match obj {
+
+        JsValue::MemberCall(_, call) => {
+            // `into_parts` pops obj + prop off the tail of the underlying `Vec`, and the
+            // remaining `Vec` (owned, not reallocated) becomes `args`.
+            let (mut obj, prop, args) = take(call).into_parts();
+            match &mut obj {
                 // matching calls on an array like `[1,2,3].concat([4,5,6])`
                 JsValue::Array { items, mutable, .. } => {
                     // matching cases where the property is a const string
@@ -368,17 +375,17 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                                 mutable: inner_mutable,
                                                 ..
                                             } => {
-                                                items.extend(take(inner));
-                                                *mutable |= *inner_mutable;
+                                                items.extend(inner);
+                                                *mutable |= inner_mutable;
                                             }
-                                            JsValue::Constant(_)
+                                            other @ (JsValue::Constant(_)
                                             | JsValue::Url(_, JsValueUrlKind::Absolute)
                                             | JsValue::Concat(..)
                                             | JsValue::Add(..)
                                             | JsValue::WellKnownObject(_)
                                             | JsValue::WellKnownFunction(_)
-                                            | JsValue::Function(..) => {
-                                                items.push(take(arg));
+                                            | JsValue::Function(..)) => {
+                                                items.push(other);
                                             }
                                             _ => {
                                                 unreachable!();
@@ -386,7 +393,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                         }
                                     }
                                     obj.update_total_nodes();
-                                    *value = take(obj);
+                                    *value = obj;
                                     return true;
                                 }
                             // The Array.prototype.map method
@@ -397,9 +404,9 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                             .into_iter()
                                             .enumerate()
                                             .map(|(i, item)| {
-                                                JsValue::call(
-                                                    Box::new(func.clone()),
-                                                    vec![
+                                                JsValue::call_from_iter(
+                                                    func.clone(),
+                                                    [
                                                         item,
                                                         JsValue::Constant(ConstantValue::Num(
                                                             (i as f64).into(),
@@ -427,10 +434,10 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         take(values)
                             .into_iter()
                             .map(|alt| {
-                                JsValue::member_call(
-                                    Box::new(alt),
-                                    Box::new(prop.clone()),
-                                    args.clone(),
+                                JsValue::member_call_from_iter(
+                                    alt,
+                                    prop.clone(),
+                                    args.iter().cloned(),
                                 )
                             })
                             .collect(),
@@ -446,8 +453,8 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             {
                 // The String.prototype.concat method
                 if str == "concat" {
-                    let mut values = vec![take(obj)];
-                    values.extend(take(args));
+                    let mut values = vec![obj];
+                    values.extend(args);
 
                     *value = JsValue::concat(values);
                     return true;
@@ -455,28 +462,33 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             }
 
             // without special handling, we convert it into a normal call like
-            // `(obj.prop)(arg1, arg2, ...)`
-            *value = JsValue::call(
-                Box::new(JsValue::member(Box::new(take(obj)), Box::new(take(prop)))),
-                take(args),
+            // `(obj.prop)(arg1, arg2, ...)`.
+            //
+            // Pass-through path: `args` came from `MemberCallList::into_parts` which yields
+            // a `Vec` with `cap >= len + 2` (slack from the original layout). Re-wrapping it
+            // into a `JsValue::Call` only needs `+1` slot, which fits in the existing slack —
+            // no realloc. This is the original motivation for the `[args..., prop, obj]`
+            // tail layout.
+            *value = JsValue::call_from_parts(
+                JsValue::member(Box::new(obj), Box::new(prop)),
+                args,
             );
             true
         }
         // match calls when the callee are multiple alternative functions like `(func1 |
         // func2)(arg1, arg2, ...)`
-        JsValue::Call(
-            _,
-            box JsValue::Alternatives {
-                total_nodes: _,
-                values,
-                logical_property: _,
-            },
-            args,
-        ) => {
+        JsValue::Call(_, call)
+            if matches!(call.callee(), JsValue::Alternatives { .. }) =>
+        {
+            // Take ownership so we can move the alternatives `values` out of the callee.
+            let (callee, args) = take(call).into_parts();
+            let JsValue::Alternatives { values, .. } = callee else {
+                unreachable!()
+            };
             *value = JsValue::alternatives(
-                take(values)
+                values
                     .into_iter()
-                    .map(|alt| JsValue::call(Box::new(alt), args.clone()))
+                    .map(|alt| JsValue::call_from_iter(alt, args.iter().cloned()))
                     .collect(),
             );
             true

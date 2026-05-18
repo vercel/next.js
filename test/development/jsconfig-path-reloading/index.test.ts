@@ -1,5 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   waitForRedbox,
   waitForNoRedbox,
@@ -13,40 +12,38 @@ import webdriver from 'next-webdriver'
 import fs from 'fs-extra'
 
 describe('jsconfig-path-reloading', () => {
-  let next: NextInstance
   const tsConfigFile = 'jsconfig.json'
   const indexPage = 'pages/index.js'
 
+  const tsConfigContent = fs.readFileSync(
+    join(__dirname, 'app/jsconfig.json'),
+    'utf8'
+  )
+
   function runTests({ addAfterStart }: { addAfterStart?: boolean }) {
-    beforeAll(async () => {
-      let tsConfigContent = await fs.readFile(
-        join(__dirname, 'app/jsconfig.json'),
-        'utf8'
-      )
-
-      next = await createNext({
-        files: {
-          components: new FileRef(join(__dirname, 'app/components')),
-          pages: new FileRef(join(__dirname, 'app/pages')),
-          lib: new FileRef(join(__dirname, 'app/lib')),
-          ...(addAfterStart
-            ? {}
-            : {
-                [tsConfigFile]: tsConfigContent,
-              }),
-        },
-        dependencies: {
-          typescript: 'latest',
-          '@types/react': 'latest',
-          '@types/node': 'latest',
-        },
-      })
-
-      if (addAfterStart) {
-        await next.patchFile(tsConfigFile, tsConfigContent)
-      }
+    const { next } = nextTestSetup({
+      files: {
+        components: new FileRef(join(__dirname, 'app/components')),
+        pages: new FileRef(join(__dirname, 'app/pages')),
+        lib: new FileRef(join(__dirname, 'app/lib')),
+        ...(addAfterStart
+          ? {}
+          : {
+              [tsConfigFile]: tsConfigContent,
+            }),
+      },
+      dependencies: {
+        typescript: 'latest',
+        '@types/react': 'latest',
+        '@types/node': 'latest',
+      },
     })
-    afterAll(() => next.destroy())
+
+    if (addAfterStart) {
+      beforeAll(async () => {
+        await next.patchFile(tsConfigFile, tsConfigContent)
+      })
+    }
 
     it('should load with initial paths config correctly', async () => {
       const html = await renderViaHTTP(next.url, '/')

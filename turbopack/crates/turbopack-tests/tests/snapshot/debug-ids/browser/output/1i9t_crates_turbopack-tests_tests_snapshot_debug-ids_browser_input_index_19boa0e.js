@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="6a138f62-859e-e13c-84a0-d111b048d46a")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="63d3116b-6e4c-29e3-253a-989477151583")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -9,6 +9,7 @@ if (!Array.isArray(globalThis["TURBOPACK"])) {
 }
 
 var CHUNK_BASE_PATH = "";
+var WORKER_BASE_PATH = null;
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 var ASSET_SUFFIX = "";
@@ -748,7 +749,12 @@ browserContextPrototype.q = exportUrl;
  * @param workerOptions options to pass to the Worker constructor (optional)
  */ function createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions) {
     const isSharedWorker = WorkerConstructor.name === 'SharedWorker';
-    const chunkUrls = moduleChunks.map((chunk)=>getChunkRelativeUrl(chunk)).reverse();
+    // `WORKER_BASE_PATH` overrides `CHUNK_BASE_PATH` for the entrypoint and the
+    // module chunks loaded inside the worker, keeping them same-origin to each
+    // other when `CHUNK_BASE_PATH` (= `assetPrefix`) is a cross-origin CDN.
+    // `null` falls back; an empty string is treated as a literal empty prefix.
+    const workerBasePath = WORKER_BASE_PATH ?? CHUNK_BASE_PATH;
+    const chunkUrls = moduleChunks.map((chunk)=>getChunkRelativeUrl(chunk, workerBasePath)).reverse();
     const params = [
         chunkUrls,
         ASSET_SUFFIX
@@ -756,7 +762,7 @@ browserContextPrototype.q = exportUrl;
     for (const globalName of WORKER_FORWARDED_GLOBALS){
         params.push(globalThis[globalName]);
     }
-    const url = new URL(getChunkRelativeUrl(entrypoint), location.origin);
+    const url = new URL(getChunkRelativeUrl(entrypoint, workerBasePath), location.origin);
     const paramsJson = JSON.stringify(params);
     if (isSharedWorker) {
         url.searchParams.set('params', paramsJson);
@@ -778,8 +784,8 @@ browserContextPrototype.b = createWorker;
 }
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
- */ function getChunkRelativeUrl(chunkPath) {
-    return `${CHUNK_BASE_PATH}${chunkPath.split('/').map((p)=>encodeURIComponent(p)).join('/')}${ASSET_SUFFIX}`;
+ */ function getChunkRelativeUrl(chunkPath, basePath = CHUNK_BASE_PATH) {
+    return `${basePath}${chunkPath.split('/').map((p)=>encodeURIComponent(p)).join('/')}${ASSET_SUFFIX}`;
 }
 function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
@@ -2247,5 +2253,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=6a138f62-859e-e13c-84a0-d111b048d46a
+//# debugId=63d3116b-6e4c-29e3-253a-989477151583
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

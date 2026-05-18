@@ -13,7 +13,11 @@ import {
   PHASE_PRODUCTION_SERVER,
   type PHASE_TYPE,
 } from '../shared/lib/constants'
-import { defaultConfig, normalizeConfig } from './config-shared'
+import {
+  defaultConfig,
+  normalizeConfig,
+  resolveCssChunkingMode,
+} from './config-shared'
 import type {
   ExperimentalConfig,
   NextConfigComplete,
@@ -454,6 +458,35 @@ function assignDefaultsAndValidate(
         `Custom Sass functions are only available with webpack. ` +
         `Please remove the "functions" property from your sassOptions in ${configFileName}.`
     )
+  }
+
+  // Validate experimental.cssChunking compatibility with the active bundler. Graph mode is
+  // Turbopack-only; strict mode and `false` (single-chunk-per-module) are webpack-only.
+  // Only validate during build/dev — `next start` doesn't pick a bundler and would otherwise
+  // see `process.env.TURBOPACK` unset and reject a valid `cssChunking: "graph"` config.
+  if (phase !== PHASE_PRODUCTION_SERVER) {
+    const cssChunkingValue = result.experimental.cssChunking
+    const cssChunkingMode = resolveCssChunkingMode(cssChunkingValue)
+    if (cssChunkingMode === 'graph' && !process.env.TURBOPACK) {
+      throw new Error(
+        `\`experimental.cssChunking: "graph"\` is only supported with Turbopack. ` +
+          `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+      )
+    }
+    if (cssChunkingMode === 'strict' && process.env.TURBOPACK) {
+      throw new Error(
+        `\`experimental.cssChunking: "strict"\` is only supported with webpack. ` +
+          `Please remove the option or run Next.js with webpack in ${configFileName}.`
+      )
+    }
+    // Only error when `false` was set explicitly. `undefined` (the default) also resolves to
+    // `'off'` but that's the implicit default and must not error on Turbopack.
+    if (cssChunkingValue === false && process.env.TURBOPACK) {
+      throw new Error(
+        `\`experimental.cssChunking: false\` is only supported with webpack. ` +
+          `Please remove the option or run Next.js with webpack in ${configFileName}.`
+      )
+    }
   }
 
   if (result.experimental.cachedNavigations && !result.cacheComponents) {
@@ -1012,6 +1045,13 @@ function assignDefaultsAndValidate(
     }
   }
 
+  if (result?.turbopack?.chunkLoadingGlobal) {
+    const g = result.turbopack.chunkLoadingGlobal
+    if (!g.startsWith('TURBOPACK_')) {
+      result.turbopack.chunkLoadingGlobal = `TURBOPACK_${g}`
+    }
+  }
+
   if (
     result.experimental.runtimeServerDeploymentId == null &&
     phase === PHASE_PRODUCTION_BUILD &&
@@ -1532,10 +1572,26 @@ function assignDefaultsAndValidate(
   return result as NextConfigComplete
 }
 
+/**
+ * Post-processing applied by `loadConfig` after `applyModifyConfig`, so that
+ * any mutations the user made through `modifyConfig` still flow through the
+ * same defaulting rules. Keep framework-default resolution in one place so
+ * consumers don't each need to know the current framework default (which may
+ * evolve over time).
+ */
+function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
+  config.experimental.instantInsights = {
+    validationLevel:
+      config.experimental.instantInsights?.validationLevel ?? 'manual-warning',
+  }
+  return config
+}
+
 async function applyModifyConfig(
   config: NextConfigComplete,
   phase: PHASE_TYPE,
-  silent: boolean
+  silent: boolean,
+  dir: string
 ): Promise<NextConfigComplete> {
   // we always call modify config  and phase can be used to only
   // modify for specific times
@@ -1552,6 +1608,7 @@ async function applyModifyConfig(
       config = await adapterMod.modifyConfig(config, {
         phase,
         nextVersion: process.env.__NEXT_VERSION as string,
+        projectDir: dir,
       })
     }
   }
@@ -1711,19 +1768,22 @@ export default async function loadConfig(
     // Check deprecation warnings on the custom config before merging with defaults
     checkDeprecations(customConfig as NextConfig, configFileName, silent, dir)
 
-    const config = await applyModifyConfig(
-      assignDefaultsAndValidate(
-        dir,
-        {
-          configOrigin: 'server',
-          configFileName,
-          ...customConfig,
-        },
+    const config = finalizeConfig(
+      await applyModifyConfig(
+        assignDefaultsAndValidate(
+          dir,
+          {
+            configOrigin: 'server',
+            configFileName,
+            ...customConfig,
+          },
+          silent,
+          phase
+        ),
+        phase,
         silent,
-        phase
-      ),
-      phase,
-      silent
+        dir
+      )
     )
 
     // Cache the custom config result
@@ -1919,7 +1979,9 @@ export default async function loadConfig(
       phase
     )
 
-    const finalConfig = await applyModifyConfig(completeConfig, phase, silent)
+    const finalConfig = finalizeConfig(
+      await applyModifyConfig(completeConfig, phase, silent, dir)
+    )
 
     // Cache the final result
     configCache.set(cacheKey, {
@@ -1976,7 +2038,9 @@ export default async function loadConfig(
 
   setHttpClientAndAgentOptions(completeConfig)
 
-  const finalConfig = await applyModifyConfig(completeConfig, phase, silent)
+  const finalConfig = finalizeConfig(
+    await applyModifyConfig(completeConfig, phase, silent, dir)
+  )
 
   // Cache the default config result
   configCache.set(cacheKey, {

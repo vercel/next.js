@@ -882,8 +882,9 @@ export async function fetchExternalImage(
       Log.error(
         'upstream image',
         href,
-        'resolved to private ip',
-        JSON.stringify(privateIps)
+        'hostname resolved to private IP',
+        JSON.stringify(privateIps),
+        'If this is expected and you understand SSRF risk, use images.dangerouslyAllowLocalIP = true to continue.'
       )
       throw new ImageError(400, '"url" parameter is not allowed')
     }

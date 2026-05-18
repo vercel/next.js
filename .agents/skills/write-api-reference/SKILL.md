@@ -10,6 +10,8 @@ description: |
   **Output type:** A markdown (.mdx) API reference page with YAML frontmatter, usage example, reference section, behavior notes, and examples.
 agent: Plan
 context: fork
+metadata:
+  internal: true
 ---
 
 # Writing API Reference Pages

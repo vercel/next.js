@@ -96,6 +96,12 @@ export interface WebdriverOptions {
    * Override the user agent
    */
   userAgent?: string
+
+  /**
+   * Override the base URL/port that `url` is resolved against. Useful when the
+   * test needs to drive a proxy or a separate server in front of Next.js.
+   */
+  baseUrl?: string | number
 }
 
 /**
@@ -130,7 +136,11 @@ export default async function webdriver(
     pushErrorAsConsoleLog,
     userAgent,
     waitUntil,
+    baseUrl,
   } = options
+  if (baseUrl !== undefined) {
+    appPortOrUrl = baseUrl
+  }
 
   const { Playwright, quit } = await import('./browsers/playwright')
   browserQuit = quit

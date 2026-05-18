@@ -81,7 +81,9 @@ impl UrlAssetReference {
         }
     }
 
-    pub(crate) fn get_referenced_asset(self: Vc<Self>) -> Vc<ReferencedAsset> {
+    pub(crate) fn get_referenced_asset(
+        self: Vc<Self>,
+    ) -> impl Future<Output = Result<ReferencedAsset>> {
         ReferencedAsset::from_resolve_result(self.resolve_reference())
     }
 }
@@ -164,7 +166,7 @@ impl UrlAssetReferenceCodeGen {
                 // pseudo url object `__turbopack_relative_url__`
                 // which is injected by turbopack's runtime to resolve into the relative path
                 // omitting the base.
-                match &*referenced_asset {
+                match &referenced_asset {
                     ReferencedAsset::Some(asset) => {
                         // We rewrite the first `new URL()` arguments to be a require() of the chunk
                         // item, which exports the static asset path to the linked file.
@@ -229,7 +231,7 @@ impl UrlAssetReferenceCodeGen {
                     Rendering::None | Rendering::Server => None,
                 };
 
-                match &*referenced_asset {
+                match &referenced_asset {
                     ReferencedAsset::Some(asset) => {
                         // We rewrite the first `new URL()` arguments to be a require() of the
                         // chunk item, which returns the asset path as its exports.

@@ -27,7 +27,7 @@ jobs:
       matrix:
         node: [20, 22]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 25
       # https://github.com/actions/virtual-environments/issues/1187
@@ -35,7 +35,7 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
           check-latest: true

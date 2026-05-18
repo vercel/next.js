@@ -2,7 +2,6 @@ import { bold, cyan, red } from '../picocolors'
 
 import { getOxfordCommaList } from '../oxford-comma-list'
 import type { MissingDependency } from '../has-necessary-dependencies'
-import { FatalError } from '../fatal-error'
 import { getPkgManager } from '../helpers/get-pkg-manager'
 
 export function missingDepsError(
@@ -21,7 +20,7 @@ export function missingDepsError(
         ' file from your package root (and any TypeScript files in your app and pages directories).'
     )
 
-  throw new FatalError(
+  throw new Error(
     bold(
       red(
         `It looks like you're trying to use TypeScript but do not have the required package(s) installed.`

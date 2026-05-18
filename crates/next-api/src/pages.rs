@@ -566,6 +566,7 @@ impl PagesProject {
             None,
         )
         .await?
+        .await?
         .first_module()
         .await?
         .context("expected Next.js client runtime to resolve to a module")?;
@@ -664,7 +665,7 @@ impl PageEndpoint {
         ) && let Some(chunkable) = ResolvedVc::try_downcast(page_loader.to_resolved().await?)
         {
             return Ok(Vc::upcast(HmrEntryModule::new(
-                AssetIdent::from_path(this.page.await?.base_path.clone()),
+                AssetIdent::from_path(this.page.await?.base_path.clone()).into_vc(),
                 *chunkable,
             )));
         }
@@ -783,7 +784,7 @@ impl PageEndpoint {
                 .map(|m| ResolvedVc::upcast(*m))
                 .collect();
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
-                AssetIdent::from_path(this.page.await?.base_path.clone()),
+                AssetIdent::from_path(this.page.await?.base_path.clone()).into_vc(),
                 ChunkGroup::Entry(evaluatable_assets),
                 module_graph,
                 AvailabilityInfo::root(),
