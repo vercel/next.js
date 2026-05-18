@@ -350,7 +350,8 @@
       "@types/node@20.17.6": "patches/@types__node@20.17.6.patch",
       "taskr@1.1.0": "patches/taskr@1.1.0.patch",
       "minizlib@3.1.0": "patches/minizlib@3.1.0.patch",
-      "http-proxy@1.18.1": "patches/http-proxy@1.18.1.patch"
+      "http-proxy@1.18.1": "patches/http-proxy@1.18.1.patch",
+      "playwright-core@1.58.2": "patches/playwright-core@1.58.2.patch"
     }
   }
 }

@@ -34,6 +34,9 @@ patchedDependencies:
   minizlib@3.1.0:
     hash: o4nv5mg6kfnuzlknbdln3azhvu
     path: patches/minizlib@3.1.0.patch
+  playwright-core@1.58.2:
+    hash: jzsvxuc7w6vcysg5v4e5lyjitq
+    path: patches/playwright-core@1.58.2.patch
   stacktrace-parser@0.1.10:
     hash: x5tdcojc7b5m2b5ojepbcdl36a
     path: patches/stacktrace-parser@0.1.10.patch
@@ -35120,15 +35123,15 @@ snapshots:
 
   playwright-chromium@1.58.2:
     dependencies:
-      playwright-core: 1.58.2
+      playwright-core: 1.58.2(patch_hash=jzsvxuc7w6vcysg5v4e5lyjitq)
 
   playwright-core@1.51.1: {}
 
-  playwright-core@1.58.2: {}
+  playwright-core@1.58.2(patch_hash=jzsvxuc7w6vcysg5v4e5lyjitq): {}
 
   playwright@1.58.2:
     dependencies:
-      playwright-core: 1.58.2
+      playwright-core: 1.58.2(patch_hash=jzsvxuc7w6vcysg5v4e5lyjitq)
     optionalDependencies:
       fsevents: 2.3.2
 
