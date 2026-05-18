@@ -648,3 +648,18 @@ export const instantClientMathRandomErrors: ReadyRuntimeError[] = [
     type: 'runtime',
   },
 ]
+
+export const instantUnrenderedSegmentErrors: ReadyRuntimeError[] = [
+  {
+    id: 130,
+    runtime: true,
+    error: Object.assign(
+      new Error(
+        'Route "/81-instant-wrapper-unrendered-segment/trigger": Could not validate that a segment in your UI has instant navigation.\n\nThis segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.\n\nDropped segment:\n  test-app/app/81-instant-wrapper-unrendered-segment/trigger/page.tsx\n\nWays to fix this:\n  - Render the dropped segment\n  - Set `export const instant = false` on the dropped segment to skip validation\n\nLearn more: https://nextjs.org/docs/messages/unrendered-instant-segment'
+      ),
+      { __NEXT_ERROR_CODE: 'E1248' }
+    ),
+    frames: () => Promise.resolve([]),
+    type: 'runtime',
+  },
+]

@@ -185,6 +185,7 @@ const unrenderedSegmentCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#skip-validation-on-the-segment',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
+      { text: '' },
       { text: 'export const instant = false', highlight: true },
     ],
   },
