@@ -64,8 +64,11 @@ impl Module for EcmascriptCssModule {
         Ok(self
             .source
             .ident()
+            .owned()
+            .await?
             .with_modifier(rcstr!("css module"))
-            .with_layer(self.asset_context.into_trait_ref().await?.layer()))
+            .with_layer(self.asset_context.into_trait_ref().await?.layer())
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -281,15 +284,16 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
                         original: original_name,
                         from,
                     } => {
-                        let resolved_module = from.resolve_reference().first_module().await?;
+                        let resolved_module =
+                            from.resolve_reference().await?.first_module().await?;
 
-                        let Some(resolved_module) = &*resolved_module else {
+                        let Some(resolved_module) = resolved_module else {
                             // Issue already emitted by CssModuleComposeReference::resolve_reference
                             continue;
                         };
 
                         let Some(css_module) =
-                            ResolvedVc::try_downcast_type::<EcmascriptCssModule>(*resolved_module)
+                            ResolvedVc::try_downcast_type::<EcmascriptCssModule>(resolved_module)
                         else {
                             // Issue already emitted by CssModuleComposeReference::resolve_reference
                             continue;
@@ -354,8 +358,8 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for EcmascriptCssModule {
     #[turbo_tasks::function]
-    fn origin_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
+    async fn origin_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self.source.ident().await?.path.clone().cell())
     }
 
     #[turbo_tasks::function]

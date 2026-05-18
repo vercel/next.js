@@ -60,15 +60,21 @@ impl WorkerLoaderModule {
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         Ok(match this.worker_type {
-            WorkerType::WebWorker | WorkerType::SharedWebWorker => chunking_context
-                .evaluated_chunk_group_assets(
-                    this.inner
-                        .ident()
-                        .with_modifier(this.worker_type.chunk_modifier_str()),
+            WorkerType::WebWorker | WorkerType::SharedWebWorker => {
+                let ident = this
+                    .inner
+                    .ident()
+                    .owned()
+                    .await?
+                    .with_modifier(this.worker_type.chunk_modifier_str())
+                    .into_vc();
+                chunking_context.evaluated_chunk_group_assets(
+                    ident,
                     ChunkGroup::Isolated(ResolvedVc::upcast(this.inner)),
                     module_graph,
                     AvailabilityInfo::root(),
-                ),
+                )
+            }
             // WorkerThreads are treated as an entry point, webworkers probably should too but
             // currently it would lead to a cascade that we need to address.
             WorkerType::NodeWorkerThread => {
@@ -146,10 +152,14 @@ impl WorkerLoaderModule {
 #[turbo_tasks::value_impl]
 impl Module for WorkerLoaderModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.inner
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .inner
             .ident()
+            .owned()
+            .await?
             .with_modifier(self.worker_type.modifier_str())
+            .into_vc())
     }
 
     #[turbo_tasks::function]

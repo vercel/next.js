@@ -96,6 +96,11 @@ on:
         required: false
         type: string
         default: 'chromium'
+      needsPlaywright:
+        description: 'whether Playwright browser installation is needed'
+        required: false
+        type: string
+        default: 'yes'
 env:
   NAPI_CLI_VERSION: 2.18.4
   TURBO_VERSION: 2.9.4
@@ -182,7 +187,7 @@ jobs:
           fnm env --json | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs -I {} echo "{}" >> $GITHUB_ENV
 
       - name: Normalize input step names into path key
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         id: var
         with:
           script: |
@@ -224,7 +229,7 @@ jobs:
 
       - run: rm -rf .git
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 25
 
@@ -233,16 +238,6 @@ jobs:
         if: ${{ runner.environment == 'github-hosted' }}
         id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
-
-      - name: Cache pnpm store
-        if: ${{ runner.environment == 'github-hosted' }}
-        uses: actions/cache@v4
-        timeout-minutes: 5
-        id: cache-pnpm-store
-        with:
-          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
-          key: pnpm-store-v2-${{ hashFiles('pnpm-lock.yaml') }}
-          # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       # local action -> needs to run after checkout
       - name: Install Rust
@@ -308,8 +303,22 @@ jobs:
       - run: git checkout .
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
+      - name: Cache pnpm store
+        # conditions must be subset of runs executing pnpm install, otherwise we
+        # risk caching an incomplete store
+        # If keep conditions in sync breaks, we can split into restore and save
+        # steps where saving runs based on the outcome of the install step
+        if: ${{ runner.environment == 'github-hosted' && (inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes') }}
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        timeout-minutes: 5
+        id: cache-pnpm-store
+        with:
+          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
+          key: pnpm-store-root-v1-${{ hashFiles('pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
       - run: pnpm install
-        if: ${{ inputs.skipInstallBuild != 'yes' }}
+        # condititions must be superset of cache step, otherwise we risk running install without a cache and then caching the incomplete store.
+        if: ${{ inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes' }}
 
       - name: Install node-file-trace test dependencies
         if: ${{ inputs.needsNextest == 'yes' }}
@@ -320,7 +329,7 @@ jobs:
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - name: Install Playwright browsers
-        if: ${{ inputs.skipInstallBuild != 'yes' }}
+        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' }}
         run: |
           PW_VERSION=$(pnpm playwright --version 2>/dev/null || echo "unknown")
           CACHE_DIR="$HOME/.cache"

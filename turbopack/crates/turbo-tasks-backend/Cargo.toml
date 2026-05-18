@@ -22,6 +22,7 @@ verify_serialization = []
 verify_aggregation_graph = []
 verify_immutable = []
 verify_determinism = ["turbo-tasks/verify_determinism"]
+trace_aggregation_update_stats = []
 trace_aggregation_update_queue = []
 trace_aggregation_update = ["trace_aggregation_update_queue"]
 trace_leaf_distance_update = []
@@ -59,6 +60,7 @@ turbo-persistence = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }
+turbo-tasks-malloc = { workspace = true, default-features = false }
 thread_local = { workspace = true }
 
 [dev-dependencies]
@@ -67,6 +69,7 @@ futures = { workspace = true }
 indoc = { workspace = true }
 regex = { workspace = true }
 tempfile = { workspace = true }
+triomphe = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 rstest = { workspace = true }
 turbo-tasks-testing = { workspace = true }

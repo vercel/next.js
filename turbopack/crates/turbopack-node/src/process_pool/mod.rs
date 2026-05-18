@@ -3,14 +3,13 @@ use std::{
     mem::take,
     path::{Path, PathBuf},
     process::{ExitStatus, Stdio},
-    sync::Arc,
+    sync::{Arc, LazyLock},
     time::{Duration, Instant},
 };
 
 use anyhow::{Context, Result, bail};
 use bytes::Bytes;
 use futures::join;
-use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
@@ -487,7 +486,7 @@ type IdleProcessQueues = Mutex<Vec<Arc<HeapQueue<NodeJsPoolProcess>>>>;
 
 /// All non-empty `IdleProcessQueues`s of the whole application.
 /// This is used to scale down processes globally.
-static ACTIVE_POOLS: Lazy<IdleProcessQueues> = Lazy::new(Default::default);
+static ACTIVE_POOLS: LazyLock<IdleProcessQueues> = LazyLock::new(Default::default);
 
 /// Arguments needed to spawn a new Node.js process. Extracted so that
 /// `pre_warm` can clone them once instead of cloning each pool field

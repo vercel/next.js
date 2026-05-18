@@ -5,9 +5,9 @@ const resolvedIOPromise: Promise<void> = Promise.resolve(undefined)
 ;(resolvedIOPromise as any).value = undefined
 
 /**
- * Browser implementation of unstable_io(). On the client there is no
+ * Browser implementation of io(). On the client there is no
  * prerender context so we always resolve immediately.
  */
-export function unstable_io(): Promise<void> {
+export function io(): Promise<void> {
   return resolvedIOPromise
 }

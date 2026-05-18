@@ -45,6 +45,6 @@ Or do both in one step:
 node scripts/pr-status.js reply-and-resolve-thread <threadNodeId> "Done -- <description of changes>"
 ```
 
-The ready-to-use commands with the correct thread IDs are at the bottom of each `thread-N.md` file in `scripts/pr-status/`.
+The ready-to-use commands with the correct thread IDs are at the bottom of each `thread-N.md` file in `scripts/pr-status/results/`.
 
 **Important:** Always reply with a description of the actions taken before resolving. This gives the reviewer context about what changed.
