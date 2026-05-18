@@ -65,6 +65,15 @@ export function FixCardOctagonIcon() {
   )
 }
 
+export function FixCardMinusCircleIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M7 12h10" />
+    </svg>
+  )
+}
+
 export function FixCardLayoutIcon() {
   return (
     <svg

@@ -10,7 +10,7 @@ export type FixCardGroup =
   | 'client'
   | 'defer'
   | 'measure'
-  | 'silence'
+  | 'ignore'
   | 'render'
 
 export type FixCardIcon =
@@ -20,6 +20,7 @@ export type FixCardIcon =
   | 'layout'
   | 'octagon'
   | 'pointer-click'
+  | 'minus-circle'
   | 'server-stack'
   | 'timer'
   | 'zap'
@@ -37,7 +38,7 @@ export const FIX_CARD_GROUPS: Record<
   client: { label: 'Client', color: 'amber', icon: 'layout' },
   defer: { label: 'Defer', color: 'amber', icon: 'pointer-click' },
   measure: { label: 'Measure', color: 'gray', icon: 'timer' },
-  silence: { label: 'Silence', color: 'red', icon: 'octagon' },
+  ignore: { label: 'Ignore', color: 'red', icon: 'minus-circle' },
   render: { label: 'Render', color: 'gray', icon: 'layout' },
 }
 
@@ -181,7 +182,7 @@ const unrenderedSegmentCards: FixCard[] = [
   {
     id: 'skip-validation-on-the-segment',
     title: 'Skip validation on the segment',
-    group: 'silence',
+    group: 'ignore',
     link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#skip-validation-on-the-segment',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
