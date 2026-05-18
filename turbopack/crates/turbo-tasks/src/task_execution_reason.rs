@@ -1,7 +1,7 @@
 #[derive(Debug)]
 pub enum TaskExecutionReason {
     /// A root task was initially scheduled and is executed
-    Initial,
+    Root,
     /// A task output was read, but the output is not available, so the task was scheduled and
     /// executed to produce the output
     OutputNotAvailable,
@@ -29,7 +29,7 @@ pub enum TaskExecutionReason {
 impl TaskExecutionReason {
     pub fn as_str(&self) -> &'static str {
         match self {
-            TaskExecutionReason::Initial => "initial",
+            TaskExecutionReason::Root => "root",
             TaskExecutionReason::OutputNotAvailable => "output_not_available",
             TaskExecutionReason::CellNotAvailable => "cell_not_available",
             TaskExecutionReason::Invalidated => "invalidated",

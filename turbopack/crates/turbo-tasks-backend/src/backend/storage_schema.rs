@@ -781,7 +781,7 @@ impl TaskStorage {
         }));
         self.set_in_progress(InProgressState::Scheduled {
             done_event,
-            reason: TaskExecutionReason::Initial,
+            reason: TaskExecutionReason::Root,
         });
     }
 
