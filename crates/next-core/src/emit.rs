@@ -104,22 +104,22 @@ pub async fn emit_assets(
         let mut iter = assets.into_iter();
         let first = iter.next().unwrap();
         let ext: RcStr = path.extension().unwrap_or_default().into();
-        iter.map(async |next| {
-            if let Some(detail) = assets_diff(*next, *first, ext.clone(), node_root.clone())
-                .owned()
-                .await?
-            {
-                EmitConflictIssue {
-                    asset_path: path.clone(),
-                    detail,
-                }
-                .resolved_cell()
-                .emit();
+        let conflicts = iter
+            .map(async |next| {
+                assets_diff(*next, *first, ext.clone(), node_root.clone())
+                    .owned()
+                    .await
+            })
+            .try_flat_join()
+            .await?;
+        if let Some(detail) = conflicts.into_iter().next() {
+            EmitConflictIssue {
+                asset_path: path.clone(),
+                detail,
             }
-            Ok(())
-        })
-        .try_join()
-        .await?;
+            .resolved_cell()
+            .emit();
+        }
         Ok(())
     }
 
