@@ -65,6 +65,36 @@ export function FixCardOctagonIcon() {
   )
 }
 
+export function FixCardLoadingIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {Array.from({ length: 12 }, (_, index) => {
+        const angle = index * 30
+        const opacity = 1 - index * 0.05
+
+        return (
+          <circle
+            key={angle}
+            cx="8"
+            cy="2.3"
+            r="0.9"
+            fill="currentColor"
+            stroke="none"
+            opacity={opacity}
+            transform={`rotate(${angle} 8 8)`}
+          />
+        )
+      })}
+    </svg>
+  )
+}
+
 export function FixCardLayoutIcon() {
   return (
     <svg

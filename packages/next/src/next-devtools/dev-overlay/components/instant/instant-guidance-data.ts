@@ -16,6 +16,7 @@ export type FixCardIcon =
   | 'database'
   | 'history'
   | 'layout'
+  | 'loading'
   | 'octagon'
   | 'pointer-click'
   | 'server-stack'
@@ -28,7 +29,7 @@ export const FIX_CARD_GROUPS: Record<
 > = {
   stream: { label: 'Stream', color: 'blue', icon: 'align-left' },
   prerender: { label: 'Prerender', color: 'purple', icon: 'history' },
-  block: { label: 'Block', color: 'red', icon: 'octagon' },
+  block: { label: 'Block', color: 'red', icon: 'loading' },
   cache: { label: 'Cache', color: 'purple', icon: 'database' },
   static: { label: 'Static', color: 'gray', icon: 'zap' },
   dynamic: { label: 'Dynamic', color: 'blue', icon: 'server-stack' },

@@ -98,7 +98,7 @@ describe('Cache Components Dev Errors', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1220",
+       "code": "E1265",
        "description": "Next.js encountered uncached data during prerendering.",
        "environmentLabel": "Server",
        "label": "Instant",

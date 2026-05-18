@@ -158,7 +158,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1220",
+             "code": "E1265",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -768,7 +768,7 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
-               "code": "E1220",
+               "code": "E1265",
                "description": "Next.js encountered uncached data during prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -782,7 +782,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "code": "E1220",
+               "code": "E1265",
                "description": "Next.js encountered uncached data during prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -2321,7 +2321,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1221",
+               "code": "E1272",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -3033,7 +3033,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1221",
+                 "code": "E1272",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Instant",
@@ -3155,7 +3155,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1221",
+                 "code": "E1272",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Instant",
@@ -3436,7 +3436,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1221",
+                 "code": "E1272",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Instant",
@@ -3558,7 +3558,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1221",
+                 "code": "E1272",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Instant",
@@ -3840,7 +3840,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1221",
+               "code": "E1272",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -4741,7 +4741,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1221",
+               "code": "E1272",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -7263,7 +7263,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1220",
+             "code": "E1265",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Instant",

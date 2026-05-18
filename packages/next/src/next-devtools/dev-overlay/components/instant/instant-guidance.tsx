@@ -3,6 +3,7 @@ import {
   FixCardDatabaseIcon,
   FixCardHistoryIcon,
   FixCardLayoutIcon,
+  FixCardLoadingIcon,
   FixCardOctagonIcon,
   FixCardPointerClickIcon,
   FixCardServerStackIcon,
@@ -43,6 +44,8 @@ function getCardIcon(icon: FixCardIcon) {
       return <FixCardTimerIcon />
     case 'octagon':
       return <FixCardOctagonIcon />
+    case 'loading':
+      return <FixCardLoadingIcon />
     case 'zap':
       return <FixCardZapIcon />
     case 'layout':
