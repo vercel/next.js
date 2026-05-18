@@ -118,6 +118,7 @@
       "test/e2e/socket-io/index.test.ts",
       "test/e2e/middleware-matcher/index.test.ts",
       "test/e2e/next-script/index.test.ts",
+      "test/e2e/og-api/standalone.test.ts",
       "test/production/standalone-mode/**/*"
     ]
   }

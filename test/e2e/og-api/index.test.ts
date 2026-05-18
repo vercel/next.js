@@ -45,7 +45,10 @@ describe('og-api', () => {
     expect(body.size).toBeGreaterThan(0)
   })
 
-  if ((global as any).isNextStart) {
+  if (
+    (global as any).isNextStart &&
+    process.env.TEST_OUTPUT_STANDALONE === 'true'
+  ) {
     it('should copy files correctly', async () => {
       expect(next.cliOutput).not.toContain('Failed to copy traced files')
 
