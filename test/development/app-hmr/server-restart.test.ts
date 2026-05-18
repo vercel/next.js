@@ -1,4 +1,4 @@
-import { FileRef, nextTestSetup, createNext } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 import path from 'path'
 
@@ -6,6 +6,7 @@ describe('app-dir server restart', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     patchFileDelay: 1000,
+    forcedPort: 'random',
   })
 
   it('should reload the page when the server restarts', async () => {
@@ -34,15 +35,11 @@ describe('app-dir server restart', () => {
       })
     })
 
-    const appPort = next.appPort
-    await next.destroy()
+    await next.stop()
 
-    // Start a new server instance on the same port
-    const secondNext = await createNext({
-      files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-      env: next.env,
-      forcedPort: appPort,
-    })
+    // Start a new server instance on the same port (forcedPort: 'random' was
+    // resolved to a concrete port in setup() so next.start() reuses it).
+    await next.start()
 
     // Wait for the new server to be ready
     await waitFor(1000)
@@ -60,7 +57,5 @@ describe('app-dir server restart', () => {
     await retry(async () => {
       expect(await browser.elementById('counter-value').text()).toBe('Count: 0')
     })
-
-    await secondNext.destroy()
   })
 })
