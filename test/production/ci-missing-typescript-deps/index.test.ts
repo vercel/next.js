@@ -1,8 +1,8 @@
-import { createNext } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
 describe('ci-missing-typescript-deps', () => {
-  it('should show missing TypeScript dependencies error in CI', async () => {
-    const next = await createNext({
+  describe('missing typescript dep', () => {
+    const { next } = nextTestSetup({
       files: {
         'pages/index.tsx': `
           export default function Page() {
@@ -18,7 +18,8 @@ describe('ci-missing-typescript-deps', () => {
         typescript: undefined,
       },
     })
-    try {
+
+    it('should show missing TypeScript dependencies error in CI', async () => {
       let error
       await next.start().catch((err) => {
         error = err
@@ -31,13 +32,11 @@ describe('ci-missing-typescript-deps', () => {
       expect(next.cliOutput).toContain(`Please install`)
       expect(next.cliOutput).not.toContain('Call retries were exceeded')
       expect(next.cliOutput).not.toContain('WorkerError')
-    } finally {
-      await next.destroy()
-    }
+    })
   })
 
-  it('should not throw an error if beta version of @types/react and @types/react-dom is installed', async () => {
-    const next = await createNext({
+  describe('with @types/react beta', () => {
+    const { next } = nextTestSetup({
       files: {
         'pages/index.tsx': `
           export default function Page() {
@@ -66,14 +65,13 @@ describe('ci-missing-typescript-deps', () => {
         },
       },
     })
-    try {
+
+    it('should not throw an error if beta version of @types/react and @types/react-dom is installed', async () => {
       const nextBuild = await next.build()
       expect(nextBuild.cliOutput).toContain(
         // matching the part of the success message that isn't colored.
         `We detected TypeScript in your project and created`
       )
-    } finally {
-      await next.destroy()
-    }
+    })
   })
 })

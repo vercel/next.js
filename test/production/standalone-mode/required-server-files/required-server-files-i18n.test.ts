@@ -2,8 +2,7 @@ import glob from 'glob'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   check,
   createNowRouteMatches,
@@ -19,14 +18,50 @@ import nodeFetch from 'node-fetch'
 import { ChildProcess } from 'child_process'
 
 describe('required server files i18n', () => {
-  let next: NextInstance
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'pages')),
+      lib: new FileRef(join(__dirname, 'lib')),
+      'data.txt': new FileRef(join(__dirname, 'data.txt')),
+    },
+    // The build script is patched in `beforeAll` below to optionally strip
+    // the swc native bindings (exercising the wasm fallback path) when the
+    // @next/swc-wasm-nodejs package is available on the registry.
+    packageJson: {
+      scripts: {
+        build: 'next build',
+      },
+    },
+    installCommand: 'pnpm i',
+    buildCommand: 'pnpm build',
+    nextConfig: {
+      i18n: {
+        locales: ['en', 'fr'],
+        defaultLocale: 'en',
+      },
+      output: 'standalone',
+      async rewrites() {
+        return [
+          {
+            source: '/some-catch-all/:path*',
+            destination: '/',
+          },
+          {
+            source: '/to-dynamic/:path',
+            destination: '/dynamic/:path',
+          },
+        ]
+      },
+    },
+    skipStart: true,
+  })
+
   let server: ChildProcess
   let appPort: number | string
   let errors = []
   let requiredFilesManifest
 
   beforeAll(async () => {
-    let wasmPkgIsAvailable = false
     process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
     const res = await nodeFetch(
@@ -39,46 +74,18 @@ describe('required server files i18n', () => {
     )
 
     if (res.status === 200) {
-      wasmPkgIsAvailable = true
       console.warn(`Testing wasm fallback handling`)
+      await next.patchFile('package.json', (content) => {
+        const pkg = JSON.parse(content)
+        pkg.scripts.build = 'rm -rfv node_modules/@next/swc && next build'
+        return JSON.stringify(pkg, null, 2)
+      })
     }
 
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'pages')),
-        lib: new FileRef(join(__dirname, 'lib')),
-        'data.txt': new FileRef(join(__dirname, 'data.txt')),
-      },
-      packageJson: {
-        scripts: {
-          build: wasmPkgIsAvailable
-            ? 'rm -rfv node_modules/@next/swc && next build'
-            : 'next build',
-        },
-      },
-      installCommand: 'pnpm i',
-      buildCommand: 'pnpm build',
-      nextConfig: {
-        i18n: {
-          locales: ['en', 'fr'],
-          defaultLocale: 'en',
-        },
-        output: 'standalone',
-        async rewrites() {
-          return [
-            {
-              source: '/some-catch-all/:path*',
-              destination: '/',
-            },
-            {
-              source: '/to-dynamic/:path',
-              destination: '/dynamic/:path',
-            },
-          ]
-        },
-      },
-    })
-    await next.stop()
+    const { exitCode } = await next.build()
+    if (exitCode !== 0) {
+      throw new Error(`Failed to build next: ${exitCode}`)
+    }
 
     requiredFilesManifest = JSON.parse(
       await next.readFile('.next/required-server-files.json')
@@ -133,7 +140,6 @@ describe('required server files i18n', () => {
 
   afterAll(async () => {
     delete process.env.NEXT_PRIVATE_TEST_HEADERS
-    await next.destroy()
     if (server) await killApp(server)
   })
 

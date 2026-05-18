@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { createNext, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -85,14 +85,18 @@ describe('streaming SSR with custom next configs', () => {
 
 if (isNextProd) {
   describe('streaming SSR with custom server', () => {
-    let next
+    const { next } = nextTestSetup({
+      files: join(__dirname, 'custom-server'),
+      skipStart: true,
+    })
+
     let server
     let appPort
     beforeAll(async () => {
-      next = await createNext({
-        files: join(__dirname, 'custom-server'),
-      })
-      await next.stop()
+      const { exitCode } = await next.build()
+      if (exitCode !== 0) {
+        throw new Error(`Failed to build next: ${exitCode}`)
+      }
 
       const testServer = join(next.testDir, 'server.js')
       appPort = await findPort()
@@ -111,7 +115,6 @@ if (isNextProd) {
       )
     })
     afterAll(async () => {
-      await next.destroy()
       if (server) await killApp(server)
     })
     it('should render page correctly under custom server', async () => {

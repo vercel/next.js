@@ -105,12 +105,12 @@ we attempt to capture traces of the playwright run to make debugging the failure
 A test-trace artifact should be uploaded after the workflow completes which can be downloaded, unzipped,
 and then inspected with `pnpm playwright show-trace ./path/to/trace`
 
-To attach the chrome debugger to next the easiest approach is to modify the `createNext` call in your test to pass `--inspect` to next.
+To attach the chrome debugger to next the easiest approach is to modify the `nextTestSetup` call in your test to pass `--inspect` to next.
 
 ```js
-const next = await createNext({
+const { next } = nextTestSetup({
   ...
-  startArgs: =['--inspect'],
+  startArgs: ['--inspect'],
 })
 ```
 

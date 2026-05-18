@@ -1,6 +1,5 @@
 import webdriver, { Playwright } from 'next-webdriver'
-import { createNext, nextTestSetup } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('beforeInteractive in document Head', () => {
@@ -321,28 +320,8 @@ describe('empty strategy in document body', () => {
       })
     })
 
-    describe('experimental.nextScriptWorkers: true with required Partytown dependency for inline script', () => {
-      let next: NextInstance
-
-      // Note: previously we were using `finally` cluase inside of test assertion. However, if the test times out
-      // exceeding jest.setTimeout() value, the finally clause is not executed and subsequent tests will fail due to
-      // hanging next instance.
-      afterEach(async () => {
-        if (next) {
-          await next.destroy()
-          next = undefined
-        }
-      })
-
-      const createNextApp = async (script) =>
-        await createNext({
-          nextConfig: {
-            experimental: {
-              nextScriptWorkers: true,
-            },
-          },
-          files: {
-            'pages/index.js': `
+    function buildInlineScriptPage(script: string) {
+      return `
         import Script from 'next/script'
 
         export default function Page() {
@@ -353,19 +332,28 @@ describe('empty strategy in document body', () => {
             </>
           )
         }
-      `,
+      `
+    }
+
+    describe('experimental.nextScriptWorkers: true with required Partytown dependency for inline script (children)', () => {
+      const { next } = nextTestSetup({
+        nextConfig: {
+          experimental: {
+            nextScriptWorkers: true,
           },
-          dependencies: {
-            '@builder.io/partytown': '0.4.2',
-          },
-        })
+        },
+        files: {
+          'pages/index.js': buildInlineScriptPage(
+            `<Script id="inline-script" strategy="worker">{"document.getElementById('text').textContent += 'abc'"}</Script>`
+          ),
+        },
+        dependencies: {
+          '@builder.io/partytown': '0.4.2',
+        },
+      })
 
       it('Inline worker script through children is modified by Partytown to execute on a worker thread', async () => {
         let browser: Playwright
-
-        next = await createNextApp(
-          `<Script id="inline-script" strategy="worker">{"document.getElementById('text').textContent += 'abc'"}</Script>`
-        )
 
         try {
           browser = await webdriver(next.url, '/')
@@ -384,13 +372,27 @@ describe('empty strategy in document body', () => {
           if (browser) await browser.close()
         }
       })
+    })
+
+    describe('experimental.nextScriptWorkers: true with required Partytown dependency for inline script (dangerouslySetInnerHTML)', () => {
+      const { next } = nextTestSetup({
+        nextConfig: {
+          experimental: {
+            nextScriptWorkers: true,
+          },
+        },
+        files: {
+          'pages/index.js': buildInlineScriptPage(
+            `<Script id="inline-script" strategy="worker" dangerouslySetInnerHTML={{__html: "document.getElementById('text').textContent += 'abcd'"}}/>`
+          ),
+        },
+        dependencies: {
+          '@builder.io/partytown': '0.4.2',
+        },
+      })
 
       it('Inline worker script through dangerouslySetInnerHtml is modified by Partytown to execute on a worker thread', async () => {
         let browser: Playwright
-
-        next = await createNextApp(
-          `<Script id="inline-script" strategy="worker" dangerouslySetInnerHTML={{__html: "document.getElementById('text').textContent += 'abcd'"}}/>`
-        )
 
         try {
           browser = await webdriver(next.url, '/')
