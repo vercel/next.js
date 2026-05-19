@@ -63,6 +63,8 @@ pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
     let hash = hash_bytes(text.as_bytes());
 
     let prehashed = DynamicPrehashedString {
+        // NOTE: This will capture as a Box<str> which will essentially
+        // `shrink_to_fit` the bytes.
         value: text.into(),
         hash,
     };
