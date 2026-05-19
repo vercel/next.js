@@ -250,6 +250,14 @@ class NextTracerImpl implements NextTracer {
   ): T {
     const activeContext = context.active()
 
+    if (
+      !NEXT_OTEL_PERFORMANCE_PREFIX &&
+      !this.isTracingEnabled() &&
+      !trace.getSpanContext(activeContext)
+    ) {
+      return fn()
+    }
+
     if (force) {
       const remoteContext = propagation.extract(ROOT_CONTEXT, carrier, getter)
 

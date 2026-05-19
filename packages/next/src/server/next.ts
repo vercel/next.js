@@ -149,10 +149,13 @@ export class NextServer implements NextWrapperServer {
       res: ServerResponse,
       parsedUrl?: NextUrlWithParsedQuery
     ) => {
-      return getTracer().trace(NextServerSpan.getRequestHandler, async () => {
-        const requestHandler = await this.getServerRequestHandler()
-        return requestHandler(req, res, parsedUrl)
-      })
+      const tracer = getTracer()
+      return tracer.withPropagatedContext(req.headers, () =>
+        tracer.trace(NextServerSpan.getRequestHandler, async () => {
+          const requestHandler = await this.getServerRequestHandler()
+          return requestHandler(req, res, parsedUrl)
+        })
+      )
     }
   }
 
@@ -166,13 +169,13 @@ export class NextServer implements NextWrapperServer {
       res: ServerResponse,
       parsedUrl?: NextUrlWithParsedQuery
     ) => {
-      return getTracer().trace(
-        NextServerSpan.getRequestHandlerWithMetadata,
-        async () => {
+      const tracer = getTracer()
+      return tracer.withPropagatedContext(req.headers, () =>
+        tracer.trace(NextServerSpan.getRequestHandlerWithMetadata, async () => {
           const server = await this.getServer()
           const handler = server.getRequestHandlerWithMetadata(meta)
           return handler(req, res, parsedUrl)
-        }
+        })
       )
     }
   }
