@@ -47,7 +47,7 @@ use crate::{
         parse::{Request, stringify_data_uri},
         pattern::{Pattern, PatternMatch, read_matches},
         plugin::{AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin},
-        remap::{ExportsField, ImportsField, ReplacedSubpathValueResult},
+        remap::{ExportImport, ExportsField, ImportsField, ReplacedSubpathValueResult},
     },
     source::Source,
 };
@@ -2940,7 +2940,7 @@ async fn resolve_into_package(
                         conditions,
                         unspecified_conditions,
                         query,
-                        ImportExportFieldType::Exports,
+                        ExportImport::Export,
                     )
                     .await?,
                 );
@@ -3207,10 +3207,6 @@ async fn resolved(
     ))
 }
 
-enum ImportExportFieldType {
-    Exports,
-    Imports,
-}
 async fn handle_exports_imports_field(
     package_path: FileSystemPath,
     package_json_path: FileSystemPath,
@@ -3220,7 +3216,7 @@ async fn handle_exports_imports_field(
     conditions: &BTreeMap<RcStr, ConditionValue>,
     unspecified_conditions: &ConditionValue,
     query: RcStr,
-    ty: ImportExportFieldType,
+    ty: ExportImport,
 ) -> Result<Vc<ResolveResult>> {
     let mut results = Vec::new();
     let mut conditions_state = FxHashMap::default();
@@ -3255,11 +3251,11 @@ async fn handle_exports_imports_field(
     } in results
     {
         let request = match ty {
-            ImportExportFieldType::Exports => {
+            ExportImport::Export => {
                 // Only relative paths are allowed in exports fields
                 Pattern::Concatenation(vec![Pattern::Constant(rcstr!("./")), result_path.clone()])
             }
-            ImportExportFieldType::Imports => result_path.clone(),
+            ExportImport::Import => result_path.clone(),
         };
         let request = *Request::parse(request).to_resolved().await?;
 
@@ -3286,7 +3282,7 @@ async fn handle_exports_imports_field(
                     // - "prefix...<dynamic>...suffix"
 
                     let mut old_request_key = result_path;
-                    if matches!(ty, ImportExportFieldType::Exports) {
+                    if matches!(ty, ExportImport::Export) {
                         // Remove the Pattern::Constant(rcstr!("./")) from above again
                         old_request_key.push_front(rcstr!("./").into());
                     }
@@ -3364,7 +3360,7 @@ async fn resolve_package_internal_with_imports_field(
         conditions,
         unspecified_conditions,
         RcStr::default(),
-        ImportExportFieldType::Imports,
+        ExportImport::Import,
     )
     .await
 }
