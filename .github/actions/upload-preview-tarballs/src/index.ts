@@ -1,17 +1,11 @@
-// @ts-check
-const { put } = require('@vercel/blob')
-const fs = require('node:fs/promises')
-const path = require('node:path')
+import { getInput, info, setFailed } from '@actions/core'
+import { put } from '@vercel/blob'
+import * as fs from 'node:fs/promises'
+import * as path from 'node:path'
 
-/**
- * Yields one entry per package tarball under `tarballDirectory`. Scoped
- * packages are laid out one level deeper (e.g. `@next/env/<name>.tgz`), so the
- * walk descends into any directory whose name starts with `@`.
- *
- * @param {string} tarballDirectory
- * @returns {AsyncGenerator<{ packageName: string, tarballPath: string }>}
- */
-async function* findTarballs(tarballDirectory) {
+async function* findTarballs(
+  tarballDirectory: string
+): AsyncGenerator<{ packageName: string; tarballPath: string }> {
   const entries = await fs.readdir(tarballDirectory, { withFileTypes: true })
   for (const entry of entries) {
     if (!entry.isDirectory()) continue
@@ -37,52 +31,46 @@ async function* findTarballs(tarballDirectory) {
   }
 }
 
-/**
- * @param {string} dir
- * @returns {Promise<string | null>}
- */
-async function findTarballInDir(dir) {
+async function findTarballInDir(dir: string): Promise<string | null> {
   const files = await fs.readdir(dir)
   const tgzFile = files.find((f) => f.endsWith('.tgz'))
   return tgzFile ? path.join(dir, tgzFile) : null
 }
 
-async function main() {
-  const [githubHeadSha, tarballDirectory] = process.argv.slice(2)
-  if (!githubHeadSha || !tarballDirectory) {
-    throw new Error(
-      'Usage: node scripts/upload-preview-tarballs.js <commitSha> <tarballDirectory>'
+async function main(): Promise<void> {
+  const commitSha = getInput('commit-sha', { required: true })
+  const tarballDirectory = getInput('tarball-directory', { required: true })
+  const blobAccess = getInput('blob-access', { required: true })
+  if (blobAccess !== 'public' && blobAccess !== 'private') {
+    throw new TypeError(
+      `blob-access must be "public" or "private", got "${blobAccess}".`
     )
   }
 
+  // Read the token strictly from env -- never accept it as an action input
+  // so a caller can't pass an unrelated higher-privileged token.
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
-    throw new Error('BLOB_READ_WRITE_TOKEN environment variable is required')
-  }
-  const blobAccess = process.env.BLOB_ACCESS
-  if (blobAccess !== 'private' && blobAccess !== 'public') {
-    throw new Error(
-      `BLOB_ACCESS environment variable can only be "private" or "public" but got "${blobAccess}".`
+    throw new TypeError(
+      'BLOB_READ_WRITE_TOKEN is not set. The calling workflow must pass it via env:.'
     )
   }
 
   for await (const { packageName, tarballPath } of findTarballs(
     tarballDirectory
   )) {
-    const blobPathname = `next/commits/${githubHeadSha}/${packageName}.tgz`
-
+    const blobPathname = `next/commits/${commitSha}/${packageName}.tgz`
     const fileBuffer = await fs.readFile(tarballPath)
     const { url } = await put(blobPathname, fileBuffer, {
       access: blobAccess,
       addRandomSuffix: false,
       contentType: 'application/gzip',
     })
-    console.info(`Uploaded ${packageName} -> ${url}`)
+    info(`Uploaded ${packageName} -> ${url}`)
   }
 
-  console.info('All tarballs uploaded to Vercel Blob')
+  info('All tarballs uploaded to Vercel Blob')
 }
 
 main().catch((err) => {
-  console.error(err)
-  process.exit(1)
+  setFailed(err instanceof Error ? (err.stack ?? err.message) : String(err))
 })

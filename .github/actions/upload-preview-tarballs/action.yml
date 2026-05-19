@@ -1,0 +1,23 @@
+name: 'Upload Preview Tarballs'
+description: >-
+  Uploads .tgz package tarballs from a directory to Vercel Blob under
+  next/commits/<commit-sha>/<package>.tgz.
+
+inputs:
+  commit-sha:
+    description: 'Commit SHA used as the upload path prefix.'
+    required: true
+  tarball-directory:
+    description: 'Directory containing per-package subdirs (incl. @scoped) with .tgz files.'
+    required: true
+  blob-access:
+    description: 'Vercel Blob access mode: "public" or "private".'
+    required: true
+
+# BLOB_READ_WRITE_TOKEN is read from the environment, not an input, so a
+# caller cannot pass an unrelated higher-privileged token via inputs. The
+# calling workflow must set it via `env:` -- mirrors pr-auto-label's
+# GITHUB_TOKEN hardening.
+runs:
+  using: 'node24'
+  main: 'dist/index.js'

@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "description": "Uploads preview tarballs to Vercel Blob.",
+  "scripts": {
+    "build": "ncc build src/index.ts -m -o dist",
+    "types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@vercel/blob": "2.3.2",
+    "typescript": "6.0.2"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "0.38.4"
+  }
+}
