@@ -16,7 +16,7 @@ import { bold, yellow } from '../lib/picocolors'
 import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
-import { Worker } from '../lib/worker'
+import { getNextBuildDebuggerPortOffset, Worker } from '../lib/worker'
 import { defaultConfig, getNextConfigRuntime } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
@@ -2047,7 +2047,9 @@ export default async function build(
 
       staticWorker = createStaticWorker(config, {
         numberOfWorkers,
-        debuggerPortOffset: -1,
+        debuggerPortOffset: getNextBuildDebuggerPortOffset({
+          kind: 'export-page',
+        }),
       })
 
       const analysisBegin = process.hrtime()
