@@ -28,6 +28,7 @@ import {
   type GuidanceKind,
   type GuidanceVariant,
 } from '../components/instant/instant-guidance'
+import { BLOCKING_ROUTE_NAVIGATION_EXPLANATION } from '../components/instant/instant-guidance-data'
 import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './runtime-error/error-cause'
@@ -129,17 +130,18 @@ type HydrationErrorDetails = {
 
 type BlockingRouteErrorDetails = {
   type: 'blocking-route'
-  variant: 'navigation' | 'runtime'
+  variant: 'dynamic' | 'runtime'
+  inNavigation: boolean
 }
 
 type DynamicMetadataErrorDetails = {
   type: 'dynamic-metadata'
-  variant: 'navigation' | 'runtime'
+  variant: 'dynamic' | 'runtime'
 }
 
 type DynamicViewportErrorDetails = {
   type: 'dynamic-viewport'
-  variant: 'navigation' | 'runtime'
+  variant: 'dynamic' | 'runtime'
 }
 
 type SyncIOErrorDetails = {
@@ -320,16 +322,31 @@ export function isSyncIOClientError(message: string): boolean {
   return match !== null && match[2] === '-client'
 }
 
+// Detects errors emitted during navigation-phase instant validation: body
+// errors from `createRuntimeBodyErrorInNavigation` /
+// `createDynamicBodyErrorInNavigation` (SSR factories instead say "during
+// the initial render"), and validation errors from
+// `trackDynamicHoleInNavigation` / `getNavigationDisallowedDynamicReasons`.
+export function isBlockingRouteInNavError(message: string): boolean {
+  return (
+    message.includes('or a navigation') ||
+    message.includes('Could not validate `unstable_instant`') ||
+    message.includes('Could not validate instant UI')
+  )
+}
+
 export function getBlockingRouteErrorDetails(
   error: Error
 ): null | ErrorDetails {
   const message = error.message
+  const inNavigation = isBlockingRouteInNavError(message)
 
   const isBlockingPageLoadError = message.includes('/blocking-route')
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+      inNavigation,
     }
   }
 
@@ -339,7 +356,7 @@ export function getBlockingRouteErrorDetails(
   if (isDynamicMetadataError) {
     return {
       type: 'dynamic-metadata',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
     }
   }
 
@@ -349,7 +366,7 @@ export function getBlockingRouteErrorDetails(
   if (isBlockingViewportError) {
     return {
       type: 'dynamic-viewport',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
     }
   }
 
@@ -540,10 +557,23 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           errorType={errorType}
           errorMessage={
             errorDetails.variant === 'runtime'
-              ? 'Next.js encountered runtime data during the initial render.'
-              : 'Next.js encountered uncached data during the initial render.'
+              ? errorDetails.inNavigation
+                ? 'Next.js encountered runtime data during a navigation.'
+                : 'Next.js encountered runtime data during the initial render.'
+              : errorDetails.inNavigation
+                ? 'Next.js encountered uncached data during a navigation.'
+                : 'Next.js encountered uncached data during the initial render.'
           }
-          headerChildren={<InstantHeaderExplanation kind="blocking-route" />}
+          headerChildren={
+            <InstantHeaderExplanation
+              kind="blocking-route"
+              explanation={
+                errorDetails.inNavigation
+                  ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
+                  : undefined
+              }
+            />
+          }
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}

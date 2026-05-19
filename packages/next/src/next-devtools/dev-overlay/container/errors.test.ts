@@ -1,11 +1,13 @@
 import {
   createDynamicBodyError,
+  createDynamicBodyErrorInNavigation,
   createDynamicMetadataError,
   createDynamicOrRuntimeBodyError,
   createDynamicOrRuntimeMetadataError,
   createDynamicOrRuntimeViewportError,
   createDynamicViewportError,
   createRuntimeBodyError,
+  createRuntimeBodyErrorInNavigation,
   createRuntimeMetadataError,
   createRuntimeViewportError,
 } from '../../../server/app-render/blocking-route-messages'
@@ -23,14 +25,6 @@ import {
 } from './errors'
 
 const ROUTE = '/example'
-
-// Every detection helper in errors.tsx walks the user-facing error message
-// produced by the server-side factories in `blocking-route-messages.ts` and
-// `sync-io-messages.ts`. These tests guard the contract between the two
-// modules: if a factory's wording shifts in a way the detector can't
-// recognize, classification silently falls back to "not an instant error"
-// and the overlay shows the wrong UI. Three regressions in this exact spot
-// during the redesign motivated this test.
 
 describe('isRuntimeVariant', () => {
   it('returns true for runtime body factory output', () => {
@@ -128,24 +122,48 @@ describe('isSyncIOClientError', () => {
 })
 
 describe('getBlockingRouteErrorDetails', () => {
-  it('classifies createRuntimeBodyError as blocking-route + runtime', () => {
+  it('classifies createRuntimeBodyError as blocking-route + runtime (SSR-only)', () => {
     expect(getBlockingRouteErrorDetails(createRuntimeBodyError(ROUTE))).toEqual(
-      { type: 'blocking-route', variant: 'runtime' }
+      { type: 'blocking-route', variant: 'runtime', inNavigation: false }
     )
   })
 
-  it('classifies createDynamicBodyError as blocking-route + navigation', () => {
+  it('classifies createDynamicBodyError as blocking-route + dynamic (SSR-only)', () => {
     expect(getBlockingRouteErrorDetails(createDynamicBodyError(ROUTE))).toEqual(
-      { type: 'blocking-route', variant: 'navigation' }
+      { type: 'blocking-route', variant: 'dynamic', inNavigation: false }
     )
   })
 
-  it('classifies createDynamicOrRuntimeBodyError as blocking-route + navigation', () => {
+  it('classifies createRuntimeBodyErrorInNavigation as blocking-route + runtime + inNavigation', () => {
+    expect(
+      getBlockingRouteErrorDetails(createRuntimeBodyErrorInNavigation(ROUTE))
+    ).toEqual({
+      type: 'blocking-route',
+      variant: 'runtime',
+      inNavigation: true,
+    })
+  })
+
+  it('classifies createDynamicBodyErrorInNavigation as blocking-route + dynamic + inNavigation', () => {
+    expect(
+      getBlockingRouteErrorDetails(createDynamicBodyErrorInNavigation(ROUTE))
+    ).toEqual({
+      type: 'blocking-route',
+      variant: 'dynamic',
+      inNavigation: true,
+    })
+  })
+
+  it('classifies createDynamicOrRuntimeBodyError as blocking-route + dynamic (SSR-only)', () => {
     // The "either" factory has no clear runtime signal — falls into the
-    // navigation branch by `isRuntimeVariant`. Documents current behavior.
+    // dynamic branch by `isRuntimeVariant`. Documents current behavior.
     expect(
       getBlockingRouteErrorDetails(createDynamicOrRuntimeBodyError(ROUTE))
-    ).toEqual({ type: 'blocking-route', variant: 'navigation' })
+    ).toEqual({
+      type: 'blocking-route',
+      variant: 'dynamic',
+      inNavigation: false,
+    })
   })
 
   it('classifies createRuntimeMetadataError as dynamic-metadata + runtime', () => {
@@ -154,16 +172,16 @@ describe('getBlockingRouteErrorDetails', () => {
     ).toEqual({ type: 'dynamic-metadata', variant: 'runtime' })
   })
 
-  it('classifies createDynamicMetadataError as dynamic-metadata + navigation', () => {
+  it('classifies createDynamicMetadataError as dynamic-metadata + dynamic', () => {
     expect(
       getBlockingRouteErrorDetails(createDynamicMetadataError(ROUTE))
-    ).toEqual({ type: 'dynamic-metadata', variant: 'navigation' })
+    ).toEqual({ type: 'dynamic-metadata', variant: 'dynamic' })
   })
 
-  it('classifies createDynamicOrRuntimeMetadataError as dynamic-metadata + navigation', () => {
+  it('classifies createDynamicOrRuntimeMetadataError as dynamic-metadata + dynamic', () => {
     expect(
       getBlockingRouteErrorDetails(createDynamicOrRuntimeMetadataError(ROUTE))
-    ).toEqual({ type: 'dynamic-metadata', variant: 'navigation' })
+    ).toEqual({ type: 'dynamic-metadata', variant: 'dynamic' })
   })
 
   it('classifies createRuntimeViewportError as dynamic-viewport + runtime', () => {
@@ -172,16 +190,16 @@ describe('getBlockingRouteErrorDetails', () => {
     ).toEqual({ type: 'dynamic-viewport', variant: 'runtime' })
   })
 
-  it('classifies createDynamicViewportError as dynamic-viewport + navigation', () => {
+  it('classifies createDynamicViewportError as dynamic-viewport + dynamic', () => {
     expect(
       getBlockingRouteErrorDetails(createDynamicViewportError(ROUTE))
-    ).toEqual({ type: 'dynamic-viewport', variant: 'navigation' })
+    ).toEqual({ type: 'dynamic-viewport', variant: 'dynamic' })
   })
 
-  it('classifies createDynamicOrRuntimeViewportError as dynamic-viewport + navigation', () => {
+  it('classifies createDynamicOrRuntimeViewportError as dynamic-viewport + dynamic', () => {
     expect(
       getBlockingRouteErrorDetails(createDynamicOrRuntimeViewportError(ROUTE))
-    ).toEqual({ type: 'dynamic-viewport', variant: 'navigation' })
+    ).toEqual({ type: 'dynamic-viewport', variant: 'dynamic' })
   })
 
   it.each<[SyncIOApiType, string, string]>([
