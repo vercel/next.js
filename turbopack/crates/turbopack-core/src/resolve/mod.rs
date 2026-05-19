@@ -36,7 +36,6 @@ use crate::{
     raw_module::RawModule,
     reference_type::ReferenceType,
     resolve::{
-        alias_map::AliasKey,
         error::{handle_resolve_error, resolve_error_severity},
         node::{node_cjs_resolve_options, node_esm_resolve_options},
         options::{
@@ -47,7 +46,7 @@ use crate::{
         parse::{Request, stringify_data_uri},
         pattern::{Pattern, PatternMatch, read_matches},
         plugin::{AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin},
-        remap::{ExportsField, ImportsField, ReplacedSubpathValueResult},
+        remap::{ExportsField, ImportsField},
     },
     source::Source,
 };
@@ -63,9 +62,14 @@ pub mod plugin;
 pub(crate) mod remap;
 
 pub use alias_map::{
-    AliasMap, AliasMapIntoIter, AliasMapLookupIterator, AliasMatch, AliasPattern, AliasTemplate,
+    AliasKey, AliasMap, AliasMapIntoIter, AliasMapLookupIterator, AliasMatch, AliasPattern,
+    AliasTemplate,
 };
-pub use remap::{ResolveAliasMap, SubpathValue};
+use remap::TerminalState;
+pub use remap::{
+    ReplacedSubpathValue, ReplacedSubpathValueResult, ReplacedSubpathValueResultType,
+    ResolveAliasMap, SubpathValue,
+};
 
 /// Controls how resolve errors are handled.
 #[turbo_tasks::value(shared)]
@@ -3206,6 +3210,21 @@ async fn resolved(
     ))
 }
 
+/// Attaches `conditions` to a resolve result.
+///
+/// When `conditions` is empty the original `Vc` is returned as-is to avoid an
+/// unnecessary await. Otherwise the result is awaited, annotated, and re-wrapped.
+async fn apply_conditions(
+    resolve_result: Vc<ResolveResult>,
+    conditions: &[(RcStr, bool)],
+) -> Result<Vc<ResolveResult>> {
+    if conditions.is_empty() {
+        Ok(resolve_result)
+    } else {
+        Ok(resolve_result.await?.with_conditions(conditions).cell())
+    }
+}
+
 async fn handle_exports_imports_field(
     package_path: FileSystemPath,
     package_json_path: FileSystemPath,
@@ -3234,70 +3253,79 @@ async fn handle_exports_imports_field(
             unspecified_conditions,
             &mut conditions_state,
             &mut results,
-        ) {
-            // Match found, stop (leveraging the lazy `lookup` iterator).
+        ) != TerminalState::Unset
+        {
+            // A definitive match was found (results added or import blocked);
+            // stop iterating over further alias entries.
             break;
         }
     }
 
     let mut resolved_results = Vec::new();
     for ReplacedSubpathValueResult {
-        result_path,
+        ty,
         conditions,
         map_prefix,
         map_key,
     } in results
     {
-        if let Some(result_path) = result_path.with_normalized_path() {
-            let request = *Request::parse(Pattern::Concatenation(vec![
-                Pattern::Constant(rcstr!("./")),
-                result_path.clone(),
-            ]))
-            .to_resolved()
-            .await?;
+        match ty {
+            ReplacedSubpathValueResultType::Path(result_path) => {
+                if let Some(result_path) = result_path.with_normalized_path() {
+                    let request = *Request::parse(Pattern::Concatenation(vec![
+                        Pattern::Constant(rcstr!("./")),
+                        result_path.clone(),
+                    ]))
+                    .to_resolved()
+                    .await?;
 
-            let resolve_result = Box::pin(resolve_internal_inline(
-                package_path.clone(),
-                request,
-                options,
-            ))
-            .await?;
+                    let resolve_result = Box::pin(resolve_internal_inline(
+                        package_path.clone(),
+                        request,
+                        options,
+                    ))
+                    .await?;
 
-            let resolve_result = if let Some(req) = req.as_constant_string() {
-                resolve_result.with_request(req.clone())
-            } else {
-                match map_key {
-                    AliasKey::Exact => resolve_result.with_request(map_prefix.clone().into()),
-                    AliasKey::Wildcard { .. } => {
-                        // - `req` is the user's request (key of the export map)
-                        // - `result_path` is the final request (value of the export map), so
-                        //   effectively `'{foo}*{bar}'`
+                    let resolve_result = if let Some(req) = req.as_constant_string() {
+                        resolve_result.with_request(req.clone())
+                    } else {
+                        match map_key {
+                            AliasKey::Exact => {
+                                resolve_result.with_request(map_prefix.clone().into())
+                            }
+                            AliasKey::Wildcard { .. } => {
+                                // - `req` is the user's request (key of the export map)
+                                // - `result_path` is the final request (value of the export map),
+                                //   so effectively `'{foo}*{bar}'`
 
-                        // Because of the assertion in AliasMapLookupIterator, `req` is of the
-                        // form:
-                        // - "prefix...<dynamic>" or
-                        // - "prefix...<dynamic>...suffix"
+                                // Because of the assertion in AliasMapLookupIterator, `req` is of
+                                // the form:
+                                // - "prefix...<dynamic>" or
+                                // - "prefix...<dynamic>...suffix"
 
-                        let mut old_request_key = result_path;
-                        // Remove the Pattern::Constant(rcstr!("./")), from above again
-                        old_request_key.push_front(rcstr!("./").into());
-                        let new_request_key = req.clone();
+                                let mut old_request_key = result_path;
+                                // Remove the Pattern::Constant(rcstr!("./")), from above again
+                                old_request_key.push_front(rcstr!("./").into());
+                                let new_request_key = req.clone();
 
-                        resolve_result.with_replaced_request_key_pattern(
-                            Pattern::new(old_request_key),
-                            Pattern::new(new_request_key),
-                        )
-                    }
+                                resolve_result.with_replaced_request_key_pattern(
+                                    Pattern::new(old_request_key),
+                                    Pattern::new(new_request_key),
+                                )
+                            }
+                        }
+                    };
+
+                    let resolve_result = apply_conditions(resolve_result, &conditions).await?;
+                    resolved_results.push(resolve_result);
                 }
-            };
-
-            let resolve_result = if !conditions.is_empty() {
-                let resolve_result = resolve_result.await?.with_conditions(&conditions);
-                resolve_result.cell()
-            } else {
-                resolve_result
-            };
-            resolved_results.push(resolve_result);
+            }
+            ReplacedSubpathValueResultType::Empty => {
+                // `false` in the exports/imports field: resolve to an empty module.
+                let resolve_result = ResolveResult::primary(ResolveResultItem::Empty).cell();
+                let resolve_result = apply_conditions(resolve_result, &conditions).await?;
+                resolved_results.push(resolve_result);
+            }
         }
     }
 

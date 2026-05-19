@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::LazyLock};
+use std::{borrow::Cow, collections::BTreeMap, sync::LazyLock};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -12,7 +12,8 @@ use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
-        AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, SubpathValue,
+        AliasKey, AliasPattern, AliasTemplate, ExternalTraced, ExternalType,
+        ReplacedSubpathValueResultType, ResolveAliasMap, SubpathValue,
         node::node_cjs_resolve_options,
         options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
         parse::Request,
@@ -1302,31 +1303,35 @@ fn export_value_to_import_mapping(
     conditions: &BTreeMap<RcStr, ConditionValue>,
     project_path: &FileSystemPath,
 ) -> Option<ResolvedVc<ImportMapping>> {
-    let mut result = Vec::new();
-    value.add_results(
+    let alias_key = AliasKey::Exact;
+    let mut results = Vec::new();
+    value.convert().add_results(
+        Cow::Borrowed(""),
+        &alias_key,
         conditions,
         &ConditionValue::Unset,
         &mut FxHashMap::default(),
-        &mut result,
+        &mut results,
     );
-    if result.is_empty() {
-        None
-    } else {
-        Some(if result.len() == 1 {
-            ImportMapping::PrimaryAlternative(result[0].0.into(), Some(project_path.clone()))
-                .resolved_cell()
-        } else {
-            ImportMapping::Alternatives(
-                result
-                    .iter()
-                    .map(|(m, _)| {
-                        ImportMapping::PrimaryAlternative((*m).into(), Some(project_path.clone()))
-                            .resolved_cell()
-                    })
-                    .collect(),
-            )
-            .resolved_cell()
+
+    let mappings: Vec<_> = results
+        .iter()
+        .filter_map(|r| match &r.ty {
+            ReplacedSubpathValueResultType::Path(path) => {
+                let m = path.as_constant_string()?;
+                Some(
+                    ImportMapping::PrimaryAlternative(m.clone(), Some(project_path.clone()))
+                        .resolved_cell(),
+                )
+            }
+            ReplacedSubpathValueResultType::Empty => Some(ImportMapping::Empty.resolved_cell()),
         })
+        .collect();
+
+    match mappings.len() {
+        0 => None,
+        1 => mappings.into_iter().next(),
+        _ => Some(ImportMapping::Alternatives(mappings).resolved_cell()),
     }
 }
 

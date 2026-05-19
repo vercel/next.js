@@ -339,7 +339,9 @@ async fn to_single_pattern_mapping(
             ))
             .await;
         }
-        ModuleResolveResultItem::Empty | ModuleResolveResultItem::Custom(_) => {
+        // `false` alias — no backing asset, produces the same empty-stub code as Ignored.
+        ModuleResolveResultItem::Empty => return Ok(SinglePatternMapping::Ignored),
+        ModuleResolveResultItem::Custom(_) => {
             // TODO implement mapping
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug,

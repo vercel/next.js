@@ -56,6 +56,8 @@ pub enum ReferencedAsset {
     Some(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>),
     External(RcStr, ExternalType),
     None,
+    /// The module was aliased to `false`, resolving to an empty module.
+    Empty,
     Unresolvable,
 }
 
@@ -312,7 +314,7 @@ impl ReferencedAsset {
                     import_source,
                 })
             }
-            ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
+            ReferencedAsset::None | ReferencedAsset::Empty | ReferencedAsset::Unresolvable => None,
         })
     }
 
@@ -347,6 +349,9 @@ impl ReferencedAsset {
                     {
                         return Ok(ReferencedAsset::Some(placeable));
                     }
+                }
+                ModuleResolveResultItem::Empty => {
+                    return Ok(ReferencedAsset::Empty);
                 }
                 // TODO ignore should probably be handled differently
                 _ => {}
@@ -629,7 +634,7 @@ impl EsmAssetReference {
                         stmt,
                     ));
                 }
-                ReferencedAsset::None => {}
+                ReferencedAsset::None | ReferencedAsset::Empty => {}
                 _ => {
                     let mut result = vec![];
 
