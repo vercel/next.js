@@ -17,6 +17,10 @@ export function CodeFrameShell({
   return (
     <div data-nextjs-codeframe>
       <div className="code-frame-header">
+        {/* TODO: This is <div> in `Terminal` component.
+        Changing now will require multiple test snapshots updates.
+        Leaving as <div> as is trivial and does not affect the UI.
+        Change when the new redbox matcher `toDisplayRedbox` is used. */}
         <p className="code-frame-link">
           {header}
           {onOpen && (
