@@ -22,7 +22,7 @@ use std::{hash::Hash, sync::Arc};
 use parking_lot::Mutex;
 use turbo_tasks::{
     CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
-    backend::{CachedTaskType, CellHash, TransientTaskType},
+    backend::{CachedTaskTypeArc, CellHash, TransientTaskType},
     event::Event,
     task_storage,
 };
@@ -329,7 +329,7 @@ struct TaskStorageSchema {
     in_progress_cells: AutoMap<CellId, InProgressCellState>,
 
     #[field(storage = "direct", category = "data", inline)]
-    pub persistent_task_type: Option<Arc<CachedTaskType>>,
+    pub persistent_task_type: Option<CachedTaskTypeArc>,
 
     #[field(storage = "direct", category = "transient")]
     pub transient_task_type: Arc<TransientTask>,
@@ -522,7 +522,7 @@ impl TaskStorage {
                 None => KeyEvictability::Unevictable,
                 // strong_count == 1: only this TaskStorage holds this Arc, so no task_cache entry
                 // references it. It must have been already evicted on a prior cycle.
-                Some(arc) if Arc::strong_count(arc) == 1 => KeyEvictability::AlreadyEvicted,
+                Some(arc) if arc.count() == 1 => KeyEvictability::AlreadyEvicted,
                 Some(_) => KeyEvictability::Evictable,
             }
         };
