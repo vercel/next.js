@@ -1,6 +1,5 @@
 use std::{
     borrow::Borrow,
-    cmp::max,
     env,
     path::PathBuf,
     sync::{Arc, LazyLock, Mutex, PoisonError, Weak},

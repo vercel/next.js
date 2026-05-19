@@ -1250,14 +1250,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 task_cache_items,
                 data_items,
                 meta_items,
-                next_task_id,
+                max_next_task_id,
             } = self
                 .backing_storage
                 .save_snapshot(suspended_operations, task_snapshots)?;
             span.record("data_items", data_items);
             span.record("meta_items", meta_items);
             span.record("task_cache_items", task_cache_items);
-            span.record("next_task_id", next_task_id);
+            span.record("next_task_id", max_next_task_id);
 
             #[cfg(feature = "print_cache_item_size")]
             {
