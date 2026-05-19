@@ -103,10 +103,14 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
                 THREAD_LOCAL_LAST_MEMORY_SAMPLE.with(|tl| tl.set(ts));
                 let memory = TurboMalloc::memory_usage() as u64;
                 let memory_pressure = TurboMalloc::memory_pressure().unwrap_or(0);
+                let memory_footprint = TurboMalloc::memory_footprint()
+                    .map(|v| v as u64)
+                    .unwrap_or(0);
                 self.write(TraceRow::MemorySample {
                     ts,
                     memory,
                     memory_pressure,
+                    memory_footprint,
                 });
             }
             Err(actual) => {
