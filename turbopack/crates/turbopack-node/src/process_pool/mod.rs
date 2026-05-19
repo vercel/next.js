@@ -212,10 +212,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
                     lines.pop_front();
                 }
                 lines.push_back(buffer[start..].to_vec());
-            }
-            if buffer.len() - start == MARKER.len() + 2
-                && &buffer[start..buffer.len() - 2] == MARKER
-            {
+            } else {
                 // This is new line
                 buffer.pop();
                 // This is the type
