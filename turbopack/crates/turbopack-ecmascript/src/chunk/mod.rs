@@ -2,6 +2,7 @@ pub(crate) mod batch;
 pub(crate) mod chunk_type;
 pub(crate) mod code_and_ids;
 pub(crate) mod content;
+pub(crate) mod content_entry;
 pub(crate) mod data;
 pub(crate) mod item;
 pub(crate) mod placeable;
@@ -31,6 +32,7 @@ pub use self::{
     chunk_type::EcmascriptChunkType,
     code_and_ids::{BatchGroupCodeAndIds, CodeAndIds, batch_group_code_and_ids, item_code_and_ids},
     content::EcmascriptChunkContent,
+    content_entry::{EcmascriptChunkContentEntries, EcmascriptChunkContentEntry},
     data::EcmascriptChunkData,
     item::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,

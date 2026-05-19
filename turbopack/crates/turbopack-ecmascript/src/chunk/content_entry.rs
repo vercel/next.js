@@ -5,7 +5,8 @@ use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItemExt, ModuleId},
     code_builder::Code,
 };
-use turbopack_ecmascript::chunk::{
+
+use crate::chunk::{
     EcmascriptChunkContent, EcmascriptChunkItem, EcmascriptChunkItemExt,
     EcmascriptChunkItemOrBatchWithAsyncInfo, EcmascriptChunkItemWithAsyncInfo,
 };
@@ -18,18 +19,18 @@ use turbopack_ecmascript::chunk::{
 /// computing updates.
 #[turbo_tasks::value]
 #[derive(Debug)]
-pub struct EcmascriptDevChunkContentEntry {
+pub struct EcmascriptChunkContentEntry {
     pub code: ResolvedVc<Code>,
     pub hash: ResolvedVc<u64>,
 }
 
-impl EcmascriptDevChunkContentEntry {
+impl EcmascriptChunkContentEntry {
     pub async fn new(
         chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Self> {
         let code = chunk_item.code(async_module_info).to_resolved().await?;
-        Ok(EcmascriptDevChunkContentEntry {
+        Ok(EcmascriptChunkContentEntry {
             code,
             hash: code.source_code_hash().to_resolved().await?,
         })
@@ -37,17 +38,16 @@ impl EcmascriptDevChunkContentEntry {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct EcmascriptBrowserChunkContentEntries(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<ModuleId, EcmascriptDevChunkContentEntry>,
+pub struct EcmascriptChunkContentEntries(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<ModuleId, EcmascriptChunkContentEntry>,
 );
 
 #[turbo_tasks::value_impl]
-impl EcmascriptBrowserChunkContentEntries {
+impl EcmascriptChunkContentEntries {
     #[turbo_tasks::function]
     pub async fn new(
         chunk_content: Vc<EcmascriptChunkContent>,
-    ) -> Result<Vc<EcmascriptBrowserChunkContentEntries>> {
+    ) -> Result<Vc<EcmascriptChunkContentEntries>> {
         let chunk_content = chunk_content.await?;
 
         let entries: FxIndexMap<_, _> = chunk_content
@@ -62,11 +62,8 @@ impl EcmascriptBrowserChunkContentEntries {
                         },
                     ) => Either::Left(std::iter::once((
                         chunk_item.id().await?,
-                        EcmascriptDevChunkContentEntry::new(
-                            chunk_item,
-                            async_info.map(|info| *info),
-                        )
-                        .await?,
+                        EcmascriptChunkContentEntry::new(chunk_item, async_info.map(|info| *info))
+                            .await?,
                     ))),
                     EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => {
                         let batch = batch.await?;
@@ -77,7 +74,7 @@ impl EcmascriptBrowserChunkContentEntries {
                                 .map(|item| async move {
                                     Ok((
                                         item.chunk_item.id().await?,
-                                        EcmascriptDevChunkContentEntry::new(
+                                        EcmascriptChunkContentEntry::new(
                                             item.chunk_item,
                                             item.async_info.map(|info| *info),
                                         )

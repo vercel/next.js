@@ -1,12 +1,10 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, Vc, turbobail};
+use turbo_tasks::{FxIndexMap, TryJoinIterExt, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::{chunk::ModuleId, version::Version};
-use turbopack_ecmascript::chunk::EcmascriptChunkContent;
-
-use super::content_entry::EcmascriptBrowserChunkContentEntries;
+use turbopack_ecmascript::chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries};
 
 #[turbo_tasks::value(serialization = "skip")]
 pub(super) struct EcmascriptBrowserChunkVersion {
@@ -29,12 +27,14 @@ impl EcmascriptBrowserChunkVersion {
         } else {
             turbobail!("chunk path {chunk_path} is not in client root {output_root}");
         };
-        let entries = EcmascriptBrowserChunkContentEntries::new(content).await?;
-        let mut entries_hashes =
-            FxIndexMap::with_capacity_and_hasher(entries.len(), Default::default());
-        for (id, entry) in entries.iter() {
-            entries_hashes.insert(id.clone(), *entry.hash.await?);
-        }
+        let entries_hashes = EcmascriptChunkContentEntries::new(content)
+            .await?
+            .iter()
+            .map(async |(id, entry)| Ok((id.clone(), *entry.hash.await?)))
+            .try_join()
+            .await?
+            .into_iter()
+            .collect();
         Ok(EcmascriptBrowserChunkVersion {
             chunk_path: chunk_path.to_string(),
             entries_hashes,

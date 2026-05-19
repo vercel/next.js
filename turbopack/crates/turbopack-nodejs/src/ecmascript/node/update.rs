@@ -105,8 +105,8 @@ pub(super) async fn update_node_chunk(
         return Ok(Update::None);
     }
 
-    let chunk_path = &to.chunk_path;
-    let chunk_update = update_ecmascript_node_chunk_content(&to, &from).await?;
+    let chunk_path = to.chunk_path.as_str();
+    let chunk_update = update_ecmascript_node_chunk_content(content, &to, &from).await?;
 
     let mut merged_update = EcmascriptMergedUpdate::default();
 
@@ -171,6 +171,7 @@ enum NodeChunkUpdate {
 }
 
 async fn update_ecmascript_node_chunk_content(
+    content: Vc<EcmascriptBuildNodeChunkContent>,
     to: &ReadRef<EcmascriptBuildNodeChunkVersion>,
     from: &ReadRef<EcmascriptBuildNodeChunkVersion>,
 ) -> Result<NodeChunkUpdate> {
@@ -178,22 +179,23 @@ async fn update_ecmascript_node_chunk_content(
     let mut modified = FxIndexMap::default();
     let mut deleted = FxIndexMap::default();
 
-    // Build a map of module_id -> Vc<Code> for the "to" version
-    let mut to_entries: FxIndexMap<ModuleId, Vc<Code>> = FxIndexMap::default();
-    for item in &to.chunk_items {
-        for (id, code) in item {
-            // Convert ReadRef<Code> to Vc<Code>
-            to_entries.insert(id.clone(), ReadRef::cell(code.clone()));
-        }
-    }
+    // Lazily resolve the entries map only when we actually need to ship code
+    // bytes for an added or modified module. For chunks that only have deletions
+    // (or no changes that need code beyond hashes), this avoids materializing
+    // any `Vc<Code>`.
+    let mut entries_ref = None;
 
     // Check for deleted and modified modules
     for (id, from_hash) in &from.entries_hashes {
         if let Some(to_hash) = to.entries_hashes.get(id) {
             if *to_hash != *from_hash {
                 // Module was modified
-                if let Some(code) = to_entries.get(id) {
-                    modified.insert(id.clone(), *code);
+                let entries = match &entries_ref {
+                    Some(entries) => entries,
+                    None => entries_ref.insert(content.entries().await?),
+                };
+                if let Some(entry) = entries.get(id) {
+                    modified.insert(id.clone(), *entry.code);
                 }
             }
         } else {
@@ -204,10 +206,14 @@ async fn update_ecmascript_node_chunk_content(
 
     // Check for added modules
     for (id, _hash) in &to.entries_hashes {
-        if !from.entries_hashes.contains_key(id)
-            && let Some(code) = to_entries.get(id)
-        {
-            added.insert(id.clone(), *code);
+        if !from.entries_hashes.contains_key(id) {
+            let entries = match &entries_ref {
+                Some(entries) => entries,
+                None => entries_ref.insert(content.entries().await?),
+            };
+            if let Some(entry) = entries.get(id) {
+                added.insert(id.clone(), *entry.code);
+            }
         }
     }
 

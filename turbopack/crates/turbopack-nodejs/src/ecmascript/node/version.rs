@@ -1,18 +1,17 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ReadRef, Vc, turbobail};
+use turbo_tasks::{FxIndexMap, TryJoinIterExt, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::{
     chunk::{MinifyType, ModuleId},
     version::Version,
 };
-use turbopack_ecmascript::chunk::{CodeAndIds, EcmascriptChunkContent};
+use turbopack_ecmascript::chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries};
 
 #[turbo_tasks::value(serialization = "skip")]
 pub(super) struct EcmascriptBuildNodeChunkVersion {
-    pub(super) chunk_path: String,
-    pub(super) chunk_items: Vec<ReadRef<CodeAndIds>>,
+    pub(super) chunk_path: RcStr,
     pub(super) minify_type: MinifyType,
     pub(super) entries_hashes: FxIndexMap<ModuleId, u64>,
 }
@@ -33,24 +32,17 @@ impl EcmascriptBuildNodeChunkVersion {
         } else {
             turbobail!("chunk path {chunk_path} is not in client root {output_root}");
         };
-        let chunk_items = content.await?.chunk_item_code_and_ids().await?;
-
-        // Compute per-module hashes for fine-grained HMR tracking
-        let mut entries_hashes = FxIndexMap::default();
-        for item in &chunk_items {
-            for (module_id, code) in item {
-                let mut hasher = Xxh3Hash64Hasher::new();
-                let source = code.source_code();
-                hasher.write_ref(source);
-                let hash = hasher.finish();
-
-                entries_hashes.insert(module_id.clone(), hash);
-            }
-        }
+        let entries_hashes = EcmascriptChunkContentEntries::new(content)
+            .await?
+            .iter()
+            .map(async |(id, entry)| Ok((id.clone(), *entry.hash.await?)))
+            .try_join()
+            .await?
+            .into_iter()
+            .collect();
 
         Ok(EcmascriptBuildNodeChunkVersion {
-            chunk_path: chunk_path.to_string(),
-            chunk_items,
+            chunk_path: chunk_path.into(),
             minify_type,
             entries_hashes,
         }
