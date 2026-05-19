@@ -1399,7 +1399,7 @@ impl TaskGuard for TaskGuardImpl<'_> {
             .map(|target| (target, TaskDataCategory::Meta))
             .chain(
                 self.iter_cell_dependencies()
-                    .map(|(target, _key)| (target.task, TaskDataCategory::All)),
+                    .map(|dep| (dep.cell_ref().task, TaskDataCategory::All)),
             )
             .chain(
                 self.iter_collectibles_dependencies()
