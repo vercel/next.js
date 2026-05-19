@@ -2594,15 +2594,16 @@ function fulfillEntrySpawnedByRuntimePrefetch(
     PendingSegmentCacheEntry
   > | null
 ) {
-  // Decide whether to re-key the entry under a more generic vary path based
-  // on which params the segment actually depends on.
+  // Decide whether to re-key the entry under a more generic vary path based on
+  // which params the segment actually depends on.
   //
-  // Skip re-keying for Full prefetches: their response contains URL-specific
-  // content rendered with concrete params, but the server-reported varyParams
-  // set excludes params resolved in the dynamic stage (we can't track them
-  // without deadlocking the Flight stream). Re-keying with that incomplete
-  // set would replace concrete params with Fallback and let unrelated URLs
-  // read each other's content from the cache.
+  // Skip re-keying for Full prefetches: as of today, `varyParams` tracking only
+  // works within the static stage portion of a response. A Full prefetch
+  // response covers all stages, and we can't track params during the dynamic
+  // stage without dead-locking the Flight stream, so the server-reported set is
+  // incomplete and can't be trusted for the full response. Re-keying with an
+  // untrustworthy set could replace concrete params with Fallback and let
+  // unrelated URLs read each other's content from the cache.
   //
   // When non-null, this is the param set to re-key by; when null, the entry
   // stays keyed by the request's concrete vary path.
