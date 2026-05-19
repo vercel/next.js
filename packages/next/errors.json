@@ -1252,5 +1252,8 @@
   "1251": "Route \"%s\": Next.js encountered runtime data during the initial render or a navigation.\\n\\n\\`cookies()\\`, \\`headers()\\`, \\`params\\`, or \\`searchParams\\` accessed outside of \\`<Suspense>\\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.\\n\\nWays to fix this:\\n  - Provide a placeholder with \\`<Suspense fallback={...}>\\` around the data access\\n  - Use \\`generateStaticParams\\` to make route params static\\n  - Set \\`export const instant = false\\` to allow a blocking route\\n\\nLearn more: https://nextjs.org/docs/messages/blocking-route",
   "1252": "\\`experimental.cssChunking: \"graph\"\\` is only supported with Turbopack. Please remove the option or run Next.js with Turbopack in %s.",
   "1253": "\\`experimental.cssChunking: \"strict\"\\` is only supported with webpack. Please remove the option or run Next.js with webpack in %s.",
-  "1254": "\\`experimental.cssChunking: false\\` is only supported with webpack. Please remove the option or run Next.js with webpack in %s."
+  "1254": "\\`experimental.cssChunking: false\\` is only supported with webpack. Please remove the option or run Next.js with webpack in %s.",
+  "1255": "Compilation failed but no issues were recorded",
+  "1256": "no route matched for path \"%s\"",
+  "1257": "compileRoute: either routeSpecifier or path is required"
 }

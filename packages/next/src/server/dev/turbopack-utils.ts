@@ -135,6 +135,9 @@ export type ClientState = {
 export type ClientStateMap = WeakMap<ws, ClientState>
 
 // hooks only used by the dev server.
+// subscribeToChanges is optional: omit it to skip wiring HMR subscriptions
+// for one-shot compilations (e.g. the compile_route MCP tool) where there
+// is no client to receive updates and no unsubscribe path.
 type HandleRouteTypeHooks = {
   handleWrittenEndpoint: HandleWrittenEndpoint
   subscribeToChanges: StartChangeSubscription
@@ -168,6 +171,8 @@ export async function handleRouteType({
 
   readyIds?: ReadyIds // dev
 
+  // hooks.subscribeToChanges may be omitted to skip HMR subscriptions for
+  // one-shot compilations (e.g. the compile_route MCP tool).
   hooks?: HandleRouteTypeHooks // dev
 }) {
   switch (route.type) {

@@ -1690,6 +1690,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               getActiveConnectionCount: () =>
                 this.webpackHotMiddleware?.getClientCount() ?? 0,
               getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
+              // compile_route is Turbopack-only; intentionally omitted here.
             }),
           ]
         : [])
@@ -1844,6 +1845,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     isApp?: boolean
     definition?: RouteDefinition
     url?: string
+    // subscribeToChanges is accepted for interface compatibility but is a
+    // no-op for webpack: webpack's on-demand entry handler does not wire HMR
+    // subscriptions per entry the way Turbopack does.
+    subscribeToChanges?: boolean
   }): Promise<void> {
     return this.hotReloaderSpan
       .traceChild('ensure-page', {
