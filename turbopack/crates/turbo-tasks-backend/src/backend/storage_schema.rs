@@ -37,12 +37,19 @@ use crate::{
 };
 
 /// Auto-set storage for small sets of keys with unit values.
-/// Optimized for small collections (< 8 items use SmallVec inline).
-type AutoSet<K> = auto_hash_map::AutoSet<K, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, 1>;
+///
+/// The `I` const generic is the inline capacity — entries spill to a `HashSet`
+/// past it. Each field below picks its own `I` to saturate the available
+/// padding (in `LazyField`) or to stay within the 16-byte `SmallVec` free
+/// zone (for inline fields); see the field comments for the rationale.
+type AutoSet<K, const I: usize> =
+    auto_hash_map::AutoSet<K, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, I>;
 
 /// Auto-map storage for key-value pairs.
-type AutoMap<K, V> =
-    auto_hash_map::AutoMap<K, V, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, 1>;
+///
+/// See [`AutoSet`] for the meaning of `I`.
+type AutoMap<K, V, const I: usize> =
+    auto_hash_map::AutoMap<K, V, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, I>;
 
 /// The complete task storage schema.
 ///
@@ -81,7 +88,7 @@ struct TaskStorageSchema {
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    output_dependent: AutoSet<TaskId>,
+    output_dependent: AutoSet<TaskId, 4>,
 
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
@@ -90,7 +97,7 @@ struct TaskStorageSchema {
 
     /// Upper nodes in the aggregation tree (reference counted).
     #[field(storage = "counter_map", category = "meta", inline, filter_transient)]
-    upper: CounterMap<TaskId, u32>,
+    upper: CounterMap<TaskId, u32, 2>,
 
     // =========================================================================
     // COLLECTIBLES (meta)
@@ -102,15 +109,15 @@ struct TaskStorageSchema {
         filter_transient,
         shrink_on_completion
     )]
-    collectibles: CounterMap<CollectibleRef, i32>,
+    collectibles: CounterMap<CollectibleRef, i32, 1>,
 
     /// Aggregated collectibles from the subgraph.
     #[field(storage = "counter_map", category = "meta", filter_transient)]
-    aggregated_collectibles: CounterMap<CollectibleRef, i32>,
+    aggregated_collectibles: CounterMap<CollectibleRef, i32, 1>,
 
     /// Outdated collectibles to be cleaned up (transient).
     #[field(storage = "counter_map", category = "transient", shrink_on_completion)]
-    outdated_collectibles: CounterMap<CollectibleRef, i32>,
+    outdated_collectibles: CounterMap<CollectibleRef, i32, 1>,
 
     // =========================================================================
     // STATE FIELDS (meta)
@@ -128,7 +135,7 @@ struct TaskStorageSchema {
 
     /// Individual dirty containers in the aggregated subgraph.
     #[field(storage = "counter_map", category = "meta", filter_transient)]
-    aggregated_dirty_containers: CounterMap<TaskId, i32>,
+    aggregated_dirty_containers: CounterMap<TaskId, i32, 3>,
 
     /// Count of clean containers in current session (transient).
     /// Absent = 0, present = actual count.
@@ -137,7 +144,7 @@ struct TaskStorageSchema {
 
     /// Individual clean containers in current session (transient).
     #[field(storage = "counter_map", category = "transient")]
-    aggregated_current_session_clean_containers: CounterMap<TaskId, i32>,
+    aggregated_current_session_clean_containers: CounterMap<TaskId, i32, 3>,
 
     // =========================================================================
     // FLAGS (meta) - Boolean flags stored in TaskFlags bitfield
@@ -224,11 +231,11 @@ struct TaskStorageSchema {
         filter_transient,
         shrink_on_completion
     )]
-    children: AutoSet<TaskId>,
+    children: AutoSet<TaskId, 6>,
 
     /// Follower nodes in the aggregation tree (reference counted).
     #[field(storage = "counter_map", category = "meta", filter_transient)]
-    followers: CounterMap<TaskId, u32>,
+    followers: CounterMap<TaskId, u32, 3>,
 
     // =========================================================================
     // DEPENDENCIES (data)
@@ -240,7 +247,7 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    output_dependencies: AutoSet<TaskId>,
+    output_dependencies: AutoSet<TaskId, 6>,
 
     /// Cells this task depends on.
     #[field(
@@ -250,7 +257,7 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    cell_dependencies: AutoSet<CellDependency>,
+    cell_dependencies: AutoSet<CellDependency, 1>,
 
     /// Collectibles this task depends on.
     #[field(
@@ -260,19 +267,19 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    collectibles_dependencies: AutoSet<CollectiblesRef>,
+    collectibles_dependencies: AutoSet<CollectiblesRef, 3>,
 
     /// Outdated output dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
-    outdated_output_dependencies: AutoSet<TaskId>,
+    outdated_output_dependencies: AutoSet<TaskId, 6>,
 
     /// Outdated cell dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
-    outdated_cell_dependencies: AutoSet<CellDependency>,
+    outdated_cell_dependencies: AutoSet<CellDependency, 1>,
 
     /// Outdated collectibles dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
-    outdated_collectibles_dependencies: AutoSet<CollectiblesRef>,
+    outdated_collectibles_dependencies: AutoSet<CollectiblesRef, 3>,
 
     // =========================================================================
     // DEPENDENTS - Tasks that depend on this task's cells
@@ -283,20 +290,20 @@ struct TaskStorageSchema {
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    cell_dependents: AutoSet<CellDependency>,
+    cell_dependents: AutoSet<CellDependency, 1>,
 
     /// Tasks that depend on collectibles of a specific type from this task.
     /// Maps TraitTypeId -> Set<TaskId>
 
     #[field(storage = "auto_set", category = "meta", filter_transient)]
-    collectibles_dependents: AutoSet<(TraitTypeId, TaskId)>,
+    collectibles_dependents: AutoSet<(TraitTypeId, TaskId), 3>,
 
     #[field(
         storage = "auto_map",
         category = "data",
         shrink_on_completion,
         custom_drop_partial,
-        as_type = "AutoMap<CellId, SharedReference>"
+        as_type = "AutoMap<CellId, SharedReference, 1>"
     )]
     cell_data: CellData,
 
@@ -308,11 +315,11 @@ struct TaskStorageSchema {
     /// enum; a bare `u128` would grow the enum from 56 to 64 bytes due to its 16-byte
     /// alignment requirement.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
-    cell_data_hash: AutoMap<CellId, CellHash>,
+    cell_data_hash: AutoMap<CellId, CellHash, 1>,
 
     /// Maximum cell index per cell type.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
-    cell_type_max_index: AutoMap<ValueTypeId, u32>,
+    cell_type_max_index: AutoMap<ValueTypeId, u32, 3>,
 
     // =========================================================================
     // TRANSIENT EXECUTION STATE (transient)
@@ -327,7 +334,7 @@ struct TaskStorageSchema {
 
     /// In-progress cell state for cells being computed (transient).
     #[field(storage = "auto_map", category = "transient", shrink_on_completion)]
-    in_progress_cells: AutoMap<CellId, InProgressCellState>,
+    in_progress_cells: AutoMap<CellId, InProgressCellState, 1>,
 
     #[field(storage = "direct", category = "data", inline)]
     pub persistent_task_type: Option<CachedTaskTypeArc>,
@@ -859,7 +866,7 @@ pub(crate) trait MergeRestore {
     fn merge_restore(&mut self, items: impl IntoIterator<Item = Self::Item>);
 }
 
-impl<K, V> MergeRestore for CounterMap<K, V>
+impl<K, V, const I: usize> MergeRestore for CounterMap<K, V, I>
 where
     K: Eq + Hash,
 {
@@ -868,7 +875,7 @@ where
         self.extend(items)
     }
 }
-impl<V> MergeRestore for AutoSet<V>
+impl<V, const I: usize> MergeRestore for AutoSet<V, I>
 where
     V: Eq + Hash,
 {
@@ -911,7 +918,7 @@ impl<T: IsTransient> DropPartial for Option<T> {
     }
 }
 
-impl<T: IsTransient + Hash + Eq> DropPartial for AutoSet<T> {
+impl<T: IsTransient + Hash + Eq, const I: usize> DropPartial for AutoSet<T, I> {
     fn drop_partial(&mut self) -> DropPartialOutcome {
         self.retain(|t| t.is_transient());
         if self.is_empty() {
@@ -923,7 +930,7 @@ impl<T: IsTransient + Hash + Eq> DropPartial for AutoSet<T> {
     }
 }
 
-impl<K: IsTransient + Hash + Eq, V: Eq> DropPartial for CounterMap<K, V> {
+impl<K: IsTransient + Hash + Eq, V: Eq, const I: usize> DropPartial for CounterMap<K, V, I> {
     fn drop_partial(&mut self) -> DropPartialOutcome {
         self.retain(|k, _v| k.is_transient());
         if self.is_empty() {
@@ -934,7 +941,7 @@ impl<K: IsTransient + Hash + Eq, V: Eq> DropPartial for CounterMap<K, V> {
         }
     }
 }
-impl<K: IsTransient + Hash + Eq, V: IsTransient> DropPartial for AutoMap<K, V> {
+impl<K: IsTransient + Hash + Eq, V: IsTransient, const I: usize> DropPartial for AutoMap<K, V, I> {
     fn drop_partial(&mut self) -> DropPartialOutcome {
         self.retain(|k, v| k.is_transient() || v.is_transient());
         if self.is_empty() {
