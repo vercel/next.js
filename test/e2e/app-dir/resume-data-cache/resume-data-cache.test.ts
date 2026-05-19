@@ -18,14 +18,7 @@ describe('resume-data-cache', () => {
   ])(
     'should have consistent data between static and dynamic renders with $name',
     async ({ id }) => {
-      // First render the page statically, getting the random number from the
-      // HTML.
-      let $ = await next.render$('/')
-      const first = $(`p#${id}`).text()
-
-      // Then get the Prefetch RSC and validate that it also contains the same
-      // random number.
-      await retry(async () => {
+      const getPrefetchRscUrl = async () => {
         const url = new URL('/', 'http://localhost')
 
         url.searchParams.set(
@@ -38,8 +31,19 @@ describe('resume-data-cache', () => {
           )
         )
 
+        return url.toString()
+      }
+
+      // First render the page statically, getting the random number from the
+      // HTML.
+      let $ = await next.render$('/')
+      const first = $(`p#${id}`).text()
+
+      // Then get the Prefetch RSC and validate that it also contains the same
+      // random number.
+      await retry(async () => {
         const rsc = await next
-          .fetch(url.toString(), {
+          .fetch(await getPrefetchRscUrl(), {
             headers: {
               RSC: '1',
               'Next-Router-Prefetch': '1',
@@ -107,7 +111,7 @@ describe('resume-data-cache', () => {
       // random number.
       await retry(async () => {
         const rsc = await next
-          .fetch('/', {
+          .fetch(await getPrefetchRscUrl(), {
             headers: {
               RSC: '1',
               'Next-Router-Prefetch': '1',

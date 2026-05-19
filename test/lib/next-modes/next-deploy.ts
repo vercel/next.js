@@ -5,6 +5,7 @@ import fs from 'fs-extra'
 import { NextInstance } from './base'
 import * as projectEnv from '../../../scripts/reset-project.mjs'
 import { Span } from 'next/dist/trace'
+import { retry } from 'next-test-utils'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -185,6 +186,44 @@ export class NextDeployInstance extends NextInstance {
     )
   }
 
+  private async fetchVercelBuildLogs(
+    vercelEnv: NodeJS.ProcessEnv,
+    vercelFlags: string[]
+  ): Promise<string> {
+    const buildLogs = await execa(
+      'vercel',
+      ['inspect', '--logs', this._url, ...vercelFlags],
+      {
+        env: vercelEnv,
+        reject: false,
+      }
+    )
+    if (buildLogs.exitCode !== 0) {
+      throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
+    }
+    // TODO: Combine with runtime logs (via `vercel logs`)
+    // Build logs seem to be piped to stderr, so we'll combine them to make sure we get all the logs.
+    return buildLogs.stdout + buildLogs.stderr
+  }
+
+  private async fetchAndParseVercelBuildLogs(
+    vercelEnv: NodeJS.ProcessEnv,
+    vercelFlags: string[]
+  ): Promise<void> {
+    await retry(
+      async () => {
+        this._cliOutput = await this.fetchVercelBuildLogs(
+          vercelEnv,
+          vercelFlags
+        )
+        this.parseIdsFromCliOuput()
+      },
+      60000,
+      5000,
+      'Vercel build logs to include deployment metadata'
+    )
+  }
+
   public async setup(parentSpan: Span) {
     super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
@@ -216,24 +255,13 @@ export class NextDeployInstance extends NextInstance {
       if (customLogsScriptPath) {
         this._cliOutput = await this.fetchBuildLogsUsingCustomScript()
       } else {
-        // Use vercel inspect to get logs for existing deployment
-        const buildLogs = await execa(
-          'vercel',
-          ['inspect', '--logs', this._url],
-          {
-            env: process.env,
-            reject: false,
-          }
-        )
-        if (buildLogs.exitCode !== 0) {
-          throw new Error(
-            `Failed to get build output logs: ${buildLogs.stderr}`
-          )
-        }
-        this._cliOutput = buildLogs.stdout + buildLogs.stderr
+        // Use vercel inspect to get logs for existing deployment.
+        await this.fetchAndParseVercelBuildLogs(process.env, [])
       }
 
-      this.parseIdsFromCliOuput()
+      if (customLogsScriptPath) {
+        this.parseIdsFromCliOuput()
+      }
       return
     }
 
@@ -433,22 +461,7 @@ export class NextDeployInstance extends NextInstance {
     require('console').log(`Deployment URL: ${this._url}`)
 
     // Use the vercel inspect command to get the CLI output from the build.
-    const buildLogs = await execa(
-      'vercel',
-      ['inspect', '--logs', this._url, ...vercelFlags],
-      {
-        env: vercelEnv,
-        reject: false,
-      }
-    )
-    if (buildLogs.exitCode !== 0) {
-      throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
-    }
-    // TODO: Combine with runtime logs (via `vercel logs`)
-    // Build logs seem to be piped to stderr, so we'll combine them to make sure we get all the logs.
-    this._cliOutput = buildLogs.stdout + buildLogs.stderr
-
-    this.parseIdsFromCliOuput()
+    await this.fetchAndParseVercelBuildLogs(vercelEnv, vercelFlags)
     // Use the stdout from the logs command as the CLI output. The CLI will
     // output other unrelated logs to stderr.
   }
