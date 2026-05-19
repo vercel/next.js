@@ -65,3 +65,7 @@ criterion = { workspace = true, features = ["async_tokio"] }
 [[bench]]
 name = "mod"
 harness = false
+
+[[bench]]
+name = "tiny_vec"
+harness = false

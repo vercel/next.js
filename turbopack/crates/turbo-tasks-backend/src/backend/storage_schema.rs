@@ -21,7 +21,7 @@ use std::{hash::Hash, sync::Arc};
 
 use parking_lot::Mutex;
 use turbo_tasks::{
-    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
+    CellId, SharedReference, TaskExecutionReason, TaskId, TinyVec, TraitTypeId, ValueTypeId,
     backend::{CachedTaskTypeArc, CellHash, TransientTaskType},
     event::Event,
     task_storage,
@@ -53,7 +53,7 @@ type AutoMap<K, V> =
 /// - `TaskFlags` bitfield for boolean flags
 /// - Accessor methods and traits
 ///
-/// Fields are stored lazily in `Vec<LazyField>` by default for memory efficiency.
+/// Fields are stored lazily in `TinyVec<LazyField>` by default for memory efficiency.
 /// Fields with `inline` are stored directly on TaskStorage (for hot-path access).
 ///
 /// Note: This struct is consumed by the macro and does not appear in the output.
@@ -1699,13 +1699,14 @@ mod tests {
     fn test_schema_size() {
         assert_eq!(
             size_of::<TaskStorage>(),
-            136,
-            "TaskStorage size changed! If this is intentional, update this test."
+            128,
+            "TaskStorage size changed! Run print_schema_sizes and update this test."
         );
+        // `LazyField` is 48 B = 40 B largest payload + 8 B discriminant.
         assert_eq!(
             size_of::<LazyField>(),
             48,
-            "LazyField size changed! If this is intentional, update this test."
+            "LazyField size changed! Run print_schema_sizes and update this test."
         );
     }
 }
