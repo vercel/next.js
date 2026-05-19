@@ -14,10 +14,9 @@ describe('nx-handling', () => {
       packageManager: 'npm@10.9.2',
       scripts: {
         build:
-          'rm -rf dist; NX_SOCKET_DIR=/tmp/nx-sockets nx run next-nx-test:build',
-        dev: 'NX_SOCKET_DIR=/tmp/nx-sockets nx run next-nx-test:dev',
-        start:
-          'NX_SOCKET_DIR=/tmp/nx-sockets nx run next-nx-test:serve:production',
+          'rm -rf dist; NX_ISOLATE_PLUGINS=false nx run next-nx-test:build',
+        dev: 'NX_ISOLATE_PLUGINS=false nx run next-nx-test:dev',
+        start: 'NX_ISOLATE_PLUGINS=false nx run next-nx-test:serve:production',
       },
       dependencies: {
         react: '19.0.0',
