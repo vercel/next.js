@@ -1594,6 +1594,7 @@ impl Project {
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             cross_origin: self.next_config().cross_origin(),
             chunk_loading_global: self.next_config().turbopack_chunk_loading_global(),
+            style_groups_algorithm: self.next_config().css_chunking().owned().await?,
         }))
     }
 
@@ -1629,6 +1630,7 @@ impl Project {
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
             css_url_suffix,
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
+            style_groups_algorithm: self.next_config().css_chunking().owned().await?,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -1669,6 +1671,7 @@ impl Project {
             css_url_suffix,
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             cross_origin: self.next_config().cross_origin(),
+            style_groups_algorithm: self.next_config().css_chunking().owned().await?,
         };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(options)

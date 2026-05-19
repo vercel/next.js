@@ -8,6 +8,7 @@ description: >
 metadata:
   author: github
   version: '0.0.2'
+  internal: true
 ---
 
 # gh-stack

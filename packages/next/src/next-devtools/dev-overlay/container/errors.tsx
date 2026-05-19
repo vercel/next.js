@@ -21,10 +21,14 @@ import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
 import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
+  InstantHeaderExplanation,
   InstantGuidance,
+  SYNC_IO_CLIENT_DOCS,
+  SYNC_IO_DOCS,
   type GuidanceKind,
   type GuidanceVariant,
 } from '../components/instant/instant-guidance'
+import { BLOCKING_ROUTE_NAVIGATION_EXPLANATION } from '../components/instant/instant-guidance-data'
 import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './runtime-error/error-cause'
@@ -126,17 +130,18 @@ type HydrationErrorDetails = {
 
 type BlockingRouteErrorDetails = {
   type: 'blocking-route'
-  variant: 'navigation' | 'runtime'
+  variant: 'dynamic' | 'runtime'
+  inNavigation: boolean
 }
 
 type DynamicMetadataErrorDetails = {
   type: 'dynamic-metadata'
-  variant: 'navigation' | 'runtime'
+  variant: 'dynamic' | 'runtime'
 }
 
 type DynamicViewportErrorDetails = {
   type: 'dynamic-viewport'
-  variant: 'navigation' | 'runtime'
+  variant: 'dynamic' | 'runtime'
 }
 
 type SyncIOErrorDetails = {
@@ -217,6 +222,7 @@ function InstantRuntimeError({
   kind = 'blocking-route',
   explanation,
   cause,
+  showExplanation = true,
   dialogResizerRef,
 }: {
   error: ReadyRuntimeError
@@ -224,6 +230,7 @@ function InstantRuntimeError({
   kind?: GuidanceKind
   explanation?: string
   cause?: string
+  showExplanation?: boolean
   dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }) {
   const frames = useFrames(error)
@@ -251,6 +258,7 @@ function InstantRuntimeError({
         kind={kind}
         explanation={explanation}
         cause={cause}
+        showExplanation={showExplanation}
       />
       {frames.length > 0 && (
         <ErrorOverlayCallStack
@@ -269,7 +277,7 @@ function InstantRuntimeError({
   )
 }
 
-function isRuntimeVariant(message: string): boolean {
+export function isRuntimeVariant(message: string): boolean {
   // Discriminates between `createRuntimeBodyError` and `createDynamicBodyError`
   return (
     message.includes('encountered runtime data') &&
@@ -280,10 +288,12 @@ function isRuntimeVariant(message: string): boolean {
 const SYNC_IO_APIS = [
   // Math
   'Math.random()',
-  // Date/Time — `new Date()` before `Date()` to avoid substring false positive
-  'Date.now()',
+  // Date/Time — `new Date()` before `Date()` (substring false positive) and
+  // both before `Date.now()` (the `elapsedTimeBullet` text always contains
+  // `Date.now()` regardless of which API the user actually called).
   'new Date()',
   'Date()',
+  'Date.now()',
   // Node Crypto — longer strings first to avoid substring false positives
   "require('node:crypto').generateKeyPairSync(...)",
   "require('node:crypto').generateKeySync(...)",
@@ -303,23 +313,40 @@ const SYNC_IO_DOCS_PATTERN =
 // Discriminate sync IO errors via the docs URL embedded in the user-facing
 // message by `createSyncIOError`, `createSyncIORuntimeError`, and
 // `createSyncIOClientError`.
-function isSyncIOError(message: string): boolean {
+export function isSyncIOError(message: string): boolean {
   return SYNC_IO_DOCS_PATTERN.test(message)
 }
 
-function isSyncIOClientError(message: string): boolean {
+export function isSyncIOClientError(message: string): boolean {
   const match = SYNC_IO_DOCS_PATTERN.exec(message)
   return match !== null && match[2] === '-client'
 }
 
-function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
+// Detects errors emitted during navigation-phase instant validation: body
+// errors from `createRuntimeBodyErrorInNavigation` /
+// `createDynamicBodyErrorInNavigation` (SSR factories instead say "during
+// the initial render"), and validation errors from
+// `trackDynamicHoleInNavigation` / `getNavigationDisallowedDynamicReasons`.
+export function isBlockingRouteInNavError(message: string): boolean {
+  return (
+    message.includes('or a navigation') ||
+    message.includes('Could not validate `unstable_instant`') ||
+    message.includes('Could not validate instant UI')
+  )
+}
+
+export function getBlockingRouteErrorDetails(
+  error: Error
+): null | ErrorDetails {
   const message = error.message
+  const inNavigation = isBlockingRouteInNavError(message)
 
   const isBlockingPageLoadError = message.includes('/blocking-route')
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
+      inNavigation,
     }
   }
 
@@ -329,7 +356,7 @@ function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
   if (isDynamicMetadataError) {
     return {
       type: 'dynamic-metadata',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
     }
   }
 
@@ -339,7 +366,7 @@ function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
   if (isBlockingViewportError) {
     return {
       type: 'dynamic-viewport',
-      variant: isRuntimeVariant(message) ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(message) ? 'runtime' : 'dynamic',
     }
   }
 
@@ -530,8 +557,22 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           errorType={errorType}
           errorMessage={
             errorDetails.variant === 'runtime'
-              ? 'Next.js encountered runtime data during the initial render.'
-              : 'Next.js encountered uncached data during the initial render.'
+              ? errorDetails.inNavigation
+                ? 'Next.js encountered runtime data during a navigation.'
+                : 'Next.js encountered runtime data during the initial render.'
+              : errorDetails.inNavigation
+                ? 'Next.js encountered uncached data during a navigation.'
+                : 'Next.js encountered uncached data during the initial render.'
+          }
+          headerChildren={
+            <InstantHeaderExplanation
+              kind="blocking-route"
+              explanation={
+                errorDetails.inNavigation
+                  ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION
+                  : undefined
+              }
+            />
           }
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
@@ -548,6 +589,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               key={activeError.id.toString()}
               error={activeError}
               variant={errorDetails.variant}
+              showExplanation={false}
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
@@ -571,6 +613,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               </>
             )
           }
+          headerChildren={<InstantHeaderExplanation kind="metadata" />}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
@@ -587,6 +630,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               error={activeError}
               variant={errorDetails.variant}
               kind="metadata"
+              showExplanation={false}
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
@@ -610,6 +654,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               </>
             )
           }
+          headerChildren={<InstantHeaderExplanation kind="viewport" />}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
@@ -626,6 +671,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               error={activeError}
               variant={errorDetails.variant}
               kind="viewport"
+              showExplanation={false}
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
@@ -641,6 +687,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               Next.js encountered <code>{errorDetails.cause}</code> without an
               explicit rendering intent.
             </>
+          }
+          headerChildren={
+            <InstantHeaderExplanation
+              explanation="This value can change between renders, so it must be either prerendered or computed later."
+              docsUrl={SYNC_IO_DOCS[errorDetails.cause]}
+            />
           }
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
@@ -659,7 +711,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               variant="runtime"
               kind="sync-io"
               cause={errorDetails.cause}
-              explanation="This value can change between renders, so it must be either prerendered or computed later."
+              showExplanation={false}
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
@@ -675,6 +727,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               Next.js encountered <code>{errorDetails.cause}</code> in a Client
               Component.
             </>
+          }
+          headerChildren={
+            <InstantHeaderExplanation
+              explanation="This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit."
+              docsUrl={SYNC_IO_CLIENT_DOCS[errorDetails.cause]}
+            />
           }
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
@@ -693,6 +751,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               variant="runtime"
               kind="sync-io-client"
               cause={errorDetails.cause}
+              showExplanation={false}
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
@@ -782,17 +841,21 @@ export const styles = `
   }
   .nextjs__container_errors__error_title {
     display: flex;
-    align-items: center;
+    align-items: start;
     justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 14px;
+    gap: 12px;
+    position: relative;
   }
   .error-overlay-notes-container {
     margin: 8px 2px;
   }
   .error-overlay-notes-container p {
     white-space: pre-wrap;
+  }
+  @media (max-width: 767px) {
+    .nextjs__container_errors__error_title {
+      flex-direction: column-reverse;
+    }
   }
   .external-link, .external-link:hover {
     color:inherit;

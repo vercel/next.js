@@ -1093,7 +1093,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered Math.random() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -1241,7 +1241,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered Math.random() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -2607,7 +2607,7 @@ describe('Cache Components Errors', () => {
              {
                "code": "E831",
                "description": "Route /use-cache-cookies used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-               "environmentLabel": null,
+               "environmentLabel": "Prerender",
                "label": "Runtime Error",
                "source": "app/use-cache-cookies/page.tsx (22:18) @ CookiesReadingComponent
              > 22 |     await cookies()
@@ -2716,7 +2716,7 @@ describe('Cache Components Errors', () => {
              {
                "code": "E829",
                "description": "Route /use-cache-draft-mode used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-               "environmentLabel": null,
+               "environmentLabel": "Prerender",
                "label": "Runtime Error",
                "source": "app/use-cache-draft-mode/page.tsx (20:26) @ DraftModeEnablingComponent
              > 20 |     ;(await draftMode()).enable()
@@ -2824,7 +2824,7 @@ describe('Cache Components Errors', () => {
              {
                "code": "E833",
                "description": "Route /use-cache-headers used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-               "environmentLabel": null,
+               "environmentLabel": "Prerender",
                "label": "Runtime Error",
                "source": "app/use-cache-headers/page.tsx (21:18) @ HeadersReadingComponent
              > 21 |     await headers()
@@ -2931,7 +2931,7 @@ describe('Cache Components Errors', () => {
              {
                "code": "E841",
                "description": "Route /use-cache-connection used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-               "environmentLabel": null,
+               "environmentLabel": "Prerender",
                "label": "Runtime Error",
                "source": "app/use-cache-connection/page.tsx (21:21) @ ConnectionCallingComponent
              > 21 |     await connection()
@@ -3279,17 +3279,31 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             it('should show a redbox error', async () => {
               const browser = await next.browser('/use-cache-low-expire/nested')
 
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1009",
-                 "description": "A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
-                 "environmentLabel": null,
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-low-expire/nested/page.tsx (20:14) @ async Page
+                 "cause": [
+                   {
+                     "label": "Caused by: Nested dynamic "use cache"",
+                     "message": "This "use cache" has a dynamic cache life that was propagated to its parent.",
+                     "source": "app/use-cache-low-expire/nested/page.tsx (3:1) @ innerCache
+               > 3 | async function innerCache() {
+                   | ^",
+                     "stack": [
+                       "innerCache app/use-cache-low-expire/nested/page.tsx (3:1)",
+                       "outerCache app/use-cache-low-expire/nested/page.tsx (14:10)",
+                       "Page <anonymous>",
+                     ],
+                   },
+                 ],
+                 "code": "E1244",
+                 "description": "A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
+                 "source": "app/use-cache-low-expire/nested/page.tsx (20:14) @ Page
                > 20 |     result = await outerCache()
                     |              ^",
                  "stack": [
-                   "async Page app/use-cache-low-expire/nested/page.tsx (20:14)",
+                   "Page app/use-cache-low-expire/nested/page.tsx (20:14)",
                  ],
                }
               `)
@@ -3310,7 +3324,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async Page (app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3318,7 +3332,19 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                         |              ^
                      21 |   } catch {}
                      22 |
-                     23 |   return (
+                     23 |   return ( {
+                     [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
+                         at innerCache (app/use-cache-low-expire/nested/page.tsx:3:1)
+                         at outerCache (app/use-cache-low-expire/nested/page.tsx:14:10)
+                         at Page (<anonymous>)
+                       1 | import { cacheLife } from 'next/cache'
+                       2 |
+                     > 3 | async function innerCache() {
+                         | ^
+                       4 |   'use cache'
+                       5 |   cacheLife({ expire: 60 }) // 1 minute, under the 5 minute threshold
+                       6 |   return Math.random()
+                   }
                    To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
                    Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -3327,7 +3353,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async k (app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3335,7 +3361,18 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                         |              ^
                      21 |   } catch {}
                      22 |
-                     23 |   return (
+                     23 |   return ( {
+                     [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
+                         at <unknown> (app/use-cache-low-expire/nested/page.tsx:3:1)
+                         at a (app/use-cache-low-expire/nested/page.tsx:3:16)
+                       1 | import { cacheLife } from 'next/cache'
+                       2 |
+                     > 3 | async function innerCache() {
+                         | ^
+                       4 |   'use cache'
+                       5 |   cacheLife({ expire: 60 }) // 1 minute, under the 5 minute threshold
+                       6 |   return Math.random()
+                   }
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -3346,7 +3383,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               } else {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async Page (webpack:///app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3354,7 +3391,19 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                         |              ^
                      21 |   } catch {}
                      22 |
-                     23 |   return (
+                     23 |   return ( {
+                     [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
+                         at innerCache (webpack:///app/use-cache-low-expire/nested/page.tsx:3:1)
+                         at outerCache (webpack:///app/use-cache-low-expire/nested/page.tsx:14:10)
+                         at Page (<anonymous>)
+                       1 | import { cacheLife } from 'next/cache'
+                       2 |
+                     > 3 | async function innerCache() {
+                         | ^
+                       4 |   'use cache'
+                       5 |   cacheLife({ expire: 60 }) // 1 minute, under the 5 minute threshold
+                       6 |   return Math.random()
+                   }
                    To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
                    Error occurred prerendering page "/use-cache-low-expire/nested". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -3363,8 +3412,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at a (<next-dist-dir>)
+                   "Error: A "use cache" with short \`expire\` (under 5 minutes) is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with longer \`expire\`) or remain dynamic (with short \`expire\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at a (<next-dist-dir>) {
+                     [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
+                         at b (<next-dist-dir>)
+                         at c (<next-dist-dir>)
+                         at d (<next-dist-dir>)
+                   }
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-low-expire/nested" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -3630,17 +3684,31 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 '/use-cache-revalidate-0/nested'
               )
 
-              await expect(browser).toDisplayRedbox(`
+              await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1000",
-                 "description": "A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
-                 "environmentLabel": null,
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-revalidate-0/nested/page.tsx (20:14) @ async Page
+                 "cause": [
+                   {
+                     "label": "Caused by: Nested dynamic "use cache"",
+                     "message": "This "use cache" has a dynamic cache life that was propagated to its parent.",
+                     "source": "app/use-cache-revalidate-0/nested/page.tsx (3:1) @ innerCache
+               > 3 | async function innerCache() {
+                   | ^",
+                     "stack": [
+                       "innerCache app/use-cache-revalidate-0/nested/page.tsx (3:1)",
+                       "outerCache app/use-cache-revalidate-0/nested/page.tsx (14:10)",
+                       "Page <anonymous>",
+                     ],
+                   },
+                 ],
+                 "code": "E1245",
+                 "description": "A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife",
+                 "environmentLabel": "Server",
+                 "label": "Console Error",
+                 "source": "app/use-cache-revalidate-0/nested/page.tsx (20:14) @ Page
                > 20 |     result = await outerCache()
                     |              ^",
                  "stack": [
-                   "async Page app/use-cache-revalidate-0/nested/page.tsx (20:14)",
+                   "Page app/use-cache-revalidate-0/nested/page.tsx (20:14)",
                  ],
                }
               `)
@@ -3661,7 +3729,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async Page (app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3669,7 +3737,19 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                         |              ^
                      21 |   } catch {}
                      22 |
-                     23 |   return (
+                     23 |   return ( {
+                     [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
+                         at innerCache (app/use-cache-revalidate-0/nested/page.tsx:3:1)
+                         at outerCache (app/use-cache-revalidate-0/nested/page.tsx:14:10)
+                         at Page (<anonymous>)
+                       1 | import { cacheLife } from 'next/cache'
+                       2 |
+                     > 3 | async function innerCache() {
+                         | ^
+                       4 |   'use cache'
+                       5 |   cacheLife({ revalidate: 0 })
+                       6 |   return Math.random()
+                   }
                    To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
                    Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -3678,7 +3758,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async k (app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3686,7 +3766,18 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                         |              ^
                      21 |   } catch {}
                      22 |
-                     23 |   return (
+                     23 |   return ( {
+                     [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
+                         at <unknown> (app/use-cache-revalidate-0/nested/page.tsx:3:1)
+                         at a (app/use-cache-revalidate-0/nested/page.tsx:3:16)
+                       1 | import { cacheLife } from 'next/cache'
+                       2 |
+                     > 3 | async function innerCache() {
+                         | ^
+                       4 |   'use cache'
+                       5 |   cacheLife({ revalidate: 0 })
+                       6 |   return Math.random()
+                   }
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -3697,7 +3788,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               } else {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
                        at async Page (webpack:///app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
@@ -3705,7 +3796,19 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                         |              ^
                      21 |   } catch {}
                      22 |
-                     23 |   return (
+                     23 |   return ( {
+                     [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
+                         at innerCache (webpack:///app/use-cache-revalidate-0/nested/page.tsx:3:1)
+                         at outerCache (webpack:///app/use-cache-revalidate-0/nested/page.tsx:14:10)
+                         at Page (<anonymous>)
+                       1 | import { cacheLife } from 'next/cache'
+                       2 |
+                     > 3 | async function innerCache() {
+                         | ^
+                       4 |   'use cache'
+                       5 |   cacheLife({ revalidate: 0 })
+                       6 |   return Math.random()
+                   }
                    To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
                    Error occurred prerendering page "/use-cache-revalidate-0/nested". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -3714,8 +3817,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer \`"use cache"\` to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at a (<next-dist-dir>)
+                   "Error: A "use cache" with zero \`revalidate\` is nested inside another "use cache" that has no explicit \`cacheLife\`, which is not allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" to choose whether it should be prerendered (with non-zero \`revalidate\`) or remain dynamic (with zero \`revalidate\`). Read more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
+                       at a (<next-dist-dir>) {
+                     [cause]: Nested dynamic "use cache": This "use cache" has a dynamic cache life that was propagated to its parent.
+                         at b (<next-dist-dir>)
+                         at c (<next-dist-dir>)
+                         at d (<next-dist-dir>)
+                   }
                    To get a more detailed stack trace and pinpoint the issue, try one of the following:
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-revalidate-0/nested" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -3980,7 +4088,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                {
                  "code": "E831",
                  "description": "Route /use-cache-cookies-third-party used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": null,
+                 "environmentLabel": "Prerender",
                  "label": "Runtime Error",
                  "source": "app/use-cache-cookies-third-party/page.tsx (10:7) @ Page
                > 10 |       <CachedCookiesReader />
@@ -4079,7 +4187,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                {
                  "code": "E829",
                  "description": "Route /use-cache-draft-mode-third-party used "draftMode().enable()" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": null,
+                 "environmentLabel": "Prerender",
                  "label": "Runtime Error",
                  "source": "app/use-cache-draft-mode-third-party/page.tsx (10:7) @ Page
                > 10 |       <CachedDraftModeEnabler />
@@ -4177,7 +4285,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                {
                  "code": "E833",
                  "description": "Route /use-cache-headers-third-party used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": null,
+                 "environmentLabel": "Prerender",
                  "label": "Runtime Error",
                  "source": "app/use-cache-headers-third-party/page.tsx (10:7) @ Page
                > 10 |       <CachedHeadersReader />
@@ -4276,7 +4384,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                {
                  "code": "E841",
                  "description": "Route /use-cache-connection-third-party used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": null,
+                 "environmentLabel": "Prerender",
                  "label": "Runtime Error",
                  "source": "app/use-cache-connection-third-party/page.tsx (10:7) @ Page
                > 10 |       <CachedConnectionCaller />
@@ -4379,14 +4487,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                {
                  "code": "E1016",
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
-                 "environmentLabel": null,
+                 "environmentLabel": "Server",
                  "label": "Runtime Error",
-                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <unknown>
+                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <anonymous>
                > 21 | const getCachedData = unstable_cache(async () => {
                     |                                      ^",
                  "stack": [
-                   "<unknown> app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
-                   "async ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
+                   "<anonymous> app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
+                   "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
                  ],
                }
               `)
@@ -4395,14 +4503,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                {
                  "code": "E1016",
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
-                 "environmentLabel": null,
+                 "environmentLabel": "Server",
                  "label": "Runtime Error",
                  "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ eval
                > 21 | const getCachedData = unstable_cache(async () => {
                     |                                      ^",
                  "stack": [
                    "eval app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
-                   "async ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
+                   "ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
                  ],
                }
               `)
@@ -4507,14 +4615,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
              {
                "code": "E1001",
                "description": ""use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".",
-               "environmentLabel": null,
+               "environmentLabel": "Prerender",
                "label": "Runtime Error",
                "source": "app/use-cache-private-in-use-cache/page.tsx (15:1) @ Private
              > 15 | async function Private() {
                   | ^",
                "stack": [
                  "Private app/use-cache-private-in-use-cache/page.tsx (15:1)",
-                 "stringify <anonymous>",
                ],
              }
             `)
@@ -4841,8 +4948,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1247",
-             "description": "Next.js encountered Date.now() without an explicit rendering intent.",
+             "code": "E1242",
+             "description": "Next.js encountered Date() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-current-time/date/page.tsx (19:16) @ DateReadingComponent
@@ -4986,7 +5093,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1247",
+             "code": "E1242",
              "description": "Next.js encountered Date.now() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5131,8 +5238,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1247",
-             "description": "Next.js encountered Date.now() without an explicit rendering intent.",
+             "code": "E1242",
+             "description": "Next.js encountered new Date() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-current-time/new-date/page.tsx (19:16) @ DateReadingComponent
@@ -5276,7 +5383,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1247",
+             "code": "E1242",
              "description": "Next.js encountered Math.random() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5417,7 +5524,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1247",
+             "code": "E1242",
              "description": "Next.js encountered crypto.getRandomValues() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5561,7 +5668,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1247",
+             "code": "E1242",
              "description": "Next.js encountered crypto.randomUUID() without an explicit rendering intent.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5703,7 +5810,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -5719,7 +5826,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -5865,7 +5972,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').generateKeySync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -5881,7 +5988,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').generateKeySync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6027,7 +6134,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6043,7 +6150,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6189,7 +6296,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered crypto.getRandomValues() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6205,7 +6312,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered crypto.getRandomValues() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6351,7 +6458,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomBytes(size) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6367,7 +6474,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomBytes(size) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6513,7 +6620,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomFillSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6529,7 +6636,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomFillSync(...) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6675,7 +6782,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6691,7 +6798,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6837,7 +6944,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6853,7 +6960,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6999,7 +7106,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomUUID() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -7015,7 +7122,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1247",
+               "code": "E1242",
                "description": "Next.js encountered require('node:crypto').randomUUID() without an explicit rendering intent.",
                "environmentLabel": "Server",
                "label": "Instant",
