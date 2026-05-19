@@ -40,7 +40,7 @@ pub fn rcstr(input: TokenStream) -> TokenStream {
                 format!("::turbo_rcstr::inline_atom({lit}).unwrap()")
             } else {
                 format!(
-                    "{{ static RCSTR_STORAGE: ::turbo_rcstr::PrehashedString = \
+                    "{{ static RCSTR_STORAGE: ::turbo_rcstr::StaticPrehashedString = \
                      ::turbo_rcstr::make_const_prehashed_string({lit}); const RCSTR: \
                      ::turbo_rcstr::RcStr = ::turbo_rcstr::from_static(&RCSTR_STORAGE); \
                      ::turbo_rcstr::__rcstr_inventory_submit!( \
@@ -51,7 +51,7 @@ pub fn rcstr(input: TokenStream) -> TokenStream {
             format!(
                 "{{ const TEXT: &str = {input}; if ::turbo_rcstr::is_atom_inlineable(TEXT) {{ \
                  ::turbo_rcstr::inline_atom(TEXT).unwrap() }} else {{ static RCSTR_STORAGE: \
-                 ::turbo_rcstr::PrehashedString = \
+                 ::turbo_rcstr::StaticPrehashedString = \
                  ::turbo_rcstr::make_const_prehashed_string(TEXT); const RCSTR: \
                  ::turbo_rcstr::RcStr = ::turbo_rcstr::from_static(&RCSTR_STORAGE); \
                  ::turbo_rcstr::__rcstr_inventory_submit!( \
