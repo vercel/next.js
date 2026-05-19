@@ -50,6 +50,8 @@ import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import {
   createRuntimeBodyError,
   createDynamicBodyError,
+  createRuntimeBodyErrorInNavigation,
+  createDynamicBodyErrorInNavigation,
   createDynamicOrRuntimeBodyError,
   createRuntimeMetadataError,
   createDynamicMetadataError,
@@ -1026,8 +1028,8 @@ export function trackDynamicHoleInNavigation(
 
   const error = addErrorContext(
     kind === DynamicHoleKind.Runtime
-      ? createRuntimeBodyError(workStore.route)
-      : createDynamicBodyError(workStore.route),
+      ? createRuntimeBodyErrorInNavigation(workStore.route)
+      : createDynamicBodyErrorInNavigation(workStore.route),
     componentStack,
     effectiveCreateInstantStack
   )
