@@ -1,4 +1,5 @@
 import { Interface } from '../index.js'
+import { quantile, mean as statsMean } from '../statistics.js'
 import { formatUnit } from '../units.js'
 import { writeFile } from 'fs/promises'
 
@@ -21,15 +22,17 @@ export default function createInterface(
       throw new Error('env var JSON_OUTPUT_FILE is not set')
     }
     return file
-  })()
+  })(),
+  options: { n?: number } = {}
 ): Interface {
+  const n = options.n ?? 1
+  // Per-(scenario, props, name) sample accumulator.
   const metrics = new Map<
     string,
     {
       key: Record<string, string | number>
-      value: number
+      samples: number[]
       unit: string
-      count: number
       relativeTo?: string
     }
   >()
@@ -43,36 +46,47 @@ export default function createInterface(
       const key = JSON.stringify(keyObject)
       const current = metrics.get(key)
       if (current) {
-        current.value += value
-        current.count++
+        current.samples.push(value)
       } else {
         metrics.set(key, {
           key: keyObject,
-          value,
-          unit: unit,
-          count: 1,
+          samples: [value],
+          unit,
           relativeTo,
         })
       }
     },
     finish: async () => {
-      await writeFile(
-        file,
-        JSON.stringify(
-          [...metrics.values()].map(
-            ({ key, value, unit, count, relativeTo }) => {
-              return {
-                key,
-                value: value / count,
-                unit,
-                text: formatUnit(value / count, unit),
-                datapoints: count,
-                relativeTo,
-              }
+      const results = [...metrics.values()].map(
+        ({ key, samples, unit, relativeTo }) => {
+          if (samples.length === 1) {
+            // Preserve the original single-run shape exactly for back-compat.
+            return {
+              key,
+              value: samples[0],
+              unit,
+              text: formatUnit(samples[0], unit),
+              datapoints: 1,
+              relativeTo,
             }
-          )
-        )
+          }
+          const m = statsMean(samples)
+          return {
+            key,
+            value: m,
+            unit,
+            text: formatUnit(m, unit),
+            datapoints: samples.length,
+            mean: m,
+            p50: quantile(samples, 0.5),
+            p90: quantile(samples, 0.9),
+            samples,
+            relativeTo,
+          }
+        }
       )
+      const payload = n > 1 ? { results } : (results as unknown)
+      await writeFile(file, JSON.stringify(payload))
     },
   }
 
