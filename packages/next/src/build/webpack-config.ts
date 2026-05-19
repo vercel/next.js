@@ -1360,6 +1360,7 @@ export default async function getBaseWebpackConfig(
         'error-loader',
         'next-swc-loader',
         'next-client-pages-loader',
+        'next-instrumentation-client-loader',
         'next-image-loader',
         'next-metadata-image-loader',
         'next-style-loader',
@@ -1576,11 +1577,6 @@ export default async function getBaseWebpackConfig(
           : []),
 
         ...getNextRootParamsRules({
-          isRootParamsEnabled:
-            config.experimental.rootParams ??
-            // `cacheComponents` implies `experimental.rootParams`.
-            config.cacheComponents ??
-            false,
           isClient,
           appDir,
           pageExtensions,
@@ -1932,6 +1928,20 @@ export default async function getBaseWebpackConfig(
         {
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]next-flight-loader[\\/]action-client-wrapper\.js/,
           sideEffects: false,
+        },
+        // The placeholder file aliased from `private-next-instrumentation-client`.
+        // The loader replaces its contents with a synthetic module that
+        // requires each `instrumentationClientInject` entry, then re-exports
+        // the user's `instrumentation-client.{pageExt}` (composing
+        // `onRouterTransitionStart` hooks across all of them).
+        {
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]instrumentation-client-stub\.js$/,
+          use: {
+            loader: 'next-instrumentation-client-loader',
+            options: {
+              injects: JSON.stringify(config.instrumentationClientInject),
+            },
+          },
         },
         {
           // This loader rule should be before other rules, as it can output code
@@ -2866,12 +2876,10 @@ export default async function getBaseWebpackConfig(
 }
 
 function getNextRootParamsRules({
-  isRootParamsEnabled,
   isClient,
   appDir,
   pageExtensions,
 }: {
-  isRootParamsEnabled: boolean
   isClient: boolean
   appDir: string | undefined
   pageExtensions: string[]
@@ -2887,15 +2895,6 @@ function getNextRootParamsRules({
         message,
       } satisfies InvalidImportLoaderOpts,
     } satisfies webpack.RuleSetRule
-  }
-
-  // Hard-error if the flag is not enabled, regardless of if we're on the server or on the client.
-  if (!isRootParamsEnabled) {
-    return [
-      createInvalidImportRule(
-        "'next/root-params' can only be imported when `experimental.rootParams` is enabled."
-      ),
-    ]
   }
 
   // If there's no app-dir (and thus no layouts), there's no sensible way to use 'next/root-params',

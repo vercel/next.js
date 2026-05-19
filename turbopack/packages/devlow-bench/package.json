@@ -45,6 +45,7 @@
   "dependencies": {
     "@datadog/datadog-api-client": "^1.13.0",
     "inquirer": "^9.2.7",
+    "jstat": "^1.9.6",
     "minimist": "^1.2.8",
     "picocolors": "1.0.1",
     "pidusage-tree": "^2.0.5",
