@@ -65,7 +65,7 @@ pub enum ContentHashing {
     /// Benefit: No hash manifest needed.
     /// Downside: Causes cascading hash invalidation.
     Direct {
-        /// The length of the content hash in base40 chars. Anything lower than 7 is not
+        /// The length of the content hash in base38 chars. Anything lower than 7 is not
         /// recommended due to the high risk of collisions.
         length: u8,
     },
