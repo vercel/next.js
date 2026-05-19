@@ -670,6 +670,16 @@ export interface TraceSpanInfo {
   avgCorrectedDuration?: number
   /** Raw span ID for aggregated groups (the index of the first span). */
   firstSpanId?: string
+  /**
+   * TurboMalloc memory-usage samples recorded while this span
+   * (or its example span, for aggregated groups) was live.
+   *
+   * Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure]`,
+   * where `pressure` is the memory-pressure byte (0 = no pressure, higher
+   * = more pressure). `100 ticks = 1 µs`. The offset is always `>= 0` and
+   * `<= span_duration`. Capped and downsampled by the store.
+   */
+  memorySamples: Array<Array<number>>
 }
 /** The result of a `query_trace_spans` call. */
 export interface TraceQueryResult {
