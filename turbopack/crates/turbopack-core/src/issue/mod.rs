@@ -497,10 +497,9 @@ impl IssueSource {
             let mut range = match range {
                 SourceRange::LineColumn(start, end) => Some((start, end)),
                 SourceRange::ByteOffset(start, end) => {
-                    // A read failure here should not crash issue formatting:
-                    // better to render the issue without a code frame than
-                    // to surface a reporter failure on top of whatever the
-                    // user was trying to debug.
+                    // Defensively read the content, an error there should not prevent all issue
+                    // formatting.  Best practice is for `content` to return `NotFound` instead of
+                    // an error.
                     if let Ok(content) = self.source.content().lines().await
                         && let FileLinesContent::Lines(lines) = &*content
                     {
@@ -1040,10 +1039,9 @@ pub struct PlainSource {
 impl PlainSource {
     #[turbo_tasks::function]
     pub async fn from_source(asset: ResolvedVc<Box<dyn Source>>) -> Result<Vc<PlainSource>> {
-        // Crash-proofing: a failure to read the asset's content should never
-        // break the issue reporter. The CLI formatter renders no code frame
-        // for `FileContent::NotFound`, so degrading on error still yields a
-        // usable issue (path + message) rather than a cascade.
+        // Defensively read the content, an error there should not prevent all issue
+        // formatting.  Best practice is for `content` to return `NotFound` instead of
+        // an error.
         let content = if let Ok(asset_content) = asset.content().await
             && let AssetContent::File(file_content) = &*asset_content
             && let Ok(file_content) = file_content.await
