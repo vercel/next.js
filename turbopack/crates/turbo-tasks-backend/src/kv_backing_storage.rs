@@ -19,7 +19,8 @@ use crate::{
     GitVersionInfo,
     backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage},
     backing_storage::{
-        BackingStorage, BackingStorageSealed, SnapshotItem, compute_task_type_hash_from_components,
+        BackingStorage, BackingStorageSealed, SnapshotItem, SnapshotMeta,
+        compute_task_type_hash_from_components,
     },
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
@@ -224,7 +225,11 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         get(&self.inner.database).context("Unable to read uncompleted operations from database")
     }
 
-    fn save_snapshot<I>(&self, operations: Vec<Arc<AnyOperation>>, snapshots: Vec<I>) -> Result<()>
+    fn save_snapshot<I>(
+        &self,
+        operations: Vec<Arc<AnyOperation>>,
+        snapshots: Vec<I>,
+    ) -> Result<SnapshotMeta>
     where
         I: IntoIterator<Item = SnapshotItem> + Send + Sync,
     {
@@ -233,9 +238,12 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 
         {
             let _span = tracing::trace_span!("update task data").entered();
-            let max_new_task_id =
+            let snapshot_meta =
                 parallel::map_collect_owned::<_, _, Result<Vec<_>>>(snapshots, |shard: I| {
                     let mut max_new_task_id = 0;
+                    let mut data_items = 0;
+                    let mut meta_items = 0;
+                    let mut task_cache_items = 0;
                     for SnapshotItem {
                         task_id,
                         meta,
@@ -251,6 +259,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                                 WriteBuffer::Borrowed(key),
                                 WriteBuffer::SmallVec(meta),
                             )?;
+                            meta_items += 1;
                         }
                         if let Some(data) = data {
                             batch.put(
@@ -258,6 +267,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                                 WriteBuffer::Borrowed(key),
                                 WriteBuffer::SmallVec(data),
                             )?;
+                            data_items += 1;
                         }
                         // Write task cache entry inline if this is a new task
                         if let Some(task_type_hash) = task_type_hash {
@@ -266,13 +276,19 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                                 WriteBuffer::Borrowed(&task_type_hash),
                                 WriteBuffer::Borrowed(key),
                             )?;
+                            task_cache_items += 1;
                             max_new_task_id = max_new_task_id.max(*task_id);
                         }
                     }
-                    Ok(max_new_task_id)
+                    Ok(SnapshotMeta {
+                        data_items,
+                        meta_items,
+                        task_cache_items,
+                        max_next_task_id: max_new_task_id,
+                    })
                 })?
                 .into_iter()
-                .max()
+                .reduce(|t1, t2| t1.merge(t2))
                 .unwrap_or_default();
 
             let span = tracing::trace_span!("flush task data").entered();
@@ -287,14 +303,14 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             )?;
 
             let mut next_task_id = get_next_free_task_id(&batch)?;
-            next_task_id = next_task_id.max(max_new_task_id + 1);
+            next_task_id = next_task_id.max(snapshot_meta.max_next_task_id + 1);
 
             save_infra(&batch, next_task_id, operations)?;
             {
                 let _span = tracing::trace_span!("commit").entered();
                 batch.commit().context("Unable to commit operations")?;
             }
-            Ok(())
+            Ok(snapshot_meta)
         }
     }
 
