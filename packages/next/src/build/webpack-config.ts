@@ -1360,6 +1360,7 @@ export default async function getBaseWebpackConfig(
         'error-loader',
         'next-swc-loader',
         'next-client-pages-loader',
+        'next-instrumentation-client-loader',
         'next-image-loader',
         'next-metadata-image-loader',
         'next-style-loader',
@@ -1932,6 +1933,20 @@ export default async function getBaseWebpackConfig(
         {
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]next-flight-loader[\\/]action-client-wrapper\.js/,
           sideEffects: false,
+        },
+        // The placeholder file aliased from `private-next-instrumentation-client`.
+        // The loader replaces its contents with a synthetic module that
+        // requires each `instrumentationClientInject` entry, then re-exports
+        // the user's `instrumentation-client.{pageExt}` (composing
+        // `onRouterTransitionStart` hooks across all of them).
+        {
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]instrumentation-client-stub\.js$/,
+          use: {
+            loader: 'next-instrumentation-client-loader',
+            options: {
+              injects: JSON.stringify(config.instrumentationClientInject),
+            },
+          },
         },
         {
           // This loader rule should be before other rules, as it can output code

@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import path from 'path'
 
@@ -49,20 +49,20 @@ describe('Instrumentation Client Hook', () => {
     })
   })
 
+  function filterNavigationStartLogs(logs: Array<{ message: string }>) {
+    const result = []
+    for (const log of logs) {
+      if (log.message.startsWith('[Router Transition Start]')) {
+        result.push(log.message)
+      }
+    }
+    return result
+  }
+
   describe('onRouterTransitionStart', () => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, 'app-router'),
     })
-
-    function filterNavigationStartLogs(logs: Array<{ message: string }>) {
-      const result = []
-      for (const log of logs) {
-        if (log.message.startsWith('[Router Transition Start]')) {
-          result.push(log.message)
-        }
-      }
-      return result
-    }
 
     it('onRouterTransitionStart fires at the start of a navigation', async () => {
       const browser = await next.browser('/')
@@ -102,12 +102,62 @@ describe('Instrumentation Client Hook', () => {
     })
   })
 
-  describe('HMR in development mode', () => {
-    const { next, isNextDev } = nextTestSetup({
-      files: path.join(__dirname, 'app-router'),
+  describe('instrumentationClientInject', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'inject'),
     })
 
-    if (isNextDev) {
+    it('runs each injected entry before the user instrumentation-client and before hydration, in array order', async () => {
+      const browser = await next.browser('/')
+
+      const order = await browser.eval(`window.__INJECT_ORDER`)
+      expect(order).toEqual(['a', 'b', 'user'])
+
+      const injectA = await browser.eval(`window.__INJECT_A_EXECUTED_AT`)
+      const injectB = await browser.eval(`window.__INJECT_B_EXECUTED_AT`)
+      const userTime = await browser.eval(
+        `window.__INSTRUMENTATION_CLIENT_EXECUTED_AT`
+      )
+      const hydrationTime = await browser.eval(`window.__NEXT_HYDRATED_AT`)
+
+      expect(injectA).toBeDefined()
+      expect(injectB).toBeDefined()
+      expect(userTime).toBeDefined()
+      expect(hydrationTime).toBeDefined()
+
+      expect(injectA).toBeLessThanOrEqual(injectB)
+      expect(injectB).toBeLessThanOrEqual(userTime)
+      expect(userTime).toBeLessThan(hydrationTime)
+    })
+
+    it('still surfaces onRouterTransitionStart from the user instrumentation-client when injects are configured', async () => {
+      const browser = await next.browser('/')
+
+      const linkToSomePage = await browser.elementByCss('a[href="/some-page"]')
+      await linkToSomePage.click()
+      await browser.elementById('some-page')
+
+      const linkToHome = await browser.elementByCss('a[href="/"]')
+      await linkToHome.click()
+      await browser.elementById('home')
+
+      expect(filterNavigationStartLogs(await browser.log())).toEqual([
+        '[Router Transition Start] [push] /some-page a',
+        '[Router Transition Start] [push] /some-page b',
+        '[Router Transition Start] [push] /some-page user',
+        '[Router Transition Start] [push] / a',
+        '[Router Transition Start] [push] / b',
+        '[Router Transition Start] [push] / user',
+      ])
+    })
+  })
+
+  if (isNextDev) {
+    describe('HMR in development mode', () => {
+      const { next } = nextTestSetup({
+        files: path.join(__dirname, 'app-router'),
+      })
+
       it('should reload instrumentation-client when modified', async () => {
         const browser = await next.browser('/')
         const initialTime = await browser.eval(
@@ -146,13 +196,6 @@ describe('Instrumentation Client Hook', () => {
         // Restore the original file
         await next.patchFile(instrumentationPath, originalContent)
       })
-    } else {
-      // Add a dummy test when not in dev mode
-      it('skips tests in non-dev mode', () => {
-        console.log(
-          'Skipping instrumentation-client-hook tests in non-dev mode'
-        )
-      })
-    }
-  })
+    })
+  }
 })

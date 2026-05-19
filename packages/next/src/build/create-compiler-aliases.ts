@@ -25,6 +25,17 @@ interface CompilerAliases {
 
 const isReact19 = typeof React.use === 'function'
 
+/**
+ * Absolute path to the placeholder file that `private-next-instrumentation-client`
+ * resolves to. Its contents are replaced at build time by
+ * `next-instrumentation-client-loader` via a `module.rules` entry in
+ * `webpack-config.ts`.
+ */
+const INSTRUMENTATION_CLIENT_STUB_PATH = path.join(
+  NEXT_PROJECT_ROOT,
+  'dist/build/webpack/loaders/instrumentation-client-stub.js'
+)
+
 export function createWebpackAliases({
   distDir,
   isClient,
@@ -138,7 +149,17 @@ export function createWebpackAliases({
     [ROOT_DIR_ALIAS]: dir,
     ...(isClient
       ? {
-          'private-next-instrumentation-client': [
+          // `private-next-instrumentation-client` resolves to a placeholder
+          // file whose contents are replaced at build time by
+          // `next-instrumentation-client-loader` (registered via a
+          // `module.rules` entry in webpack-config.ts). The emitted module
+          // requires each `instrumentationClientInject` entry for side effects,
+          // then re-exports the user's `instrumentation-client.{pageExt}` file
+          // (resolved through the `private-next-instrumentation-client-user`
+          // alias below).
+          'private-next-instrumentation-client':
+            INSTRUMENTATION_CLIENT_STUB_PATH,
+          'private-next-instrumentation-client-user': [
             path.join(dir, 'src', 'instrumentation-client'),
             path.join(dir, 'instrumentation-client'),
             'private-next-empty-module',
