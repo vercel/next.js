@@ -203,12 +203,7 @@ function startServer(dir: string, port: number): Promise<void> {
 
     server.on('error', onError)
 
-    // Omit the host argument so Node binds on `::` (dual-stack on Linux,
-    // macOS, and Windows). This matches `next dev`/`next start`, which
-    // also leave the host unset (see `packages/next/src/cli/next-dev.ts`).
-    // Passing `'localhost'` here would force DNS resolution and bind to a
-    // single address — whichever `/etc/hosts` lists first — so a client
-    // that resolves `localhost` to the other family gets ECONNREFUSED.
+    // Listen on localhost (both IPv4 and IPv6)
     server.listen(port, () => {
       const address = server.address()
       if (address == null) {

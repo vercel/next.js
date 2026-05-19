@@ -13,6 +13,8 @@ describe('nx-handling', () => {
       private: true,
       packageManager: 'npm@10.9.2',
       scripts: {
+        // Nx's isolated plugin worker can race in CI and crash before Next.js
+        // starts, so keep this fixture focused on Next.js integration.
         build:
           'rm -rf dist; NX_ISOLATE_PLUGINS=false nx run next-nx-test:build',
         dev: 'NX_ISOLATE_PLUGINS=false nx run next-nx-test:dev',
