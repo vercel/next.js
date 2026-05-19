@@ -225,7 +225,7 @@
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_noStore is allowed",
       "Error overlay - RSC build errors next/root-params importing 'next/root-params' in a client component",
       "Error overlay - RSC build errors next/root-params importing 'next/root-params' in a client component in a way that bypasses import analysis",
-      "Error overlay - RSC build errors next/root-params importing 'next/root-params' when experimental.rootParams is not enabled",
+      "Error overlay - RSC build errors next/root-params importing a non-existent getter from 'next/root-params'",
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning client-only",
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning server-only",
       "Error overlay - RSC build errors should error for invalid undefined module retuning from next dynamic",

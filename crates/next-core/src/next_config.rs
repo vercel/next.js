@@ -1220,7 +1220,6 @@ pub struct ExperimentalConfig {
     /// This field is kept for backwards compatibility during migration.
     cache_components: Option<bool>,
     use_cache: Option<bool>,
-    root_params: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
     supports_immutable_assets: Option<bool>,
 
@@ -2175,16 +2174,6 @@ impl NextConfig {
                 // "use cache" was originally implicitly enabled with the
                 // cacheComponents flag, so we transfer the value for cacheComponents to the
                 // explicit useCache flag to ensure backwards compatibility.
-                .unwrap_or(self.cache_components.unwrap_or(false)),
-        )
-    }
-
-    #[turbo_tasks::function]
-    pub fn enable_root_params(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .root_params
-                // rootParams should be enabled implicitly in cacheComponents.
                 .unwrap_or(self.cache_components.unwrap_or(false)),
         )
     }

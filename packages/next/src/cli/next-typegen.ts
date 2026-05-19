@@ -55,8 +55,6 @@ const nextTypegen = async (
     hasPagesDir: !!pagesDir,
     appDir: appDir || undefined,
     pagesDir: pagesDir || undefined,
-    rootParams:
-      !!nextConfig.experimental.rootParams || !!nextConfig.cacheComponents,
   })
 
   console.log('Generating route types...')
@@ -117,8 +115,7 @@ const nextTypegen = async (
 
   await writeRootParamsTypes(
     routeTypesManifest,
-    join(distDir, 'types', 'root-params.d.ts'),
-    nextConfig
+    join(distDir, 'types', 'root-params.d.ts')
   )
 
   console.log('✓ Types generated successfully')

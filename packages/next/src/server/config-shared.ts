@@ -1197,11 +1197,6 @@ export interface ExperimentalConfig {
       }
 
   /**
-   * Enable accessing root params via the `next/root-params` module.
-   */
-  rootParams?: boolean
-
-  /**
    * Body size limit for request bodies with middleware configured.
    * Defaults to 10MB. Can be specified as a number (bytes) or string (e.g. '5mb').
    *

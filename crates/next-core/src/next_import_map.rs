@@ -211,13 +211,7 @@ pub async fn get_next_client_import_map(
         rcstr!("next/dist/compiled/server-only") => rcstr!("next/dist/compiled/server-only/index"),
         rcstr!("next/dist/compiled/client-only") => rcstr!("next/dist/compiled/client-only/index"),},
     );
-    insert_next_root_params_mapping(
-        &mut import_map,
-        next_config.enable_root_params(),
-        Either::Right(ty.clone()),
-        None,
-    )
-    .await?;
+    insert_next_root_params_mapping(&mut import_map, Either::Right(ty.clone()), None).await?;
 
     match ty {
         ClientContextType::Pages { .. }
@@ -747,13 +741,7 @@ async fn insert_next_server_special_aliases(
         }
     }
 
-    insert_next_root_params_mapping(
-        import_map,
-        next_config.enable_root_params(),
-        Either::Left(ty),
-        collected_root_params,
-    )
-    .await?;
+    insert_next_root_params_mapping(import_map, Either::Left(ty), collected_root_params).await?;
 
     import_map.insert_exact_alias(
         rcstr!("@vercel/og"),

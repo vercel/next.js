@@ -1430,8 +1430,7 @@ export default async function build(
 
           await writeRootParamsTypes(
             routeTypesManifest,
-            path.join(distDir, 'types', 'root-params.d.ts'),
-            config
+            path.join(distDir, 'types', 'root-params.d.ts')
           )
         })
 
