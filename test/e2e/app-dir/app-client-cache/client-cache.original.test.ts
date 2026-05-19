@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import {
   browserConfigWithFixedTime,
@@ -76,7 +76,7 @@ describe('app dir client cache semantics (30s/5min)', () => {
     })
   } else {
     describe('prefetch={true}', () => {
-      let browser: Awaited<ReturnType<typeof next.browser>>
+      let browser: Playwright
 
       beforeEach(async () => {
         browser = await next.browser('/', browserConfigWithFixedTime)
@@ -172,7 +172,7 @@ describe('app dir client cache semantics (30s/5min)', () => {
       })
     })
     describe('prefetch={false}', () => {
-      let browser: Awaited<ReturnType<typeof next.browser>>
+      let browser: Playwright
 
       beforeEach(async () => {
         browser = await next.browser('/', browserConfigWithFixedTime)
@@ -224,7 +224,7 @@ describe('app dir client cache semantics (30s/5min)', () => {
       })
     })
     describe('prefetch={undefined} - default', () => {
-      let browser: Awaited<ReturnType<typeof next.browser>>
+      let browser: Playwright
 
       beforeEach(async () => {
         browser = await next.browser('/', browserConfigWithFixedTime)

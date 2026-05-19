@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, type Playwright } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 // [TODO]: It is unclear why turbopack takes longer to run this test
@@ -26,7 +26,7 @@ describe('TailwindCSS JIT', () => {
   })
 
   it('works with JIT enabled', async () => {
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
     try {
       browser = await next.browser('/')
       const text = await browser.elementByCss('.text-6xl').text()

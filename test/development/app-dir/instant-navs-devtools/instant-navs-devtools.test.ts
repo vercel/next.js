@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
 
 describe('instant-nav-panel', () => {
@@ -19,32 +19,24 @@ describe('instant-nav-panel', () => {
     )
   }
 
-  async function waitForInstantModeCookie(
-    browser: Awaited<ReturnType<typeof next.browser>>
-  ): Promise<void> {
+  async function waitForInstantModeCookie(browser: Playwright): Promise<void> {
     await retry(async () => {
       const cookie = await browser.eval(() => document.cookie)
       expect(cookie).toMatch(/next-instant-navigation-testing=[^;]+/)
     })
   }
 
-  async function clearInstantModeCookie(
-    browser: Awaited<ReturnType<typeof next.browser>>
-  ) {
+  async function clearInstantModeCookie(browser: Playwright) {
     await browser.eval(() => {
       document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
     })
   }
 
-  async function clickInstantNavMenuItem(
-    browser: Awaited<ReturnType<typeof next.browser>>
-  ) {
+  async function clickInstantNavMenuItem(browser: Playwright) {
     await browser.elementByCss('[data-instant-nav]').click()
   }
 
-  async function clickStartClientNav(
-    browser: Awaited<ReturnType<typeof next.browser>>
-  ) {
+  async function clickStartClientNav(browser: Playwright) {
     await browser
       // TODO: Monitor if we need to increase timeouts for all *instant calls
       .elementByCss('[data-instant-nav-client]', { timeout: 50 })
@@ -52,27 +44,19 @@ describe('instant-nav-panel', () => {
     await waitForInstantModeCookie(browser)
   }
 
-  async function getInstantNavPanelText(
-    browser: Awaited<ReturnType<typeof next.browser>>
-  ): Promise<string> {
+  async function getInstantNavPanelText(browser: Playwright): Promise<string> {
     return browser.elementByCssInstant('.instant-nav-panel').text()
   }
 
-  async function closePanelViaHeader(
-    browser: Awaited<ReturnType<typeof next.browser>>
-  ) {
+  async function closePanelViaHeader(browser: Playwright) {
     return browser.elementByCss('#_next-devtools-panel-close').click()
   }
 
-  async function hasInstantNavPanelOpen(
-    browser: Awaited<ReturnType<typeof next.browser>>
-  ): Promise<void> {
+  async function hasInstantNavPanelOpen(browser: Playwright): Promise<void> {
     await browser.elementByCssInstant('.instant-nav-panel')
   }
 
-  async function openInstantNavPanel(
-    browser: Awaited<ReturnType<typeof next.browser>>
-  ) {
+  async function openInstantNavPanel(browser: Playwright) {
     await toggleDevToolsIndicatorPopover(browser)
     await waitForPanelRouterTransition()
     await clickInstantNavMenuItem(browser)

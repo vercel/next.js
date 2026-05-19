@@ -1,4 +1,4 @@
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, type Playwright } from 'e2e-utils'
 import { join } from 'path'
 import { check } from 'next-test-utils'
 
@@ -11,7 +11,7 @@ describe('app-dir-prefetch-non-iso-url', () => {
   })
 
   it('should go to iso url', async () => {
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
 
     try {
       browser = await next.browser('/')
@@ -25,7 +25,7 @@ describe('app-dir-prefetch-non-iso-url', () => {
   })
 
   it('should go to non-iso url', async () => {
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
 
     try {
       browser = await next.browser('/')

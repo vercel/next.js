@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { getBrowserBodyText, retry } from 'next-test-utils'
 import fs from 'fs-extra'
 import path from 'path'
@@ -71,7 +71,7 @@ describe('Read-only source HMR', () => {
   }
 
   it('should detect changes to a page', async () => {
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
 
     try {
       browser = await next.browser('/hello')
@@ -98,7 +98,7 @@ describe('Read-only source HMR', () => {
   })
 
   it('should handle page deletion and subsequent recreation', async () => {
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
 
     try {
       browser = await next.browser('/hello')
@@ -131,7 +131,7 @@ describe('Read-only source HMR', () => {
   })
 
   it('should detect a new page', async () => {
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
 
     try {
       await patchFileReadOnly(

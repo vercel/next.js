@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import {
   expectNoBuildValidationErrors,
   expectBuildValidationSkipped,
@@ -75,7 +75,7 @@ describe('instant validation', () => {
   }
 
   async function expectNoDevValidationErrors(
-    browser: Awaited<ReturnType<typeof next.browser>>,
+    browser: Playwright,
     url: string
   ): Promise<void> {
     await waitForValidation(url, getCliOutputSinceMark)

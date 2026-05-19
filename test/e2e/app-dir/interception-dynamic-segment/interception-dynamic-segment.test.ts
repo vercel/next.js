@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { createRouterAct } from 'router-act'
 
@@ -12,7 +12,7 @@ describe('interception-dynamic-segment', () => {
    * condition on whether to expect any additional network requests.
    */
   async function isAccordionClosed(
-    browser: Awaited<ReturnType<typeof next.browser>>,
+    browser: Playwright,
     href: string
   ): Promise<boolean> {
     const selector = `[data-testid="link-accordion"][data-href="${href}"]`
@@ -25,10 +25,7 @@ describe('interception-dynamic-segment', () => {
    * Helper to navigate via the LinkAccordion component.
    * Scrolls to the accordion, opens it, and clicks the link.
    */
-  async function navigate(
-    browser: Awaited<ReturnType<typeof next.browser>>,
-    href: string
-  ) {
+  async function navigate(browser: Playwright, href: string) {
     const selector = `[data-testid="link-accordion"][data-href="${href}"]`
 
     // Find and scroll to accordion

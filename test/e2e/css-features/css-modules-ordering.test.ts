@@ -1,7 +1,12 @@
 /* eslint-disable jest/no-standalone-expect */
 /* eslint-disable jest/no-identical-title */
 import cheerio from 'cheerio'
-import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
+import {
+  isNextDev,
+  isNextStart,
+  nextTestSetup,
+  type Playwright,
+} from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import path from 'path'
 
@@ -20,9 +25,7 @@ describe('Basic CSS Modules Ordering', () => {
         skipDeployment: true,
       })
 
-      async function checkGreenButton(
-        browser: Awaited<ReturnType<typeof next.browser>>
-      ) {
+      async function checkGreenButton(browser: Playwright) {
         await browser.elementByCss('#link-other')
         const titleColor = await browser.eval(() => {
           const el = document.querySelector('#link-other')
@@ -31,9 +34,7 @@ describe('Basic CSS Modules Ordering', () => {
         expect(titleColor).toBe('rgb(0, 255, 0)')
       }
 
-      async function checkPinkButton(
-        browser: Awaited<ReturnType<typeof next.browser>>
-      ) {
+      async function checkPinkButton(browser: Playwright) {
         await browser.elementByCss('#link-index')
         const titleColor = await browser.eval(() => {
           const el = document.querySelector('#link-index')
@@ -94,9 +95,7 @@ describe('Basic CSS Modules Ordering', () => {
         skipDeployment: true,
       })
 
-      async function checkGreenButton(
-        browser: Awaited<ReturnType<typeof next.browser>>
-      ) {
+      async function checkGreenButton(browser: Playwright) {
         await browser.elementByCss('#link-other')
         const titleColor = await browser.eval(() => {
           const el = document.querySelector('#link-other')
@@ -105,9 +104,7 @@ describe('Basic CSS Modules Ordering', () => {
         expect(titleColor).toBe('rgb(0, 255, 0)')
       }
 
-      async function checkPinkButton(
-        browser: Awaited<ReturnType<typeof next.browser>>
-      ) {
+      async function checkPinkButton(browser: Playwright) {
         await browser.elementByCss('#link-index')
         const titleColor = await browser.eval(() => {
           const el = document.querySelector('#link-index')
@@ -353,9 +350,7 @@ describe('CSS Modules Composes Ordering', () => {
         skipDeployment: true,
       })
 
-      async function checkBlackTitle(
-        browser: Awaited<ReturnType<typeof next.browser>>
-      ) {
+      async function checkBlackTitle(browser: Playwright) {
         await browser.elementByCss('#black-title')
         const titleColor = await browser.eval(() => {
           const el = document.querySelector('#black-title')
@@ -364,9 +359,7 @@ describe('CSS Modules Composes Ordering', () => {
         expect(titleColor).toBe('rgb(17, 17, 17)')
       }
 
-      async function checkRedTitle(
-        browser: Awaited<ReturnType<typeof next.browser>>
-      ) {
+      async function checkRedTitle(browser: Playwright) {
         await browser.elementByCss('#red-title')
         const titleColor = await browser.eval(() => {
           const el = document.querySelector('#red-title')
@@ -517,9 +510,7 @@ describe('CSS Modules Composes Ordering', () => {
         skipDeployment: true,
       })
 
-      async function checkBlackTitle(
-        browser: Awaited<ReturnType<typeof next.browser>>
-      ) {
+      async function checkBlackTitle(browser: Playwright) {
         await browser.elementByCss('#black-title')
         const titleColor = await browser.eval(() => {
           const el = document.querySelector('#black-title')
@@ -528,9 +519,7 @@ describe('CSS Modules Composes Ordering', () => {
         expect(titleColor).toBe('rgb(17, 17, 17)')
       }
 
-      async function checkRedTitle(
-        browser: Awaited<ReturnType<typeof next.browser>>
-      ) {
+      async function checkRedTitle(browser: Playwright) {
         await browser.elementByCss('#red-title')
         const titleColor = await browser.eval(() => {
           const el = document.querySelector('#red-title')

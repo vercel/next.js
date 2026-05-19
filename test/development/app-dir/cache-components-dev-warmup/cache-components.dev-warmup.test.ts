@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import * as nodePath from 'node:path'
 
@@ -70,9 +70,7 @@ describe.each([
 
     async function testInitialLoad(
       path: string,
-      assertLogs: (
-        browser: Awaited<ReturnType<typeof next.browser>>
-      ) => Promise<void>
+      assertLogs: (browser: Playwright) => Promise<void>
     ) {
       const browser = await next.browser(path)
 
@@ -121,9 +119,7 @@ describe.each([
 
     async function testNavigation(
       path: string,
-      assertLogs: (
-        browser: Awaited<ReturnType<typeof next.browser>>
-      ) => Promise<void>
+      assertLogs: (browser: Playwright) => Promise<void>
     ) {
       const browser = await next.browser('/')
 
@@ -192,9 +188,7 @@ describe.each([
       describe('cached data resolves in the correct phase', () => {
         it('cached data + cached fetch', async () => {
           const path = '/simple'
-          const assertLogs = async (
-            browser: Awaited<ReturnType<typeof next.browser>>
-          ) => {
+          const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
             assertLog(logs, 'after cache read - layout', 'Prerender')
             assertLog(logs, 'after cache read - page', 'Prerender')
@@ -216,9 +210,7 @@ describe.each([
         it('cached data + private cache', async () => {
           const path = '/private-cache'
 
-          const assertLogs = async (
-            browser: Awaited<ReturnType<typeof next.browser>>
-          ) => {
+          const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
             assertLog(logs, 'after cache read - layout', 'Prerender')
             assertLog(logs, 'after cache read - page', 'Prerender')
@@ -247,9 +239,7 @@ describe.each([
         it('cached data + short-lived cached data', async () => {
           const path = '/short-lived-cache'
 
-          const assertLogs = async (
-            browser: Awaited<ReturnType<typeof next.browser>>
-          ) => {
+          const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
             assertLog(logs, 'after cache read - layout', 'Prerender')
             assertLog(logs, 'after cache read - page', 'Prerender')
@@ -277,9 +267,7 @@ describe.each([
         it('cache reads that reveal more components with more caches', async () => {
           const path = '/successive-caches'
 
-          const assertLogs = async (
-            browser: Awaited<ReturnType<typeof next.browser>>
-          ) => {
+          const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
             // No matter how deeply we nest the component tree,
             // if all the IO is cached, it should be labeled as Prerender.
@@ -300,9 +288,7 @@ describe.each([
       it('request APIs resolve in the correct phase', async () => {
         const path = '/apis/123'
 
-        const assertLogs = async (
-          browser: Awaited<ReturnType<typeof next.browser>>
-        ) => {
+        const assertLogs = async (browser: Playwright) => {
           const logs = await browser.log()
           assertLog(logs, 'after cache read - page', 'Prerender')
 
@@ -331,9 +317,7 @@ describe.each([
         it('sync IO in the static phase', async () => {
           const path = '/sync-io/static'
 
-          const assertLogs = async (
-            browser: Awaited<ReturnType<typeof next.browser>>
-          ) => {
+          const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
 
             assertLog(logs, 'after first cache', 'Prerender')
@@ -352,9 +336,7 @@ describe.each([
         it('sync IO in the runtime phase', async () => {
           const path = '/sync-io/runtime'
 
-          const assertLogs = async (
-            browser: Awaited<ReturnType<typeof next.browser>>
-          ) => {
+          const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
 
             assertLog(logs, 'after first cache', 'Prerender')

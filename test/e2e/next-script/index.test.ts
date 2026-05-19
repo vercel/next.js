@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('beforeInteractive in document Head', () => {
@@ -38,7 +38,7 @@ describe('beforeInteractive in document Head', () => {
   })
 
   it('Script is injected server-side', async () => {
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
 
     try {
       browser = await next.browser('/')
@@ -89,7 +89,7 @@ describe('beforeInteractive in document body', () => {
   })
 
   it('Script is injected server-side', async () => {
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
 
     try {
       browser = await next.browser('/')
@@ -141,7 +141,7 @@ describe('empty strategy in document Head', () => {
   })
 
   it('Script is injected server-side', async () => {
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
 
     try {
       browser = await next.browser('/')
@@ -191,7 +191,7 @@ describe('empty strategy in document body', () => {
   })
 
   it('Script is injected server-side', async () => {
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
 
     try {
       browser = await next.browser('/')
@@ -229,7 +229,7 @@ describe('empty strategy in document body', () => {
       })
 
       it('Partytown snippet is not injected to head if not enabled in configuration', async () => {
-        let browser: Awaited<ReturnType<typeof next.browser>>
+        let browser: Playwright
 
         try {
           browser = await next.browser('/')
@@ -274,7 +274,7 @@ describe('empty strategy in document body', () => {
       })
 
       it('Partytown snippets are injected to head if enabled in configuration', async () => {
-        let browser: Awaited<ReturnType<typeof next.browser>>
+        let browser: Playwright
 
         try {
           browser = await next.browser('/')
@@ -299,7 +299,7 @@ describe('empty strategy in document body', () => {
       })
 
       it('Worker scripts are modified by Partytown to execute on a worker thread', async () => {
-        let browser: Awaited<ReturnType<typeof next.browser>>
+        let browser: Playwright
 
         try {
           browser = await next.browser('/')
@@ -352,7 +352,7 @@ describe('empty strategy in document body', () => {
       })
 
       it('Inline worker script through children is modified by Partytown to execute on a worker thread', async () => {
-        let browser: Awaited<ReturnType<typeof next.browser>>
+        let browser: Playwright
 
         try {
           browser = await next.browser('/')
@@ -391,7 +391,7 @@ describe('empty strategy in document body', () => {
       })
 
       it('Inline worker script through dangerouslySetInnerHtml is modified by Partytown to execute on a worker thread', async () => {
-        let browser: Awaited<ReturnType<typeof next.browser>>
+        let browser: Playwright
 
         try {
           browser = await next.browser('/')
@@ -472,7 +472,7 @@ describe('empty strategy in document body', () => {
       })
 
       it('Partytown config script is overwritten', async () => {
-        let browser: Awaited<ReturnType<typeof next.browser>>
+        let browser: Playwright
 
         try {
           browser = await next.browser('/')

@@ -1,7 +1,6 @@
 import { join } from 'path'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, type Playwright } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
-import { Playwright } from 'next-webdriver'
 
 import type { HistoryState } from 'next/dist/shared/lib/router/router'
 

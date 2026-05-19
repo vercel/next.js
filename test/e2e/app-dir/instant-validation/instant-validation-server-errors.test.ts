@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import {
   extractBuildValidationError,
   waitForValidation,
@@ -187,9 +187,7 @@ describe('instant validation - server errors', () => {
     })
   })
 
-  async function navigateViaClientNav(
-    href: string
-  ): Promise<Awaited<ReturnType<typeof next.browser>>> {
+  async function navigateViaClientNav(href: string): Promise<Playwright> {
     const browser = await next.browser('/suspense-in-root')
     await browser
       .elementByCss(`[data-link-type="soft"][href="${href}"]`)
