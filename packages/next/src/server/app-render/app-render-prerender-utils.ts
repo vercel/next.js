@@ -158,7 +158,10 @@ export class ReplayableNodeStream {
     if (process.env.TURBOPACK) {
       ReadableCtor = (require('node:stream') as typeof import('node:stream'))
         .Readable
-    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+    } else if (
+      process.env.__NEXT_BUNDLER === 'Webpack' ||
+      process.env.__NEXT_BUNDLER === 'Rspack'
+    ) {
       ReadableCtor = (
         __non_webpack_require__('node:stream') as typeof import('node:stream')
       ).Readable
