@@ -20,7 +20,7 @@ use crate::{
         },
         storage_schema::TaskStorageAccessors,
     },
-    data::CellRef,
+    data::{CellDependency, CellRef},
 };
 
 #[derive(Encode, Decode, Clone, Default)]
@@ -137,17 +137,22 @@ impl UpdateCellOperation {
             let mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>> =
                 FxIndexMap::default();
             if !skip_invalidation {
-                let tasks_with_keys =
-                    task.iter_cell_dependents()
-                        .filter_map(|(dependent_cell, key, task)| {
-                            (dependent_cell == cell
-                                && key.is_none_or(|key_hash| {
-                                    updated_key_hashes_set
-                                        .as_ref()
-                                        .is_none_or(|set| set.contains(&key_hash))
-                                }))
-                            .then_some((task, key))
-                        });
+                let tasks_with_keys = task.iter_cell_dependents().filter_map(|dep| {
+                    let (
+                        CellRef {
+                            task: dependent_task,
+                            cell: dependent_cell,
+                        },
+                        key,
+                    ) = dep.into_parts();
+                    (dependent_cell == cell
+                        && key.is_none_or(|key_hash| {
+                            updated_key_hashes_set
+                                .as_ref()
+                                .is_none_or(|set| set.contains(&key_hash))
+                        }))
+                    .then_some((dependent_task, key))
+                });
                 for (task, key) in tasks_with_keys {
                     dependent_tasks.entry(task).or_default().push(key);
                 }
@@ -276,14 +281,15 @@ impl Operation for UpdateCellOperation {
                         let mut make_stale = false;
                         let dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
                         for key in keys.iter().copied() {
-                            if dependent.outdated_cell_dependencies_contains(&(cell_ref, key)) {
+                            let dep = CellDependency::new(cell_ref, key);
+                            if dependent.outdated_cell_dependencies_contains(&dep) {
                                 // cell dependency is outdated, so it hasn't read the cell yet
                                 // and doesn't need to be invalidated.
                                 // We do not need to make the task stale in this case.
                                 // But importantly we still need to make the task dirty as it should
                                 // no longer be considered as
                                 // "recomputation".
-                            } else if !dependent.cell_dependencies_contains(&(cell_ref, key)) {
+                            } else if !dependent.cell_dependencies_contains(&dep) {
                                 // cell dependency has been removed, so the task doesn't depend on
                                 // the cell anymore and doesn't need
                                 // to be invalidated
