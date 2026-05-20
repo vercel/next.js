@@ -96,6 +96,7 @@ pub struct NextConfig {
     experimental: ExperimentalConfig,
     images: ImageConfig,
     page_extensions: Vec<RcStr>,
+    instrumentation_client_inject: Option<Vec<RcStr>>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     react_production_profiling: Option<bool>,
     react_strict_mode: Option<bool>,
@@ -1219,7 +1220,6 @@ pub struct ExperimentalConfig {
     /// This field is kept for backwards compatibility during migration.
     cache_components: Option<bool>,
     use_cache: Option<bool>,
-    root_params: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
     supports_immutable_assets: Option<bool>,
 
@@ -1797,6 +1797,15 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn instrumentation_client_inject(&self) -> Vc<Vec<RcStr>> {
+        Vc::cell(
+            self.instrumentation_client_inject
+                .clone()
+                .unwrap_or_default(),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub fn is_global_not_found_enabled(&self) -> Vc<bool> {
         Vc::cell(self.experimental.global_not_found.unwrap_or_default())
     }
@@ -2165,16 +2174,6 @@ impl NextConfig {
                 // "use cache" was originally implicitly enabled with the
                 // cacheComponents flag, so we transfer the value for cacheComponents to the
                 // explicit useCache flag to ensure backwards compatibility.
-                .unwrap_or(self.cache_components.unwrap_or(false)),
-        )
-    }
-
-    #[turbo_tasks::function]
-    pub fn enable_root_params(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .root_params
-                // rootParams should be enabled implicitly in cacheComponents.
                 .unwrap_or(self.cache_components.unwrap_or(false)),
         )
     }

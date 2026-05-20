@@ -357,6 +357,23 @@ impl Store {
     /// `[start, end]`. When more samples exist, groups of N consecutive
     /// samples are merged by taking the maximum memory value in each group.
     pub fn memory_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<u64> {
+        self.memory_samples_for_range_with_ts(start, end)
+            .into_iter()
+            .map(|(_, mem, _)| mem)
+            .collect()
+    }
+
+    /// Like `memory_samples_for_range` but keeps the timestamps and the
+    /// memory-pressure byte. Timestamps are absolute store timestamps (same
+    /// reference frame as span start/end). When the raw slice exceeds
+    /// `MAX_MEMORY_SAMPLES`, each merged group is represented by the sample
+    /// whose memory value was the group's max (its timestamp and pressure
+    /// byte are kept alongside it).
+    pub fn memory_samples_for_range_with_ts(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+    ) -> Vec<MemorySample> {
         let slice = self.memory_samples_slice(start, end);
         let count = slice.len();
         if count == 0 {
@@ -364,14 +381,15 @@ impl Store {
         }
 
         if count <= MAX_MEMORY_SAMPLES {
-            return slice.iter().map(|(_, mem, _)| *mem).collect();
+            return slice.to_vec();
         }
 
-        // Merge groups of N samples, taking the max memory in each group.
+        // Merge groups of N samples, taking the max memory in each group and
+        // keeping the timestamp and pressure of that max sample.
         let n = count.div_ceil(MAX_MEMORY_SAMPLES);
         slice
             .chunks(n)
-            .map(|chunk| chunk.iter().map(|(_, mem, _)| *mem).max().unwrap())
+            .map(|chunk| *chunk.iter().max_by_key(|(_, mem, _)| *mem).unwrap())
             .collect()
     }
 
