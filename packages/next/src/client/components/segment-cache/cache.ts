@@ -2594,6 +2594,24 @@ function fulfillEntrySpawnedByRuntimePrefetch(
     PendingSegmentCacheEntry
   > | null
 ) {
+  // Decide whether to re-key the entry under a more generic vary path based on
+  // which params the segment actually depends on.
+  //
+  // Skip re-keying for Full prefetches: as of today, `varyParams` tracking only
+  // works within the static stage portion of a response. A Full prefetch
+  // response covers all stages, and we can't track params during the dynamic
+  // stage without dead-locking the Flight stream, so the server-reported set is
+  // incomplete and can't be trusted for the full response. Re-keying with an
+  // untrustworthy set could replace concrete params with Fallback and let
+  // unrelated URLs read each other's content from the cache.
+  //
+  // When non-null, this is the param set to re-key by; when null, the entry
+  // stays keyed by the request's concrete vary path.
+  const fulfilledVaryParams =
+    process.env.__NEXT_VARY_PARAMS && fetchStrategy !== FetchStrategy.Full
+      ? segmentVaryParams
+      : null
+
   // We should only write into cache entries that are owned by us. Or create
   // a new one and write into that. We must never write over an entry that was
   // created by a different task, because that causes data races.
@@ -2608,11 +2626,10 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       staleAt,
       isPartial
     )
-    // Re-key the entry based on which params the segment actually depends on.
-    if (process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null) {
+    if (fulfilledVaryParams !== null) {
       const fulfilledVaryPath = getFulfilledSegmentVaryPath(
         tree.varyPath,
-        segmentVaryParams
+        fulfilledVaryParams
       )
       const isRevalidation = false
       setInCacheMap(
@@ -2638,11 +2655,10 @@ function fulfillEntrySpawnedByRuntimePrefetch(
         staleAt,
         isPartial
       )
-      // Re-key the entry based on which params the segment actually depends on.
-      if (process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null) {
+      if (fulfilledVaryParams !== null) {
         const fulfilledVaryPath = getFulfilledSegmentVaryPath(
           tree.varyPath,
-          segmentVaryParams
+          fulfilledVaryParams
         )
         const isRevalidation = false
         setInCacheMap(
@@ -2664,11 +2680,9 @@ function fulfillEntrySpawnedByRuntimePrefetch(
         staleAt,
         isPartial
       )
-      // Use the fulfilled vary path if available, otherwise fall back to
-      // the request vary path.
       const varyPath =
-        process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null
-          ? getFulfilledSegmentVaryPath(tree.varyPath, segmentVaryParams)
+        fulfilledVaryParams !== null
+          ? getFulfilledSegmentVaryPath(tree.varyPath, fulfilledVaryParams)
           : getSegmentVaryPathForRequest(fetchStrategy, tree)
       upsertSegmentEntry(now, varyPath, newEntry)
     }

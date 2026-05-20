@@ -34,6 +34,34 @@ function formatRelative(ticks: number): string {
   return prefix + formatDuration(Math.abs(ticks))
 }
 
+function formatBytes(bytes: number): string {
+  const KB = 1024
+  const MB = KB * 1024
+  const GB = MB * 1024
+  if (bytes >= GB) return `${(bytes / GB).toFixed(2)} GB`
+  if (bytes >= MB) return `${(bytes / MB).toFixed(2)} MB`
+  if (bytes >= KB) return `${(bytes / KB).toFixed(2)} KB`
+  return `${bytes} B`
+}
+
+function summarizeMemorySamples(samples: number[][]): string | null {
+  if (!samples || samples.length === 0) return null
+  const bytes = samples.map((s) => s[1])
+  const pressures = samples.map((s) => s[2] ?? 0)
+  const min = Math.min(...bytes)
+  const max = Math.max(...bytes)
+  const first = bytes[0]
+  const last = bytes[bytes.length - 1]
+  const delta = last - first
+  const deltaSign = delta >= 0 ? '+' : '-'
+  const maxPressure = Math.max(...pressures)
+  return (
+    `samples=${samples.length}, min=${formatBytes(min)}, max=${formatBytes(max)}, ` +
+    `start=${formatBytes(first)}, end=${formatBytes(last)}, ` +
+    `Δ=${deltaSign}${formatBytes(Math.abs(delta))}, maxPressure=${maxPressure}`
+  )
+}
+
 /**
  * Render a single span (or aggregated span group) as a markdown section.
  */
@@ -72,6 +100,11 @@ function renderSpanMarkdown(span: TraceSpanInfo): string {
     for (const [k, v] of span.args) {
       md += `- \`${k}\`: ${v}\n`
     }
+  }
+
+  const memSummary = summarizeMemorySamples(span.memorySamples)
+  if (memSummary) {
+    md += `\n**Memory (TurboMalloc live bytes):** ${memSummary}\n`
   }
 
   md += '\n---\n\n'
@@ -121,7 +154,7 @@ export async function startTurboTraceServerCli(
     'query_spans',
     {
       description:
-        'Query spans from a turbopack trace file. Returns spans with timing, CPU usage, and attribute details. Set `outputType` to "json" for machine-readable output or "markdown" (default) for human-readable output. Use the `parent` parameter (with an ID from a previous result) to drill into children. Results are paginated to 20 spans per page.',
+        'Query spans from a turbopack trace file. Returns spans with timing, CPU usage, attribute details, and TurboMalloc live-memory samples recorded while each span was active. Set `outputType` to "json" for machine-readable output (including the raw `memorySamples` array of `[ts_offset_ticks, bytes, pressure]` triples per span — pressure is 0 = none, higher = more memory pressure) or "markdown" (default) for a human-readable summary. Use the `parent` parameter (with an ID from a previous result) to drill into children. Results are paginated to 20 spans per page.',
       inputSchema: {
         parent: z
           .string()
