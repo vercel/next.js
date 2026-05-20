@@ -3409,7 +3409,7 @@ describe('instant validation', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1253",
+             "code": "E1279",
              "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3467,7 +3467,7 @@ describe('instant validation', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1253",
+             "code": "E1279",
              "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -3523,7 +3523,7 @@ describe('instant validation', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1253",
+             "code": "E1279",
              "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
