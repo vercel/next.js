@@ -926,6 +926,7 @@ pub async fn externals_tracing_module_context(
         loose_errors: true,
         collect_affecting_sources: true,
         custom_conditions: vec![rcstr!("node")],
+        module_sync: true,
         ..Default::default()
     };
 

@@ -53,6 +53,8 @@ pub struct ResolveOptionsContext {
     pub browser: bool,
     /// Enables the "module" field and export condition in package.json
     pub module: bool,
+    /// Enables the "module-sync" export condition in package.json
+    pub module_sync: bool,
     pub custom_conditions: Vec<RcStr>,
     pub custom_extensions: Option<Vec<RcStr>>,
     /// An additional import map to use when resolving modules.

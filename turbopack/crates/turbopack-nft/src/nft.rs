@@ -109,6 +109,7 @@ async fn node_file_trace_operation(
             enable_node_native_modules: true,
             enable_node_modules: Some(input_dir),
             custom_conditions: vec![rcstr!("node")],
+            module_sync: true,
             enable_node_externals: true,
             loose_errors: true,
             collect_affecting_sources: true,

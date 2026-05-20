@@ -414,6 +414,7 @@ async fn node_file_trace_operation(
             enable_node_native_modules: true,
             enable_node_modules: Some(input_dir.clone()),
             custom_conditions: vec![rcstr!("node")],
+            module_sync: true,
             collect_affecting_sources: true,
             ..Default::default()
         }

@@ -252,6 +252,7 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
             enable_node_native_modules: true,
             enable_node_modules: Some(input_dir.clone()),
             custom_conditions: vec![rcstr!("node")],
+            module_sync: true,
             ..Default::default()
         }
         .cell(),

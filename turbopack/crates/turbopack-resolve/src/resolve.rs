@@ -79,7 +79,6 @@ async fn base_resolve_options(
         let mut conditions: ResolutionConditions = [
             (rcstr!("import"), ConditionValue::Unknown),
             (rcstr!("require"), ConditionValue::Unknown),
-            (rcstr!("module-sync"), ConditionValue::Unknown),
         ]
         .into_iter()
         .collect();
@@ -88,6 +87,9 @@ async fn base_resolve_options(
         }
         if opt.module {
             conditions.insert(rcstr!("module"), ConditionValue::Set);
+        }
+        if opt.module_sync {
+            conditions.insert(rcstr!("module-sync"), ConditionValue::Unknown);
         }
         if let Some(environment) = emulating {
             for condition in environment.resolve_conditions().await?.iter() {
