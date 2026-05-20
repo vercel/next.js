@@ -37,8 +37,7 @@ use crate::{
     capture_future::CaptureFuture,
     dyn_task_inputs::StackDynTaskInputs,
     event::{Event, EventListener},
-    id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TraitTypeId},
-    id_factory::IdFactoryWithReuse,
+    id::{ExecutionId, LocalTaskId, TraitTypeId},
     keyed::KeyedEq,
     local_task_tracker::LocalTaskTracker,
     macro_helpers::NativeFunction,
@@ -53,8 +52,8 @@ use crate::{
     util::{IdFactory, StaticOrArc},
 };
 
-/// Common base trait for [`TurboTasksApi`] and [`TurboTasksBackendApi`]. Provides APIs for creating
-/// tasks from function calls.
+/// Common base trait for [`TurboTasksApi`] and [`TurboTasks`]. Provides APIs for creating tasks
+/// from function calls.
 pub trait TurboTasksCallApi: Sync + Send {
     /// Calls a native function with arguments. Resolves arguments when needed
     /// with a wrapper task.
@@ -225,46 +224,6 @@ impl<T> Unused<T> {
     pub fn into(self) -> T {
         self.inner
     }
-}
-
-/// A subset of the [`TurboTasks`] API that's exposed to [`Backend`] implementations.
-pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync + Send {
-    fn pin(&self) -> Arc<dyn TurboTasksBackendApi<B>>;
-
-    fn get_fresh_persistent_task_id(&self) -> Unused<TaskId>;
-    fn get_fresh_transient_task_id(&self) -> Unused<TaskId>;
-    /// # Safety
-    ///
-    /// The caller must ensure that the task id is not used anymore.
-    unsafe fn reuse_persistent_task_id(&self, id: Unused<TaskId>);
-    /// # Safety
-    ///
-    /// The caller must ensure that the task id is not used anymore.
-    unsafe fn reuse_transient_task_id(&self, id: Unused<TaskId>);
-
-    /// Schedule a task for execution.
-    fn schedule(&self, task: TaskId, priority: TaskPriority);
-
-    /// Returns the priority of the current task.
-    fn get_current_task_priority(&self) -> TaskPriority;
-
-    /// Schedule a foreground backend job for execution.
-    fn schedule_backend_foreground_job(&self, job: B::BackendJob);
-
-    /// Schedule a background backend job for execution.
-    ///
-    /// Background jobs are not counted towards activeness of the system. The system is considered
-    /// idle even with active background jobs.
-    fn schedule_backend_background_job(&self, job: B::BackendJob);
-
-    /// Returns the duration from the start of the program to the given instant.
-    fn program_duration_until(&self, instant: Instant) -> Duration;
-
-    /// Returns true if the system is idle.
-    fn is_idle(&self) -> bool;
-
-    /// Returns a reference to the backend.
-    fn backend(&self) -> &B;
 }
 
 #[allow(clippy::manual_non_exhaustive)]
@@ -478,8 +437,6 @@ enum ScheduledTask {
 pub struct TurboTasks<B: Backend + 'static> {
     this: Weak<Self>,
     backend: B,
-    task_id_factory: IdFactoryWithReuse<TaskId>,
-    transient_task_id_factory: IdFactoryWithReuse<TaskId>,
     execution_id_factory: IdFactory<ExecutionId>,
     stopped: AtomicBool,
     currently_scheduled_foreground_jobs: AtomicUsize,
@@ -496,7 +453,6 @@ pub struct TurboTasks<B: Backend + 'static> {
     event_foreground_done: Event,
     /// Event that is triggered when all background jobs are done
     event_background_done: Event,
-    program_start: Instant,
     compilation_events: CompilationEventQueue,
 }
 
@@ -605,18 +561,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
     // so we probably want to make sure that all tasks are joined
     // when trying to drop turbo tasks
     pub fn new(backend: B) -> Arc<Self> {
-        let task_id_factory = IdFactoryWithReuse::new(
-            TaskId::MIN,
-            TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
-        );
-        let transient_task_id_factory =
-            IdFactoryWithReuse::new(TaskId::try_from(TRANSIENT_TASK_BIT).unwrap(), TaskId::MAX);
         let execution_id_factory = IdFactory::new(ExecutionId::MIN, ExecutionId::MAX);
         let this = Arc::new_cyclic(|this| Self {
             this: this.clone(),
             backend,
-            task_id_factory,
-            transient_task_id_factory,
             execution_id_factory,
             stopped: AtomicBool::new(false),
             currently_scheduled_foreground_jobs: AtomicUsize::new(0),
@@ -634,7 +582,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
             event_background_done: Event::new(|| {
                 || "TurboTasks::event_background_done".to_string()
             }),
-            program_start: Instant::now(),
             compilation_events: CompilationEventQueue::default(),
         });
         this.backend.startup(&*this);
@@ -835,7 +782,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     #[track_caller]
-    pub(crate) fn schedule(&self, task_id: TaskId, priority: TaskPriority) {
+    pub fn schedule(&self, task_id: TaskId, priority: TaskPriority) {
         self.begin_foreground_job();
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
 
@@ -1096,26 +1043,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     #[track_caller]
-    pub(crate) fn schedule_foreground_job<T>(&self, func: T)
-    where
-        T: AsyncFnOnce(Arc<TurboTasks<B>>) -> Arc<TurboTasks<B>> + Send + 'static,
-        T::CallOnceFuture: Send,
-    {
-        let mut this = self.pin();
-        this.begin_foreground_job();
-        tokio::spawn(
-            TURBO_TASKS
-                .scope(this.clone(), async move {
-                    if !this.stopped.load(Ordering::Acquire) {
-                        this = func(this.clone()).await;
-                    }
-                    this.finish_foreground_job();
-                })
-                .in_current_span(),
-        );
-    }
-
-    #[track_caller]
     pub(crate) fn schedule_background_job<T>(&self, func: T)
     where
         T: AsyncFnOnce(Arc<TurboTasks<B>>) -> Arc<TurboTasks<B>> + Send + 'static,
@@ -1148,6 +1075,26 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
     pub fn backend(&self) -> &B {
         &self.backend
+    }
+
+    pub fn get_current_task_priority(&self) -> TaskPriority {
+        CURRENT_TASK_STATE
+            .try_with(|task_state| task_state.read().unwrap().priority)
+            .unwrap_or(TaskPriority::initial())
+    }
+
+    pub fn is_idle(&self) -> bool {
+        self.currently_scheduled_foreground_jobs
+            .load(Ordering::Acquire)
+            == 0
+    }
+
+    #[track_caller]
+    pub fn schedule_backend_background_job(&self, job: B::BackendJob) {
+        self.schedule_background_job(async move |this| {
+            this.backend.run_backend_job(job, &*this).await;
+            this
+        })
     }
 }
 
@@ -1619,70 +1566,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
 
     fn is_tracking_dependencies(&self) -> bool {
         self.backend.is_tracking_dependencies()
-    }
-}
-
-impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
-    fn pin(&self) -> Arc<dyn TurboTasksBackendApi<B>> {
-        self.pin()
-    }
-    fn backend(&self) -> &B {
-        &self.backend
-    }
-
-    #[track_caller]
-    fn schedule_backend_background_job(&self, job: B::BackendJob) {
-        self.schedule_background_job(async move |this| {
-            this.backend.run_backend_job(job, &*this).await;
-            this
-        })
-    }
-
-    #[track_caller]
-    fn schedule_backend_foreground_job(&self, job: B::BackendJob) {
-        self.schedule_foreground_job(async move |this| {
-            this.backend.run_backend_job(job, &*this).await;
-            this
-        })
-    }
-
-    #[track_caller]
-    fn schedule(&self, task: TaskId, priority: TaskPriority) {
-        self.schedule(task, priority)
-    }
-
-    fn get_current_task_priority(&self) -> TaskPriority {
-        CURRENT_TASK_STATE
-            .try_with(|task_state| task_state.read().unwrap().priority)
-            .unwrap_or(TaskPriority::initial())
-    }
-
-    fn program_duration_until(&self, instant: Instant) -> Duration {
-        instant - self.program_start
-    }
-
-    fn get_fresh_persistent_task_id(&self) -> Unused<TaskId> {
-        // SAFETY: This is a fresh id from the factory
-        unsafe { Unused::new_unchecked(self.task_id_factory.get()) }
-    }
-
-    fn get_fresh_transient_task_id(&self) -> Unused<TaskId> {
-        // SAFETY: This is a fresh id from the factory
-        unsafe { Unused::new_unchecked(self.transient_task_id_factory.get()) }
-    }
-
-    unsafe fn reuse_persistent_task_id(&self, id: Unused<TaskId>) {
-        unsafe { self.task_id_factory.reuse(id.into()) }
-    }
-
-    unsafe fn reuse_transient_task_id(&self, id: Unused<TaskId>) {
-        unsafe { self.transient_task_id_factory.reuse(id.into()) }
-    }
-
-    fn is_idle(&self) -> bool {
-        self.currently_scheduled_foreground_jobs
-            .load(Ordering::Acquire)
-            == 0
     }
 }
 
