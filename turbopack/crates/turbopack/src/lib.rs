@@ -36,8 +36,11 @@ use turbopack_core::{
     },
     resolve::{
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
-        ResolveResult, ResolveResultItem, options::ResolveOptions, origin::PlainResolveOrigin,
-        parse::Request, resolve,
+        ResolveResult, ResolveResultItem,
+        options::{ConditionValue, ResolveOptions},
+        origin::PlainResolveOrigin,
+        parse::Request,
+        resolve,
     },
     source::Source,
     source_transform::SourceTransforms,
@@ -926,6 +929,7 @@ pub async fn externals_tracing_module_context(
         loose_errors: true,
         collect_affecting_sources: true,
         custom_conditions: vec![rcstr!("node")],
+        module_sync: ConditionValue::Unknown,
         ..Default::default()
     };
 
