@@ -403,9 +403,6 @@ export function getBlockingRouteErrorDetails(
   return null
 }
 
-// Detects the unrendered-segment wrapper emitted from
-// `packages/next/src/server/app-render/dynamic-rendering.ts` when a
-// required boundary segment didn't render.
 export function getUnrenderedSegmentErrorDetails(
   error: Error
 ): UnrenderedSegmentErrorDetails | null {

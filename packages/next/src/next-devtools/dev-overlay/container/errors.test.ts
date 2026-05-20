@@ -255,11 +255,6 @@ describe('getBlockingRouteErrorDetails', () => {
   })
 })
 
-// `getUnrenderedSegmentErrorDetails` parses the `Route "<path>":` prefix and
-// the `Dropped segment(s):` block out of the inline message built in
-// `dynamic-rendering.ts`. There's no exported factory for this message
-// family — these tests reproduce the wire format the framework emits and
-// assert the parsed shape the dev overlay reads.
 describe('getUnrenderedSegmentErrorDetails', () => {
   function createUnrenderedSegmentError(
     route: string,
@@ -316,8 +311,6 @@ describe('getUnrenderedSegmentErrorDetails', () => {
   })
 
   it('returns null when the headline matches but the route prefix is missing', () => {
-    // The framework always prefixes `Route "X":`. If a future refactor drops
-    // it, we'd rather skip classification than parse garbage.
     expect(
       getUnrenderedSegmentErrorDetails(
         new Error(
