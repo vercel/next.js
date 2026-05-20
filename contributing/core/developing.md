@@ -129,6 +129,12 @@ Or without running the build:
 pnpm pack-next --no-js-build --tar && pnpm unpack-next path/to/project
 ```
 
+To create tarballs inside the project directory with deployable relative `file:` references:
+
+```bash
+pnpm pack-next --project path/to/project --deployable-tar
+```
+
 Without going through a tarball (only works if you've added the overrides from `pack-next`):
 
 ```bash
