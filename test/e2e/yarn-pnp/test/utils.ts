@@ -71,9 +71,13 @@ export function runTests(
             'turbo',
           ])
         )
-        return `yarn set version 4.15.0 && yarn config set enableGlobalCache true && yarn config set compressionLevel 0 && yarn config set npmPreapprovedPackages --json ${minimumReleaseAgeExclude} && yarn add ${pkgs.join(
-          ' '
-        )}`
+        return [
+          `yarn set version 4.15.0`,
+          `yarn config set enableGlobalCache true`,
+          `yarn config set compressionLevel 0`,
+          `yarn config set npmPreapprovedPackages --json ${minimumReleaseAgeExclude}`,
+          `yarn add ${pkgs.join(' ')}`,
+        ].join(' && ')
       },
       buildCommand: `yarn next build`,
       startCommand: (global as any).isNextDev ? `yarn next` : `yarn next start`,
