@@ -87,6 +87,10 @@ The `instrumentation-client.js` file executes at a specific point in the applica
 
 This timing makes it ideal for setting up error tracking, analytics, and performance monitoring that needs to capture early application lifecycle events.
 
+## See also
+
+`next.config.js` plugins (for example, wrappers like `withSentry`) can register their own client instrumentation module via the [`instrumentationClientInject`](/docs/app/api-reference/config/next-config-js/instrumentationClientInject) option. Injected modules run before this file, in array order, and may export their own `onRouterTransitionStart`. Application code should continue to use this file convention directly.
+
 ## Examples
 
 ### Error tracking
