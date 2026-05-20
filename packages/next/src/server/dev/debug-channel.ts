@@ -24,6 +24,42 @@ const reactDebugChannelsByHtmlRequestId = new Map<
   ReactDebugChannelForBrowser
 >()
 
+// Debug payloads over HMR are only used for React DevTools suspend metadata.
+// Large server-only values (e.g. fs.readFile of big JSON) must not be forwarded
+// in full or they can crash the browser renderer.
+const REACT_DEBUG_CHANNEL_HMR_MAX_BYTES = 1024 * 1024
+
+export function takeReactDebugChunkForHmr(
+  chunk: Uint8Array,
+  bytesSent: number,
+  maxBytes: number = REACT_DEBUG_CHANNEL_HMR_MAX_BYTES
+): {
+  chunk: Uint8Array | null
+  bytesSent: number
+  done: boolean
+} {
+  if (bytesSent >= maxBytes) {
+    return { chunk: null, bytesSent, done: true }
+  }
+
+  const remaining = maxBytes - bytesSent
+
+  if (chunk.byteLength <= remaining) {
+    const nextBytesSent = bytesSent + chunk.byteLength
+    return {
+      chunk,
+      bytesSent: nextBytesSent,
+      done: nextBytesSent >= maxBytes,
+    }
+  }
+
+  return {
+    chunk: chunk.subarray(0, remaining),
+    bytesSent: maxBytes,
+    done: true,
+  }
+}
+
 export function connectReactDebugChannel(
   requestId: string,
   debugChannel: ReactDebugChannelForBrowser,
@@ -36,6 +72,9 @@ export function connectReactDebugChannel(
     )
     .getReader()
 
+  let bytesSent = 0
+  let finished = false
+
   const stop = () => {
     sendToClient({
       type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
@@ -44,23 +83,53 @@ export function connectReactDebugChannel(
     })
   }
 
-  const onError = (err: unknown) => {
-    console.error(new Error('React debug channel stream error', { cause: err }))
+  const finish = (cancelReader: boolean) => {
+    if (finished) {
+      return
+    }
+    finished = true
+    if (cancelReader) {
+      reader.cancel().catch(() => {})
+    }
     stop()
   }
 
+  const onError = (err: unknown) => {
+    console.error(new Error('React debug channel stream error', { cause: err }))
+    finish(false)
+  }
+
   const progress = (entry: ReadableStreamReadResult<Uint8Array>) => {
+    if (finished) {
+      return
+    }
+
     if (entry.done) {
-      stop()
-    } else {
+      finish(false)
+      return
+    }
+
+    const {
+      chunk,
+      bytesSent: nextBytesSent,
+      done,
+    } = takeReactDebugChunkForHmr(entry.value, bytesSent)
+    bytesSent = nextBytesSent
+
+    if (chunk && chunk.byteLength > 0) {
       sendToClient({
         type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
         requestId,
-        chunk: entry.value,
+        chunk,
       })
-
-      reader.read().then(progress, onError)
     }
+
+    if (done) {
+      finish(true)
+      return
+    }
+
+    reader.read().then(progress, onError)
   }
 
   reader.read().then(progress, onError)
