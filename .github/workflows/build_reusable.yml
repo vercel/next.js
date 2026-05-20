@@ -128,6 +128,8 @@ env:
   KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
   KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
   NEXT_TEST_JOB: 1
+  # Per-job memoization of passed test files.
+  NEXT_TEST_PASSED_FILE: .next-test-passed.txt
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   VERCEL_ADAPTER_TEST_TOKEN: ${{ secrets.VERCEL_ADAPTER_TEST_TOKEN }}
@@ -371,6 +373,17 @@ jobs:
         if: ${{ inputs.testTimingsArtifact == '' }}
         run: pnpm dlx turbo@${TURBO_VERSION} run get-test-timings -- --build ${{ github.sha }}
 
+      # Restore the list of tests that already passed in an earlier
+      # attempt of this same workflow run.
+      - name: Restore passed-tests cache
+        if: ${{ inputs.afterBuild && runner.environment == 'github-hosted' }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ env.NEXT_TEST_PASSED_FILE }}
+          key: next-test-passed-${{ steps.var.outputs.input_step_key }}-${{ github.run_id }}-attempt${{ github.run_attempt }}
+          restore-keys: |
+            next-test-passed-${{ steps.var.outputs.input_step_key }}-${{ github.run_id }}-
+
       - run: ${{ inputs.afterBuild }}
         # defaults.run.shell sets a stronger options (`-leo pipefail`)
         # Set this back to github action's weaker defaults:
@@ -379,6 +392,15 @@ jobs:
         # We must use a login shell: fnm installation may modify the `.profile`
         shell: bash -le {0}
         timeout-minutes: ${{ inputs.timeout_minutes }}
+
+      # Save the passed-tests file so the next attempt (if any) can skip
+      # them. `always()` makes this run on success, failure, or cancellation.
+      - name: Save passed-tests cache
+        if: ${{ always() && inputs.afterBuild && runner.environment == 'github-hosted' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ env.NEXT_TEST_PASSED_FILE }}
+          key: next-test-passed-${{ steps.var.outputs.input_step_key }}-${{ github.run_id }}-attempt${{ github.run_attempt }}
 
       - name: Upload test result artifacts
         if: ${{ inputs.testReportsArtifactPrefix != '' && inputs.afterBuild && always() }}

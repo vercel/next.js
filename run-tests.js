@@ -2,11 +2,10 @@
 
 const path = require('path')
 const _glob = require('glob')
-const { existsSync } = require('fs')
+const fs = require('fs')
 const fsp = require('fs/promises')
 const { createClient } = require('@vercel/kv')
 const { promisify } = require('util')
-const { createHash } = require('crypto')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
 const { createNextInstall } = require('./test/lib/create-next-install')
@@ -16,8 +15,9 @@ const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
 const { checkBuildFreshness } = require('./test/lib/check-build-freshness')
 
-// --- Test profile and result caching via turbo remote cache ---
+// --- Test profile and result caching via actions cache ---
 // On CI retry attempts, skip tests that already passed on this commit.
+// The file contains null-byte delimited filenames
 
 class TestProfile {
   // Env vars that always affect test behavior (non-NEXT prefixed).
@@ -39,20 +39,21 @@ class TestProfile {
     'NEXT_CI_RUNNER',
     'NEXT_E2E_TEST_TIMEOUT',
     'NEXT_TURBOPACK_IO_CONCURRENCY',
+    'NEXT_TEST_PASSED_FILE',
   ])
 
-  // All key=value pairs that form the cache identity, sorted by key.
-  // Computed once at construction from a snapshot of process.env.
+  // All key=value pairs identifying this test profile, sorted by key.
+  // Used for the diagnostic `log()` output. Computed once at construction
+  // from a snapshot of process.env. The actual cache key for the workflow
+  // is `input_step_key` (see `.github/workflows/build_reusable.yml`).
   entries
   // NEXT_*/__NEXT* vars that matched the pattern but were ignored.
   ignoredVars
   cachingEnabled
-  #cacheKey
 
   constructor({ group = '', type = '', testPattern = '' } = {}) {
     this.cachingEnabled = !!(
       process.env.CI &&
-      process.env.TURBO_TOKEN &&
       process.env.GITHUB_SHA &&
       !process.env.NEXT_FLAKE_DETECTION &&
       !process.env.NEXT_TEST_SKIP_RESULT_CACHE
@@ -102,18 +103,6 @@ class TestProfile {
     this.entries = [...map.entries()]
   }
 
-  get cacheKey() {
-    if (!this.#cacheKey) {
-      const hash = createHash('sha256')
-      hash.update('test-result-v2\0')
-      for (const [k, v] of this.entries) {
-        hash.update(`${k}=${v}\0`)
-      }
-      this.#cacheKey = hash.digest('hex')
-    }
-    return this.#cacheKey
-  }
-
   get description() {
     return this.entries
       .map(([k, v]) => (k === 'sha' ? `sha=${v?.slice(0, 10)}` : `${k}=${v}`))
@@ -132,42 +121,26 @@ class TestProfile {
     console.log('')
   }
 
-  // --- Cache operations ---
-
-  #turboCache = null
-  async #getTurboCache() {
-    if (this.#turboCache) return this.#turboCache
-    if (!this.cachingEnabled) return null
+  // Read the passed-tests file (restored from cache by the workflow
+  // before this script runs). Returns a Set of test filenames. Empty
+  // Set on miss / parse error — best-effort by design.
+  loadPassedTests() {
+    if (!this.cachingEnabled) return new Set()
+    const file = process.env.NEXT_TEST_PASSED_FILE
+    if (!file) return new Set()
     try {
-      this.#turboCache = await import('./scripts/turbo-cache.mjs')
-      return this.#turboCache
-    } catch {
-      return null
-    }
-  }
-
-  async loadPassedTests() {
-    try {
-      const cache = await this.#getTurboCache()
-      if (!cache) return new Set()
-      const data = await cache.get(this.cacheKey)
-      if (!data) return new Set()
-      const parsed = JSON.parse(data.toString())
-      return new Set(parsed.passed || [])
-    } catch {
+      const data = fs.readFileSync(file, 'utf8')
+      // Tolerate a partial trailing line from a hard kill mid-append by
+      // requiring an explicit '\0' terminator. Lines without it are
+      // dropped.
+      const lines = data.split('\0')
+      return new Set(data.endsWith('\0') ? lines : lines.slice(0, -1))
+    } catch (err) {
+      // ENOENT is the normal "no prior attempt" path — silent.
+      if (err && err.code !== 'ENOENT') {
+        console.log(`Test result cache: failed to load (${err.message})`)
+      }
       return new Set()
-    }
-  }
-
-  async savePassedTests(passedFiles) {
-    try {
-      const cache = await this.#getTurboCache()
-      if (!cache) return false
-      const payload = JSON.stringify({ passed: [...passedFiles].sort() })
-      await cache.put(this.cacheKey, Buffer.from(payload))
-      return true
-    } catch {
-      return false
     }
   }
 }
@@ -849,18 +822,43 @@ ${ENDGROUP}`)
 
   const isRetryAttempt =
     process.env.CI && parseInt(process.env.GITHUB_RUN_ATTEMPT || '1', 10) > 1
-  const passedTestFiles = new Set()
 
-  // On retry, load previously-passed tests and filter them out
+  // Load tests that already passed (either on this attempt — restored
+  // from cache by the workflow — or after a timeout/cancel of an earlier
+  // attempt). The workflow's `actions/cache/restore` step lands the file
+  // at the path `loadPassedTests` reads.
   let cachedPassedTests = new Set()
-  if (isRetryAttempt) {
+  if (process.env.CI) {
     cachedPassedTests = await profile.loadPassedTests()
     if (cachedPassedTests.size > 0) {
       console.log(
         `Test result cache: loaded ${cachedPassedTests.size} passed test(s) (${profile.description})`
       )
-    } else {
+    } else if (isRetryAttempt) {
       console.log(`Test result cache: miss (${profile.description})`)
+    }
+  }
+
+  // Stream passing test names to this file.
+  /** @type {number | null} */
+  let passedTestsFd = null
+  if (profile.cachingEnabled) {
+    try {
+      passedTestsFd = fs.openSync(process.env.NEXT_TEST_PASSED_FILE, 'a')
+    } catch (err) {
+      console.log(`Test result cache: open failed (${err.message})`)
+    }
+  }
+  /** @param {string} file */
+  const recordPassed = (file) => {
+    if (passedTestsFd === null) return
+    try {
+      // Ensure durability of our writes by syncing each one.
+      // This is a tiny bit of overhead but shouldn't really matter.
+      fs.writeSync(passedTestsFd, `${file}\0`)
+      fs.fdatasyncSync(passedTestsFd)
+    } catch (err) {
+      console.log(`Test result cache: append failed (${err.message})`)
     }
   }
 
@@ -909,7 +907,7 @@ ${ENDGROUP}`)
     }
 
     if (passed) {
-      passedTestFiles.add(test.file)
+      recordPassed(test.file)
     }
 
     if (!passed) {
@@ -989,16 +987,12 @@ ${ENDGROUP}`)
     }
   }
 
-  // Save all passed tests (from this run + previously cached) as a single cache entry
-  if (process.env.CI && passedTestFiles.size > 0) {
-    const allPassed = new Set([...cachedPassedTests, ...passedTestFiles])
-    const saved = await profile.savePassedTests(allPassed)
-    if (saved) {
-      console.log(
-        `Test result cache: saved ${allPassed.size} passed test(s) (${profile.description})`
-      )
-    }
+  if (passedTestsFd !== null) {
+    try {
+      fs.closeSync(passedTestsFd)
+    } catch {}
   }
+
   if (cachedPassedTests.size > 0) {
     const skipped = tests.filter((t) => cachedPassedTests.has(t.file)).length
     if (skipped > 0) {
@@ -1047,7 +1041,7 @@ ${ENDGROUP}`)
 
           // Clean up stale timings for deleted tests
           for (const test of Object.keys(newTimings)) {
-            if (!existsSync(path.join(__dirname, test))) {
+            if (!fs.existsSync(path.join(__dirname, test))) {
               console.log('removing stale timing', test)
               delete newTimings[test]
             }
