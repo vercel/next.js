@@ -74,6 +74,14 @@ describe('Instrumentation Hook', () => {
     })
   })
 
+  describeCase('with-async-node-app-route', ({ next }) => {
+    it('with-async-node-app-route should run the instrumentation hook before the app-route handler', async () => {
+      const res = await next.fetch('/api/check')
+      const body = await res.json()
+      expect(body).toEqual({ finished: true })
+    })
+  })
+
   describeCase('general', ({ next, isNextDev }) => {
     it('should not overlap with a instrumentation page', async () => {
       const page = await next.render('/instrumentation')
