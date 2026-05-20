@@ -6,8 +6,8 @@
     "types": "tsc --noEmit"
   },
   "dependencies": {
-    "@actions/core": "^1.11.1",
-    "@vercel/blob": "2.3.2",
+    "@actions/core": "3.0.1",
+    "@vercel/blob": "2.4.0",
     "typescript": "6.0.2"
   },
   "devDependencies": {
