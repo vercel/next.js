@@ -2,6 +2,10 @@ import type { FetchEventResult } from '../../web/types'
 import type { TextMapSetter } from '@opentelemetry/api'
 import type { SpanTypes } from './constants'
 import { LogSpanAllowList, NextVanillaSpanAllowlist } from './constants'
+import {
+  createLocalSpanRecorder,
+  isLocalSpanStoreEnabled,
+} from './local-span-recorder'
 
 import type {
   ContextAPI,
@@ -315,8 +319,11 @@ class NextTracerImpl implements NextTracer {
   ): T
   public trace<T>(...args: Array<any>) {
     const [type, fnOrOptions, fnOrEmpty] = args
+    const tracingEnabled =
+      NEXT_OTEL_PERFORMANCE_PREFIX || this.isTracingEnabled()
+    const localSpanStoreEnabled = isLocalSpanStoreEnabled()
 
-    if (!NEXT_OTEL_PERFORMANCE_PREFIX && !this.isTracingEnabled()) {
+    if (!tracingEnabled && !localSpanStoreEnabled) {
       return typeof fnOrOptions === 'function' ? fnOrOptions() : fnOrEmpty()
     }
 
@@ -373,11 +380,30 @@ class NextTracerImpl implements NextTracer {
       ...options.attributes,
     }
 
+    if (!tracingEnabled) {
+      return traceLocalSpanOnly(spanName, options, fn)
+    }
+
     return context.with(spanContext.setValue(rootSpanIdKey, spanId), () =>
       this.getTracerInstance().startActiveSpan(
         spanName,
         options,
         (span: Span) => {
+          const spanStoreRecorder = localSpanStoreEnabled
+            ? createLocalSpanRecorder({
+                name: spanName,
+                attributes: options.attributes,
+                links: options.links,
+                delegateSpan: span,
+                spanId: span.spanContext().spanId,
+                traceId: span.spanContext().traceId,
+                parentSpanId: trace.getSpanContext(spanContext)?.spanId,
+              })
+            : undefined
+          const recordedSpan = spanStoreRecorder?.span ?? span
+          const completeSpanStoreRecord =
+            spanStoreRecorder?.complete ?? noopSpanStoreRecorder
+
           let startTime: number | undefined
           if (
             NEXT_OTEL_PERFORMANCE_PREFIX &&
@@ -424,9 +450,13 @@ class NextTracerImpl implements NextTracer {
           }
           if (fn.length > 1) {
             try {
-              return fn(span, (err) => closeSpanWithError(span, err))
+              return fn(recordedSpan, (err) => {
+                closeSpanWithError(recordedSpan, err)
+                completeSpanStoreRecord(err)
+              })
             } catch (err: any) {
-              closeSpanWithError(span, err)
+              closeSpanWithError(recordedSpan, err)
+              completeSpanStoreRecord(err)
               throw err
             } finally {
               onCleanup()
@@ -434,29 +464,33 @@ class NextTracerImpl implements NextTracer {
           }
 
           try {
-            const result = fn(span)
+            const result = fn(recordedSpan)
             if (isThenable(result)) {
               // If there's error make sure it throws
               return result
                 .then((res) => {
-                  span.end()
+                  recordedSpan.end()
+                  completeSpanStoreRecord()
                   // Need to pass down the promise result,
                   // it could be react stream response with error { error, stream }
                   return res
                 })
                 .catch((err) => {
-                  closeSpanWithError(span, err)
+                  closeSpanWithError(recordedSpan, err)
+                  completeSpanStoreRecord(err)
                   throw err
                 })
                 .finally(onCleanup)
             } else {
-              span.end()
+              recordedSpan.end()
+              completeSpanStoreRecord()
               onCleanup()
             }
 
             return result
           } catch (err: any) {
-            closeSpanWithError(span, err)
+            closeSpanWithError(recordedSpan, err)
+            completeSpanStoreRecord(err)
             onCleanup()
             throw err
           }
@@ -559,3 +593,61 @@ const getTracer = (() => {
 
 export { getTracer, SpanStatusCode, SpanKind }
 export type { NextTracer, Span, SpanOptions, ContextAPI, TracerSpanOptions }
+
+function traceLocalSpanOnly<T>(
+  spanName: string,
+  options: TracerSpanOptions,
+  fn: (span?: Span, done?: (error?: Error) => any) => T | Promise<T>
+): T | Promise<T> {
+  const spanStoreRecorder = createLocalSpanRecorder({
+    name: spanName,
+    attributes: options.attributes,
+    links: options.links,
+  })
+  const recordedSpan = spanStoreRecorder.span
+  const completeSpanStoreRecord = spanStoreRecorder.complete
+
+  if (fn.length > 1) {
+    try {
+      return fn(recordedSpan, (err) => {
+        if (err) {
+          closeSpanWithError(recordedSpan, err)
+        } else {
+          recordedSpan.end()
+        }
+        completeSpanStoreRecord(err)
+      })
+    } catch (err: any) {
+      closeSpanWithError(recordedSpan, err)
+      completeSpanStoreRecord(err)
+      throw err
+    }
+  }
+
+  try {
+    const result = fn(recordedSpan)
+    if (isThenable(result)) {
+      return result
+        .then((res) => {
+          recordedSpan.end()
+          completeSpanStoreRecord()
+          return res
+        })
+        .catch((err) => {
+          closeSpanWithError(recordedSpan, err)
+          completeSpanStoreRecord(err)
+          throw err
+        }) as Promise<T>
+    }
+
+    recordedSpan.end()
+    completeSpanStoreRecord()
+    return result
+  } catch (err: any) {
+    closeSpanWithError(recordedSpan, err)
+    completeSpanStoreRecord(err)
+    throw err
+  }
+}
+
+function noopSpanStoreRecorder(): void {}

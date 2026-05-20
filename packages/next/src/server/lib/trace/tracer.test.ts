@@ -8,6 +8,8 @@ import type {
   TextMapGetter,
   TextMapPropagator,
 } from '@opentelemetry/api'
+import type { WorkStore } from '../../app-render/work-async-storage.external'
+import type { WorkUnitStore } from '../../app-render/work-unit-async-storage.external'
 import {
   ROOT_CONTEXT,
   context,
@@ -16,9 +18,12 @@ import {
   trace,
 } from '@opentelemetry/api'
 
-import { getTracer } from './tracer'
+import { clearSpanStoreForTest, getSpanRecords } from './span-store'
+import { AppRenderSpan, NodeSpan } from './constants'
+import { SpanKind, SpanStatusCode, getTracer } from './tracer'
 
 const customContextKey = createContextKey('next.tracer.test.custom-context')
+const originalLocalSpans = process.env.NEXT_OTEL_LOCAL_SPANS
 
 const getter: TextMapGetter<Record<string, string | undefined>> = {
   keys: (carrier) => Object.keys(carrier),
@@ -133,6 +138,306 @@ describe('withPropagatedContext', () => {
     expect(result).toEqual({
       customValue: 'custom1',
       activeSpanId: '0123456789abcdef',
+    })
+  })
+})
+
+describe('local span store sink', () => {
+  afterEach(() => {
+    if (originalLocalSpans === undefined) {
+      delete process.env.NEXT_OTEL_LOCAL_SPANS
+    } else {
+      process.env.NEXT_OTEL_LOCAL_SPANS = originalLocalSpans
+    }
+    clearSpanStoreForTest()
+  })
+
+  it('does not mirror spans by default', () => {
+    delete process.env.NEXT_OTEL_LOCAL_SPANS
+
+    const result = getTracer().trace(NodeSpan.runHandler, () => 'result')
+
+    expect(result).toBe('result')
+    expect(getSpanRecords()).toEqual([])
+  })
+
+  it('records sync trace calls without an OTel provider', () => {
+    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
+
+    const result = getTracer().trace(
+      NodeSpan.runHandler,
+      {
+        spanName: 'test.sync',
+        attributes: {
+          'next.route': '/products/[id]',
+        },
+      },
+      () => 'result'
+    )
+
+    expect(result).toBe('result')
+    expect(getSpanRecords({ name: 'test.sync' })).toEqual([
+      expect.objectContaining({
+        name: 'test.sync',
+        route: '/products/[id]',
+        status: 'ok',
+        traceId: expect.stringMatching(/^[0-9a-f]{32}$/),
+        spanId: expect.stringMatching(/^[0-9a-f]{16}$/),
+        durationMs: expect.any(Number),
+        attributes: expect.objectContaining({
+          'next.route': '/products/[id]',
+          'next.span_name': 'test.sync',
+          'next.span_type': NodeSpan.runHandler,
+        }),
+      }),
+    ])
+  })
+
+  it('records app render fetch spans without an OTel provider', async () => {
+    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
+
+    const result = await getTracer().trace(
+      AppRenderSpan.fetch,
+      {
+        kind: SpanKind.CLIENT,
+        spanName: 'fetch GET https://example.vercel.sh/',
+        attributes: {
+          'http.url': 'https://example.vercel.sh/',
+          'http.method': 'GET',
+          'net.peer.name': 'example.vercel.sh',
+        },
+      },
+      async () => 'response'
+    )
+
+    expect(result).toBe('response')
+    expect(
+      getSpanRecords({ name: 'fetch GET https://example.vercel.sh/' })
+    ).toEqual([
+      expect.objectContaining({
+        name: 'fetch GET https://example.vercel.sh/',
+        status: 'ok',
+        attributes: expect.objectContaining({
+          'next.span_name': 'fetch GET https://example.vercel.sh/',
+          'next.span_type': AppRenderSpan.fetch,
+          'http.url': 'https://example.vercel.sh/',
+          'http.method': 'GET',
+          'net.peer.name': 'example.vercel.sh',
+        }),
+      }),
+    ])
+  })
+
+  it('mirrors span mutations made through the OTel span API', () => {
+    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
+
+    const result = getTracer().trace(
+      NodeSpan.runHandler,
+      { spanName: 'test.mutated' },
+      (span) => {
+        span?.setAttribute('http.status_code', 200)
+        span?.setAttributes({
+          'next.route': '/mutated',
+        })
+        span?.addEvent('test.event', {
+          'next.phase': 'render',
+        })
+        span?.updateName('test.mutated.updated')
+        return 'result'
+      }
+    )
+
+    expect(result).toBe('result')
+    expect(getSpanRecords({ name: 'test.mutated.updated' })).toEqual([
+      expect.objectContaining({
+        name: 'test.mutated.updated',
+        route: '/mutated',
+        attributes: expect.objectContaining({
+          'http.status_code': 200,
+          'next.route': '/mutated',
+        }),
+        events: [
+          expect.objectContaining({
+            name: 'test.event',
+            attributes: {
+              'next.phase': 'render',
+            },
+          }),
+        ],
+      }),
+    ])
+  })
+
+  it('mirrors span status without a thrown error', () => {
+    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
+
+    const result = getTracer().trace(
+      NodeSpan.runHandler,
+      { spanName: 'test.status' },
+      (span) => {
+        span?.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: 'status failed',
+        })
+        return 'result'
+      }
+    )
+
+    expect(result).toBe('result')
+    expect(getSpanRecords({ name: 'test.status' })).toEqual([
+      expect.objectContaining({
+        name: 'test.status',
+        status: 'error',
+        error: {
+          message: 'status failed',
+        },
+      }),
+    ])
+  })
+
+  it('records async trace calls when the returned promise settles', async () => {
+    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
+
+    const result = await getTracer().trace(
+      NodeSpan.runHandler,
+      { spanName: 'test.async' },
+      async () => {
+        await Promise.resolve()
+        return 'result'
+      }
+    )
+
+    expect(result).toBe('result')
+    expect(getSpanRecords({ name: 'test.async' })).toEqual([
+      expect.objectContaining({
+        name: 'test.async',
+        status: 'ok',
+        durationMs: expect.any(Number),
+      }),
+    ])
+  })
+
+  it('records callback trace calls when done is called', () => {
+    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
+
+    const result = getTracer().trace(
+      NodeSpan.runHandler,
+      { spanName: 'test.callback' },
+      (_span, done) => {
+        done?.()
+        return 'result'
+      }
+    )
+
+    expect(result).toBe('result')
+    expect(getSpanRecords({ name: 'test.callback' })).toEqual([
+      expect.objectContaining({
+        name: 'test.callback',
+        status: 'ok',
+        durationMs: expect.any(Number),
+      }),
+    ])
+  })
+
+  it('records thrown errors before rethrowing', () => {
+    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
+
+    expect(() =>
+      getTracer().trace(NodeSpan.runHandler, { spanName: 'test.error' }, () => {
+        throw new Error('boom')
+      })
+    ).toThrow('boom')
+
+    expect(getSpanRecords({ name: 'test.error' })).toEqual([
+      expect.objectContaining({
+        name: 'test.error',
+        status: 'error',
+        error: {
+          type: 'Error',
+          message: 'boom',
+        },
+      }),
+    ])
+  })
+
+  it('groups local spans by existing async storage without adding extra attributes', () => {
+    process.env.NEXT_OTEL_LOCAL_SPANS = '1'
+
+    jest.isolateModules(() => {
+      const previousAsyncLocalStorage = (globalThis as any).AsyncLocalStorage
+      try {
+        const { AsyncLocalStorage } =
+          require('node:async_hooks') as typeof import('node:async_hooks')
+        ;(globalThis as any).AsyncLocalStorage = AsyncLocalStorage
+
+        const { workAsyncStorage } =
+          require('../../app-render/work-async-storage.external') as typeof import('../../app-render/work-async-storage.external')
+        const { workUnitAsyncStorage } =
+          require('../../app-render/work-unit-async-storage.external') as typeof import('../../app-render/work-unit-async-storage.external')
+        const { getSpanRecords: getIsolatedSpanRecords } =
+          require('./span-store') as typeof import('./span-store')
+        const { getTracer: getIsolatedTracer } =
+          require('./tracer') as typeof import('./tracer')
+
+        const workStore = {
+          isStaticGeneration: false,
+          page: '/products/[id]/page',
+          route: '/products/[id]',
+          cacheComponentsEnabled: true,
+        } as WorkStore
+        const requestStore = {
+          type: 'request',
+          phase: 'render',
+          isHmrRefresh: true,
+        } as WorkUnitStore
+
+        workAsyncStorage.run(workStore, () =>
+          workUnitAsyncStorage.run(requestStore, () => {
+            getIsolatedTracer().trace(
+              NodeSpan.runHandler,
+              { spanName: 'test.als.outer' },
+              () => {
+                getIsolatedTracer().trace(
+                  NodeSpan.runHandler,
+                  { spanName: 'test.als.inner' },
+                  () => 'result'
+                )
+              }
+            )
+          })
+        )
+
+        const records = getIsolatedSpanRecords()
+        const traceIds = new Set(records.map((record) => record.traceId))
+
+        expect(records).toHaveLength(2)
+        expect(traceIds.size).toBe(1)
+        expect(records).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              name: 'test.als.inner',
+              attributes: expect.objectContaining({
+                'next.span_name': 'test.als.inner',
+                'next.span_type': NodeSpan.runHandler,
+              }),
+            }),
+            expect.objectContaining({
+              name: 'test.als.outer',
+            }),
+          ])
+        )
+        expect(
+          records.some(
+            (record) => record.attributes?.['next.work_unit.type'] !== undefined
+          )
+        ).toBe(false)
+      } finally {
+        if (previousAsyncLocalStorage === undefined) {
+          delete (globalThis as any).AsyncLocalStorage
+        } else {
+          ;(globalThis as any).AsyncLocalStorage = previousAsyncLocalStorage
+        }
+      }
     })
   })
 })
