@@ -855,27 +855,12 @@ ${ENDGROUP}`)
     }
   }
 
-  // Per-test file append. Sync I/O — the write is sequenced before we
-  // return from `runTest`, no Promise queue or libuv ordering questions.
-  // We keep the fd open across calls and fsync after each write so a
-  // runner-level kill between the test step and the post-job cache save
-  // step can't drop entries that are still in the kernel page cache.
-  // Best-effort: a single write failure shouldn't break the test run,
-  // so we just log it once.
-  const passedTestsPath = process.env.NEXT_TEST_PASSED_FILE
+  // Stream passing test names to this file.
   /** @type {number | null} */
   let passedTestsFd = null
-  let appendFailureLogged = false
-  if (passedTestsPath) {
+  if (profile.cachingEnabled) {
     try {
-      passedTestsFd = fs.openSync(passedTestsPath, 'a')
-      process.on('exit', () => {
-        if (passedTestsFd !== null) {
-          try {
-            fs.closeSync(passedTestsFd)
-          } catch {}
-        }
-      })
+      passedTestsFd = fs.openSync(process.env.NEXT_TEST_PASSED_FILE, 'a')
     } catch (err) {
       console.log(`Test result cache: open failed (${err.message})`)
     }
@@ -884,13 +869,12 @@ ${ENDGROUP}`)
   const recordPassed = (file) => {
     if (passedTestsFd === null) return
     try {
+      // Ensure durability of our writes by syncing each one.
+      // This is a tiny bit of overhead but shouldn't really matter.
       fs.writeSync(passedTestsFd, `${file}\n`)
-      fs.fsyncSync(passedTestsFd)
+      fs.fdatasyncSync(passedTestsFd)
     } catch (err) {
-      if (!appendFailureLogged) {
-        appendFailureLogged = true
-        console.log(`Test result cache: append failed (${err.message})`)
-      }
+      console.log(`Test result cache: append failed (${err.message})`)
     }
   }
 
@@ -1017,6 +1001,12 @@ ${ENDGROUP}`)
       hadFailures = true
       console.error(result.reason)
     }
+  }
+
+  if (passedTestsFd !== null) {
+    try {
+      fs.closeSync(passedTestsFd)
+    } catch {}
   }
 
   if (cachedPassedTests.size > 0) {
