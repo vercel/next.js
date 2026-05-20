@@ -71,13 +71,14 @@ describe('build-output-prerender', () => {
         if (isTurbopack) {
           // TODO(veil): Why is the location incomplete unless we enable --no-mangling?
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
+           "Error: Route "/client": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-           This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+           This value would be evaluated during the prerender, instead of recomputed on each visit.
 
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
              - Move the read into a \`useEffect\` or event handler
+             - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                at <unknown> (app/client/page.tsx:4:28)
@@ -95,13 +96,14 @@ describe('build-output-prerender', () => {
           `)
         } else {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
+           "Error: Route "/client": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-           This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+           This value would be evaluated during the prerender, instead of recomputed on each visit.
 
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
              - Move the read into a \`useEffect\` or event handler
+             - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                at x (<next-dist-dir>)
@@ -210,13 +212,14 @@ describe('build-output-prerender', () => {
       it('shows all prerender errors with readable stacks and code frames', async () => {
         if (isTurbopack) {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
+           "Error: Route "/client": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-           This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+           This value would be evaluated during the prerender, instead of recomputed on each visit.
 
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
              - Move the read into a \`useEffect\` or event handler
+             - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                at Page (app/client/page.tsx:4:28)
@@ -228,7 +231,7 @@ describe('build-output-prerender', () => {
              6 |
            To debug the issue, start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
            Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
-           Error: Route "/server": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+           Error: Route "/server": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
            This value can change between renders, so it must be either prerendered or computed later.
 
@@ -256,13 +259,14 @@ describe('build-output-prerender', () => {
         } else {
           // TODO(veil): Bundler protocols should not appear in stackframes.
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client": Next.js encountered \`new Date()\` in a Client Component.
+           "Error: Route "/client": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-           This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+           This value would be evaluated during the prerender, instead of recomputed on each visit.
 
            Ways to fix this:
              - Wrap the Client Component in \`<Suspense fallback={...}>\`
              - Move the read into a \`useEffect\` or event handler
+             - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                at Page (webpack:///app/client/page.tsx:4:28)
@@ -275,7 +279,7 @@ describe('build-output-prerender', () => {
              6 |
            To debug the issue, start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
            Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
-           Error: Route "/server": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+           Error: Route "/server": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
            This value can change between renders, so it must be either prerendered or computed later.
 
