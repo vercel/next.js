@@ -55,7 +55,23 @@ export function runTests(
           prev.push(`${cur}@${dependencies[cur]}`)
           return prev
         }, [] as string[])
-        return `yarn set version berry && yarn config set enableGlobalCache true && yarn config set compressionLevel 0 && yarn add ${pkgs.join(
+        const minimumReleaseAgeExclude = JSON.stringify(
+          JSON.stringify([
+            '@next/*',
+            '@turbo/*',
+            '@vercel/*',
+            '@workflow/*',
+            'babel-plugin-react-compiler',
+            'next',
+            'react',
+            'react-dom',
+            'react-is',
+            'react-server-dom-*',
+            'scheduler',
+            'turbo',
+          ])
+        )
+        return `yarn set version 4.15.0 && yarn config set enableGlobalCache true && yarn config set compressionLevel 0 && yarn config set npmPreapprovedPackages --json ${minimumReleaseAgeExclude} && yarn add ${pkgs.join(
           ' '
         )}`
       },
