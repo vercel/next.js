@@ -16,7 +16,7 @@ permissions:
 jobs:
   upload:
     name: Upload preview tarballs to Blob
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-4-core-oss
     if: github.event.workflow_run.conclusion == 'success'
     environment: preview-builds
     steps:
