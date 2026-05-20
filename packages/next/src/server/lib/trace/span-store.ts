@@ -92,7 +92,13 @@ export function recordSpan(record: Omit<SpanStoreRecord, 'timestamp'>): void {
     return
   }
 
-  getLocalSpanStore().record(record)
+  const spanRecord = getLocalSpanStore().record(record)
+
+  if (isRequestInsightsEnabled() && spanRecord.requestId) {
+    const { recordRequestInsightSpan } =
+      require('./request-insights') as typeof import('./request-insights')
+    recordRequestInsightSpan(spanRecord)
+  }
 }
 
 export function getSpanRecords(filter?: SpanStoreFilter): SpanStoreRecord[] {
