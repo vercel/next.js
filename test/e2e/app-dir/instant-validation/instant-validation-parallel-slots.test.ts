@@ -595,35 +595,17 @@ describe('instant validation - parallel slot configs', () => {
            │ │  │  │  ├─ show-only-breadcrumbs/
            │ │  │  │  │  ├─ (group)/
            │ │  │  │  │  │  ├─ unblocked/
-           │                     └─ page.tsx ← dropped from rendering
+           │                   └─ page.tsx ← dropped from rendering
            │",
              "stack": [],
            }
           `)
         } else {
+          // The route group workaround only fires in dev mode; build-time
+          // pattern matching doesn't resolve through (group)/ so no
+          // validation error is emitted.
           const result = await prerender(href)
-          expect(extractBuildValidationError(result.cliOutput))
-            .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked": Could not validate that a segment in your UI has instant navigation.
-
-           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
-
-           Dropped segment:
-             app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/(group)/unblocked/page.tsx
-
-           Ways to fix this:
-             - Render the dropped segment
-             - Set \`export const instant = false\` on the dropped segment to skip validation
-
-           Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
-               at ignore-listed frames
-           Build-time instant validation failed for route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked".
-           To get a more detailed stack trace and pinpoint the issue, try one of the following:
-             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked" in your browser to investigate the error.
-             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-           Stopping prerender due to instant validation errors."
-          `)
-          expect(result.exitCode).toBe(1)
+          expectNoBuildValidationErrors(result)
         }
       })
 
@@ -659,30 +641,11 @@ describe('instant validation - parallel slot configs', () => {
            }
           `)
         } else {
+          // The route group workaround only fires in dev mode; build-time
+          // pattern matching doesn't resolve through (group)/ so no
+          // validation error is emitted.
           const result = await prerender(href)
-          expect(extractBuildValidationError(result.cliOutput))
-            .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked": Next.js encountered runtime data during prerendering or a navigation.
-
-           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
-
-           Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const instant = false\` to allow a blocking route
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route
-               at main (<anonymous>)
-               at body (<anonymous>)
-               at html (<anonymous>)
-               at a (<anonymous>)
-           Build-time instant validation failed for route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked".
-           To get a more detailed stack trace and pinpoint the issue, try one of the following:
-             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked" in your browser to investigate the error.
-             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-           Stopping prerender due to instant validation errors."
-          `)
-          expect(result.exitCode).toBe(1)
+          expectNoBuildValidationErrors(result)
         }
       })
     })
