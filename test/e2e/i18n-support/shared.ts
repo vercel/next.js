@@ -377,10 +377,7 @@ export function runTests(ctx) {
       ctx.basePath || '/'
     )
 
-    await browser.get(
-      // @ts-expect-error found when converting to TypeScript
-      browser.initUrl
-    )
+    await browser.get(browser.initUrl)
     await browser.waitForElementByCss('#index')
 
     await browser.eval(`(function() {
