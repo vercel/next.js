@@ -66,6 +66,8 @@ async fn apply_esm_specific_options_internal(
     for conditions in get_condition_maps(&mut options) {
         conditions.insert(rcstr!("import"), ConditionValue::Set);
         conditions.insert(rcstr!("require"), ConditionValue::Unset);
+        // Don't set "module-sync" to ConditionValue::Set here. The runtime might not support it
+        // yet, so we still want the import/require/default one anyway.
     }
 
     if clear_extensions {
@@ -83,6 +85,8 @@ pub async fn apply_cjs_specific_options(options: Vc<ResolveOptions>) -> Result<V
     for conditions in get_condition_maps(&mut options) {
         conditions.insert(rcstr!("import"), ConditionValue::Unset);
         conditions.insert(rcstr!("require"), ConditionValue::Set);
+        // Don't set "module-sync" to ConditionValue::Set here. The runtime might not support it
+        // yet, so we still want the import/require/default one anyway.
     }
     Ok(options.cell())
 }

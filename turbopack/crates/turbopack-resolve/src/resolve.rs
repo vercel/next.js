@@ -79,6 +79,7 @@ async fn base_resolve_options(
         let mut conditions: ResolutionConditions = [
             (rcstr!("import"), ConditionValue::Unknown),
             (rcstr!("require"), ConditionValue::Unknown),
+            (rcstr!("module-sync"), ConditionValue::Unknown),
         ]
         .into_iter()
         .collect();
