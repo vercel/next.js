@@ -84,40 +84,35 @@ pub struct PostCssTransformOptions {
 
 #[turbo_tasks::function]
 fn postcss_configs() -> Vc<Vec<RcStr>> {
-    Vc::cell(
-        [
-            ".postcssrc",
-            ".postcssrc.json",
-            ".postcssrc.yaml",
-            ".postcssrc.yml",
-            ".postcssrc.js",
-            ".postcssrc.mjs",
-            ".postcssrc.cjs",
-            ".postcssrc.ts",
-            ".postcssrc.mts",
-            ".postcssrc.cts",
-            ".config/postcssrc",
-            ".config/postcssrc.json",
-            ".config/postcssrc.yaml",
-            ".config/postcssrc.yml",
-            ".config/postcssrc.js",
-            ".config/postcssrc.mjs",
-            ".config/postcssrc.cjs",
-            ".config/postcssrc.ts",
-            ".config/postcssrc.mts",
-            ".config/postcssrc.cts",
-            "postcss.config.js",
-            "postcss.config.mjs",
-            "postcss.config.cjs",
-            "postcss.config.ts",
-            "postcss.config.mts",
-            "postcss.config.cts",
-            "postcss.config.json",
-        ]
-        .into_iter()
-        .map(RcStr::from)
-        .collect(),
-    )
+    Vc::cell(vec![
+        rcstr!(".postcssrc"),
+        rcstr!(".postcssrc.json"),
+        rcstr!(".postcssrc.yaml"),
+        rcstr!(".postcssrc.yml"),
+        rcstr!(".postcssrc.js"),
+        rcstr!(".postcssrc.mjs"),
+        rcstr!(".postcssrc.cjs"),
+        rcstr!(".postcssrc.ts"),
+        rcstr!(".postcssrc.mts"),
+        rcstr!(".postcssrc.cts"),
+        rcstr!(".config/postcssrc"),
+        rcstr!(".config/postcssrc.json"),
+        rcstr!(".config/postcssrc.yaml"),
+        rcstr!(".config/postcssrc.yml"),
+        rcstr!(".config/postcssrc.js"),
+        rcstr!(".config/postcssrc.mjs"),
+        rcstr!(".config/postcssrc.cjs"),
+        rcstr!(".config/postcssrc.ts"),
+        rcstr!(".config/postcssrc.mts"),
+        rcstr!(".config/postcssrc.cts"),
+        rcstr!("postcss.config.js"),
+        rcstr!("postcss.config.mjs"),
+        rcstr!("postcss.config.cjs"),
+        rcstr!("postcss.config.ts"),
+        rcstr!("postcss.config.mts"),
+        rcstr!("postcss.config.cts"),
+        rcstr!("postcss.config.json"),
+    ])
 }
 
 #[turbo_tasks::value]
@@ -588,6 +583,7 @@ impl PostCssTransformedAsset {
                 ResolvedVc::cell(source_map.into()),
             ],
             additional_invalidation: config_changed,
+            loader_names: vec![turbo_rcstr::rcstr!("postcss")],
         })
         .await?;
 

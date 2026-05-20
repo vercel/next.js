@@ -352,6 +352,15 @@ pub trait EvaluateContext {
         state: Self::State,
         pool: &EvaluatePool,
     ) -> impl Future<Output = Result<()>> + Send;
+
+    /// Optional human-readable prefix describing *what was being evaluated*,
+    /// included verbatim in the message of the synthetic [`StructuredError`]
+    /// emitted when the Node.js subprocess crashes mid-evaluation. For
+    /// webpack-loader evaluations this is the loader chain ("loaders
+    /// [foo, bar]"). The default returns `None`.
+    fn crash_context_prefix(&self) -> Option<RcStr> {
+        None
+    }
 }
 
 pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<Vc<Option<RcStr>>> {
@@ -546,7 +555,34 @@ async fn pull_operation<T: EvaluateContext>(
     let _guard = duration_span!("Node.js evaluation");
 
     loop {
-        let message = serde_json::from_slice(&operation.recv().await?)?;
+        let recv_result = operation.recv().await;
+        let bytes = match recv_result {
+            Ok(bytes) => bytes,
+            Err(err) => {
+                // The Node.js subprocess crashed (or some other IPC failure
+                // closed the connection) before sending a response. Convert
+                // this into a synthesized issue with whatever diagnostic
+                // context the pool managed to capture, so the user sees a
+                // real error message instead of an internal turbo-tasks
+                // execution-failed cascade.
+                let message = match evaluate_context.crash_context_prefix() {
+                    Some(prefix) => format!(
+                        "Node.js subprocess crashed while evaluating {}: {}",
+                        prefix,
+                        PrettyPrintError(&err)
+                    ),
+                    None => format!(
+                        "Node.js subprocess crashed while evaluating: {}",
+                        PrettyPrintError(&err)
+                    ),
+                };
+                let synthetic = StructuredError::from_message("Error".to_string(), message);
+                evaluate_context.emit_error(synthetic, pool).await?;
+                operation.disallow_reuse();
+                return Ok(None);
+            }
+        };
+        let message = serde_json::from_slice(&bytes)?;
 
         match message {
             EvalJavaScriptIncomingMessage::Error(error) => {
@@ -647,6 +683,7 @@ impl EvaluateContext for BasicEvaluateContext {
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root.clone(),
             root_path: self.chunking_context.root_path().owned().await?,
+            detail: None,
         }
         .resolved_cell()
         .emit();
@@ -684,6 +721,10 @@ pub struct EvaluationIssue {
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub assets_root: FileSystemPath,
     pub root_path: FileSystemPath,
+    /// Optional extra context shown only when log details are enabled — e.g.
+    /// the loader chain that was running when a webpack-loader subprocess
+    /// errored.
+    pub detail: Option<RcStr>,
 }
 
 #[async_trait]
@@ -713,6 +754,10 @@ impl Issue for EvaluationIssue {
                 .await?
                 .into(),
         )))
+    }
+
+    async fn detail(&self) -> Result<Option<StyledString>> {
+        Ok(self.detail.clone().map(StyledString::Text))
     }
 
     fn source(&self) -> Option<IssueSource> {

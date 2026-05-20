@@ -275,6 +275,19 @@ pub struct StructuredError {
 }
 
 impl StructuredError {
+    /// Construct a [`StructuredError`] from a free-form message with no stack
+    /// frames or cause. Used when synthesizing an error from contexts that do
+    /// not have a real JavaScript stack trace, such as a Node.js subprocess
+    /// crash before any response was received.
+    pub fn from_message(name: String, message: String) -> Self {
+        Self {
+            name,
+            message,
+            stack: Vec::new(),
+            cause: None,
+        }
+    }
+
     pub async fn print(
         &self,
         assets_for_source_mapping: Vc<AssetsForSourceMapping>,

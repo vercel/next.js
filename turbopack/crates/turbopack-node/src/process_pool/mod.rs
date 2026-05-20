@@ -1,4 +1,5 @@
 use std::{
+    collections::VecDeque,
     future::Future,
     mem::take,
     path::{Path, PathBuf},
@@ -46,6 +47,11 @@ struct NodeJsPoolProcess {
     connection: TcpStream,
     stdout_handler: OutputStreamHandler<ChildStdout, Stdout>,
     stderr_handler: OutputStreamHandler<ChildStderr, Stderr>,
+    /// Shared ring buffer of recent stdout lines; lives independently of
+    /// `stdout_handler` so the post-mortem on a recv failure can still read
+    /// it after the handler future has returned an error.
+    recent_stdout: RecentLines,
+    recent_stderr: RecentLines,
     debug: bool,
     cpu_time_invested: Duration,
 }
@@ -91,6 +97,17 @@ static GLOBAL_OUTPUT_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_ne
 static MARKER: &[u8] = b"TURBOPACK_OUTPUT_";
 static MARKER_STR: &str = "TURBOPACK_OUTPUT_";
 
+/// Maximum number of recent output lines retained per stream for diagnostic
+/// purposes — included in the error message when the subprocess crashes
+/// before completing a recv.
+const RECENT_OUTPUT_LINES: usize = 100;
+
+/// A bounded ring buffer of recent lines from a child stream. Shared with the
+/// owning [`NodeJsPoolProcess`] so that the post-mortem code on a recv failure
+/// can read what the child wrote even if the handler future has already
+/// returned an error (and dropped its local state).
+type RecentLines = Arc<Mutex<VecDeque<Vec<u8>>>>;
+
 struct OutputStreamHandler<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> {
     stream: BufReader<R>,
     shared: SharedOutputSet,
@@ -98,6 +115,7 @@ struct OutputStreamHandler<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> {
     root: FileSystemPath,
     project_dir: FileSystemPath,
     final_stream: W,
+    recent_lines: RecentLines,
 }
 
 impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
@@ -113,6 +131,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
             root,
             project_dir,
             final_stream,
+            recent_lines,
         } = self;
 
         async fn write_final<W: AsyncWrite + Unpin>(
@@ -183,9 +202,17 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
             {
                 bail!("stream closed unexpectedly")
             }
-            if buffer.len() - start == MARKER.len() + 2
-                && &buffer[start..buffer.len() - 2] == MARKER
-            {
+            // Mirror the just-read line into the recent-lines ring buffer for
+            // diagnostic capture on subprocess crash. Skip protocol markers.
+            let line_is_marker = buffer.len() - start == MARKER.len() + 2
+                && &buffer[start..buffer.len() - 2] == MARKER;
+            if !line_is_marker {
+                let mut lines = recent_lines.lock();
+                if lines.len() >= RECENT_OUTPUT_LINES {
+                    lines.pop_front();
+                }
+                lines.push_back(buffer[start..].to_vec());
+            } else {
                 // This is new line
                 buffer.pop();
                 // This is the type
@@ -373,6 +400,11 @@ impl NodeJsPoolProcess {
         let child_stdout = BufReader::new(child.stdout.take().unwrap());
         let child_stderr = BufReader::new(child.stderr.take().unwrap());
 
+        let recent_stdout: RecentLines =
+            Arc::new(Mutex::new(VecDeque::with_capacity(RECENT_OUTPUT_LINES)));
+        let recent_stderr: RecentLines =
+            Arc::new(Mutex::new(VecDeque::with_capacity(RECENT_OUTPUT_LINES)));
+
         let stdout_handler = OutputStreamHandler {
             stream: child_stdout,
             shared: shared_stdout,
@@ -380,6 +412,7 @@ impl NodeJsPoolProcess {
             root: assets_root.clone(),
             project_dir: project_dir.clone(),
             final_stream: stdout(),
+            recent_lines: recent_stdout.clone(),
         };
         let stderr_handler = OutputStreamHandler {
             stream: child_stderr,
@@ -388,6 +421,7 @@ impl NodeJsPoolProcess {
             root: assets_root.clone(),
             project_dir: project_dir.clone(),
             final_stream: stderr(),
+            recent_lines: recent_stderr.clone(),
         };
 
         let mut process = Self {
@@ -395,6 +429,8 @@ impl NodeJsPoolProcess {
             connection,
             stdout_handler,
             stderr_handler,
+            recent_stdout,
+            recent_stderr,
             debug,
             cpu_time_invested: Duration::ZERO,
         };
@@ -455,10 +491,55 @@ impl NodeJsPoolProcess {
             self.stdout_handler.handle_operation(),
             self.stderr_handler.handle_operation(),
         );
-        let result: Bytes = result?;
+        let result = match result {
+            Err(err) => {
+                // The IPC read failed — the most common cause is the child
+                // process crashing or exiting before sending a response.
+                // Attach whatever output the child wrote (recent lines from
+                // both stream handlers + the child's exit status, if
+                // available) so the user sees something diagnostic instead
+                // of an opaque "unexpected end of file" cascade.
+                return Err(self.diagnostic_recv_error(err).await);
+            }
+            Ok(result) => result,
+        };
         stdout.context("unable to handle stdout from the Node.js process in a structured way")?;
         stderr.context("unable to handle stderr from the Node.js process in a structured way")?;
         Ok(result)
+    }
+
+    /// Build a contextualized error for a failed [`Self::recv`]. Includes
+    /// the captured stdout/stderr ring buffers and, if the child has
+    /// terminated, its exit status.
+    async fn diagnostic_recv_error(&mut self, err: anyhow::Error) -> anyhow::Error {
+        let exit_status = match self.child.as_mut() {
+            Some(child) => match timeout(Duration::from_secs(2), child.wait()).await {
+                Ok(Ok(status)) => Some(status),
+                _ => None,
+            },
+            None => None,
+        };
+        let mut output = String::new();
+        let stdout_lines: Vec<Vec<u8>> = self.recent_stdout.lock().iter().cloned().collect();
+        let stderr_lines: Vec<Vec<u8>> = self.recent_stderr.lock().iter().cloned().collect();
+        if !stdout_lines.is_empty() {
+            output.push_str("\nRecent process stdout:\n");
+            for line in stdout_lines {
+                output.push_str(&String::from_utf8_lossy(&line));
+            }
+        }
+        if !stderr_lines.is_empty() {
+            output.push_str("\nRecent process stderr:\n");
+            for line in stderr_lines {
+                output.push_str(&String::from_utf8_lossy(&line));
+            }
+        }
+        let exit_note = match exit_status {
+            Some(status) => format!("Node.js process exited with {status}"),
+            None => "Node.js process is still running or its exit status is unavailable".into(),
+        };
+        // ast-grep-ignore: no-context-format
+        err.context(format!("{exit_note}{output}"))
     }
     async fn send(&mut self, packet_data: Bytes) -> Result<()> {
         self.connection
