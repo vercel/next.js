@@ -159,7 +159,7 @@ jobs:
         id: cache-build
         with:
           path: ./*
-          key: ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
+          key: build-and-deploy-${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
   # Generate the build matrix for native binaries.
   # For automated-preview, only build linux/x86_64/gnu (the target we run automated tests against).
