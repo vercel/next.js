@@ -17,9 +17,13 @@
 //! - `data` - Frequently changed bulk data (dependencies, cell data)
 //! - `meta` - Rarely changed metadata (output, aggregation, flags)
 //! - `transient` - Not serialized, only exists in memory
-use std::{hash::Hash, sync::Arc};
+use std::{
+    hash::{BuildHasherDefault, Hash},
+    sync::Arc,
+};
 
 use parking_lot::Mutex;
+use rustc_hash::FxHasher;
 use turbo_tasks::{
     CellId, SharedReference, TaskExecutionReason, TaskId, TinyVec, TraitTypeId, ValueTypeId,
     backend::{CachedTaskTypeArc, CellHash, TransientTaskType},
@@ -36,20 +40,12 @@ use crate::{
     },
 };
 
-/// Auto-set storage for small sets of keys with unit values.
-///
-/// The `I` const generic is the inline capacity — entries spill to a `HashSet`
-/// past it. Each field below picks its own `I` to saturate the available
-/// padding (in `LazyField`) or to stay within the 16-byte `SmallVec` free
-/// zone (for inline fields); see the field comments for the rationale.
-type AutoSet<K, const I: usize> =
-    auto_hash_map::AutoSet<K, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, I>;
+type AutoSet<K, const I: usize> = auto_hash_map::AutoSet<K, BuildHasherDefault<FxHasher>, I>;
 
 /// Auto-map storage for key-value pairs.
 ///
 /// See [`AutoSet`] for the meaning of `I`.
-type AutoMap<K, V, const I: usize> =
-    auto_hash_map::AutoMap<K, V, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, I>;
+type AutoMap<K, V, const I: usize> = auto_hash_map::AutoMap<K, V, BuildHasherDefault<FxHasher>, I>;
 
 /// The complete task storage schema.
 ///

@@ -1297,17 +1297,12 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
     };
 
     let lazy_field = if has_lazy {
-        // `TinyVec`'s `MAX` const generic is set to the exact number of lazy fields declared
-        // in the schema. This caps growth at the smallest power-of-two-or-MAX boundary
-        // (e.g. with 24 variants we end at cap=24 instead of cap=32), saving a few slots
-        // per fully-populated task. It also makes "push past MAX" a compile-time-bounded
-        // contract instead of relying on `u8::MAX`.
-        //
-        // `as u8` cast is safe at the macro layer: u8::MAX is plenty of room for any
-        // realistic schema (asserted at compile time by `TinyVec::new`'s `MAX > 0` guard
-        // — a runtime check is not strictly required because the macro itself wouldn't
-        // emit > 255 variants).
-        let max_lazy = grouped_fields.all_lazy().count() as u8;
+        let max_lazy: u8 = grouped_fields
+            .all_lazy()
+            .count()
+            .try_into()
+            .expect("cannot have more than 255 lazy fields");
+
         quote! {
             #[doc = "Lazily-allocated fields stored in a compact TinyVec for memory efficiency"]
             lazy: TinyVec<LazyField, #max_lazy>,
