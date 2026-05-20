@@ -128,10 +128,7 @@ env:
   KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
   KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
   NEXT_TEST_JOB: 1
-  # Per-job memoization of passed test files. run-tests.js appends to
-  # this file as each test passes; the cache steps below restore it at
-  # job start and save it at job end (including on cancel) so that
-  # re-attempts skip what already passed.
+  # Per-job memoization of passed test files.
   NEXT_TEST_PASSED_FILE: .next-test-passed.txt
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
@@ -377,9 +374,7 @@ jobs:
         run: pnpm dlx turbo@${TURBO_VERSION} run get-test-timings -- --build ${{ github.sha }}
 
       # Restore the list of tests that already passed in an earlier
-      # attempt of this same workflow run. `run-tests.js` reads
-      # `$NEXT_TEST_PASSED_FILE` on startup and skips entries that match.
-      # Save happens in the post-`afterBuild` step below.
+      # attempt of this same workflow run.
       - name: Restore passed-tests cache
         if: ${{ inputs.afterBuild && runner.environment == 'github-hosted' }}
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -399,10 +394,7 @@ jobs:
         timeout-minutes: ${{ inputs.timeout_minutes }}
 
       # Save the passed-tests file so the next attempt (if any) can skip
-      # them. `if: always()` makes this run on success, failure, AND
-      # cancel — which is the whole point: a cancelled test step still
-      # gets to preserve its progress for retry. Cache keys are immutable,
-      # so each attempt writes under a key tagged with its run_attempt.
+      # them. `always()` makes this run on success, failure, or cancellation.
       - name: Save passed-tests cache
         if: ${{ always() && inputs.afterBuild && runner.environment == 'github-hosted' }}
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
