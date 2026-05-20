@@ -593,8 +593,9 @@ describe('instant validation - parallel slot configs', () => {
            │ │  ├─ parallel/
            │ │  │  ├─ conditional-breadcrumbs/
            │ │  │  │  ├─ show-only-breadcrumbs/
-           │ │  │  │  │  ├─ unblocked/
-           │                └─ page.tsx ← dropped from rendering
+           │ │  │  │  │  ├─ (group)/
+           │ │  │  │  │  │  ├─ unblocked/
+           │                     └─ page.tsx ← dropped from rendering
            │",
              "stack": [],
            }
@@ -608,7 +609,7 @@ describe('instant validation - parallel slot configs', () => {
            This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
 
            Dropped segment:
-             app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked/page.tsx
+             app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/(group)/unblocked/page.tsx
 
            Ways to fix this:
              - Render the dropped segment
@@ -636,11 +637,11 @@ describe('instant validation - parallel slot configs', () => {
              "cause": [
                {
                  "label": "Caused by: Instant Validation",
-                 "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked/page.tsx (1:33) @ unstable_instant
+                 "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/(group)/blocked/page.tsx (1:33) @ unstable_instant
            > 1 | export const unstable_instant = { level: 'experimental-error' }
                |                                 ^",
                  "stack": [
-                   "unstable_instant app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked/page.tsx (1:33)",
+                   "unstable_instant app/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/(group)/blocked/page.tsx (1:33)",
                    "Set.forEach <anonymous>",
                  ],
                },
