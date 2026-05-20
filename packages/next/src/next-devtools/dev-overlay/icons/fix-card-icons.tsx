@@ -46,7 +46,7 @@ export function FixCardHistoryIcon() {
   )
 }
 
-export function FixCardOctagonIcon() {
+export function FixCardLoadingIcon() {
   return (
     <svg
       width="16"
@@ -55,12 +55,23 @@ export function FixCardOctagonIcon() {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <path
-        fill="currentColor"
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M14.5 8a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-5.5-2.5h-5v5h5z"
-      />
+      {Array.from({ length: 12 }, (_, index) => {
+        const angle = index * 30
+        const opacity = 1 - index * 0.05
+
+        return (
+          <circle
+            key={angle}
+            cx="8"
+            cy="2.3"
+            r="0.9"
+            fill="currentColor"
+            stroke="none"
+            opacity={opacity}
+            transform={`rotate(${angle} 8 8)`}
+          />
+        )
+      })}
     </svg>
   )
 }

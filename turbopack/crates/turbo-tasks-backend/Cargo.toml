@@ -70,7 +70,7 @@ indoc = { workspace = true }
 regex = { workspace = true }
 tempfile = { workspace = true }
 triomphe = { workspace = true }
-turbo-tasks-malloc = { workspace = true }
+turbo-tasks-malloc = { workspace = true , features = ["custom_allocator"]}
 rstest = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 

@@ -3,7 +3,7 @@ import {
   FixCardDatabaseIcon,
   FixCardHistoryIcon,
   FixCardLayoutIcon,
-  FixCardOctagonIcon,
+  FixCardLoadingIcon,
   FixCardPointerClickIcon,
   FixCardMinusCircleIcon,
   FixCardServerStackIcon,
@@ -42,10 +42,10 @@ function getCardIcon(icon: FixCardIcon) {
       return <FixCardDatabaseIcon />
     case 'timer':
       return <FixCardTimerIcon />
-    case 'octagon':
-      return <FixCardOctagonIcon />
     case 'minus-circle':
       return <FixCardMinusCircleIcon />
+    case 'loading':
+      return <FixCardLoadingIcon />
     case 'zap':
       return <FixCardZapIcon />
     case 'layout':
@@ -240,7 +240,6 @@ export const INSTANT_GUIDANCE_STYLES = css`
     display: flex;
     flex-direction: column;
     min-width: 0;
-    overflow: hidden;
     position: relative;
     text-decoration: none;
   }
@@ -255,6 +254,15 @@ export const INSTANT_GUIDANCE_STYLES = css`
   [data-nextjs-fix-card]:hover {
     border-color: var(--color-gray-500);
     background: var(--color-background-200);
+  }
+
+  [data-nextjs-fix-card]:hover [data-nextjs-fix-card-link-icon] {
+    color: var(--color-gray-1000);
+  }
+
+  [data-nextjs-fix-card]:hover [data-nextjs-fix-snippet] {
+    border-color: var(--color-gray-500);
+    background: var(--color-gray-100);
   }
 
   a[data-nextjs-fix-card]:focus-visible {
@@ -336,6 +344,7 @@ export const INSTANT_GUIDANCE_STYLES = css`
     line-height: 1.5;
     margin: 0;
     margin-left: -1px;
+    margin-bottom: -1px;
     padding: 14px 16px;
     width: calc(100% + 2px);
     white-space: pre;
@@ -347,11 +356,6 @@ export const INSTANT_GUIDANCE_STYLES = css`
     flex-direction: column;
     justify-content: center;
     text-align: left;
-  }
-
-  [data-nextjs-fix-card]:hover [data-nextjs-fix-snippet] {
-    border-color: var(--color-gray-500);
-    background: var(--color-gray-100);
   }
 
   [data-snippet-line] {
