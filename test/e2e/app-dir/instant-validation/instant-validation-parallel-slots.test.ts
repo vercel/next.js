@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
+  expectBuildValidationSkipped,
   expectNoBuildValidationErrors,
   extractBuildValidationError,
   waitForValidation,
@@ -602,10 +603,10 @@ describe('instant validation - parallel slot configs', () => {
           `)
         } else {
           // The route group workaround only fires in dev mode; build-time
-          // pattern matching doesn't resolve through (group)/ so no
-          // validation error is emitted.
+          // pattern matching doesn't resolve through (group)/ so the
+          // route is skipped entirely (no validation markers emitted).
           const result = await prerender(href)
-          expectNoBuildValidationErrors(result)
+          expectBuildValidationSkipped(result)
         }
       })
 
@@ -642,10 +643,10 @@ describe('instant validation - parallel slot configs', () => {
           `)
         } else {
           // The route group workaround only fires in dev mode; build-time
-          // pattern matching doesn't resolve through (group)/ so no
-          // validation error is emitted.
+          // pattern matching doesn't resolve through (group)/ so the
+          // route is skipped entirely (no validation markers emitted).
           const result = await prerender(href)
-          expectNoBuildValidationErrors(result)
+          expectBuildValidationSkipped(result)
         }
       })
     })
