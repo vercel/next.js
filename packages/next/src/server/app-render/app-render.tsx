@@ -370,6 +370,12 @@ interface ParsedRequestHeaders {
   readonly flightRouterState: FlightRouterState | undefined
   readonly isPrefetchRequest: boolean
   readonly isRuntimePrefetchRequest: boolean
+  /**
+   * App Shell prefetch: a runtime prefetch that the server renders with
+   * params omitted (any `await params` hangs forever). Produces the
+   * param-independent shell of the route. Implies isRuntimePrefetchRequest.
+   */
+  readonly isAppShellPrefetchRequest: boolean
   readonly isRouteTreePrefetchRequest: boolean
   readonly isHmrRefresh: boolean
   readonly isRSCRequest: boolean
@@ -387,7 +393,12 @@ function parseRequestHeaders(
   // (TODO: this is confusing, we should refactor this to express this better)
   const isPrefetchRequest = headers[NEXT_ROUTER_PREFETCH_HEADER] === '1'
 
-  const isRuntimePrefetchRequest = headers[NEXT_ROUTER_PREFETCH_HEADER] === '2'
+  const isAppShellPrefetchRequest = headers[NEXT_ROUTER_PREFETCH_HEADER] === '3'
+
+  // App Shell prefetches are a subtype of runtime prefetch — same code path,
+  // with `forceOmitParams` set on the prerender store.
+  const isRuntimePrefetchRequest =
+    headers[NEXT_ROUTER_PREFETCH_HEADER] === '2' || isAppShellPrefetchRequest
 
   const isHmrRefresh = headers[NEXT_HMR_REFRESH_HEADER] !== undefined
 
@@ -440,6 +451,7 @@ function parseRequestHeaders(
     flightRouterState,
     isPrefetchRequest,
     isRuntimePrefetchRequest,
+    isAppShellPrefetchRequest,
     isRouteTreePrefetchRequest,
     isHmrRefresh,
     isRSCRequest,
@@ -1276,7 +1288,8 @@ async function spawnRuntimePrefetchWithFilledCaches(
       requestStore.cookies,
       requestStore.draftMode,
       onError,
-      staleTimeIterable
+      staleTimeIterable,
+      false // forceOmitParams — server-initiated background prefetch, not a shell request
     )
 
     await result.prelude.pipeTo(writable)
@@ -1663,7 +1676,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
 async function generateRuntimePrefetchResult(
   req: BaseNextRequest,
   ctx: AppRenderContext,
-  requestStore: RequestStore
+  requestStore: RequestStore,
+  forceOmitParams: boolean
 ): Promise<RenderResult> {
   const { workStore, renderOpts } = ctx
   const { isBuildTimePrerendering = false, onInstrumentationRequestError } =
@@ -1713,7 +1727,8 @@ async function generateRuntimePrefetchResult(
     rootParams,
     requestStore.headers,
     requestStore.cookies,
-    requestStore.draftMode
+    requestStore.draftMode,
+    forceOmitParams
   )
 
   const response = await finalRuntimeServerPrerender(
@@ -1726,7 +1741,8 @@ async function generateRuntimePrefetchResult(
     requestStore.cookies,
     requestStore.draftMode,
     onError,
-    staleTimeIterable
+    staleTimeIterable,
+    forceOmitParams
   )
 
   applyMetadataFromPrerenderResult(response, metadata, workStore)
@@ -1743,7 +1759,8 @@ async function prospectiveRuntimeServerPrerender(
   rootParams: Params,
   headers: PrerenderStoreModernRuntime['headers'],
   cookies: PrerenderStoreModernRuntime['cookies'],
-  draftMode: PrerenderStoreModernRuntime['draftMode']
+  draftMode: PrerenderStoreModernRuntime['draftMode'],
+  forceOmitParams: boolean
 ) {
   const { implicitTags, renderOpts, workStore } = ctx
   const { ComponentMod } = renderOpts
@@ -1793,6 +1810,7 @@ async function prospectiveRuntimeServerPrerender(
     headers,
     cookies,
     draftMode,
+    forceOmitParams,
   }
 
   const { clientModules } = getClientReferenceManifest()
@@ -1908,7 +1926,8 @@ async function finalRuntimeServerPrerender(
   cookies: PrerenderStoreModernRuntime['cookies'],
   draftMode: PrerenderStoreModernRuntime['draftMode'],
   onError: (err: unknown) => string | undefined,
-  staleTimeIterable: StaleTimeIterable
+  staleTimeIterable: StaleTimeIterable,
+  forceOmitParams: boolean
 ) {
   const { implicitTags, renderOpts } = ctx
   const { ComponentMod, experimental, isDebugDynamicAccesses } = renderOpts
@@ -1955,6 +1974,7 @@ async function finalRuntimeServerPrerender(
     headers,
     cookies,
     draftMode,
+    forceOmitParams,
   }
 
   trackStaleTime(finalServerPrerenderStore, staleTimeIterable, selectStaleTime)
@@ -2731,6 +2751,7 @@ async function renderToHTMLOrFlightImpl(
     flightRouterState,
     isPrefetchRequest,
     isRuntimePrefetchRequest,
+    isAppShellPrefetchRequest,
     isRSCRequest,
     isHmrRefresh,
     nonce,
@@ -2957,7 +2978,12 @@ async function renderToHTMLOrFlightImpl(
     if (isRSCRequest) {
       if (isRuntimePrefetchRequest) {
         // MARK: RSC runtimePrefetch
-        return generateRuntimePrefetchResult(req, ctx, requestStore)
+        return generateRuntimePrefetchResult(
+          req,
+          ctx,
+          requestStore,
+          isAppShellPrefetchRequest
+        )
       } else {
         if (
           process.env.__NEXT_DEV_SERVER &&
