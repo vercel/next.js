@@ -1,6 +1,6 @@
 import picocolors from 'picocolors'
 import { SnapshotRow } from './snapshot.js'
-import { mannWhitneyU, summary, welchsTTest } from './statistics.js'
+import { mannWhitneyU, quantile } from './statistics.js'
 import { formatUnit } from './units.js'
 
 const { bold, dim, green, red, underline } = picocolors
@@ -72,7 +72,7 @@ export function printComparison(
     console.log(bold(underline(`Comparison vs baseline: ${baselineLabel}`)))
   }
 
-  const rows: FormattedRow[] = []
+  const pairs: { base: SampleGroup; cur: SampleGroup }[] = []
   const onlyInCurrent: string[] = []
   const onlyInBaseline: string[] = []
   const skippedMismatch: string[] = []
@@ -89,7 +89,7 @@ export function printComparison(
       )
       continue
     }
-    rows.push(formatRow(base, cur))
+    pairs.push({ base, cur })
   }
   for (const [key, base] of baseline) {
     if (!current.has(key)) {
@@ -97,17 +97,32 @@ export function printComparison(
     }
   }
 
-  if (rows.length > 0) {
+  // Hoist the most common sample count for each side into a banner above the
+  // table; per-row `(n)` is then shown only for rows that deviate from it,
+  // so the eye-catching exceptions aren't drowned in repeated `(7)`s.
+  const baseMode = modeN(pairs.map((p) => p.base.samples.length))
+  const curMode = modeN(pairs.map((p) => p.cur.samples.length))
+
+  if (pairs.length > 0) {
+    if (baseMode != null && curMode != null) {
+      const banner =
+        baseMode === curMode
+          ? `n = ${baseMode} per metric`
+          : `baseline n = ${baseMode}, current n = ${curMode}`
+      console.log(bold(banner))
+    }
     const header = [
       'Scenario · Variant',
       'Metric',
-      'Baseline μ / p50 / p90 (n)',
-      'Current μ / p50 / p90 (n)',
-      'Δ mean',
+      'Baseline p50 / p90 / p99',
+      'Current p50 / p90 / p99',
+      'Δ p50',
       'Δ%',
-      "Welch's p",
-      'MWU p',
+      'p',
     ]
+    const rows = pairs.map(({ base, cur }) =>
+      formatRow(base, cur, baseMode, curMode)
+    )
     printTable(header, rows)
   } else {
     console.log(
@@ -129,54 +144,85 @@ function logList(label: string, items: string[], max: number = 5): void {
   console.log(dim(`${label} (${items.length}): ${shown}${suffix}`))
 }
 
-function formatRow(base: SampleGroup, cur: SampleGroup): FormattedRow {
-  const bs = summary(base.samples)
-  const cs = summary(cur.samples)
-  const delta = cs.mean - bs.mean
-  const deltaPct = bs.mean === 0 ? NaN : (delta / bs.mean) * 100
-  const welchs = welchsTTest(base.samples, cur.samples)
+// Picks the most common n in the list. Ties are broken in favor of the
+// larger n (treat "the typical fully-collected sample count" as the default).
+// Returns null for an empty list.
+function modeN(ns: number[]): number | null {
+  if (ns.length === 0) return null
+  const counts = new Map<number, number>()
+  for (const n of ns) counts.set(n, (counts.get(n) ?? 0) + 1)
+  let bestN = ns[0]
+  let bestCount = 0
+  for (const [n, c] of counts) {
+    if (c > bestCount || (c === bestCount && n > bestN)) {
+      bestN = n
+      bestCount = c
+    }
+  }
+  return bestN
+}
+
+function formatRow(
+  base: SampleGroup,
+  cur: SampleGroup,
+  baseMode: number | null,
+  curMode: number | null
+): FormattedRow {
+  const bs = percentiles(base.samples)
+  const cs = percentiles(cur.samples)
+  const delta = cs.p50 - bs.p50
+  const deltaPct = bs.p50 === 0 ? NaN : (delta / bs.p50) * 100
   const mwu = mannWhitneyU(base.samples, cur.samples)
-  // Color verdict uses Welch's p as the primary signal.
+  // Color verdict uses Mann–Whitney U's p as the significance signal, with
+  // the sign of the p50 shift determining improvement vs regression.
   let verdict: RowVerdict
-  if (
-    Number.isFinite(welchs.p) &&
-    welchs.p < SIGNIFICANCE_THRESHOLD &&
-    delta !== 0
-  ) {
+  if (Number.isFinite(mwu.p) && mwu.p < SIGNIFICANCE_THRESHOLD && delta !== 0) {
     verdict = delta < 0 ? 'improved' : 'regressed'
   }
   return {
     cells: [
       `${base.scenario} · ${base.variant}`,
       base.metric,
-      formatGroupCell(base, bs),
-      formatGroupCell(cur, cs),
+      formatGroupCell(base, bs, base.samples.length !== baseMode),
+      formatGroupCell(cur, cs, cur.samples.length !== curMode),
       formatDelta(delta, base.unit),
       Number.isFinite(deltaPct) ? `${deltaPct.toFixed(1)}%` : 'n/a',
-      formatP(welchs.p),
       formatP(mwu.p),
     ],
     verdict,
   }
 }
 
+function percentiles(samples: number[]): {
+  p50: number
+  p90: number
+  p99: number
+} {
+  return {
+    p50: quantile(samples, 0.5),
+    p90: quantile(samples, 0.9),
+    p99: quantile(samples, 0.99),
+  }
+}
+
 function formatGroupCell(
   group: SampleGroup,
-  s: { mean: number; p50: number; p90: number }
+  s: { p50: number; p90: number; p99: number },
+  showN: boolean
 ): string {
-  const parts = [s.mean, s.p50, s.p90].map((v) =>
+  const parts = [s.p50, s.p90, s.p99].map((v) =>
     splitFormattedUnit(v, group.unit)
   )
-  const n = group.samples.length
+  const nSuffix = showN ? ` (${group.samples.length})` : ''
   // If all three values render with the same unit suffix (e.g. all "requests"),
   // only print the suffix on the last value to avoid "7 req / 7 req / 7 req".
   if (
     parts[0].suffix === parts[1].suffix &&
     parts[1].suffix === parts[2].suffix
   ) {
-    return `${parts[0].num} / ${parts[1].num} / ${parts[2].num}${parts[2].suffix} (${n})`
+    return `${parts[0].num} / ${parts[1].num} / ${parts[2].num}${parts[2].suffix}${nSuffix}`
   }
-  return `${parts[0].num}${parts[0].suffix} / ${parts[1].num}${parts[1].suffix} / ${parts[2].num}${parts[2].suffix} (${n})`
+  return `${parts[0].num}${parts[0].suffix} / ${parts[1].num}${parts[1].suffix} / ${parts[2].num}${parts[2].suffix}${nSuffix}`
 }
 
 function splitFormattedUnit(
