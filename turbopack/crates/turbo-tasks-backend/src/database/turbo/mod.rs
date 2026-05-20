@@ -80,6 +80,19 @@ impl TurboKeyValueDatabase {
             skip_compaction,
         })
     }
+
+    /// Construct an empty, read-only database that never touches the filesystem. Used for the
+    /// in-process "noop" backing storage. Reads return None; writes would bail (but no callers
+    /// write — see `BackendOptions::storage_mode = None`).
+    pub fn empty_in_memory() -> Self {
+        Self {
+            db: Arc::new(TurboPersistence::empty_in_memory_with_config(db_config())),
+            is_ci: false,
+            is_short_session: true,
+            is_fresh: true,
+            skip_compaction: true,
+        }
+    }
 }
 
 impl KeyValueDatabase for TurboKeyValueDatabase {

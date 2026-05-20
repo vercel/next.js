@@ -162,7 +162,7 @@ impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorage<T> {
 
 impl<T: KeyValueDatabase> KeyValueDatabaseBackingStorageInner<T> {
     fn invalidate(&self, reason_code: &str) -> Result<()> {
-        // `base_path` can be `None` for a `NoopKvDb`
+        // `base_path` is `None` for in-memory backing storage (see `noop_backing_storage`).
         if let Some(base_path) = &self.base_path {
             // Invalidation could happen frequently if there's a bunch of panics. We only need to
             // invalidate once, so grab a lock.

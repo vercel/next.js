@@ -280,15 +280,43 @@ impl<S: ParallelScheduler + Default, const FAMILIES: usize> TurboPersistence<S, 
     pub fn open_read_only_with_config(path: PathBuf, config: DbConfig<FAMILIES>) -> Result<Self> {
         Self::open_read_only_with_parallel_scheduler(path, config, Default::default())
     }
+
+    /// Construct an empty, read-only `TurboPersistence` that owns no on-disk state and never
+    /// touches the filesystem. Reads return None; writes bail via the existing `read_only` guard.
+    /// Used to provide a "noop" backing storage with the same concrete type as the real one.
+    pub fn empty_in_memory_with_config(config: DbConfig<FAMILIES>) -> Self {
+        // `path` is `PathBuf::new()` but never read because `meta_files` is empty and
+        // `read_only` is true (so no write/compaction path is reachable).
+        Self::new(PathBuf::new(), true, true, Default::default(), config)
+    }
 }
 
 impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> {
     fn new(
         path: PathBuf,
         read_only: bool,
+        empty: bool,
         parallel_scheduler: S,
         config: DbConfig<FAMILIES>,
     ) -> Self {
+        // For an empty instance the block caches will never be populated, so allocate them with
+        // zero-sized buckets to skip the ~2 MiB of hash-table headroom they'd otherwise reserve.
+        let (key_estimated_items, key_weight_capacity) = if empty && read_only {
+            (0, 0)
+        } else {
+            (
+                KEY_BLOCK_CACHE_SIZE as usize / KEY_BLOCK_AVG_SIZE,
+                KEY_BLOCK_CACHE_SIZE,
+            )
+        };
+        let (value_estimated_items, value_weight_capacity) = if empty && read_only {
+            (0, 0)
+        } else {
+            (
+                VALUE_BLOCK_CACHE_SIZE as usize / VALUE_BLOCK_AVG_SIZE,
+                VALUE_BLOCK_CACHE_SIZE,
+            )
+        };
         Self {
             parallel_scheduler,
             path,
@@ -303,15 +331,15 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             active_write_operation: Mutex::new(None),
             deferred_deletions: Mutex::new(Vec::new()),
             key_block_cache: BlockCache::with(
-                KEY_BLOCK_CACHE_SIZE as usize / KEY_BLOCK_AVG_SIZE,
-                KEY_BLOCK_CACHE_SIZE,
+                key_estimated_items,
+                key_weight_capacity,
                 Default::default(),
                 Default::default(),
                 Default::default(),
             ),
             value_block_cache: BlockCache::with(
-                VALUE_BLOCK_CACHE_SIZE as usize / VALUE_BLOCK_AVG_SIZE,
-                VALUE_BLOCK_CACHE_SIZE,
+                value_estimated_items,
+                value_weight_capacity,
                 Default::default(),
                 Default::default(),
                 Default::default(),
@@ -336,7 +364,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         config: DbConfig<FAMILIES>,
         parallel_scheduler: S,
     ) -> Result<Self> {
-        let mut db = Self::new(path, false, parallel_scheduler, config);
+        let mut db = Self::new(path, false, false, parallel_scheduler, config);
         db.open_directory(false)?;
         Ok(db)
     }
@@ -348,7 +376,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         config: DbConfig<FAMILIES>,
         parallel_scheduler: S,
     ) -> Result<Self> {
-        let mut db = Self::new(path, true, parallel_scheduler, config);
+        let mut db = Self::new(path, true, false, parallel_scheduler, config);
         db.open_directory(false)?;
         Ok(db)
     }
