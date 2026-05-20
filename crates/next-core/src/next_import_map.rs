@@ -1248,17 +1248,18 @@ impl Issue for MissingNextFolderIssue {
                 )),
             ]),
             StyledString::Line(vec![StyledString::Text(rcstr!(
-                "  - In a monorepo, the Next.js package is hoisted to a directory above the \
-                 workspace root and is not reachable from there."
+                "  - In a monorepo, the Next.js package may only exist in a directory above the \
+                 closest directory containing a package manager lockfile. The workspace root is \
+                 detected by locating the nearest package manager lockfile."
             ))]),
             StyledString::Line(vec![StyledString::Text(rcstr!(
                 "  - Next.js is installed globally rather than as a project dependency. This is \
-                 rare and not recommended; install it locally."
+                 not supported; install it locally."
             ))]),
             StyledString::Line(vec![StyledString::Text(rcstr!(""))]),
             StyledString::Line(vec![StyledString::Text(rcstr!(
-                "Note: For security and performance reasons, files outside of the workspace root \
-                 are not compiled."
+                "Note: To ensure a hermetic build and a portable cache, files outside of the \
+                 workspace root are not compiled."
             ))]),
         ])))
     }
