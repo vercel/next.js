@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev"
+  },
+  "dependencies": {
+    "next": "workspace:*",
+    "react": "workspace:*",
+    "react-dom": "workspace:*"
+  }
+}

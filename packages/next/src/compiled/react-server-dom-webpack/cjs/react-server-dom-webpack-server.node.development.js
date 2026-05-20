@@ -950,6 +950,104 @@
       }
       return !1;
     }
+    function collectSingleStackFrame(callSite) {
+      var name = callSite.getFunctionName() || "<anonymous>";
+      if (name.includes("react_stack_bottom_frame")) return null;
+      if (callSite.isNative())
+        return [name, "", 0, 0, 0, 0, callSite.isAsync()];
+      if (callSite.isConstructor()) name = "new " + name;
+      else if (!callSite.isToplevel()) {
+        var callSite$jscomp$0 = callSite;
+        name = callSite$jscomp$0.getTypeName();
+        var methodName = callSite$jscomp$0.getMethodName();
+        callSite$jscomp$0 = callSite$jscomp$0.getFunctionName();
+        var result = "";
+        callSite$jscomp$0
+          ? (name &&
+              identifierRegExp.test(callSite$jscomp$0) &&
+              callSite$jscomp$0 !== name &&
+              (result += name + "."),
+            (result += callSite$jscomp$0),
+            !methodName ||
+              callSite$jscomp$0 === methodName ||
+              callSite$jscomp$0.endsWith("." + methodName) ||
+              callSite$jscomp$0.endsWith(" " + methodName) ||
+              (result += " [as " + methodName + "]"))
+          : (name && (result += name + "."),
+            (result = methodName
+              ? result + methodName
+              : result + "<anonymous>"));
+        name = result;
+      }
+      "<anonymous>" === name && (name = "");
+      methodName = callSite.getScriptNameOrSourceURL() || "<anonymous>";
+      "<anonymous>" === methodName &&
+        ((methodName = ""),
+        callSite.isEval() &&
+          (callSite$jscomp$0 = callSite.getEvalOrigin()) &&
+          (methodName = callSite$jscomp$0.toString() + ", <anonymous>"));
+      callSite$jscomp$0 = callSite.getLineNumber() || 0;
+      result = callSite.getColumnNumber() || 0;
+      var enclosingLine =
+          "function" === typeof callSite.getEnclosingLineNumber
+            ? callSite.getEnclosingLineNumber() || 0
+            : 0,
+        enclosingCol =
+          "function" === typeof callSite.getEnclosingColumnNumber
+            ? callSite.getEnclosingColumnNumber() || 0
+            : 0;
+      return [
+        name,
+        methodName,
+        callSite$jscomp$0,
+        result,
+        enclosingLine,
+        enclosingCol,
+        callSite.isAsync()
+      ];
+    }
+    function collectStackTracePrivateIfAwaitInUserspace(
+      request,
+      error,
+      structuredStackTrace
+    ) {
+      for (var i = framesToSkip; i < structuredStackTrace.length; i++) {
+        var callsite = collectSingleStackFrame(structuredStackTrace[i]);
+        if (null === callsite) break;
+        if (isPromiseAwaitInternal(callsite[1], callsite[0])) continue;
+        if (
+          !callsite[6] &&
+          request.filterStackFrame(
+            devirtualizeURL(callsite[1]),
+            callsite[0],
+            callsite[2],
+            callsite[3]
+          ) &&
+          "" !== callsite[1]
+        )
+          return collectStackTracePrivate(error, structuredStackTrace);
+        break;
+      }
+      collectedStackTrace = null;
+      return "";
+    }
+    function parseStackTracePrivateIfAwaitInUserspace(
+      request,
+      error,
+      skipFrames
+    ) {
+      collectedStackTrace = null;
+      framesToSkip = skipFrames;
+      skipFrames = Error.prepareStackTrace;
+      Error.prepareStackTrace =
+        collectStackTracePrivateIfAwaitInUserspace.bind(null, request);
+      try {
+        if ("" !== error.stack) return null;
+      } finally {
+        Error.prepareStackTrace = skipFrames;
+      }
+      return collectedStackTrace;
+    }
     function patchConsole(consoleInst, methodName) {
       var descriptor = Object.getOwnPropertyDescriptor(consoleInst, methodName);
       if (
@@ -6186,10 +6284,12 @@
                   resource = new WeakRef(resource);
                   var request = resolveRequest();
                   null !== request &&
-                    ((triggerAsyncId = parseStackTracePrivate(Error(), 5)),
-                    null === triggerAsyncId ||
-                      isAwaitInUserspace(request, triggerAsyncId) ||
-                      (triggerAsyncId = null));
+                    (triggerAsyncId =
+                      parseStackTracePrivateIfAwaitInUserspace(
+                        request,
+                        Error(),
+                        5
+                      ));
                 } else
                   (triggerAsyncId = emptyStack),
                     (resource =
