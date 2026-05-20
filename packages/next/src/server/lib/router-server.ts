@@ -61,6 +61,10 @@ import {
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
 import { getNextConfigRuntime, type NextConfigComplete } from '../config-shared'
+import {
+  getRequestInsightsSnapshot,
+  isRequestInsightsEnabled,
+} from './trace/request-insights'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -237,6 +241,48 @@ export async function initialize(opts: {
     // internal headers should not be honored by the request handler
     if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
       filterInternalHeaders(req.headers)
+    }
+
+    if (opts.dev && req.url) {
+      if (config.experimental.requestInsights) {
+        process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      }
+
+      const urlParts = req.url.split('?', 1)
+      const pathname = removePathPrefix(urlParts[0] || '', config.basePath)
+
+      if (pathname === '/__nextjs_request_insights') {
+        if (
+          development &&
+          blockCrossSiteDEV(
+            req,
+            res,
+            development.config.allowedDevOrigins,
+            opts.hostname
+          )
+        ) {
+          return
+        }
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        if (
+          !config.experimental.requestInsights &&
+          !isRequestInsightsEnabled()
+        ) {
+          res.statusCode = 404
+          res.end(
+            JSON.stringify({
+              error:
+                'Request Insights is not enabled. Set experimental.requestInsights = true and restart next dev.',
+            })
+          )
+          return
+        }
+
+        res.statusCode = 200
+        res.end(JSON.stringify(getRequestInsightsSnapshot()))
+        return
+      }
     }
 
     if (
