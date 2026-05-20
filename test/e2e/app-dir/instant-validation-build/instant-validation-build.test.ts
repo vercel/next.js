@@ -63,7 +63,7 @@ describe('instant-validation-build', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/invalid-missing-suspense-around-runtime": Next.js encountered uncached data during the initial render or a navigation.
+         "Error: Route "/invalid-missing-suspense-around-runtime": Next.js encountered uncached data during prerendering or a navigation.
 
          \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 

@@ -16,7 +16,7 @@ export type FixCardIcon =
   | 'database'
   | 'history'
   | 'layout'
-  | 'octagon'
+  | 'loading'
   | 'pointer-click'
   | 'server-stack'
   | 'timer'
@@ -28,7 +28,7 @@ export const FIX_CARD_GROUPS: Record<
 > = {
   stream: { label: 'Stream', color: 'blue', icon: 'align-left' },
   prerender: { label: 'Prerender', color: 'purple', icon: 'history' },
-  block: { label: 'Block', color: 'red', icon: 'octagon' },
+  block: { label: 'Block', color: 'red', icon: 'loading' },
   cache: { label: 'Cache', color: 'purple', icon: 'database' },
   static: { label: 'Static', color: 'gray', icon: 'zap' },
   dynamic: { label: 'Dynamic', color: 'blue', icon: 'server-stack' },
@@ -77,7 +77,7 @@ const runtimeCards: FixCard[] = [
   },
   {
     id: 'prerender-known-params',
-    title: 'Prerender known params',
+    title: 'For known params, prerender',
     group: 'cache',
     link: 'https://nextjs.org/docs/messages/blocking-route#prerender-known-params',
     snippets: [
@@ -162,7 +162,7 @@ const metadataRuntimeCards: FixCard[] = [
   },
   {
     id: 'render-page-at-request-time',
-    title: 'Generate the page on every request',
+    title: 'Mark the route as dynamic',
     group: 'dynamic',
     link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#render-page-at-request-time',
     snippets: [
@@ -186,7 +186,7 @@ const metadataDynamicCards: FixCard[] = [
   },
   {
     id: 'render-page-at-request-time',
-    title: 'Generate the page on every request',
+    title: 'Mark the route as dynamic',
     group: 'dynamic',
     link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#render-page-at-request-time',
     snippets: [
@@ -211,17 +211,6 @@ const viewportRuntimeCards: FixCard[] = [
     ],
   },
   {
-    id: 'wrap-body-in-suspense',
-    title: 'Wrap body in Suspense',
-    group: 'stream',
-    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#wrap-body-in-suspense',
-    snippets: [
-      { text: '<Suspense>', highlight: true },
-      { text: '  <body>{children}</body>' },
-      { text: '</Suspense>', highlight: true },
-    ],
-  },
-  {
     id: 'allow-blocking-route',
     title: 'Allow blocking route',
     group: 'block',
@@ -243,17 +232,6 @@ const viewportDynamicCards: FixCard[] = [
       { text: 'async function generateViewport() {' },
       { text: '  "use cache"', highlight: true },
       { text: '  return await db.getViewport(…)' },
-    ],
-  },
-  {
-    id: 'wrap-body-in-suspense',
-    title: 'Wrap body in Suspense',
-    group: 'stream',
-    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#wrap-body-in-suspense',
-    snippets: [
-      { text: '<Suspense>', highlight: true },
-      { text: '  <body>{children}</body>' },
-      { text: '</Suspense>', highlight: true },
     ],
   },
   {
@@ -300,8 +278,8 @@ const syncMathCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/next-prerender-random#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
-      { text: 'const [id] = useState(() => Math.random())' },
-      { text: 'return <Item id={id} />' },
+      { text: '// runs in the browser' },
+      { text: 'const id = Math.random()' },
     ],
   },
 ]
@@ -336,13 +314,13 @@ const syncDateCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/next-prerender-current-time#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
-      { text: 'useEffect(() => setT(Date.now()), [])' },
-      { text: 'return <Banner time={t} />' },
+      { text: '// runs in the browser' },
+      { text: 'const t = Date.now()' },
     ],
   },
   {
     id: 'measure-elapsed-time',
-    title: 'Measure elapsed time',
+    title: 'For telemetry, use a timing API',
     group: 'measure',
     link: 'https://nextjs.org/docs/messages/next-prerender-current-time#measure-elapsed-time',
     snippets: [
@@ -383,8 +361,8 @@ const syncCryptoCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/next-prerender-crypto#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
-      { text: 'const [id] = useState(() => crypto.randomUUID())' },
-      { text: 'return <Token id={id} />' },
+      { text: '// runs in the browser' },
+      { text: 'const id = crypto.randomUUID()' },
     ],
   },
 ]
@@ -416,7 +394,7 @@ const syncClientDateCards: FixCard[] = [
   },
   {
     id: 'measure-elapsed-time',
-    title: 'Measure elapsed time',
+    title: 'For telemetry, use a timing API',
     group: 'measure',
     link: 'https://nextjs.org/docs/messages/next-prerender-current-time-client#measure-elapsed-time',
     snippets: [

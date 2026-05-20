@@ -158,8 +158,8 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1220",
-             "description": "Next.js encountered uncached data during the initial render.",
+             "code": "E1265",
+             "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/dynamic-metadata-error-route/page.tsx (21:9) @ Dynamic
@@ -189,14 +189,14 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during the initial render.
+               "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Use \`generateStaticParams\` to make route params static
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -217,14 +217,14 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during the initial render.
+               "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Use \`generateStaticParams\` to make route params static
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -241,14 +241,14 @@ describe('Cache Components Errors', () => {
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during the initial render.
+               "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Use \`generateStaticParams\` to make route params static
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -269,14 +269,14 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during the initial render.
+               "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Use \`generateStaticParams\` to make route params static
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -566,7 +566,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1210",
+             "code": "E1255",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -601,7 +601,6 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - Use a static viewport export instead of \`generateViewport()\`
                - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
-               - Wrap your document \`<body>\` in \`<Suspense>\`
                - Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
@@ -619,7 +618,6 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - Use a static viewport export instead of \`generateViewport()\`
                  - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
-                 - Wrap your document \`<body>\` in \`<Suspense>\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
@@ -678,7 +676,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1210",
+             "code": "E1255",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -713,7 +711,6 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - Use a static viewport export instead of \`generateViewport()\`
                - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
-               - Wrap your document \`<body>\` in \`<Suspense>\`
                - Set \`export const instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
@@ -731,7 +728,6 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - Use a static viewport export instead of \`generateViewport()\`
                  - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
-                 - Wrap your document \`<body>\` in \`<Suspense>\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
@@ -772,8 +768,8 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
-               "code": "E1220",
-               "description": "Next.js encountered uncached data during the initial render.",
+               "code": "E1265",
+               "description": "Next.js encountered uncached data during prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
@@ -786,8 +782,8 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "code": "E1220",
-               "description": "Next.js encountered uncached data during the initial render.",
+               "code": "E1265",
+               "description": "Next.js encountered uncached data during prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
@@ -818,14 +814,14 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
+               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Use \`generateStaticParams\` to make route params static
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -840,14 +836,14 @@ describe('Cache Components Errors', () => {
                  64 |     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
                  65 |   )
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
-               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
+               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Use \`generateStaticParams\` to make route params static
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -869,14 +865,14 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
+               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Use \`generateStaticParams\` to make route params static
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -894,14 +890,14 @@ describe('Cache Components Errors', () => {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
+               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Use \`generateStaticParams\` to make route params static
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -918,14 +914,14 @@ describe('Cache Components Errors', () => {
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
+               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Use \`generateStaticParams\` to make route params static
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -940,14 +936,14 @@ describe('Cache Components Errors', () => {
                  64 |     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
                  65 |   )
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
-               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
+               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Use \`generateStaticParams\` to make route params static
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -969,14 +965,14 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
+               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Use \`generateStaticParams\` to make route params static
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1008,14 +1004,14 @@ describe('Cache Components Errors', () => {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
+               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Use \`generateStaticParams\` to make route params static
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1093,8 +1089,8 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered Math.random() without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value Math.random() while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-random-with-fallback/page.tsx (37:23) @ RandomReadingComponent
@@ -1123,7 +1119,7 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+                 "Error: Route "/sync-random-with-fallback": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
                  This value can change between renders, so it must be either prerendered or computed later.
 
@@ -1150,7 +1146,7 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+                 "Error: Route "/sync-random-with-fallback": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
                  This value can change between renders, so it must be either prerendered or computed later.
 
@@ -1179,7 +1175,7 @@ describe('Cache Components Errors', () => {
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+                 "Error: Route "/sync-random-with-fallback": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
                  This value can change between renders, so it must be either prerendered or computed later.
 
@@ -1205,7 +1201,7 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-random-with-fallback": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+                 "Error: Route "/sync-random-with-fallback": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
                  This value can change between renders, so it must be either prerendered or computed later.
 
@@ -1241,8 +1237,8 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered Math.random() without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value Math.random() while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-random-without-fallback/page.tsx (32:15) @ getRandomNumber
@@ -1272,7 +1268,7 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+                 "Error: Route "/sync-random-without-fallback": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
                  This value can change between renders, so it must be either prerendered or computed later.
 
@@ -1300,7 +1296,7 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+                 "Error: Route "/sync-random-without-fallback": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
                  This value can change between renders, so it must be either prerendered or computed later.
 
@@ -1330,7 +1326,7 @@ describe('Cache Components Errors', () => {
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+                 "Error: Route "/sync-random-without-fallback": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
                  This value can change between renders, so it must be either prerendered or computed later.
 
@@ -1356,7 +1352,7 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-random-without-fallback": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+                 "Error: Route "/sync-random-without-fallback": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
                  This value can change between renders, so it must be either prerendered or computed later.
 
@@ -2181,8 +2177,8 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1228",
-               "description": "Next.js encountered new Date() in a Client Component.",
+               "code": "E1266",
+               "description": "Next.js encountered the unstable value new Date() in a Client Component.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
@@ -2211,13 +2207,14 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
+                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+                 This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2237,13 +2234,14 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
+                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+                 This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2265,13 +2263,14 @@ describe('Cache Components Errors', () => {
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
+                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+                 This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at <unknown> (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2290,13 +2289,14 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
+                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+                 This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at a (<next-dist-dir>)
@@ -2325,8 +2325,8 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1221",
-               "description": "Next.js encountered runtime data during the initial render.",
+               "code": "E1272",
+               "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18) @ RequestData
@@ -2355,14 +2355,14 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during the initial render.
+                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during prerendering.
 
-                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
                    - Cache the data access with \`"use cache"\`
                    - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Use \`generateStaticParams\` to make route params static
+                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2383,14 +2383,14 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during the initial render.
+                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during prerendering.
 
-                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
                    - Cache the data access with \`"use cache"\`
                    - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Use \`generateStaticParams\` to make route params static
+                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2409,14 +2409,14 @@ describe('Cache Components Errors', () => {
             } else {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during the initial render.
+                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during prerendering.
 
-                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
                    - Cache the data access with \`"use cache"\`
                    - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Use \`generateStaticParams\` to make route params static
+                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2441,7 +2441,7 @@ describe('Cache Components Errors', () => {
                 // non-debug-prerender mode, so we don't assert on the stack
                 // frames here.
                 expect(output).toInclude(
-                  'Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during the initial render.'
+                  'Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during prerendering.'
                 )
               }
             }
@@ -2463,8 +2463,8 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1228",
-               "description": "Next.js encountered new Date() in a Client Component.",
+               "code": "E1266",
+               "description": "Next.js encountered the unstable value new Date() in a Client Component.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
@@ -2493,13 +2493,14 @@ describe('Cache Components Errors', () => {
             if (isDebugPrerender) {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
+                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+                 This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2519,13 +2520,14 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
+                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+                 This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at SyncIO (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2547,13 +2549,14 @@ describe('Cache Components Errors', () => {
             } else {
               if (isTurbopack) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
+                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+                 This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at <unknown> (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
@@ -2572,13 +2575,14 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` in a Client Component.
+                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-                 This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.
+                 This value would be evaluated during the prerender, instead of recomputed on each visit.
 
                  Ways to fix this:
                    - Wrap the Client Component in \`<Suspense fallback={...}>\`
                    - Move the read into a \`useEffect\` or event handler
+                   - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                      at a (<next-dist-dir>)
@@ -3037,8 +3041,8 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1221",
-                 "description": "Next.js encountered runtime data during the initial render.",
+                 "code": "E1272",
+                 "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/use-cache-low-expire/fast/page.tsx (3:16) @ Page
@@ -3066,14 +3070,14 @@ describe('Cache Components Errors', () => {
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during the initial render.
+                   "Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during prerendering.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
                      - Cache the data access with \`"use cache"\`
                      - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Use \`generateStaticParams\` to make route params static
+                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3093,14 +3097,14 @@ describe('Cache Components Errors', () => {
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during the initial render.
+                   "Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during prerendering.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
                      - Cache the data access with \`"use cache"\`
                      - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Use \`generateStaticParams\` to make route params static
+                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3120,28 +3124,28 @@ describe('Cache Components Errors', () => {
                   // Next.js internals, and is also flaky on resolving the exact
                   // location, so we don't assert on the stack frames here.
                   expect(output).toInclude(
-                    `Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during the initial render.
+                    `Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during prerendering.
 
-\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Use \`generateStaticParams\` to make route params static
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
                   expect(output).toInclude(
-                    `Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during the initial render.
+                    `Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during prerendering.
 
-\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Use \`generateStaticParams\` to make route params static
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -3159,8 +3163,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1221",
-                 "description": "Next.js encountered runtime data during the initial render.",
+                 "code": "E1272",
+                 "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/use-cache-low-expire/slow/page.tsx (3:16) @ Page
@@ -3188,14 +3192,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during the initial render.
+                   "Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during prerendering.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
                      - Cache the data access with \`"use cache"\`
                      - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Use \`generateStaticParams\` to make route params static
+                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3215,14 +3219,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during the initial render.
+                   "Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during prerendering.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
                      - Cache the data access with \`"use cache"\`
                      - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Use \`generateStaticParams\` to make route params static
+                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3242,28 +3246,28 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   // Next.js internals, and is also flaky on resolving the exact
                   // location, so we don't assert on the stack frames here.
                   expect(output).toInclude(
-                    `Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during the initial render.
+                    `Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during prerendering.
 
-\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Use \`generateStaticParams\` to make route params static
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
                   expect(output).toInclude(
-                    `Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during the initial render.
+                    `Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during prerendering.
 
-\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Use \`generateStaticParams\` to make route params static
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -3440,8 +3444,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1221",
-                 "description": "Next.js encountered runtime data during the initial render.",
+                 "code": "E1272",
+                 "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/use-cache-revalidate-0/fast/page.tsx (3:16) @ Page
@@ -3469,14 +3473,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during the initial render.
+                   "Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during prerendering.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
                      - Cache the data access with \`"use cache"\`
                      - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Use \`generateStaticParams\` to make route params static
+                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3496,14 +3500,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during the initial render.
+                   "Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during prerendering.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
                      - Cache the data access with \`"use cache"\`
                      - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Use \`generateStaticParams\` to make route params static
+                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3523,28 +3527,28 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   // Next.js internals, and is also flaky on resolving the exact
                   // location, so we don't assert on the stack frames here.
                   expect(output).toInclude(
-                    `Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during the initial render.
+                    `Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during prerendering.
 
-\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Use \`generateStaticParams\` to make route params static
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
                   expect(output).toInclude(
-                    `Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during the initial render.
+                    `Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during prerendering.
 
-\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Use \`generateStaticParams\` to make route params static
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -3562,8 +3566,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1221",
-                 "description": "Next.js encountered runtime data during the initial render.",
+                 "code": "E1272",
+                 "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/use-cache-revalidate-0/slow/page.tsx (3:16) @ Page
@@ -3591,14 +3595,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during the initial render.
+                   "Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during prerendering.
 
-                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                    Ways to fix this:
                      - Cache the data access with \`"use cache"\`
                      - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                     - Use \`generateStaticParams\` to make route params static
+                     - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                      - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3618,14 +3622,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                    "Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during the initial render.
+                    "Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during prerendering.
 
-                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                     Ways to fix this:
                       - Cache the data access with \`"use cache"\`
                       - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                      - Use \`generateStaticParams\` to make route params static
+                      - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                       - Set \`export const instant = false\` to allow a blocking route
 
                     Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3645,28 +3649,28 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   // Next.js internals, and is also flaky on resolving the exact
                   // location, so we don't assert on the stack frames here.
                   expect(output).toInclude(
-                    `Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during the initial render.
+                    `Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during prerendering.
 
-\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Use \`generateStaticParams\` to make route params static
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
                   expect(output).toInclude(
-                    `Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during the initial render.
+                    `Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during prerendering.
 
-\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Use \`generateStaticParams\` to make route params static
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -3844,8 +3848,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1221",
-               "description": "Next.js encountered runtime data during the initial render.",
+               "code": "E1272",
+               "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": null,
@@ -3871,14 +3875,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.
+                 "Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during prerendering.
 
-                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
                    - Cache the data access with \`"use cache"\`
                    - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Use \`generateStaticParams\` to make route params static
+                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3896,14 +3900,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.
+                 "Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during prerendering.
 
-                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
                    - Cache the data access with \`"use cache"\`
                    - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Use \`generateStaticParams\` to make route params static
+                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3923,11 +3927,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 // Next.js internals, and is also flaky on resolving the exact
                 // location, so we don't assert on the stack frames here.
                 expect(output).toInclude(
-                  `Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.`
+                  `Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during prerendering.`
                 )
               } else {
                 expect(output).toInclude(
-                  `Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.`
+                  `Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during prerendering.`
                 )
               }
             }
@@ -4745,8 +4749,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1221",
-               "description": "Next.js encountered runtime data during the initial render.",
+               "code": "E1272",
+               "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/use-cache-private-without-suspense/page.tsx (15:1) @ Private
@@ -4775,14 +4779,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during the initial render.
+                 "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during prerendering.
 
-                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
                    - Cache the data access with \`"use cache"\`
                    - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Use \`generateStaticParams\` to make route params static
+                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -4803,14 +4807,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during the initial render.
+                 "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during prerendering.
 
-                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
                    - Cache the data access with \`"use cache"\`
                    - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Use \`generateStaticParams\` to make route params static
+                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -4830,28 +4834,28 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 // Next.js internals, and is also flaky on resolving the exact
                 // location, so we don't assert on the stack frames here.
                 expect(output).toInclude(
-                  `Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during the initial render.
+                  `Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during prerendering.
 
-\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
 Ways to fix this:
   - Cache the data access with \`"use cache"\`
   - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-  - Use \`generateStaticParams\` to make route params static
+  - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
   - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                 )
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during the initial render.
+                 "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during prerendering.
 
-                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                  Ways to fix this:
                    - Cache the data access with \`"use cache"\`
                    - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   - Use \`generateStaticParams\` to make route params static
+                   - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -4948,8 +4952,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1242",
-             "description": "Next.js encountered Date() without an explicit rendering intent.",
+             "code": "E1261",
+             "description": "Next.js encountered the unstable value Date() while prerendering.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-current-time/date/page.tsx (19:16) @ DateReadingComponent
@@ -4978,7 +4982,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-current-time/date": Next.js encountered the unstable value \`Date()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -4986,7 +4990,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/date/page.tsx:19:16)
@@ -5005,7 +5009,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-current-time/date": Next.js encountered the unstable value \`Date()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5013,7 +5017,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/date/page.tsx:19:16)
@@ -5034,7 +5038,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-current-time/date": Next.js encountered the unstable value \`Date()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5042,7 +5046,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (app/sync-io-current-time/date/page.tsx:19:16)
@@ -5060,7 +5064,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date": Next.js encountered \`Date()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-current-time/date": Next.js encountered the unstable value \`Date()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5068,7 +5072,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (<next-dist-dir>)
@@ -5093,8 +5097,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1242",
-             "description": "Next.js encountered Date.now() without an explicit rendering intent.",
+             "code": "E1261",
+             "description": "Next.js encountered the unstable value Date.now() while prerendering.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-current-time/date-now/page.tsx (19:21) @ DateReadingComponent
@@ -5123,7 +5127,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-current-time/date-now": Next.js encountered the unstable value \`Date.now()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5131,7 +5135,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/date-now/page.tsx:19:21)
@@ -5150,7 +5154,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-current-time/date-now": Next.js encountered the unstable value \`Date.now()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5158,7 +5162,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/date-now/page.tsx:19:21)
@@ -5179,7 +5183,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-current-time/date-now": Next.js encountered the unstable value \`Date.now()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5187,7 +5191,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (app/sync-io-current-time/date-now/page.tsx:19:21)
@@ -5205,7 +5209,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/date-now": Next.js encountered \`Date.now()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-current-time/date-now": Next.js encountered the unstable value \`Date.now()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5213,7 +5217,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (<next-dist-dir>)
@@ -5238,8 +5242,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1242",
-             "description": "Next.js encountered new Date() without an explicit rendering intent.",
+             "code": "E1261",
+             "description": "Next.js encountered the unstable value new Date() while prerendering.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-current-time/new-date/page.tsx (19:16) @ DateReadingComponent
@@ -5268,7 +5272,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-current-time/new-date": Next.js encountered the unstable value \`new Date()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5276,7 +5280,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/new-date/page.tsx:19:16)
@@ -5295,7 +5299,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-current-time/new-date": Next.js encountered the unstable value \`new Date()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5303,7 +5307,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/new-date/page.tsx:19:16)
@@ -5324,7 +5328,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-current-time/new-date": Next.js encountered the unstable value \`new Date()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5332,7 +5336,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (app/sync-io-current-time/new-date/page.tsx:19:16)
@@ -5350,7 +5354,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-current-time/new-date": Next.js encountered \`new Date()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-current-time/new-date": Next.js encountered the unstable value \`new Date()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5358,7 +5362,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
                  - Prerender and cache the value with \`"use cache"\`
                  - Render the value on the client with \`"use client"\`
-                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
+                 - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (<next-dist-dir>)
@@ -5383,8 +5387,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1242",
-             "description": "Next.js encountered Math.random() without an explicit rendering intent.",
+             "code": "E1261",
+             "description": "Next.js encountered the unstable value Math.random() while prerendering.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-random/math-random/page.tsx (19:21) @ SyncIOComponent
@@ -5413,7 +5417,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-random/math-random": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5439,7 +5443,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-random/math-random": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5467,7 +5471,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-random/math-random": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5492,7 +5496,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-random/math-random": Next.js encountered \`Math.random()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-random/math-random": Next.js encountered the unstable value \`Math.random()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5524,8 +5528,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1242",
-             "description": "Next.js encountered crypto.getRandomValues() without an explicit rendering intent.",
+             "code": "E1261",
+             "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-web-crypto/get-random-value/page.tsx (20:10) @ SyncIOComponent
@@ -5554,7 +5558,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5581,7 +5585,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5610,7 +5614,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5636,7 +5640,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered \`crypto.getRandomValues()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-web-crypto/get-random-value": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5668,8 +5672,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1242",
-             "description": "Next.js encountered crypto.randomUUID() without an explicit rendering intent.",
+             "code": "E1261",
+             "description": "Next.js encountered the unstable value crypto.randomUUID() while prerendering.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-web-crypto/random-uuid/page.tsx (19:23) @ SyncIOComponent
@@ -5698,7 +5702,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isDebugPrerender) {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered the unstable value \`crypto.randomUUID()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5724,7 +5728,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered the unstable value \`crypto.randomUUID()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5752,7 +5756,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isTurbopack) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered the unstable value \`crypto.randomUUID()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5777,7 +5781,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered \`crypto.randomUUID()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-web-crypto/random-uuid": Next.js encountered the unstable value \`crypto.randomUUID()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5810,8 +5814,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').generateKeyPairSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24) @ SyncIOComponent
@@ -5826,8 +5830,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').generateKeyPairSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:17) @ SyncIOComponent
@@ -5857,7 +5861,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5884,7 +5888,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5912,7 +5916,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5939,7 +5943,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered \`require('node:crypto').generateKeyPairSync(...)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/generate-key-pair-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeyPairSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -5972,8 +5976,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered require('node:crypto').generateKeySync(...) without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').generateKeySync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6) @ SyncIOComponent
@@ -5988,8 +5992,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered require('node:crypto').generateKeySync(...) without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').generateKeySync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (20:17) @ SyncIOComponent
@@ -6019,7 +6023,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeySync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6046,7 +6050,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeySync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6074,7 +6078,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeySync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6101,7 +6105,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered \`require('node:crypto').generateKeySync(...)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/generate-key-sync": Next.js encountered the unstable value \`require('node:crypto').generateKeySync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6134,8 +6138,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').generatePrimeSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39) @ SyncIOComponent
@@ -6150,8 +6154,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').generatePrimeSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:32) @ SyncIOComponent
@@ -6181,7 +6185,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered the unstable value \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6208,7 +6212,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered the unstable value \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6236,7 +6240,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered the unstable value \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6263,7 +6267,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered \`require('node:crypto').generatePrimeSync(...)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/generate-prime-sync": Next.js encountered the unstable value \`require('node:crypto').generatePrimeSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6296,8 +6300,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered crypto.getRandomValues() without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/get-random-values/page.tsx (21:10) @ SyncIOComponent
@@ -6312,8 +6316,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered crypto.getRandomValues() without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/get-random-values/page.tsx (21:3) @ SyncIOComponent
@@ -6343,7 +6347,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6370,7 +6374,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6398,7 +6402,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6425,7 +6429,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered \`crypto.getRandomValues()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/get-random-values": Next.js encountered the unstable value \`crypto.getRandomValues()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6458,8 +6462,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered require('node:crypto').randomBytes(size) without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomBytes(size) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:24) @ SyncIOComponent
@@ -6474,8 +6478,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered require('node:crypto').randomBytes(size) without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomBytes(size) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:17) @ SyncIOComponent
@@ -6505,7 +6509,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered the unstable value \`require('node:crypto').randomBytes(size)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6532,7 +6536,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered the unstable value \`require('node:crypto').randomBytes(size)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6560,7 +6564,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered the unstable value \`require('node:crypto').randomBytes(size)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6587,7 +6591,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered \`require('node:crypto').randomBytes(size)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-bytes": Next.js encountered the unstable value \`require('node:crypto').randomBytes(size)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6620,8 +6624,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered require('node:crypto').randomFillSync(...) without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomFillSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10) @ SyncIOComponent
@@ -6636,8 +6640,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered require('node:crypto').randomFillSync(...) without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomFillSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:3) @ SyncIOComponent
@@ -6667,7 +6671,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered the unstable value \`require('node:crypto').randomFillSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6694,7 +6698,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered the unstable value \`require('node:crypto').randomFillSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6722,7 +6726,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered the unstable value \`require('node:crypto').randomFillSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6749,7 +6753,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered \`require('node:crypto').randomFillSync(...)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-fill-sync": Next.js encountered the unstable value \`require('node:crypto').randomFillSync(...)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6782,8 +6786,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered require('node:crypto').randomInt(min, max) without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:24) @ SyncIOComponent
@@ -6798,8 +6802,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered require('node:crypto').randomInt(min, max) without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:17) @ SyncIOComponent
@@ -6829,7 +6833,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6856,7 +6860,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6884,7 +6888,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6911,7 +6915,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered \`require('node:crypto').randomInt(min, max)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-int-between": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -6944,8 +6948,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered require('node:crypto').randomInt(min, max) without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24) @ SyncIOComponent
@@ -6960,8 +6964,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered require('node:crypto').randomInt(min, max) without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:17) @ SyncIOComponent
@@ -6991,7 +6995,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -7018,7 +7022,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -7046,7 +7050,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -7073,7 +7077,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered \`require('node:crypto').randomInt(min, max)\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-int-up-to": Next.js encountered the unstable value \`require('node:crypto').randomInt(min, max)\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -7106,8 +7110,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered require('node:crypto').randomUUID() without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomUUID() while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:24) @ SyncIOComponent
@@ -7122,8 +7126,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1242",
-               "description": "Next.js encountered require('node:crypto').randomUUID() without an explicit rendering intent.",
+               "code": "E1261",
+               "description": "Next.js encountered the unstable value require('node:crypto').randomUUID() while prerendering.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:17) @ SyncIOComponent
@@ -7153,7 +7157,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered the unstable value \`require('node:crypto').randomUUID()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -7180,7 +7184,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered the unstable value \`require('node:crypto').randomUUID()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -7208,7 +7212,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered the unstable value \`require('node:crypto').randomUUID()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -7235,7 +7239,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered \`require('node:crypto').randomUUID()\` without an explicit rendering intent.
+               "Error: Route "/sync-io-node-crypto/random-uuid": Next.js encountered the unstable value \`require('node:crypto').randomUUID()\` while prerendering.
 
                This value can change between renders, so it must be either prerendered or computed later.
 
@@ -7267,8 +7271,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1220",
-             "description": "Next.js encountered uncached data during the initial render.",
+             "code": "E1265",
+             "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/client-awaited-io/client.tsx (6:19) @ Client
@@ -7297,14 +7301,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during the initial render.
+               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Use \`generateStaticParams\` to make route params static
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -7325,14 +7329,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during the initial render.
+               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Use \`generateStaticParams\` to make route params static
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -7356,14 +7360,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during the initial render.
+               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Use \`generateStaticParams\` to make route params static
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -7384,14 +7388,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during the initial render.
+               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during prerendering.
 
-               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
                Ways to fix this:
                  - Cache the data access with \`"use cache"\`
                  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 - Use \`generateStaticParams\` to make route params static
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
                  - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
