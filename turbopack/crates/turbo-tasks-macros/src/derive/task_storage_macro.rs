@@ -5,7 +5,7 @@ use syn::{
     spanned::Spanned,
 };
 
-/// Derives the TaskStorage trait and generates optimized storage structures.
+/// Derives the TaskStorageInner trait and generates optimized storage structures.
 pub fn task_storage(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     task_storage_impl(input.into()).into()
 }
@@ -54,7 +54,7 @@ struct FieldInfo {
     storage_type: StorageType,
     category: Category,
     /// If true, field is lazily allocated in Vec<LazyField> (the default).
-    /// If false (marked with `inline`), field is stored directly on TaskStorage.
+    /// If false (marked with `inline`), field is stored directly on TaskStorageInner.
     lazy: bool,
     /// If true, filter out values that reference transient tasks during encoding.
     /// For direct fields: skip encoding if value.is_transient() returns true.
@@ -70,7 +70,7 @@ struct FieldInfo {
     /// Immutable tasks don't re-execute, so dependency tracking fields are not needed.
     drop_on_completion_if_immutable: bool,
     /// If true, the macro dispatches to `FieldType::drop_partial(&mut v) -> bool`
-    /// in the generated `TaskStorage::drop_partial` lazy retain_mut arm instead
+    /// in the generated `TaskStorageInner::drop_partial` lazy retain_mut arm instead
     /// of the default wholesale reset. The method's `bool` return signals whether
     /// residue remains (`true` keeps the variant). On restore, the incoming
     /// persistent entries are merged into the residue via `extend`, so the field
@@ -143,20 +143,20 @@ impl FieldInfo {
 
     /// Generate expression for immutable collection access.
     ///
-    /// Delegates to TaskStorage accessor methods:
+    /// Delegates to TaskStorageInner accessor methods:
     /// - For inline fields: `self.typed().{field_name}()` yields `&T`
     /// - For lazy fields: `self.typed().{field_name}()` yields `Option<&T>`
     ///
     /// Note: This is for collection types (AutoSet, CounterMap, AutoMap), not Direct fields.
     fn collection_ref_expr(&self) -> TokenStream {
         let field_name = &self.field_name;
-        // Both inline and lazy have accessor methods generated on TaskStorage
+        // Both inline and lazy have accessor methods generated on TaskStorageInner
         quote! { self.typed().#field_name() }
     }
 
     /// Generate expression for mutable collection access (allocates for lazy fields).
     ///
-    /// Delegates to TaskStorage accessor methods:
+    /// Delegates to TaskStorageInner accessor methods:
     /// - For inline fields: `self.typed_mut().{field_name}_mut()` yields `&mut T`
     /// - For lazy fields: `self.typed_mut().{field_name}_mut()` yields `&mut T` (allocates if
     ///   needed)
@@ -164,7 +164,7 @@ impl FieldInfo {
     /// Note: This is for collection types (AutoSet, CounterMap, AutoMap), not Direct fields.
     fn collection_mut_expr(&self) -> TokenStream {
         let field_name_mut = self.mut_ident();
-        // Both inline and lazy have accessor methods generated on TaskStorage
+        // Both inline and lazy have accessor methods generated on TaskStorageInner
         quote! { self.typed_mut().#field_name_mut() }
     }
 
@@ -183,7 +183,7 @@ impl FieldInfo {
 
     /// Generate expression to get a Direct field value (returns `Option<&T>`).
     ///
-    /// Delegates to TaskStorage accessor method `get_{field}()`.
+    /// Delegates to TaskStorageInner accessor method `get_{field}()`.
     fn direct_get_expr(&self) -> TokenStream {
         let get_name = self.get_ident();
         quote! { self.typed().#get_name() }
@@ -191,7 +191,7 @@ impl FieldInfo {
 
     /// Generate expression to set a Direct field value.
     ///
-    /// Delegates to TaskStorage accessor method `set_{field}(value)`.
+    /// Delegates to TaskStorageInner accessor method `set_{field}(value)`.
     /// For inline: returns `Option<T>` (old value)
     /// For lazy: returns `()` (no return value from current impl)
     fn direct_set_expr(&self) -> TokenStream {
@@ -201,7 +201,7 @@ impl FieldInfo {
 
     /// Generate expression to take a Direct field value.
     ///
-    /// Delegates to TaskStorage accessor method `take_{field}()`.
+    /// Delegates to TaskStorageInner accessor method `take_{field}()`.
     fn direct_take_expr(&self) -> TokenStream {
         let take_name = self.take_ident();
         quote! { self.typed_mut().#take_name() }
@@ -209,63 +209,11 @@ impl FieldInfo {
 
     /// Generate expression to get a mutable reference to a Direct field value.
     ///
-    /// Delegates to TaskStorage accessor method `get_{field}_mut()`.
+    /// Delegates to TaskStorageInner accessor method `get_{field}_mut()`.
     /// Only available for lazy Direct fields (inline fields can use set/take).
     fn direct_get_mut_expr(&self) -> TokenStream {
         let get_mut_name = self.get_mut_ident();
         quote! { self.typed_mut().#get_mut_name() }
-    }
-
-    // =========================================================================
-    // TaskStorage Internal Access Helpers
-    // These generate expressions for use within TaskStorage impl blocks,
-    // operating on `self` directly rather than `self.typed()`.
-    // =========================================================================
-
-    /// Generate the find_lazy extractor closure for this lazy field.
-    ///
-    /// Returns `|f| match f { LazyField::Variant(v) => Some(v), _ => None }`
-    fn lazy_extractor_closure(&self) -> TokenStream {
-        let variant_name = &self.variant_name;
-        quote! {
-            |f| match f {
-                LazyField::#variant_name(v) => Some(v),
-                _ => None,
-            }
-        }
-    }
-
-    /// Generate the lazy field constructor expression.
-    ///
-    /// Returns `LazyField::Variant(value)` or `LazyField::Variant(Default::default())`
-    fn lazy_constructor(&self, value_expr: TokenStream) -> TokenStream {
-        let variant_name = &self.variant_name;
-        quote! { LazyField::#variant_name(#value_expr) }
-    }
-
-    /// Generate a matches closure for get_or_create_lazy.
-    ///
-    /// Returns `|f| matches!(f, LazyField::Variant(_))`
-    fn lazy_matches_closure(&self) -> TokenStream {
-        let variant_name = &self.variant_name;
-        quote! {
-            |f| matches!(f, LazyField::#variant_name(_))
-        }
-    }
-
-    /// Generate an unwrap closure that extracts the inner value from a LazyField variant.
-    ///
-    /// Returns `|f| match f { LazyField::Variant(v) => v, _ => unreachable!() }`
-    ///
-    /// Works for both borrowed and owned contexts (get_or_create_lazy, take_lazy, set_lazy).
-    fn lazy_unwrap_closure(&self) -> TokenStream {
-        let variant_name = &self.variant_name;
-        quote! {
-            |f| match f {
-                LazyField::#variant_name(v) => v,
-                _ => unreachable!(),
-            }
-        }
     }
 
     // =========================================================================
@@ -330,6 +278,18 @@ impl FieldInfo {
     fn is_empty_ident(&self) -> syn::Ident {
         syn::Ident::new(
             &format!("is_{}_empty", self.field_name),
+            proc_macro2::Span::call_site(),
+        )
+    }
+
+    /// Identifier of the schema-emitted `LAZY_TAG_<FIELD_NAME>` constant
+    /// for this field. Lazy fields are addressed by tag everywhere in
+    /// generated code (typed accessors, encode/decode, dispatch tables),
+    /// so the construction `LAZY_TAG_<uppercase field name>` shows up
+    /// many times — keep it in one place.
+    fn tag_ident(&self) -> syn::Ident {
+        syn::Ident::new(
+            &format!("LAZY_TAG_{}", self.field_name.to_string().to_uppercase()),
             proc_macro2::Span::call_site(),
         )
     }
@@ -745,10 +705,19 @@ impl GroupedFields {
             .collect();
         // Stable sort by category rank; within a category, preserve schema
         // declaration order.
+        //
+        // Tag = position in this iteration order + 1, and the byte tail packs
+        // payloads in ascending tag order — so the *first* category sits at
+        // the head of the tail and the *last* category sits at the end.
+        // Inserts and removes only shift bytes that pack AFTER the target
+        // tag, so we want the most-churned category (transient: installed
+        // during a task run, dropped at completion) to land at the END.
+        // Meta first (restored once on first access, mostly stable), then
+        // Data (bulk, mostly written-once during execution), then Transient.
         lazy.sort_by_key(|f| match f.category {
-            Category::Transient => 0u8,
-            Category::Meta => 1,
-            Category::Data => 2,
+            Category::Meta => 0u8,
+            Category::Data => 1,
+            Category::Transient => 2,
         });
         lazy.into_iter()
     }
@@ -786,13 +755,16 @@ impl GroupedFields {
 // Code Generation Helpers
 // =============================================================================
 
-/// Generate inline field clone assignments: `snapshot.field = self.field.clone();`
+/// Generate inline field clone assignments: `snapshot.inline.field = self.inline.field.clone();`
+///
+/// Inline fields live on the schema-emitted `TaskStorageInline`; this helper
+/// only ever handles inline (non-lazy) fields.
 fn gen_clone_inline_fields<'a>(fields: impl Iterator<Item = &'a FieldInfo>) -> Vec<TokenStream> {
     fields
         .map(|field| {
             let field_name = &field.field_name;
             quote! {
-                snapshot.#field_name = self.#field_name.clone();
+                snapshot.inline.#field_name = self.inline.#field_name.clone();
             }
         })
         .collect()
@@ -800,9 +772,13 @@ fn gen_clone_inline_fields<'a>(fields: impl Iterator<Item = &'a FieldInfo>) -> V
 
 fn gen_restore_inline_field(field: &FieldInfo) -> TokenStream {
     let field_name = &field.field_name;
+    // `TaskStorageInner` implements `Drop`, so we cannot partially move out of
+    // `source.head` here. Use `std::mem::take` instead — `source` is
+    // consumed by the surrounding `restore_*_from` and its remaining fields
+    // will be properly dropped by Rust's struct destructor.
     if !field.filter_transient {
         return quote! {
-            self.#field_name = source.#field_name;
+            self.inline.#field_name = std::mem::take(&mut source.inline.#field_name);
         };
     }
     match field.storage_type {
@@ -811,17 +787,17 @@ fn gen_restore_inline_field(field: &FieldInfo) -> TokenStream {
             // means a transient value is live and newer than the disk value —
             // prefer the residue; otherwise take the source.
             quote! {
-                if self.#field_name.is_none() {
-                    self.#field_name = source.#field_name;
+                if self.inline.#field_name.is_none() {
+                    self.inline.#field_name = std::mem::take(&mut source.inline.#field_name);
                 }
             }
         }
         StorageType::AutoSet => {
             quote! {
-                if self.#field_name.is_empty() {
-                    self.#field_name = source.#field_name;
+                if self.inline.#field_name.is_empty() {
+                    self.inline.#field_name = std::mem::take(&mut source.inline.#field_name);
                 } else {
-                    self.#field_name.merge_restore(source.#field_name);
+                    self.inline.#field_name.merge_restore(std::mem::take(&mut source.inline.#field_name));
                 }
             }
         }
@@ -830,38 +806,15 @@ fn gen_restore_inline_field(field: &FieldInfo) -> TokenStream {
             // transient task ids; source entries are keyed by persistent ids.
             // These key spaces are disjoint, so `extend` merges cleanly.
             quote! {
-                if self.#field_name.is_empty() {
-                    self.#field_name = source.#field_name;
+                if self.inline.#field_name.is_empty() {
+                    self.inline.#field_name = std::mem::take(&mut source.inline.#field_name);
                 } else {
-                    self.#field_name.merge_restore(source.#field_name);
+                    self.inline.#field_name.merge_restore(std::mem::take(&mut source.inline.#field_name));
                 }
             }
         }
         StorageType::Flag => unreachable!(),
     }
-}
-
-/// Generate lazy field match arms with a custom body that also receives the index.
-/// `LazyField::Variant(data) => { <body> }`
-///
-/// The `body_fn` receives the index and field, returning the body TokenStream.
-/// The body can use `data` to reference the matched value.
-fn gen_lazy_match_arms<'a>(
-    fields: impl Iterator<Item = &'a FieldInfo>,
-    body_fn: impl Fn(usize, &FieldInfo) -> TokenStream,
-) -> Vec<TokenStream> {
-    fields
-        .enumerate()
-        .map(|(idx, field)| {
-            let variant_name = &field.variant_name;
-            let body = body_fn(idx, field);
-            quote! {
-                LazyField::#variant_name(data) => {
-                    #body
-                }
-            }
-        })
-        .collect()
 }
 
 fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) -> TokenStream {
@@ -871,7 +824,7 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
     // Generate LazyField enum for lazy fields
     let lazy_field_enum = generate_lazy_field_enum(grouped_fields);
 
-    // Generate the unified TaskStorage struct
+    // Generate the unified TaskStorageInner struct
     let typed_storage_struct = generate_typed_storage_struct(grouped_fields);
 
     // Generate accessor methods
@@ -899,7 +852,7 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
         // Generated LazyField enum
         #lazy_field_enum
 
-        // Generated TaskStorage struct (unified)
+        // Generated TaskStorageInner struct (unified)
         #typed_storage_struct
 
         // Generated accessor methods
@@ -1085,208 +1038,322 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
     }
 }
 
-/// Generate the LazyField enum containing all lazy fields
+/// Generate the lazy-field tag tables and per-tag dispatch functions.
+///
+/// The previous `LazyField` enum is gone — payloads live directly in
+/// `LazyTail`'s byte buffer addressed by tag — so this generator emits only
+/// the schema-level constants and the unsafe dispatch helpers consumed by
+/// `LazyTail`-aware code in `storage_schema.rs`.
 fn generate_lazy_field_enum(grouped_fields: &GroupedFields) -> TokenStream {
     let all_lazy_fields: Vec<_> = grouped_fields.all_lazy().collect();
 
-    // If no lazy_vec fields, don't generate the enum
+    // Nothing to emit if the schema has no lazy fields.
     if all_lazy_fields.is_empty() {
         return quote! {};
     }
 
-    // Generate enum variants
-    let variants: Vec<_> = all_lazy_fields
-        .iter()
-        .map(|field| {
-            let variant_name = &field.variant_name;
-            let field_type = &field.field_type;
-            quote! {
-                #variant_name(#field_type)
-            }
-        })
-        .collect();
+    let num_variants = all_lazy_fields.len();
 
-    // Generate is_empty method arms
-    let is_empty_arms: Vec<_> = all_lazy_fields
-        .iter()
-        .map(|field| {
-            let variant_name = &field.variant_name;
-            // For collection types, check if empty; for direct types, presence means non-empty
-            match field.storage_type {
-                StorageType::Direct => {
-                    // For direct types, presence of the variant means it's non-empty
-                    // (the Vec<LazyField> provides optionality, not Option<T>)
-                    quote! {
-                        LazyField::#variant_name(_) => false
-                    }
-                }
-                _ => {
-                    // For collection types, delegate to is_empty()
-                    quote! {
-                        LazyField::#variant_name(v) => v.is_empty()
-                    }
-                }
-            }
-        })
-        .collect();
-
-    // Or-pattern lists for `is_persistent` / `is_meta`. Because `all_lazy()`
-    // returns variants grouped by category (transient, then meta, then data),
-    // these lists cover contiguous runs of the enum, giving LLVM the clearest
-    // shape to lower each predicate to a single integer range check on the
-    // discriminant tag.
-    let persistent_patterns: Vec<_> = all_lazy_fields
-        .iter()
-        .filter(|f| !f.is_transient())
-        .map(|f| {
-            let variant_name = &f.variant_name;
-            quote! { LazyField::#variant_name(_) }
-        })
-        .collect();
-    let meta_patterns: Vec<_> = all_lazy_fields
-        .iter()
-        .filter(|f| f.category == Category::Meta)
-        .map(|f| {
-            let variant_name = &f.variant_name;
-            quote! { LazyField::#variant_name(_) }
-        })
-        .collect();
-    let data_patterns: Vec<_> = all_lazy_fields
-        .iter()
-        .filter(|f| f.category == Category::Data)
-        .map(|f| {
-            let variant_name = &f.variant_name;
-            quote! { LazyField::#variant_name(_) }
-        })
-        .collect();
-
-    // `matches!(self, ... | ... )` requires at least one pattern. Fall back to
-    // `false` if the schema has no variants in a given category.
-    let is_persistent_body = if persistent_patterns.is_empty() {
-        quote! { false }
-    } else {
-        quote! { matches!(self, #(#persistent_patterns)|*) }
-    };
-    let is_meta_body = if meta_patterns.is_empty() {
-        quote! { false }
-    } else {
-        quote! { matches!(self, #(#meta_patterns)|*) }
-    };
-    let is_data_body = if data_patterns.is_empty() {
-        quote! { false }
-    } else {
-        quote! { matches!(self, #(#data_patterns)|*) }
-    };
-
-    // (discriminant, is_meta, is_data) arms for the restore prescan — each
-    // variant maps to its position in the enum definition (used as a
-    // fixed-size array offset) paired with its category bits. Transient
-    // variants have both category bits false; persistent variants set
-    // exactly one. `is_meta || is_data` therefore doubles as `is_persistent`.
-    let index_and_category_arms: Vec<_> = all_lazy_fields
+    // Per-variant tag constants. The macro assigns tag = idx + 1 in the
+    // `all_lazy()` order so that tag 0 is reserved as the bincode encode
+    // sentinel. Each constant has the shape `LAZY_TAG_<UPPER>: u8`.
+    let tag_constants: Vec<_> = all_lazy_fields
         .iter()
         .enumerate()
         .map(|(idx, field)| {
-            let variant_name = &field.variant_name;
-            let idx = idx as u8;
-            let is_meta = field.category == Category::Meta;
-            let is_data = field.category == Category::Data;
+            let tag_ident = field.tag_ident();
+            let tag = idx as u8;
+            let ty = &field.field_type;
+            let doc = format!(
+                "Tag for the `{}` lazy variant, carrying the payload type `{}` in the type \
+                 system. Used to address its payload in the byte tail. Pass to typed \
+                 `TaskStorage::lazy_*` methods which infer the payload type from this constant.",
+                field.variant_name,
+                quote::quote!(#ty),
+            );
             quote! {
-                LazyField::#variant_name(_) => (#idx, #is_meta, #is_data)
+                #[doc = #doc]
+                pub const #tag_ident: crate::backend::lazy_tail::Tag<#ty> =
+                    crate::backend::lazy_tail::Tag::new(#tag);
             }
         })
         .collect();
-    let num_variants = all_lazy_fields.len();
-    let num_variants_tok = quote::quote! { #num_variants };
+
+    // Per-tag payload size (in bytes), indexed by tag (0-based).
+    let size_entries: Vec<_> = all_lazy_fields
+        .iter()
+        .map(|field| {
+            let ty = &field.field_type;
+            quote! { (std::mem::size_of::<#ty>() as u16) }
+        })
+        .collect();
+
+    // Per-tag payload alignment (in bytes), indexed by tag (0-based).
+    let align_entries: Vec<_> = all_lazy_fields
+        .iter()
+        .map(|field| {
+            let ty = &field.field_type;
+            quote! { (std::mem::align_of::<#ty>() as u8) }
+        })
+        .collect();
+
+    // Per-tag padded payload size. The byte tail places each payload at an
+    // offset aligned to `LAZY_MAX_ALIGN` (the buffer's allocation alignment),
+    // so we round each payload's size up to `LAZY_MAX_ALIGN`. This wastes a
+    // few bytes for variants smaller than the max alignment but guarantees
+    // every payload sits at a valid offset for its own alignment regardless
+    // of the order variants are pushed in.
+    //
+    // `LAZY_MAX_ALIGN` is itself a const expression evaluated below; we use
+    // it here via the symbol name (the emitted code references it in the
+    // same module).
+    let padded_size_entries: Vec<_> = all_lazy_fields
+        .iter()
+        .map(|field| {
+            let ty = &field.field_type;
+            quote! {
+                {
+                    let size = std::mem::size_of::<#ty>();
+                    let align = LAZY_MAX_ALIGN;
+                    ((size + align - 1) & !(align - 1)) as u16
+                }
+            }
+        })
+        .collect();
+
+    // Per-category presence-bitmap masks. Bit `tag` is set for variants
+    // belonging to the category. `LAZY_PERSISTENT_MASK` is `LAZY_META_MASK |
+    // LAZY_DATA_MASK`.
+    let mut persistent_mask: u32 = 0;
+    let mut meta_mask: u32 = 0;
+    let mut data_mask: u32 = 0;
+    for (idx, field) in all_lazy_fields.iter().enumerate() {
+        let bit = 1u32 << idx;
+        match field.category {
+            Category::Meta => {
+                meta_mask |= bit;
+                persistent_mask |= bit;
+            }
+            Category::Data => {
+                data_mask |= bit;
+                persistent_mask |= bit;
+            }
+            Category::Transient => {}
+        }
+    }
+
+    // Per-tag dispatch arms for `lazy_drop_dispatch`. Each arm casts the byte
+    // pointer to the right payload type and calls `drop_in_place`.
+    // Match arms read `tag.raw()` for terse pattern syntax (`0u8 => …`).
+    let drop_dispatch_arms: Vec<_> = all_lazy_fields
+        .iter()
+        .enumerate()
+        .map(|(idx, field)| {
+            let tag = idx as u8;
+            let ty = &field.field_type;
+            quote! {
+                #tag => {
+                    // SAFETY: caller guarantees `ptr` points to a live
+                    // `#ty` payload (per the schema's tag → type mapping).
+                    unsafe { core::ptr::drop_in_place::<#ty>(ptr.cast::<#ty>()); }
+                }
+            }
+        })
+        .collect();
+
+    // Per-tag dispatch arms for `lazy_is_empty_dispatch`. Direct payloads are
+    // "always non-empty when present"; collection payloads delegate to their
+    // own `is_empty()`.
+    let is_empty_dispatch_arms: Vec<_> = all_lazy_fields
+        .iter()
+        .enumerate()
+        .map(|(idx, field)| {
+            let tag = idx as u8;
+            let ty = &field.field_type;
+            let body = match field.storage_type {
+                StorageType::Direct => quote! { false },
+                _ => quote! {
+                    // SAFETY: caller guarantees `ptr` points to a live `#ty`.
+                    unsafe { (*ptr.cast::<#ty>()).is_empty() }
+                },
+            };
+            quote! { #tag => #body }
+        })
+        .collect();
+
+    // Per-tag dispatch arms for `lazy_debug_dispatch`. Each arm renders the
+    // present payload using its own `Debug` impl. The field name is
+    // forwarded as the key in the `DebugMap` the caller passes in.
+    let debug_dispatch_arms: Vec<_> = all_lazy_fields
+        .iter()
+        .enumerate()
+        .map(|(idx, field)| {
+            let tag = idx as u8;
+            let ty = &field.field_type;
+            let field_name_str = field.field_name.to_string();
+            quote! {
+                #tag => {
+                    // SAFETY: caller guarantees `ptr` points to a live `#ty`.
+                    let value: &#ty = unsafe { &*ptr.cast::<#ty>() };
+                    map.entry(&#field_name_str, value);
+                }
+            }
+        })
+        .collect();
 
     quote! {
-        #[doc = "All lazily-allocated fields stored in a single Vec."]
-        #[doc = "Fields are stored directly (unboxed) to avoid allocation overhead."]
-        #[automatically_derived]
-        #[derive(Debug, Clone, PartialEq, turbo_tasks::ShrinkToFit)]
-        #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
-        pub enum LazyField {
-            #(#variants),*
+        // =====================================================================
+        // Lazy-field tag layout tables.
+        //
+        // Each lazy variant in the schema is assigned a 0-based tag. The
+        // byte-tail layout (see `LazyTail`) stores payloads packed in tag
+        // order. Presence is tracked by a `u32` bitmap; payload positions
+        // are computed from `LAZY_PADDED_SIZE[tag]` for each set bit
+        // below the target tag.
+        //
+        // These constants live at the schema's module level so storage
+        // primitives in `storage_schema.rs` and per-variant accessors emitted
+        // by this macro can both reference them.
+        // =====================================================================
+
+        #(#tag_constants)*
+
+        #[doc = "Number of lazy variants. Tags are `0..LAZY_N`."]
+        pub const LAZY_N: u8 = #num_variants as u8;
+
+        #[doc = "Compile-time assertion that the bitmap fits in `u32`."]
+        const _: () = assert!(
+            (LAZY_N as usize) <= 32,
+            "lazy_present is u32; schema declares too many lazy variants",
+        );
+
+        // The encode/decode wire format terminates the lazy stream with
+        // `0xFF`. Real tags live in `0..LAZY_N`, so this must stay
+        // strictly less than the sentinel — otherwise decode would
+        // mis-terminate on a real tag byte.
+        const _: () = assert!(
+            (LAZY_N as u8) < 0xFFu8,
+            "lazy field sentinel (0xFF) collides with a real tag value; pick a different sentinel",
+        );
+
+        #[doc = "Per-tag payload size in bytes (0-based index)."]
+        pub const LAZY_SIZE: [u16; LAZY_N as usize] = [#(#size_entries),*];
+
+        #[doc = "Per-tag payload alignment in bytes (0-based index)."]
+        const LAZY_ALIGN: [u8; LAZY_N as usize] = [#(#align_entries),*];
+
+        #[doc = "Maximum alignment across all lazy payloads. The tail buffer is"]
+        #[doc = "allocated with at least this alignment so every payload sits at a"]
+        #[doc = "valid offset."]
+        pub const LAZY_MAX_ALIGN: usize = {
+            let mut i = 0;
+            let mut m: u8 = 1;
+            while i < LAZY_N as usize {
+                if LAZY_ALIGN[i] > m { m = LAZY_ALIGN[i]; }
+                i += 1;
+            }
+            m as usize
+        };
+
+        #[doc = "Per-tag padded payload size (size rounded up to align). Used to"]
+        #[doc = "compute byte offsets into the tail without re-doing alignment math."]
+        pub const LAZY_PADDED_SIZE: [u16; LAZY_N as usize] = [#(#padded_size_entries),*];
+
+        #[doc = "Bitmap of persistent (non-transient) variants. Bit `tag` set."]
+        pub const LAZY_PERSISTENT_MASK: u32 = #persistent_mask;
+
+        #[doc = "Bitmap of meta-category variants. Bit `tag` set."]
+        pub const LAZY_META_MASK: u32 = #meta_mask;
+
+        #[doc = "Bitmap of data-category variants. Bit `tag` set."]
+        pub const LAZY_DATA_MASK: u32 = #data_mask;
+
+        #[doc = "Drop the payload at `ptr` interpreted as the type whose tag is `tag`."]
+        #[doc = ""]
+        #[doc = "# Safety"]
+        #[doc = ""]
+        #[doc = "`ptr` must point to a live payload whose runtime type matches the"]
+        #[doc = "compile-time payload type assigned to `tag` in the schema. After this"]
+        #[doc = "call the bytes at `ptr` are uninitialized."]
+        pub(crate) unsafe fn lazy_drop_dispatch(
+            tag: crate::backend::lazy_tail::Tag,
+            ptr: *mut std::mem::MaybeUninit<u8>,
+        ) {
+            match tag.raw() {
+                #(#drop_dispatch_arms)*
+                _ => debug_assert!(false, "lazy_drop_dispatch: invalid tag {}", tag.raw()),
+            }
         }
 
-        #[automatically_derived]
-        impl LazyField {
-            #[doc = "Total number of LazyField variants."]
-            pub const NUM_VARIANTS: usize = #num_variants_tok;
-
-            #[doc = "Returns true if this field is empty (can be removed from the Vec)"]
-            pub fn is_empty(&self) -> bool {
-                match self {
-                    #(#is_empty_arms),*
+        #[doc = "Return `true` if the payload at `ptr` is empty in the collection sense."]
+        #[doc = ""]
+        #[doc = "Direct payloads are considered \"not empty\" — their presence in the"]
+        #[doc = "lazy area carries meaningful state."]
+        #[doc = ""]
+        #[doc = "# Safety"]
+        #[doc = "Same as `lazy_drop_dispatch`."]
+        pub(crate) unsafe fn lazy_is_empty_dispatch(
+            tag: crate::backend::lazy_tail::Tag,
+            ptr: *const std::mem::MaybeUninit<u8>,
+        ) -> bool {
+            match tag.raw() {
+                #(#is_empty_dispatch_arms,)*
+                _ => {
+                    debug_assert!(false, "lazy_is_empty_dispatch: invalid tag {}", tag.raw());
+                    false
                 }
             }
+        }
 
-            #[doc = "Returns true if this field should be persisted (not transient)."]
-            #[doc = ""]
-            #[doc = "Variants are sorted so persistent variants form a contiguous"]
-            #[doc = "range; LLVM can lower this `matches!` to a single integer"]
-            #[doc = "compare on the discriminant tag."]
-            #[inline]
-            pub fn is_persistent(&self) -> bool {
-                #is_persistent_body
-            }
-
-            #[doc = "Returns true if this field belongs to the meta category."]
-            #[doc = ""]
-            #[doc = "Meta variants form a contiguous range between the transient"]
-            #[doc = "prefix and the data suffix; expect a range-check lowering."]
-            #[inline]
-            pub fn is_meta(&self) -> bool {
-                #is_meta_body
-            }
-
-            #[doc = "Returns true if this field belongs to the data category."]
-            #[doc = ""]
-            #[doc = "Data variants form the trailing contiguous range of the"]
-            #[doc = "enum; expect a range-check lowering."]
-            #[inline]
-            pub fn is_data(&self) -> bool {
-                #is_data_body
-            }
-
-            #[doc = "Variant index paired with its category bits."]
-            #[doc = ""]
-            #[doc = "Index is the variant's position in the LazyField enum"]
-            #[doc = "definition, usable as an array offset of size `NUM_VARIANTS`."]
-            #[doc = "The two bools report the variant's category: transient"]
-            #[doc = "variants have both false, persistent variants set exactly"]
-            #[doc = "one (so `is_meta || is_data` is equivalent to `is_persistent`)."]
-            #[doc = "Used by the restore prescan to answer both \"where does this"]
-            #[doc = "variant live?\" and \"which category's residue does it count"]
-            #[doc = "toward?\" in a single match."]
-            const fn index_and_category(&self) -> (u8, bool, bool) {
-                match self {
-                    #(#index_and_category_arms),*
-                }
+        #[doc = "Format the payload at `ptr` into `map` keyed by the variant's"]
+        #[doc = "field name. Used by `TaskStorage`'s `Debug` impl to render"]
+        #[doc = "each present lazy variant by its real name and value."]
+        #[doc = ""]
+        #[doc = "# Safety"]
+        #[doc = "Same as `lazy_drop_dispatch`."]
+        pub(crate) unsafe fn lazy_debug_dispatch(
+            tag: crate::backend::lazy_tail::Tag,
+            ptr: *const std::mem::MaybeUninit<u8>,
+            map: &mut std::fmt::DebugMap<'_, '_>,
+        ) {
+            match tag.raw() {
+                #(#debug_dispatch_arms)*
+                _ => debug_assert!(false, "lazy_debug_dispatch: invalid tag {}", tag.raw()),
             }
         }
     }
 }
 
-/// Generate the unified TaskStorage struct with all fields directly on it.
+/// Generate the unified TaskStorageInner struct, plus a private `TaskStorageInline`
+/// that groups the schema-declared inline fields. Splitting inline fields out
+/// is preparation for moving the lazy-tail byte buffer into the same heap
+/// allocation as the head (step 3 of the storage refactor): once the byte
+/// buffer is inline, `size_of::<TaskStorageInline>()` defines the exact "head
+/// region" of the allocation, with the tail bytes living immediately after.
+///
+/// For now `Head` is just an organizational grouping that derives `Default`
+/// and `Debug` so `TaskStorageInner`'s own derives continue to work.
 fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream {
     let has_lazy = grouped_fields.has_lazy();
     let has_flags = grouped_fields.has_flags();
 
-    // Collect all field definitions from both categories
-    let mut field_defs = Vec::new();
+    // Inline field definitions for the head struct.
+    let inline_field_defs: Vec<_> = grouped_fields
+        .all_inline()
+        .map(|field| {
+            let field_name = &field.field_name;
+            let field_type = &field.field_type;
+            quote! {
+                #field_name: #field_type
+            }
+        })
+        .collect();
 
-    // Add inline fields directly on TaskStorage (private - use accessor methods)
-    // Note: No bincode attributes since we don't derive Encode/Decode (manual serialization)
-    for field in grouped_fields.all_inline() {
-        let field_name = &field.field_name;
-        let field_type = &field.field_type;
-        field_defs.push(quote! {
-            #field_name: #field_type
-        });
-    }
-
-    // Add flags bitfield if needed (pub(crate) - used by TaskFlags methods)
+    // Flags bitfield: lives directly on TaskStorageInner (not in head) because
+    // many call sites — both macro emission and hand-written backend code —
+    // read/write flags as `task.flags.method()` without going through a
+    // typed accessor. Keeping it at the TaskStorageInner level avoids touching
+    // every one of those.
     let flags_field = if has_flags {
         quote! {
             #[doc = "Combined bitfield for boolean flags (persisted + transient)"]
@@ -1296,41 +1363,57 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
         quote! {}
     };
 
+    // Bitmap + heap buffer for lazy payloads. Also lives directly on
+    // TaskStorageInner; step 3 will collapse its `ptr` field by inlining the
+    // bytes into TaskStorageInner's allocation.
     let lazy_field = if has_lazy {
-        let max_lazy: u8 = grouped_fields
-            .all_lazy()
-            .count()
-            .try_into()
-            .expect("cannot have more than 255 lazy fields");
-
         quote! {
-            #[doc = "Lazily-allocated fields stored in a compact TinyVec for memory efficiency"]
-            lazy: TinyVec<LazyField, #max_lazy>,
+            #[doc = "Bitmap + heap buffer holding the lazy-field payloads in tag order."]
+            pub(crate) lazy_tail: crate::backend::lazy_tail::LazyTail,
         }
     } else {
         quote! {}
     };
 
-    // Note: Helper methods like find_lazy, find_lazy_mut, get_or_create_lazy, and
-    // remove_if_empty are defined in storage_schema.rs rather than generated here.
-    // This provides better IDE support (autocomplete, go-to-definition, etc.).
-
-    // Note: We don't derive bincode::Encode/Decode here since serialization
-    // will be handled manually via encode_data/encode_meta/decode_data/decode_meta methods
+    // `Head` always exists for symmetry with the lazy-tail story (so callers
+    // can always reach inline fields via `task.inline.<field>`), but when the
+    // schema has no inline fields it's a unit-shaped struct.
     quote! {
-        #[doc = "Unified typed storage containing all task fields."]
-        #[doc = "This is designed to be embedded in the actual InnerStorage for incremental migration."]
+        #[doc = "The schema's inline fields grouped into one struct."]
+        #[doc = ""]
+        #[doc = "Lives on [`TaskStorageInner`] as `head`. Step 3 of the storage refactor"]
+        #[doc = "will exploit the boundary at `size_of::<TaskStorageInline>()` to lay"]
+        #[doc = "out the lazy-field byte tail in the same allocation."]
         #[automatically_derived]
         #[derive(Debug, Default, turbo_tasks::ShrinkToFit)]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
-        pub struct TaskStorage {
-            #(#field_defs,)*
+        pub struct TaskStorageInline {
+            #(#inline_field_defs,)*
+        }
+
+        #[doc = "Unified typed storage containing all task fields."]
+        #[doc = ""]
+        #[doc = "Inline fields (the ones declared with `inline` in the schema) live"]
+        #[doc = "in `head`. `flags` and `lazy_tail` stay at the top level for now —"]
+        #[doc = "lots of code reads them as bare field accesses, and folding them in"]
+        #[doc = "is a separate refactor."]
+        #[doc = ""]
+        #[doc = "Doesn't derive `Debug`: pretty-printing the lazy tail needs a"]
+        #[doc = "pointer to the tail bytes, which only the owning"]
+        #[doc = "[`crate::backend::task_storage::TaskStorage`] has. The custom"]
+        #[doc = "`Debug` impl on `TaskStorage` formats both the inline head and"]
+        #[doc = "each present lazy payload."]
+        #[automatically_derived]
+        #[derive(Default, turbo_tasks::ShrinkToFit)]
+        #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
+        pub struct TaskStorageInner {
+            pub(crate) inline: TaskStorageInline,
             #flags_field
             #lazy_field
         }
 
         #[automatically_derived]
-        impl TaskStorage {
+        impl TaskStorageInner {
             pub fn new() -> Self {
                 Self::default()
             }
@@ -1339,47 +1422,63 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
 }
 
 fn generate_accessor_methods(grouped_fields: &GroupedFields) -> TokenStream {
-    let mut methods = TokenStream::new();
+    let mut storage_methods = TokenStream::new();
+    let mut box_methods = TokenStream::new();
 
-    // Generate accessor methods for all fields on TaskStorage
-    // This encapsulates the storage strategy - callers use methods, not field access
+    // Generate accessor methods. Read-only and non-grow mutations live on
+    // `TaskStorageInner`; grow-capable mutations (lazy `set_<name>` / `<name>_mut`
+    // that may install a new payload) live on `TaskStorage` since only
+    // the owning pointer can reallocate the unified head+tail buffer.
     for field in grouped_fields.all_fields() {
-        methods.extend(generate_field_accessors(field));
+        let (on_storage, on_box) = generate_field_accessors_split(field);
+        storage_methods.extend(on_storage);
+        box_methods.extend(on_box);
     }
 
     quote! {
         #[automatically_derived]
-        impl TaskStorage {
-            #methods
+        impl TaskStorageInner {
+            #storage_methods
+        }
+
+        #[automatically_derived]
+        impl crate::backend::task_storage::TaskStorage {
+            #box_methods
         }
     }
 }
 
-/// Generate accessor methods on TaskStorage for a field.
+/// Generate accessor methods on TaskStorageInner for a field.
 ///
 /// Works for both inline and lazy fields. Uses FieldInfo helpers to generate
-/// the appropriate access patterns.
+/// the appropriate access patterns. Returns `(on_storage, on_box)`:
 ///
-/// For Direct fields, generates: `get_{field}()`, `set_{field}()`, `take_{field}()`
-/// For Collection fields, generates: `{field}()`, `{field}_mut()`
-fn generate_field_accessors(field: &FieldInfo) -> TokenStream {
+/// - `on_storage` is emitted in `impl TaskStorageInner` and holds the read-only / non-grow
+///   accessors (`get_{field}`, `take_{field}`, inline mutations).
+/// - `on_box` is emitted in `impl TaskStorage` and holds grow-capable accessors (`set_{field}` and
+///   `{field}_mut` for lazy fields whose install path may need to reallocate the unified head+tail
+///   buffer).
+fn generate_field_accessors_split(field: &FieldInfo) -> (TokenStream, TokenStream) {
     let field_name = &field.field_name;
     let field_type = &field.field_type;
 
     match field.storage_type {
-        StorageType::Direct => generate_direct_field_accessors(field),
+        StorageType::Direct => generate_direct_field_accessors_split(field),
         StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap => {
-            generate_collection_field_accessors(field, field_name, field_type)
+            generate_collection_field_accessors_split(field, field_name, field_type)
         }
         StorageType::Flag => {
-            // Flag fields have accessors generated on TaskFlags, not TaskStorage
+            // Flag fields have accessors generated on TaskFlags, not TaskStorageInner
             unreachable!("Flag fields should not reach generate_field_accessors")
         }
     }
 }
 
-/// Generate Direct field accessors on TaskStorage (get/set/take, and get_mut for lazy).
-fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
+/// Generate Direct field accessors. Returns `(on_storage, on_box)`:
+/// the methods that go in `impl TaskStorageInner` and `impl TaskStorage`
+/// respectively. Lazy-direct `set_<name>` lives on the box because it may
+/// install a new payload, which may need to grow the unified allocation.
+fn generate_direct_field_accessors_split(field: &FieldInfo) -> (TokenStream, TokenStream) {
     let field_name = &field.field_name;
     let field_type = &field.field_type;
     let vis = if field.is_pub {
@@ -1394,18 +1493,19 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
     let get_mut_name = field.get_mut_ident();
 
     if field.is_inline() && field.use_default {
-        // Inline with default: field is T stored directly, uses Default::default() for "empty"
-        quote! {
+        // Inline with default: field is T stored on `self.inline`, with
+        // `Default::default()` standing in for "empty". No grow needed.
+        let storage = quote! {
             #vis fn #get_name(&self) -> Option<&#field_type> {
-                if self.#field_name != #field_type::default() {
-                    Some(&self.#field_name)
+                if self.inline.#field_name != #field_type::default() {
+                    Some(&self.inline.#field_name)
                 } else {
                     None
                 }
             }
 
             #vis fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
-                let old = std::mem::replace(&mut self.#field_name, value);
+                let old = std::mem::replace(&mut self.inline.#field_name, value);
                 if old != #field_type::default() {
                     Some(old)
                 } else {
@@ -1414,69 +1514,78 @@ fn generate_direct_field_accessors(field: &FieldInfo) -> TokenStream {
             }
 
             #vis fn #take_name(&mut self) -> Option<#field_type> {
-                let old = std::mem::take(&mut self.#field_name);
+                let old = std::mem::take(&mut self.inline.#field_name);
                 if old != #field_type::default() {
                     Some(old)
                 } else {
                     None
                 }
             }
-        }
+        };
+        (storage, quote! {})
     } else if field.is_inline() {
-        // Inline: field is Option<T> stored directly on TaskStorage
+        // Inline: field is `Option<T>` stored on `self.inline`. No grow.
         let inner_type = extract_option_inner_type(field_type);
-
-        quote! {
+        let storage = quote! {
             #vis fn #get_name(&self) -> Option<&#inner_type> {
-                self.#field_name.as_ref()
+                self.inline.#field_name.as_ref()
             }
 
             #vis fn #set_name(&mut self, value: #inner_type) -> Option<#inner_type> {
-                self.#field_name.replace(value)
+                self.inline.#field_name.replace(value)
             }
 
             #vis fn #take_name(&mut self) -> Option<#inner_type> {
-                self.#field_name.take()
+                self.inline.#field_name.take()
             }
-        }
+        };
+        (storage, quote! {})
     } else {
-        // Lazy: field is stored in Vec<LazyField>
-        let extractor = field.lazy_extractor_closure();
-        let matches_closure = field.lazy_matches_closure();
-        let unwrap_owned = field.lazy_unwrap_closure();
-        let constructor = field.lazy_constructor(quote! { value });
-
-        quote! {
+        // Lazy direct field. All accessors live on `TaskStorage` (the
+        // owning thin pointer) so they can compute the tail base from
+        // `TaskStorage`'s `NonNull<TaskStorageInner>`, which carries
+        // provenance over the full head+tail allocation. An `&self:
+        // &TaskStorageInner` reference has provenance only for the head
+        // bytes and would be UB under Stacked Borrows to read past
+        // `size_of::<TaskStorageInner>()`.
+        let tag_ident = field.tag_ident();
+        let on_box = quote! {
             #vis fn #get_name(&self) -> Option<&#field_type> {
-                self.find_lazy(#extractor)
-            }
-
-            #[doc = "Set the field value, returning the old value if present."]
-            #vis fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
-                self.set_lazy(#matches_closure, #unwrap_owned, #constructor)
+                self.lazy_find(#tag_ident)
             }
 
             #vis fn #take_name(&mut self) -> Option<#field_type> {
-                self.take_lazy(#matches_closure, #unwrap_owned)
+                self.lazy_take(#tag_ident)
             }
 
             #[doc = "Get a mutable reference to the field value (if present)."]
             #[doc = ""]
-            #[doc = "Unlike `get_or_create_lazy` for collections, this does NOT allocate"]
-            #[doc = "if the field is absent - it returns None instead."]
+            #[doc = "Does NOT allocate if the field is absent — returns None instead."]
             #vis fn #get_mut_name(&mut self) -> Option<&mut #field_type> {
-                self.find_lazy_mut(#extractor)
+                self.lazy_find_mut(#tag_ident)
             }
-        }
+
+            #[doc = "Set the field value, returning the old value if present."]
+            #[doc = ""]
+            #[doc = "May reallocate the underlying buffer when the variant"]
+            #[doc = "wasn't previously present."]
+            #vis fn #set_name(&mut self, value: #field_type) -> Option<#field_type> {
+                self.lazy_replace(#tag_ident, value)
+            }
+        };
+        (quote! {}, on_box)
     }
 }
 
-/// Generate collection field accessors on TaskStorage (ref/mut).
-fn generate_collection_field_accessors(
+/// Generate collection field accessors split between TaskStorageInner and
+/// TaskStorage. The lazy `<field>_mut` accessor goes on the box because
+/// installing a default-constructed collection (when absent) may need to
+/// grow the unified buffer.
+fn generate_collection_field_accessors_split(
     field: &FieldInfo,
     field_name: &syn::Ident,
     field_type: &syn::Type,
-) -> TokenStream {
+) -> (TokenStream, TokenStream) {
     let ref_name = field.ref_ident();
     let mut_name = field.mut_ident();
     let take_name = field.take_ident();
@@ -1487,47 +1596,57 @@ fn generate_collection_field_accessors(
     };
 
     if field.is_inline() {
-        // Inline: direct field access
-        quote! {
+        // Inline: field lives on `self.inline`. No grow needed.
+        let storage = quote! {
             #vis fn #ref_name(&self) -> &#field_type {
-                &self.#field_name
+                &self.inline.#field_name
             }
 
             #vis fn #mut_name(&mut self) -> &mut #field_type {
-                &mut self.#field_name
+                &mut self.inline.#field_name
             }
 
             #vis fn #take_name(&mut self) -> #field_type {
-                std::mem::take(&mut self.#field_name)
+                std::mem::take(&mut self.inline.#field_name)
             }
-        }
+        };
+        (storage, quote! {})
     } else {
-        // Lazy: use find_lazy / get_or_create_lazy
-        let extractor = field.lazy_extractor_closure();
-        let matches_closure = field.lazy_matches_closure();
-        let unwrap_closure = field.lazy_unwrap_closure();
-        let constructor = field.lazy_constructor(quote! { Default::default() });
-
-        quote! {
+        // Lazy collection field. All accessors live on `TaskStorage` so
+        // they can derive the tail pointer from `TaskStorage`'s
+        // `NonNull<TaskStorageInner>` (which has provenance over the full
+        // head+tail allocation). Reading the tail from an
+        // `&TaskStorageInner` would be UB under Stacked Borrows since
+        // that reference's provenance only covers the head bytes.
+        let tag_ident = field.tag_ident();
+        let get_mut_name = field.get_mut_ident();
+        let on_box = quote! {
             #vis fn #ref_name(&self) -> Option<&#field_type> {
-                self.find_lazy(#extractor)
-            }
-
-            #vis fn #mut_name(&mut self) -> &mut #field_type {
-                self.get_or_create_lazy(
-                    #matches_closure,
-                    #unwrap_closure,
-                    || #constructor,
-                )
+                self.lazy_find(#tag_ident)
             }
 
             #vis fn #take_name(&mut self) -> Option<#field_type> {
-                self.take_lazy(
-                    #matches_closure,
-                    #unwrap_closure,
-                )
+                self.lazy_take(#tag_ident)
             }
-        }
+
+            #[doc = "Get a mutable reference to the collection if present,"]
+            #[doc = "without allocating. Returns `None` for absent variants."]
+            #[doc = ""]
+            #[doc = "Use this when the caller wants to mutate the collection"]
+            #[doc = "in-place (e.g. `shrink_to_fit`) without paying the byte"]
+            #[doc = "shifts of `take` + `<name>_mut()` reinstall."]
+            #vis fn #get_mut_name(&mut self) -> Option<&mut #field_type> {
+                self.lazy_find_mut(#tag_ident)
+            }
+
+            #[doc = "Get a mutable reference to the collection, installing a"]
+            #[doc = "fresh `Default::default()` if absent. May reallocate the"]
+            #[doc = "underlying buffer when installing."]
+            #vis fn #mut_name(&mut self) -> &mut #field_type {
+                self.lazy_get_or_create(#tag_ident)
+            }
+        };
+        (quote! {}, on_box)
     }
 }
 
@@ -1553,22 +1672,28 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
     quote! {
         #[doc = "Trait for typed storage accessors."]
         #[doc = ""]
-        #[doc = "This trait is auto-generated by the TaskStorage macro."]
+        #[doc = "This trait is auto-generated by the TaskStorageInner macro."]
         #[doc = "Implementors only need to provide `typed()`, `typed_mut()`, `track_modification()`,"]
         #[doc = "and `check_access()` methods, and all accessor methods are provided automatically."]
         #[doc = ""]
         #[doc = "This is designed to work with TaskGuard."]
         #[automatically_derived]
         pub trait TaskStorageAccessors {
-            #[doc = "Access the typed storage (read-only)"]
-            fn typed(&self) -> &TaskStorage;
+            #[doc = "Access the owning `TaskStorage` (read-only)."]
+            #[doc = ""]
+            #[doc = "Returns the owning pointer so that callers needing to grow the"]
+            #[doc = "underlying allocation (step 3 of the storage refactor) have access"]
+            #[doc = "to it. Most accessor calls go through `Deref<Target = TaskStorageInner>`"]
+            #[doc = "on `TaskStorage`, so callsites read like `self.typed().<field>()`"]
+            #[doc = "regardless of whether the method lives on the box or the inner."]
+            fn typed(&self) -> &crate::backend::task_storage::TaskStorage;
 
-            #[doc = "Access the typed storage (mutable)."]
+            #[doc = "Access the owning `TaskStorage` (mutable)."]
             #[doc = ""]
             #[doc = "Note: This does NOT track modifications. Call `track_modification()` separately"]
             #[doc = "when the data actually changes. This split allows generated accessors to"]
             #[doc = "only track modifications when actual changes occur."]
-            fn typed_mut(&mut self) -> &mut TaskStorage;
+            fn typed_mut(&mut self) -> &mut crate::backend::task_storage::TaskStorage;
 
             #[doc = "Track that a modification occurred for the given category."]
             #[doc = ""]
@@ -1612,7 +1737,7 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
 ///
 /// Uses `FieldInfo` helpers to generate the correct access patterns:
 /// - For inline: direct field access via `self.typed().field` / `self.typed_mut().field`
-/// - For lazy: delegates to TaskStorage accessors
+/// - For lazy: delegates to TaskStorageInner accessors
 fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
     let field_type = &field.field_type;
     let check_access = field.check_access_call();
@@ -1621,7 +1746,7 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
 
     match field.storage_type {
         StorageType::Direct => {
-            // Direct storage delegates to TaskStorage accessor methods
+            // Direct storage delegates to TaskStorageInner accessor methods
             generate_direct_accessors(field)
         }
         StorageType::AutoSet => {
@@ -1753,7 +1878,7 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
 
 /// Generate Direct field accessors for TaskStorageAccessors trait.
 ///
-/// Uses `FieldInfo` helpers to delegate to TaskStorage accessor methods,
+/// Uses `FieldInfo` helpers to delegate to TaskStorageInner accessor methods,
 /// which handle the inline/lazy difference internally.
 ///
 /// Generates methods:
@@ -1767,7 +1892,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
     let check_access = field.check_access_call();
     let track_modification = field.track_modification_call();
 
-    // Use FieldInfo helpers for TaskStorage delegation
+    // Use FieldInfo helpers for TaskStorageInner delegation
     let get_expr = field.direct_get_expr();
     let set_expr = field.direct_set_expr();
     let take_expr = field.direct_take_expr();
@@ -1793,7 +1918,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         if field.is_transient() {
             let get_mut_name = field.get_mut_ident();
             if field.is_inline() {
-                // For inline fields, access the field directly
+                // Inline fields live on `TaskStorageInner::head`.
                 let field_name = &field.field_name;
                 if field.use_default {
                     // For fields with default semantics, always return Some(&mut self.field)
@@ -1802,7 +1927,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
                         fn #get_mut_name(&mut self) -> &mut #value_type {
                             #check_access
                             #track_modification
-                            &mut self.typed_mut().#field_name
+                            &mut self.typed_mut().inline.#field_name
                         }
                     }
                 } else {
@@ -1812,7 +1937,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
                         fn #get_mut_name(&mut self) -> Option<&mut #value_type> {
                             #check_access
                             #track_modification
-                            self.typed_mut().#field_name.as_mut()
+                            self.typed_mut().inline.#field_name.as_mut()
                         }
                     }
                 }
@@ -1839,28 +1964,10 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         quote! {
             #set_expr(value)
         }
-    } else if field.lazy {
-        // For lazy fields, combine equality check and set into one operation to avoid
-        // double-scanning the lazy vec (get_expr scans via find_lazy, then set_expr
-        // scans again via set_lazy).
-        let extractor = field.lazy_extractor_closure();
-        let unwraper = field.lazy_unwrap_closure();
-        let constructor = field.lazy_constructor(quote! { value });
-        quote! {
-            if let Some((idx, old_ref)) = self.typed().find_lazy_ref(#extractor) {
-                if old_ref == &value {
-                    return None;
-                }
-                #track_modification
-                let old = std::mem::replace(&mut self.typed_mut().lazy[idx], #constructor);
-                Some((#unwraper)(old))
-            } else {
-                #track_modification
-                self.typed_mut().lazy.push(#constructor);
-                None
-            }
-        }
     } else {
+        // Equality-check, track, then delegate to TaskStorageInner's typed `set_*`.
+        // Same shape for inline and lazy direct fields — the latter does its
+        // own single-scan internally now.
         quote! {
             if #get_expr.is_some_and(|old| old == &value) {
                 return None;
@@ -1874,18 +1981,8 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         quote! {
             #take_expr
         }
-    } else if field.lazy {
-        // For lazy fields, combine existence check and take into one operation to avoid
-        // double-scanning the lazy vec (get_expr scans via find_lazy, then take_expr
-        // scans again via take_lazy).
-        let extractor = field.lazy_extractor_closure();
-        let unwraper = field.lazy_unwrap_closure();
-        quote! {
-            let (idx, _) = self.typed().find_lazy_ref(#extractor)?;
-            #track_modification
-            Some(self.typed_mut().lazy_take_at(idx, #unwraper))
-        }
     } else {
+        // Existence check, then delegate to TaskStorageInner's typed `take_*`.
         quote! {
             if #get_expr.is_some() {
                 #track_modification
@@ -1929,7 +2026,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
 ///
 /// Uses `FieldInfo` helpers to generate the correct access patterns:
 /// - For inline: direct field access via `self.typed().field` / `self.typed_mut().field`
-/// - For lazy: delegates to TaskStorage accessors
+/// - For lazy: delegates to TaskStorageInner accessors
 ///
 /// Generates methods with `_item` suffix to distinguish single-item operations
 /// from potential bulk operations: `add_X_item`, `remove_X_item`, `has_X_item`
@@ -1995,12 +2092,15 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
         add_body = quote! {
             #mut_expr.insert(item)
         };
+        // For transient fields no equality / track_modification guard is
+        // needed. Lazy and inline share the same shape: take old, install new.
+        // `#take_expr` returns `Option<T>` for lazy and `T` for inline; the
+        // `is_option` branch normalizes the outer return shape accordingly.
         set_body = if is_option {
-            let unwraper = field.lazy_unwrap_closure();
-            let matches = field.lazy_matches_closure();
-            let ctor = field.lazy_constructor(quote! {set});
             quote! {
-                self.typed_mut().set_lazy(#matches, #unwraper, #ctor)
+                let old = #take_expr;
+                *#mut_expr = set;
+                old
             }
         } else {
             quote! {
@@ -2014,18 +2114,23 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
         };
     } else {
         // Remove: only track modification if the item exists.
-        // For lazy fields, find the index once and reuse it to avoid double-scanning.
+        // Lazy and inline collection fields share the same code shape, since the
+        // accessor expressions (`#ref_expr`, `#mut_expr`, `#take_expr`) handle
+        // the lookup internally. For lazy collections each scan is a single
+        // per-variant inline match; for inline fields it's a direct field
+        // access. Either way the "double scan" cost of separating the
+        // existence check from the mutation is bounded by the lazy area size
+        // (p99 ≤ 7 entries today).
+
         remove_body = if is_option {
-            let extractor = field.lazy_extractor_closure();
             quote! {
-                let Some((idx, val)) = self.typed().find_lazy_ref(#extractor) else {
-                    return false;
-                };
-                if !val.contains(item) {
+                if !#ref_expr.is_some_and(|val| val.contains(item)) {
                     return false;
                 }
                 #track_modification
-                self.typed_mut().lazy_at_mut(idx, #extractor).remove(item)
+                // We just checked the entry exists, so `#mut_expr`'s
+                // implicit allocate-if-absent path doesn't fire.
+                #mut_expr.remove(item)
             }
         } else {
             quote! {
@@ -2037,25 +2142,13 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
             }
         };
 
-        // Add: only track modification if the item is actually new.
-        // For lazy fields, use find_lazy_ref + lazy_at_mut to avoid double-scanning.
         add_body = if is_option {
-            let extractor = field.lazy_extractor_closure();
-            let ctor = field.lazy_constructor(quote! { set });
             quote! {
-                if let Some((idx, existing)) = self.typed().find_lazy_ref(#extractor) {
-                    if existing.contains(&item) {
-                        return false;
-                    }
-                    #track_modification
-                    self.typed_mut().lazy_at_mut(idx, #extractor).insert(item)
-                } else {
-                    #track_modification
-                    let mut set = <#field_type as Default>::default();
-                    set.insert(item);
-                    self.typed_mut().lazy.push(#ctor);
-                    true
+                if #ref_expr.is_some_and(|existing| existing.contains(&item)) {
+                    return false;
                 }
+                #track_modification
+                #mut_expr.insert(item)
             }
         } else {
             quote! {
@@ -2067,29 +2160,18 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
             }
         };
 
-        if is_option {
-            // For lazy fields, combine guard and set into one operation to avoid
-            // double-scanning the lazy vec (set_guard would scan via find_lazy,
-            // then set_lazy would scan again via position).
-            let extractor = field.lazy_extractor_closure();
-            let unwraper = field.lazy_unwrap_closure();
-            let ctor = field.lazy_constructor(quote! {set});
-            set_body = quote! {
-                if let Some((idx, old_ref)) = self.typed().find_lazy_ref(#extractor) {
-                    if old_ref == &set {
-                        return None;
-                    }
-                    #track_modification
-                    let old = std::mem::replace(&mut self.typed_mut().lazy[idx], #ctor);
-                    Some((#unwraper)(old))
-                } else {
-                    #track_modification
-                    self.typed_mut().lazy.push(#ctor);
-                    None
+        set_body = if is_option {
+            quote! {
+                if #ref_expr.is_some_and(|old| old == &set) {
+                    return None;
                 }
-            };
+                #track_modification
+                let old = #take_expr;
+                *#mut_expr = set;
+                old
+            }
         } else {
-            set_body = quote! {
+            quote! {
                 if #ref_expr == &set {
                     return None;
                 }
@@ -2097,17 +2179,13 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                 let old = #take_expr;
                 *#mut_expr = set;
                 Some(old)
-            };
-        }
+            }
+        };
 
-        // Extend: use peekable iterator to avoid Vec allocation.
-        // For lazy fields, look up the set once via find_lazy_ref to avoid repeated scans.
         extend_body = if is_option {
-            let extractor = field.lazy_extractor_closure();
-            let ctor = field.lazy_constructor(quote! { set });
             quote! {
                 let mut iter = items.into_iter().peekable();
-                if let Some((idx, existing)) = self.typed().find_lazy_ref(#extractor) {
+                if let Some(existing) = #ref_expr {
                     // Skip items already in the set
                     loop {
                         match iter.peek() {
@@ -2116,17 +2194,15 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                             Some(_) => break,
                         }
                     }
-                    // Found a new item - track and extend using the known index
                     #track_modification
-                    self.typed_mut().lazy_at_mut(idx, #extractor).extend(iter);
+                    #mut_expr.extend(iter);
                 } else {
                     // Set doesn't exist yet - if iterator is empty, nothing to do
                     if iter.peek().is_none() {
                         return;
                     }
                     #track_modification
-                    let set: #field_type = iter.collect();
-                    self.typed_mut().lazy.push(#ctor);
+                    #mut_expr.extend(iter);
                 }
             }
         } else {
@@ -2209,7 +2285,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
 ///
 /// Uses `FieldInfo` helpers to generate the correct access patterns:
 /// - For inline: direct field access via `self.typed().field` / `self.typed_mut().field`
-/// - For lazy: delegates to TaskStorage accessors via `self.typed().field()` /
+/// - For lazy: delegates to TaskStorageInner accessors via `self.typed().field()` /
 ///   `self.typed_mut().field_mut()`
 ///
 /// Generates methods for:
@@ -2272,22 +2348,23 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         quote! { #ref_expr.get(key) }
     };
 
-    // Generate remove body - for lazy fields, we need to check if the map exists first
-    // without allocating it. For inline fields, we can use the mut_expr directly.
-    // Only track modification if the key exists (check before mutating).
-    // For transient fields, skip guards since track_modification is a no-op.
+    // Generate remove body. Both inline and lazy storage use the same shape
+    // now: check existence via `#ref_expr` (lazy lookup is a single per-variant
+    // inline scan), track if present, then remove. `#mut_expr` for lazy fields
+    // creates an empty entry if absent — but we just checked existence, so the
+    // create path never fires.
     let remove_body = if field.is_transient() {
         quote! {
             #track_modification
             #mut_expr.remove(key)
         }
     } else if is_option {
-        let extractor = field.lazy_extractor_closure();
         quote! {
-            let (idx, val) = self.typed().find_lazy_ref(#extractor)?;
-            val.get(key)?;
+            if !#ref_expr.is_some_and(|m| m.get(key).is_some()) {
+                return None;
+            }
             #track_modification
-            self.typed_mut().lazy_at_mut(idx, #extractor).remove(key)
+            #mut_expr.remove(key)
         }
     } else {
         quote! {
@@ -2396,48 +2473,27 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         }
     };
 
+    // The lazy and inline shapes for `update_with` are now identical: they
+    // both read the old value through `#ref_expr`, compute the new value, and
+    // route to insert/remove via `#mut_expr`. `#mut_expr` for lazy fields
+    // creates an empty entry if absent — exactly what we want when inserting
+    // into a previously-absent map.
     let update_with_body = if field.is_transient() {
         quote! {
             #mut_expr.update_with(key, f)
         }
-    } else if is_option {
-        let extractor = field.lazy_extractor_closure();
-        let constructor = field.lazy_constructor(quote! {new_map});
+    } else {
+        let read_old = if is_option {
+            quote! { #ref_expr.and_then(|m| m.get(&key).copied()) }
+        } else {
+            quote! { #ref_expr.get(&key).copied() }
+        };
         quote! {
-            let (position, old_value) = if let Some((index, map)) = self.typed().find_lazy_ref(#extractor) {
-                // This copy is very cheap
-                (Some(index), map.get(&key).copied())
-            } else {
-                (None, None)
-            };
+            let old_value = #read_old;
             let new_value = f(old_value);
             if old_value != new_value {
                 #track_modification
                 match new_value {
-                    Some(value) => {
-                        if let Some(position) = position {
-                            self.typed_mut().lazy_at_mut(position, #extractor).insert(key, value);
-                        } else {
-                            let mut new_map = CounterMap::default();
-                            new_map.insert(key, value);
-                            self.typed_mut().lazy.push(#constructor);
-                        }
-                    }
-                    None => {
-                        // the position must be available, otherwise `f` would have mapped None to None and thus the != check above would have failed.
-                        self.typed_mut().lazy_at_mut(position.unwrap(), #extractor).remove(&key);
-
-                    }
-                }
-            }
-        }
-    } else {
-        quote! {
-            let old = self.#get_name(&key).copied();
-            let new = f(old);
-            if old != new {
-                #track_modification
-                match new {
                     Some(value) => { #mut_expr.insert(key, value); }
                     None => { #mut_expr.remove(&key); }
                 }
@@ -2523,7 +2579,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 ///
 /// Uses `FieldInfo` helpers to generate the correct access patterns:
 /// - For inline: direct field access via `self.typed().field` / `self.typed_mut().field`
-/// - For lazy: delegates to TaskStorage accessors
+/// - For lazy: delegates to TaskStorageInner accessors
 ///
 /// Generates methods (using `_entry` suffix for consistency with CounterMap):
 /// - `get_{field}_entry(key) -> Option<&V>` - Single-item lookup
@@ -2596,20 +2652,21 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
         quote! {self.typed_mut().#take_name()}
     };
 
-    // Generate remove body - for lazy fields, avoid allocation if map doesn't exist.
-    // Only track modification if the key exists (check before mutating).
-    // For transient fields, skip guards since track_modification is a no-op.
+    // Generate remove body. Both inline and lazy use the same shape: check
+    // existence via the typed accessor, then route through `#mut_expr`. For
+    // lazy fields `#mut_expr` allocates an empty map if absent — but we just
+    // confirmed an entry exists, so the create path never fires.
     let remove_body = if field.is_transient() {
         quote! {
             #mut_expr.remove(key)
         }
     } else if is_option {
-        let extractor = field.lazy_extractor_closure();
         quote! {
-            let (idx, val) = self.typed().find_lazy_ref(#extractor)?;
-            val.get(key)?;
+            if !#ref_expr.is_some_and(|m| m.get(key).is_some()) {
+                return None;
+            }
             #track_modification
-            self.typed_mut().lazy_at_mut(idx, #extractor).remove(key)
+            #mut_expr.remove(key)
         }
     } else {
         quote! {
@@ -2626,25 +2683,24 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
             #take_expression
         }
     } else if is_option {
-        // For lazy fields, use find_lazy_ref to check existence and emptiness in one scan,
-        // then lazy_take_at to take by known index without re-scanning.
-        let extractor = field.lazy_extractor_closure();
-        let unwraper = field.lazy_unwrap_closure();
+        // Check emptiness via the typed ref accessor, then delegate to
+        // TaskStorageInner's `take_<name>` (which returns `Option<T>` for lazy
+        // collections — exactly the shape this outer method returns).
         quote! {
-            let (idx, val) = self.typed().find_lazy_ref(#extractor)?;
-            if val.is_empty() {
+            if #ref_expr.is_none_or(|m| m.is_empty()) {
                 return None;
             }
             #track_modification
-            Some(self.typed_mut().lazy_take_at(idx, #unwraper))
+            #take_expression
         }
     } else {
+        // Inline collection: `take_<name>` returns `T`, so wrap.
         quote! {
             if self.#is_empty_name() {
                 return None;
             }
             #track_modification
-            #take_expression
+            Some(#take_expression)
         }
     };
 
@@ -2725,76 +2781,71 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
         if field.drop_on_completion_if_immutable {
             inline_cleanups.push(quote! {
                 if is_immutable {
-                    typed.#field_name = Default::default();
+                    typed.inline.#field_name = Default::default();
                 } else {
-                    typed.#field_name.shrink_to_fit();
+                    typed.inline.#field_name.shrink_to_fit();
                 }
             });
         } else if field.shrink_on_completion {
             inline_cleanups.push(quote! {
-                typed.#field_name.shrink_to_fit();
+                typed.inline.#field_name.shrink_to_fit();
             });
         }
     }
 
-    // Generate match arms for lazy fields that have cleanup attributes
-    let mut match_arms = Vec::new();
+    // Generate per-variant cleanup blocks for lazy fields with cleanup attrs.
+    // Each block uses typed accessors so we don't depend on iterating
+    // `&LazyField`.
+    let mut lazy_cleanups = Vec::new();
 
-    // Invalid attribute combinations (e.g. shrink on non-collection fields) are rejected
-    // during parsing, so we can simplify the match here.
     for field in grouped_fields.all_lazy() {
         if field.is_flag() {
             continue;
         }
-
-        let variant_name = &field.variant_name;
         let shrink = field.shrink_on_completion;
         let drop_if_immutable = field.drop_on_completion_if_immutable;
-
         if !shrink && !drop_if_immutable {
             continue;
         }
-
         let is_collection = matches!(
             field.storage_type,
             StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
         );
+        let take_name = field.take_ident();
+        let get_mut_name = field.get_mut_ident();
 
-        // Each arm returns bool: true = keep, false = remove
-        let arm_body = if drop_if_immutable && shrink && is_collection {
-            // Drop for immutable, shrink or remove-if-empty for mutable
-            quote! {
+        if drop_if_immutable && shrink && is_collection {
+            // Drop for immutable, shrink-or-remove-if-empty for mutable.
+            lazy_cleanups.push(quote! {
                 if is_immutable {
-                    false
-                } else if c.is_empty() {
-                    false
-                } else {
-                    c.shrink_to_fit();
-                    true
+                    let _ = typed.#take_name();
+                } else if let Some(c) = typed.#get_mut_name() {
+                    if c.is_empty() {
+                        let _ = typed.#take_name();
+                    } else {
+                        c.shrink_to_fit();
+                    }
                 }
-            }
+            });
         } else if shrink && is_collection {
-            // Shrink or remove-if-empty
-            quote! {
-                if c.is_empty() {
-                    false
-                } else {
-                    c.shrink_to_fit();
-                    true
+            // Shrink or remove-if-empty, in place where possible.
+            lazy_cleanups.push(quote! {
+                if let Some(c) = typed.#get_mut_name() {
+                    if c.is_empty() {
+                        let _ = typed.#take_name();
+                    } else {
+                        c.shrink_to_fit();
+                    }
                 }
-            }
+            });
         } else if drop_if_immutable {
-            // Drop for immutable (works for both collection and direct values)
-            quote! {
-                !is_immutable
-            }
-        } else {
-            continue;
-        };
-
-        match_arms.push(quote! {
-            LazyField::#variant_name(c) => #arm_body,
-        });
+            // Drop for immutable (works for both collection and direct values).
+            lazy_cleanups.push(quote! {
+                if is_immutable {
+                    let _ = typed.#take_name();
+                }
+            });
+        }
     }
 
     quote! {
@@ -2813,31 +2864,19 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
             let typed = self.typed_mut();
             let is_immutable = typed.flags.immutable();
 
-            // Clean up inline collection fields (always present, not in lazy vec)
+            // Clean up inline collection fields (always present, not in lazy area).
             #(#inline_cleanups)*
 
-            // swap_retain pattern: iterate with manual index, swap_remove to delete
-            let mut i = 0;
-            while i < typed.lazy.len() {
-                let keep = match &mut typed.lazy[i] {
-                    #(#match_arms)*
-                    // Fields without cleanup attributes - keep as-is
-                    _ => true,
-                };
-                if keep {
-                    i += 1;
-                } else {
-                    typed.lazy.swap_remove(i);
-                }
-            }
+            // Per-variant cleanup for lazy fields with cleanup attributes.
+            #(#lazy_cleanups)*
 
-            typed.lazy.shrink_to_fit();
+            typed.lazy_shrink_to_fit();
         }
     }
 }
 
 /// Generate the `drop_data()`, `drop_meta()`, and `drop_data_and_meta()` methods
-/// for TaskStorage.
+/// for TaskStorageInner.
 ///
 /// These methods clear persistent category fields for eviction. They must be
 /// generated by the macro because they need to know which specific inline fields
@@ -2860,10 +2899,22 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
         .map(gen_drop_inline_field)
         .collect();
 
-    let drop_lazy_arms: Vec<_> = grouped_fields
+    // Per-variant drop blocks, unrolled so we don't iterate `&mut LazyField`.
+    // Each block consults `data` / `meta` to decide whether to act, then either
+    // removes the variant (non-filter_transient) or invokes `drop_partial()`
+    // and reinstalls residue (filter_transient / custom_drop_partial).
+    let drop_persistent_lazy_blocks: Vec<_> = grouped_fields
         .all_lazy()
-        .filter(|f| !f.is_transient() && (f.filter_transient || f.custom_drop_partial))
-        .map(gen_drop_lazy_match_arm)
+        .filter(|f| !f.is_transient())
+        .map(gen_drop_persistent_lazy_block)
+        .collect();
+
+    // Per-variant transient-empty cleanup, unrolled: drop the variant if it has
+    // become empty (zombie state).
+    let drop_transient_lazy_blocks: Vec<_> = grouped_fields
+        .all_lazy()
+        .filter(|f| f.is_transient())
+        .map(gen_drop_transient_lazy_block)
         .collect();
 
     // Build per-category emptiness predicates. Each predicate inspects only
@@ -2874,10 +2925,10 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
         let field_name = &field.field_name;
         match field.storage_type {
             StorageType::AutoMap | StorageType::AutoSet | StorageType::CounterMap => quote! {
-                self.#field_name.is_empty()
+                self.inline.#field_name.is_empty()
             },
             StorageType::Direct => quote! {
-                self.#field_name == Default::default()
+                self.inline.#field_name == Default::default()
             },
             StorageType::Flag => unreachable!(),
         }
@@ -2901,26 +2952,34 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
 
     quote! {
         #[automatically_derived]
-        impl TaskStorage {
+        impl crate::backend::task_storage::TaskStorage {
 
             /// Whether this storage holds no data-category state — no
             /// data-category lazy variants, no data-category inline fields
             /// distinguishable from `Default`, and no persisted data flag
             /// bits. Used by `drop_partial` to short-circuit `is_empty()`
             /// after a meta-only or transient-only drop.
+            ///
+            /// Lives on `TaskStorage` (not `TaskStorageInner`) because the
+            /// lazy-emptiness check reads payload bytes through a pointer
+            /// derived from `self.ptr`, which carries provenance over the
+            /// full head+tail allocation. A reference of type
+            /// `&TaskStorageInner` would only have provenance for the head
+            /// bytes — reading the tail through it is UB under Stacked
+            /// Borrows.
             #[inline]
-            fn is_empty_data(&self) -> bool {
+            pub(crate) fn is_empty_data(&self) -> bool {
                 self.flags.persisted_data_bits() == 0
-                    && self.lazy.iter().all(|f| !f.is_data() || f.is_empty())
+                    && self.all_lazy_data_empty_or_absent()
                     #(&& #inline_data_checks)*
             }
 
             /// Whether this storage holds no meta-category state. See
             /// [`Self::is_empty_data`].
             #[inline]
-            fn is_empty_meta(&self) -> bool {
+            pub(crate) fn is_empty_meta(&self) -> bool {
                 self.flags.persisted_meta_bits() == 0
-                    && self.lazy.iter().all(|f| !f.is_meta() || f.is_empty())
+                    && self.all_lazy_meta_empty_or_absent()
                     #(&& #inline_meta_checks)*
             }
 
@@ -2929,17 +2988,16 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
             /// to consult this independently of which categories were
             /// dropped.
             #[inline]
-            fn is_empty_transient(&self) -> bool {
+            pub(crate) fn is_empty_transient(&self) -> bool {
                 // Transient flag bits are everything outside `PERSISTED_MASK`.
                 (self.flags.bits() & !TaskFlags::PERSISTED_MASK) == 0
-                    && self.lazy.iter().all(|f| f.is_persistent() || f.is_empty())
+                    && self.all_transient_lazy_empty()
                     #(&& #inline_transient_checks)*
             }
 
             pub fn is_empty(&self) -> bool {
                 self.is_empty_meta() && self.is_empty_data() && self.is_empty_transient()
             }
-
             /// Drop persistent fields so the task can be evicted.
             ///
             /// For each `filter_transient` field, transient entries are retained as
@@ -2961,6 +3019,10 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
             ///
             /// The caller does NOT need to call `is_empty()` after this — the
             /// outcome already accounts for everything `is_empty()` would check.
+            ///
+            /// Lives on `TaskStorage` because it may install via
+            /// `<name>_mut()` (filter_transient residue) which can grow the
+            /// underlying buffer.
             #[must_use]
             pub fn drop_partial(
                 &mut self,
@@ -2986,30 +3048,20 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
                     self.flags.set_meta_restored(false);
                 }
                 self.flags.set_prefetched(false);
-                // Walk lazy variants: non-persistent are preserved; persistent ones
-                // are either fully removed (non-filter_transient) or scanned for
-                // transient residue (filter_transient), dropping the variant only if
-                // it becomes empty.
-                self.lazy.retain_mut(|f| {
-                    if !f.is_persistent() {
-                        // Transient variants normally stay put, but drop
-                        // empty ones. They accumulate as zombies when cells
-                        // get consumed without the task re-running (so
-                        // `shrink_on_completion` never fires), and the empty
-                        // `LazyField` variant blocks `is_empty()` from
-                        // accepting the task for full eviction.
-                        return !f.is_empty();
-                    }
-                    let drop_this_category = if f.is_data() { data } else { meta };
-                    if !drop_this_category {
-                        return true;
-                    }
-                    match f {
-                        #(#drop_lazy_arms)*
-                        _ => false,
-                    }
-                });
-                self.lazy.shrink_to_fit();
+
+                // Per-variant drop of persistent lazy fields whose category was
+                // selected for drop. Filter-transient variants keep their
+                // residue (and OR into `__has_residue`); others are removed.
+                #(#drop_persistent_lazy_blocks)*
+
+                // Sweep zombie transient variants — empty entries that
+                // accumulate when cells are consumed without the task
+                // re-running (so `shrink_on_completion` never fires). They
+                // would otherwise block `is_empty()` from accepting the task
+                // for full eviction.
+                #(#drop_transient_lazy_blocks)*
+
+                self.lazy_shrink_to_fit();
                 if __has_residue {
                     // Some `filter_transient` field kept transient entries;
                     // the entry must stay regardless of what other state is
@@ -3042,10 +3094,10 @@ fn gen_drop_inline_field(field: &FieldInfo) -> TokenStream {
     let field_name = &field.field_name;
     if !field.filter_transient {
         return quote! {
-            self.#field_name = Default::default();
+            self.inline.#field_name = Default::default();
         };
     }
-    let target = quote! { self.#field_name };
+    let target = quote! { self.inline.#field_name };
     if let StorageType::Direct = field.storage_type {
         // For `Option<T>` fields, `DropPartial::drop_partial` clears the
         // `Option` to `None` for persistent values and leaves transient
@@ -3074,20 +3126,74 @@ fn gen_drop_inline_field(field: &FieldInfo) -> TokenStream {
     }
 }
 
-/// Generate the match arm for a persistent lazy variant in `drop_partial`'s
-/// `retain_mut` closure. The closure returns `true` to keep the variant
-/// (transient residue remains) and `false` to remove it. As a side effect we
-/// OR residue into the outer `__has_residue` accumulator so the surrounding
-/// `drop_partial` can short-circuit the post-drop `is_empty()` query.
-fn gen_drop_lazy_match_arm(field: &FieldInfo) -> TokenStream {
-    let variant_name = &field.variant_name;
-    assert!(field.filter_transient || field.custom_drop_partial);
+/// Generate the per-variant block for a persistent lazy variant in
+/// `drop_partial`.
+///
+/// Behavior:
+/// - If the variant's category is not selected for drop (`data` / `meta` flags), the block is a
+///   no-op.
+/// - For `filter_transient` / `custom_drop_partial` variants: takes the variant, runs
+///   `drop_partial()` on it, OR's the result into `__has_residue`, and reinstalls the value if
+///   residue remains.
+/// - For ordinary persistent variants: drops the variant entirely.
+fn gen_drop_persistent_lazy_block(field: &FieldInfo) -> TokenStream {
+    debug_assert!(!field.is_transient());
+    let category_flag = match field.category {
+        Category::Data => quote! { data },
+        Category::Meta => quote! { meta },
+        Category::Transient => unreachable!(),
+    };
+    let take_name = field.take_ident();
 
+    if field.filter_transient || field.custom_drop_partial {
+        // Collection-only path (the parser rejects filter_transient on
+        // non-collection storage). `mut_name()` reinstalls residue while
+        // creating an empty entry if absent — but residue is always non-empty
+        // by the protocol below, so the empty-create path doesn't fire.
+        let mut_name = field.mut_ident();
+        quote! {
+            if #category_flag {
+                if let Some(mut v) = self.#take_name() {
+                    let outcome = v.drop_partial();
+                    if outcome == DropPartialOutcome::HasResidue {
+                        __has_residue = true;
+                        *self.#mut_name() = v;
+                    }
+                    // else: drop_partial consumed everything; nothing to reinstall.
+                }
+            }
+        }
+    } else {
+        quote! {
+            if #category_flag {
+                let _ = self.#take_name();
+            }
+        }
+    }
+}
+
+/// Generate the per-variant block for a transient lazy variant in
+/// `drop_partial`. Drops the variant only if it is currently present and
+/// empty — those zombie entries would otherwise block `is_empty()` from
+/// accepting the task for full eviction.
+///
+/// Only collection types have a meaningful `is_empty` notion at the inner
+/// type — direct lazy variants signal absence by simply not being present in
+/// the lazy area at all, so they never become zombies.
+fn gen_drop_transient_lazy_block(field: &FieldInfo) -> TokenStream {
+    debug_assert!(field.is_transient());
+    let is_collection = matches!(
+        field.storage_type,
+        StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
+    );
+    if !is_collection {
+        return quote! {};
+    }
+    let take_name = field.take_ident();
+    let getter = field.ref_ident();
     quote! {
-        LazyField::#variant_name(v) => {
-            let has_residue = v.drop_partial() == DropPartialOutcome::HasResidue;
-            __has_residue |= has_residue;
-            has_residue
+        if self.#getter().is_some_and(|v| v.is_empty()) {
+            let _ = self.#take_name();
         }
     }
 }
@@ -3187,8 +3293,8 @@ fn gen_encode_body(grouped_fields: &GroupedFields, category: Category) -> TokenS
         .persistent_inline(category.clone())
         .map(generate_encode_inline_field)
         .collect();
-    let lazy: Vec<_> = grouped_fields.persistent_lazy(category).collect();
-    let lazy_encode = generate_encode_lazy_fields(&lazy);
+    let lazy: Vec<_> = grouped_fields.persistent_lazy(category.clone()).collect();
+    let lazy_encode = generate_encode_lazy_fields(category, &lazy);
 
     quote! {
         #(#inline)*
@@ -3203,7 +3309,7 @@ fn gen_decode_body(grouped_fields: &GroupedFields, category: Category) -> TokenS
         .map(|field| {
             let field_name = &field.field_name;
             quote! {
-                self.#field_name = bincode::Decode::decode(decoder)?;
+                self.inline.#field_name = bincode::Decode::decode(decoder)?;
             }
         })
         .collect();
@@ -3216,7 +3322,7 @@ fn gen_decode_body(grouped_fields: &GroupedFields, category: Category) -> TokenS
     }
 }
 
-/// Generate encode/decode methods for TaskStorage serialization.
+/// Generate encode/decode methods for TaskStorageInner serialization.
 ///
 /// Generates four methods:
 /// - `encode_meta<E>(&self, encoder: &mut E)` - Encode meta category fields
@@ -3275,9 +3381,14 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
 
     quote! {
         #[automatically_derived]
-        impl TaskStorage {
+        impl crate::backend::task_storage::TaskStorage {
             /// Encode meta category fields directly to bincode.
             /// Only persistent (non-transient) fields are encoded.
+            ///
+            /// Lives on `TaskStorage` (not `TaskStorageInner`) because it
+            /// reads lazy collection payloads via accessors that derive the
+            /// tail pointer from the owning thin pointer's full-allocation
+            /// provenance.
             pub fn encode_meta<E: bincode::enc::Encoder>(
                 &self,
                 encoder: &mut E,
@@ -3289,6 +3400,8 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
 
             /// Encode data category fields directly to bincode.
             /// Only persistent (non-transient) fields are encoded.
+            ///
+            /// Lives on `TaskStorage` for the same reason as `encode_meta`.
             pub fn encode_data<E: bincode::enc::Encoder>(
                 &self,
                 encoder: &mut E,
@@ -3298,8 +3411,11 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
                 Ok(())
             }
 
-            /// Decode meta category fields from bincode.
-            /// Only persistent (non-transient) fields are decoded.
+            /// Decode meta category fields from bincode. Only persistent
+            /// (non-transient) fields are decoded.
+            ///
+            /// Lives on `TaskStorage` because installing lazy payloads
+            /// from the wire may need to grow the unified buffer.
             pub fn decode_meta<D: bincode::de::Decoder>(
                 &mut self,
                 decoder: &mut D,
@@ -3309,8 +3425,8 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
                 Ok(())
             }
 
-            /// Decode data category fields from bincode.
-            /// Only persistent (non-transient) fields are decoded.
+            /// Decode data category fields from bincode. Only persistent
+            /// (non-transient) fields are decoded.
             pub fn decode_data<D: bincode::de::Decoder>(
                 &mut self,
                 decoder: &mut D,
@@ -3322,9 +3438,6 @@ fn generate_encode_decode_methods(grouped_fields: &GroupedFields) -> TokenStream
         }
     }
 }
-
-/// Sentinel byte marking the end of lazy fields in serialization.
-const LAZY_FIELD_SENTINEL: u8 = 0x00;
 
 // =============================================================================
 // Transient Filtering Helpers
@@ -3383,8 +3496,16 @@ fn generate_filter_predicate(field: &FieldInfo) -> Option<(TokenStream, FilterPr
 /// is already a reference from the match arm).
 ///
 /// For non-filtered fields, encodes the value directly.
-/// For filtered fields, uses a single-pass collect to a Vec, then encodes.
-/// This avoids multiple iterations (check non-empty + count + encode).
+///
+/// For filtered fields, we materialize a *same-typed* container with the
+/// filtered entries and encode that container through its own
+/// `bincode::Encode` impl. That way the encode wire shape is whatever the
+/// container's own `Encode` produces — and the decode side's
+/// `bincode::Decode::decode(decoder)?` reads the matching shape. Earlier
+/// versions emitted a hand-rolled `len + element*` format, which only
+/// happened to match the container's `Encode` impl by coincidence — a
+/// container that later switched to a tagged wire form (struct prefix,
+/// custom varint) would silently produce unparsable bytes here.
 fn generate_encode_value(field: &FieldInfo, value_ref: TokenStream) -> TokenStream {
     let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
         // No filtering needed, just encode normally
@@ -3395,7 +3516,9 @@ fn generate_encode_value(field: &FieldInfo, value_ref: TokenStream) -> TokenStre
 
     match pred_type {
         FilterPredicateType::Option => {
-            // For Option<T>, check if the value is transient and encode None if so
+            // For Option<T>, check if the value is transient and encode None if so.
+            // bincode encodes `Option<&T>` and `Option<T>` with the same
+            // wire shape, so the decode side reads back into `Option<T>`.
             quote! {
                 {
                     let filtered_value = (#value_ref).as_ref().filter(#predicate);
@@ -3404,39 +3527,35 @@ fn generate_encode_value(field: &FieldInfo, value_ref: TokenStream) -> TokenStre
             }
         }
         FilterPredicateType::Set => {
-            // For AutoSet<K>, filter out transient keys - collect once then encode
+            // Hand-rolled `len + element*` wire shape, computed with two
+            // iterator passes over the source (no heap allocation). Must
+            // match what `<#field_type as bincode::Decode>::decode` reads
+            // — the AutoSet/AutoMap/CounterMap bincode impls all write
+            // `len: usize` (varint) followed by element-by-element
+            // encoding, so this is the same shape. Two passes over the
+            // source is cheaper than materializing a fresh same-typed
+            // container per encode.
             quote! {
                 {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for key in filtered {
-                        bincode::Encode::encode(key, encoder)?;
+                    let len = (#value_ref).iter().filter(#predicate).count();
+                    bincode::Encode::encode(&len, encoder)?;
+                    for entry in (#value_ref).iter().filter(#predicate) {
+                        bincode::Encode::encode(entry, encoder)?;
                     }
                 }
             }
         }
-        FilterPredicateType::CounterMap => {
-            // For counter maps, filter out entries with transient keys - collect once
+        FilterPredicateType::CounterMap | FilterPredicateType::Map => {
+            // Same pattern as Set: `len + (k, v)*` via two filter passes.
+            // The maps' bincode `Encode` writes `(k, v).encode()` per
+            // entry — i.e. the entry tuple as a single encode call — so
+            // we mirror that here.
             quote! {
                 {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for (key, value) in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                        bincode::Encode::encode(value, encoder)?;
-                    }
-                }
-            }
-        }
-        FilterPredicateType::Map => {
-            // For maps, filter out entries with transient keys or values - collect once
-            quote! {
-                {
-                    let filtered: Vec<_> = (#value_ref).iter().filter(#predicate).collect();
-                    bincode::Encode::encode(&filtered.len(), encoder)?;
-                    for (key, value) in filtered {
-                        bincode::Encode::encode(key, encoder)?;
-                        bincode::Encode::encode(value, encoder)?;
+                    let len = (#value_ref).iter().filter(#predicate).count();
+                    bincode::Encode::encode(&len, encoder)?;
+                    for entry in (#value_ref).iter().filter(#predicate) {
+                        bincode::Encode::encode(&entry, encoder)?;
                     }
                 }
             }
@@ -3446,135 +3565,185 @@ fn generate_encode_value(field: &FieldInfo, value_ref: TokenStream) -> TokenStre
 
 /// Generate code to encode an inline field to bincode.
 ///
-/// Delegates to `generate_encode_value` with `&self.field_name` as the value reference.
+/// Delegates to `generate_encode_value` with `&self.inline.field_name` as the value reference.
 fn generate_encode_inline_field(field: &FieldInfo) -> TokenStream {
     let field_name = &field.field_name;
-    generate_encode_value(field, quote! { &self.#field_name })
+    generate_encode_value(field, quote! { &self.inline.#field_name })
 }
 
-/// Generate code to encode a lazy field value with index.
-///
-/// For filtered fields, collects to a Vec first, then checks if non-empty before
-/// writing index. This avoids multiple iterations over the data.
-fn generate_encode_lazy_field_with_index(field: &FieldInfo, index: u8) -> TokenStream {
-    let Some((predicate, pred_type)) = generate_filter_predicate(field) else {
-        // No filtering needed - encode directly
-        return quote! {
-            bincode::Encode::encode(&#index, encoder)?;
-            bincode::Encode::encode(data, encoder)?;
-        };
-    };
-
-    match pred_type {
-        FilterPredicateType::Option => {
-            // For Option<T>, check if the value is transient
-            quote! {
-                {
-                    let filtered_value = data.as_ref().filter(#predicate);
-                    if filtered_value.is_some() {
-                        bincode::Encode::encode(&#index, encoder)?;
-                        bincode::Encode::encode(&filtered_value, encoder)?;
-                    }
-                }
-            }
-        }
-        FilterPredicateType::Set => {
-            // Collect once, check if non-empty, then encode
-            quote! {
-                {
-                    let filtered: Vec<_> = data.iter().filter(#predicate).collect();
-                    if !filtered.is_empty() {
-                        bincode::Encode::encode(&#index, encoder)?;
-                        bincode::Encode::encode(&filtered.len(), encoder)?;
-                        for key in filtered {
-                            bincode::Encode::encode(key, encoder)?;
-                        }
-                    }
-                }
-            }
-        }
-        FilterPredicateType::CounterMap | FilterPredicateType::Map => {
-            // Collect once, check if non-empty, then encode
-            quote! {
-                {
-                    let filtered: Vec<_> = data.iter().filter(#predicate).collect();
-                    if !filtered.is_empty() {
-                        bincode::Encode::encode(&#index, encoder)?;
-                        bincode::Encode::encode(&filtered.len(), encoder)?;
-                        for (key, value) in filtered {
-                            bincode::Encode::encode(key, encoder)?;
-                            bincode::Encode::encode(value, encoder)?;
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
+/// Sentinel byte that terminates the lazy-field stream. Must not collide
+/// with any real tag value. Real tags live in `0..LAZY_N` (LAZY_N ≤ 32),
+/// so any value ≥ 32 is safe; `0xFF` is the most obviously out-of-band
+/// choice. A `const _` assert in the emitted module verifies the
+/// non-collision invariant at compile time.
+const LAZY_FIELD_SENTINEL: u8 = 0xFF;
 
 /// Generate code to encode lazy fields to bincode.
-/// Uses sentinel-terminated format: [index, data]... [sentinel]
-fn generate_encode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
+///
+/// Wire format: `[(tag: u8) (payload bytes)]* LAZY_FIELD_SENTINEL`.
+///
+/// One pass over the tail via `for_each_present`. Each arm either writes
+/// `(tag, payload)` directly (non-filter fields) or writes
+/// `(tag, len-varint, element*)` from a filtered iterator
+/// (`filter_transient` fields) — skipping the tag entirely if the
+/// filtered iterator is empty. No heap materialization of filtered
+/// containers, no second pass, no per-field buffers. The trade vs. the
+/// earlier `(u32 bitmap, payload*)` form is asymmetric encode/decode
+/// shapes for filter_transient fields (encode hand-rolls `len + e*`,
+/// decode reads via the container's own `Decode`), guarded by the
+/// round-trip tests in `storage_schema.rs`.
+fn generate_encode_lazy_fields(category: Category, fields: &[&FieldInfo]) -> TokenStream {
     if fields.is_empty() {
         return quote! {};
     }
 
-    // Generate match arms for encoding each field variant
-    let encode_arms = gen_lazy_match_arms(fields.iter().copied(), |idx, field| {
-        // add 1 so 0 is reserved for the sentinel
-        let idx = idx as u8 + 1;
-        generate_encode_lazy_field_with_index(field, idx)
-    });
-
-    quote! {
-        // Encode each persistent lazy field in this category
-        for field in &self.lazy {
-            match field {
-                #(#encode_arms)*
-                _ => {} // Skip fields not in this category
-            }
+    let category_mask_ident = match category {
+        Category::Meta => quote! { LAZY_META_MASK },
+        Category::Data => quote! { LAZY_DATA_MASK },
+        Category::Transient => {
+            // Transient lazy fields are never serialized.
+            unreachable!("generate_encode_lazy_fields called for Transient category");
         }
-        // Write sentinel to mark end of lazy fields
-        bincode::Encode::encode(&#LAZY_FIELD_SENTINEL, encoder)?;
-    }
-}
+    };
 
-/// Generate code to decode lazy fields from bincode.
-/// Reads until sentinel byte (0x00) is encountered.
-fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
-    if fields.is_empty() {
-        return quote! {};
-    }
-
-    // Generate match arms for decoding each field variant
-    let decode_arms: Vec<_> = fields
+    let arms: Vec<_> = fields
         .iter()
-        .enumerate()
-        .map(|(idx, field)| {
-            let variant_name = &field.variant_name;
-            let idx = idx as u8 + 1;
-            quote! {
-                #idx => LazyField::#variant_name(bincode::Decode::decode(decoder)?)
+        .map(|field| {
+            let field_type = &field.field_type;
+            let tag_ident = field.tag_ident();
+
+            if field.filter_transient {
+                let (predicate, pred_type) = generate_filter_predicate(field)
+                    .expect("filter_transient field must produce a filter predicate");
+                // Direct lazy fields are rejected at parse time when
+                // combined with filter_transient; only collection types
+                // reach this branch.
+                let entry_ref = match pred_type {
+                    FilterPredicateType::Set => quote! { entry },
+                    FilterPredicateType::CounterMap | FilterPredicateType::Map => {
+                        quote! { &entry }
+                    }
+                    FilterPredicateType::Option => unreachable!(
+                        "filter_transient + Option on lazy collection field is rejected by the \
+                         parser"
+                    ),
+                };
+                quote! {
+                    t if t == #tag_ident.raw() => {
+                        // SAFETY: `tag` matches `#tag_ident`, whose
+                        // schema-declared payload type is `#field_type`.
+                        let data: &#field_type = unsafe { &*ptr.cast::<#field_type>() };
+                        // Two iterator passes: count to skip-on-empty and
+                        // to write the length; then re-iterate to emit
+                        // entries. Cheap because the source lives in
+                        // memory and the filter predicate is just an
+                        // `is_transient()` check. Avoids materializing
+                        // a fresh same-typed container per encode.
+                        let len = data.iter().filter(#predicate).count();
+                        if len > 0 {
+                            bincode::Encode::encode(&#tag_ident.raw(), encoder)?;
+                            bincode::Encode::encode(&len, encoder)?;
+                            for entry in data.iter().filter(#predicate) {
+                                bincode::Encode::encode(#entry_ref, encoder)?;
+                            }
+                        }
+                    }
+                }
+            } else {
+                quote! {
+                    t if t == #tag_ident.raw() => {
+                        // SAFETY: `tag` matches `#tag_ident`, whose
+                        // schema-declared payload type is `#field_type`.
+                        let data: &#field_type = unsafe { &*ptr.cast::<#field_type>() };
+                        bincode::Encode::encode(&#tag_ident.raw(), encoder)?;
+                        bincode::Encode::encode(data, encoder)?;
+                    }
+                }
             }
         })
         .collect();
 
     quote! {
-        // Decode lazy fields until LAZY_FIELD_SENTINEL
-        loop {
-            let idx: u8 = bincode::Decode::decode(decoder)?;
-            let field = match idx {
-                #(#decode_arms,)*
-                #LAZY_FIELD_SENTINEL => {
-                    break
+        // Single pass: filter by this category's mask, dispatch on tag,
+        // emit `(tag, payload)` inline. Errors from the inner encodes
+        // propagate via `__encode_result` because the for_each callback
+        // can't return `Result` directly.
+        //
+        // SAFETY: `tail_base` is derived from the owning `TaskStorage`'s
+        // `NonNull<TaskStorageInner>` (full-allocation provenance). Each
+        // arm matches on a tag whose payload type is fixed by the schema.
+        let mut __encode_result: Result<(), bincode::error::EncodeError> = Ok(());
+        let tail_base = self.tail_ptr();
+        unsafe {
+            let _ = self.lazy_tail.try_for_each_present(tail_base, |tag, ptr| {
+                if (tag.bit() & #category_mask_ident) == 0 {
+                    return std::ops::ControlFlow::Continue(());
                 }
+                let mut inner = || -> Result<(), bincode::error::EncodeError> {
+                    match tag.raw() {
+                        #(#arms)*
+                        _ => debug_assert!(false, "tag {} not in this category mask", tag.raw()),
+                    }
+                    Ok(())
+                };
+                match inner() {
+                    Ok(()) => std::ops::ControlFlow::Continue(()),
+                    Err(e) => {
+                        __encode_result = Err(e);
+                        std::ops::ControlFlow::Break(())
+                    }
+                }
+            });
+        }
+        __encode_result?;
+        bincode::Encode::encode(&#LAZY_FIELD_SENTINEL, encoder)?;
+    }
+}
+
+/// Generate code to decode lazy fields from bincode.
+///
+/// Wire format mirror of `generate_encode_lazy_fields`: a sequence of
+/// `(tag: u8, payload)` pairs terminated by `LAZY_FIELD_SENTINEL`. Read
+/// a tag, dispatch through the schema's per-field `Decode` impl, install
+/// via `lazy_insert`. `lazy_insert` may realloc on growth — that's the
+/// trade vs. the earlier bitmap form, which preallocated tail capacity
+/// from the bitmap.
+fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
+    if fields.is_empty() {
+        return quote! {};
+    }
+
+    let decode_arms: Vec<_> = fields
+        .iter()
+        .map(|field| {
+            let field_type = &field.field_type;
+            let global_tag_ident = field.tag_ident();
+            quote! {
+                t if t == #global_tag_ident.raw() => {
+                    let payload: #field_type = bincode::Decode::decode(decoder)?;
+                    // SAFETY: each tag appears at most once per category
+                    // in a well-formed wire record — the encoder iterates
+                    // present tags in ascending order, never repeating.
+                    // Restore is called once per category, so the
+                    // `!has(tag)` precondition holds.
+                    unsafe { self.lazy_insert(#global_tag_ident, payload) };
+                }
+            }
+        })
+        .collect();
+
+    quote! {
+        loop {
+            let tag_raw: u8 = bincode::Decode::decode(decoder)?;
+            match tag_raw {
+                #LAZY_FIELD_SENTINEL => break,
+                #(#decode_arms)*
                 _ => {
                     return Err(bincode::error::DecodeError::OtherString(
-                        format!("Unknown lazy field index: {idx}"),
+                        format!("unknown lazy tag: {tag_raw}"),
                     ));
                 }
-            };
-            self.lazy.push(field);
+            }
         }
     }
 }
@@ -3587,15 +3756,104 @@ fn gen_clone_inline_for_category(
     gen_clone_inline_fields(grouped_fields.persistent_inline(category))
 }
 
-/// Generate clone lazy match arms for a category.
+/// Generate per-variant clone blocks for a category.
+///
+/// Emits one `if let Some(data) = self.<getter>() { snapshot.lazy_push(...) }`
+/// block per persistent lazy field in the category. Unrolled so the codegen
+/// never depends on iteration over `&LazyField` references.
 fn gen_clone_lazy_arms_for_category(
     grouped_fields: &GroupedFields,
     category: Category,
 ) -> Vec<TokenStream> {
-    gen_lazy_match_arms(grouped_fields.persistent_lazy(category), |_, field| {
-        let variant_name = &field.variant_name;
-        quote! { snapshot.lazy.push(LazyField::#variant_name(data.clone())); }
-    })
+    grouped_fields
+        .persistent_lazy(category)
+        .map(|field| {
+            let tag_ident = field.tag_ident();
+            let getter = match field.storage_type {
+                StorageType::Direct => field.get_ident(),
+                _ => field.ref_ident(),
+            };
+            // SAFETY: `#tag_ident` carries the payload type, and
+            // `snapshot` was just constructed with an empty lazy area, so
+            // no entry exists for `#tag_ident` yet.
+            quote! {
+                if let Some(data) = self.#getter() {
+                    unsafe { snapshot.lazy_insert(#tag_ident, data.clone()) };
+                }
+            }
+        })
+        .collect()
+}
+
+/// Generate per-variant restore blocks for a category.
+///
+/// Emits one block per persistent lazy variant. Each block takes the variant
+/// from `source` (if present) and merges into `self`:
+///
+/// - For `filter_transient` / `custom_drop_partial` variants (always collection types), `self` may
+///   hold transient residue that we must merge with the incoming value via `T::merge_restore`.
+/// - For all other variants, the protocol guarantees `self` has no residue and we install the value
+///   directly. A debug_assert verifies the absence invariant first.
+fn gen_restore_lazy_blocks<'a>(fields: impl Iterator<Item = &'a FieldInfo>) -> Vec<TokenStream> {
+    fields
+        .map(|field| {
+            let take_name = field.take_ident();
+            let field_name_str = field.field_name.to_string();
+            if field.filter_transient || field.custom_drop_partial {
+                // Collection-only path. `mut_name()` creates an empty entry if
+                // absent and returns `&mut T`; `T::merge_restore` folds the
+                // incoming value into the existing residue (or the
+                // freshly-created empty default).
+                let mut_name = field.mut_ident();
+                quote! {
+                    if let Some(incoming) = source.#take_name() {
+                        self.#mut_name().merge_restore(incoming);
+                    }
+                }
+            } else {
+                // Install the incoming value. Direct lazy fields expose
+                // `set_<name>(value) -> Option<T>`; collection lazy fields only
+                // expose `<name>_mut() -> &mut T` (with implicit allocation),
+                // so we route through the right one per storage type.
+                //
+                // The "self has no residue" invariant is checked with a
+                // non-mutating accessor. Earlier versions used
+                // `self.#take_name().is_none()` which would silently consume
+                // the existing value in debug builds and panic, leaving
+                // release and debug builds with divergent post-violation
+                // state. Now both builds agree: the assert reads, then the
+                // install overwrites.
+                let (presence_check, install) = match field.storage_type {
+                    StorageType::Direct => {
+                        let set_name = field.set_ident();
+                        let get_name = field.get_ident();
+                        (
+                            quote! { self.#get_name().is_none() },
+                            quote! { let _: Option<_> = self.#set_name(incoming); },
+                        )
+                    }
+                    _ => {
+                        let ref_name = field.ref_ident();
+                        let mut_name = field.mut_ident();
+                        (
+                            quote! { self.#ref_name().is_none() },
+                            quote! { *self.#mut_name() = incoming; },
+                        )
+                    }
+                };
+                quote! {
+                    if let Some(incoming) = source.#take_name() {
+                        debug_assert!(
+                            #presence_check,
+                            "restore_*_from called on storage that already has persistent lazy field {}",
+                            #field_name_str,
+                        );
+                        #install
+                    }
+                }
+            }
+        })
+        .collect()
 }
 
 /// Generate restore inline statements for a category.
@@ -3609,11 +3867,11 @@ fn gen_restore_inline_for_category(
         .collect()
 }
 
-/// Generate snapshot clone and restore methods for TaskStorage.
+/// Generate snapshot clone and restore methods for TaskStorageInner.
 ///
 /// Generates:
-/// - `clone_meta_snapshot(&self) -> TaskStorage` - Clone only persistent meta fields
-/// - `clone_data_snapshot(&self) -> TaskStorage` - Clone only persistent data fields
+/// - `clone_meta_snapshot(&self) -> TaskStorageInner` - Clone only persistent meta fields
+/// - `clone_data_snapshot(&self) -> TaskStorageInner` - Clone only persistent data fields
 /// - `restore_from(&mut self, source, category)` - Restore data by category from decoded storage
 /// - `restore_meta_from(&mut self, source)` - Restore meta fields from source
 /// - `restore_data_from(&mut self, source)` - Restore data fields from source
@@ -3632,20 +3890,13 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
     let restore_meta_inline = gen_restore_inline_for_category(grouped_fields, Category::Meta);
     let restore_data_inline = gen_restore_inline_for_category(grouped_fields, Category::Data);
 
-    // Merge arms for `restore_lazy_field`.
-    //
-    // filter_transient variants get their own arm with a variant-specific merge
-    // body (retain/extend on the inner collection). Non-filter_transient
-    // variants all share the same "push it" behavior — we collapse them into a
-    // single or-pattern arm below. The `enumerate()` index matches
-    // `LazyField::discriminant_index()` (both walk `all_lazy()` in declaration
-    // order), so we emit it as a literal and skip the method call.
-    let merge_lazy_arms: Vec<_> = grouped_fields
-        .all_lazy()
-        .enumerate()
-        .filter(|(_, f)| !f.is_transient() && (f.filter_transient || f.custom_drop_partial))
-        .map(|(idx, f)| gen_restore_lazy_merge_arm(f, idx as u8))
-        .collect();
+    // Per-variant restore blocks for each persistent meta/data variant.
+    // Each block tries to take the variant from `source` and either merges it
+    // with `self`'s residue (filter_transient) or moves it in.
+    let restore_meta_lazy_blocks =
+        gen_restore_lazy_blocks(grouped_fields.persistent_lazy(Category::Meta));
+    let restore_data_lazy_blocks =
+        gen_restore_lazy_blocks(grouped_fields.persistent_lazy(Category::Data));
 
     let clone_all_flags = if has_any_flags {
         quote! {
@@ -3677,10 +3928,15 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
 
     quote! {
         #[automatically_derived]
-        impl TaskStorage {
-            /// Create a snapshot containing all persistent fields
-            pub fn clone_snapshot(&self) -> TaskStorage {
-                let mut snapshot = TaskStorage::new();
+        impl crate::backend::task_storage::TaskStorage {
+            /// Create a snapshot containing all persistent fields. Returns a
+            /// fresh `TaskStorage`; the snapshot is independent of `self`.
+            ///
+            /// Lives on `TaskStorage` (not `TaskStorageInner`) because cloning
+            /// the lazy payloads into the new snapshot installs them, which
+            /// may need to grow that snapshot's buffer.
+            pub fn clone_snapshot(&self) -> crate::backend::task_storage::TaskStorage {
+                let mut snapshot = crate::backend::task_storage::TaskStorage::new();
 
                 // Clone inline meta fields
                 #(#clone_meta_inline)*
@@ -3690,23 +3946,16 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
 
                 #clone_all_flags
 
-                // Clone all persistent lazy fields (both meta and data).
-                // (No pre-`reserve`: the schema has ≤24 lazy fields, so at most 3 grows
-                // (0→4→8→16→24) total — cheaper than complicating the public API surface
-                // of `TinyVec`.)
-                for field in &self.lazy {
-                    match field {
-                        #(#clone_data_lazy_arms)*
-                        #(#clone_meta_lazy_arms)*
-                        // Skip transient fields
-                        _ => {}
-                    }
-                }
+                // Clone all persistent lazy fields (both meta and data),
+                // unrolled per variant. Each block is a single bit/index check
+                // plus the clone+push when present.
+                #(#clone_data_lazy_arms)*
+                #(#clone_meta_lazy_arms)*
 
                 snapshot
             }
 
-            /// Restore persisted data from a decoded TaskStorage.
+            /// Restore persisted data from a decoded `TaskStorage`.
             ///
             /// This is used during restore operations to copy decoded persisted data
             /// into the task's existing storage. It preserves transient state (flags,
@@ -3724,7 +3973,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
             /// - `Data`: Restore data fields (output_dependent, dependencies, cell_data, etc.)
             pub fn restore_from(
                 &mut self,
-                source: TaskStorage,
+                source: crate::backend::task_storage::TaskStorage,
                 category: crate::backend::SpecificTaskDataCategory,
             ) {
                 match category {
@@ -3737,129 +3986,39 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
             ///
             /// `self` may contain transient residue left behind by `drop_partial`;
             /// `filter_transient` fields are merged rather than overwritten.
-            fn restore_meta_from(&mut self, source: TaskStorage) {
+            pub fn restore_meta_from(
+                &mut self,
+                mut source: crate::backend::task_storage::TaskStorage,
+            ) {
+                // Per-variant restore for each persistent meta lazy field.
+                // Must run before the inline-field assignments below, because
+                // those moves leave `source` partially moved and we wouldn't be
+                // able to call `source.take_<variant>()` (which needs
+                // `&mut source`) afterward.
+                #(#restore_meta_lazy_blocks)*
+
                 // Inline meta fields
                 #(#restore_meta_inline)*
 
                 #restore_meta_flags
-
-                // `source.lazy` contains only persistent meta variants. If
-                // `self.lazy` has no persistent meta residue we can bulk-extend
-                // regardless of transient or data residue — those can't collide
-                // with the incoming meta variants. Otherwise build the index
-                // and merge each source variant in O(1).
-                let (any_meta, _any_data, index) = Self::build_lazy_index(&self.lazy);
-                if !any_meta {
-                    self.lazy.extend_exact(source.lazy);
-                } else {
-                    for field in source.lazy {
-                        debug_assert!(field.is_persistent() && field.is_meta());
-                        self.restore_lazy_field(field, &index);
-                    }
-                }
             }
 
             /// Restore data category fields from source.
             ///
             /// `self` may contain transient residue left behind by `drop_partial`;
             /// `filter_transient` fields are merged rather than overwritten.
-            fn restore_data_from(&mut self, source: TaskStorage) {
+            pub fn restore_data_from(
+                &mut self,
+                mut source: crate::backend::task_storage::TaskStorage,
+            ) {
+                // Per-variant restore for each persistent data lazy field
+                // (see restore_meta_from for the ordering rationale).
+                #(#restore_data_lazy_blocks)*
+
                 // Inline data fields
                 #(#restore_data_inline)*
 
                 #restore_data_flags
-
-                // Mirror image of `restore_meta_from`: `source.lazy` contains
-                // only persistent data variants, so meta or transient residue
-                // in `self.lazy` is never a collision risk.
-                let (_any_meta, any_data, index) = Self::build_lazy_index(&self.lazy);
-                if !any_data {
-                    self.lazy.extend_exact(source.lazy);
-                } else {
-                    for field in source.lazy {
-                        debug_assert!(field.is_persistent() && field.is_data());
-                        self.restore_lazy_field(field, &index);
-                    }
-                }
-            }
-
-
-            /// Build a discriminant → position lookup table over `lazy`, plus
-            /// per-category "any persistent residue?" bits.
-            ///
-            /// The bits let each restore entry point skip per-field dispatch
-            /// when its category has no residue to collide with — e.g.
-            /// `restore_meta_from` only cares about meta residue, since the
-            /// incoming source is all meta. A cold restore after a
-            /// `restore_meta_from` + `drop_partial(data)` can still have data
-            /// residue present but not collide with the incoming meta source,
-            /// so the data bit staying false lets meta restore stay on the
-            /// bulk-extend fast path.
-            ///
-            /// `u8::MAX` marks "variant not present" in the index. Relies on
-            /// `lazy.len() < 255`, which is trivially true (at most
-            /// `LazyField::NUM_VARIANTS` entries, well under 255).
-            fn build_lazy_index(
-                lazy: &[LazyField],
-            ) -> (bool, bool, [u8; LazyField::NUM_VARIANTS]) {
-                debug_assert!(lazy.len() < u8::MAX as usize);
-                let mut index = [u8::MAX; LazyField::NUM_VARIANTS];
-                let mut any_meta = false;
-                let mut any_data = false;
-                for (i, f) in lazy.iter().enumerate() {
-                    let (d, is_meta, is_data) = f.index_and_category();
-                    index[d as usize] = i as u8;
-                    any_meta |= is_meta;
-                    any_data |= is_data;
-                }
-                (any_meta, any_data, index)
-            }
-
-            /// Merge a single persistent `LazyField` from a decoded snapshot into
-            /// `self.lazy`. Uses the precomputed `index` for O(1) residue lookup
-            /// on `filter_transient` variants; non-filter_transient variants are
-            /// pushed unconditionally. `source.lazy` never contains duplicate
-            /// variants (encode emits each exactly once), so `index` is
-            /// read-only here.
-            fn restore_lazy_field(
-                &mut self,
-                incoming: LazyField,
-                index: &[u8; LazyField::NUM_VARIANTS],
-            ) {
-                match incoming {
-                    #(#merge_lazy_arms)*
-                    _ => {
-                        self.lazy.push(incoming);
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// Generate a match arm for `restore_lazy_field` that merges an incoming
-/// persistent `filter_transient` variant into `self.lazy` using the precomputed
-/// discriminant → position `index`. `discriminant` must equal the variant's
-/// position in `all_lazy()` (and in the `LazyField` enum definition).
-///
-/// On residue hit: merge the incoming collection into the existing one.
-/// On miss: push the variant. `source.lazy` never contains duplicate variants,
-/// so the pushed variant is never looked up again within this call — no need
-/// to update `index`.
-fn gen_restore_lazy_merge_arm(field: &FieldInfo, discriminant: u8) -> TokenStream {
-    debug_assert!(field.filter_transient || field.custom_drop_partial);
-    let variant_name = &field.variant_name;
-    quote! {
-        LazyField::#variant_name(incoming) => {
-            let slot = index[#discriminant as usize];
-            if slot != u8::MAX {
-                let residue = match &mut self.lazy[slot as usize] {
-                    LazyField::#variant_name(v) => v,
-                    _ => unreachable!(),
-                };
-                residue.merge_restore(incoming);
-            } else {
-                self.lazy.push(LazyField::#variant_name(incoming));
             }
         }
     }

@@ -122,6 +122,30 @@ impl TurboMalloc {
         self::counter::reset_allocation_counters(start);
     }
 
+    /// Round `n` up to the allocator's natural size-class boundary.
+    ///
+    /// When `custom_allocator` is on this calls `mi_good_size`, which returns
+    /// the actual bytes mimalloc would reserve for a request of `n` bytes (so
+    /// growing past `n` up to the returned size is "free"). Without
+    /// `custom_allocator` we fall back to rounding `n` up to the next power
+    /// of two, which approximates the system allocator's slab behavior on
+    /// most platforms.
+    ///
+    /// Useful for "should we realloc?" decisions: a realloc that doesn't
+    /// cross a size-class boundary is wasted work, so callers can compare
+    /// `get_bucket_size(current_len)` against `get_bucket_size(current_cap)`
+    /// and skip the shrink when they're equal.
+    pub fn get_bucket_size(n: usize) -> usize {
+        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
+        unsafe {
+            libmimalloc_sys::mi_good_size(n)
+        }
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        {
+            n.next_power_of_two().max(16)
+        }
+    }
+
     /// Returns a memory pressure value in the range `0..=100`, or `None` when
     /// the current platform does not expose a memory pressure signal or a
     /// query for it failed.

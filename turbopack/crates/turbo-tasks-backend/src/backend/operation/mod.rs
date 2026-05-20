@@ -29,7 +29,8 @@ use crate::{
         EventDescription, TaskDataCategory, TurboTasksBackend, TurboTasksBackendInner,
         snapshot_coordinator::OperationGuard,
         storage::{SpecificTaskDataCategory, StorageWriteGuard},
-        storage_schema::{TaskStorage, TaskStorageAccessors},
+        storage_schema::TaskStorageAccessors,
+        task_storage::TaskStorage,
     },
     backing_storage::BackingStorage,
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
@@ -195,7 +196,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             self.backend.should_restore(),
             "restore_task_data called when should_restore() is false"
         );
-        let mut storage = TaskStorage::default();
+        let mut storage = TaskStorage::new();
         self.backend
             .backing_storage
             .lookup_data(task_id, category, &mut storage)

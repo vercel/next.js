@@ -1,9 +1,11 @@
 mod cell_data;
 mod counter_map;
+pub(crate) mod lazy_tail;
 mod operation;
 mod snapshot_coordinator;
 mod storage;
 pub mod storage_schema;
+pub(crate) mod task_storage;
 
 use std::{
     borrow::Cow,
@@ -66,7 +68,8 @@ use crate::{
         },
         snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
         storage::Storage,
-        storage_schema::{TaskStorage, TaskStorageAccessors},
+        storage_schema::TaskStorageAccessors,
+        task_storage::TaskStorage,
     },
     backing_storage::{BackingStorage, SnapshotItem, SnapshotMeta, compute_task_type_hash},
     data::{

@@ -1,7 +1,8 @@
 //! Task Storage Schema Definition
 //!
-//! This module defines the complete schema for task storage using the TaskStorage derive macro.
-//! The schema covers all CachedDataItem variants with appropriate storage types and categories.
+//! This module defines the complete schema for task storage using the `#[task_storage]`
+//! derive macro. Each field becomes either an inline `TaskStorageInner` field or a
+//! tag-indexed payload in the lazy tail.
 //!
 //! # Storage Types (`storage = "..."`)
 //!
@@ -25,14 +26,14 @@ use std::{
 use parking_lot::Mutex;
 use rustc_hash::FxHasher;
 use turbo_tasks::{
-    CellId, SharedReference, TaskExecutionReason, TaskId, TinyVec, TraitTypeId, ValueTypeId,
+    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
     backend::{CachedTaskTypeArc, CellHash, TransientTaskType},
     event::Event,
     task_storage,
 };
 
 use crate::{
-    backend::{cell_data::CellData, counter_map::CounterMap},
+    backend::{cell_data::CellData, counter_map::CounterMap, task_storage::TaskStorage},
     data::{
         ActivenessState, AggregationNumber, CellDependency, CollectibleRef, CollectiblesRef,
         Dirtyness, InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType,
@@ -51,13 +52,16 @@ type AutoMap<K, V, const I: usize> = auto_hash_map::AutoMap<K, V, BuildHasherDef
 ///
 /// This struct defines all storage fields for a task. The `#[task_storage]` macro
 /// transforms this schema into the actual implementation:
-/// - `TaskStorage` struct with inline and lazy field storage
-/// - `LazyField` enum for lazy-allocated fields
-/// - `TaskFlags` bitfield for boolean flags
-/// - Accessor methods and traits
+/// - `TaskStorageInner` struct with inline fields plus a `LazyTail` byte buffer.
+/// - `LAZY_TAG_<NAME>` constants and `LAZY_SIZE` / `LAZY_ALIGN` / `LAZY_PADDED_SIZE` tables for
+///   tag-driven payload access.
+/// - `TaskFlags` bitfield for boolean flags.
+/// - Per-variant typed accessor methods plus the `TaskStorageAccessors` trait.
 ///
-/// Fields are stored lazily in `TinyVec<LazyField>` by default for memory efficiency.
-/// Fields with `inline` are stored directly on TaskStorage (for hot-path access).
+/// Non-inline fields ("lazy") live as packed payloads in `lazy_tail`'s byte
+/// buffer, indexed by tag. A presence bitmap on `LazyTail` tells the macro-
+/// generated accessors which payloads are currently stored. Fields with the
+/// `inline` attribute live directly on `TaskStorageInner` for hot-path access.
 ///
 /// Note: This struct is consumed by the macro and does not appear in the output.
 #[task_storage]
@@ -514,18 +518,25 @@ pub enum KeyEvictability {
 impl TaskStorage {
     /// Determine the evictability level of this task based on its flags.
     ///
-    /// This checks only the flags on the TaskStorage itself. The caller
+    /// This checks only the flags on the TaskStorageInner itself. The caller
     /// must additionally check that the task is not transient (via TaskId).
+    ///
+    /// Lives on `TaskStorage` (not `TaskStorageInner`) because it calls lazy
+    /// direct accessors (`get_in_progress`, `get_activeness`,
+    /// `get_transient_task_type`), which read tail payloads via a pointer
+    /// derived from `self.ptr` (full-allocation provenance). A reference of
+    /// type `&TaskStorageInner` only has provenance over the head bytes.
     pub fn evictability(&self) -> (KeyEvictability, ValueEvictability) {
         let flags = &self.flags;
 
         let key_evictability = if flags.new_task() {
             KeyEvictability::Unevictable
         } else {
-            match &self.persistent_task_type {
+            match &self.inline.persistent_task_type {
                 None => KeyEvictability::Unevictable,
-                // strong_count == 1: only this TaskStorage holds this Arc, so no task_cache entry
-                // references it. It must have been already evicted on a prior cycle.
+                // strong_count == 1: only this TaskStorageInner holds this Arc, so no task_cache
+                // entry references it. It must have been already evicted on a prior
+                // cycle.
                 Some(arc) if arc.count() == 1 => KeyEvictability::AlreadyEvicted,
                 Some(_) => KeyEvictability::Evictable,
             }
@@ -596,130 +607,24 @@ impl TaskStorage {
 }
 
 // =============================================================================
-// TaskStorage helper methods
+// TaskStorageInner helper methods
 // =============================================================================
 
+// `TaskStorageInner` does NOT implement `Drop` — its `lazy_tail` field is just
+// metadata (presence bitmap + len + cap) and the byte buffer it describes
+// lives in the same allocation as the surrounding `TaskStorage`.
+// `TaskStorage::drop` walks the bitmap, runs per-tag drop dispatch on
+// each payload, then drops the head and deallocates the unified buffer.
+// A stack-constructed `TaskStorageInner` (e.g. inside `TaskStorage::new`'s
+// initialization step) always has `tail_cap == 0` and no live payloads, so
+// the auto-derived field drops are correct.
+
 impl TaskStorage {
-    /// Find a lazy field by predicate (immutable).
+    /// Encode fields for the specified category.
     ///
-    /// The `extract` closure should return `Some(&T)` for the matching variant,
-    /// or `None` for non-matching variants.
-    fn find_lazy<T>(&self, extract: impl Fn(&LazyField) -> Option<&T>) -> Option<&T> {
-        self.lazy.iter().find_map(extract)
-    }
-
-    /// Find a lazy field by predicate (mutable).
-    ///
-    /// The `extract` closure should return `Some(&mut T)` for the matching variant,
-    /// or `None` for non-matching variants.
-    fn find_lazy_mut<T>(
-        &mut self,
-        extract: impl Fn(&mut LazyField) -> Option<&mut T>,
-    ) -> Option<&mut T> {
-        self.lazy.iter_mut().find_map(extract)
-    }
-
-    /// Find and extract a lazy field, returning its index and a reference to the inner value.
-    ///
-    /// Combines index lookup and extraction into a single scan. The returned index
-    /// can be used with `lazy_at_mut` for subsequent mutation without re-scanning.
-    fn find_lazy_ref<T>(&self, extract: impl Fn(&LazyField) -> Option<&T>) -> Option<(usize, &T)> {
-        self.lazy
-            .iter()
-            .enumerate()
-            .find_map(|(idx, field)| extract(field).map(|val| (idx, val)))
-    }
-
-    /// Access a lazy field by index (mutable), extracting the inner value.
-    ///
-    /// # Panics
-    /// Panics if `idx` is out of bounds or the extractor returns `None`.
-    fn lazy_at_mut<T>(
-        &mut self,
-        idx: usize,
-        extract: impl FnOnce(&mut LazyField) -> Option<&mut T>,
-    ) -> &mut T {
-        extract(&mut self.lazy[idx]).unwrap()
-    }
-
-    /// Take a lazy field by known index, removing it from the Vec via swap_remove.
-    ///
-    /// # Panics
-    /// Panics if `idx` is out of bounds.
-    fn lazy_take_at<T>(&mut self, idx: usize, extract: impl FnOnce(LazyField) -> T) -> T {
-        extract(self.lazy.swap_remove(idx))
-    }
-
-    /// Get or create a lazy field, returning a mutable reference.
-    ///
-    /// Uses a single `extract` closure that serves as both the matcher (by returning Some/None)
-    /// and the value extractor. The closure is first used to find the field position,
-    /// then to extract the mutable reference.
-    ///
-    /// # Example
-    /// ```ignore
-    /// let deps = storage.get_or_create_lazy(
-    ///     |f| matches!(f, LazyField::OutputDependencies(_)),
-    ///     |f| match f {
-    ///         LazyField::OutputDependencies(v) => v,
-    ///         _ => unreachable!(),
-    ///     },
-    ///     || LazyField::OutputDependencies(Default::default()),
-    /// );
-    /// ```
-    fn get_or_create_lazy<T>(
-        &mut self,
-        matches: impl Fn(&LazyField) -> bool,
-        extract: impl for<'a> FnOnce(&'a mut LazyField) -> &'a mut T,
-        create: impl FnOnce() -> LazyField,
-    ) -> &mut T {
-        // Find the index of matching field (immutable borrow)
-        let idx = self.lazy.iter().position(matches);
-        if let Some(idx) = idx {
-            extract(&mut self.lazy[idx])
-        } else {
-            self.lazy.push(create());
-            extract(self.lazy.last_mut().unwrap())
-        }
-    }
-
-    /// Take a lazy field by predicate, removing it from the Vec.
-    ///
-    /// Uses a `matches` predicate to find the field index, then `extract` to
-    /// unwrap the value from the removed field.
-    ///
-    /// Returns `None` if no matching field exists.
-    fn take_lazy<T>(
-        &mut self,
-        matches: impl Fn(&LazyField) -> bool,
-        extract: impl FnOnce(LazyField) -> T,
-    ) -> Option<T> {
-        let idx = self.lazy.iter().position(matches)?;
-        Some(extract(self.lazy.swap_remove(idx)))
-    }
-
-    /// Set a lazy field value, replacing any existing value.
-    ///
-    /// Uses a `matches` predicate to find an existing field. If found, replaces it
-    /// in place and extracts the old value. Otherwise pushes the new value.
-    ///
-    /// Returns the old value if one existed.
-    fn set_lazy<T>(
-        &mut self,
-        matches: impl Fn(&LazyField) -> bool,
-        extract: impl FnOnce(LazyField) -> T,
-        new_value: LazyField,
-    ) -> Option<T> {
-        if let Some(idx) = self.lazy.iter().position(matches) {
-            let old = std::mem::replace(&mut self.lazy[idx], new_value);
-            Some(extract(old))
-        } else {
-            self.lazy.push(new_value);
-            None
-        }
-    }
-
-    /// Encode fields for the specified category
+    /// Lives on `TaskStorage` because `encode_meta`/`encode_data` read lazy
+    /// collection payloads via accessors that derive the tail pointer from
+    /// the owning thin pointer's full-allocation provenance.
     pub fn encode<E: bincode::enc::Encoder>(
         &self,
         category: SpecificTaskDataCategory,
@@ -731,7 +636,9 @@ impl TaskStorage {
         }
     }
 
-    /// Decode fields for the specified category
+    /// Decode fields for the specified category. Lives on `TaskStorage`
+    /// because installing lazy payloads from the wire may need to grow the
+    /// underlying buffer.
     pub fn decode<D: bincode::de::Decoder>(
         &mut self,
         category: SpecificTaskDataCategory,
@@ -743,10 +650,33 @@ impl TaskStorage {
         }
     }
 
-    /// Initialize a transient task with the given root type and activeness tracking.
+    /// Returns counts for aggregation tree and collectibles fields.
+    /// Used for cache size statistics.
     ///
-    /// This sets up the activeness state for root/once tasks.
-    /// Called when creating transient tasks via `create_transient_task`.
+    /// Lives on `TaskStorage` (not `TaskStorageInner`) because it reads
+    /// lazy collection payloads. The accessors derive the tail pointer from
+    /// the owning thin pointer, which carries provenance over the full
+    /// head+tail allocation.
+    pub fn meta_counts(&self) -> MetaCounts {
+        MetaCounts {
+            upper: self.upper().len(),
+            collectibles: self.collectibles().map_or(0, |c| c.len()),
+            aggregated_collectibles: self.aggregated_collectibles().map_or(0, |c| c.len()),
+            children: self.children().map_or(0, |c| c.len()),
+            followers: self.followers().map_or(0, |c| c.len()),
+            collectibles_dependents: self.collectibles_dependents().map_or(0, |c| c.len()),
+            aggregated_dirty_containers: self.aggregated_dirty_containers().map_or(0, |c| c.len()),
+        }
+    }
+
+    /// Initialize a transient task with the given root type and activeness
+    /// tracking.
+    ///
+    /// This sets up the activeness state for root/once tasks. Called when
+    /// creating transient tasks via `create_transient_task`. Lives on
+    /// `TaskStorage` because it installs lazy payloads (`Activeness`,
+    /// `transient_task_type`, `InProgress`), which may grow the underlying
+    /// buffer.
     pub fn init_transient_task(
         &mut self,
         task_id: TaskId,
@@ -758,18 +688,26 @@ impl TaskStorage {
         self.flags.set_restored(TaskDataCategory::All);
 
         // This is a root (or once) task. These tasks use the max aggregation number.
-        self.aggregation_number = AggregationNumber {
-            base: u32::MAX,
-            distance: 0,
-            effective: u32::MAX,
-        };
+        // SAFETY: head_mut is fine here because we don't call any grow path
+        // while the borrow is live.
+        unsafe {
+            self.head_mut().inline.aggregation_number = AggregationNumber {
+                base: u32::MAX,
+                distance: 0,
+                effective: u32::MAX,
+            };
+        }
         let root_type = match task_type {
             TransientTaskType::Root(_) => RootType::RootTask,
             TransientTaskType::Once(_) => RootType::OnceTask,
         };
         if should_track_activeness {
             let activeness = ActivenessState::new_root(root_type, task_id);
-            self.lazy.push(LazyField::Activeness(activeness));
+            // SAFETY: `LAZY_TAG_ACTIVENESS: Tag<ActivenessState>`
+            // enforces the tag→type pairing at the type system. This is a
+            // freshly-created task whose lazy tail does not yet contain an
+            // Activeness entry.
+            unsafe { self.lazy_insert(LAZY_TAG_ACTIVENESS, activeness) };
         }
 
         // Set the task as scheduled so it can be executed
@@ -787,20 +725,6 @@ impl TaskStorage {
             done_event,
             reason: TaskExecutionReason::Root,
         });
-    }
-
-    /// Returns counts for aggregation tree and collectibles fields.
-    /// Used for cache size statistics.
-    pub fn meta_counts(&self) -> MetaCounts {
-        MetaCounts {
-            upper: self.upper().len(),
-            collectibles: self.collectibles().map_or(0, |c| c.len()),
-            aggregated_collectibles: self.aggregated_collectibles().map_or(0, |c| c.len()),
-            children: self.children().map_or(0, |c| c.len()),
-            followers: self.followers().map_or(0, |c| c.len()),
-            collectibles_dependents: self.collectibles_dependents().map_or(0, |c| c.len()),
-            aggregated_dirty_containers: self.aggregated_dirty_containers().map_or(0, |c| c.len()),
-        }
     }
 }
 
@@ -955,7 +879,10 @@ mod tests {
     use turbo_tasks::{CellId, TaskId};
 
     use super::*;
-    use crate::data::{AggregationNumber, CellDependency, CellRef, Dirtyness, OutputValue};
+    use crate::{
+        backend::lazy_tail::LazyTail,
+        data::{AggregationNumber, CellDependency, CellRef, Dirtyness, OutputValue},
+    };
 
     #[test]
     fn test_accessors() {
@@ -1560,7 +1487,7 @@ mod tests {
     // ==========================================================================
 
     mod cell_data_drop_partial {
-        //! End-to-end: verify `TaskStorage::drop_partial` dispatches to
+        //! End-to-end: verify `TaskStorageInner::drop_partial` dispatches to
         //! `CellData::drop_partial`, and that `restore_data_from` merges the
         //! retained residue with incoming persistent entries instead of
         //! clobbering it. The per-variant partitioning is covered in
@@ -1700,16 +1627,131 @@ mod tests {
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn test_schema_size() {
+        // After inlining the lazy-tail byte buffer into TaskStorage's
+        // allocation, `LazyTail` only carries the bitmap + len + cap
+        // metadata (8 B, down from 16 B). The buffer lives in the same
+        // heap allocation as TaskStorageInner, accessed via raw pointer
+        // arithmetic from `(self as *const TaskStorageInner).add(size_of::<TaskStorageInner>())`.
         assert_eq!(
-            size_of::<TaskStorage>(),
+            size_of::<TaskStorageInline>(),
+            112,
+            "TaskStorageInline size changed! Inspect Rust's struct layout to find why.",
+        );
+        assert_eq!(
+            size_of::<TaskStorageInner>(),
             128,
-            "TaskStorage size changed! Run print_schema_sizes and update this test."
+            "TaskStorageInner size changed! Inspect Rust's struct layout to find why.",
         );
-        // `LazyField` is 48 B = 40 B largest payload + 8 B discriminant.
+        // `LazyTail` is 8 B (`u32 present + u16 len + u16 cap`). The byte
+        // buffer lives in TaskStorage's allocation, accessed via raw
+        // pointer arithmetic from the head's address.
         assert_eq!(
-            size_of::<LazyField>(),
-            48,
-            "LazyField size changed! Run print_schema_sizes and update this test."
+            size_of::<LazyTail>(),
+            8,
+            "LazyTail size changed! Inspect Rust's struct layout to find why.",
         );
+    }
+
+    /// `TaskStorage`'s `Debug` impl should print inline fields plus each
+    /// present lazy variant keyed by its real field name (rendered through
+    /// the variant's own `Debug` impl). Pin a handful of keys so the
+    /// dispatch keeps the names in the output rather than dumping raw
+    /// bitmap bytes.
+    #[test]
+    fn test_debug_impl_renders_lazy_variant_names() {
+        let mut storage = TaskStorage::new();
+        // One inline field, one direct lazy field, one collection lazy field.
+        storage.set_output(OutputValue::Output(TaskId::new(1).unwrap()));
+        storage.set_dirty(Dirtyness::SessionDependent);
+        storage
+            .cell_dependencies_mut()
+            .insert(CellDependency::All(CellRef {
+                task: TaskId::new(2).unwrap(),
+                cell: CellId {
+                    type_id: unsafe { turbo_tasks::ValueTypeId::new_unchecked(1) },
+                    index: 0,
+                },
+            }));
+
+        let rendered = format!("{storage:?}");
+        // Inline head appears via the `inline` key.
+        assert!(
+            rendered.contains("inline"),
+            "Debug should include inline head: {rendered}",
+        );
+        // Lazy variants appear by their real field name, not by raw tag.
+        assert!(
+            rendered.contains("dirty"),
+            "Debug should include `dirty` lazy variant: {rendered}",
+        );
+        assert!(
+            rendered.contains("cell_dependencies"),
+            "Debug should include `cell_dependencies` lazy variant: {rendered}",
+        );
+        // The variant value (not just the name) should be present too —
+        // Dirtyness renders one of its enum variants.
+        assert!(
+            rendered.contains("SessionDependent"),
+            "Debug should include the Dirtyness payload: {rendered}",
+        );
+    }
+
+    /// Insert lazy fields out of tag order so each insert forces the
+    /// previously-installed payload bytes to shift right, then take them
+    /// out of order so the take path's shift-left also runs. Verify every
+    /// value still reads back correctly after every shift. This exercises
+    /// the `insert_unchecked` and `take` byte-shift paths (`ptr::copy` of
+    /// `above_bytes`) and the offset accumulator in `for_each_present`.
+    ///
+    /// We use direct lazy fields with distinct types (`Dirtyness`, `i32`,
+    /// `ActivenessState`) so a wrong-offset bug would corrupt one payload's
+    /// bytes into another's representation and the read-back would fail.
+    #[test]
+    fn lazy_insert_shifts_existing_payloads() {
+        use crate::data::{ActivenessState, Dirtyness, RootType};
+        let mut storage = TaskStorage::new();
+        let task_id = TaskId::new(7).unwrap();
+
+        // Insert in descending tag order (activeness first, then
+        // aggregated_dirty_container_count, then dirty). Each later insert
+        // has all previously-installed payloads above its slot, so the
+        // shift-right path in `insert_unchecked` runs every time.
+        //   1. set_activeness: appended at offset 0 (no shift).
+        //   2. set_aggregated_dirty_container_count: inserted below activeness, which shifts right
+        //      by sizeof(i32).
+        //   3. set_dirty: inserted at offset 0, the other two shift right by sizeof(Dirtyness).
+        storage.set_activeness(ActivenessState::new_root(RootType::RootTask, task_id));
+        storage.set_aggregated_dirty_container_count(42);
+        storage.set_dirty(Dirtyness::SessionDependent);
+
+        // All three must read back at their post-shift offsets.
+        assert_eq!(storage.get_dirty(), Some(&Dirtyness::SessionDependent));
+        assert_eq!(storage.get_aggregated_dirty_container_count(), Some(&42));
+        assert!(storage.get_activeness().is_some());
+
+        // Take the lowest-tag payload — forces the two above it to shift
+        // left by sizeof(Dirtyness).
+        assert_eq!(storage.take_dirty(), Some(Dirtyness::SessionDependent));
+        assert_eq!(storage.get_dirty(), None);
+        assert_eq!(storage.get_aggregated_dirty_container_count(), Some(&42));
+        assert!(storage.get_activeness().is_some());
+
+        // Re-insert dirty — shifts the two above right again, back to the
+        // original packed layout.
+        storage.set_dirty(Dirtyness::SessionDependent);
+        assert_eq!(storage.get_dirty(), Some(&Dirtyness::SessionDependent));
+        assert_eq!(storage.get_aggregated_dirty_container_count(), Some(&42));
+        assert!(storage.get_activeness().is_some());
+
+        // Take the middle payload — only the top shifts left.
+        assert_eq!(storage.take_aggregated_dirty_container_count(), Some(42));
+        assert_eq!(storage.get_dirty(), Some(&Dirtyness::SessionDependent));
+        assert_eq!(storage.get_aggregated_dirty_container_count(), None);
+        assert!(storage.get_activeness().is_some());
+
+        // Take the top payload — no shift needed (nothing above it).
+        assert!(storage.take_activeness().is_some());
+        assert_eq!(storage.get_dirty(), Some(&Dirtyness::SessionDependent));
+        assert!(storage.get_activeness().is_none());
     }
 }

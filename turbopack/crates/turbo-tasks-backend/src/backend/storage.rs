@@ -15,8 +15,12 @@ use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{FxDashMap, TaskId, backend::CachedTaskTypeArc, event::Event, parallel};
 
 use crate::{
-    backend::storage_schema::{
-        DropPartialOutcome, KeyEvictability, TaskStorage, UnevictableReason, ValueEvictability,
+    backend::{
+        storage_schema::{
+            DropPartialOutcome, KeyEvictability, TaskStorageInner, UnevictableReason,
+            ValueEvictability,
+        },
+        task_storage::TaskStorage,
     },
     backing_storage::SnapshotItem,
     database::key_value_database::KeySpace,
@@ -161,7 +165,7 @@ pub struct Storage {
     /// present in `snapshots.shards()[N]` (if present in `map` at all) is in `map.shards()[N]`.
     /// Code that walks both maps in parallel (e.g. `end_snapshot`) relies on this to lock pairs
     /// of shards by index instead of going through the top-level `DashMap` accessors.
-    snapshots: FxDashMap<TaskId, Option<Box<TaskStorage>>>,
+    snapshots: FxDashMap<TaskId, Option<TaskStorage>>,
     /// The main storage map
     ///
     /// Lock Ordering: Task creation acquires a `task_cache` lock and then inserts into this map.
@@ -173,7 +177,7 @@ pub struct Storage {
     /// `track_modification_internal` and `SnapshotShardIter::next` both hold a `map` shard write
     /// lock (via `StorageWriteGuard` / `map.get_mut`) and then take a `snapshots` shard lock.
     /// `end_snapshot` must lock in the same order — see the shard-zipping pattern there.
-    map: FxDashMap<TaskId, Box<TaskStorage>>,
+    map: FxDashMap<TaskId, TaskStorage>,
     /// A shared event notified whenever any task finishes restoring (successfully or not).
     ///
     /// Threads waiting for another thread's in-progress restore subscribe to this event,
@@ -232,7 +236,7 @@ impl Storage {
     /// This is used after persisting a snapshot: _during_snapshot flags represent changes
     /// that occurred concurrently and were not included in the persisted snapshot, so they
     /// must be carried forward as `modified` for the next snapshot cycle.
-    fn promote_during_snapshot_flags(&self, task: &mut TaskStorage, shard_idx: usize) {
+    fn promote_during_snapshot_flags(&self, task: &mut TaskStorageInner, shard_idx: usize) {
         let already_modified = task.flags.any_modified();
         let mut promoted = false;
         if task.flags.meta_modified_during_snapshot() {
@@ -270,7 +274,7 @@ impl Storage {
     /// dropped.
     ///
     /// `process` is called while holding a read lock on the task storage, so it can access
-    /// the TaskStorage directly without cloning.
+    /// the TaskStorageInner directly without cloning.
     ///
     /// Both callbacks receive a mutable scratch buffer that can be reused across iterations
     /// to avoid repeated allocations.
@@ -452,7 +456,7 @@ impl Storage {
     pub fn access_mut(&self, key: TaskId) -> StorageWriteGuard<'_> {
         let inner = match self.map.entry(key) {
             dashmap::mapref::entry::Entry::Occupied(e) => e.into_ref(),
-            dashmap::mapref::entry::Entry::Vacant(e) => e.insert(Box::new(TaskStorage::new())),
+            dashmap::mapref::entry::Entry::Vacant(e) => e.insert(TaskStorage::new()),
         };
         StorageWriteGuard {
             storage: self,
@@ -465,7 +469,7 @@ impl Storage {
         key1: TaskId,
         key2: TaskId,
     ) -> (StorageWriteGuard<'_>, StorageWriteGuard<'_>) {
-        let (a, b) = get_multiple_mut(&self.map, key1, key2, || Box::new(TaskStorage::new()));
+        let (a, b) = get_multiple_mut(&self.map, key1, key2, TaskStorage::new);
         (
             StorageWriteGuard {
                 storage: self,
@@ -621,7 +625,7 @@ impl Storage {
 
 pub struct StorageWriteGuard<'a> {
     storage: &'a Storage,
-    inner: RefMut<'a, TaskId, Box<TaskStorage>>,
+    inner: RefMut<'a, TaskId, TaskStorage>,
 }
 
 impl StorageWriteGuard<'_> {
@@ -700,7 +704,7 @@ impl StorageWriteGuard<'_> {
                     snapshot.flags.set_new_task(flags.new_task());
                     self.storage
                         .snapshots
-                        .insert(*self.inner.key(), Some(Box::new(snapshot)));
+                        .insert(*self.inner.key(), Some(snapshot));
                 }
                 self.inner
                     .flags
