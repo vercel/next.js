@@ -4,9 +4,9 @@ description: >
   Backport a merged Next.js pull request from canary to a previous release
   branch such as next-16-2. Use when the user asks to backport, cherry-pick,
   or open a backport PR from a PR number to an older Next.js version. Covers
-  finding the merged PR commit, creating a codex/backport branch from the
-  target release branch, cherry-picking from canary, validating, and using
-  $create-pr with the release branch as the PR base.
+  finding the merged PR commit, creating a backport branch from the target
+  release branch, cherry-picking from canary, validating, and opening the PR
+  with the release branch as the base.
 ---
 
 # Backport PR
@@ -55,7 +55,7 @@ branch.
 4. Create the backport branch from the release branch:
 
    ```bash
-   git switch -c codex/backport-<pr-number>-to-<target-branch> origin/<target-branch>
+   git switch -c backport-<pr-number>-to-<target-branch> origin/<target-branch>
    ```
 
    After switching branches in this repo, run `pnpm build-all` before Next.js
@@ -74,44 +74,27 @@ branch.
    PR.
 
 6. Verify with the narrowest commands that cover the touched files. Prefer
-   focused tests, `pnpm --filter=next types` for TypeScript-only risk, and the
-   relevant integration test mode for behavior changes. For module-resolution or
-   package-boundary changes, verify without `NEXT_SKIP_ISOLATE=1`.
+   focused tests, `pnpm types` for TypeScript-only risk, and the relevant
+   integration test mode for behavior changes.
 
 7. Open the backport PR using `$create-pr`.
 
    Override the normal `$create-pr` base branch: use `--base <target-branch>`,
    not `canary`. Keep the PR as a draft unless the user explicitly asks
-   otherwise. Include the original PR URL, the cherry-picked commit SHA, conflict
-   notes if any, and verification results in the PR body.
+   otherwise.
 
 ## PR Shape
 
 Use a title like:
 
 ```text
-[<target-branch>] Backport #<pr-number>
+[backport] <original PR title>
 ```
 
 Use a concise PR body:
 
 ```markdown
-### What?
-
 Backports <original PR title/link> to `<target-branch>`.
-
-### Why?
-
-<release-line reason, if known>
-
-### How?
-
-Cherry-picked `<sha>` from `canary` with `git cherry-pick -x`.
-
-### Verification
-
-- `<command that passed>`
-- Not run: `<command>` (`<reason>`)
 
 <!-- NEXT_JS_LLM_PR -->
 ```
