@@ -48,7 +48,7 @@ function isTerminalEditor(editor: string) {
 // Map from full process name to binary that starts the process
 // We can't just re-use full process name, because it will spawn a new instance
 // of the app every time
-const COMMON_EDITORS_MACOS = {
+const COMMON_EDITORS_MACOS: Record<string, string> = {
   '/Applications/Atom.app/Contents/MacOS/Atom': 'atom',
   '/Applications/Atom Beta.app/Contents/MacOS/Atom Beta':
     '/Applications/Atom Beta.app/Contents/MacOS/Atom Beta',
@@ -59,8 +59,12 @@ const COMMON_EDITORS_MACOS = {
     '/Applications/Sublime Text Dev.app/Contents/SharedSupport/bin/subl',
   '/Applications/Sublime Text 2.app/Contents/MacOS/Sublime Text 2':
     '/Applications/Sublime Text 2.app/Contents/SharedSupport/bin/subl',
+  '/Applications/Visual Studio Code.app/Contents/MacOS/Code':
+    '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code',
   '/Applications/Visual Studio Code.app/Contents/MacOS/Electron':
     '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code',
+  '/Applications/Visual Studio Code - Insiders.app/Contents/MacOS/Code - Insiders':
+    '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code',
   '/Applications/Visual Studio Code - Insiders.app/Contents/MacOS/Electron':
     '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code',
   '/Applications/VSCodium.app/Contents/MacOS/Electron':
@@ -218,6 +222,18 @@ function getArgumentsForLineNumber(
   }
 }
 
+function getMacOSEditorFromProcessList(output: string): string | null {
+  const processNames = Object.keys(COMMON_EDITORS_MACOS)
+  for (let i = 0; i < processNames.length; i++) {
+    const processName = processNames[i]
+    if (output.indexOf(processName) !== -1) {
+      return COMMON_EDITORS_MACOS[processName]
+    }
+  }
+
+  return null
+}
+
 function guessEditor(): string[] {
   // Explicit config always wins
   if (process.env.REACT_EDITOR) {
@@ -230,12 +246,9 @@ function guessEditor(): string[] {
   try {
     if (process.platform === 'darwin') {
       const output = child_process.execSync('ps x').toString()
-      const processNames = Object.keys(COMMON_EDITORS_MACOS)
-      for (let i = 0; i < processNames.length; i++) {
-        const processName = processNames[i]
-        if (output.indexOf(processName) !== -1) {
-          return [(COMMON_EDITORS_MACOS as any)[processName]]
-        }
+      const editor = getMacOSEditorFromProcessList(output)
+      if (editor !== null) {
+        return [editor]
       }
     } else if (process.platform === 'win32') {
       // Some processes need elevated rights to get its executable path.
