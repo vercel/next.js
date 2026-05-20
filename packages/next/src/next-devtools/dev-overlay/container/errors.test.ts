@@ -256,7 +256,7 @@ describe('getBlockingRouteErrorDetails', () => {
 })
 
 // `getUnrenderedSegmentErrorDetails` parses the `Route "<path>":` prefix and
-// the `Unrendered segment(s):` block out of the inline message built in
+// the `Dropped segment(s):` block out of the inline message built in
 // `dynamic-rendering.ts`. There's no exported factory for this message
 // family — these tests reproduce the wire format the framework emits and
 // assert the parsed shape the dev overlay reads.

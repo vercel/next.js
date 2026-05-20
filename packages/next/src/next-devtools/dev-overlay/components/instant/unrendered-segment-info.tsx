@@ -61,14 +61,16 @@ export function UnrenderedSegmentInfo({
         firstMissingFile ? `Open ${firstMissingFile} in editor` : undefined
       }
     >
-      <div data-nextjs-codeframe-line="">
-        <span data-nextjs-unrendered-segment-tree-prefix>│</span>
-      </div>
-      {nodes.map((node, i) => (
-        <TreeRow key={i} node={node} />
-      ))}
-      <div data-nextjs-codeframe-line="">
-        <span data-nextjs-unrendered-segment-tree-prefix>│</span>
+      <div data-nextjs-unrendered-segment-tree>
+        <div data-nextjs-codeframe-line="">
+          <span data-nextjs-unrendered-segment-tree-prefix>│</span>
+        </div>
+        {nodes.map((node, i) => (
+          <TreeRow key={i} node={node} />
+        ))}
+        <div data-nextjs-codeframe-line="">
+          <span data-nextjs-unrendered-segment-tree-prefix>│</span>
+        </div>
       </div>
     </CodeFrameShell>
   )
