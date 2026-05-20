@@ -3,7 +3,6 @@
 const path = require('path')
 const _glob = require('glob')
 const fs = require('fs')
-const { existsSync } = fs
 const fsp = require('fs/promises')
 const { createClient } = require('@vercel/kv')
 const { promisify } = require('util')
@@ -16,18 +15,9 @@ const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
 const { checkBuildFreshness } = require('./test/lib/check-build-freshness')
 
-// --- Test profile and passed-tests memoization ---
-// On CI retry attempts — including after timeout/cancellation of an
-// earlier attempt of the same workflow run — skip tests that already
-// passed on this commit.
-//
-// Mechanism: when `NEXT_TEST_PASSED_FILE` is set (by the workflow), each
-// passing test's filename is appended (one per line) to that file as it
-// finishes. The workflow wraps the test step with `actions/cache@v4`
-// (restore + save-with-`if: always()`) so the file is restored at job
-// start and saved at job end, including on cancel. See
-// `.github/workflows/build_reusable.yml` around the `afterBuild` step
-// for the cache wiring.
+// --- Test profile and result caching via actions cache ---
+// On CI retry attempts, skip tests that already passed on this commit.
+// The file contains null-byte delimited filenames
 
 class TestProfile {
   // Env vars that always affect test behavior (non-NEXT prefixed).
@@ -140,17 +130,11 @@ class TestProfile {
     if (!file) return new Set()
     try {
       const data = fs.readFileSync(file, 'utf8')
-      const passed = new Set()
       // Tolerate a partial trailing line from a hard kill mid-append by
-      // requiring an explicit '\n' terminator. Lines without it are
+      // requiring an explicit '\0' terminator. Lines without it are
       // dropped.
-      const lines = data.split('\n')
-      const last = data.endsWith('\n') ? lines.length : lines.length - 1
-      for (let i = 0; i < last; i++) {
-        const line = lines[i]
-        if (line) passed.add(line)
-      }
-      return passed
+      const lines = data.split('\0')
+      return new Set(data.endsWith('\0') ? lines : lines.slice(0, -1))
     } catch (err) {
       // ENOENT is the normal "no prior attempt" path — silent.
       if (err && err.code !== 'ENOENT') {
@@ -871,7 +855,7 @@ ${ENDGROUP}`)
     try {
       // Ensure durability of our writes by syncing each one.
       // This is a tiny bit of overhead but shouldn't really matter.
-      fs.writeSync(passedTestsFd, `${file}\n`)
+      fs.writeSync(passedTestsFd, `${file}\0`)
       fs.fdatasyncSync(passedTestsFd)
     } catch (err) {
       console.log(`Test result cache: append failed (${err.message})`)
@@ -1057,7 +1041,7 @@ ${ENDGROUP}`)
 
           // Clean up stale timings for deleted tests
           for (const test of Object.keys(newTimings)) {
-            if (!existsSync(path.join(__dirname, test))) {
+            if (!fs.existsSync(path.join(__dirname, test))) {
               console.log('removing stale timing', test)
               delete newTimings[test]
             }
