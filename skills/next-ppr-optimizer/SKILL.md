@@ -25,7 +25,7 @@ Two refactor levers:
   always ask the user with the named presets.
 
 The hard part is **prioritization**: rank candidates by the
-visible pixel area they cover. Largest hole first.
+visible pixel area they cover. Largest gap first.
 
 ## requires
 
@@ -114,12 +114,12 @@ Cache: insert `'use cache'` at the top of the function body, then
 
 ### verify
 
-Re-take the shell-only render. The targeted candidate's hole
+Re-take the shell-only render. The targeted candidate's gap
 should be strictly smaller, or gone (content promoted to shell).
 If neither, undo — a refactor that compiles but doesn't grow the
 shell is still a regression. Then re-run the diagnose-step-1
-sanity check — a botched extract can introduce a no-shell state
-where there wasn't one before.
+check — a botched extract can introduce a no-shell state where
+there wasn't one before.
 
 ## gotchas
 

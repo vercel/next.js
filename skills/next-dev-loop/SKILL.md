@@ -14,7 +14,7 @@ metadata:
 # next-dev-loop
 
 The edit/verify rhythm during `next dev` — make a change, then
-confirm it actually works at runtime, not just that the types or
+confirm it actually works at runtime, not only that the types or
 the build are happy.
 
 You verify through two views of the same running app:
