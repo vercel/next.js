@@ -38,43 +38,33 @@ describe('segment cache (search params shared loading state)', () => {
         }
       )
 
-      // Reveal the second link (with search params) but block its prefetch.
+      // Reveal the second link (with search params). Under optimistic
+      // routing, the cached entry for the no-search-params URL is reused
+      // for this differently-keyed URL, so no new prefetch is initiated.
+      const revealSecondLink = await browser.elementByCss(
+        'input[data-link-accordion="/search-params-shared-loading-state/target-page?param=test"]'
+      )
       await act(async () => {
-        // Block any prefetch requests when revealing the second link. We're
-        // going to test what happens if the navigation happens before the
-        // prefetch is fulfilled.
-        const revealSecondLink = await browser.elementByCss(
-          'input[data-link-accordion="/search-params-shared-loading-state/target-page?param=test"]'
-        )
-        await act(async () => {
-          await revealSecondLink.click()
-        }, 'block')
-
-        // Navigate to the target page.
-        const link = await browser.elementByCss(
-          'a[href="/search-params-shared-loading-state/target-page?param=test"]'
-        )
-        await act(
-          async () => {
-            await link.click()
-          },
-          // This should not make any additional requests, because the target
-          // page is fully static and there was already a cached prefetch to
-          // the same pathname. Even though the search params are different,
-          // we're able to reuse that response.
-          'no-requests'
-        )
-
-        // Verify the navigation completed successfully
-        const staticContent = await browser.elementById('static-content')
-        expect(await staticContent.text()).toBe('Static content')
-        const searchParamsContent = await browser.elementById(
-          'search-params-content'
-        )
-        expect(await searchParamsContent.text()).toBe(
-          'Search param value: test'
-        )
+        await revealSecondLink.click()
       }, 'no-requests')
+
+      // Navigate to the target page. No additional requests are made: the
+      // page is fully static and the prefetch for the same pathname is
+      // reused even though the search params differ.
+      const link = await browser.elementByCss(
+        'a[href="/search-params-shared-loading-state/target-page?param=test"]'
+      )
+      await act(async () => {
+        await link.click()
+      }, 'no-requests')
+
+      // Verify the navigation completed successfully
+      const staticContent = await browser.elementById('static-content')
+      expect(await staticContent.text()).toBe('Static content')
+      const searchParamsContent = await browser.elementById(
+        'search-params-content'
+      )
+      expect(await searchParamsContent.text()).toBe('Search param value: test')
     }
   )
 })

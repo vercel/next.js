@@ -5,7 +5,6 @@ const nextConfig = {
   cacheComponents: true,
   experimental: {
     useOffline: true,
-    optimisticRouting: true,
     cachedNavigations: true,
   },
 }

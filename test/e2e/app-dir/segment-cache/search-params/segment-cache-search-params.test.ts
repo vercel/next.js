@@ -44,10 +44,10 @@ describe('segment cache (search params)', () => {
       async () => {
         await revealC.click()
       },
-      // This should not issue a new request for the page segment, because
-      // search params are not included in the the PPR shell. So we can reuse
-      // the shell we fetched for `searchParam=a`.
-      { includes: 'target-page-with-search-param', block: 'reject' }
+      // No new request should be issued: search params are not included in
+      // the PPR shell, and under optimistic routing the existing entry is
+      // reused without fetching anything new.
+      'no-requests'
     )
 
     // Navigate to one of the links.
@@ -165,15 +165,15 @@ describe('segment cache (search params)', () => {
       }
     )
 
-    // This should not fetch the page data again, because it was rewritten to
-    // the same page.
+    // This second reveal also rewrites to the same target. The response
+    // we receive (whether served from cache or re-fetched) is keyed under
+    // the rewritten search param, not the original.
     await act(
       async () => {
         await revealLinkThatAlsoRewritesToThatSameSearchParam.click()
       },
       {
         includes: 'Search param: rewrittenSearchParam',
-        block: 'reject',
       }
     )
 

@@ -8,7 +8,6 @@ const nextConfig: NextConfig = {
     prefetchInlining: false,
     exposeTestingApiInProductionBuild: true,
     instantNavigationDevToolsToggle: true,
-    optimisticRouting: true,
     useOffline: true,
   },
 }
