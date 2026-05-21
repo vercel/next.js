@@ -1978,7 +1978,7 @@ export const defaultConfig = Object.freeze({
     cachedNavigations: false,
     dynamicOnHover: false,
     useOffline: false,
-    varyParams: false,
+    varyParams: true,
     prefetchInlining: true,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
