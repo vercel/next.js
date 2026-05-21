@@ -42,8 +42,8 @@ export interface SnapshotMetadata {
   appDirOnly?: boolean
   /** `true` when built with `--no-mangling`. */
   noMangling?: boolean
-  /** Optional label overriding branch/sha in display. See `--snapshot-label`. */
-  snapshotLabel?: string
+  /** User-supplied baseline name, overriding branch/sha in display. See `--baseline-name`. */
+  baselineName?: string
   /** Number of routes captured in this snapshot. */
   routeCount: number
 }
@@ -72,8 +72,8 @@ interface BuildSnapshotInputs {
   routes: string[]
   appDirOnly?: boolean
   noMangling?: boolean
-  /** Optional label to use instead of branch/sha when displaying this snapshot. */
-  snapshotLabel?: string
+  /** User-supplied baseline name to use instead of branch/sha when displaying this snapshot. */
+  baselineName?: string
   /** Maximum number of historical snapshots to keep. Defaults to `MAX_HISTORY`. */
   maxHistory?: number
 }
@@ -102,7 +102,7 @@ export async function writeAnalyzeSnapshot({
   routes,
   appDirOnly,
   noMangling,
-  snapshotLabel,
+  baselineName,
   maxHistory = MAX_HISTORY,
 }: BuildSnapshotInputs): Promise<SnapshotMetadata> {
   const dataDir = path.join(analyzeDir, DATA_DIRNAME)
@@ -127,7 +127,7 @@ export async function writeAnalyzeSnapshot({
     gitMessage,
     appDirOnly,
     noMangling,
-    snapshotLabel,
+    baselineName,
     routeCount: routes.length,
   }
 
