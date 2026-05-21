@@ -101,14 +101,22 @@ impl Deref for ExternalEndpoint {
 
 /// Build an `IssueFilter` by reading the project from the endpoint's
 /// `OperationVc<OptionEndpoint>` and extracting ignore rules from its config.
-async fn issue_filter_from_endpoint(
-    endpoint_op: OperationVc<OptionEndpoint>,
-) -> Result<Vc<IssueFilter>> {
-    let endpoint_option = endpoint_op.connect().await?;
-    if let Some(ep) = &*endpoint_option {
-        Ok(ep.project().issue_filter())
-    } else {
-        Ok(IssueFilter::warnings_and_foreign_errors().cell())
+///
+/// If the upstream endpoint operation fails to resolve (e.g. because the build
+/// graph cannot be evaluated transiently — for example during a mid-session
+/// `node_modules` reshuffle), this falls back to a default filter rather than
+/// propagating the error.  In this scenario we believe the caller will already be observing the
+/// same error
+async fn issue_filter_from_endpoint(endpoint_op: OperationVc<OptionEndpoint>) -> Vc<IssueFilter> {
+    match endpoint_op.connect().await {
+        Ok(endpoint_option) => {
+            if let Some(ep) = &*endpoint_option {
+                ep.project().issue_filter()
+            } else {
+                IssueFilter::warnings_and_foreign_errors().cell()
+            }
+        }
+        Err(_) => IssueFilter::warnings_and_foreign_errors().cell(),
     }
 }
 
@@ -124,7 +132,7 @@ async fn get_written_endpoint_with_issues_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
     let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
-    let filter = issue_filter_from_endpoint(endpoint_op).await?;
+    let filter = issue_filter_from_endpoint(endpoint_op).await;
     let (written, issues, effects) =
         strongly_consistent_catch_collectables(write_to_disk_op, filter).await?;
     Ok(WrittenEndpointWithIssues {
@@ -229,25 +237,24 @@ async fn subscribe_issues_and_diags_operation(
 ) -> Result<Vc<EndpointIssuesAndDiags>> {
     let changed_op = endpoint_server_changed_operation(endpoint_op);
 
-    if should_include_issues {
-        let filter = issue_filter_from_endpoint(endpoint_op).await?;
-        let (changed_value, issues, effects) =
-            strongly_consistent_catch_collectables(changed_op, filter).await?;
-        Ok(EndpointIssuesAndDiags {
-            changed: changed_value,
-            issues,
-            effects,
-        }
-        .cell())
-    } else {
-        let changed_value = changed_op.read_strongly_consistent().await?;
-        Ok(EndpointIssuesAndDiags {
-            changed: Some(changed_value),
-            issues: Arc::new(vec![]),
-            effects: Arc::new(Effects::default()),
-        }
-        .cell())
+    // Use catch-collectables in both branches so transient build-graph errors
+    // (e.g. missing `node_modules/next` during a concurrent install) surface as
+    // Issues rather than killing the subscription with a `TurbopackInternalError`.
+    // When `should_include_issues` is false the caller doesn't need the Issue
+    // payload, but we still need the catch path to avoid the FATAL.
+    let filter = issue_filter_from_endpoint(endpoint_op).await;
+    let (changed_value, issues, effects) =
+        strongly_consistent_catch_collectables(changed_op, filter).await?;
+    Ok(EndpointIssuesAndDiags {
+        changed: changed_value,
+        issues: if should_include_issues {
+            issues
+        } else {
+            Arc::new(vec![])
+        },
+        effects,
     }
+    .cell())
 }
 
 #[tracing::instrument(level = "info", name = "get client-side endpoint changes", skip_all)]
@@ -265,11 +272,13 @@ pub fn endpoint_client_changed_subscribe(
             async move {
                 let changed_op = endpoint_client_changed_operation(endpoint_op);
                 // We don't capture issues and diagnostics here since we don't want to be
-                // notified when they change
+                // notified when they change.  We also want errors to propagate so we don't use
+                // strongly_consistent_catch_collectibles either.
                 //
                 // This must be a *read*, not just a resolve, because we need the root task created
                 // by `subscribe` to re-run when the `Completion`'s value changes (via equality),
                 // even if the cell id doesn't change.
+                //
                 let _ = changed_op.read_strongly_consistent().await?;
                 Ok(())
             }
