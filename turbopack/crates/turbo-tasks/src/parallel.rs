@@ -5,10 +5,40 @@
 //!
 //! See also: <https://pwy.io/posts/mimalloc-cigarette/>
 
+use std::{
+    env, io,
+    num::NonZeroUsize,
+    sync::{Arc, OnceLock},
+    thread,
+};
+
 use crate::{
     scope::scope_and_block,
     util::{Chunk, good_chunk_size, into_chunks},
 };
+
+/// Returns the recommended amount of parallelism for the current process. Typically the number of
+/// available CPU cores.
+///
+/// This wraps [`std::thread::available_parallelism`] with a couple extras:
+///
+/// - If the `TURBO_TASKS_AVAILABLE_PARALLELISM` env var is set, overrides the value. Panics if this
+///   env var fails to parse.
+/// - The resolved value is cached in a [`OnceLock`]
+pub fn available_parallelism() -> Result<NonZeroUsize, Arc<io::Error>> {
+    static CACHED: OnceLock<Result<NonZeroUsize, Arc<io::Error>>> = OnceLock::new();
+    CACHED
+        .get_or_init(|| {
+            if let Ok(raw) = env::var("TURBO_TASKS_AVAILABLE_PARALLELISM") {
+                Ok(raw.parse::<NonZeroUsize>().unwrap_or_else(|err| {
+                    panic!("Invalid TURBO_TASKS_AVAILABLE_PARALLELISM={raw:?}: {err}")
+                }))
+            } else {
+                thread::available_parallelism().map_err(Arc::new)
+            }
+        })
+        .clone()
+}
 
 struct Chunked {
     chunk_size: usize,

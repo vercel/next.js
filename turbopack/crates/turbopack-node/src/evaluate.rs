@@ -1,4 +1,4 @@
-use std::{iter, process::ExitStatus, sync::Arc, thread::available_parallelism, time::Duration};
+use std::{iter, process::ExitStatus, sync::Arc, time::Duration};
 
 use anyhow::{Result, bail};
 use async_trait::async_trait;
@@ -11,7 +11,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, FxIndexMap, NonLocalValue, OperationVc, PrettyPrintError, ResolvedVc, TaskInput,
     TryJoinIterExt, ValueToString, Vc, duration_span, fxindexmap, mark_top_level_task,
-    take_effects, trace::TraceRawVcs,
+    parallel::available_parallelism, take_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};

@@ -74,7 +74,6 @@ fn init() {
     use std::{
         cell::RefCell,
         panic::{set_hook, take_hook},
-        thread::available_parallelism,
         time::{Duration, Instant},
     };
 
@@ -83,7 +82,7 @@ fn init() {
     }
 
     use tokio::runtime::Builder;
-    use turbo_tasks::panic_hooks::handle_panic;
+    use turbo_tasks::{panic_hooks::handle_panic, parallel::available_parallelism};
     use turbo_tasks_malloc::TurboMalloc;
 
     let prev_hook = take_hook();

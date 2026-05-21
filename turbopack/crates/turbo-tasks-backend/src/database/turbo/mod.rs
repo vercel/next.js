@@ -2,7 +2,6 @@ use std::{
     cmp::max,
     path::PathBuf,
     sync::Arc,
-    thread::available_parallelism,
     time::{Duration, Instant, SystemTime},
 };
 
@@ -13,6 +12,7 @@ use turbo_persistence::{
 };
 use turbo_tasks::{
     message_queue::{TimingEvent, TraceEvent},
+    parallel::available_parallelism,
     turbo_tasks,
 };
 
