@@ -33,6 +33,13 @@ pub struct Invalidator {
 }
 
 impl Invalidator {
+    /// The [`TaskId`] of the task this invalidator targets. Used for diagnostics
+    /// (e.g. resolving the producing task's name via
+    /// [`TurboTasksApi::get_task_name`][crate::TurboTasksApi::get_task_name]).
+    pub fn task_id(&self) -> TaskId {
+        self.task
+    }
+
     pub fn invalidate(self, turbo_tasks: &dyn TurboTasksApi) {
         turbo_tasks.invalidate(self.task);
     }

@@ -162,6 +162,7 @@ impl_task_input! {
     u32,
     i32,
     u64,
+    u128,
     usize,
     RcStr,
     TaskId,
