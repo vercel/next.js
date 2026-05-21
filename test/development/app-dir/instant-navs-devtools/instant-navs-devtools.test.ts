@@ -409,6 +409,7 @@ describe('instant-nav-panel', () => {
 
       await openInstantNavPanel(browser)
       await clickStartCapturing(browser)
+      await expectPendingPanel(browser)
       await browser.eval(() => {
         document
           .querySelector<HTMLAnchorElement>('#link-to-mpa-target')!

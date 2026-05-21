@@ -210,24 +210,8 @@ export function startListeningForInstantNavigationCookie(): void {
 }
 
 /**
- * Transitions the cookie from pending to captured-SPA. Called when a
- * client-side navigation is captured by the lock.
- *
- * @param fromTree - The flight router state of the from-route
- * @param toTree - The flight router state of the to-route (null if not yet known)
- */
-export function transitionToCapturedSPA(
-  fromTree: FlightRouterState,
-  toTree: FlightRouterState | null
-): void {
-  if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    writeCookieValue([1, `c${Math.random()}`, { from: fromTree, to: toTree }])
-  }
-}
-
-/**
- * Updates the captured-SPA cookie with the resolved route trees.
- * Called after the prefetch resolves and the target route tree is known.
+ * Transitions the cookie from pending to captured-SPA once the prefetch resolves
+ * and the navigation is known to be an SPA.
  */
 export function updateCapturedSPAToTree(
   fromTree: FlightRouterState,
