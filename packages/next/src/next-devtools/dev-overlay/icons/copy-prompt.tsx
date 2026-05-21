@@ -21,29 +21,3 @@ export function CopyPromptIcon({
     </svg>
   )
 }
-
-export function CheckIcon({
-  width = 12,
-  height = 12,
-}: {
-  width?: number
-  height?: number
-}) {
-  return (
-    <svg
-      width={width}
-      height={height}
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <path
-        fill="currentColor"
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="m15.56 4-.53.53-8.8 8.8c-.68.68-1.78.68-2.47 0l.53-.54-.53.53-2.79-2.79L.44 10 1.5 8.94l.53.53 2.8 2.8c.1.09.25.09.35 0l8.79-8.8.53-.53z"
-      />
-    </svg>
-  )
-}

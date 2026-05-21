@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   FixCardAlignLeftIcon,
   FixCardDatabaseIcon,
@@ -10,7 +9,8 @@ import {
   FixCardTimerIcon,
   FixCardZapIcon,
 } from '../../icons/fix-card-icons'
-import { CheckIcon, CopyPromptIcon } from '../../icons/copy-prompt'
+import { CopyPromptIcon } from '../../icons/copy-prompt'
+import { CopyButton } from '../copy-button'
 import { ExternalIcon } from '../../icons/external'
 import { css } from '../../utils/css'
 import {
@@ -56,49 +56,14 @@ function getCardIcon(icon: FixCardIcon) {
 }
 
 function CopyPromptButton({ prompt }: { prompt: string }) {
-  const [copied, setCopied] = useState(false)
-  const resetTimerRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    return () => {
-      if (resetTimerRef.current !== null) {
-        window.clearTimeout(resetTimerRef.current)
-      }
-    }
-  }, [])
-
-  const onCopy = useCallback(() => {
-    if (!navigator.clipboard?.writeText) {
-      return
-    }
-
-    void navigator.clipboard
-      .writeText(prompt)
-      .then(() => {
-        setCopied(true)
-        if (resetTimerRef.current !== null) {
-          window.clearTimeout(resetTimerRef.current)
-        }
-        resetTimerRef.current = window.setTimeout(() => {
-          setCopied(false)
-          resetTimerRef.current = null
-        }, 2000)
-      })
-      .catch(() => {
-        // Ignore clipboard failures (permissions, insecure context).
-      })
-  }, [prompt])
-
   return (
-    <button
-      type="button"
+    <CopyButton
+      content={prompt}
+      actionLabel="Copy prompt"
+      successLabel="Prompt copied"
+      icon={<CopyPromptIcon />}
       data-nextjs-fix-card-copy-button
-      aria-label={copied ? 'Prompt copied' : 'Copy prompt'}
-      title={copied ? 'Prompt copied' : 'Copy prompt'}
-      onClick={onCopy}
-    >
-      {copied ? <CheckIcon /> : <CopyPromptIcon />}
-    </button>
+    />
   )
 }
 
@@ -529,6 +494,11 @@ export const INSTANT_GUIDANCE_STYLES = css`
       color 120ms ease;
     width: 24px;
     z-index: 1;
+  }
+
+  [data-nextjs-fix-card-copy-button] svg {
+    width: var(--size-12);
+    height: var(--size-12);
   }
 
   [data-nextjs-fix-card-copy-button]:hover {
