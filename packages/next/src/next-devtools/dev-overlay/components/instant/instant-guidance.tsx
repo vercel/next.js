@@ -9,7 +9,6 @@ import {
   FixCardTimerIcon,
   FixCardZapIcon,
 } from '../../icons/fix-card-icons'
-import { CopyPromptIcon } from '../../icons/copy-prompt'
 import { CopyButton } from '../copy-button'
 import { ExternalIcon } from '../../icons/external'
 import { css } from '../../utils/css'
@@ -61,7 +60,6 @@ function CopyPromptButton({ prompt }: { prompt: string }) {
       content={prompt}
       actionLabel="Copy prompt"
       successLabel="Prompt copied"
-      icon={<CopyPromptIcon />}
       data-nextjs-fix-card-copy-button
     />
   )
@@ -472,7 +470,12 @@ export const INSTANT_GUIDANCE_STYLES = css`
   }
 
   [data-nextjs-fix-card-wrapper] {
+    display: flex;
     position: relative;
+  }
+
+  [data-nextjs-fix-card-wrapper] > [data-nextjs-fix-card] {
+    flex: 1;
   }
 
   [data-nextjs-fix-card-copy-button] {
