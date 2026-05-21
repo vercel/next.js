@@ -521,6 +521,9 @@ jobs:
     with:
       skipNativeBuild: 'yes'
       skipNativeInstall: 'yes'
+      # `afterBuild` invokes `rustup target add`, which is not preinstalled
+      # in the Playwright Docker image; run this job on the bare runner.
+      usePlaywrightContainer: 'no'
       afterBuild: |
         rustup target add wasm32-unknown-unknown
         node ./scripts/normalize-version-bump.js

@@ -203,7 +203,8 @@ function startServer(dir: string, port: number): Promise<void> {
 
     server.on('error', onError)
 
-    server.listen(port, 'localhost', () => {
+    // Listen on localhost (both IPv4 and IPv6)
+    server.listen(port, () => {
       const address = server.address()
       if (address == null) {
         reject(new Error('Unable to get server address'))
