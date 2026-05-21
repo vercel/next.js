@@ -1979,6 +1979,7 @@ export const defaultConfig = Object.freeze({
     dynamicOnHover: false,
     useOffline: false,
     varyParams: true,
+    optimisticRouting: true,
     prefetchInlining: true,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
