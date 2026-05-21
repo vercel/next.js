@@ -614,7 +614,7 @@ impl Display for CommandOutput {
         write!(
             f,
             "---------- Stdout ----------\n{}\n---------- Stderr ----------\n{}",
-            &self.stdout, &self.stderr,
+            self.stdout, self.stderr,
         )
     }
 }

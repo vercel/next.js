@@ -132,7 +132,7 @@ impl Introspectable for StaticAssetsContentSource {
                         }
                         DirectoryEntry::Directory(path) => ResolvedVc::upcast(
                             StaticAssetsContentSource::with_prefix(
-                                Vc::cell(format!("{}{name}/", &*prefix).into()),
+                                Vc::cell(format!("{}{name}/", prefix).into()),
                                 path.clone(),
                             )
                             .to_resolved()

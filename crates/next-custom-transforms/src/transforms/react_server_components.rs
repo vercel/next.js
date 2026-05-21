@@ -565,17 +565,11 @@ fn collect_module_info(
                 }
                 finished_directives = true;
             }
-            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl {
-                decl: _,
-                ..
-            })) => {
+            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(ExportDefaultDecl { .. })) => {
                 export_names.push(atom!("default"));
                 finished_directives = true;
             }
-            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
-                expr: _,
-                ..
-            })) => {
+            ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr { .. })) => {
                 export_names.push(atom!("default"));
                 finished_directives = true;
             }

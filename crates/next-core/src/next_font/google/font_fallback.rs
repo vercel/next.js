@@ -90,7 +90,7 @@ pub(super) async fn get_font_fallback(
                         title: StyledString::Text(
                             format!(
                                 "Failed to find font override values for font `{}`",
-                                &options.font_family,
+                                options.font_family,
                             )
                             .into(),
                         )

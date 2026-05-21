@@ -326,7 +326,7 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     let relative_path = resource_path.strip_prefix(&*REPO_ROOT).with_context(|| {
         format!(
             "stripping repo root {:?} from resource path {:?}",
-            &*REPO_ROOT,
+            REPO_ROOT,
             resource_path.display()
         )
     })?;

@@ -547,7 +547,7 @@ impl Error for TurboTasksExecutionError {
 impl Display for TurboTasksExecutionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TurboTasksExecutionError::Panic(panic) => write!(f, "{}", &panic),
+            TurboTasksExecutionError::Panic(panic) => write!(f, "{}", panic),
             TurboTasksExecutionError::Error(error) => {
                 write!(f, "{}", error.message)
             }

@@ -1406,10 +1406,7 @@ fn extract_names_from_object_pat(pat: &Pat) -> Option<SmallVec<[RcStr; 1]>> {
         match prop {
             ObjectPatProp::KeyValue(kv) => match &kv.key {
                 PropName::Ident(ident) => names.push(ident.sym.as_str().into()),
-                PropName::Str(s) => match s.value.as_str() {
-                    Some(str_val) => names.push(str_val.into()),
-                    None => return None, // non-UTF-8 string key
-                },
+                PropName::Str(s) => names.push(s.value.as_str()?.into()),
                 _ => return None, // computed key, can't determine statically
             },
             ObjectPatProp::Assign(assign) => {

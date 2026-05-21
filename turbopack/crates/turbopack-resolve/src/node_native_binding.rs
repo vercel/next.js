@@ -435,7 +435,7 @@ async fn resolve_node_bindings_files(
 
     let modules = BINDINGS_TRY
         .iter()
-        .map(|try_dir| try_path.clone()(format!("{}/{}", try_dir, &file_name).into()))
+        .map(|try_dir| try_path.clone()(format!("{}/{}", try_dir, file_name).into()))
         .try_flat_join()
         .await?;
     Ok(*ModuleResolveResult::modules(modules))

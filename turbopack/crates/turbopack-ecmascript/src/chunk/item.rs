@@ -328,7 +328,7 @@ async fn module_factory_with_code_generation_issue(
             .emit();
             let mut code = CodeBuilder::default();
             code += "(() => {{\n\n";
-            writeln!(code, "throw new Error({error});", error = &js_error_message)?;
+            writeln!(code, "throw new Error({error});", error = js_error_message)?;
             code += "\n}})";
             *code.build().cell_persisted()
         }

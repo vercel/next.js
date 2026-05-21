@@ -1587,7 +1587,7 @@ impl AppEndpoint {
                         client_relative_path.clone(),
                         node_root.join(&format!(
                             "server/app{}/react-loadable-manifest",
-                            &app_entry.original_name
+                            app_entry.original_name
                         ))?,
                         NextRuntime::Edge,
                     )
@@ -1711,7 +1711,7 @@ impl AppEndpoint {
                         client_relative_path.clone(),
                         node_root.join(&format!(
                             "server/app{}/react-loadable-manifest",
-                            &app_entry.original_name
+                            app_entry.original_name
                         ))?,
                         NextRuntime::NodeJs,
                     )
