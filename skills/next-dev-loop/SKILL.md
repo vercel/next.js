@@ -6,9 +6,6 @@ description: >
   just that it compiles or type-checks. Combines /_next/mcp
   (Next.js's view) with agent-browser (the browser's view).
   Requires a running `next dev`.
-disable-model-invocation: true
-metadata:
-  draft: true
 ---
 
 # next-dev-loop

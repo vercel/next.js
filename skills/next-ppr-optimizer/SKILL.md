@@ -4,9 +4,6 @@ description: >
   Optimize the static shell of a `cacheComponents` page. Use this
   skill when a Next.js page feels slow on first paint and you want
   to maximize what's prerendered before any dynamic data streams in.
-disable-model-invocation: true
-metadata:
-  draft: true
 ---
 
 # next-ppr-optimizer
