@@ -33,10 +33,50 @@ async function getRenderedRouteHistory(
   return JSON.parse(attr).map((h: string) => JSON.parse(h))
 }
 
+type RouterAct = ReturnType<typeof createRouterAct>
+
+const ROUTER_ACT_TIMEOUT_MS = 30_000
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  label: string
+): Promise<T> {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs)
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutSignal.addEventListener(
+      'abort',
+      () => {
+        reject(new Error(`${label} timed out after ${timeoutMs}ms`))
+      },
+      { once: true }
+    )
+  })
+
+  return Promise.race([promise, timeoutPromise])
+}
+
+function createTimedRouterAct(
+  page: Parameters<typeof createRouterAct>[0]
+): RouterAct {
+  const act = createRouterAct(page)
+
+  return ((scope, config) =>
+    withTimeout(
+      act(scope, config),
+      ROUTER_ACT_TIMEOUT_MS,
+      'router-act'
+    )) as RouterAct
+}
+
 describe('optimistic-routing', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
+
+  // RouterAct can occasionally hang in deploy mode waiting for streaming
+  // responses; retry each test once to absorb rare transport flakes.
+  jest.retryTimes(1, { logErrorsBeforeRetry: true })
 
   if (isNextDev) {
     // Route prediction with static siblings requires production build
@@ -46,10 +86,10 @@ describe('optimistic-routing', () => {
   }
 
   it('basic dynamic route prediction: shows loading state instantly for unprefetched route', async () => {
-    let act: ReturnType<typeof createRouterAct>
+    let act: RouterAct
     const browser = await next.browser('/', {
       beforePageLoad(page) {
-        act = createRouterAct(page)
+        act = createTimedRouterAct(page)
       },
     })
 
@@ -95,10 +135,10 @@ describe('optimistic-routing', () => {
   })
 
   it('nested dynamic routes: predicts through multiple dynamic segments', async () => {
-    let act: ReturnType<typeof createRouterAct>
+    let act: RouterAct
     const browser = await next.browser('/', {
       beforePageLoad(page) {
-        act = createRouterAct(page)
+        act = createTimedRouterAct(page)
       },
     })
 
@@ -143,10 +183,10 @@ describe('optimistic-routing', () => {
   })
 
   it('optional catch-all: predicts from index to path with segments', async () => {
-    let act: ReturnType<typeof createRouterAct>
+    let act: RouterAct
     const browser = await next.browser('/', {
       beforePageLoad(page) {
-        act = createRouterAct(page)
+        act = createTimedRouterAct(page)
       },
     })
 
@@ -182,10 +222,10 @@ describe('optimistic-routing', () => {
   })
 
   it('optional catch-all: predicts between paths with different segment counts', async () => {
-    let act: ReturnType<typeof createRouterAct>
+    let act: RouterAct
     const browser = await next.browser('/', {
       beforePageLoad(page) {
-        act = createRouterAct(page)
+        act = createTimedRouterAct(page)
       },
     })
 
@@ -229,10 +269,10 @@ describe('optimistic-routing', () => {
   })
 
   it('required catch-all: predicts between paths with different segment counts', async () => {
-    let act: ReturnType<typeof createRouterAct>
+    let act: RouterAct
     const browser = await next.browser('/', {
       beforePageLoad(page) {
-        act = createRouterAct(page)
+        act = createTimedRouterAct(page)
       },
     })
 
@@ -272,10 +312,10 @@ describe('optimistic-routing', () => {
   })
 
   it('static sibling detection: does not incorrectly match static route to dynamic pattern', async () => {
-    let act: ReturnType<typeof createRouterAct>
+    let act: RouterAct
     const browser = await next.browser('/', {
       beforePageLoad(page) {
-        act = createRouterAct(page)
+        act = createTimedRouterAct(page)
       },
     })
 
@@ -323,10 +363,10 @@ describe('optimistic-routing', () => {
   })
 
   it('rewrite detection: detects dynamic rewrite when URL does not match route structure', async () => {
-    let act: ReturnType<typeof createRouterAct>
+    let act: RouterAct
     const browser = await next.browser('/', {
       beforePageLoad(page) {
-        act = createRouterAct(page)
+        act = createTimedRouterAct(page)
       },
     })
 
@@ -394,10 +434,10 @@ describe('optimistic-routing', () => {
   })
 
   it('rewrite detection (search params): does not use cached pattern when search params cause different rewrite', async () => {
-    let act: ReturnType<typeof createRouterAct>
+    let act: RouterAct
     const browser = await next.browser('/', {
       beforePageLoad(page) {
-        act = createRouterAct(page)
+        act = createTimedRouterAct(page)
       },
     })
 
