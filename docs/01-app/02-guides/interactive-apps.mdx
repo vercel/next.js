@@ -6,7 +6,7 @@ nav_title: Interactive apps
 
 Server Components render the current server data. Client Components start interactions before the next server render is ready. Without additional state, the UI keeps showing the old server props while a Server Function, form action, or navigation is still running.
 
-This guide shows how to coordinate that pending work in a task management board called _Taskboard_. It assumes [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) mode is enabled.
+This guide shows how to coordinate that pending work in a task management board called _Taskboard_.
 
 ## Example
 
@@ -658,6 +658,8 @@ The button is the only component that knows when deletion is pending. Passing `i
 ### Step 8: Make repeat navigation instant
 
 Every pattern so far smooths a single interaction. Across navigations, the same reads still rerun and the same fallbacks still paint. Caching reusable reads — and prefetching them with the real request — closes that gap without moving the data model into the browser.
+
+This step uses `'use cache'` and `updateTag`, which require [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) mode. Steps 1–7 work without it. If you are not using Cache Components, see [Caching without Cache Components](/docs/app/guides/caching-without-cache-components).
 
 For each server read, ask: _would the next viewer see the same thing?_ Most tasks and comments would.
 
