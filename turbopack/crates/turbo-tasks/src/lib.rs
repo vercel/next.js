@@ -55,6 +55,7 @@ mod state;
 pub mod task;
 mod task_execution_reason;
 pub mod task_statistics;
+mod tiny_vec;
 pub mod trace;
 mod trait_ref;
 mod triomphe_utils;
@@ -108,6 +109,7 @@ pub use crate::{
         task_input::{EitherTaskInput, TaskInput},
     },
     task_execution_reason::TaskExecutionReason,
+    tiny_vec::TinyVec,
     trait_ref::TraitRef,
     value::{TransientInstance, TransientValue},
     value_type::{Evictability, TraitMethod, TraitType, ValueType, ValueTypePersistence},

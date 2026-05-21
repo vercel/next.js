@@ -52,8 +52,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
@@ -67,8 +67,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
@@ -85,8 +85,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
@@ -100,8 +100,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
@@ -118,8 +118,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
@@ -133,8 +133,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
@@ -155,8 +155,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -170,8 +170,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -188,8 +188,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -203,8 +203,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -221,8 +221,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -236,8 +236,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -254,8 +254,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
@@ -269,8 +269,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
@@ -287,8 +287,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
@@ -302,8 +302,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
@@ -320,8 +320,8 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
@@ -335,8 +335,8 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1221",
-         "description": "Next.js encountered runtime data during the initial render.",
+         "code": "E1272",
+         "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout

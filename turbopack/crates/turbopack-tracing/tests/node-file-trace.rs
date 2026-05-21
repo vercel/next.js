@@ -51,6 +51,7 @@ use turbopack_core::{
     rebase::RebasedAsset,
     reference::all_assets_from_entry,
     reference_type::ReferenceType,
+    resolve::options::ConditionValue,
 };
 use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -414,6 +415,7 @@ async fn node_file_trace_operation(
             enable_node_native_modules: true,
             enable_node_modules: Some(input_dir.clone()),
             custom_conditions: vec![rcstr!("node")],
+            module_sync: ConditionValue::Unknown,
             collect_affecting_sources: true,
             ..Default::default()
         }

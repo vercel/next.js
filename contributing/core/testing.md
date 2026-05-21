@@ -214,6 +214,15 @@ On Linux, this generates stripped `@next/swc` binaries to avoid exceeding 2 GiB,
 known to cause problems with `pnpm`](https://github.com/libuv/libuv/pull/1501). That behavior can be
 overridden with `--compress objcopy-zstd` on Linux (which is slower, but retains debuginfo).
 
+To create tarballs that can be deployed with a project, use:
+
+```bash
+pnpm pack-next --project ~/my-project/ --deployable-tar
+```
+
+This writes the tarballs to a `tarballs` directory next to the patched project `package.json` and
+uses relative `file:` references so the tarballs can be included with the project.
+
 These tarballs can be extracted directly into a project's `node_modules` directory (bypassing the
 package manager) by using:
 

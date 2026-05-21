@@ -325,7 +325,7 @@ export function isSyncIOClientError(message: string): boolean {
 // Detects errors emitted during navigation-phase instant validation: body
 // errors from `createRuntimeBodyErrorInNavigation` /
 // `createDynamicBodyErrorInNavigation` (SSR factories instead say "during
-// the initial render"), and validation errors from
+// prerendering"), and validation errors from
 // `trackDynamicHoleInNavigation` / `getNavigationDisallowedDynamicReasons`.
 export function isBlockingRouteInNavError(message: string): boolean {
   return (
@@ -559,10 +559,10 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
             errorDetails.variant === 'runtime'
               ? errorDetails.inNavigation
                 ? 'Next.js encountered runtime data during a navigation.'
-                : 'Next.js encountered runtime data during the initial render.'
+                : 'Next.js encountered runtime data during prerendering.'
               : errorDetails.inNavigation
                 ? 'Next.js encountered uncached data during a navigation.'
-                : 'Next.js encountered uncached data during the initial render.'
+                : 'Next.js encountered uncached data during prerendering.'
           }
           headerChildren={
             <InstantHeaderExplanation
@@ -684,8 +684,8 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           errorType={errorType}
           errorMessage={
             <>
-              Next.js encountered <code>{errorDetails.cause}</code> without an
-              explicit rendering intent.
+              Next.js encountered the unstable value{' '}
+              <code>{errorDetails.cause}</code> while prerendering.
             </>
           }
           headerChildren={
@@ -724,13 +724,13 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           errorType={errorType}
           errorMessage={
             <>
-              Next.js encountered <code>{errorDetails.cause}</code> in a Client
-              Component.
+              Next.js encountered the unstable value{' '}
+              <code>{errorDetails.cause}</code> in a Client Component.
             </>
           }
           headerChildren={
             <InstantHeaderExplanation
-              explanation="This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit."
+              explanation="This value would be evaluated during the prerender, instead of recomputed on each visit."
               docsUrl={SYNC_IO_CLIENT_DOCS[errorDetails.cause]}
             />
           }

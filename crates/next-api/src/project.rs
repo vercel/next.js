@@ -588,9 +588,10 @@ impl ProjectContainer {
             node_version = options.current_node_js_version.as_str(),
             os = std::env::consts::OS,
             arch = std::env::consts::ARCH,
-            cpu_cores = std::thread::available_parallelism()
-                .map(|n| n.get())
-                .unwrap_or(0),
+            turbo_tasks_available_parallelism =
+                turbo_tasks::parallel::available_parallelism().map(|n| n.get()).unwrap_or(0),
+            std_thread_available_parallelism =
+                std::thread::available_parallelism().map(|n| n.get()).unwrap_or(0),
             dev = options.dev,
             env_diff = Empty
         );
