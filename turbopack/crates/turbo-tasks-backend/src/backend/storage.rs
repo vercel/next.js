@@ -14,7 +14,9 @@ use hashbrown::raw::RawIntoIter;
 use thread_local::ThreadLocal;
 use tracing::span::Id;
 use turbo_bincode::TurboBincodeBuffer;
-use turbo_tasks::{FxDashMap, TaskId, backend::CachedTaskTypeArc, event::Event, parallel};
+use turbo_tasks::{
+    FxDashMap, TaskId, ValueTypeId, backend::CachedTaskTypeArc, event::Event, parallel,
+};
 
 use crate::{
     backend::storage_schema::{
@@ -679,6 +681,76 @@ impl Storage {
 
         totals
     }
+
+    /// Debug-only audit: enumerate every cell of every task (transient and
+    /// persistent) and record `(task_id, value_type_id, strong_count)`.
+    ///
+    /// Transient vs. persistent is recovered from `task_id.is_transient()`
+    /// at aggregation time. Aggregation and formatting live in
+    /// `TurboTasksBackendInner::dump_memory_audit` because the human-readable
+    /// chain trace needs backend-level APIs.
+    ///
+    /// Read-only: takes a read lock per shard.
+    pub fn audit_all_cells(&self) -> AuditRawData {
+        let shards: Vec<_> = self.map.shards().iter().collect();
+        let per_shard: Vec<(Vec<AuditCellEntry>, usize, usize)> =
+            parallel::map_collect(&shards, |shard| {
+                let shard_guard = shard.read();
+                let mut entries: Vec<AuditCellEntry> = Vec::new();
+                let mut transient_tasks: usize = 0;
+                let mut persistent_tasks: usize = 0;
+                // SAFETY: shard_guard outlives the iterator and the bucket refs.
+                for bucket in unsafe { shard_guard.iter() } {
+                    // SAFETY: the guard guarantees the bucket and the ptr are valid.
+                    let (task_id, shared_value) = unsafe { bucket.as_ref() };
+                    if task_id.is_transient() {
+                        transient_tasks += 1;
+                    } else {
+                        persistent_tasks += 1;
+                    }
+                    let storage = shared_value.get();
+                    for (cell_id, shared_ref) in storage.audit_iter_cell_data() {
+                        entries.push(AuditCellEntry {
+                            task_id: *task_id,
+                            type_id: cell_id.type_id,
+                            strong_count: triomphe::Arc::strong_count(&shared_ref.0),
+                        });
+                    }
+                }
+                drop(shard_guard);
+                (entries, transient_tasks, persistent_tasks)
+            });
+
+        let total_transient_tasks: usize = per_shard.iter().map(|(_, n, _)| *n).sum();
+        let total_persistent_tasks: usize = per_shard.iter().map(|(_, _, n)| *n).sum();
+        let total_cells: usize = per_shard.iter().map(|(v, _, _)| v.len()).sum();
+        let mut cells = Vec::with_capacity(total_cells);
+        for (mut v, _, _) in per_shard {
+            cells.append(&mut v);
+        }
+        AuditRawData {
+            cells,
+            transient_task_count: total_transient_tasks,
+            persistent_task_count: total_persistent_tasks,
+        }
+    }
+}
+
+/// Per-cell entry produced by [`Storage::audit_all_cells`]. `is_transient` is
+/// recoverable from `task_id.is_transient()` so it isn't duplicated here.
+#[derive(Debug)]
+pub struct AuditCellEntry {
+    pub task_id: TaskId,
+    pub type_id: ValueTypeId,
+    pub strong_count: usize,
+}
+
+/// Raw, pre-aggregation result of an audit pass.
+#[derive(Debug)]
+pub struct AuditRawData {
+    pub cells: Vec<AuditCellEntry>,
+    pub transient_task_count: usize,
+    pub persistent_task_count: usize,
 }
 
 pub struct StorageWriteGuard<'a> {

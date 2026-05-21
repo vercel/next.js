@@ -626,6 +626,18 @@ impl TaskStorage {
 // =============================================================================
 
 impl TaskStorage {
+    /// Iterate over cells held in this task's data, if any.
+    ///
+    /// Re-exposes the macro-generated `cell_data()` accessor (which is
+    /// module-private) for use by the transient-memory audit in
+    /// [`crate::backend::storage::Storage::audit_transient_cells`]. Returns an
+    /// empty iterator if the data category isn't resident.
+    pub(crate) fn audit_iter_cell_data(
+        &self,
+    ) -> impl Iterator<Item = (&CellId, &SharedReference)> + '_ {
+        self.cell_data().into_iter().flat_map(|c| c.iter())
+    }
+
     /// Find a lazy field by predicate (immutable).
     ///
     /// The `extract` closure should return `Some(&T)` for the matching variant,
