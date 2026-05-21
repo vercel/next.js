@@ -10,7 +10,6 @@ const nextConfig: NextConfig = {
     instantNavigationDevToolsToggle: true,
     optimisticRouting: true,
     useOffline: true,
-    varyParams: true,
   },
 }
 
