@@ -405,7 +405,6 @@ impl OutputAsset for CssChunk {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let ident = self.ident_for_path();
-        println!("{:?}, ident: {}", self, ident.to_string().await?);
 
         Ok(self.await?.chunking_context.chunk_path(
             Some(Vc::upcast(self)),
