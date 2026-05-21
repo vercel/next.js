@@ -132,6 +132,10 @@ env:
   # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
   # argument is provided
   TEST_CONCURRENCY: 8
+  # overrides `turbo_tasks::parallel::available_parallelism`. Smaller values are more CPU and memory
+  # efficient, but won't fully utilize all available CPU cores. A small value here makes sense since
+  # we're running many tests in parallel.
+  TURBO_TASKS_AVAILABLE_PARALLELISM: 4
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
 
