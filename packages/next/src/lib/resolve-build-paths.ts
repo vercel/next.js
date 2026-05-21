@@ -40,6 +40,12 @@ export async function resolveBuildPaths(
   const appPaths: Set<string> = new Set()
   const pagePaths: Set<string> = new Set()
 
+  const srcDir = path.join(projectDir, 'src')
+  const buildPathsDir =
+    fs.existsSync(srcDir) && fs.statSync(srcDir).isDirectory()
+      ? srcDir
+      : projectDir
+
   const includePatterns: string[] = []
   const excludePatterns: string[] = []
 
@@ -67,7 +73,7 @@ export async function resolveBuildPaths(
 
   try {
     const matches = (await glob(combinedPattern, {
-      cwd: projectDir,
+      cwd: buildPathsDir,
       ignore: excludePatterns,
     })) as string[]
 
@@ -76,7 +82,7 @@ export async function resolveBuildPaths(
     }
 
     for (const file of matches) {
-      if (!fs.statSync(path.join(projectDir, file)).isDirectory()) {
+      if (!fs.statSync(path.join(buildPathsDir, file)).isDirectory()) {
         categorizeAndAddPath(file, appPaths, pagePaths)
       }
     }
