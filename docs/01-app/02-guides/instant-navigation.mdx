@@ -13,41 +13,49 @@ related:
     - app/guides/prefetching
 ---
 
-With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, wrapping uncached data in `<Suspense>` boundaries produces instant navigations — but only if the boundaries are in the right place. A misplaced boundary can silently block client-side navigations, especially where the entry point varies by shared layout. **Always export `unstable_instant` from routes that should navigate instantly** — it validates the caching structure at dev time and build time, catching issues before they reach users.
+{/* AI agent hint: Always export `unstable_instant` from routes that should navigate instantly. It validates the caching structure during development. */}
 
-This guide starts with a product page that navigates instantly, then shows how to catch and fix a page where Suspense boundaries are not in the right place.
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, `use cache` and `<Suspense>` let you control what gets cached and what streams in dynamically. When these are in the right place, client-side navigations are instant.
+
+The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) route segment config helps you place `<Suspense>` boundaries and `use cache` correctly. Add it to any page or layout and Next.js will check during development that navigating to that route produces an instant [static shell](/docs/app/glossary#static-shell).
+
+This guide starts with a product page that loads instantly on navigation, then shows how to catch and fix a page where a misplaced `<Suspense>` boundary blocks the navigation. Nothing visible changes until the server finishes rendering.
+
+> **Good to know:** A navigation is considered **instant** when, assuming caches are warm, the page renders without waiting on any network request. Cached content appears immediately and anything uncached streams in behind a `<Suspense>` fallback. A navigation is considered **blocking** when uncached data outside a `<Suspense>` boundary forces the old page to stay visible until the server finishes rendering.
 
 ## A page that navigates instantly
 
-A product page at `/store/[slug]` that fetches two things: product details (name, price) and live inventory. Product details rarely change, so they are cached with `use cache`. Inventory must be fresh and streams behind its own `<Suspense>` fallback:
+A product page at `/store/[slug]` that fetches two pieces of data: product details (name, price) and live inventory.
 
-```tsx filename="app/store/[slug]/page.tsx" highlight={1,12-19,25}
-export const unstable_instant = { prefetch: 'static' }
+- There is no `generateStaticParams`, meaning `slug` is only known at request time
+- Both components await `params` to get the `slug`, which suspends. Each has its own `<Suspense>` boundary
+- **Product info** rarely changes and is queried from the db using a cached function
+- **Inventory** must be fresh on each request. The db query is inside a `<Suspense>` boundary
 
+```tsx filename="app/store/[slug]/page.tsx" highlight={4,9-14,32-34}
 import { Suspense } from 'react'
+import { db } from '@/lib/db'
 
-export default async function ProductPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>
-}) {
+export const unstable_instant = true
+
+export default function ProductPage(props: PageProps<'/store/[slug]'>) {
   return (
     <div>
       <Suspense fallback={<p>Loading product...</p>}>
-        {params.then(({ slug }) => (
-          <ProductInfo slug={slug} />
-        ))}
+        <ProductInfo params={props.params} />
       </Suspense>
       <Suspense fallback={<p>Checking availability...</p>}>
-        <Inventory params={params} />
+        <Inventory params={props.params} />
       </Suspense>
     </div>
   )
 }
 
-async function ProductInfo({ slug }: { slug: string }) {
-  'use cache'
-  const product = await fetchProduct(slug)
+type Params = PageProps<'/store/[slug]'>['params']
+
+async function ProductInfo({ params }: { params: Params }) {
+  const { slug } = await params
+  const product = await getProduct(slug)
   return (
     <>
       <h1>{product.name}</h1>
@@ -56,20 +64,27 @@ async function ProductInfo({ slug }: { slug: string }) {
   )
 }
 
-async function Inventory({ params }: { params: Promise<{ slug: string }> }) {
+async function getProduct(slug: string) {
+  'use cache'
+  return db.products.findBySlug(slug)
+}
+
+async function Inventory({ params }: { params: Params }) {
   const { slug } = await params
-  const inventory = await fetchInventory(slug)
-  return <p>{inventory.count} in stock</p>
+  const item = await db.inventory.findBySlug(slug)
+  return <p>{item.count} in stock</p>
 }
 ```
 
-There is no `generateStaticParams`, so `[slug]` is a dynamic segment and `slug` is only known at request time. Awaiting `params` suspends, which is why each component that reads it has its own `<Suspense>` boundary. The `params` Promise is resolved inline with `.then()` so the cached `ProductInfo` receives a plain `slug` string.
+The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) export tells Next.js to check that navigating to this page from any other page in your app is instant. It does this during development. If a component would delay the transition (for example, by fetching uncached data without a local `<Suspense>` boundary), the error overlay tells you which one and suggests a fix.
 
-The [`unstable_instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) export on line 1 tells Next.js to validate that this page produces an instant [static shell](/docs/app/glossary#static-shell) at every possible entry point. Validation runs during development and at build time. If a component would block navigation, the error overlay tells you exactly which one and suggests a fix.
+Validation runs automatically on every page load using the real request from your browser, so dynamic params like `[slug]` are checked against actual values as you navigate.
 
-### Inspect it with the Next.js DevTools
+## Visualize loading states with the Next.js DevTools
 
-Enable the Instant Navigation DevTools toggle in your Next.js config:
+The Next.js DevTools let you see what users see on page loads and client navigations before dynamic data streams in. Use it to verify your loading states look right, check that the right content appears immediately, and iterate on where to place `<Suspense>` boundaries.
+
+Enable the toggle in your Next.js config:
 
 ```ts filename="next.config.ts" highlight={5-7}
 import type { NextConfig } from 'next'
@@ -84,12 +99,12 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-Open the Next.js DevTools and select **Instant Navs**. You will see two options:
+Open the Next.js DevTools and select **Instant Navs**. Two options are available:
 
 - **Page load**: click **Reload** to refresh the page and freeze it at the initial static UI generated for this route, before any dynamic data streams in.
 - **Client navigation**: once enabled, clicking any link in your app shows the prefetched UI for that page instead of the full result.
 
-Try a **page load**. "Loading product..." and "Checking availability..." appear as separate fallbacks. On the first visit the cache is cold, so both fallbacks are visible. Navigate to the page again and the product name appears immediately from cache.
+Try a **page load** on the product page. Two separate fallbacks appear: "Loading product..." and "Checking availability...". On the first visit the cache is cold and both fallbacks are visible. Navigate to the page again and the product name appears immediately from cache.
 
 Now try a **client navigation** (click a link from `/store/shoes` to `/store/hats`). The product name and price appear immediately (cached). "Checking availability..." shows where inventory will stream in.
 
@@ -98,17 +113,17 @@ Now try a **client navigation** (click a link from `/store/shoes` to `/store/hat
 <details>
 <summary>Why page loads and client navigations produce different shells</summary>
 
-On a page load, the entire page renders from the document root. Every component runs on the server, and anything that suspends is caught by the nearest Suspense boundary in the full tree.
+On a page load, the entire page renders from the document root, including all layouts. Anything that suspends is caught by the nearest `<Suspense>` boundary in the entire document tree.
 
-On a client navigation (link click), Next.js only re-renders below the layout that the source and destination routes share. Components above that shared layout are not re-rendered. This means a Suspense boundary in the root layout covers everything on a page load, but for a client navigation between `/store/shoes` and `/store/hats`, the shared `/store` layout is the entry point. The root Suspense sits above it and has no effect.
+On a client navigation (clicking `next/link`), Next.js only re-renders below the layout that the source and destination routes share. Components above that shared layout are not re-rendered. This means that a `<Suspense>` boundary in the root layout covers everything on a page load, but for a client navigation between `/store/shoes` and `/store/hats`, the shared layout is `/store` and Next.js renders the part of the document below that point. The root `<Suspense>` sits above it and does not trigger for this navigation.
 
-This is also why client-side hooks behave differently. `useSearchParams()` suspends during server rendering because search params are not available at build time. But on a client navigation, the router already has the params from the URL, so the hook resolves synchronously. The same component can appear in the instant shell on a client navigation but behind a fallback on a page load.
+This is also why client-side hooks behave differently. `useSearchParams()` suspends during server rendering because search params are not available at build time. But on a client navigation, the router already has the params from the URL and the hook resolves synchronously. The same component can appear in the instant shell on a client navigation but behind a fallback on a page load.
 
 </details>
 
-### Prevent regressions with e2e tests
+## Prevent regressions with e2e tests
 
-Validation catches structural problems during development and at build time. To prevent regressions as the codebase evolves, the `@next/playwright` package includes an `instant()` helper that asserts on exactly what appears in the instant shell:
+Validation catches structural problems during development. To prevent regressions as the codebase evolves, the `@next/playwright` package includes an `instant()` helper that asserts on exactly what appears in the instant shell:
 
 ```typescript filename="e2e/navigation.test.ts"
 import { test, expect } from '@playwright/test'
@@ -127,36 +142,34 @@ test('product title appears instantly', async ({ page }) => {
 })
 ```
 
-`instant()` holds back dynamic content while the callback runs against the static shell. After it resolves, dynamic content streams in and you can assert on the full page.
+Inside the `instant()` callback, only the static shell is visible. After the callback finishes, dynamic content streams in and you can assert on the full page.
 
-There is no need to write an `instant()` test for every navigation. Build-time validation already provides the structural guarantee. Use `instant()` for the user flows that matter most.
+There is no need to write an `instant()` test for every navigation. Use `instant()` for the user flows that matter most. In the future build-time `instant` validaiton will be available to cover a broader set of navigation cases.
 
-## Fixing a page that blocks
+## Fixing a navigation that blocks
 
-Now consider a different route, `/shop/[slug]`, that has the same data requirements but without local Suspense boundaries or caching:
+Now consider a different route, `/shop/[slug]`. For the sake of this example it has the same data requirements as `/store/[slug]`, but is implemented without local `<Suspense>` boundaries or caching:
 
 ```tsx filename="app/shop/[slug]/page.tsx"
-export default async function ProductPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>
-}) {
-  const { slug } = await params
-  const product = await fetchProduct(slug)
-  const inventory = await fetchInventory(slug)
+import { db } from '@/lib/db'
+
+export default async function ProductPage(props: PageProps<'/shop/[slug]'>) {
+  const { slug } = await props.params
+  const product = await db.products.findBySlug(slug)
+  const item = await db.inventory.findBySlug(slug)
   return (
     <div>
       <h1>{product.name}</h1>
       <p>${product.price}</p>
-      <p>{inventory.count} in stock</p>
+      <p>{item.count} in stock</p>
     </div>
   )
 }
 ```
 
-The root layout wraps `{children}` in `<Suspense>`:
+The root layout wraps `{children}` in a `<Suspense>` boundary:
 
-```tsx filename="app/layout.tsx" highlight={9-11}
+```tsx filename="app/layout.tsx" highlight={9}
 export default function RootLayout({
   children,
 }: {
@@ -172,73 +185,49 @@ export default function RootLayout({
 }
 ```
 
-On an initial page load, the root Suspense catches the async work and streams the page in behind the fallback. Everything appears to work. But on a client navigation from `/shop/shoes` to `/shop/hats`, the shared `/shop` layout is the entry point. The root `<Suspense>` boundary is above that layout, so it is invisible to this navigation. The page fetches uncached data with no local boundary, so the old page stays visible until the server finishes renderingm making the navigation feel unresponsive.
+On an initial page load, the root `<Suspense>` catches the async work and streams the page in behind the `fallback`.
+
+Everything appears to work. But on a client navigation from `/shop/shoes` to `/shop/hats`, the shared layout is `/shop` and only the content below it re-renders. The root `<Suspense>` boundary is above that layout and is not triggered for this navigation. The page fetches uncached data with no local boundary, blocking the navigation until the server finishes rendering.
+
+You can see this with the DevTools. Try a **page load**: the root `<Suspense>` catches everything and "Loading..." appears. Now try a **client navigation** between two `/shop/` pages: no prefetched UI shows up because there is no `<Suspense>` boundary below the shared layout. Navigations from other routes to `/shop/` appear blocked too.
 
 ### Step 1: Add instant validation
 
-Add the `unstable_instant` export to surface the problem:
+Add an `unstable_instant` export to the page to surface the problem:
 
-```tsx filename="app/shop/[slug]/page.tsx" highlight={1}
-export const unstable_instant = { prefetch: 'static' }
+```tsx filename="app/shop/[slug]/page.tsx" highlight={3}
+import { db } from '@/lib/db'
 
-export default async function ProductPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>
-}) {
-  const { slug } = await params
-  const product = await fetchProduct(slug)
-  const inventory = await fetchInventory(slug)
+export const unstable_instant = true
+
+export default async function ProductPage(props: PageProps<'/shop/[slug]'>) {
+  const { slug } = await props.params
+  const product = await db.products.findBySlug(slug)
+  const item = await db.inventory.findBySlug(slug)
   return (
     <div>
       <h1>{product.name}</h1>
       <p>${product.price}</p>
-      <p>{inventory.count} in stock</p>
+      <p>{item.count} in stock</p>
     </div>
   )
 }
 ```
 
-Next.js now simulates navigations at every shared layout boundary in the route. Awaiting `params` and both data fetches are flagged as violations because they suspend or access uncached data outside a Suspense boundary. Each error identifies the specific component and suggests a fix.
+Next.js now simulates navigations at every shared layout boundary in the route. In this case, both components await `params` and access uncached data. These need to be wrapped by a `<Suspense>` boundary. The first thing validation catches is the `await params` at the top level.
 
-### Step 2: Fix the errors
+### Step 2: Fix the validation error
 
-Look at the data. There is no `generateStaticParams`, so `slug` is only known at request time. Awaiting `params` suspends, so every component that reads it needs its own `<Suspense>` boundary.
+There is no `generateStaticParams` here, `slug` is only known at request time. Because awaiting `params` suspends, the page component can't do it at the top level. Instead, move the `await params` into separate components, pass `params` to each, and wrap them with `<Suspense>`.
 
-Decide what to do with each fetch:
+For each component, decide:
 
-- **Product details** (name, price) rarely change. Cache them as a function of `slug` with `use cache`.
-- **Inventory** must be fresh from upstream. Leave it uncached and let it stream behind a `<Suspense>` fallback.
+**Product details** (name, price) rarely change. Cache the data function with `use cache`:
 
-The result is the same structure from the first section:
-
-```tsx filename="app/shop/[slug]/page.tsx" highlight={1,12-19,25}
-export const unstable_instant = { prefetch: 'static' }
-
-import { Suspense } from 'react'
-
-export default async function ProductPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>
-}) {
-  return (
-    <div>
-      <Suspense fallback={<p>Loading product...</p>}>
-        {params.then(({ slug }) => (
-          <ProductInfo slug={slug} />
-        ))}
-      </Suspense>
-      <Suspense fallback={<p>Checking availability...</p>}>
-        <Inventory params={params} />
-      </Suspense>
-    </div>
-  )
-}
-
-async function ProductInfo({ slug }: { slug: string }) {
-  'use cache'
-  const product = await fetchProduct(slug)
+```tsx filename="app/shop/[slug]/page.tsx"
+async function ProductInfo({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const product = await getProduct(slug)
   return (
     <>
       <h1>{product.name}</h1>
@@ -247,38 +236,71 @@ async function ProductInfo({ slug }: { slug: string }) {
   )
 }
 
+async function getProduct(slug: string) {
+  'use cache'
+  return db.products.findBySlug(slug)
+}
+```
+
+> **Good to know:** In serverless deployments, in-memory caching with `"use cache"` will not persist across instances. Consider using [`"use cache: remote"`](/docs/app/api-reference/directives/use-cache-remote) for persistent caching.
+
+**Inventory** must be fresh each request. Leave it uncached:
+
+```tsx filename="app/shop/[slug]/page.tsx"
 async function Inventory({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const inventory = await fetchInventory(slug)
-  return <p>{inventory.count} in stock</p>
+  const item = await db.inventory.findBySlug(slug)
+  return <p>{item.count} in stock</p>
+}
+```
+
+The page passes `params` to each component and wraps them with `<Suspense>`:
+
+```tsx filename="app/shop/[slug]/page.tsx" highlight={4,9-14}
+import { Suspense } from 'react'
+import { db } from '@/lib/db'
+
+export const unstable_instant = true
+
+export default function ProductPage(props: PageProps<'/shop/[slug]'>) {
+  return (
+    <div>
+      <Suspense fallback={<p>Loading product...</p>}>
+        <ProductInfo params={props.params} />
+      </Suspense>
+      <Suspense fallback={<p>Checking availability...</p>}>
+        <Inventory params={props.params} />
+      </Suspense>
+    </div>
+  )
 }
 ```
 
 Validation passes. Open the DevTools and try a client navigation. The product name and price appear immediately, and "Checking availability..." shows where inventory will stream in.
 
 <details>
-<summary>How validation checks every entry point</summary>
+<summary>How validation simulates different navigations</summary>
 
-When you add `unstable_instant` to a route, Next.js does not only check the initial page load. It simulates navigations at every possible shared layout boundary in the route hierarchy.
+When you add `unstable_instant` to a route, Next.js checks both the initial page load and client navigations at different points in the route hierarchy.
 
 For a route like `/shop/[slug]`, validation checks:
 
-- Entry from outside (page load): the full tree renders, root layout Suspense catches everything
-- Entry from a sibling under `/shop` (client navigation from `/shop/shoes` to `/shop/hats`): only the page segment re-renders, the `/shop` layout is the entry point
+- **Page load**: the full tree renders from the root. The root layout `<Suspense>` catches everything.
+- **Client navigation** (e.g. from `/shop/shoes` to `/shop/hats`): the `/shop` layout is already mounted and only the page below it re-renders. A `<Suspense>` boundary in the root layout does not cover this navigation.
 
-Each entry point is validated independently. A Suspense boundary that covers one path might be invisible to another. This is why a page can pass the initial load check but fail for sibling navigations, and why catching these issues by hand is difficult as the number of routes grows.
+Each case is validated independently. A `<Suspense>` boundary that covers one navigation path might not cover another. This is why a page can pass the page load check but fail for client navigations, and why catching these issues by hand is difficult as the number of routes grows.
 
 </details>
 
 ## Opting out with `instant = false`
 
-Not every layout can be instant. A dashboard layout that reads cookies and fetches user-specific data might be too dynamic for the first entry. You can set `instant = false` on that layout to exempt it from validation:
+Not every layout or page can be instant. A dashboard layout that reads cookies and fetches user-specific data might be too dynamic for the first visit. You can set `instant = false` on any layout or page to exempt it from validation:
 
 ```tsx filename="app/dashboard/layout.tsx"
 export const unstable_instant = false
 ```
 
-This tells validation: do not require that entry into `/dashboard` is instant, but still allows you to validate sibling navigations within it by using `instant` on those inner segments. Navigating from `/dashboard/a` to `/dashboard/b` can still be checked by adding `instant` to the page segments under `/dashboard`.
+This tells validation: navigating to `/dashboard` from outside does not need to be instant, but sibling navigations within it still do. Navigating from `/dashboard/a` to `/dashboard/b` can still be checked by adding `instant` to the page segments under `/dashboard`.
 
 ## Next steps
 

@@ -76,6 +76,7 @@ export interface RequestStore extends CommonWorkUnitStore {
   cacheSignal?: CacheSignal | null
   prerenderResumeDataCache?: PrerenderResumeDataCache | null
   fallbackParams?: OpaqueFallbackRouteParams | null
+  varyParamsAccumulator?: ResponseVaryParamsAccumulator | null
 
   // Only in build-time instant-validation
   // We mirror the controller/renderSignal from prerender stores to allow aborting the render
@@ -113,6 +114,10 @@ export type AsyncApiPromises = {
   // Connection is not a runtime promise and doesn't
   // need to distinguish between early and late
   connection: Promise<undefined>
+
+  // IO is not a runtime promise and doesn't
+  // need to distinguish between early and late
+  io: Promise<undefined>
 }
 
 /**
@@ -341,6 +346,7 @@ export interface CommonUseCacheStore extends CommonCacheStore, RevalidateStore {
   readonly isHmrRefresh: boolean
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
   readonly forceRevalidate: boolean
+  readonly outerOwnerStack: string | undefined
 }
 
 export interface PublicUseCacheStore extends CommonUseCacheStore {
@@ -358,6 +364,13 @@ export interface PublicUseCacheStore extends CommonUseCacheStore {
    * Tracks which root param names were read during this cache invocation.
    */
   readonly readRootParamNames: Set<string>
+  /**
+   * The first nested public `'use cache'` invocation with a dynamic cache life
+   * (`revalidate === 0` or `expire < DYNAMIC_EXPIRE`) that propagated up to
+   * this store. Used as `cause` for the nested-dynamic cache error so the
+   * redbox can point at the inner invocation site, not just the outer one.
+   */
+  dynamicNestedCacheError: Error | undefined
 }
 
 export interface PrivateUseCacheStore extends CommonUseCacheStore {

@@ -1,6 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
-import { fetchViaHTTP, File, nextBuild } from 'next-test-utils'
+import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
 
@@ -11,31 +9,30 @@ const apiPath = 'pages/api/edge.js'
   { appDir: join(__dirname, './app/src'), title: 'src/pages and API routes' },
   { appDir: join(__dirname, './app'), title: 'pages and API routes' },
 ])('Configurable runtime for $title', ({ appDir }) => {
-  let next: NextInstance
-  const page = new File(join(appDir, pagePath))
-  const api = new File(join(appDir, apiPath))
-
-  if ((global as any).isNextDev) {
+  if (isNextDev) {
     describe('In development mode', () => {
+      const { next } = nextTestSetup({
+        files: appDir,
+        skipStart: true,
+      })
+
+      let originalPage: string
+      let originalApi: string
+
       beforeAll(async () => {
-        next = await createNext({
-          files: new FileRef(appDir),
-          dependencies: {},
-          skipStart: true,
-        })
+        originalPage = await next.readFile(pagePath)
+        originalApi = await next.readFile(apiPath)
       })
 
       afterEach(async () => {
         await next.stop()
-        await next.patchFile(pagePath, page.originalContent)
-        await next.patchFile(apiPath, api.originalContent)
+        await next.patchFile(pagePath, originalPage)
+        await next.patchFile(apiPath, originalApi)
       })
-
-      afterAll(() => next.destroy())
 
       it('runs with no warning API route on the edge runtime', async () => {
         await next.start()
-        const res = await fetchViaHTTP(next.url, `/api/edge`)
+        const res = await next.fetch(`/api/edge`)
         expect(res.status).toEqual(200)
         expect(next.cliOutput).not.toInclude('error')
         expect(next.cliOutput).not.toInclude('warn')
@@ -50,7 +47,7 @@ const apiPath = 'pages/api/edge.js'
           `
         )
         await next.start()
-        const res = await fetchViaHTTP(next.url, `/api/edge`)
+        const res = await next.fetch(`/api/edge`)
         expect(res.status).toEqual(200)
         expect(next.cliOutput).not.toInclude('error')
         expect(stripAnsi(next.cliOutput)).toInclude(
@@ -66,7 +63,7 @@ const apiPath = 'pages/api/edge.js'
           `
         )
         await next.start()
-        const res = await fetchViaHTTP(next.url, `/`)
+        const res = await next.fetch(`/`)
         expect(res.status).toEqual(200)
         expect(next.cliOutput).not.toInclude('error')
         expect(stripAnsi(next.cliOutput)).toInclude(
@@ -83,7 +80,7 @@ const apiPath = 'pages/api/edge.js'
           `
         )
         await next.start()
-        const res = await fetchViaHTTP(next.url, `/`)
+        const res = await next.fetch(`/`)
         expect(res.status).toEqual(200)
         expect(stripAnsi(next.cliOutput)).toInclude(
           `Page / provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
@@ -91,40 +88,52 @@ const apiPath = 'pages/api/edge.js'
         expect(next.cliOutput).not.toInclude('warn')
       })
     })
-  } else if ((global as any).isNextStart) {
+  } else if (isNextStart) {
     describe('In start mode', () => {
-      // TODO because createNext runs process.exit() without any log info on build failure, rely on good old nextBuild()
+      const { next } = nextTestSetup({
+        files: appDir,
+        skipStart: true,
+      })
+
+      let originalPage: string
+      let originalApi: string
+
+      beforeAll(async () => {
+        originalPage = await next.readFile(pagePath)
+        originalApi = await next.readFile(apiPath)
+      })
+
       afterEach(async () => {
-        page.restore()
-        api.restore()
+        await next.patchFile(pagePath, originalPage)
+        await next.patchFile(apiPath, originalApi)
       })
 
       it('builds with API route on the edge runtime and page on the experimental edge runtime', async () => {
-        page.write(`
+        await next.patchFile(
+          pagePath,
+          `
           export default () => (<p>hello world</p>);
           export const runtime = 'experimental-edge';
-        `)
-        const output = await nextBuild(appDir, undefined, {
-          stdout: true,
-          stderr: true,
-        })
-        expect(output.code).toBe(0)
-        expect(output.stderr).not.toContain(`error`)
-        expect(output.stdout).not.toContain(`warn`)
+        `
+        )
+        const { exitCode, cliOutput } = await next.build()
+        expect(exitCode).toBe(0)
+        expect(cliOutput).not.toContain(`error`)
+        expect(cliOutput).not.toContain(`warn`)
       })
 
       it('does not build with page on the edge runtime', async () => {
-        page.write(`
+        await next.patchFile(
+          pagePath,
+          `
           export default () => (<p>hello world</p>);
           export const runtime = 'edge';
-        `)
-        const output = await nextBuild(appDir, undefined, {
-          stdout: true,
-          stderr: true,
-        })
-        expect(output.code).toBe(1)
-        expect(output.stderr).not.toContain(`Build failed`)
-        expect(stripAnsi(output.stderr)).toContain(
+        `
+        )
+        const { exitCode, cliOutput } = await next.build()
+        expect(exitCode).toBe(1)
+        expect(cliOutput).not.toContain(`Build failed`)
+        expect(stripAnsi(cliOutput)).toContain(
           `Error: Page / provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
         )
       })

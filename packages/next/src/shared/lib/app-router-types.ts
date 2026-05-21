@@ -60,6 +60,18 @@ export type CacheNode = {
    * layout segment).
    */
   scrollRef: ScrollRef | null
+
+  /**
+   * Globally-unique identifier minted from a monotonic counter when the
+   * CacheNode is freshly created. Surfaced to user code as a string via
+   * `useRouter().bfcacheId` and intended to be used as a React `key` to
+   * opt out of Activity-based state preservation on fresh navigations.
+   *
+   * Preserved when the CacheNode is reused (shared layouts, refresh,
+   * search/hash-only navigations) or restored from the BFCache during a
+   * back/forward navigation.
+   */
+  bfcacheId: number
 }
 
 /**
@@ -195,7 +207,33 @@ export const enum PrefetchHint {
   // On the root hint node: the head was NOT inlined into any page — fetch
   // it separately. Absence of this bit means the head is bundled into a page.
   HeadOutlined = 0b100000000,
+  // The inlining hints in this tree may be stale because the tree was
+  // generated before collectPrefetchHints ran (e.g. the initial RSC payload
+  // for a fully static page at build time). When writing this tree into the
+  // cache, the route entry should be immediately expired so it gets
+  // re-fetched with correct hints. Only set during build-time prerendering,
+  // never at runtime.
+  InliningHintsStale = 0b1000000000,
+  // This segment has unstable_instant = false, opting out of all
+  // prefetching entirely (neither static nor runtime).
+  PrefetchDisabled = 0b10000000000,
+  // This segment or one of its descendants has runtime prefetch enabled
+  // (HasRuntimePrefetch). Propagates upward so the root reflects the
+  // entire subtree.
+  SubtreeHasRuntimePrefetch = 0b100000000000,
 }
+
+/**
+ * Bitmask for checking whether a segment's static prefetch is skipped. Matches
+ * if EITHER bit is set — i.e. the segment uses runtime prefetching
+ * (HasRuntimePrefetch) OR prefetching is disabled entirely (PrefetchDisabled,
+ * e.g. unstable_instant = false). The segment participates in the bundle chain
+ * but with null data.
+ *
+ * Usage: `(hints & StaticPrefetchDisabled) !== 0`
+ */
+export const StaticPrefetchDisabled =
+  PrefetchHint.HasRuntimePrefetch | PrefetchHint.PrefetchDisabled
 
 /**
  * Individual Flight response path

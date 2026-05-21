@@ -1,19 +1,18 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use indexmap::map::{Entry, OccupiedEntry};
 use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault, Vc,
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, turbobail,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault,
+    ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
-use turbopack_core::issue::{
-    Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
-};
+use turbopack_core::issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString};
 
 use crate::{
     mode::NextMode,
@@ -325,7 +324,7 @@ async fn get_directory_tree(
 ) -> Result<Vc<DirectoryTree>> {
     let span = tracing::info_span!(
         "read app directory tree",
-        name = display(dir.value_to_string().await?)
+        name = display(dir.to_string_ref().await?)
     );
     get_directory_tree_internal(dir, page_extensions)
         .instrument(span)
@@ -430,15 +429,14 @@ async fn get_directory_tree_internal(
                     },
                 ));
             }
-            DirectoryEntry::Directory(dir) => {
+            DirectoryEntry::Directory(dir)
                 // appDir ignores paths starting with an underscore
-                if !basename.starts_with('_') {
+                if !basename.starts_with('_') => {
                     let result = get_directory_tree(dir.clone(), page_extensions)
                         .to_resolved()
                         .await?;
                     subdirectories.insert(basename.clone(), result);
                 }
-            }
             // TODO(WEB-952) handle symlinks in app dir
             _ => {}
         }
@@ -885,30 +883,26 @@ struct DuplicateParallelRouteIssue {
     page: AppPage,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for DuplicateParallelRouteIssue {
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.app_dir.join(&self.page.to_string())?.cell())
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.app_dir.join(&self.page.to_string())
     }
 
-    #[turbo_tasks::function]
-    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
-        IssueStage::ProcessModule.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::ProcessModule
     }
 
-    #[turbo_tasks::function]
-    async fn title(self: Vc<Self>) -> Result<Vc<StyledString>> {
-        let this = self.await?;
+    async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Text(
             format!(
                 "You cannot have two parallel pages that resolve to the same path. Please check \
                  {} and {}.",
-                this.previously_inserted_page, this.page
+                self.previously_inserted_page, self.page
             )
             .into(),
-        )
-        .cell())
+        ))
     }
 }
 
@@ -933,68 +927,56 @@ fn missing_default_parallel_route_issue(
     .cell()
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for MissingDefaultParallelRouteIssue {
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self
-            .app_dir
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.app_dir
             .join(&self.app_page.to_string())?
-            .join(&format!("@{}", self.slot_name))?
-            .cell())
+            .join(&format!("@{}", self.slot_name))
     }
 
-    #[turbo_tasks::function]
-    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
-        IssueStage::AppStructure.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
     }
 
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(
             format!(
                 "Missing required default.js file for parallel route at {}/@{}",
                 self.app_page, self.slot_name
             )
             .into(),
-        )
-        .cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Stack(vec![
-                StyledString::Text(
-                    format!(
-                        "The parallel route slot \"@{}\" is missing a default.js file. When using \
-                         parallel routes, each slot must have a default.js file to serve as a \
-                         fallback.",
-                        self.slot_name
-                    )
-                    .into(),
-                ),
-                StyledString::Text(
-                    format!(
-                        "Create a default.js file at: {}/@{}/default.js",
-                        self.app_page, self.slot_name
-                    )
-                    .into(),
-                ),
-            ])
-            .resolved_cell(),
         ))
     }
 
-    #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!(
-            "https://nextjs.org/docs/messages/slot-missing-default"
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Text(
+                format!(
+                    "The parallel route slot \"@{}\" is missing a default.js file. When using \
+                     parallel routes, each slot must have a default.js file to serve as a \
+                     fallback.",
+                    self.slot_name
+                )
+                .into(),
+            ),
+            StyledString::Text(
+                format!(
+                    "Create a default.js file at: {}/@{}/default.js",
+                    self.app_page, self.slot_name
+                )
+                .into(),
+            ),
+        ])))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        rcstr!("https://nextjs.org/docs/messages/slot-missing-default")
     }
 }
 
@@ -2059,29 +2041,28 @@ struct DirectoryTreeIssue {
     pub message: ResolvedVc<StyledString>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for DirectoryTreeIssue {
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("An issue occurred while preparing your Next.js app")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "An issue occurred while preparing your Next.js app"
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::AppStructure.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.app_dir.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.app_dir.clone())
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.message))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some((*self.message.await?).clone()))
     }
 }

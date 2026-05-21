@@ -1,4 +1,7 @@
-use std::{cmp::Ordering, collections::BinaryHeap};
+use std::{
+    cmp::Ordering,
+    collections::{BinaryHeap, binary_heap::PeekMut},
+};
 
 use anyhow::Result;
 
@@ -6,45 +9,52 @@ use crate::lookup_entry::LookupEntry;
 
 /// An active iterator that is being merged. It has peeked the next element and can be compared
 /// according to that element. The `order` is used when multiple iterators have the same key.
-///
-/// Boxed so that BinaryHeap sift operations only move a pointer (8 bytes) instead of the full
-/// struct (~312 bytes for StaticSortedFileIter), which is significant with 128 iterators.
 struct ActiveIterator<T: Iterator<Item = Result<LookupEntry>>> {
     iter: T,
     order: usize,
     entry: LookupEntry,
 }
 
-impl<T: Iterator<Item = Result<LookupEntry>>> PartialEq for Box<ActiveIterator<T>> {
+/// A heap node that keeps the hash inline alongside a boxed `ActiveIterator`. By hoisting the hash
+/// out of the Box we avoid a pointer chase on every comparison when the heap is re-ordered Only
+/// when hashes collide (extremely rare with u64) do we dereference the Box to compare keys.
+/// Note: we cannot use [Prehashed] because we need an non-trivial `Ord` implementation for the heap
+/// (see below)
+struct HeapNode<T: Iterator<Item = Result<LookupEntry>>> {
+    /// Cached copy of the current entry's hash, kept in sync with `inner.entry.hash`.
+    hash: u64,
+    inner: Box<ActiveIterator<T>>,
+}
+
+impl<T: Iterator<Item = Result<LookupEntry>>> PartialEq for HeapNode<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.entry.hash == other.entry.hash && *self.entry.key == *other.entry.key
+        self.hash == other.hash && *self.inner.entry.key == *other.inner.entry.key
     }
 }
 
-impl<T: Iterator<Item = Result<LookupEntry>>> Eq for Box<ActiveIterator<T>> {}
+impl<T: Iterator<Item = Result<LookupEntry>>> Eq for HeapNode<T> {}
 
-impl<T: Iterator<Item = Result<LookupEntry>>> PartialOrd for Box<ActiveIterator<T>> {
+impl<T: Iterator<Item = Result<LookupEntry>>> PartialOrd for HeapNode<T> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<T: Iterator<Item = Result<LookupEntry>>> Ord for Box<ActiveIterator<T>> {
+impl<T: Iterator<Item = Result<LookupEntry>>> Ord for HeapNode<T> {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.entry
-            .hash
-            .cmp(&other.entry.hash)
-            .then_with(|| (*self.entry.key).cmp(&other.entry.key))
+        self.hash
+            .cmp(&other.hash)
+            .then_with(|| (*self.inner.entry.key).cmp(&other.inner.entry.key))
             // Reverse order comparison to yield newest-first
-            .then_with(|| other.order.cmp(&self.order))
+            .then_with(|| other.inner.order.cmp(&self.inner.order))
             .reverse()
     }
 }
 
 /// An iterator that merges multiple sorted iterators into a single sorted iterator. Internally it
-/// uses an heap of iterators to iterate them in order.
+/// uses a heap of iterators to iterate them in order.
 pub struct MergeIter<T: Iterator<Item = Result<LookupEntry>>> {
-    heap: BinaryHeap<Box<ActiveIterator<T>>>,
+    heap: BinaryHeap<HeapNode<T>>,
 }
 
 impl<T: Iterator<Item = Result<LookupEntry>>> MergeIter<T> {
@@ -53,7 +63,11 @@ impl<T: Iterator<Item = Result<LookupEntry>>> MergeIter<T> {
         for (order, mut iter) in iters.enumerate() {
             if let Some(entry) = iter.next() {
                 let entry = entry?;
-                heap.push(Box::new(ActiveIterator { iter, order, entry }));
+                let hash = entry.hash;
+                heap.push(HeapNode {
+                    hash,
+                    inner: Box::new(ActiveIterator { iter, order, entry }),
+                });
             }
         }
         Ok(Self { heap })
@@ -64,13 +78,25 @@ impl<T: Iterator<Item = Result<LookupEntry>>> Iterator for MergeIter<T> {
     type Item = Result<LookupEntry>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut active = self.heap.pop()?;
-        let entry = match active.iter.next() {
-            None => return Some(Ok(active.entry)),
-            Some(Err(e)) => return Some(Err(e)),
-            Some(Ok(next)) => std::mem::replace(&mut active.entry, next),
-        };
-        self.heap.push(active);
-        Some(Ok(entry))
+        let mut peek = self.heap.peek_mut()?;
+        let node = &mut *peek;
+        match node.inner.iter.next() {
+            None => {
+                // This iterator is exhausted, drop it and return the last entry
+                let node = PeekMut::pop(peek);
+                Some(Ok(node.inner.entry))
+            }
+            Some(Err(e)) => {
+                PeekMut::pop(peek);
+                Some(Err(e))
+            }
+            Some(Ok(next)) => {
+                let entry = std::mem::replace(&mut node.inner.entry, next);
+                // Update the cached hash before dropping the PeekMut (which triggers sift-down)
+                node.hash = node.inner.entry.hash;
+                drop(peek);
+                Some(Ok(entry))
+            }
+        }
     }
 }

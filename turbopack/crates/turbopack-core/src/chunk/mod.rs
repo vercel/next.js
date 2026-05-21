@@ -8,9 +8,9 @@ pub(crate) mod chunking_context;
 pub(crate) mod data;
 pub(crate) mod evaluate;
 
-use std::fmt::Display;
+use std::{fmt::Display, hash::Hash};
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -65,10 +65,46 @@ pub enum ContentHashing {
     /// Benefit: No hash manifest needed.
     /// Downside: Causes cascading hash invalidation.
     Direct {
-        /// The length of the content hash in base40 chars. Anything lower than 7 is not
+        /// The length of the content hash in base38 chars. Anything lower than 7 is not
         /// recommended due to the high risk of collisions.
         length: u8,
     },
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Default, Clone, Copy, Hash, Serialize, Deserialize, TaskInput)]
+#[serde(rename_all = "kebab-case")]
+pub enum CrossOrigin {
+    #[default]
+    None,
+    Anonymous,
+    UseCredentials,
+}
+
+impl CrossOrigin {
+    pub fn as_str(self) -> Option<&'static str> {
+        match self {
+            Self::None => None,
+            Self::Anonymous => Some("anonymous"),
+            Self::UseCredentials => Some("use-credentials"),
+        }
+    }
+}
+
+impl TryFrom<Option<&str>> for CrossOrigin {
+    type Error = anyhow::Error;
+
+    fn try_from(value: Option<&str>) -> Result<Self> {
+        match value {
+            None => Ok(Self::None),
+            Some("anonymous") => Ok(Self::Anonymous),
+            Some("use-credentials") => Ok(Self::UseCredentials),
+            Some(value) => bail!(
+                "invalid crossOrigin value `{value}`; supported values are `anonymous` and \
+                 `use-credentials`"
+            ),
+        }
+    }
 }
 
 /// A module id, which can be a number or string
@@ -111,17 +147,6 @@ pub trait ChunkableModule: Module {
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>>;
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct ChunkableModules(Vec<ResolvedVc<Box<dyn ChunkableModule>>>);
-
-#[turbo_tasks::value_impl]
-impl ChunkableModules {
-    #[turbo_tasks::function]
-    pub fn interned(modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>) -> Vc<Self> {
-        Vc::cell(modules)
-    }
 }
 
 /// A [Module] that can be merged with other [Module]s (to perform scope hoisting)
@@ -428,16 +453,14 @@ pub trait ChunkItem: OutputAssetsReference {
     }
 
     /// The type of chunk this item should be assembled into.
-    #[turbo_tasks::function]
-    fn ty(self: Vc<Self>) -> Vc<Box<dyn ChunkType>>;
+    fn ty(&self) -> Vc<Box<dyn ChunkType>>;
 
     /// A temporary method to retrieve the module associated with this
     /// ChunkItem. TODO: Remove this as part of the chunk refactoring.
     #[turbo_tasks::function]
     fn module(self: Vc<Self>) -> Vc<Box<dyn Module>>;
 
-    #[turbo_tasks::function]
-    fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>>;
 }
 
 #[turbo_tasks::value_trait]
@@ -489,10 +512,11 @@ impl AsyncModuleInfo {
 }
 
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
 )]
 pub struct ChunkItemWithAsyncModuleInfo {
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    pub chunk_type: ResolvedVc<Box<dyn ChunkType>>,
     pub module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
@@ -510,6 +534,8 @@ where
     async fn id(self: Vc<Self>) -> Result<ModuleId> {
         let chunk_item = Vc::upcast_non_strict(self);
         chunk_item
+            .into_trait_ref()
+            .await?
             .chunking_context()
             .chunk_item_id_strategy()
             .await?

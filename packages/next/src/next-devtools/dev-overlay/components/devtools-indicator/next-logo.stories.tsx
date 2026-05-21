@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { NextLogo } from './next-logo'
-import { withShadowPortal } from '../../storybook/with-shadow-portal'
-import { withDevOverlayContexts } from '../../storybook/with-dev-overlay-contexts'
+import { withShadowPortal } from '../../../../../.storybook/decorators/with-shadow-portal'
+import { withDevOverlayContexts } from '../../../../../.storybook/decorators/with-dev-overlay-contexts'
 
 const meta: Meta<typeof NextLogo> = {
   component: NextLogo,

@@ -657,15 +657,11 @@ impl Fold for NextSsg {
         n = n.fold_children_with(self);
 
         match &n {
-            AssignTargetPat::Array(arr) => {
-                if arr.elems.is_empty() {
-                    return AssignTargetPat::Invalid(Invalid { span: DUMMY_SP });
-                }
+            AssignTargetPat::Array(arr) if arr.elems.is_empty() => {
+                return AssignTargetPat::Invalid(Invalid { span: DUMMY_SP });
             }
-            AssignTargetPat::Object(obj) => {
-                if obj.props.is_empty() {
-                    return AssignTargetPat::Invalid(Invalid { span: DUMMY_SP });
-                }
+            AssignTargetPat::Object(obj) if obj.props.is_empty() => {
+                return AssignTargetPat::Invalid(Invalid { span: DUMMY_SP });
             }
             _ => {}
         }
@@ -803,21 +799,19 @@ impl Fold for NextSsg {
                     }
                 }
 
-                Decl::Var(d) => {
-                    if d.decls.is_empty() {
-                        return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
-                    }
+                Decl::Var(d) if d.decls.is_empty() => {
+                    return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
                 }
                 _ => {}
             },
 
             ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultDecl(_))
-            | ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(_)) => {
-                if self.state.dropping_export(ExportType::Default) {
-                    tracing::trace!("Dropping an export specifier because it's a default export");
+            | ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(_))
+                if self.state.dropping_export(ExportType::Default) =>
+            {
+                tracing::trace!("Dropping an export specifier because it's a default export");
 
-                    return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
-                }
+                return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
             }
             _ => {}
         }
@@ -922,32 +916,24 @@ impl Fold for NextSsg {
 
         if self.in_lhs_of_var {
             match &mut p {
-                Pat::Ident(name) => {
-                    if self.should_remove(&name.id.to_id()) {
-                        self.state.should_run_again = true;
-                        tracing::trace!(
-                            "Dropping var `{}{:?}` because it should be removed",
-                            name.id.sym,
-                            name.id.ctxt
-                        );
+                Pat::Ident(name) if self.should_remove(&name.id.to_id()) => {
+                    self.state.should_run_again = true;
+                    tracing::trace!(
+                        "Dropping var `{}{:?}` because it should be removed",
+                        name.id.sym,
+                        name.id.ctxt
+                    );
 
-                        return Pat::Invalid(Invalid { span: DUMMY_SP });
-                    }
+                    return Pat::Invalid(Invalid { span: DUMMY_SP });
                 }
-                Pat::Array(arr) => {
-                    if arr.elems.is_empty() {
-                        return Pat::Invalid(Invalid { span: DUMMY_SP });
-                    }
+                Pat::Array(arr) if arr.elems.is_empty() => {
+                    return Pat::Invalid(Invalid { span: DUMMY_SP });
                 }
-                Pat::Object(obj) => {
-                    if obj.props.is_empty() {
-                        return Pat::Invalid(Invalid { span: DUMMY_SP });
-                    }
+                Pat::Object(obj) if obj.props.is_empty() => {
+                    return Pat::Invalid(Invalid { span: DUMMY_SP });
                 }
-                Pat::Rest(rest) => {
-                    if rest.arg.is_invalid() {
-                        return Pat::Invalid(Invalid { span: DUMMY_SP });
-                    }
+                Pat::Rest(rest) if rest.arg.is_invalid() => {
+                    return Pat::Invalid(Invalid { span: DUMMY_SP });
                 }
                 Pat::Expr(expr) => {
                     if let Expr::Member(member_expr) = &**expr
@@ -1035,11 +1021,9 @@ impl Fold for NextSsg {
             Stmt::Decl(Decl::Var(v)) if v.decls.is_empty() => {
                 return Stmt::Empty(EmptyStmt { span: DUMMY_SP });
             }
-            Stmt::Expr(_) => {
-                if self.remove_expression {
-                    self.remove_expression = false;
-                    return Stmt::Empty(EmptyStmt { span: DUMMY_SP });
-                }
+            Stmt::Expr(_) if self.remove_expression => {
+                self.remove_expression = false;
+                return Stmt::Empty(EmptyStmt { span: DUMMY_SP });
             }
             _ => {}
         }

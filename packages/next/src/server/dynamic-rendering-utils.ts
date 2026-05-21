@@ -7,6 +7,8 @@ import type {
   PrerenderStoreModernRuntime,
   RequestStore,
 } from './app-render/work-unit-async-storage.external'
+import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
+import { getServerReact, getClientReact } from './runtime-reacts.external'
 
 export function isHangingPromiseRejectionError(
   err: unknown
@@ -147,4 +149,65 @@ export function delayUntilRuntimeStage<T>(
   return stagedRendering
     .waitForStage(getRuntimeStage(stagedRendering))
     .then(() => result)
+}
+
+export function applyOwnerStack(error: Error): Error {
+  if (process.env.NODE_ENV !== 'production') {
+    let ownerStack: string | undefined | null
+    const workUnitStore = workUnitAsyncStorage.getStore()
+
+    // captureOwnerStack() returns the owner stack for the current React
+    // rendering context. Inside a cache scope this only includes the inner
+    // component tree. The outer owner stack (captured before entering the
+    // cache boundary in use-cache-wrapper.ts) is stored on the cache store.
+    // We concatenate both to get the full component tree.
+    const innerOwnerStack =
+      getClientReact()?.captureOwnerStack?.() ??
+      getServerReact()?.captureOwnerStack?.()
+
+    switch (workUnitStore?.type) {
+      case 'cache':
+      case 'private-cache':
+        ownerStack =
+          (innerOwnerStack || '') + (workUnitStore.outerOwnerStack || '') ||
+          undefined
+        break
+      case 'unstable-cache':
+      case 'request':
+      case 'prerender':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'prerender-runtime':
+      case 'prerender-client':
+      case 'validation-client':
+      case 'generate-static-params':
+      case undefined:
+        ownerStack = innerOwnerStack
+        break
+      default:
+        workUnitStore satisfies never
+    }
+
+    if (ownerStack) {
+      let stack = ownerStack
+
+      if (error.stack) {
+        const frames: string[] = []
+
+        for (const frame of error.stack.split('\n').slice(1)) {
+          if (frame.includes('react_stack_bottom_frame')) {
+            break
+          }
+
+          frames.push(frame)
+        }
+
+        stack = '\n' + frames.join('\n') + stack
+      }
+
+      error.stack = error.name + ': ' + error.message + stack
+    }
+  }
+
+  return error
 }

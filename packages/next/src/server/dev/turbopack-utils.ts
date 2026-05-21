@@ -15,6 +15,7 @@ import {
   HMR_MESSAGE_SENT_TO_BROWSER,
 } from './hot-reloader-types'
 import * as Log from '../../build/output/log'
+import { warnAboutEdgeRuntime } from '../../build/warn-about-edge-runtime'
 import type { PropagateToWorkersField } from '../lib/router-utils/types'
 import type { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import type { AppRoute, Entrypoints, PageRoute } from '../../build/swc/types'
@@ -134,6 +135,9 @@ export type ClientState = {
 export type ClientStateMap = WeakMap<ws, ClientState>
 
 // hooks only used by the dev server.
+// subscribeToChanges is optional: omit it to skip wiring HMR subscriptions
+// for one-shot compilations (e.g. the compile_route MCP tool) where there
+// is no client to receive updates and no unsubscribe path.
 type HandleRouteTypeHooks = {
   handleWrittenEndpoint: HandleWrittenEndpoint
   subscribeToChanges: StartChangeSubscription
@@ -167,6 +171,8 @@ export async function handleRouteType({
 
   readyIds?: ReadyIds // dev
 
+  // hooks.subscribeToChanges may be omitted to skip HMR subscriptions for
+  // one-shot compilations (e.g. the compile_route MCP tool).
   hooks?: HandleRouteTypeHooks // dev
 }) {
   switch (route.type) {
@@ -227,6 +233,7 @@ export async function handleRouteType({
         await manifestLoader.loadBuildManifest(page)
         await manifestLoader.loadPagesManifest(page)
         if (type === 'edge') {
+          warnAboutEdgeRuntime()
           await manifestLoader.loadMiddlewareManifest(page, 'pages')
         } else {
           manifestLoader.deleteMiddlewareManifest(serverKey)
@@ -320,6 +327,7 @@ export async function handleRouteType({
 
       await manifestLoader.loadPagesManifest(page)
       if (type === 'edge') {
+        warnAboutEdgeRuntime()
         await manifestLoader.loadMiddlewareManifest(page, 'pages')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
@@ -373,6 +381,7 @@ export async function handleRouteType({
       const type = writtenEndpoint.type
 
       if (type === 'edge') {
+        warnAboutEdgeRuntime()
         manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
@@ -404,6 +413,7 @@ export async function handleRouteType({
       manifestLoader.loadAppPathsManifest(page)
 
       if (type === 'edge') {
+        warnAboutEdgeRuntime()
         manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)

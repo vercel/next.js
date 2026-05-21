@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('unstable-cache-foreground-revalidate', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   if (isNextDev) {

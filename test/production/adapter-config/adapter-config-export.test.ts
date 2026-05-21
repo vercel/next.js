@@ -55,6 +55,7 @@ describe('adapter-config export', () => {
     }
 
     expect(ctx.nextVersion).toBe(nextVersion)
+    expect(ctx.projectDir).toBe(next.testDir)
     expect(config?.basePath).toBe('/docs')
 
     const combinedRouteOutputs = [
@@ -82,6 +83,7 @@ describe('adapter-config export', () => {
 
     expect(routing).toEqual({
       beforeMiddleware: expect.toBeArray(),
+      middlewareMatchers: expect.toBeArray(),
       beforeFiles: expect.toBeArray(),
       afterFiles: expect.toBeArray(),
       dynamicRoutes: expect.toBeArray(),

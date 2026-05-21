@@ -1,4 +1,4 @@
-// Pages Router only
+// Default export is Pages Router only
 export { default } from '../pages/_error'
 export * from '../pages/_error'
 

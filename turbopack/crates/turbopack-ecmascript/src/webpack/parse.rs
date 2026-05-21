@@ -12,9 +12,10 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
+use turbo_rcstr::rcstr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::source::Source;
+use turbopack_core::{compile_time_info::CompileTimeInfo, source::Source};
 
 use crate::{
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
@@ -23,7 +24,7 @@ use crate::{
     utils::unparen,
 };
 
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "skip")]
 #[derive(Debug)]
 pub enum WebpackRuntime {
     Webpack5 {
@@ -189,11 +190,20 @@ fn get_require_prefix(stmts: &Vec<Stmt>) -> Option<Lit> {
 pub async fn webpack_runtime(
     source: Vc<Box<dyn Source>>,
     transforms: Vc<EcmascriptInputTransforms>,
+    compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<WebpackRuntime>> {
+    let node_env = compile_time_info
+        .await?
+        .defines
+        .read_process_env(rcstr!("NODE_ENV"))
+        .owned()
+        .await?
+        .unwrap_or_else(|| rcstr!("development"));
     let parsed = parse(
         source,
         EcmascriptModuleAssetType::Ecmascript,
         transforms,
+        node_env,
         false,
         false,
     )
@@ -223,7 +233,7 @@ pub async fn webpack_runtime(
 
                     return Ok(WebpackRuntime::Webpack5 {
                         chunk_request_expr: value,
-                        context_path: source.ident().path().await?.parent(),
+                        context_path: source.ident().await?.path.parent(),
                     }
                     .cell());
                 }

@@ -1,4 +1,4 @@
-// Pages Router only
+// Default export is Pages Router only
 import Error from './dist/api/error'
 export * from './dist/api/error'
 export default Error

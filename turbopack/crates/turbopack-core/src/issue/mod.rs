@@ -9,15 +9,16 @@ use std::{
 };
 
 use anyhow::{Result, bail};
+use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TaskInput,
-    TransientValue, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueDefault, ValueToString, Vc,
-    emit, trace::TraceRawVcs,
+    TransientValue, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueDefault, ValueToString,
+    ValueToStringRef, Vc, emit, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath, glob::Glob,
@@ -127,6 +128,7 @@ impl StyledString {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_trait]
 pub trait Issue {
     /// Severity allows the user to filter out unimportant issues, with Bug
@@ -137,59 +139,49 @@ pub trait Issue {
 
     /// The file path that generated the issue, displayed to the user as message
     /// header.
-    #[turbo_tasks::function]
-    fn file_path(self: Vc<Self>) -> Vc<FileSystemPath>;
+    async fn file_path(&self) -> Result<FileSystemPath>;
 
     /// The stage of the compilation process at which the issue occurred. This
     /// is used to sort issues.
-    #[turbo_tasks::function]
-    fn stage(self: Vc<Self>) -> Vc<IssueStage>;
+    fn stage(&self) -> IssueStage;
 
     /// The issue title should be descriptive of the issue, but should be a
     /// single line. This is displayed to the user directly under the issue
     /// header.
-    // TODO add Vc<StyledString>
-    #[turbo_tasks::function]
-    fn title(self: Vc<Self>) -> Vc<StyledString>;
+    async fn title(&self) -> Result<StyledString>;
 
     /// A more verbose message of the issue, appropriate for providing multiline
     /// information of the issue.
-    // TODO add Vc<StyledString>
-    #[turbo_tasks::function]
-    fn description(self: Vc<Self>) -> Vc<OptionStyledString> {
-        Vc::cell(None)
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(None)
     }
 
     /// Full details of the issue, appropriate for providing debug level
     /// information. Only displayed if the user explicitly asks for detailed
     /// messages (not to be confused with severity).
-    #[turbo_tasks::function]
-    fn detail(self: Vc<Self>) -> Vc<OptionStyledString> {
-        Vc::cell(None)
+    async fn detail(&self) -> Result<Option<StyledString>> {
+        Ok(None)
     }
 
     /// A link to relevant documentation of the issue. Only displayed in console
     /// if the user explicitly asks for detailed messages.
-    #[turbo_tasks::function]
-    fn documentation_link(self: Vc<Self>) -> Vc<RcStr> {
-        Vc::<RcStr>::default()
+    fn documentation_link(&self) -> RcStr {
+        rcstr!("")
     }
 
     /// The source location that caused the issue. Eg, for a parsing error it
     /// should point at the offending character. Displayed to the user alongside
     /// the title/description.
-    #[turbo_tasks::function]
-    fn source(self: Vc<Self>) -> Vc<OptionIssueSource> {
-        Vc::cell(None)
+    fn source(&self) -> Option<IssueSource> {
+        None
     }
 
     /// Additional source locations related to this issue (e.g., generated code
     /// from a loader). Each source includes a description and location.
     /// These are displayed alongside the primary source to give users full
     /// context about the error.
-    #[turbo_tasks::function]
-    fn additional_sources(self: Vc<Self>) -> Vc<AdditionalIssueSources> {
-        AdditionalIssueSources::empty()
+    async fn additional_sources(&self) -> Result<Vec<AdditionalIssueSource>> {
+        Ok(vec![])
     }
 }
 
@@ -318,13 +310,15 @@ impl IssueFilter {
             return Ok(Vc::cell(true));
         }
 
+        let trait_ref = issue.into_trait_ref().await?;
+
         // Fetch the file path once — it's used by both severity and ignore-rule
         // checks.
-        let file_path = issue.file_path().await?;
+        let file_path = trait_ref.file_path().await?;
 
         // Check severity first — this is cheap and avoids fetching
         // title/description for issues that would be filtered out anyway.
-        let severity = issue.into_trait_ref().await?.severity();
+        let severity = trait_ref.severity();
         // NOTE: Lower severities are _more_ severe
         let severity_allowed = if severity <= self.severity || severity <= self.foreign_severity {
             // we need to check the path to see if it is foreign or not.  Only await the
@@ -360,7 +354,7 @@ impl IssueFilter {
                 }
                 if let Some(ref title_pat) = rule.title {
                     if title_str.is_none() {
-                        title_str = Some(issue.title().await?.to_unstyled_string());
+                        title_str = Some(trait_ref.title().await?.to_unstyled_string());
                     }
                     if !title_pat.matches(title_str.as_deref().unwrap()) {
                         continue;
@@ -368,11 +362,12 @@ impl IssueFilter {
                 }
                 if let Some(ref desc_pat) = rule.description {
                     if description_text.is_none() {
-                        let desc_opt = issue.description().await?;
-                        description_text = Some(match desc_opt.as_ref() {
-                            Some(desc_vc) => Some(desc_vc.await?.to_unstyled_string()),
-                            None => None,
-                        });
+                        description_text = Some(
+                            trait_ref
+                                .description()
+                                .await?
+                                .map(|s| s.to_unstyled_string()),
+                        );
                     }
                     match description_text.as_ref().unwrap().as_deref() {
                         Some(desc) if desc_pat.matches(desc) => {}
@@ -502,7 +497,12 @@ impl IssueSource {
             let mut range = match range {
                 SourceRange::LineColumn(start, end) => Some((start, end)),
                 SourceRange::ByteOffset(start, end) => {
-                    if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
+                    // Defensively read the content, an error there should not prevent all issue
+                    // formatting.  Best practice is for `content` to return `NotFound` instead of
+                    // an error.
+                    if let Ok(content) = self.source.content().lines().await
+                        && let FileLinesContent::Lines(lines) = &*content
+                    {
                         let start = find_line_and_column(lines.as_ref(), start);
                         let end = find_line_and_column(lines.as_ref(), end);
                         Some((start, end))
@@ -607,8 +607,8 @@ impl IssueSource {
     }
 
     /// Returns the file path for the source file.
-    pub fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
+    pub async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.source.ident().await?.path.clone())
     }
 
     /// If this source implements `GenerateSourceMap`, returns an
@@ -709,12 +709,6 @@ async fn source_pos(
 
     Ok(Some((content_1, start, end)))
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionIssueSource(Option<IssueSource>);
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionStyledString(Option<ResolvedVc<StyledString>>);
 
 /// A labeled issue source used to provide additional context in error messages.
 /// For example, when a webpack loader produces broken code, the primary source
@@ -875,6 +869,7 @@ pub enum IssueStage {
     Resolve,
     Bindings,
     CodeGen,
+    Emit,
     Unsupported,
     Misc,
     Other(RcStr),
@@ -893,6 +888,7 @@ impl Display for IssueStage {
             IssueStage::Analysis => write!(f, "analysis"),
             IssueStage::Bindings => write!(f, "bindings"),
             IssueStage::CodeGen => write!(f, "code gen"),
+            IssueStage::Emit => write!(f, "emit"),
             IssueStage::Unsupported => write!(f, "unsupported"),
             IssueStage::AppStructure => write!(f, "app structure"),
             IssueStage::Misc => write!(f, "misc"),
@@ -901,7 +897,7 @@ impl Display for IssueStage {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainIssue {
     pub severity: IssueSeverity,
@@ -919,7 +915,7 @@ pub struct PlainIssue {
     pub import_traces: Vec<PlainTrace>,
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainAdditionalIssueSource {
     pub description: RcStr,
@@ -979,53 +975,43 @@ impl PlainIssue {
         issue: ResolvedVc<Box<dyn Issue>>,
         import_tracer: Option<ResolvedVc<DelegatingImportTracer>>,
     ) -> Result<Vc<Self>> {
-        let description: Option<StyledString> = match *issue.description().await? {
-            Some(description) => Some(description.owned().await?),
-            None => None,
-        };
-        let detail = match *issue.detail().await? {
-            Some(detail) => Some(detail.owned().await?),
-            None => None,
-        };
         let trait_ref = issue.into_trait_ref().await?;
-
         let severity = trait_ref.severity();
+        let file_path = trait_ref.file_path().await?;
+        let file_path_str = file_path.to_string_ref().await?;
 
         Ok(Self::cell(Self {
             severity,
-            file_path: issue.file_path().to_string().owned().await?,
-            stage: issue.stage().owned().await?,
-            title: issue.title().owned().await?,
-            description,
-            detail,
-            documentation_link: issue.documentation_link().owned().await?,
+            file_path: file_path_str,
+            stage: trait_ref.stage(),
+            title: trait_ref.title().await?,
+            description: trait_ref.description().await?,
+            detail: trait_ref.detail().await?,
+            documentation_link: trait_ref.documentation_link(),
             source: {
-                if let Some(s) = &*issue.source().await? {
+                if let Some(s) = trait_ref.source() {
                     Some(s.into_plain().await?)
                 } else {
                     None
                 }
             },
             additional_sources: {
-                let sources = issue.additional_sources().await?;
-                let mut result = Vec::new();
-                for s in sources.iter() {
-                    result.push(PlainAdditionalIssueSource {
-                        description: s.description.clone(),
-                        source: s.source.into_plain().await?,
-                    });
-                }
-                result
+                trait_ref
+                    .additional_sources()
+                    .await?
+                    .into_iter()
+                    .map(async |s| {
+                        Ok(PlainAdditionalIssueSource {
+                            source: s.source.into_plain().await?,
+                            description: s.description,
+                        })
+                    })
+                    .try_join()
+                    .await?
             },
             import_traces: match import_tracer {
                 Some(tracer) => {
-                    into_plain_trace(
-                        tracer
-                            .await?
-                            .get_traces(issue.file_path().owned().await?)
-                            .await?,
-                    )
-                    .await?
+                    into_plain_trace(tracer.await?.get_traces(file_path).await?).await?
                 }
                 None => vec![],
             },
@@ -1033,18 +1019,18 @@ impl PlainIssue {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainIssueSource {
     pub asset: ReadRef<PlainSource>,
     pub range: Option<(SourcePos, SourcePos)>,
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainSource {
-    pub ident: ReadRef<RcStr>,
-    pub file_path: ReadRef<RcStr>,
+    pub ident: RcStr,
+    pub file_path: RcStr,
     #[turbo_tasks(debug_ignore)]
     pub content: ReadRef<FileContent>,
 }
@@ -1053,15 +1039,22 @@ pub struct PlainSource {
 impl PlainSource {
     #[turbo_tasks::function]
     pub async fn from_source(asset: ResolvedVc<Box<dyn Source>>) -> Result<Vc<PlainSource>> {
-        let asset_content = asset.content().await?;
-        let content = match *asset_content {
-            AssetContent::File(file_content) => file_content.await?,
-            AssetContent::Redirect { .. } => ReadRef::new_owned(FileContent::NotFound),
+        // Defensively read the content, an error there should not prevent all issue
+        // formatting.  Best practice is for `content` to return `NotFound` instead of
+        // an error.
+        let content = if let Ok(asset_content) = asset.content().await
+            && let AssetContent::File(file_content) = &*asset_content
+            && let Ok(file_content) = file_content.await
+        {
+            file_content
+        } else {
+            ReadRef::new_owned(FileContent::NotFound)
         };
+        let ident = asset.ident();
 
         Ok(PlainSource {
-            ident: asset.ident().to_string().await?,
-            file_path: asset.ident().path().to_string().await?,
+            ident: ident.to_string().owned().await?,
+            file_path: ident.await?.path.to_string_ref().await?,
             content,
         }
         .cell())
@@ -1134,7 +1127,7 @@ pub async fn handle_issues<T: Send>(
     operation: Option<&str>,
 ) -> Result<()> {
     let source_vc = source_op.connect();
-    let _ = source_op.resolve_strongly_consistent().await?;
+    let _ = source_op.resolve().strongly_consistent().await?;
 
     let has_fatal = issue_reporter.report_issues(
         TransientValue::new(Vc::into_raw(source_vc)),

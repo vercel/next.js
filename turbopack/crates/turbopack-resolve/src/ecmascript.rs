@@ -66,6 +66,9 @@ async fn apply_esm_specific_options_internal(
     for conditions in get_condition_maps(&mut options) {
         conditions.insert(rcstr!("import"), ConditionValue::Set);
         conditions.insert(rcstr!("require"), ConditionValue::Unset);
+        // Don't set "module-sync" to ConditionValue::Set here. When tracing, the Node.js runtime
+        // version might not support it yet, so we still want the "import"/"require"/"default"
+        // result anyway.
     }
 
     if clear_extensions {
@@ -83,6 +86,9 @@ pub async fn apply_cjs_specific_options(options: Vc<ResolveOptions>) -> Result<V
     for conditions in get_condition_maps(&mut options) {
         conditions.insert(rcstr!("import"), ConditionValue::Unset);
         conditions.insert(rcstr!("require"), ConditionValue::Set);
+        // Don't set "module-sync" to ConditionValue::Set here. When tracing, the Node.js runtime
+        // version might not support it yet, so we still want the "import"/"require"/"default"
+        // result anyway.
     }
     Ok(options.cell())
 }
@@ -95,8 +101,8 @@ pub async fn esm_resolve(
     issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::EcmaScriptModules(ty);
-    let options = apply_esm_specific_options(origin.resolve_options(), &ty)
-        .resolve()
+    let options = *apply_esm_specific_options(origin.resolve_options(), &ty)
+        .to_resolved()
         .await?;
     specific_resolve(origin, request, options, ty, error_mode, issue_source).await
 }
@@ -110,8 +116,8 @@ pub async fn cjs_resolve(
     error_mode: ResolveErrorMode,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = ReferenceType::CommonJs(ty);
-    let options = apply_cjs_specific_options(origin.resolve_options())
-        .resolve()
+    let options = *apply_cjs_specific_options(origin.resolve_options())
+        .to_resolved()
         .await?;
     specific_resolve(origin, request, options, ty, error_mode, issue_source).await
 }
@@ -125,8 +131,8 @@ pub async fn cjs_resolve_source(
     error_mode: ResolveErrorMode,
 ) -> Result<Vc<ResolveResult>> {
     let ty = ReferenceType::CommonJs(ty);
-    let options = apply_cjs_specific_options(origin.resolve_options())
-        .resolve()
+    let options = *apply_cjs_specific_options(origin.resolve_options())
+        .to_resolved()
         .await?;
     let result = resolve(
         origin.origin_path().await?.parent(),

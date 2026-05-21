@@ -39,7 +39,7 @@ impl WrappedGetContentSourceContent {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn wrap_sources_operation(
     sources: OperationVc<GetContentSourceContents>,
     processor: ResolvedVc<Box<dyn ContentSourceProcessor>>,

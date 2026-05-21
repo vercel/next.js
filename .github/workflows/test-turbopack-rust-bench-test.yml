@@ -4,7 +4,7 @@ on:
     inputs:
       runner:
         type: string
-        default: '["self-hosted", "linux", "x64", "metal"]'
+        default: '["ubuntu-latest-16-core-oss"]'
       os:
         type: string
         default: 'linux'
@@ -15,8 +15,9 @@ on:
 env:
   TURBOPACK_BENCH_COUNTS: '100'
   TURBOPACK_BENCH_PROGRESS: '1'
-
   NODE_LTS_VERSION: 20
+  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
 jobs:
   test:
@@ -30,13 +31,13 @@ jobs:
         if: inputs.os == 'windows'
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
@@ -45,6 +46,11 @@ jobs:
       # We need to install the dependencies for the benchmark apps
       - run: pnpm install
         working-directory: turbopack/benchmark-apps
+
+      - name: Start sccache
+        uses: ./.github/actions/sccache
+        with:
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       - name: Build benchmarks for tests
         timeout-minutes: 120

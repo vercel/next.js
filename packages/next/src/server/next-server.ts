@@ -283,8 +283,8 @@ export default class NextNodeServer extends BaseServer<
     // when using compile mode static env isn't inlined so we
     // need to populate in normal runtime env
     if (this.renderOpts.isExperimentalCompile) {
-      // immutableAssetToken only works with Turbopack, and `isExperimentalCompile` isn't supported
-      // with that anyway, so we can assign immutableAssetToken to deploymentId here
+      // supportsImmutableAssets only works with Turbopack, and `isExperimentalCompile` isn't supported
+      // with that anyway, so we can assign just use deploymentId here
       populateStaticEnv(this.nextConfig, this.deploymentId || '')
     }
 
@@ -645,9 +645,10 @@ export default class NextNodeServer extends BaseServer<
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
-            clientAssetToken:
-              this.nextConfig.experimental.immutableAssetToken ??
-              this.deploymentId,
+            clientAssetToken: this.nextConfig.experimental
+              .supportsImmutableAssets
+              ? ''
+              : this.deploymentId,
           }
         )
       } else {
@@ -663,9 +664,10 @@ export default class NextNodeServer extends BaseServer<
           {
             buildId: this.buildId,
             deploymentId: this.deploymentId,
-            clientAssetToken:
-              this.nextConfig.experimental.immutableAssetToken ??
-              this.deploymentId,
+            clientAssetToken: this.nextConfig.experimental
+              .supportsImmutableAssets
+              ? undefined
+              : this.deploymentId,
             customServer: this.serverOptions.customServer || undefined,
           },
           {
@@ -747,6 +749,7 @@ export default class NextNodeServer extends BaseServer<
             href,
             req.originalRequest,
             res.originalResponse,
+            this.nextConfig.images.maximumResponseBody,
             handleInternalReq
           )
 
@@ -1629,8 +1632,10 @@ export default class NextNodeServer extends BaseServer<
 
     // Middleware is skipped for on-demand revalidate requests
     if (
-      checkIsOnDemandRevalidate(params.request, this.renderOpts.previewProps)
-        .isOnDemandRevalidate
+      checkIsOnDemandRevalidate(
+        params.request.headers,
+        this.renderOpts.previewProps
+      ).isOnDemandRevalidate
     ) {
       return {
         response: new Response(null, { headers: { 'x-middleware-next': '1' } }),
@@ -1751,8 +1756,9 @@ export default class NextNodeServer extends BaseServer<
         request: requestData,
         useCache: true,
         onWarning: params.onWarning,
-        clientAssetToken:
-          this.nextConfig.experimental.immutableAssetToken || this.deploymentId,
+        clientAssetToken: this.nextConfig.experimental.supportsImmutableAssets
+          ? ''
+          : this.deploymentId,
       })
     }
 
@@ -2072,8 +2078,9 @@ export default class NextNodeServer extends BaseServer<
         params.req,
         'serverComponentsHmrCache'
       ),
-      clientAssetToken:
-        this.nextConfig.experimental.immutableAssetToken || this.deploymentId,
+      clientAssetToken: this.nextConfig.experimental.supportsImmutableAssets
+        ? ''
+        : this.deploymentId,
     })
 
     if (result.fetchMetrics) {

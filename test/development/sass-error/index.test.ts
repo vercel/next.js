@@ -4,7 +4,6 @@ import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 describe('app dir - css', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       sass: 'latest',
     },

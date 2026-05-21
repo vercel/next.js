@@ -18,6 +18,7 @@ import {
   writeValidatorFile,
 } from '../server/lib/router-utils/route-types-utils'
 import { writeCacheLifeTypes } from '../server/lib/router-utils/cache-life-type-utils'
+import { writeRootParamsTypes } from '../server/lib/router-utils/root-params-type-utils'
 import { installBindings } from '../build/swc/install-bindings'
 
 export type NextTypegenOptions = {
@@ -111,6 +112,11 @@ const nextTypegen = async (
   // Generate cache-life types if cacheLife config exists
   const cacheLifeFilePath = join(distDir, 'types', 'cache-life.d.ts')
   writeCacheLifeTypes(nextConfig.cacheLife, cacheLifeFilePath)
+
+  await writeRootParamsTypes(
+    routeTypesManifest,
+    join(distDir, 'types', 'root-params.d.ts')
+  )
 
   console.log('✓ Types generated successfully')
 }

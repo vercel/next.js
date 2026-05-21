@@ -21,7 +21,7 @@ use crate::{
     references::css_resolve,
 };
 
-#[turbo_tasks::value(eq = "manual", serialization = "none", shared)]
+#[turbo_tasks::value(eq = "manual", serialization = "skip", shared)]
 #[derive(PartialEq)]
 pub enum ImportAttributes {
     LightningCss {

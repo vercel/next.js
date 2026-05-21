@@ -1,9 +1,8 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use anyhow::Result;
 use arbitrary::Arbitrary;
 use bincode::{Decode, Encode};
-use once_cell::sync::Lazy;
 use turbo_tasks::{self, NonLocalValue, State, TaskInput, TurboTasks, Vc, trace::TraceRawVcs};
 use turbo_tasks_malloc::TurboMalloc;
 
@@ -81,11 +80,14 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
-static RUNTIME: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
+static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .on_thread_stop(|| {
             TurboMalloc::thread_stop();
+        })
+        .on_thread_park(|| {
+            TurboMalloc::thread_park();
         })
         .build()
         .unwrap()
@@ -133,20 +135,21 @@ pub fn run(data: Vec<TaskSpec>) {
 struct Iteration(State<usize>);
 
 fn actual_operation(spec: Arc<Vec<TaskSpec>>, iterations: usize) {
-    let tt = TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(
-        turbo_tasks_backend::BackendOptions {
-            storage_mode: None,
-            small_preallocation: true,
-            ..Default::default()
-        },
-        turbo_tasks_backend::noop_backing_storage(),
-    ));
     RUNTIME
         .block_on(async {
+            let tt = TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(
+                turbo_tasks_backend::BackendOptions {
+                    storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWrite),
+                    small_preallocation: false,
+                    active_tracking: true,
+                    ..Default::default()
+                },
+                turbo_tasks_backend::noop_backing_storage(),
+            ));
             for i in 0..iterations {
                 let spec = spec.clone();
                 tt.run(async move {
-                    let it = create_state().resolve().await?;
+                    let it = *create_state().to_resolved().await?;
                     it.await?.set(i);
                     let task = run_task(spec.clone(), it, 0);
                     task.strongly_consistent().await?;
@@ -166,7 +169,7 @@ fn create_state() -> Vc<Iteration> {
     Vc::cell(State::new(0))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn run_task_chain(
     spec: Arc<Vec<TaskSpec>>,
     iteration: Vc<Iteration>,
@@ -183,7 +186,7 @@ async fn run_task_chain(
     Ok(Vc::cell(()))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn run_task(
     spec: Arc<Vec<TaskSpec>>,
     iteration: Vc<Iteration>,

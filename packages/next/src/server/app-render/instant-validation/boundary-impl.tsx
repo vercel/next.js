@@ -107,3 +107,32 @@ const InstantValidationBoundary =
       0
     ) as typeof INSTANT_VALIDATION_BOUNDARY_NAME
   ]
+
+// Slot marker component for attributing validation errors to the
+// correct config when a boundary spans multiple parallel slots.
+// Renders a dynamically-named inner component so the slot index
+// appears in the SSR component stack (__next_instant_slot_N__).
+const slotMarkerCache = new Map<
+  string,
+  (props: { children: ReactNode }) => ReactNode
+>()
+
+export function SlotMarker({
+  name,
+  children,
+}: {
+  name: string
+  children: ReactNode
+}) {
+  let Marker = slotMarkerCache.get(name)
+  if (!Marker) {
+    const ns = {
+      [name]: function ({ children: c }: { children: ReactNode }) {
+        return c
+      },
+    }
+    Marker = ns[name]
+    slotMarkerCache.set(name, Marker)
+  }
+  return <Marker>{children}</Marker>
+}

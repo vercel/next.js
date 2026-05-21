@@ -3,8 +3,8 @@
  */
 const nextConfig = {
   experimental: {
+    prefetchInlining: false,
     useCache: true,
-    partialFallbacks: true,
   },
   rewrites: async () => {
     return {

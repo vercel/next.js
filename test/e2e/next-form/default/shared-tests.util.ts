@@ -1,7 +1,5 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup } from 'e2e-utils'
 import { Playwright } from 'next-webdriver'
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 // These tests are defined here and used in `app-dir.test.ts` and
 // `pages-dir.test.ts` so that both test suites can be run in parallel.

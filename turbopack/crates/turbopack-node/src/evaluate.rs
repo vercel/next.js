@@ -1,9 +1,7 @@
-use std::{
-    borrow::Cow, iter, process::ExitStatus, sync::Arc, thread::available_parallelism,
-    time::Duration,
-};
+use std::{iter, process::ExitStatus, sync::Arc, time::Duration};
 
 use anyhow::{Result, bail};
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use bytes::Bytes;
 use futures_retry::{FutureRetry, RetryPolicy};
@@ -11,12 +9,13 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Effects, FxIndexMap, NonLocalValue, OperationVc, PrettyPrintError, ReadRef,
-    ResolvedVc, TaskInput, TryJoinIterExt, Vc, duration_span, fxindexmap, get_effects,
-    trace::TraceRawVcs,
+    Completion, FxIndexMap, NonLocalValue, OperationVc, PrettyPrintError, ResolvedVc, TaskInput,
+    TryJoinIterExt, ValueToString, Vc, duration_span, fxindexmap, mark_top_level_task,
+    parallel::available_parallelism, take_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
+use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::AssetContent,
     changed::content_changed,
@@ -24,10 +23,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{
-        Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
-        StyledString,
-    },
+    issue::{Issue, IssueExt, IssueSource, IssueStage, StyledString},
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph,
@@ -71,7 +67,13 @@ enum EvalJavaScriptIncomingMessage {
     Error(StructuredError),
 }
 
-#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual", shared)]
+#[turbo_tasks::value(
+    cell = "new",
+    serialization = "skip",
+    evict = "last",
+    eq = "manual",
+    shared
+)]
 pub struct EvaluatePool {
     #[turbo_tasks(trace_ignore, debug_ignore)]
     pool: Box<dyn EvaluateOperation>,
@@ -138,7 +140,7 @@ struct EmittedEvaluatePoolAssets {
     entrypoint: FileSystemPath,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn emit_evaluate_pool_assets_operation(
     entries: ResolvedVc<EvaluateEntries>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
@@ -149,15 +151,13 @@ async fn emit_evaluate_pool_assets_operation(
         main_entry_ident,
     } = &*entries.await?;
 
-    let module_path = main_entry_ident.path().await?;
-    let file_name = module_path.file_name();
-    let file_name = if file_name.ends_with(".js") {
-        Cow::Borrowed(file_name)
-    } else if let Some(file_name) = file_name.strip_suffix(".ts") {
-        Cow::Owned(format!("{file_name}.js"))
-    } else {
-        Cow::Owned(format!("{file_name}.js"))
+    let module_ident = main_entry_ident.to_string().await?;
+    let module_ident_hash = {
+        let mut hasher = Xxh3Hash64Hasher::new();
+        module_ident.deterministic_hash(&mut hasher);
+        hasher.finish()
     };
+    let file_name = format!("{module_ident_hash:016x}.js");
     let entrypoint = chunking_context.output_root().await?.join(&file_name)?;
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
@@ -184,22 +184,26 @@ async fn emit_evaluate_pool_assets_operation(
     .cell())
 }
 
-#[turbo_tasks::value(serialization = "none")]
-struct EmittedEvaluatePoolAssetsWithEffects {
-    assets: ReadRef<EmittedEvaluatePoolAssets>,
-    effects: Arc<Effects>,
-}
-
-#[turbo_tasks::function(operation)]
-async fn emit_evaluate_pool_assets_with_effects_operation(
+#[turbo_tasks::function(operation, root, session_dependent)]
+async fn create_evaluate_pool_assets_operation(
     entries: ResolvedVc<EvaluateEntries>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
-) -> Result<Vc<EmittedEvaluatePoolAssetsWithEffects>> {
+) -> Result<Vc<EmittedEvaluatePoolAssets>> {
     let operation = emit_evaluate_pool_assets_operation(entries, chunking_context, module_graph);
-    let assets = operation.read_strongly_consistent().await?;
-    let effects = Arc::new(get_effects(operation).await?);
-    Ok(EmittedEvaluatePoolAssetsWithEffects { assets, effects }.cell())
+    let assets = operation.resolve().strongly_consistent().await?;
+    let effects = Arc::new(take_effects(operation).await?);
+
+    // HACK: `Effects::apply` normally panics if not called at the top-level. We want to apply most
+    // effects outside of turbo-task functions to avoid re-executing effects during invalidations.
+    //
+    // That's not possible here because we lazily create the pool, so instead, use
+    // `mark_top_level_task` to avoid the debug assertion. The consequence is that these effects
+    // might get evaluated more than once if this function is invalidated.
+    mark_top_level_task();
+    effects.apply().await?;
+
+    Ok(*assets)
 }
 
 #[derive(
@@ -210,7 +214,7 @@ pub enum EnvVarTracking {
     Untracked,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 /// Pass the file you cared as `runtime_entries` to invalidate and reload the
 /// evaluated result automatically.
 pub async fn get_evaluate_pool(
@@ -224,17 +228,14 @@ pub async fn get_evaluate_pool(
     debug: bool,
     env_var_tracking: EnvVarTracking,
 ) -> Result<Vc<EvaluatePool>> {
-    let operation =
-        emit_evaluate_pool_assets_with_effects_operation(entries, chunking_context, module_graph);
-    let EmittedEvaluatePoolAssetsWithEffects { assets, effects } =
-        &*operation.read_strongly_consistent().await?;
-    effects.apply().await?;
+    let assets_op = create_evaluate_pool_assets_operation(entries, chunking_context, module_graph);
+    let assets = assets_op.read_strongly_consistent().await?;
 
     let EmittedEvaluatePoolAssets {
         bootstrap,
         output_root,
         entrypoint,
-    } = &**assets;
+    } = &*assets;
 
     let (Some(cwd), Some(entrypoint)) = (
         to_sys_path(cwd.clone()).await?,
@@ -351,6 +352,15 @@ pub trait EvaluateContext {
         state: Self::State,
         pool: &EvaluatePool,
     ) -> impl Future<Output = Result<()>> + Send;
+
+    /// Optional human-readable prefix describing *what was being evaluated*,
+    /// included verbatim in the message of the synthetic [`StructuredError`]
+    /// emitted when the Node.js subprocess crashes mid-evaluation. For
+    /// webpack-loader evaluations this is the loader chain ("loaders
+    /// [foo, bar]"). The default returns `None`.
+    fn crash_context_prefix(&self) -> Option<RcStr> {
+        None
+    }
 }
 
 pub async fn custom_evaluate(evaluate_context: impl EvaluateContext) -> Result<Vc<Option<RcStr>>> {
@@ -447,18 +457,18 @@ pub async fn get_evaluate_entries(
     let entry_module = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
-                runtime_asset.ident().path().await?.join("evaluate.js")?,
+                runtime_asset.ident().await?.path.join("evaluate.js")?,
                 AssetContent::file(
                     FileContent::Content(File::from(
-                        "import { run } from 'RUNTIME'; run(() => import('INNER'))",
+                        "import {run} from 'RUNTIME'; run(() => import('INNER'))",
                     ))
                     .cell(),
                 ),
             )),
-            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                rcstr!("INNER") => module_asset,
-                rcstr!("RUNTIME") => runtime_asset
-            })),
+            ReferenceType::Internal(ResolvedVc::cell(
+                fxindexmap! {rcstr!("INNER") => module_asset,
+                rcstr!("RUNTIME") => runtime_asset},
+            )),
         )
         .module()
         .to_resolved()
@@ -545,7 +555,34 @@ async fn pull_operation<T: EvaluateContext>(
     let _guard = duration_span!("Node.js evaluation");
 
     loop {
-        let message = serde_json::from_slice(&operation.recv().await?)?;
+        let recv_result = operation.recv().await;
+        let bytes = match recv_result {
+            Ok(bytes) => bytes,
+            Err(err) => {
+                // The Node.js subprocess crashed (or some other IPC failure
+                // closed the connection) before sending a response. Convert
+                // this into a synthesized issue with whatever diagnostic
+                // context the pool managed to capture, so the user sees a
+                // real error message instead of an internal turbo-tasks
+                // execution-failed cascade.
+                let message = match evaluate_context.crash_context_prefix() {
+                    Some(prefix) => format!(
+                        "Node.js subprocess crashed while evaluating {}: {}",
+                        prefix,
+                        PrettyPrintError(&err)
+                    ),
+                    None => format!(
+                        "Node.js subprocess crashed while evaluating: {}",
+                        PrettyPrintError(&err)
+                    ),
+                };
+                let synthetic = StructuredError::from_message("Error".to_string(), message);
+                evaluate_context.emit_error(synthetic, pool).await?;
+                operation.disallow_reuse();
+                return Ok(None);
+            }
+        };
+        let message = serde_json::from_slice(&bytes)?;
 
         match message {
             EvalJavaScriptIncomingMessage::Error(error) => {
@@ -646,6 +683,7 @@ impl EvaluateContext for BasicEvaluateContext {
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root.clone(),
             root_path: self.chunking_context.root_path().owned().await?,
+            detail: None,
         }
         .resolved_cell()
         .emit();
@@ -683,45 +721,46 @@ pub struct EvaluationIssue {
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub assets_root: FileSystemPath,
     pub root_path: FileSystemPath,
+    /// Optional extra context shown only when log details are enabled — e.g.
+    /// the loader chain that was running when a webpack-loader subprocess
+    /// errored.
+    pub detail: Option<RcStr>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for EvaluationIssue {
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Error evaluating Node.js code")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Error evaluating Node.js code")))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().await
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Text(
-                self.error
-                    .print(
-                        *self.assets_for_source_mapping,
-                        self.assets_root.clone(),
-                        self.root_path.clone(),
-                        FormattingMode::Plain,
-                    )
-                    .await?
-                    .into(),
-            )
-            .resolved_cell(),
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(
+            self.error
+                .print(
+                    *self.assets_for_source_mapping,
+                    self.assets_root.clone(),
+                    self.root_path.clone(),
+                    FormattingMode::Plain,
+                )
+                .await?
+                .into(),
         )))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    async fn detail(&self) -> Result<Option<StyledString>> {
+        Ok(self.detail.clone().map(StyledString::Text))
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }

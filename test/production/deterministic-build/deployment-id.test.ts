@@ -1,4 +1,4 @@
-import { FileRef, NextInstance, nextTestSetup } from 'e2e-utils'
+import { NextInstance, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import fs from 'fs/promises'
 import { promisify } from 'util'
@@ -7,6 +7,7 @@ import crypto from 'crypto'
 import globOrig from 'glob'
 import { diff } from 'jest-diff'
 const glob = promisify(globOrig)
+import { FILES } from './files'
 
 const IGNORE_CONTENT_NEXT_REGEX = new RegExp(
   [
@@ -118,7 +119,7 @@ async function runTest(
   readFiles: (next: NextInstance) => Promise<Map<string, Map<string, string>>>
 ) {
   // Same for both builds
-  next.env['__NEXT_IMMUTABLE_ASSET_TOKEN'] = 'imm-token'
+  next.env['__NEXT_SUPPORTS_IMMUTABLE_ASSETS'] = '1'
 
   // First build
   next.env['NEXT_DEPLOYMENT_ID'] = 'foo-dpl-id'
@@ -180,29 +181,6 @@ async function runTest(
   return { run1, run2 }
 }
 
-const FILES = {
-  standard: {
-    app: new FileRef(path.join(__dirname, 'standard', 'app')),
-    pages: new FileRef(path.join(__dirname, 'standard', 'pages')),
-    public: new FileRef(path.join(__dirname, 'standard', 'public')),
-    'instrumentation.ts': new FileRef(
-      path.join(__dirname, 'standard', 'instrumentation.ts')
-    ),
-    'middleware.ts': new FileRef(
-      path.join(__dirname, 'standard', 'middleware.ts')
-    ),
-    'next.config.js': new FileRef(
-      path.join(__dirname, 'standard', 'next.config.js')
-    ),
-  },
-  cacheComponents: {
-    app: new FileRef(path.join(__dirname, 'cache-components', 'app')),
-    'next.config.js': new FileRef(
-      path.join(__dirname, 'cache-components', 'next.config.js')
-    ),
-  },
-}
-
 // Webpack itself isn't deterministic
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'deterministic build - changing deployment id',
@@ -216,7 +194,6 @@ const FILES = {
           NOW_BUILDER: '1',
         },
         skipStart: true,
-        skipDeployment: true,
         disableAutoSkewProtection: true,
       })
 
@@ -254,7 +231,6 @@ const FILES = {
               }
             : undefined,
         skipStart: true,
-        skipDeployment: true,
         disableAutoSkewProtection: true,
       })
 

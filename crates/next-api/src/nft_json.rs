@@ -1,6 +1,7 @@
-use std::collections::{BTreeSet, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 
 use anyhow::{Result, bail};
+use async_trait::async_trait;
 use serde_json::json;
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::{RcStr, rcstr};
@@ -13,9 +14,10 @@ use turbo_tasks_fs::{
     DirectoryEntry, File, FileContent, FileSystem, FileSystemPath,
     glob::{Glob, GlobOptions},
 };
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
 };
 
@@ -105,14 +107,14 @@ async fn apply_includes(
     project_root_path: FileSystemPath,
     glob: Vc<Glob>,
     ident_folder: &FileSystemPath,
-) -> Result<BTreeSet<RcStr>> {
+) -> Result<BTreeMap<RcStr, ReadRef<RcStr>>> {
     debug_assert_eq!(project_root_path.fs, ident_folder.fs);
     // Read files matching the glob pattern from the project root
     // This result itself has random order, but the BTreeSet will ensure a deterministic ordering.
     let glob_result = project_root_path.read_glob(glob).await?;
 
     // Walk the full glob_result using an explicit stack to avoid async recursion overheads.
-    let mut result = BTreeSet::new();
+    let mut result = BTreeMap::new();
     let mut stack = VecDeque::new();
     stack.push_back(glob_result);
     while let Some(glob_result) = stack.pop_back() {
@@ -127,7 +129,10 @@ async fn apply_includes(
             // unwrap is safe because project_root_path and ident_folder have the same filesystem
             // and paths produced by read_glob stay in the filesystem
             let relative_path = ident_folder.get_relative_path_to(file_path).unwrap();
-            result.insert(relative_path);
+            result.insert(
+                relative_path,
+                file_path.read().hash(HashAlgorithm::Xxh3Hash128Hex).await?,
+            );
         }
 
         for nested_result in glob_result.inner.values() {
@@ -148,7 +153,7 @@ impl Asset for NftJsonAsset {
             path = display(self.path().to_string().await?)
         );
         async move {
-            let mut result: BTreeSet<RcStr> = BTreeSet::new();
+            let mut result: BTreeMap<RcStr, ReadRef<RcStr>> = BTreeMap::new();
             let project_path = this.project.project_path().owned().await?;
 
             let output_root_ref = this.project.output_fs().root().await?;
@@ -319,7 +324,13 @@ impl Asset for NftJsonAsset {
                     }
                 };
 
-                result.insert(specifier);
+                result.insert(
+                    specifier,
+                    referenced_chunk
+                        .content()
+                        .hash(HashAlgorithm::Xxh3Hash128Hex)
+                        .await?,
+                );
             }
 
             // Apply outputFileTracingIncludes and outputFileTracingExcludes
@@ -370,9 +381,19 @@ impl Asset for NftJsonAsset {
                 result.extend(includes.into_iter().flatten());
             }
 
+            let (files, file_hashes): (Vec<_>, Vec<_>) = result.into_iter().unzip();
+            // We can't just add this into "files" because Next.js sometimes decides to delete
+            // output files such as `.next/server/pages/index.js` if that page was prerendered and
+            // is fully static. An alternative would be to postprocess the nft file so that
+            // non-adapter consumers (which includes output:standalone) don't experience a breaking
+            // change, but instead we just add it as a separate field that only build-complete
+            // reads.
+            let entry_hash = chunk.content().hash(HashAlgorithm::Xxh3Hash128Hex).await?;
             let json = json!({
               "version": 1,
-              "files": result
+              "files": files,
+              "fileHashes": file_hashes,
+              "entryHash": entry_hash,
             });
 
             Ok(AssetContent::file(
@@ -544,6 +565,7 @@ struct ForbiddenTracedFileIssue {
     path: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ForbiddenTracedFileIssue {
     fn severity(&self) -> IssueSeverity {
@@ -552,23 +574,21 @@ impl Issue for ForbiddenTracedFileIssue {
         IssueSeverity::Warning
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Misc.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Misc
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file.path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.file.path().owned().await
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Encountered unexpected file in NFT list")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Encountered unexpected file in NFT list"
+        )))
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+    async fn description(&self) -> Result<Option<StyledString>> {
         let mut stack = vec![
             StyledString::Text(rcstr!(
                 "A file was traced that indicates that the whole project was traced \
@@ -625,7 +645,7 @@ impl Issue for ForbiddenTracedFileIssue {
             ])
         }
 
-        Ok(Vc::cell(Some(StyledString::Stack(stack).resolved_cell())))
+        Ok(Some(StyledString::Stack(stack)))
     }
 }
 

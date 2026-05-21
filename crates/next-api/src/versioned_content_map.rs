@@ -5,7 +5,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueDefault, Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbobail,
+    TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
@@ -72,12 +72,6 @@ pub struct VersionedContentMap {
     // FxIndexSet<FileSystemPath>
     map_path_to_op: State<PathToOutputOperation>,
     map_op_to_compute_entry: State<OutputOperationToComputeEntry>,
-}
-
-impl ValueDefault for VersionedContentMap {
-    fn value_default() -> Vc<Self> {
-        *VersionedContentMap::new()
-    }
 }
 
 impl VersionedContentMap {
@@ -273,7 +267,7 @@ type GetEntriesResultT = Vec<(FileSystemPath, ResolvedVc<Box<dyn OutputAsset>>)>
 #[turbo_tasks::value(transparent)]
 struct GetEntriesResult(GetEntriesResultT);
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn get_entries(assets: OperationVc<ExpandedOutputAssets>) -> Result<Vc<GetEntriesResult>> {
     let assets_ref = assets.connect().await?;
     let entries = assets_ref
@@ -287,7 +281,7 @@ async fn get_entries(assets: OperationVc<ExpandedOutputAssets>) -> Result<Vc<Get
     Ok(Vc::cell(entries))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn compute_entry_operation(
     map: ResolvedVc<VersionedContentMap>,
     assets_operation: OperationVc<ExpandedOutputAssets>,

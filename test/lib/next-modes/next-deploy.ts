@@ -10,7 +10,7 @@ export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
   private _buildId: string
   private _deploymentId: string | undefined
-  private _immutableAssetToken: string | undefined
+  private _supportsImmutableAssets: boolean = false
   private _writtenHostsLine: string | null = null
 
   protected throwIfUnavailable(): void | never {
@@ -39,8 +39,8 @@ export class NextDeployInstance extends NextInstance {
     return this._deploymentId
   }
 
-  public get immutableAssetToken() {
-    return process.env.IS_TURBOPACK_TEST ? this._immutableAssetToken : undefined
+  public get supportsImmutableAssets() {
+    return process.env.IS_TURBOPACK_TEST ? this._supportsImmutableAssets : false
   }
 
   private async deployUsingCustomScript(): Promise<{ url: string }> {
@@ -169,19 +169,19 @@ export class NextDeployInstance extends NextInstance {
       throw new Error(`Failed to get deploymentId from logs ${this._cliOutput}`)
     }
     this._deploymentId = deploymentId
-    const immutableAssetToken = this._cliOutput
-      .match(/IMMUTABLE_ASSET_TOKEN: (.+)/)?.[1]
+    const supportsImmutableAssets = this._cliOutput
+      .match(/NEXT_SUPPORTS_IMMUTABLE_ASSETS: (.+)/)?.[1]
       ?.trim()
-    if (!immutableAssetToken) {
+    if (!supportsImmutableAssets) {
       throw new Error(
-        `Failed to get immutableAssetToken from logs ${this._cliOutput}`
+        `Failed to get supportsImmutableAssets from logs ${this._cliOutput}`
       )
     }
-    this._immutableAssetToken =
-      immutableAssetToken === 'undefined' ? undefined : immutableAssetToken
+    this._supportsImmutableAssets =
+      supportsImmutableAssets === '1' ? true : false
 
     require('console').log(
-      `Got buildId: ${this._buildId}, deploymentId: ${this._deploymentId}, immutableAssetToken: ${this._immutableAssetToken}`
+      `Got buildId: ${this._buildId}, deploymentId: ${this._deploymentId}, supportsImmutableAssets: ${this._supportsImmutableAssets}`
     )
   }
 
@@ -294,6 +294,16 @@ export class NextDeployInstance extends NextInstance {
       vercelFlags.push('--scope', TEST_TEAM_NAME)
     }
     const vercelEnv = { ...process.env }
+
+    // The Vercel CLI uses @vercel/detect-agent to detect when it's running
+    // under an AI coding agent (Claude Code, Cursor, Codex, …) and, when it
+    // does, switches `vercel deploy` stdout from a plain URL to a JSON
+    // manifest intended for AI consumption — which breaks
+    // `new URL(deployRes.stdout)` below. The CLI honors an explicit
+    // `--non-interactive=false` as an override of the agent default, and the
+    // JSON-vs-plain decision keys off `client.nonInteractive`, so passing
+    // the flag is enough to force plain-URL output for both link and deploy.
+    vercelFlags.push('--non-interactive=false')
 
     // If the token is available in the environment, use it as the token in the
     // environment.

@@ -1,5 +1,5 @@
 import { warnOnce } from './utils/warn-once'
-import { getDeploymentId } from './deployment-id'
+import { getAssetToken, getDeploymentId } from './deployment-id'
 import { getImageBlurSvg } from './image-blur-svg'
 import { imageConfigDefault } from './image-config'
 import type {
@@ -233,7 +233,10 @@ function generateImgAttrs({
   if (unoptimized) {
     if (src.startsWith('/') && !src.startsWith('//')) {
       let deploymentId = getDeploymentId()
-      if (deploymentId) {
+      if (src.includes('/_next/static/immutable') && !getAssetToken()) {
+        // immutable static asset and supported by platform, don't add `?dpl=`
+        deploymentId = undefined
+      } else if (deploymentId) {
         // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes
         // double-encoding with the `encodeURIComponent(src)` below
         const qIndex = src.indexOf('?')

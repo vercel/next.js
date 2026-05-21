@@ -4,6 +4,7 @@ import type {
   ExperimentalConfig,
   NextConfigComplete,
   PrefetchInliningConfig,
+  ValidationLevel,
 } from '../../server/config-shared'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
@@ -21,6 +22,7 @@ import type { IncomingMessage } from 'http'
 import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
 import type { PrefetchHints } from '../../shared/lib/app-router-types'
+import type { AnyStream } from './stream-ops'
 
 const dynamicParamTypesSchema = s.enums([
   'c',
@@ -95,6 +97,7 @@ export interface RenderOptsPartial {
   err?: Error | null
   basePath: string
   cacheComponents: boolean
+  validationLevel: ValidationLevel
   trailingSlash: boolean
   images: ImageConfigComplete
   supportsDynamicResponse: boolean
@@ -110,17 +113,18 @@ export interface RenderOptsPartial {
   cacheLifeProfiles?: {
     [profile: string]: import('../use-cache/cache-life').CacheLife
   }
+  staticPageGenerationTimeout: number
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
   setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   setReactDebugChannel?: (
-    debugChannel: { readable: ReadableStream<Uint8Array> },
+    debugChannel: { readable: AnyStream },
     htmlRequestId: string,
     requestId: string
   ) => void
   sendErrorsToBrowser?: (
-    errorsRscStream: ReadableStream<Uint8Array>,
+    errorsRscStream: AnyStream,
     htmlRequestId: string
   ) => void
   isBuildTimePrerendering?: boolean
@@ -164,6 +168,7 @@ export interface RenderOptsPartial {
     inlineCss: boolean
     prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
+    useCacheTimeout: number
     cachedNavigations: boolean
 
     /**
@@ -220,7 +225,7 @@ export interface RenderOptsPartial {
   /**
    * When true, attempt to run build-time instant validation for this prerender.
    * Only the first prerender per page sets this, since validation uses
-   * unstable_instant.samples and is independent of actual route params.
+   * unstable_instant.unstable_samples and is independent of actual route params.
    */
   runInstantValidation?: boolean
 }

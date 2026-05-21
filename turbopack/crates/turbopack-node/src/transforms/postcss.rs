@@ -60,9 +60,18 @@ struct PostCssProcessingResult {
     Decode,
 )]
 pub enum PostCssConfigLocation {
+    /// Searches for postcss config only starting from the project root directory.
+    /// Used for foreign code (node_modules) where per-directory configs should be ignored.
     #[default]
     ProjectPath,
+    /// Searches for postcss config starting from the project root directory first,
+    /// then falls back to searching from the CSS file's parent directory if not found
+    /// at the project root.
     ProjectPathOrLocalPath,
+    /// Searches for postcss config starting from the CSS file's parent directory first,
+    /// then falls back to the project root if not found locally. This allows per-directory
+    /// postcss.config.js files to override the project root config.
+    LocalPathOrProjectPath,
 }
 
 #[turbo_tasks::value(shared)]
@@ -75,40 +84,35 @@ pub struct PostCssTransformOptions {
 
 #[turbo_tasks::function]
 fn postcss_configs() -> Vc<Vec<RcStr>> {
-    Vc::cell(
-        [
-            ".postcssrc",
-            ".postcssrc.json",
-            ".postcssrc.yaml",
-            ".postcssrc.yml",
-            ".postcssrc.js",
-            ".postcssrc.mjs",
-            ".postcssrc.cjs",
-            ".postcssrc.ts",
-            ".postcssrc.mts",
-            ".postcssrc.cts",
-            ".config/postcssrc",
-            ".config/postcssrc.json",
-            ".config/postcssrc.yaml",
-            ".config/postcssrc.yml",
-            ".config/postcssrc.js",
-            ".config/postcssrc.mjs",
-            ".config/postcssrc.cjs",
-            ".config/postcssrc.ts",
-            ".config/postcssrc.mts",
-            ".config/postcssrc.cts",
-            "postcss.config.js",
-            "postcss.config.mjs",
-            "postcss.config.cjs",
-            "postcss.config.ts",
-            "postcss.config.mts",
-            "postcss.config.cts",
-            "postcss.config.json",
-        ]
-        .into_iter()
-        .map(RcStr::from)
-        .collect(),
-    )
+    Vc::cell(vec![
+        rcstr!(".postcssrc"),
+        rcstr!(".postcssrc.json"),
+        rcstr!(".postcssrc.yaml"),
+        rcstr!(".postcssrc.yml"),
+        rcstr!(".postcssrc.js"),
+        rcstr!(".postcssrc.mjs"),
+        rcstr!(".postcssrc.cjs"),
+        rcstr!(".postcssrc.ts"),
+        rcstr!(".postcssrc.mts"),
+        rcstr!(".postcssrc.cts"),
+        rcstr!(".config/postcssrc"),
+        rcstr!(".config/postcssrc.json"),
+        rcstr!(".config/postcssrc.yaml"),
+        rcstr!(".config/postcssrc.yml"),
+        rcstr!(".config/postcssrc.js"),
+        rcstr!(".config/postcssrc.mjs"),
+        rcstr!(".config/postcssrc.cjs"),
+        rcstr!(".config/postcssrc.ts"),
+        rcstr!(".config/postcssrc.mts"),
+        rcstr!(".config/postcssrc.cts"),
+        rcstr!("postcss.config.js"),
+        rcstr!("postcss.config.mjs"),
+        rcstr!("postcss.config.cjs"),
+        rcstr!("postcss.config.ts"),
+        rcstr!("postcss.config.mts"),
+        rcstr!("postcss.config.cts"),
+        rcstr!("postcss.config.json"),
+    ])
 }
 
 #[turbo_tasks::value]
@@ -306,8 +310,9 @@ impl Source for JsonSource {
         match &*self.key.await? {
             Some(key) => Ok(AssetIdent::from_path(
                 self.path.append(".")?.append(key)?.append(".json")?,
-            )),
-            None => Ok(AssetIdent::from_path(self.path.append(".json")?)),
+            )
+            .into_vc()),
+            None => Ok(AssetIdent::from_path(self.path.append(".json")?).into_vc()),
         }
     }
 }
@@ -437,22 +442,28 @@ async fn find_config_in_location(
     location: PostCssConfigLocation,
     source: Vc<Box<dyn Source>>,
 ) -> Result<Option<FileSystemPath>> {
-    if let FindContextFileResult::Found(config_path, _) =
-        &*find_context_file_or_package_key(project_path, postcss_configs(), rcstr!("postcss"))
-            .await?
-    {
-        return Ok(Some(config_path.clone()));
-    }
+    // Build an ordered list of directories to search based on the location strategy.
+    let search_paths = match location {
+        // Only check project root (used for foreign/node_modules code).
+        PostCssConfigLocation::ProjectPath => {
+            vec![project_path]
+        }
+        // Check project root first, fall back to the CSS file's directory.
+        PostCssConfigLocation::ProjectPathOrLocalPath => {
+            vec![project_path, source.ident().await?.path.parent()]
+        }
+        // Check the CSS file's directory first, fall back to the project root.
+        PostCssConfigLocation::LocalPathOrProjectPath => {
+            vec![source.ident().await?.path.parent(), project_path]
+        }
+    };
 
-    if matches!(location, PostCssConfigLocation::ProjectPathOrLocalPath)
-        && let FindContextFileResult::Found(config_path, _) = &*find_context_file_or_package_key(
-            source.ident().path().await?.parent(),
-            postcss_configs(),
-            rcstr!("postcss"),
-        )
-        .await?
-    {
-        return Ok(Some(config_path.clone()));
+    for path in search_paths {
+        if let FindContextFileResult::Found(config_path, _) =
+            &*find_context_file_or_package_key(path, postcss_configs(), rcstr!("postcss")).await?
+        {
+            return Ok(Some(config_path.clone()));
+        }
     }
 
     Ok(None)
@@ -531,26 +542,29 @@ impl PostCssTransformedAsset {
                 .to_resolved()
                 .await?;
 
-        let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
-            entries.graph_entries().to_resolved().await?,
-            false,
-            false,
-        ))
+        let module_graph = ModuleGraph::from_graphs(
+            vec![SingleModuleGraph::new_with_entries(
+                entries.graph_entries().to_resolved().await?,
+                false,
+                false,
+            )],
+            None,
+        )
         .connect()
         .to_resolved()
         .await?;
 
-        let css_fs_path = self.source.ident().path();
+        let source_ident = self.source.ident().await?;
 
         // We need to get a path relative to the project because the postcss loader
         // runs with the project as the current working directory.
-        let css_path =
-            if let Some(css_path) = project_path.get_relative_path_to(&*css_fs_path.await?) {
-                css_path.into_owned()
-            } else {
-                // This shouldn't be an error since it can happen on virtual assets
-                "".into()
-            };
+        let css_path = if let Some(css_path) = project_path.get_relative_path_to(&source_ident.path)
+        {
+            css_path.into_owned()
+        } else {
+            // This shouldn't be an error since it can happen on virtual assets
+            "".into()
+        };
 
         let config_value = evaluate_webpack_loader(WebpackLoaderContext {
             entries,
@@ -569,6 +583,7 @@ impl PostCssTransformedAsset {
                 ResolvedVc::cell(source_map.into()),
             ],
             additional_invalidation: config_changed,
+            loader_names: vec![turbo_rcstr::rcstr!("postcss")],
         })
         .await?;
 

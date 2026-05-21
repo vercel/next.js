@@ -20,8 +20,8 @@ use turbopack_core::{
 use super::worker_type::WorkerType;
 use crate::{
     chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        data::EcmascriptChunkData, ecmascript_chunk_item,
+        EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
+        EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
     runtime_functions::{TURBOPACK_CREATE_WORKER, TURBOPACK_EXPORT_VALUE},
     utils::StringifyJs,
@@ -60,15 +60,21 @@ impl WorkerLoaderModule {
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         Ok(match this.worker_type {
-            WorkerType::WebWorker | WorkerType::SharedWebWorker => chunking_context
-                .evaluated_chunk_group_assets(
-                    this.inner
-                        .ident()
-                        .with_modifier(this.worker_type.chunk_modifier_str()),
+            WorkerType::WebWorker | WorkerType::SharedWebWorker => {
+                let ident = this
+                    .inner
+                    .ident()
+                    .owned()
+                    .await?
+                    .with_modifier(this.worker_type.chunk_modifier_str())
+                    .into_vc();
+                chunking_context.evaluated_chunk_group_assets(
+                    ident,
                     ChunkGroup::Isolated(ResolvedVc::upcast(this.inner)),
                     module_graph,
                     AvailabilityInfo::root(),
-                ),
+                )
+            }
             // WorkerThreads are treated as an entry point, webworkers probably should too but
             // currently it would lead to a cascade that we need to address.
             WorkerType::NodeWorkerThread => {
@@ -146,10 +152,14 @@ impl WorkerLoaderModule {
 #[turbo_tasks::value_impl]
 impl Module for WorkerLoaderModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.inner
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .inner
             .ident()
+            .owned()
+            .await?
             .with_modifier(self.worker_type.modifier_str())
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -201,6 +211,14 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
+        let options = EcmascriptChunkItemOptions {
+            supports_arrow_functions: *chunking_context
+                .environment()
+                .runtime_versions()
+                .supports_arrow_functions()
+                .await?,
+            ..Default::default()
+        };
 
         if estimated {
             // In estimation mode we cannot call into chunking context APIs
@@ -217,6 +235,7 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
                     worker_path = StringifyJs(&"a_fake_path_for_size_estimation"),
                 }
                 .into(),
+                options,
                 ..Default::default()
             }
             .cell());
@@ -290,6 +309,7 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
 
         Ok(EcmascriptChunkItemContent {
             inner_code: code.into(),
+            options,
             ..Default::default()
         }
         .cell())

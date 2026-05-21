@@ -13,6 +13,7 @@ import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../server/image-optimizer'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
+import { fillStaticMetadataSegment } from '../../../lib/metadata/get-metadata-route'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import type { PageExtensions } from '../../page-extensions-type'
 import { getLoaderModuleNamedExports } from './utils'
@@ -168,18 +169,15 @@ async function nextMetadataImageLoader(
     }
   }
 
-  return `\
-  import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'
+  const imageUrl = fillStaticMetadataSegment(pathnamePrefix, pageSegment)
 
-  export default async (props) => {
+  return `\
+  export default function () {
     const imageData = ${JSON.stringify(imageData)}
-    const imageUrl = fillMetadataSegment(${JSON.stringify(
-      pathnamePrefix
-    )}, await props.params, ${JSON.stringify(pageSegment)}, true)
 
     return [{
       ...imageData,
-      url: imageUrl + ${JSON.stringify(hashQuery)},
+      url: ${JSON.stringify(imageUrl + hashQuery)},
     }]
   }`
 }

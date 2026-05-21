@@ -13,7 +13,7 @@ impl ValueBuffer<'_> {
         match self {
             ValueBuffer::Borrowed(b) => b.into(),
             ValueBuffer::Vec(v) => v.into_boxed_slice(),
-            ValueBuffer::SmallVec(sv) => sv.into_vec().into_boxed_slice(),
+            ValueBuffer::SmallVec(sv) => sv.into_boxed_slice(),
         }
     }
 }

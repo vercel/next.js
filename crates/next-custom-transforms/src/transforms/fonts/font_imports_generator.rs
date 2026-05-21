@@ -149,10 +149,10 @@ impl Visit for FontImportsGenerator<'_> {
 
     fn visit_module_item(&mut self, item: &ModuleItem) {
         match item {
-            ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl))) => {
-                if self.check_var_decl(var_decl).is_some() {
-                    self.state.removable_module_items.insert(var_decl.span.lo);
-                }
+            ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl)))
+                if self.check_var_decl(var_decl).is_some() =>
+            {
+                self.state.removable_module_items.insert(var_decl.span.lo);
             }
             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export_decl)) => {
                 if let Decl::Var(var_decl) = &export_decl.decl

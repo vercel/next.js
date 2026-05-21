@@ -38,7 +38,10 @@ describe('instant-nav-panel', () => {
   }
 
   async function clickStartClientNav(browser: Playwright) {
-    await browser.elementByCssInstant('[data-instant-nav-client]').click()
+    await browser
+      // TODO: Monitor if we need to increase timeouts for all *instant calls
+      .elementByCss('[data-instant-nav-client]', { timeout: 50 })
+      .click()
     await waitForInstantModeCookie(browser)
   }
 
@@ -93,11 +96,13 @@ describe('instant-nav-panel', () => {
 
   it('should show client nav state after clicking Start and navigating', async () => {
     const targetPage = '/target-page/my-post?search=foo'
-    if (isNextDev && !isTurbopack) {
-      // warmup target page compilation before clicking Start, to avoid extra flakiness.
-      void next.render(targetPage).catch(() => {})
-    }
-    const browser = await next.browser('/')
+    const [browser] = await Promise.all([
+      next.browser('/'),
+      isNextDev && !isTurbopack
+        ? // warmup target page compilation before clicking Start, to avoid extra flakiness.
+          next.render(targetPage).catch(() => {})
+        : null,
+    ])
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
 
@@ -133,13 +138,15 @@ describe('instant-nav-panel', () => {
     await clearInstantModeCookie(browser)
   })
 
-  it('should show loading skeleton during SPA navigation after clicking Start', async () => {
+  it('should show loading skeletons during SPA navigation after clicking Start', async () => {
     const targetPage = '/target-page/my-post?search=foo'
-    if (isNextDev && !isTurbopack) {
-      // warmup target page compilation before clicking Start, to avoid extra flakiness.
-      void next.render(targetPage).catch(() => {})
-    }
-    const browser = await next.browser('/')
+    const [browser] = await Promise.all([
+      next.browser('/'),
+      isNextDev && !isTurbopack
+        ? // warmup target page compilation before clicking Start, to avoid extra flakiness.
+          next.render(targetPage).catch(() => {})
+        : null,
+    ])
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
 
@@ -153,18 +160,20 @@ describe('instant-nav-panel', () => {
       document.querySelector<HTMLAnchorElement>(`[href="${page}"]`)!.click()
     }, targetPage)
 
-    // The data fetching skeleton should be visible (dynamic content is locked).
+    // Every runtime-dependent segment should be suspended under the lock:
+    // data-fetching (dynamic content), `await params`, and `await searchParams`.
     // Use a longer timeout because dev mode needs to compile the target page.
-    await retry(
-      async () => {
-        const skeleton = await browser.hasElementByCss(
-          '[data-testid="dynamic-skeleton"]'
-        )
-        expect(skeleton).toBe(true)
-      },
-      30000,
-      500
-    )
+    await browser
+      .locator('[data-testid="dynamic-skeleton"]')
+      .waitFor({ state: 'visible', timeout: 30000 })
+    await browser
+      .locator('[data-testid="param-skeleton"]')
+      .waitFor({ state: 'visible' })
+    await browser
+      .locator('[data-testid="search-param-skeleton"]')
+      .waitFor({ state: 'visible' })
+    // The resolved param value must not have leaked through the lock.
+    expect(await browser.locator('[data-testid="param-value"]').count()).toBe(0)
 
     // Clean up
     await clearInstantModeCookie(browser)

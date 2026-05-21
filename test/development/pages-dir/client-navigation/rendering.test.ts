@@ -1,13 +1,11 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP, getDistDir, renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import path from 'path'
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('Client Navigation rendering', () => {
   const { isTurbopack, next, isRspack } = nextTestSetup({
@@ -130,7 +128,7 @@ describe('Client Navigation rendering', () => {
       if (isReact18 && isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
+           "code": "E490",
            "description": "Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -143,7 +141,7 @@ describe('Client Navigation rendering', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
+           "code": "E490",
            "description": "Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -162,7 +160,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
+         "code": "E1035",
          "description": ""InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -177,7 +175,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
+         "code": "E1025",
          "description": ""EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -221,7 +219,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
+         "code": "E286",
          "description": "The default export is not a React Component in page: "/no-default-export"",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -458,7 +456,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
+         "code": "E98",
          "description": "An undefined error was thrown, see here for more info: https://nextjs.org/docs/messages/threw-undefined",
          "environmentLabel": null,
          "label": "Runtime Error",

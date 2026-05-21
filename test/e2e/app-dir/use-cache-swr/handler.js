@@ -1,5 +1,7 @@
 // @ts-check
 
+const { setTimeout } = require('timers/promises')
+
 /**
  * A persistent cache handler that does NOT drop entries at revalidate time.
  * This allows the framework's SWR code path to trigger, unlike the default
@@ -22,6 +24,8 @@ const cacheHandler = {
       await pendingPromise
     }
 
+    // Simulate some latency when fetching from a remote cache.
+    await setTimeout(200)
     const entry = store.get(cacheKey)
     if (!entry) {
       console.log('PersistentCacheHandler::get', cacheKey, softTags, '-> miss')

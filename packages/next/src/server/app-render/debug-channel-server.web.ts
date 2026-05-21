@@ -3,29 +3,24 @@
  * Loaded by debug-channel-server.ts.
  */
 
-// Types defined inline for now; will move to debug-channel-server.node.ts later.
+import type { AnyStream } from './app-render-prerender-utils'
+
 export type DebugChannelPair = {
   serverSide: DebugChannelServer
   clientSide: DebugChannelClient
 }
 
-export type DebugChannelServer = {
-  readable?: ReadableStream<Uint8Array>
-  writable: WritableStream<Uint8Array>
-}
+export type DebugChannelServer = any
 
 type DebugChannelClient = {
-  readable: ReadableStream<Uint8Array>
-  writable?: WritableStream<Uint8Array>
+  readable: AnyStream
 }
 
-export function createDebugChannel(): DebugChannelPair | undefined {
-  if (process.env.NODE_ENV === 'production') {
-    return undefined
-  }
-  return createWebDebugChannel()
-}
-
+/**
+ * Creates a debug channel using web WritableStream/ReadableStream.
+ * Use with renderToWebFlightStream (React's renderToReadableStream),
+ * which expects debugChannel = { writable: WritableStream }.
+ */
 export function createWebDebugChannel(): DebugChannelPair {
   let readableController: ReadableStreamDefaultController | undefined
 
@@ -54,13 +49,10 @@ export function createWebDebugChannel(): DebugChannelPair {
 }
 
 /**
- * toNodeDebugChannel is a no-op stub on the web path.
- * It should never be called in edge/web builds.
+ * Creates a debug channel using Node.js streams.
+ * Use with renderToNodeFlightStream (React's renderToPipeableStream),
+ * which expects debugChannel to be a Node.js stream with a .write() method.
  */
-export function toNodeDebugChannel(
-  _webDebugChannel: DebugChannelServer
-): never {
-  throw new Error(
-    'toNodeDebugChannel cannot be used in edge/web runtime, this is a bug in the Next.js codebase'
-  )
+export function createNodeDebugChannel(): DebugChannelPair {
+  throw new Error('not implemented')
 }

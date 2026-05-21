@@ -20,7 +20,20 @@ declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 
 // Injected by rust code
 declare var CHUNK_BASE_PATH: string
+/**
+ * Custom base path for Web Worker URLs (the entrypoint and the module
+ * chunks loaded inside the worker). Mirrors webpack's
+ * `output.workerPublicPath`. `null` means "use CHUNK_BASE_PATH"; an empty
+ * string is a literal empty prefix (not a fallback).
+ *
+ * The worker's bootstrap rejects module chunks whose origin differs from
+ * the worker's own origin, so the override has to apply to both — using
+ * `WORKER_BASE_PATH` only for the entrypoint would leave the worker unable
+ * to load any chunks when `CHUNK_BASE_PATH` is on a different origin.
+ */
+declare var WORKER_BASE_PATH: string | null
 declare var ASSET_SUFFIX: string
+declare var CROSS_ORIGIN: 'anonymous' | 'use-credentials' | null
 declare var WORKER_FORWARDED_GLOBALS: string[]
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
@@ -311,15 +324,24 @@ function createWorker(
 ): Worker {
   const isSharedWorker = WorkerConstructor.name === 'SharedWorker'
 
+  // `WORKER_BASE_PATH` overrides `CHUNK_BASE_PATH` for the entrypoint and the
+  // module chunks loaded inside the worker, keeping them same-origin to each
+  // other when `CHUNK_BASE_PATH` (= `assetPrefix`) is a cross-origin CDN.
+  // `null` falls back; an empty string is treated as a literal empty prefix.
+  const workerBasePath = WORKER_BASE_PATH ?? CHUNK_BASE_PATH
+
   const chunkUrls = moduleChunks
-    .map((chunk) => getChunkRelativeUrl(chunk))
+    .map((chunk) => getChunkRelativeUrl(chunk, workerBasePath))
     .reverse()
   const params: unknown[] = [chunkUrls, ASSET_SUFFIX]
   for (const globalName of WORKER_FORWARDED_GLOBALS) {
     params.push((globalThis as Record<string, unknown>)[globalName])
   }
 
-  const url = new URL(getChunkRelativeUrl(entrypoint), location.origin)
+  const url = new URL(
+    getChunkRelativeUrl(entrypoint, workerBasePath),
+    location.origin
+  )
   const paramsJson = JSON.stringify(params)
   if (isSharedWorker) {
     url.searchParams.set('params', paramsJson)
@@ -347,8 +369,11 @@ function instantiateRuntimeModule(
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */
-function getChunkRelativeUrl(chunkPath: ChunkPath | ChunkListPath): ChunkUrl {
-  return `${CHUNK_BASE_PATH}${chunkPath
+function getChunkRelativeUrl(
+  chunkPath: ChunkPath | ChunkListPath,
+  basePath: string = CHUNK_BASE_PATH
+): ChunkUrl {
+  return `${basePath}${chunkPath
     .split('/')
     .map((p) => encodeURIComponent(p))
     .join('/')}${ASSET_SUFFIX}` as ChunkUrl
@@ -406,20 +431,33 @@ function getChunkFromRegistration(
   }
 }
 
-const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/
 /**
- * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
+ * Checks if a given path/URL ends with the given extension,
+ * optionally followed by ?query or #fragment.
  */
-function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
-  return regexJsUrl.test(chunkUrlOrPath)
+function endsWithExtension(
+  chunkUrlOrPath: ChunkUrl | ChunkPath,
+  ext: string
+): boolean {
+  // Find where the path ends (before query or fragment)
+  const q = chunkUrlOrPath.indexOf('?')
+  let end: number
+  if (q !== -1) {
+    end = q
+  } else {
+    const h = chunkUrlOrPath.indexOf('#')
+    end = h !== -1 ? h : chunkUrlOrPath.length
+  }
+  // Check if the path portion ends with the extension
+  return end >= ext.length && chunkUrlOrPath.startsWith(ext, end - ext.length)
 }
 
-const regexCssUrl = /\.css(?:\?[^#]*)?(?:#.*)?$/
-/**
- * Checks if a given path/URL ends with .css, optionally followed by ?query or #fragment.
- */
+function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
+  return endsWithExtension(chunkUrlOrPath, '.js')
+}
+
 function isCss(chunkUrl: ChunkUrl): boolean {
-  return regexCssUrl.test(chunkUrl)
+  return endsWithExtension(chunkUrl, '.css')
 }
 
 function loadWebAssembly(

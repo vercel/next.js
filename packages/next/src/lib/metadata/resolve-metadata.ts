@@ -41,7 +41,6 @@ import {
   getComponentTypeModule,
   getLayoutOrPageModule,
 } from '../../server/lib/app-dir-module'
-import { interopDefault } from '../interop-default'
 import {
   resolveAlternates,
   resolveAppleWebApp,
@@ -572,11 +571,11 @@ async function collectStaticImagesFiles(
 
   const iconPromises = metadata[type as 'icon' | 'apple'].map(
     async (imageModule: (p: any) => Promise<MetadataImageModule[]>) =>
-      await interopDefault(imageModule)(props)
+      await imageModule(props)
   )
 
   return iconPromises?.length > 0
-    ? (await Promise.all(iconPromises))?.flat()
+    ? (await Promise.all(iconPromises)).flat()
     : undefined
 }
 

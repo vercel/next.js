@@ -3,6 +3,7 @@
 //! See `next/src/build/webpack/loaders/next-metadata-route-loader`
 
 use anyhow::{Ok, Result};
+use async_trait::async_trait;
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
@@ -12,7 +13,7 @@ use turbopack::ModuleAssetContext;
 use turbopack_core::{
     asset::AssetContent,
     file_source::FileSource,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     source::Source,
     virtual_source::VirtualSource,
 };
@@ -215,7 +216,6 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
 async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
 
     let content_type = get_content_type(path.clone()).await?;
 
@@ -250,7 +250,7 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
 
             export * from {resource_path}
         "#,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -270,7 +270,6 @@ async fn dynamic_sitemap_route_with_generate_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
     let content_type = get_content_type(path.clone()).await?;
 
     let code = formatdoc! {
@@ -340,7 +339,7 @@ async fn dynamic_sitemap_route_with_generate_source(
                 return params
             }}
         "#,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -360,7 +359,6 @@ async fn dynamic_sitemap_route_without_generate_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
     let content_type = get_content_type(path.clone()).await?;
 
     let code = formatdoc! {
@@ -391,7 +389,7 @@ async fn dynamic_sitemap_route_without_generate_source(
 
             export * from {resource_path}
         "#,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -423,7 +421,6 @@ async fn dynamic_image_route_with_metadata_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
 
     let code = formatdoc! {
         r#"
@@ -478,7 +475,7 @@ async fn dynamic_image_route_with_metadata_source(
                 return staticParams
             }}
         "#,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
     };
 
     let file = File::from(code);
@@ -495,7 +492,6 @@ async fn dynamic_image_route_without_metadata_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
 
     let code = formatdoc! {
         r#"
@@ -512,7 +508,7 @@ async fn dynamic_image_route_without_metadata_source(
 
             export * from {resource_path}
         "#,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
     };
 
     let file = File::from(code);
@@ -544,48 +540,41 @@ struct StaticMetadataFileSizeIssue {
     file_size_limit_mb: usize,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for StaticMetadataFileSizeIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Static metadata file size exceeded")).cell()
-    }
-
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::ProcessModule.cell()
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        let current_size = (self.file_size as f32) / 1024.0 / 1024.0;
-        Ok(Vc::cell(Some(
-            StyledString::Text(
-                turbofmt!(
-                    "File size for {} image \"{}\" exceeds {}MB. (Current: {current_size:.1}MB)",
-                    self.img_name,
-                    self.path,
-                    self.file_size_limit_mb,
-                )
-                .await?,
-            )
-            .resolved_cell(),
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Static metadata file size exceeded"
         )))
     }
 
-    #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!(
-            "https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif"
-        ))
+    fn stage(&self) -> IssueStage {
+        IssueStage::ProcessModule
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let current_size = (self.file_size as f32) / 1024.0 / 1024.0;
+        Ok(Some(StyledString::Text(
+            turbofmt!(
+                "File size for {} image \"{}\" exceeds {}MB. (Current: {current_size:.1}MB)",
+                self.img_name,
+                self.path,
+                self.file_size_limit_mb,
+            )
+            .await?,
+        )))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        rcstr!("https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif")
     }
 }

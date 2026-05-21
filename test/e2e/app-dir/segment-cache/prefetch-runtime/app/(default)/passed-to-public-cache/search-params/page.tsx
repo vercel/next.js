@@ -4,9 +4,9 @@ import { connection } from 'next/server'
 import { cookies } from 'next/headers'
 
 export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ searchParams: { searchParam: 'value' } }],
+  unstable_samples: [{ searchParams: { searchParam: 'value' } }],
 }
+export const unstable_prefetch = 'force-runtime'
 
 type AnySearchParams = { [key: string]: string | string[] | undefined }
 

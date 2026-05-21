@@ -32,11 +32,13 @@ export const expectedWhenTrailingSlashTrue = [
   ...(process.env.IS_TURBOPACK_TEST
     ? [
         expect.stringMatching(
-          /_next\/static\/media\/favicon\.[0-9a-z_.~-]+\.ico/
+          /_next\/static\/(immutable\/)?media\/favicon\.[0-9a-z_-]+\.ico/
         ),
       ]
     : []),
-  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-z_.~-]+\.png/),
+  expect.stringMatching(
+    /_next\/static\/(immutable\/)?media\/test\.[0-9a-z_-]+\.png/
+  ),
   expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_buildManifest.js/),
   ...(process.env.IS_TURBOPACK_TEST
     ? [
@@ -115,11 +117,13 @@ const expectedWhenTrailingSlashFalse = [
   ...(process.env.IS_TURBOPACK_TEST
     ? [
         expect.stringMatching(
-          /_next\/static\/media\/favicon\.[0-9a-z_.~-]+\.ico/
+          /_next\/static\/(immutable\/)?media\/favicon\.[0-9a-z_-]+\.ico/
         ),
       ]
     : []),
-  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-z_.~-]+\.png/),
+  expect.stringMatching(
+    /_next\/static\/(immutable\/)?media\/test\.[0-9a-z_-]+\.png/
+  ),
   expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_buildManifest.js/),
   ...(process.env.IS_TURBOPACK_TEST
     ? [
@@ -194,7 +198,10 @@ export async function getFiles(cwd) {
       (f) =>
         !f.startsWith('_next/static/chunks/') &&
         !f.startsWith('_next/static/development/') &&
-        !f.startsWith('_next/static/webpack/')
+        !f.startsWith('_next/static/webpack/') &&
+        !f.startsWith('_next/static/immutable/chunks/') &&
+        !f.startsWith('_next/static/immutable/development/') &&
+        !f.startsWith('_next/static/immutable/webpack/')
     )
     .sort()
   return files

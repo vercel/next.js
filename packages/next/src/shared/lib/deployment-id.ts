@@ -24,9 +24,9 @@ export function getDeploymentIdQuery(ampersand = false): string {
 }
 
 export function getAssetToken(): string | undefined {
-  return (
-    process.env.NEXT_IMMUTABLE_ASSET_TOKEN || process.env.NEXT_DEPLOYMENT_ID
-  )
+  return process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS
+    ? undefined
+    : process.env.NEXT_DEPLOYMENT_ID
 }
 
 export function getAssetTokenQuery(ampersand = false): string {

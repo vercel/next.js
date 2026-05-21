@@ -4,9 +4,9 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{HashAlgorithm, encode_hex};
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
-    asset::Asset,
+    asset::{Asset, no_hash_salt},
     output::{OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
 };
@@ -39,12 +39,16 @@ async fn asset_path(
             let hash = if let Some(algorithm) = should_content_hash {
                 asset
                     .content()
-                    .content_hash(algorithm)
+                    .content_hash(no_hash_salt(), algorithm)
                     .owned()
                     .await?
                     .context("asset content not found")?
             } else {
-                encode_hex(*asset.content().hash().await?).into()
+                asset
+                    .content()
+                    .hash(HashAlgorithm::Xxh3Hash128Hex)
+                    .owned()
+                    .await?
             };
             Some(AssetPath {
                 path: RcStr::from(path),

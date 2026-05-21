@@ -16,6 +16,7 @@ import type { FetchMetrics } from '../server/base-http'
 import type { RouteMetadata } from './routes/types'
 import type { RenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 import type { StaticWorker } from '../build'
+import type { Bundler } from '../lib/bundler'
 
 export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
   path: string
@@ -113,6 +114,7 @@ export interface ExportAppOptions {
   hasOutdirFromCli?: boolean
   numWorkers: number
   appDirOnly: boolean
+  bundler: Bundler
 }
 
 export type ExportPageMetadata = {

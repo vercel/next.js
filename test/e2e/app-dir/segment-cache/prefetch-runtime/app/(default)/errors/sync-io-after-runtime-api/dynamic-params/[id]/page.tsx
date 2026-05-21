@@ -4,12 +4,12 @@ import { DebugRenderKind } from '../../../../../shared'
 type Params = { id: string }
 
 export const unstable_instant = {
-  prefetch: 'runtime',
   // We're intentionally testing error behavior at runtime.
   // Build-time validation catches it and prevents that.
   unstable_disableValidation: true,
-  samples: [{ cookies: [] }],
+  unstable_samples: [{ cookies: [] }],
 }
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page({ params }: { params: Promise<Params> }) {
   return (

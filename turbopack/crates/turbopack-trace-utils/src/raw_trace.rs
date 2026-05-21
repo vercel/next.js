@@ -102,7 +102,12 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
                 // We won the race — write the sample
                 THREAD_LOCAL_LAST_MEMORY_SAMPLE.with(|tl| tl.set(ts));
                 let memory = TurboMalloc::memory_usage() as u64;
-                self.write(TraceRow::MemorySample { ts, memory });
+                let memory_pressure = TurboMalloc::memory_pressure().unwrap_or(0);
+                self.write(TraceRow::MemorySample {
+                    ts,
+                    memory,
+                    memory_pressure,
+                });
             }
             Err(actual) => {
                 // Lost the race; update thread-local with the winner's timestamp

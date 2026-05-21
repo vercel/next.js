@@ -6,11 +6,13 @@ use bincode::{Decode, Encode};
 use modularize_imports::{Config, PackageConfig, modularize_imports};
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::ast::Program;
-use turbo_tasks::{FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
-use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
+use turbopack_ecmascript::{
+    CustomTransformer, EcmascriptInputTransform, TransformContext, TransformPlugin,
+};
 
-use crate::next_shared::transforms::module_rule_match_js_no_url;
+use crate::{next_config::ModularizeImports, next_shared::transforms::module_rule_match_js_no_url};
 
 #[derive(
     Clone,
@@ -58,21 +60,35 @@ pub enum Transform {
 }
 
 /// Returns a rule which applies the Next.js modularize imports transform.
-pub fn get_next_modularize_imports_rule(
-    modularize_imports_config: &FxIndexMap<String, ModularizeImportPackageConfig>,
+pub async fn get_next_modularize_imports_rule(
+    modularize_imports_config: Vc<ModularizeImports>,
     enable_mdx_rs: bool,
-) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
-        ModularizeImportsTransformer::new(modularize_imports_config),
-    ) as _));
-    ModuleRule::new(
+) -> Result<ModuleRule> {
+    let transformer = EcmascriptInputTransform::Plugin(
+        modularize_imports_transform_plugin(modularize_imports_config)
+            .to_resolved()
+            .await?,
+    );
+    // TODO: use get_ecma_transform_rule instead
+    Ok(ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
             preprocess: ResolvedVc::cell(vec![]),
             main: ResolvedVc::cell(vec![]),
             postprocess: ResolvedVc::cell(vec![transformer]),
         }],
-    )
+    ))
+}
+
+#[turbo_tasks::function]
+async fn modularize_imports_transform_plugin(
+    config: Vc<ModularizeImports>,
+) -> Result<Vc<TransformPlugin>> {
+    let config = config.await?;
+    Ok(Vc::cell(
+        Box::new(ModularizeImportsTransformer::new(&config))
+            as Box<dyn CustomTransformer + Send + Sync>,
+    ))
 }
 
 #[derive(Debug)]

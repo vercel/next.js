@@ -133,7 +133,7 @@ pub async fn expand_outputs(
 
 #[turbo_tasks::value_impl]
 impl Asset for AssetHashesManifestAsset {
-    #[turbo_tasks::function(root)]
+    #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let output_assets = expand_outputs(*self.project, self.asset_root.clone()).await?;
 
@@ -142,7 +142,12 @@ impl Asset for AssetHashesManifestAsset {
             .map(async |(asset, path)| {
                 Ok((
                     path,
-                    asset.content_hash(HashAlgorithm::Xxh3Hash128Hex).await?,
+                    asset
+                        .content_hash(
+                            self.project.next_config().output_hash_salt(),
+                            HashAlgorithm::Xxh3Hash128Base38,
+                        )
+                        .await?,
                 ))
             })
             .try_join()

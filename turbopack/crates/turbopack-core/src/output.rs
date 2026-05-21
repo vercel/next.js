@@ -43,11 +43,6 @@ pub trait OutputAsset: Asset + OutputAssetsReference {
     fn path_string(self: Vc<Self>) -> Vc<RcStr> {
         self.path().to_string()
     }
-
-    #[turbo_tasks::function]
-    fn size_bytes(self: Vc<Self>) -> Vc<Option<u64>> {
-        Vc::cell(None)
-    }
 }
 
 #[turbo_tasks::value(transparent)]
@@ -142,7 +137,7 @@ impl OutputAssetsWithReferenced {
             self.assets
                 .await?
                 .into_iter()
-                .chain(self.referenced_assets.await?.into_iter())
+                .chain(self.referenced_assets.await?)
                 .map(|&asset| ExpandOutputAssetsInput::Asset(asset))
                 .chain(
                     self.references
@@ -263,7 +258,7 @@ async fn get_referenced_assets(
         .assets
         .await?
         .into_iter()
-        .chain(refs.referenced_assets.await?.into_iter())
+        .chain(refs.referenced_assets.await?)
         .map(|&asset| ExpandOutputAssetsInput::Asset(asset))
         .chain(
             refs.references

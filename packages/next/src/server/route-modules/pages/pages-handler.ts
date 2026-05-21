@@ -224,6 +224,9 @@ export const getHandler = ({
 
     const tracer = getTracer()
     const activeSpan = tracer.getActiveScopeSpan()
+    const isWrappedByNextServer = Boolean(
+      routerServerContext?.isWrappedByNextServer
+    )
 
     try {
       const method = req.method || 'GET'
@@ -358,6 +361,24 @@ export const getHandler = ({
                   let cacheControl: CacheControl | undefined =
                     metadata.cacheControl
 
+                  // Apply the `expireTime` fallback as soon as we have the
+                  // render's `cacheControl`, so every downstream consumer (the
+                  // cache stored via `incrementalCache.set`, the response
+                  // Cache-Control header, the outgoing entry returned from this
+                  // responseGenerator) sees a finalized `cacheControl` with a
+                  // populated `expire`. This mirrors the build-time fallback in
+                  // `build/index.ts` so we don't apply an expire to routes that
+                  // opt out of revalidation entirely (`revalidate: false`) or
+                  // that are dynamic (`revalidate: 0`).
+                  if (
+                    cacheControl &&
+                    cacheControl.revalidate !== false &&
+                    cacheControl.revalidate > 0 &&
+                    cacheControl.expire === undefined
+                  ) {
+                    cacheControl.expire = nextConfig.expireTime
+                  }
+
                   if ('isNotFound' in metadata && metadata.isNotFound) {
                     return {
                       value: null,
@@ -413,26 +434,22 @@ export const getHandler = ({
                     return
                   }
 
-                  const route = rootSpanAttributes.get('next.route')
-                  if (route) {
-                    const name = `${method} ${route}`
+                  const route = rootSpanAttributes.get('next.route') || srcPage
+                  const name = `${method} ${route}`
 
-                    span.setAttributes({
-                      'next.route': route,
-                      'http.route': route,
-                      'next.span_name': name,
-                    })
-                    span.updateName(name)
+                  span.setAttributes({
+                    'next.route': route,
+                    'http.route': route,
+                    'next.span_name': name,
+                  })
+                  span.updateName(name)
 
-                    // Propagate http.route to the parent span if one exists
-                    // (e.g. a platform-created HTTP span in adapter
-                    // deployments).
-                    if (parentSpan && parentSpan !== span) {
-                      parentSpan.setAttribute('http.route', route)
-                      parentSpan.updateName(name)
-                    }
-                  } else {
-                    span.updateName(`${method} ${srcPage}`)
+                  // Propagate http.route to the parent span if one exists
+                  // (e.g. a platform-created HTTP span in adapter
+                  // deployments).
+                  if (parentSpan && parentSpan !== span) {
+                    parentSpan.setAttribute('http.route', route)
+                    parentSpan.updateName(name)
                   }
                 })
             } catch (err: unknown) {
@@ -610,7 +627,7 @@ export const getHandler = ({
             }
             cacheControl = {
               revalidate: result.cacheControl.revalidate,
-              expire: result.cacheControl?.expire ?? nextConfig.expireTime,
+              expire: result.cacheControl.expire,
             }
           } else {
             // revalidate: false
@@ -750,23 +767,27 @@ export const getHandler = ({
 
       // TODO: activeSpan code path is for when wrapped by
       // next-server can be removed when this is no longer used
-      if (activeSpan) {
-        await handleResponse()
+      if (isWrappedByNextServer && activeSpan) {
+        await handleResponse(activeSpan)
       } else {
         parentSpan = tracer.getActiveScopeSpan()
-        await tracer.withPropagatedContext(req.headers, () =>
-          tracer.trace(
-            BaseServerSpan.handleRequest,
-            {
-              spanName: `${method} ${srcPage}`,
-              kind: SpanKind.SERVER,
-              attributes: {
-                'http.method': method,
-                'http.target': req.url,
+        await tracer.withPropagatedContext(
+          req.headers,
+          () =>
+            tracer.trace(
+              BaseServerSpan.handleRequest,
+              {
+                spanName: `${method} ${srcPage}`,
+                kind: SpanKind.SERVER,
+                attributes: {
+                  'http.method': method,
+                  'http.target': req.url,
+                },
               },
-            },
-            handleResponse
-          )
+              handleResponse
+            ),
+          undefined,
+          !isWrappedByNextServer
         )
       }
     } catch (err) {

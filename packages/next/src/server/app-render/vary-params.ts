@@ -117,9 +117,10 @@ export function createVaryParamsAccumulator(): VaryParamsAccumulator | null {
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
-      case 'prerender-runtime': {
+      case 'prerender-runtime':
+      case 'request': {
         const responseAccumulator = workUnitStore.varyParamsAccumulator
-        if (responseAccumulator !== null) {
+        if (responseAccumulator) {
           const accumulator = createSegmentVaryParamsAccumulator()
           responseAccumulator.segments.add(accumulator)
           return accumulator
@@ -128,7 +129,6 @@ export function createVaryParamsAccumulator(): VaryParamsAccumulator | null {
       }
       case 'prerender-ppr':
       case 'prerender-legacy':
-      case 'request':
       case 'cache':
       case 'private-cache':
       case 'prerender-client':
@@ -148,16 +148,16 @@ export function getMetadataVaryParamsAccumulator(): VaryParamsAccumulator | null
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
-      case 'prerender-runtime': {
+      case 'prerender-runtime':
+      case 'request': {
         const responseAccumulator = workUnitStore.varyParamsAccumulator
-        if (responseAccumulator !== null) {
+        if (responseAccumulator) {
           return responseAccumulator.head
         }
         return null
       }
       case 'prerender-ppr':
       case 'prerender-legacy':
-      case 'request':
       case 'cache':
       case 'private-cache':
       case 'prerender-client':
@@ -301,20 +301,30 @@ export function createVaryingSearchParams(
   accumulator: VaryParamsAccumulator,
   originalSearchParamsObject: SearchParams
 ): SearchParams {
-  const underlyingSearchParamsWithVarying: SearchParams = {}
-  for (const searchParamName in originalSearchParamsObject) {
-    Object.defineProperty(underlyingSearchParamsWithVarying, searchParamName, {
-      get() {
-        // TODO: Unlike path params, we don't vary track each search param
-        // individually. The entire search string is treated as a single param.
-        // This may change in the future.
+  // Search params have no fixed schema, so any access — missing-key reads, `in`
+  // checks, or enumeration — must register as varying. A Proxy is required
+  // (rather than per-property getters) so that enumeration of an empty
+  // searchParams object still triggers a vary. All accesses bucket into the
+  // single sentinel '?'; the segment is keyed by the whole query string.
+  // TODO: Split into per-param tracking if the cache key evolves.
+  return new Proxy(originalSearchParamsObject, {
+    get(target, prop, receiver) {
+      if (typeof prop === 'string') {
         accumulateVaryParam(accumulator, '?')
-        return originalSearchParamsObject[searchParamName]
-      },
-      enumerable: true,
-    })
-  }
-  return underlyingSearchParamsWithVarying
+      }
+      return Reflect.get(target, prop, receiver)
+    },
+    has(target, prop) {
+      if (typeof prop === 'string') {
+        accumulateVaryParam(accumulator, '?')
+      }
+      return Reflect.has(target, prop)
+    },
+    ownKeys(target) {
+      accumulateVaryParam(accumulator, '?')
+      return Reflect.ownKeys(target)
+    },
+  })
 }
 
 /**

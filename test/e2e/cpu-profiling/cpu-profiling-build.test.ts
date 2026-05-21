@@ -10,6 +10,7 @@ describe('CPU Profiling - next build', () => {
     skipStart: true,
     skipDeployment: true,
   })
+  if (skipped) return
 
   // CPU profiling only works with local `next build`, not dev or deploy modes
   if (isNextDev || isNextDeploy || skipped) {
@@ -23,7 +24,7 @@ describe('CPU Profiling - next build', () => {
   })
 
   it('should create CPU profile files after build', async () => {
-    const profileDir = join(next.testDir, '.next', 'cpu-profiles')
+    const profileDir = join(next.testDir, '.next-profiles')
 
     const profileDirExists = await pathExists(profileDir)
     expect(profileDirExists).toBe(true)

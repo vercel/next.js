@@ -536,6 +536,12 @@ function Router({
     )
   }
 
+  if (process.env.__NEXT_USE_OFFLINE) {
+    const { OfflineProvider } =
+      require('./use-offline') as typeof import('./use-offline')
+    content = <OfflineProvider>{content}</OfflineProvider>
+  }
+
   return (
     <>
       <HistoryUpdater appRouterState={state} />

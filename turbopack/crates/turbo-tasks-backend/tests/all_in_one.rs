@@ -25,7 +25,7 @@ async fn test_all_in_one() {
     .unwrap()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn test_all_in_one_operation(nonce: u32) -> Result<Vc<()>> {
     let _ = nonce; // ensure the nonce is part of our cache key
 
@@ -71,7 +71,7 @@ async fn test_all_in_one_operation(nonce: u32) -> Result<Vc<()>> {
 
     let b_erased_other: Vc<Box<dyn Add>> = Vc::upcast(Vc::<NumberB>::cell(10));
     let c_erased_invalid: Vc<Box<dyn Add>> = a_erased.add(b_erased_other);
-    assert!(c_erased_invalid.resolve().await.is_err());
+    assert!(c_erased_invalid.to_resolved().await.is_err());
 
     Ok(Vc::cell(()))
 }

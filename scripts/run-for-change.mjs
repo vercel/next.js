@@ -12,7 +12,6 @@ const CHANGE_ITEM_GROUPS = {
     '.cursor',
     'bench',
     'docs',
-    'apps/docs',
     'errors',
     'examples',
     'UPGRADING.md',
@@ -21,7 +20,7 @@ const CHANGE_ITEM_GROUPS = {
     'CODE_OF_CONDUCT.md',
     'readme.md',
     '.github/ISSUE_TEMPLATE',
-    '.github/labeler.json',
+    '.github/actions/pr-auto-label/src/config.json',
     '.github/pull_request_template.md',
     'packages/next-plugin-storybook/readme.md',
     'packages/next/license.md',
@@ -41,10 +40,9 @@ const CHANGE_ITEM_GROUPS = {
     'packages/next-env/README.md',
     'packages/next/src/client/components/react-dev-overlay/README.md',
   ],
-  'deploy-examples': ['examples/image-component'],
   cna: [
     'packages/create-next-app',
-    'test/integration/create-next-app',
+    'test/production/create-next-app',
     'examples/basic-css',
     'examples/mdx-pages',
     'examples/with-sass',
@@ -54,7 +52,7 @@ const CHANGE_ITEM_GROUPS = {
   'next-swc': [
     'packages/next-swc',
     'scripts/normalize-version-bump.js',
-    'test/integration/create-next-app',
+    'test/production/create-next-app',
     'scripts/send-trace-to-jaeger',
   ],
 }

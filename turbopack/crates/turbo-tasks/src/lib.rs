@@ -1,13 +1,10 @@
 #![doc = include_str!("../README.md")]
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
-#![feature(try_trait_v2)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![feature(error_generic_member_access)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(never_type)]
-#![feature(downcast_unchecked)]
 #![feature(ptr_metadata)]
 #![feature(sync_unsafe_cell)]
 #![feature(async_fn_traits)]
@@ -22,6 +19,7 @@ pub mod debug;
 #[doc = include_str!("../FORMATTING.md")]
 pub mod display;
 pub mod duration_span;
+mod dyn_task_inputs;
 mod effect;
 mod error;
 pub mod event;
@@ -31,9 +29,9 @@ mod id_factory;
 mod invalidation;
 mod join_iter_ext;
 pub mod keyed;
+mod local_task_tracker;
 #[doc(hidden)]
 pub mod macro_helpers;
-mod magic_any;
 mod manager;
 pub mod mapped_read_ref;
 mod marker_trait;
@@ -57,6 +55,7 @@ mod state;
 pub mod task;
 mod task_execution_reason;
 pub mod task_statistics;
+mod tiny_vec;
 pub mod trace;
 mod trait_ref;
 mod triomphe_utils;
@@ -71,14 +70,17 @@ pub use anyhow::{Error, Result};
 use auto_hash_map::AutoSet;
 use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
-pub use turbo_tasks_macros::{turbobail, turbofmt};
+pub use turbo_tasks_macros::{DeterministicHash, turbobail, turbofmt};
 
 pub use crate::{
     capture_future::TurboTasksPanic,
     collectibles::CollectiblesSource,
     completion::{Completion, Completions},
     display::{ValueToString, ValueToStringRef},
-    effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects},
+    dyn_task_inputs::{
+        DynTaskInputs, OwnedStackDynTaskInputs, StackDynTaskInputs, StackDynTaskInputsSlot,
+    },
+    effect::{Effect, EffectError, EffectStateStorage, Effects, emit_effect, take_effects},
     error::PrettyPrintError,
     id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
     invalidation::{
@@ -86,36 +88,37 @@ pub use crate::{
         get_invalidator,
     },
     join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
-    magic_any::MagicAny,
     manager::{
         CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
         TaskPriority, TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused,
         UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
-        mark_session_dependent, mark_stateful, mark_top_level_task, prevent_gc, run, run_once,
-        run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
+        mark_stateful, mark_top_level_task, prevent_gc, run, run_once, run_once_with_reason,
+        trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
         unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
     mapped_read_ref::MappedReadRef,
     output::OutputContent,
-    raw_vc::{CellId, RawVc, ReadRawVcFuture},
+    raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveRawVcFuture},
     read_options::{ReadCellOptions, ReadOutputOptions},
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,
     spawn::{JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread},
-    state::{State, TransientState},
+    state::{State, parking_lot_mutex_bincode},
     task::{
         SharedReference, TypedSharedReference,
         task_input::{EitherTaskInput, TaskInput},
     },
     task_execution_reason::TaskExecutionReason,
+    tiny_vec::TinyVec,
     trait_ref::TraitRef,
     value::{TransientInstance, TransientValue},
-    value_type::{TraitMethod, TraitType, ValueType},
+    value_type::{Evictability, TraitMethod, TraitType, ValueType, ValueTypePersistence},
     vc::{
-        Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-        Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellKeyedCompareMode,
-        VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast,
-        VcValueType, VcValueTypeCast,
+        Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture,
+        ResolveOperationVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast,
+        UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellHashedCompareMode,
+        VcCellKeyedCompareMode, VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead,
+        VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
     },
 };
 
@@ -190,6 +193,7 @@ pub use turbo_tasks_macros::function;
 /// - **`"new"`:** Always overrides the value in the cell, invalidating all dependent tasks.
 /// - **`"compare"` *(default)*:** Compares with the existing value in the cell, before overriding it.
 ///   Requires the value to implement [`Eq`].
+/// - **`"keyed"`:** Like `"compare"`, but uses per-key invalidation for transparent map types.
 ///
 /// Avoiding unnecessary invalidation is important to reduce downstream recomputation of tasks that
 /// depend on this cell's value.
@@ -213,7 +217,20 @@ pub use turbo_tasks_macros::function;
 /// - **`"auto"` *(default)*:** Derives the bincode traits and enables serialization.
 /// - **`"custom"`:** Prevents deriving the bincode traits, but still enables serialization
 ///   (you must manually implement [`bincode::Encode`] and [`bincode::Decode`]).
+/// - **`"hash"`:** Like `"none"` (no bincode serialization), but instead stores a hash of the cell
+///   value so that changes can be detected even when the transient cell data has been evicted
+///   from memory or was never stored in the cache—avoiding unnecessary downstream invalidation.
+///   Only valid with `cell = "compare"`.
+///   Requires the value to implement both [`Eq`] and [`DeterministicHash`][turbo_tasks_hash::DeterministicHash].
 /// - **`"none"`:** Disables serialization and prevents deriving the traits.
+///
+/// ## `hash = "..."`
+///
+/// By default, when using `serialization = "hash"`, we `#[derive(DeterministicHash)]`. This argument allows
+/// overriding that default implementation behavior.
+///
+/// - **`"manual"`:** Prevents deriving [`DeterministicHash`][turbo_tasks_hash::DeterministicHash] so you can do it manually.
+///   Only valid with `serialization = "hash"`.
 ///
 /// ## `shared`
 ///

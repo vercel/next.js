@@ -81,10 +81,10 @@ Retrieve a cache entry for the given cache key.
 get(cacheKey: string, softTags: string[]): Promise<CacheEntry | undefined>
 ```
 
-| Parameter  | Type       | Description                                                  |
-| ---------- | ---------- | ------------------------------------------------------------ |
-| `cacheKey` | `string`   | The unique key for the cache entry.                          |
-| `softTags` | `string[]` | Tags to check for staleness (used in some cache strategies). |
+| Parameter  | Type       | Description                                                                                 |
+| ---------- | ---------- | ------------------------------------------------------------------------------------------- |
+| `cacheKey` | `string`   | The unique key for the cache entry.                                                         |
+| `softTags` | `string[]` | Implicit tags derived from the route path. See [Soft Tags](#soft-tags) for how to use them. |
 
 Returns a `CacheEntry` object if found, or `undefined` if not found or expired.
 
@@ -412,6 +412,86 @@ module.exports = {
   },
 }
 ```
+
+## Distributed Tag Coordination
+
+When running multiple Next.js instances, tag invalidation must be coordinated across instances. The default in-memory handler only tracks tags locally, so calling `revalidateTag()` on one instance does not affect others.
+
+To coordinate tags across instances:
+
+1. **`updateTags()`** is called when `revalidateTag()` is invoked. Your handler should write the invalidation timestamp to shared storage.
+2. **`refreshTags()`** is called before each request. Your handler should read recent invalidation events from shared storage and update its local tag state.
+3. **`getExpiration()`** returns the most recent revalidation timestamp across all provided tags. The default implementation returns `Math.max(...timestamps, 0)`.
+
+Here's an example using Redis for distributed tag coordination:
+
+```js filename="cache-handlers/distributed-tags.js"
+const { createClient } = require('redis')
+
+const client = createClient({ url: process.env.REDIS_URL })
+client.connect()
+
+// Local cache of tag timestamps, synced via refreshTags
+const localTagTimestamps = new Map()
+
+module.exports = {
+  // ... get() and set() methods ...
+
+  async refreshTags() {
+    // Sync tag invalidation timestamps from Redis
+    // Using a dedicated set to track tag keys avoids scanning the keyspace
+    const tagKeys = await client.sMembers('revalidated-tags')
+    if (tagKeys.length > 0) {
+      const values = await client.mGet(tagKeys.map((k) => `tag:${k}`))
+      for (let i = 0; i < tagKeys.length; i++) {
+        localTagTimestamps.set(tagKeys[i], Number(values[i]))
+      }
+    }
+  },
+
+  async getExpiration(tags) {
+    const timestamps = tags.map((tag) => localTagTimestamps.get(tag) || 0)
+    return Math.max(...timestamps, 0)
+  },
+
+  async updateTags(tags, durations) {
+    const now = Date.now()
+    const pipeline = client.multi()
+    for (const tag of tags) {
+      pipeline.set(`tag:${tag}`, String(now))
+      pipeline.sAdd('revalidated-tags', tag)
+      localTagTimestamps.set(tag, now)
+    }
+    await pipeline.exec()
+  },
+}
+```
+
+For a full explanation of the tag architecture (including soft tags and multi-instance considerations), see [How Revalidation Works](/docs/app/guides/how-revalidation-works).
+
+## Soft Tags
+
+Soft tags are implicit tags that Next.js automatically generates based on the route path. For example, the route `/blog/hello` generates soft tags for `/`, `/blog`, `/blog/hello`, and their corresponding layout entries. These tags are prefixed internally with `_N_T_`.
+
+Soft tags enable [`revalidatePath()`](/docs/app/api-reference/functions/revalidatePath) to work through the same tag-based cache system. When `revalidatePath('/blog/hello')` is called, it invalidates all cache entries associated with that path's soft tags.
+
+In the cache handler API, soft tags are passed to the [`get()`](#get) method as the `softTags` parameter. Your handler should check whether any soft tag has been invalidated (via `getExpiration()` or direct timestamp comparison) after the cache entry's `timestamp`. If a soft tag was invalidated more recently than the entry was created, the entry should be treated as stale.
+
+## Handling Streams
+
+The `CacheEntry.value` is a [`ReadableStream<Uint8Array>`](https://developer.mozilla.org/docs/Web/API/ReadableStream). When implementing a cache handler that stores entries externally, keep in mind:
+
+- **Use `.tee()`** if you need to both store and return the stream. One branch goes to storage, the other is returned to the caller.
+- **Memory implications**: large pages produce large cache entries. For S3-like storage backends, consider streaming directly to storage without buffering the entire entry in memory.
+- **Partial writes**: the stream may error partway through rendering. Your handler should decide whether to keep partial entries or discard them. Discarding is safer, as partial entries can produce incomplete pages.
+
+## Error Handling
+
+Cache operations should be implemented defensively:
+
+- **`set()` failure**: the response is still served to the user because `set()` is called asynchronously after the response stream is already flowing. The cache entry is lost, and the next request triggers a fresh render.
+- **`get()` failure**: your handler should catch internal errors and return `undefined` (the "cache miss" signal). The framework does not wrap `get()` in a try/catch, so an unhandled exception from `get()` will propagate as a render error.
+- **Partial writes**: if a cache entry is partially written and then read, the behavior is undefined. Use atomic writes or a write-then-rename pattern to avoid serving partial entries.
 
 ## Platform Support
 

@@ -454,7 +454,17 @@ bun add -D babel-plugin-react-compiler
 
 ### revalidateTag
 
-[`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) has a new function signature. You can pass a [`cacheLife`](/docs/app/api-reference/functions/cacheLife#reference) profile as the second argument.
+[`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) now requires a second argument specifying a [`cacheLife`](/docs/app/api-reference/functions/cacheLife#reference) profile. The single-argument form is deprecated and will produce a TypeScript error.
+
+```ts
+// Before
+revalidateTag('posts')
+
+// After
+revalidateTag('posts', 'max')
+```
+
+If you need immediate expiration rather than stale-while-revalidate, use [`updateTag`](/docs/app/api-reference/functions/updateTag) in Server Actions instead.
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -833,6 +843,8 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
+This might be necessary when hosting Next.js in a VPC with split-horizon DNS and you receive status 400 Bad Request. Only enable once you understand the SSRF risk.
+
 ### Maximum Redirects (Breaking change)
 
 The default for `images.maximumRedirects` has changed from unlimited to 3 redirects maximum.
@@ -911,22 +923,22 @@ module.exports = {
 
 Additionally, a lockfile mechanism prevents multiple `next dev` or `next build` instances on the same project.
 
-Since the development server outputs to `.next/dev`, the [Turbopack tracing command](/docs/app/guides/local-development#turbopack-tracing) should be:
+The [Turbopack tracing command](/docs/app/guides/local-development#turbopack-tracing) should be:
 
 ```bash package="pnpm"
-pnpm next internal trace .next/dev/trace-turbopack
+pnpm next internal trace .next-profiles/trace-turbopack
 ```
 
 ```bash package="npm"
-npx next internal trace .next/dev/trace-turbopack
+npx next internal trace .next-profiles/trace-turbopack
 ```
 
 ```bash package="yarn"
-yarn next internal trace .next/dev/trace-turbopack
+yarn next internal trace .next-profiles/trace-turbopack
 ```
 
 ```bash package="bun"
-bunx next internal trace .next/dev/trace-turbopack
+bunx next internal trace .next-profiles/trace-turbopack
 ```
 
 ## Parallel Routes `default.js` requirement
@@ -1198,14 +1210,21 @@ The following options have been removed from [`devIndicators`](/docs/app/api-ref
 
 The indicator itself remains available.
 
-### `experimental.dynamicIO`
+### `experimental.dynamicIO` and `experimental.useCache`
 
-The `experimental.dynamicIO` flag has been renamed to `cacheComponents`:
-
-Update your Next config file, by removing the `dynamicIO` flag.
+The `experimental.dynamicIO` and `experimental.useCache` flags are deprecated. Use top-level [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) instead.
 
 ```js filename="next.config.js"
-// Next.js 15 - experimental.dynamicIO is now removed
+// Before: experimental.useCache
+module.exports = {
+  experimental: {
+    useCache: true,
+  },
+}
+```
+
+```js filename="next.config.js"
+// Before: experimental.dynamicIO
 module.exports = {
   experimental: {
     dynamicIO: true,
@@ -1213,14 +1232,25 @@ module.exports = {
 }
 ```
 
-Add the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) flag set to true.
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
 
-```js filename="next.config.js"
-// Next.js 16 - use cacheComponents instead
+// After
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+// After
 module.exports = {
   cacheComponents: true,
 }
 ```
+
+For more on Cache Components, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
 
 ### `unstable_rootParams`
 

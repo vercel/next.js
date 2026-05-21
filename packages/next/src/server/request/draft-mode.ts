@@ -21,6 +21,7 @@ import { DynamicServerError } from '../../client/components/hooks-server-context
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { delayUntilRuntimeStage } from '../dynamic-rendering-utils'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
+import { applyOwnerStack } from '../dynamic-rendering-utils'
 
 export function draftMode(): Promise<DraftMode> {
   const callingExpression = 'draftMode'
@@ -206,6 +207,7 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
             `Route ${workStore.route} used "${expression}" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )
           Error.captureStackTrace(error, constructorOpt)
+          applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
           throw error
         }

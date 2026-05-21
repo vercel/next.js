@@ -2,6 +2,7 @@ import { existsSync } from 'fs'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
+import semver from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import * as ciEnvironment from '../server/ci-info'
 import {
@@ -12,7 +13,11 @@ import {
   PHASE_PRODUCTION_SERVER,
   type PHASE_TYPE,
 } from '../shared/lib/constants'
-import { defaultConfig, normalizeConfig } from './config-shared'
+import {
+  defaultConfig,
+  normalizeConfig,
+  resolveCssChunkingMode,
+} from './config-shared'
 import type {
   ExperimentalConfig,
   NextConfigComplete,
@@ -40,6 +45,7 @@ import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
+import { resolveCacheHandlerPathToFilesystem } from '../lib/format-dynamic-import-path'
 import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
 import type { NextAdapter } from '../build/adapter/build-complete'
@@ -83,6 +89,12 @@ function normalizeNextConfigZodErrors(
           "\nUse 'experimental.turbopackFileSystemCacheForDev' instead."
         message +=
           '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache'
+      } else if (message.includes('dynamicIO')) {
+        shouldExit = true
+        message +=
+          '\n`experimental.dynamicIO` has been replaced by `cacheComponents`. Please update your next.config file accordingly.'
+        message +=
+          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents'
       }
     }
 
@@ -165,6 +177,13 @@ function checkDeprecations(
     userConfig,
     'experimental.after',
     `\`experimental.after\` is no longer needed, because \`after\` is available by default. You can remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'experimental.rootParams',
+    `\`experimental.rootParams\` is no longer needed, because \`next/root-params\` is available by default. You can remove it from ${configFileName}.`,
     silent
   )
 
@@ -448,10 +467,68 @@ function assignDefaultsAndValidate(
     )
   }
 
+  // Validate experimental.cssChunking compatibility with the active bundler. Graph mode is
+  // Turbopack-only; strict mode and `false` (single-chunk-per-module) are webpack-only.
+  // Only validate during build/dev — `next start` doesn't pick a bundler and would otherwise
+  // see `process.env.TURBOPACK` unset and reject a valid `cssChunking: "graph"` config.
+  if (phase !== PHASE_PRODUCTION_SERVER) {
+    const cssChunkingValue = result.experimental.cssChunking
+    const cssChunkingMode = resolveCssChunkingMode(cssChunkingValue)
+    if (cssChunkingMode === 'graph' && !process.env.TURBOPACK) {
+      throw new Error(
+        `\`experimental.cssChunking: "graph"\` is only supported with Turbopack. ` +
+          `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+      )
+    }
+    if (cssChunkingMode === 'strict' && process.env.TURBOPACK) {
+      throw new Error(
+        `\`experimental.cssChunking: "strict"\` is only supported with webpack. ` +
+          `Please remove the option or run Next.js with webpack in ${configFileName}.`
+      )
+    }
+    // Only error when `false` was set explicitly. `undefined` (the default) also resolves to
+    // `'off'` but that's the implicit default and must not error on Turbopack.
+    if (cssChunkingValue === false && process.env.TURBOPACK) {
+      throw new Error(
+        `\`experimental.cssChunking: false\` is only supported with webpack. ` +
+          `Please remove the option or run Next.js with webpack in ${configFileName}.`
+      )
+    }
+  }
+
   if (result.experimental.cachedNavigations && !result.cacheComponents) {
     throw new Error(
       `\`experimental.cachedNavigations\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
     )
+  }
+
+  if (result.experimental.appShells) {
+    // App Shells is tested in combination with the experimental flags it
+    // expects to ship alongside. All of these are on track to become
+    // defaults, so we don't support enabling App Shells against arbitrary
+    // subsets of them — the validation goes away once each becomes a
+    // default.
+    const missing: string[] = []
+    if (!result.cacheComponents) {
+      missing.push('`cacheComponents`')
+    }
+    if (!result.experimental.prefetchInlining) {
+      missing.push('`experimental.prefetchInlining`')
+    }
+    if (!result.experimental.varyParams) {
+      missing.push('`experimental.varyParams`')
+    }
+    if (!result.experimental.optimisticRouting) {
+      missing.push('`experimental.optimisticRouting`')
+    }
+    if (!result.experimental.cachedNavigations) {
+      missing.push('`experimental.cachedNavigations`')
+    }
+    if (missing.length > 0) {
+      throw new Error(
+        `\`experimental.appShells\` requires the following to also be enabled: ${missing.join(', ')}. Please update your ${configFileName} accordingly.`
+      )
+    }
   }
 
   if (result.experimental.ppr) {
@@ -540,14 +617,29 @@ function assignDefaultsAndValidate(
         )
       }
       // avoid double-pushing the same pattern if it already exists
-      const hasMatch = images.localPatterns.some(
-        (pattern) =>
-          pattern.pathname === '/_next/static/media/**' && pattern.search === ''
-      )
-      if (!hasMatch) {
+      if (
+        !images.localPatterns.some(
+          (pattern) =>
+            pattern.pathname === '/_next/static/media/**' &&
+            pattern.search === ''
+        )
+      ) {
         // static import images are automatically allowed
         images.localPatterns.push({
           pathname: '/_next/static/media/**',
+          search: '',
+        })
+      }
+      if (
+        !images.localPatterns.some(
+          (pattern) =>
+            pattern.pathname === '/_next/static/immutable/media/**' &&
+            pattern.search === ''
+        )
+      ) {
+        // static import images are automatically allowed
+        images.localPatterns.push({
+          pathname: '/_next/static/immutable/media/**',
           search: '',
         })
       }
@@ -989,6 +1081,13 @@ function assignDefaultsAndValidate(
     }
   }
 
+  if (result?.turbopack?.chunkLoadingGlobal) {
+    const g = result.turbopack.chunkLoadingGlobal
+    if (!g.startsWith('TURBOPACK_')) {
+      result.turbopack.chunkLoadingGlobal = `TURBOPACK_${g}`
+    }
+  }
+
   if (
     result.experimental.runtimeServerDeploymentId == null &&
     phase === PHASE_PRODUCTION_BUILD &&
@@ -1017,10 +1116,14 @@ function assignDefaultsAndValidate(
     process.env.__NEXT_TEST_MODE &&
     process.env.IS_TURBOPACK_TEST &&
     result.deploymentId &&
-    process.env.__NEXT_IMMUTABLE_ASSET_TOKEN
+    process.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS
   ) {
-    result.experimental.immutableAssetToken =
-      process.env.__NEXT_IMMUTABLE_ASSET_TOKEN
+    result.experimental.supportsImmutableAssets = true
+  }
+
+  if (process.env.NEXT_HASH_SALT) {
+    result.experimental.outputHashSalt =
+      (result.experimental.outputHashSalt ?? '') + process.env.NEXT_HASH_SALT
   }
 
   const tracingRoot = result?.outputFileTracingRoot
@@ -1297,7 +1400,10 @@ function assignDefaultsAndValidate(
           }
         )[key]
 
-        if (handlerPath && !existsSync(handlerPath)) {
+        const resolvedHandlerPath =
+          handlerPath && resolveCacheHandlerPathToFilesystem(handlerPath)
+
+        if (resolvedHandlerPath && !existsSync(resolvedHandlerPath)) {
           invalidHandlerItems.push({
             key,
             reason: `cache handler path provided does not exist, received ${handlerPath}`,
@@ -1429,11 +1535,6 @@ function assignDefaultsAndValidate(
   if (result.cacheComponents) {
     // TODO: remove once we've finished migrating internally to cacheComponents.
     result.experimental.ppr = true
-
-    // Prerender sourcemaps are enabled by default when using cacheComponents, unless explicitly disabled.
-    if (result.enablePrerenderSourceMaps === undefined) {
-      result.enablePrerenderSourceMaps = true
-    }
   }
 
   // "use cache" was originally implicitly enabled with the cacheComponents flag, so
@@ -1443,19 +1544,90 @@ function assignDefaultsAndValidate(
     result.experimental.useCache = result.cacheComponents
   }
 
+  // Node.js version gate for turbopackPluginRuntimeStrategy: 'workerThreads'.
+  // Older Node.js versions have memory safety bugs in worker threads. Bun and
+  // Deno are not affected by this check.
+  {
+    const strategy = result.experimental.turbopackPluginRuntimeStrategy
+    const isForced = strategy === 'forceWorkerThreads'
+    if (strategy === 'workerThreads' || isForced) {
+      // Normalize 'forceWorkerThreads' → 'workerThreads' for Rust/serde
+      result.experimental.turbopackPluginRuntimeStrategy = 'workerThreads'
+
+      const isBun = !!process.versions.bun
+      const isDeno = !!process.versions.deno
+      if (!isBun && !isDeno) {
+        const nodeVersion = process.versions.node
+        const WORKER_THREADS_SAFE_RANGE = '>=24.13.1 <25.0.0 || >=25.4.0'
+        if (
+          !semver.satisfies(nodeVersion, WORKER_THREADS_SAFE_RANGE, {
+            includePrerelease: true,
+          })
+        ) {
+          if (isForced) {
+            Log.warn(
+              `\`experimental.turbopackPluginRuntimeStrategy = ` +
+                `'forceWorkerThreads'\` has been enabled, but you're using ` +
+                `Node.js ${nodeVersion}, which has known memory safety bugs ` +
+                `with worker threads used from the Node-API. You may ` +
+                `experience crashes, segmentation faults, or other ` +
+                `instability. Upgrade to Node.js ${WORKER_THREADS_SAFE_RANGE}.`
+            )
+          } else {
+            Log.warn(
+              `\`experimental.turbopackPluginRuntimeStrategy = ` +
+                `'workerThreads'\` is set but has been ` +
+                `ignored because you're using Node.js ${nodeVersion}, which ` +
+                `has memory safety bugs in worker threads. Falling back to ` +
+                `'childProcesses'. Upgrade to Node.js ` +
+                `${WORKER_THREADS_SAFE_RANGE}.`
+            )
+            result.experimental.turbopackPluginRuntimeStrategy =
+              'childProcesses'
+          }
+        }
+      }
+    }
+  }
+
   // Store the distDirRoot in the config before it is modified for development mode
   ;(result as NextConfigComplete).distDirRoot = result.distDir
+
   if (phase === PHASE_DEVELOPMENT_SERVER) {
     result.distDir = join(result.distDir, 'dev')
+  }
+
+  // Derive the `'use cache'` fill timeout from `staticPageGenerationTimeout`
+  // if the user didn't set one explicitly. 90% leaves headroom for the
+  // cache-fill error to surface before the build worker kills the page.
+  if (result.experimental.useCacheTimeout === undefined) {
+    result.experimental.useCacheTimeout =
+      result.staticPageGenerationTimeout * 0.9
   }
 
   return result as NextConfigComplete
 }
 
+/**
+ * Post-processing applied by `loadConfig` after `applyModifyConfig`, so that
+ * any mutations the user made through `modifyConfig` still flow through the
+ * same defaulting rules. Keep framework-default resolution in one place so
+ * consumers don't each need to know the current framework default (which may
+ * evolve over time).
+ */
+function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
+  config.experimental.instantInsights = {
+    validationLevel:
+      config.experimental.instantInsights?.validationLevel ?? 'manual-warning',
+  }
+  return config
+}
+
 async function applyModifyConfig(
   config: NextConfigComplete,
   phase: PHASE_TYPE,
-  silent: boolean
+  silent: boolean,
+  dir: string
 ): Promise<NextConfigComplete> {
   // we always call modify config  and phase can be used to only
   // modify for specific times
@@ -1472,6 +1644,7 @@ async function applyModifyConfig(
       config = await adapterMod.modifyConfig(config, {
         phase,
         nextVersion: process.env.__NEXT_VERSION as string,
+        projectDir: dir,
       })
     }
   }
@@ -1631,19 +1804,22 @@ export default async function loadConfig(
     // Check deprecation warnings on the custom config before merging with defaults
     checkDeprecations(customConfig as NextConfig, configFileName, silent, dir)
 
-    const config = await applyModifyConfig(
-      assignDefaultsAndValidate(
-        dir,
-        {
-          configOrigin: 'server',
-          configFileName,
-          ...customConfig,
-        },
+    const config = finalizeConfig(
+      await applyModifyConfig(
+        assignDefaultsAndValidate(
+          dir,
+          {
+            configOrigin: 'server',
+            configFileName,
+            ...customConfig,
+          },
+          silent,
+          phase
+        ),
+        phase,
         silent,
-        phase
-      ),
-      phase,
-      silent
+        dir
+      )
     )
 
     // Cache the custom config result
@@ -1665,6 +1841,7 @@ export default async function loadConfig(
     configFileName = basename(path)
 
     let userConfigModule: any
+    let loadedConfig: NextConfig
     try {
       const envBefore = Object.assign({}, process.env)
 
@@ -1705,6 +1882,18 @@ export default async function loadConfig(
 
         return userConfigModule
       }
+
+      // `normalizeConfig` invokes the user's exported config function (or
+      // awaits its returned promise) if it is one. Errors thrown from that
+      // call belong to the same "failed to load config" category as parse
+      // errors from `import()` above, so we keep them inside this try/catch
+      // to attach the same framing message.
+      loadedConfig = Object.freeze(
+        (await normalizeConfig(
+          phase,
+          interopDefault(userConfigModule)
+        )) as NextConfig
+      )
     } catch (err) {
       // Capture the error for MCP tool reporting
       NextInstanceErrorState.nextConfig.push(err)
@@ -1715,13 +1904,6 @@ export default async function loadConfig(
       )
       throw err
     }
-
-    const loadedConfig = Object.freeze(
-      (await normalizeConfig(
-        phase,
-        interopDefault(userConfigModule)
-      )) as NextConfig
-    )
 
     if (loadedConfig.experimental) {
       for (const name of Object.keys(
@@ -1772,13 +1954,13 @@ export default async function loadConfig(
     }
 
     if (
-      phase === PHASE_PRODUCTION_BUILD &&
-      bundler !== Bundler.Turbopack &&
-      userConfig.experimental?.immutableAssetToken
+      userConfig.experimental?.supportsImmutableAssets &&
+      bundler !== undefined &&
+      bundler !== Bundler.Turbopack
     ) {
       // Silently ignore that flag for Webpack/Rspack since the server code assumes that all files
       // in `static/chunks` are always immutable without checking the manifest.
-      userConfig.experimental.immutableAssetToken = undefined
+      userConfig.experimental.supportsImmutableAssets = undefined
     }
 
     if (reactProductionProfiling) {
@@ -1839,7 +2021,9 @@ export default async function loadConfig(
       phase
     )
 
-    const finalConfig = await applyModifyConfig(completeConfig, phase, silent)
+    const finalConfig = finalizeConfig(
+      await applyModifyConfig(completeConfig, phase, silent, dir)
+    )
 
     // Cache the final result
     configCache.set(cacheKey, {
@@ -1896,7 +2080,9 @@ export default async function loadConfig(
 
   setHttpClientAndAgentOptions(completeConfig)
 
-  const finalConfig = await applyModifyConfig(completeConfig, phase, silent)
+  const finalConfig = finalizeConfig(
+    await applyModifyConfig(completeConfig, phase, silent, dir)
+  )
 
   // Cache the default config result
   configCache.set(cacheKey, {
@@ -1940,9 +2126,6 @@ function enforceExperimentalFeatures(
     debugPrerender &&
     (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT)
   ) {
-    // TODO: This is not an experimental feature, but should be enabled alongside other prerender debugging features.
-    config.enablePrerenderSourceMaps = true
-
     setExperimentalFeatureForDebugPrerender(
       config.experimental,
       'serverSourceMaps',

@@ -21,33 +21,45 @@ export function getPkgManager(): PackageManager {
 }
 
 /**
- * Get the major version of pnpm being used.
+ * Get the full version string for the given package manager.
  * Returns null if unable to determine the version.
  *
  * First tries to parse from npm_config_user_agent (e.g., "pnpm/9.13.2 npm/? ..."),
- * then falls back to spawning `pnpm --version --silent`.
+ * then falls back to spawning `<packageManager> --version`.
  */
-export function getPnpmMajorVersion(): number | null {
-  // Try to get version from user agent first (e.g., "pnpm/9.13.2 npm/? node/v20.x linux x64")
+export function getPackageManagerVersion(
+  packageManager: PackageManager
+): string | null {
   const userAgent = process.env.npm_config_user_agent || ''
-  const pnpmVersionMatch = userAgent.match(/pnpm\/(\d+)/)
-  if (pnpmVersionMatch) {
-    return parseInt(pnpmVersionMatch[1], 10)
+  const userAgentMatch = userAgent.match(
+    new RegExp(`${packageManager}/([\\d.]+[\\w.-]*)`)
+  )
+  if (userAgentMatch) {
+    return userAgentMatch[1]
   }
 
-  // Fall back to spawning pnpm --version
   try {
-    const version = execSync('pnpm --version --silent', {
+    const version = execSync(`${packageManager} --version`, {
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'ignore'],
     }).trim()
-    const majorVersion = parseInt(version.split('.')[0], 10)
-    if (!Number.isNaN(majorVersion)) {
-      return majorVersion
+    if (/^\d+\.\d+\.\d+/.test(version)) {
+      return version
     }
   } catch {
-    // pnpm not available or failed to run
+    // package manager not available or failed to run
   }
 
   return null
+}
+
+/**
+ * Get the major version of pnpm being used.
+ * Returns null if unable to determine the version.
+ */
+export function getPnpmMajorVersion(): number | null {
+  const version = getPackageManagerVersion('pnpm')
+  if (!version) return null
+  const major = parseInt(version.split('.')[0], 10)
+  return Number.isNaN(major) ? null : major
 }

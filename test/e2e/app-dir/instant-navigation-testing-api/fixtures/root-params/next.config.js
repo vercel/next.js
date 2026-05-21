@@ -6,6 +6,7 @@ const nextConfig = {
   experimental: {
     exposeTestingApiInProductionBuild: true,
     instantNavigationDevToolsToggle: true,
+    prefetchInlining: false,
   },
 }
 

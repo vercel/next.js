@@ -4,6 +4,7 @@ import {
   waitForRedbox,
   getRedboxCallStack,
   getRedboxCause,
+  getRedboxAggregateErrors,
   getRedboxComponentStack,
   getRedboxDescription,
   getRedboxEnvironmentLabel,
@@ -87,6 +88,7 @@ export interface ErrorSnapshot {
   description?: string
   componentStack?: string
   cause?: SanitizedCauseEntry[]
+  aggregateErrors?: SanitizedCauseEntry[]
   code?: string
   source: string | null
   stack: string[] | null
@@ -193,6 +195,7 @@ async function createErrorSnapshot(
     stack,
     componentStack,
     cause,
+    aggregateErrors,
     code,
   ] = await Promise.all([
     includeLabel ? getRedboxLabel(browser) : null,
@@ -202,6 +205,7 @@ async function createErrorSnapshot(
     getRedboxCallStack(browser),
     getRedboxComponentStack(browser),
     getRedboxCause(browser),
+    getRedboxAggregateErrors(browser),
     getRedboxErrorCode(browser),
   ])
 
@@ -273,6 +277,21 @@ async function createErrorSnapshot(
         causeEntry.message = entry.message
       }
       return causeEntry
+    })
+  }
+
+  // AggregateError.errors are only relevant when present.
+  if (aggregateErrors !== null) {
+    snapshot.aggregateErrors = aggregateErrors.map((entry) => {
+      const aggEntry: SanitizedCauseEntry = {
+        label: entry.label,
+        source: focusSource(entry.source, next),
+        stack: sanitizeStack(entry.stack, next) ?? [],
+      }
+      if (entry.message !== null) {
+        aggEntry.message = entry.message
+      }
+      return aggEntry
     })
   }
 

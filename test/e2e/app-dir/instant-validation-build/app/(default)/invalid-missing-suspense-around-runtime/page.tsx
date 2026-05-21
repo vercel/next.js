@@ -2,9 +2,10 @@ import { cookies } from 'next/headers'
 import { connection } from 'next/server'
 
 export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ cookies: [{ name: 'auth', value: '1' }] }],
+  level: 'experimental-error',
+  unstable_samples: [{ cookies: [{ name: 'auth', value: '1' }] }],
 }
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page() {
   const c = await cookies()

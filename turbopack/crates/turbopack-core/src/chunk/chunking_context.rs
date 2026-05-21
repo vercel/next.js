@@ -10,7 +10,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
 use crate::{
-    asset::Asset,
+    asset::{Asset, AssetContent},
     chunk::{
         ChunkItem, ChunkType, ChunkableModule, availability_info::AvailabilityInfo,
         chunk_id_strategy::ModuleIdStrategy,
@@ -20,7 +20,7 @@ use crate::{
     module::Module,
     module_graph::{
         ModuleGraph, binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroup,
-        module_batches::BatchingConfig,
+        module_batches::BatchingConfig, style_groups::StyleGroupsAlgorithm,
     },
     output::{
         ExpandOutputAssetsInput, OutputAsset, OutputAssets, OutputAssetsReferences,
@@ -160,13 +160,13 @@ impl ChunkGroupResult {
 #[turbo_tasks::value_impl]
 impl ChunkGroupResult {
     #[turbo_tasks::function]
-    pub async fn output_assets_with_referenced(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
-        Ok(OutputAssetsWithReferenced {
+    pub fn output_assets_with_referenced(&self) -> Vc<OutputAssetsWithReferenced> {
+        OutputAssetsWithReferenced {
             assets: self.assets,
             referenced_assets: self.referenced_assets,
             references: self.references,
         }
-        .cell())
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -196,7 +196,7 @@ impl ChunkGroupResult {
                 self.assets
                     .await?
                     .into_iter()
-                    .chain(self.referenced_assets.await?.into_iter())
+                    .chain(self.referenced_assets.await?)
                     .copied()
                     .map(ExpandOutputAssetsInput::Asset)
                     .chain(
@@ -273,6 +273,11 @@ pub struct ChunkingConfig {
     /// Never merges chunks bigger than this size with other chunks.
     /// This makes sure that code in big chunks is not duplicated in multiple chunks.
     pub max_merge_chunk_size: usize,
+
+    /// Selects the algorithm used to compute
+    /// [`crate::module_graph::style_groups::StyleGroups`]. Only consulted for the CSS chunk
+    /// type.
+    pub style_groups_algorithm: StyleGroupsAlgorithm,
 
     #[allow(dead_code)]
     pub placeholder_for_future_extensions: (),
@@ -352,7 +357,7 @@ pub trait ChunkingContext {
     #[turbo_tasks::function]
     fn asset_path(
         self: Vc<Self>,
-        content_hash: Vc<RcStr>,
+        content: Vc<AssetContent>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Vc<FileSystemPath>;
