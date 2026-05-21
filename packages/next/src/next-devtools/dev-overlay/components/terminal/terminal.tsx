@@ -1,4 +1,5 @@
 import Anser from 'next/dist/compiled/anser'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import * as React from 'react'
 import { HotlinkedText } from '../hot-linked-text'
 import { EditorLink } from './editor-link'
@@ -54,10 +55,13 @@ function getImportTraceFiles(lines: string[]) {
   return []
 }
 
-function getEditorLinks(content: string) {
+export function getEditorLinks(content: string) {
   const lines = content.split('\n')
   if (process.env.__NEXT_BUNDLER === 'Rspack') {
-    while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
+    while (
+      lines.length > 0 &&
+      stripAnsi(lines[lines.length - 1]).trim() === ''
+    ) {
       lines.pop()
     }
   }
