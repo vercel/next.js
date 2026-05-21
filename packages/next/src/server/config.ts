@@ -2184,6 +2184,23 @@ function enforceExperimentalFeatures(
     }
   }
 
+  // Enable cachedNavigations by default when cacheComponents is enabled.
+  // cachedNavigations relies on Cache Components rendering to do anything
+  // useful, so the two features are tied together: we only flip the default
+  // for projects that are already using Cache Components. Done silently —
+  // we don't report this through `configuredExperimentalFeatures` because
+  // (a) the existing `cacheComponents` env-var auto-enable above is also
+  // silent, and (b) reporting it would force every snapshot test that has
+  // `cacheComponents: true` to take on a new line.
+  // TODO: Remove this once cachedNavigations is unconditionally the default.
+  if (
+    config.cacheComponents &&
+    (config.experimental.cachedNavigations === undefined ||
+      (isDefaultConfig && !config.experimental.cachedNavigations))
+  ) {
+    config.experimental.cachedNavigations = true
+  }
+
   // TODO: Remove this once appNewScrollHandler is the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true' &&
