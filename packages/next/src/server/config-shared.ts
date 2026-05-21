@@ -405,6 +405,40 @@ export interface LightningCssFeatures {
   exclude?: LightningCssFeature[]
 }
 
+/**
+ * Accepted shapes for `experimental.cssChunking`. See [`ExperimentalConfig.cssChunking`] for the
+ * accepted values; use [`resolveCssChunkingMode`] to normalize the value at runtime.
+ */
+export type CssChunkingConfig =
+  | boolean
+  | 'strict'
+  | 'loose'
+  | 'graph'
+  | { type: 'strict' }
+  | { type: 'loose' }
+  | { type: 'graph'; requestCost?: number; moduleFactorCost?: number }
+
+/**
+ * Normalize any [`CssChunkingConfig`] value to one of the four modes the build pipeline cares
+ * about:
+ *   - `'off'`  — `false`/`undefined`: do not run a CSS chunking plugin.
+ *   - `'loose'` — `true` / `'loose'` / `{ type: 'loose' }`: heuristic-based chunking
+ *     (the default).
+ *   - `'strict'` — `'strict'` / `{ type: 'strict' }`: webpack-only ordered-chunking plugin.
+ *   - `'graph'` — `'graph'` / `{ type: 'graph', … }`: Turbopack-only graph algorithm.
+ */
+export function resolveCssChunkingMode(
+  value: CssChunkingConfig | undefined
+): 'off' | 'loose' | 'strict' | 'graph' {
+  if (value === undefined || value === false) return 'off'
+  if (value === true || value === 'loose') return 'loose'
+  if (value === 'strict' || value === 'graph') return value
+  // Object form. `requestCost` and `moduleFactorCost` are validated by the schema.
+  if (value.type === 'strict') return 'strict'
+  if (value.type === 'graph') return 'graph'
+  return 'loose'
+}
+
 export interface ExperimentalConfig {
   /**
    * A string that is incorporated into content-addressed output filenames
@@ -433,14 +467,17 @@ export interface ExperimentalConfig {
    */
   clientParamParsingOrigins?: string[]
   cachedNavigations?: boolean
-  /**
-   * Enables partial fallback shells for cache-components routes while the
-   * feature stabilizes.
-   */
-  partialFallbacks?: boolean
   dynamicOnHover?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
+  /**
+   * Enables App Shell prefetching: a route's reusable, param-free loading
+   * state is prefetched once per session and served instantly for any
+   * concrete navigation. Routes marked as fully static (no per-request
+   * server work) are unaffected; the App Shell phase only runs for
+   * runtime-prefetchable routes.
+   */
+  appShells?: boolean
   varyParams?: boolean
   prefetchInlining?:
     | boolean
@@ -513,12 +550,27 @@ export interface ExperimentalConfig {
   proxyPrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
-   * CSS Chunking strategy. Defaults to `true` ("loose" mode), which guesses dependencies
-   * between CSS files to keep ordering of them.
-   * An alternative is 'strict', which will try to keep correct ordering as
-   * much as possible, even when this leads to many requests.
+   * CSS Chunking strategy. Defaults to `true` (loose mode), which guesses dependencies between
+   * CSS files to keep ordering of them.
+   *
+   * - `true` / `'loose'` / `{ type: 'loose' }` — default heuristic-based chunking.
+   * - `'strict'` / `{ type: 'strict' }` — preserve correct ordering as much as possible, even
+   *   when this leads to many requests. Webpack only.
+   * - `false` — disable chunking; emit one chunk per CSS module. Webpack only.
+   * - `'graph'` / `{ type: 'graph', requestCost?, moduleFactorCost? }` — Turbopack only.
+   *   Selects a CSS chunking strategy that analyzes the most common style orderings across the
+   *   application and produces shared chunks accordingly. Compared to the default mode it
+   *   intentionally overships some styles in order to reduce the number of CSS requests per
+   *   page. Cost overrides:
+   *     - `requestCost` (bytes, default `20000`) — additional cost charged for every CSS
+   *       request a chunk group makes. Larger values bias the algorithm toward fewer, larger
+   *       shared chunks; smaller values toward more, smaller chunks.
+   *     - `moduleFactorCost` (default `1`) — controls how much the algorithm cares about
+   *       small chunk groups. `0` distributes overshipped bytes evenly across chunk groups.
+   *       Higher values penalize overshipping in small chunk groups proportionally more, so
+   *       small pages ship fewer unrelated styles at the expense of more requests overall.
    */
-  cssChunking?: boolean | 'strict'
+  cssChunking?: CssChunkingConfig
   disablePostcssPresetEnv?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
@@ -1153,11 +1205,6 @@ export interface ExperimentalConfig {
       }
 
   /**
-   * Enable accessing root params via the `next/root-params` module.
-   */
-  rootParams?: boolean
-
-  /**
    * Body size limit for request bodies with middleware configured.
    * Defaults to 10MB. Can be specified as a number (bytes) or string (e.g. '5mb').
    *
@@ -1482,6 +1529,13 @@ export interface NextConfig {
 
   /** @see [Including non-page files in the pages directory](https://nextjs.org/docs/app/api-reference/config/next-config-js/pageExtensions) */
   pageExtensions?: string[]
+
+  /**
+   * Module specifiers that are required for side effects on the client before
+   * hydration, in array order, ahead of the user's `instrumentation-client.{ts,js}`.
+   * Each entry may be a bare npm package name or a path relative to the project root.
+   */
+  instrumentationClientInject?: string[]
 
   /** @see [Compression documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/compress) */
   compress?: boolean
@@ -1830,6 +1884,7 @@ export const defaultConfig = Object.freeze({
   generateBuildId: () => null,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
+  instrumentationClientInject: [],
   poweredByHeader: true,
   compress: true,
   images: imageConfigDefault,
@@ -1921,7 +1976,6 @@ export const defaultConfig = Object.freeze({
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
     cachedNavigations: false,
-    partialFallbacks: true,
     dynamicOnHover: false,
     useOffline: false,
     varyParams: false,
@@ -2071,6 +2125,7 @@ export interface NextConfigRuntime {
     | 'dynamicOnHover'
     | 'useOffline'
     | 'optimisticRouting'
+    | 'appShells'
     | 'inlineCss'
     | 'prefetchInlining'
     | 'authInterrupts'
@@ -2103,7 +2158,6 @@ export interface NextConfigRuntime {
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
     | 'cachedNavigations'
-    | 'partialFallbacks'
     | 'exposeTestingApiInProductionBuild'
     | 'supportsImmutableAssets'
     | 'useNodeStreams'
@@ -2139,6 +2193,7 @@ export function getNextConfigRuntime(
     dynamicOnHover: ex.dynamicOnHover,
     useOffline: ex.useOffline,
     optimisticRouting: ex.optimisticRouting,
+    appShells: ex.appShells,
     inlineCss: ex.inlineCss,
     prefetchInlining: ex.prefetchInlining,
     authInterrupts: ex.authInterrupts,
@@ -2172,7 +2227,6 @@ export function getNextConfigRuntime(
     runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
     maxPostponedStateSize: ex.maxPostponedStateSize,
     cachedNavigations: ex.cachedNavigations,
-    partialFallbacks: ex.partialFallbacks,
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     supportsImmutableAssets: ex.supportsImmutableAssets,
     useNodeStreams: ex.useNodeStreams,

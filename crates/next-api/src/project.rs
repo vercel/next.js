@@ -588,9 +588,10 @@ impl ProjectContainer {
             node_version = options.current_node_js_version.as_str(),
             os = std::env::consts::OS,
             arch = std::env::consts::ARCH,
-            cpu_cores = std::thread::available_parallelism()
-                .map(|n| n.get())
-                .unwrap_or(0),
+            turbo_tasks_available_parallelism =
+                turbo_tasks::parallel::available_parallelism().map(|n| n.get()).unwrap_or(0),
+            std_thread_available_parallelism =
+                std::thread::available_parallelism().map(|n| n.get()).unwrap_or(0),
             dev = options.dev,
             env_diff = Empty
         );
@@ -1594,6 +1595,7 @@ impl Project {
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             cross_origin: self.next_config().cross_origin(),
             chunk_loading_global: self.next_config().turbopack_chunk_loading_global(),
+            style_groups_algorithm: self.next_config().css_chunking().owned().await?,
         }))
     }
 
@@ -1629,6 +1631,7 @@ impl Project {
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
             css_url_suffix,
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
+            style_groups_algorithm: self.next_config().css_chunking().owned().await?,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -1669,6 +1672,7 @@ impl Project {
             css_url_suffix,
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             cross_origin: self.next_config().cross_origin(),
+            style_groups_algorithm: self.next_config().css_chunking().owned().await?,
         };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(options)

@@ -13,7 +13,11 @@ import {
   PHASE_PRODUCTION_SERVER,
   type PHASE_TYPE,
 } from '../shared/lib/constants'
-import { defaultConfig, normalizeConfig } from './config-shared'
+import {
+  defaultConfig,
+  normalizeConfig,
+  resolveCssChunkingMode,
+} from './config-shared'
 import type {
   ExperimentalConfig,
   NextConfigComplete,
@@ -173,6 +177,13 @@ function checkDeprecations(
     userConfig,
     'experimental.after',
     `\`experimental.after\` is no longer needed, because \`after\` is available by default. You can remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'experimental.rootParams',
+    `\`experimental.rootParams\` is no longer needed, because \`next/root-params\` is available by default. You can remove it from ${configFileName}.`,
     silent
   )
 
@@ -456,10 +467,68 @@ function assignDefaultsAndValidate(
     )
   }
 
+  // Validate experimental.cssChunking compatibility with the active bundler. Graph mode is
+  // Turbopack-only; strict mode and `false` (single-chunk-per-module) are webpack-only.
+  // Only validate during build/dev — `next start` doesn't pick a bundler and would otherwise
+  // see `process.env.TURBOPACK` unset and reject a valid `cssChunking: "graph"` config.
+  if (phase !== PHASE_PRODUCTION_SERVER) {
+    const cssChunkingValue = result.experimental.cssChunking
+    const cssChunkingMode = resolveCssChunkingMode(cssChunkingValue)
+    if (cssChunkingMode === 'graph' && !process.env.TURBOPACK) {
+      throw new Error(
+        `\`experimental.cssChunking: "graph"\` is only supported with Turbopack. ` +
+          `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+      )
+    }
+    if (cssChunkingMode === 'strict' && process.env.TURBOPACK) {
+      throw new Error(
+        `\`experimental.cssChunking: "strict"\` is only supported with webpack. ` +
+          `Please remove the option or run Next.js with webpack in ${configFileName}.`
+      )
+    }
+    // Only error when `false` was set explicitly. `undefined` (the default) also resolves to
+    // `'off'` but that's the implicit default and must not error on Turbopack.
+    if (cssChunkingValue === false && process.env.TURBOPACK) {
+      throw new Error(
+        `\`experimental.cssChunking: false\` is only supported with webpack. ` +
+          `Please remove the option or run Next.js with webpack in ${configFileName}.`
+      )
+    }
+  }
+
   if (result.experimental.cachedNavigations && !result.cacheComponents) {
     throw new Error(
       `\`experimental.cachedNavigations\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
     )
+  }
+
+  if (result.experimental.appShells) {
+    // App Shells is tested in combination with the experimental flags it
+    // expects to ship alongside. All of these are on track to become
+    // defaults, so we don't support enabling App Shells against arbitrary
+    // subsets of them — the validation goes away once each becomes a
+    // default.
+    const missing: string[] = []
+    if (!result.cacheComponents) {
+      missing.push('`cacheComponents`')
+    }
+    if (!result.experimental.prefetchInlining) {
+      missing.push('`experimental.prefetchInlining`')
+    }
+    if (!result.experimental.varyParams) {
+      missing.push('`experimental.varyParams`')
+    }
+    if (!result.experimental.optimisticRouting) {
+      missing.push('`experimental.optimisticRouting`')
+    }
+    if (!result.experimental.cachedNavigations) {
+      missing.push('`experimental.cachedNavigations`')
+    }
+    if (missing.length > 0) {
+      throw new Error(
+        `\`experimental.appShells\` requires the following to also be enabled: ${missing.join(', ')}. Please update your ${configFileName} accordingly.`
+      )
+    }
   }
 
   if (result.experimental.ppr) {
@@ -1557,7 +1626,8 @@ function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
 async function applyModifyConfig(
   config: NextConfigComplete,
   phase: PHASE_TYPE,
-  silent: boolean
+  silent: boolean,
+  dir: string
 ): Promise<NextConfigComplete> {
   // we always call modify config  and phase can be used to only
   // modify for specific times
@@ -1574,6 +1644,7 @@ async function applyModifyConfig(
       config = await adapterMod.modifyConfig(config, {
         phase,
         nextVersion: process.env.__NEXT_VERSION as string,
+        projectDir: dir,
       })
     }
   }
@@ -1746,7 +1817,8 @@ export default async function loadConfig(
           phase
         ),
         phase,
-        silent
+        silent,
+        dir
       )
     )
 
@@ -1769,6 +1841,7 @@ export default async function loadConfig(
     configFileName = basename(path)
 
     let userConfigModule: any
+    let loadedConfig: NextConfig
     try {
       const envBefore = Object.assign({}, process.env)
 
@@ -1809,6 +1882,18 @@ export default async function loadConfig(
 
         return userConfigModule
       }
+
+      // `normalizeConfig` invokes the user's exported config function (or
+      // awaits its returned promise) if it is one. Errors thrown from that
+      // call belong to the same "failed to load config" category as parse
+      // errors from `import()` above, so we keep them inside this try/catch
+      // to attach the same framing message.
+      loadedConfig = Object.freeze(
+        (await normalizeConfig(
+          phase,
+          interopDefault(userConfigModule)
+        )) as NextConfig
+      )
     } catch (err) {
       // Capture the error for MCP tool reporting
       NextInstanceErrorState.nextConfig.push(err)
@@ -1819,13 +1904,6 @@ export default async function loadConfig(
       )
       throw err
     }
-
-    const loadedConfig = Object.freeze(
-      (await normalizeConfig(
-        phase,
-        interopDefault(userConfigModule)
-      )) as NextConfig
-    )
 
     if (loadedConfig.experimental) {
       for (const name of Object.keys(
@@ -1944,7 +2022,7 @@ export default async function loadConfig(
     )
 
     const finalConfig = finalizeConfig(
-      await applyModifyConfig(completeConfig, phase, silent)
+      await applyModifyConfig(completeConfig, phase, silent, dir)
     )
 
     // Cache the final result
@@ -2003,7 +2081,7 @@ export default async function loadConfig(
   setHttpClientAndAgentOptions(completeConfig)
 
   const finalConfig = finalizeConfig(
-    await applyModifyConfig(completeConfig, phase, silent)
+    await applyModifyConfig(completeConfig, phase, silent, dir)
   )
 
   // Cache the default config result

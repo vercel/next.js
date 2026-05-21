@@ -16,7 +16,7 @@ import { bold, yellow } from '../lib/picocolors'
 import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
-import { Worker } from '../lib/worker'
+import { getNextBuildDebuggerPortOffset, Worker } from '../lib/worker'
 import { defaultConfig, getNextConfigRuntime } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
@@ -1430,8 +1430,7 @@ export default async function build(
 
           await writeRootParamsTypes(
             routeTypesManifest,
-            path.join(distDir, 'types', 'root-params.d.ts'),
-            config
+            path.join(distDir, 'types', 'root-params.d.ts')
           )
         })
 
@@ -2048,7 +2047,9 @@ export default async function build(
 
       staticWorker = createStaticWorker(config, {
         numberOfWorkers,
-        debuggerPortOffset: -1,
+        debuggerPortOffset: getNextBuildDebuggerPortOffset({
+          kind: 'export-page',
+        }),
       })
 
       const analysisBegin = process.hrtime()
@@ -2109,8 +2110,6 @@ export default async function build(
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
               pprConfig: config.experimental.ppr,
-              partialFallbacksEnabled:
-                config.experimental.partialFallbacks === true,
               cacheLifeProfiles: config.cacheLife,
               buildId,
               deploymentId: config.deploymentId,
@@ -2344,8 +2343,6 @@ export default async function build(
                             cacheMaxMemorySize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             pprConfig: config.experimental.ppr,
-                            partialFallbacksEnabled:
-                              config.experimental.partialFallbacks === true,
                             cacheLifeProfiles: config.cacheLife,
                             buildId,
                             deploymentId: config.deploymentId,

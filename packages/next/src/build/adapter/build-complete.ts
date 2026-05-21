@@ -379,6 +379,10 @@ export interface NextAdapter {
        * nextVersion is the current version of Next.js being used
        */
       nextVersion: string
+      /**
+       * projectDir is the absolute directory the Next.js application is in
+       */
+      projectDir: string
     }
   ) => Promise<NextConfigComplete> | NextConfigComplete
   onBuildComplete?: (ctx: {
@@ -1543,10 +1547,7 @@ export async function handleBuildComplete({
             (item) => item.page === dynamicRoute
           )?.routeKeys || {}
         const allowQuery = Object.values(routeKeys)
-        const partialFallbacksEnabled =
-          config.experimental.partialFallbacks === true
         const partialFallback =
-          partialFallbacksEnabled &&
           isAppPage &&
           remainingPrerenderableParams !== undefined &&
           remainingPrerenderableParams.length > 0 &&
@@ -1573,7 +1574,7 @@ export async function handleBuildComplete({
           // RSC shell.
           else if (meta.postponed) {
             // If there's postponed fallback content, we usually collapse to a shared shell (`[]`).
-            // For opt-in partial fallbacks in cache components, keep only the
+            // For partial fallbacks in cache components, keep only the
             // params that can still complete this shell.
             const remainingPrerenderableQueryKeys = new Set(
               (remainingPrerenderableParams ?? []).map(
