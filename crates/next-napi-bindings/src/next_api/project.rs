@@ -1798,9 +1798,7 @@ pub fn project_entrypoints_subscribe(
 
 #[turbo_tasks::value(serialization = "skip")]
 struct HmrUpdateWithIssues {
-    // `None` when the underlying update computation errored but produced
-    // collectible issues at `Error` severity or above.
-    update: Option<ReadRef<Update>>,
+    update: ReadRef<Update>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     effects: Arc<Effects>,
 }
@@ -1823,9 +1821,14 @@ async fn hmr_update_with_issues_operation(
     target: HmrTarget,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     let update_op = project_hmr_update_operation(project, chunk_name, target, state);
+    // NOTE: we do not use `strongly_consistent_catch_collectables` here. The JS HMR
+    // consumers in `hot-reloader-turbopack.ts` (`subscribeToServerHmr` and
+    // `subscribeToClientHmrEvents`) rely on this read *throwing* on build-graph
+    // failures to trigger their recovery paths
+    let update = update_op.read_strongly_consistent().await?;
     let filter = project.issue_filter();
-    let (update, issues, effects) =
-        strongly_consistent_catch_collectables(update_op, filter).await?;
+    let issues = get_issues(update_op, filter).await?;
+    let effects = Arc::new(take_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
         update,
         issues,
@@ -1883,21 +1886,16 @@ pub fn project_hmr_events(
                     effects.apply().await?;
                     // HACK(bgw): Remove this unmark call
                     unmark_top_level_task_may_leak_eventually_consistent_state();
-                    // `update` is `None` when the underlying update errored
-                    // with collectible issues. The mapper below treats that
-                    // like `Update::Missing` and emits a `restart` instruction.
-                    if let Some(update) = update {
-                        match &**update {
-                            Update::Missing | Update::None => {}
-                            Update::Total(TotalUpdate { to }) => {
-                                state.set(to.clone()).await?;
-                            }
-                            Update::Partial(PartialUpdate { to, .. }) => {
-                                state.set(to.clone()).await?;
-                            }
+                    match &**update {
+                        Update::Missing | Update::None => {}
+                        Update::Total(TotalUpdate { to }) => {
+                            state.set(to.clone()).await?;
+                        }
+                        Update::Partial(PartialUpdate { to, .. }) => {
+                            state.set(to.clone()).await?;
                         }
                     }
-                    Ok((update.clone(), issues.clone()))
+                    Ok((Some(update.clone()), issues.clone()))
                 }
             }
         },
@@ -1944,11 +1942,7 @@ struct HmrChunkNames {
 
 #[turbo_tasks::value(serialization = "skip")]
 struct HmrChunkNamesWithIssues {
-    // `None` when the underlying computation errored with collectible issues at
-    // `Error` severity or above (e.g. a transient missing-`node_modules/next`).
-    // The subscriber treats `None` as an empty chunk-name list and the JS
-    // consumer will rebuild its per-chunk subscriptions on the next emit.
-    chunk_names: Option<ReadRef<Vec<RcStr>>>,
+    chunk_names: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     effects: Arc<Effects>,
 }
@@ -1967,15 +1961,18 @@ async fn get_hmr_chunk_names_with_issues_operation(
     target: HmrTarget,
 ) -> Result<Vc<HmrChunkNamesWithIssues>> {
     let hmr_chunk_names_op = project_hmr_chunk_names_operation(container, target);
-    // Use catch-collectables so a transient build-graph error (e.g. missing
-    // `node_modules/next` during a concurrent install) becomes a recoverable
-    // `None` chunk-names list, rather than killing the subscription with a
-    // `TurbopackInternalError`.
+    // Do NOT switch this to `strongly_consistent_catch_collectables`. The JS HMR
+    // chunk-names consumer in `hot-reloader-turbopack.ts` relies on this read
+    // *throwing* on build-graph failures so its outer `try` block exits the
+    // subscription loop. Swallowing the error and emitting an empty chunk-name
+    // list keeps the loop running but with stale state, and obscures the real
+    // failure from the dev server log.
+    let hmr_chunk_names = hmr_chunk_names_op.read_strongly_consistent().await?;
     let filter = issue_filter_from_container(container);
-    let (chunk_names, issues, effects) =
-        strongly_consistent_catch_collectables(hmr_chunk_names_op, filter).await?;
+    let issues = get_issues(hmr_chunk_names_op, filter).await?;
+    let effects = Arc::new(take_effects(hmr_chunk_names_op).await?);
     Ok(HmrChunkNamesWithIssues {
-        chunk_names,
+        chunk_names: hmr_chunk_names,
         issues,
         effects,
     }
@@ -2014,14 +2011,10 @@ pub fn project_hmr_chunk_names_subscribe(
         move |ctx| {
             let (chunk_names, issues) = ctx.value;
 
-            // `chunk_names` is `None` when the underlying computation errored
-            // (see `get_hmr_chunk_names_with_issues_operation`). Emit an empty
-            // list so the JS consumer drops its per-chunk subscriptions; it
-            // will rebuild them on the next successful emit.
-            let chunk_names = chunk_names.map(ReadRef::into_owned).unwrap_or_default();
-
             Ok(vec![TurbopackResult {
-                result: HmrChunkNames { chunk_names },
+                result: HmrChunkNames {
+                    chunk_names: ReadRef::into_owned(chunk_names),
+                },
                 issues: issues
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))

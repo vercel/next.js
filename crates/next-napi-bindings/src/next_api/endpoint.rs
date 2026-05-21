@@ -272,15 +272,14 @@ pub fn endpoint_client_changed_subscribe(
             async move {
                 let changed_op = endpoint_client_changed_operation(endpoint_op);
                 // We don't capture issues and diagnostics here since we don't want to be
-                // notified when they change.
+                // notified when they change.  We also want errors to propagate so we don't use
+                // strongly_consistent_catch_collectibles either.
                 //
                 // This must be a *read*, not just a resolve, because we need the root task created
                 // by `subscribe` to re-run when the `Completion`'s value changes (via equality),
                 // even if the cell id doesn't change.
                 //
-                // Ignore anyhow errors if there are critical issues
-                let filter = issue_filter_from_endpoint(endpoint_op).await;
-                let _ = strongly_consistent_catch_collectables(changed_op, filter).await?;
+                let _ = changed_op.read_strongly_consistent().await?;
                 Ok(())
             }
             .instrument(tracing::info_span!("client changes subscription"))
