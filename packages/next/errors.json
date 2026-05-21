@@ -1276,5 +1276,6 @@
   "1275": "\\`experimental.cssChunking: false\\` is only supported with webpack. Please remove the option or run Next.js with webpack in %s.",
   "1276": "Compilation failed but no issues were recorded",
   "1277": "no route matched for path \"%s\"",
-  "1278": "compileRoute: either routeSpecifier or path is required"
+  "1278": "compileRoute: either routeSpecifier or path is required",
+  "1279": "\\`experimental.appShells\\` requires the following to also be enabled: %s. Please update your %s accordingly."
 }

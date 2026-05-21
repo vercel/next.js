@@ -35,7 +35,7 @@ async function runCompareSubcommand(argv: string[]): Promise<void> {
   if (args.help || args._.length === 0) {
     console.log(`Usage: devlow-bench compare <baseline.csv> <current.csv>
   Reads both snapshot CSVs and prints a side-by-side comparison table
-  with mean/p50/p90 plus Welch’s t and Mann–Whitney U p-values per metric.`)
+  with p50/p90/p99 plus a Mann–Whitney U p-value per metric.`)
     if (args.help) return
   }
   if (args._.length !== 2) {

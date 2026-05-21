@@ -22,6 +22,7 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssetsReference},
     reference::all_assets_from_entries,
     reference_type::ReferenceType,
+    resolve::options::ConditionValue,
     traced_asset::TracedAsset,
 };
 use turbopack_ecmascript::AnalyzeMode;
@@ -109,6 +110,7 @@ async fn node_file_trace_operation(
             enable_node_native_modules: true,
             enable_node_modules: Some(input_dir),
             custom_conditions: vec![rcstr!("node")],
+            module_sync: ConditionValue::Unknown,
             enable_node_externals: true,
             loose_errors: true,
             collect_affecting_sources: true,

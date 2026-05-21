@@ -30,6 +30,7 @@ use turbopack_core::{
     output::OutputAsset,
     reference::all_assets_from_entries,
     reference_type::ReferenceType,
+    resolve::options::ConditionValue,
     traced_asset::TracedAsset,
 };
 use turbopack_ecmascript::AnalyzeMode;
@@ -108,8 +109,8 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // #[case::import_meta_tpl_cnd("import-meta-tpl-cnd")]
 #[case::import_meta_url("import-meta-url")]
 // #[case::imports("imports")]
-// #[case::imports_module_sync("imports-module-sync")]
-// #[case::imports_module_sync_cjs("imports-module-sync-cjs")]
+#[case::imports_module_sync("imports-module-sync")]
+#[case::imports_module_sync_cjs("imports-module-sync-cjs")]
 // #[case::jsonc_parser_wrapper("jsonc-parser-wrapper")]
 // #[case::jsx_input("jsx-input")]
 // #[case::microtime_node_gyp("microtime-node-gyp")]
@@ -123,10 +124,12 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::module_create_require_no_mixed("module-create-require-no-mixed")]
 // #[case::module_register("module-register")]
 // #[case::module_require("module-require")]
-// #[case::module_sync_condition_cjs("module-sync-condition-cjs")]
+#[case::module_sync_condition_cjs("module-sync-condition-cjs")]
+// Turbopack always includes the module-sync version, regardless of the current Node version
 // #[case::module_sync_condition_cjs_node20("module-sync-condition-cjs-node20")]
-// #[case::module_sync_condition_es("module-sync-condition-es")]
-// #[case::module_sync_condition_es_nested("module-sync-condition-es-nested")]
+#[case::module_sync_condition_es("module-sync-condition-es")]
+#[case::module_sync_condition_es_nested("module-sync-condition-es-nested")]
+// Turbopack always includes the module-sync version, regardless of the current Node version
 // #[case::module_sync_condition_es_node20("module-sync-condition-es-node20")]
 // #[case::mongoose("mongoose")]
 // #[case::multi_input("multi-input")]
@@ -165,7 +168,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // #[case::resolve_from("resolve-from")]
 // #[case::resolve_hook("resolve-hook")]
 // #[case::return_emission("return-emission")]
-// #[case::self_reference_module_sync("self-reference-module-sync")]
+#[case::self_reference_module_sync("self-reference-module-sync")]
 // #[case::shiki("shiki")]
 // #[case::string_concat("string-concat")]
 #[case::syntax_err("syntax-err")]
@@ -250,6 +253,7 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
             enable_node_native_modules: true,
             enable_node_modules: Some(input_dir.clone()),
             custom_conditions: vec![rcstr!("node")],
+            module_sync: ConditionValue::Unknown,
             ..Default::default()
         }
         .cell(),
