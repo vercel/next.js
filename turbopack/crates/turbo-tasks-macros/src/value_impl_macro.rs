@@ -315,6 +315,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             // `LazyLock` initializer (via `CollectableTraitMethods::finalize_vtable_registry`).
             // The vtable pointer is materialized at compile time via the null-fat-ptr trick, so
             // there's no runtime `transmute` or indirect fn call.
+
+            #[cfg(not(rust_analyzer))]
             #[turbo_tasks::macro_helpers::ctor::ctor(
                 crate_path = turbo_tasks::macro_helpers::ctor,
             )]
