@@ -96,6 +96,11 @@ on:
         required: false
         type: string
         default: 'chromium'
+      needsPlaywright:
+        description: 'whether Playwright browser installation is needed'
+        required: false
+        type: string
+        default: 'yes'
 env:
   NAPI_CLI_VERSION: 2.18.4
   TURBO_VERSION: 2.9.4
@@ -123,6 +128,8 @@ env:
   KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
   KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
   NEXT_TEST_JOB: 1
+  # Per-job memoization of passed test files.
+  NEXT_TEST_PASSED_FILE: .next-test-passed.txt
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   VERCEL_ADAPTER_TEST_TOKEN: ${{ secrets.VERCEL_ADAPTER_TEST_TOKEN }}
@@ -182,7 +189,7 @@ jobs:
           fnm env --json | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs -I {} echo "{}" >> $GITHUB_ENV
 
       - name: Normalize input step names into path key
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         id: var
         with:
           script: |
@@ -224,7 +231,7 @@ jobs:
 
       - run: rm -rf .git
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 25
 
@@ -304,7 +311,7 @@ jobs:
         # If keep conditions in sync breaks, we can split into restore and save
         # steps where saving runs based on the outcome of the install step
         if: ${{ runner.environment == 'github-hosted' && (inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes') }}
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         timeout-minutes: 5
         id: cache-pnpm-store
         with:
@@ -324,7 +331,7 @@ jobs:
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - name: Install Playwright browsers
-        if: ${{ inputs.skipInstallBuild != 'yes' }}
+        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' }}
         run: |
           PW_VERSION=$(pnpm playwright --version 2>/dev/null || echo "unknown")
           CACHE_DIR="$HOME/.cache"
@@ -366,6 +373,17 @@ jobs:
         if: ${{ inputs.testTimingsArtifact == '' }}
         run: pnpm dlx turbo@${TURBO_VERSION} run get-test-timings -- --build ${{ github.sha }}
 
+      # Restore the list of tests that already passed in an earlier
+      # attempt of this same workflow run.
+      - name: Restore passed-tests cache
+        if: ${{ inputs.afterBuild && runner.environment == 'github-hosted' }}
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ env.NEXT_TEST_PASSED_FILE }}
+          key: next-test-passed-${{ steps.var.outputs.input_step_key }}-${{ github.run_id }}-attempt${{ github.run_attempt }}
+          restore-keys: |
+            next-test-passed-${{ steps.var.outputs.input_step_key }}-${{ github.run_id }}-
+
       - run: ${{ inputs.afterBuild }}
         # defaults.run.shell sets a stronger options (`-leo pipefail`)
         # Set this back to github action's weaker defaults:
@@ -374,6 +392,15 @@ jobs:
         # We must use a login shell: fnm installation may modify the `.profile`
         shell: bash -le {0}
         timeout-minutes: ${{ inputs.timeout_minutes }}
+
+      # Save the passed-tests file so the next attempt (if any) can skip
+      # them. `always()` makes this run on success, failure, or cancellation.
+      - name: Save passed-tests cache
+        if: ${{ always() && inputs.afterBuild && runner.environment == 'github-hosted' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ env.NEXT_TEST_PASSED_FILE }}
+          key: next-test-passed-${{ steps.var.outputs.input_step_key }}-${{ github.run_id }}-attempt${{ github.run_attempt }}
 
       - name: Upload test result artifacts
         if: ${{ inputs.testReportsArtifactPrefix != '' && inputs.afterBuild && always() }}

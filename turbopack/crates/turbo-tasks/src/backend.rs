@@ -1,9 +1,10 @@
 use std::{
-    borrow::Cow,
+    borrow::{Borrow, Cow},
     error::Error,
     fmt::{self, Debug, Display},
     future::Future,
     hash::{BuildHasher, BuildHasherDefault, Hash},
+    ops::Deref,
     pin::Pin,
     sync::Arc,
 };
@@ -130,6 +131,76 @@ impl<Context> TurboBincodeDecode<Context> for CachedTaskType {
 impl_encode_for_turbo_bincode_encode!(CachedTaskType);
 impl_decode_for_turbo_bincode_decode!(CachedTaskType);
 impl_borrow_decode!(CachedTaskType);
+
+/// A reference-counted pointer to a [`CachedTaskType`] using `triomphe::Arc`.
+///
+/// `triomphe::Arc` saves one `usize` per allocation (no weak count) and avoids the weak-count
+/// CAS in `drop_slow` compared to `std::sync::Arc`. We never need `Weak<CachedTaskType>`, so
+/// the trade-off is favorable.
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct CachedTaskTypeArc(pub triomphe::Arc<CachedTaskType>);
+
+impl CachedTaskTypeArc {
+    pub fn new(value: CachedTaskType) -> Self {
+        Self(triomphe::Arc::new(value))
+    }
+
+    pub fn count(&self) -> usize {
+        triomphe::Arc::count(&self.0)
+    }
+}
+
+impl AsRef<CachedTaskType> for CachedTaskTypeArc {
+    fn as_ref(&self) -> &CachedTaskType {
+        &self.0
+    }
+}
+
+impl Deref for CachedTaskTypeArc {
+    type Target = CachedTaskType;
+    #[inline]
+    fn deref(&self) -> &CachedTaskType {
+        &self.0
+    }
+}
+
+impl Borrow<CachedTaskType> for CachedTaskTypeArc {
+    #[inline]
+    fn borrow(&self) -> &CachedTaskType {
+        &self.0
+    }
+}
+
+impl Display for CachedTaskTypeArc {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&**self, f)
+    }
+}
+
+impl Encode for CachedTaskTypeArc {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        <CachedTaskType as Encode>::encode(self, encoder)
+    }
+}
+
+impl<Context> Decode<Context> for CachedTaskTypeArc {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(Self::new(<CachedTaskType as Decode<Context>>::decode(
+            decoder,
+        )?))
+    }
+}
+
+impl<'de, Context> bincode::BorrowDecode<'de, Context> for CachedTaskTypeArc {
+    fn borrow_decode<D: bincode::de::BorrowDecoder<'de, Context = Context>>(
+        decoder: &mut D,
+    ) -> Result<Self, DecodeError> {
+        Ok(Self::new(<CachedTaskType as bincode::BorrowDecode<
+            'de,
+            Context,
+        >>::borrow_decode(decoder)?))
+    }
+}
 
 // Manual implementation is needed because of a borrow issue with `Box<dyn Trait>`:
 // https://github.com/rust-lang/rust/issues/31740
@@ -558,6 +629,11 @@ pub trait Backend: Sync + Send {
 
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
+    /// Called when a task's execution finishes.
+    ///
+    /// Returns `Some(priority)` if the task was invalidated again while executing and must be
+    /// re-run. The caller is responsible for re-scheduling the task at the returned priority
+    /// (typically lower than the priority of the just-finished run).
     fn task_execution_completed(
         &self,
         task: TaskId,
@@ -566,7 +642,7 @@ pub trait Backend: Sync + Send {
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> bool;
+    ) -> Option<TaskPriority>;
 
     type BackendJob: Send + 'static;
 
@@ -669,14 +745,6 @@ pub trait Backend: Sync + Send {
         // Do nothing by default
     }
 
-    fn mark_own_task_as_session_dependent(
-        &self,
-        _task: TaskId,
-        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) {
-        // Do nothing by default
-    }
-
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,
@@ -718,6 +786,7 @@ mod cached_task_type_tests {
         ArgMeta::new::<(i32,)>(),
         &into_task_fn(dummy_fn_a),
         false,
+        false,
     );
 
     static FN_B: NativeFunction = NativeFunction::new(
@@ -725,6 +794,7 @@ mod cached_task_type_tests {
         "dummy_fn_b",
         ArgMeta::new::<(i32,)>(),
         &into_task_fn(dummy_fn_b),
+        false,
         false,
     );
 

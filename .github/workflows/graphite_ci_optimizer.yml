@@ -36,10 +36,14 @@ jobs:
     name: Graphite CI Optimizer
     runs-on: ubuntu-latest
     outputs:
+      # `== 'true'` comparison: If `step.check-skip` fails (`continue-on-error`), that output will
+      # be an empty string, which sets our `skip` output to `'false'`.
       skip: ${{ env.HAS_BYPASS_LABEL == 'false' && steps.check-skip.outputs.skip == 'true' }}
     steps:
       - name: Optimize CI
         id: check-skip
+        # Graphite's action is designed to fail open, but still sometimes fails if GH's infra flakes
+        continue-on-error: true
         uses: withgraphite/graphite-ci-action@ee395f3a78254c006d11339669c6cabddf196f72 # main
         with:
           graphite_token: ${{ secrets.GRAPHITE_TOKEN }}

@@ -193,7 +193,7 @@ fn get_sub_paths(sub_path: &str) -> ([RcStr; 3], usize) {
     (sub_paths_buffer, n)
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn all_assets_map_operation(source: ResolvedVc<AssetGraphContentSource>) -> Vc<OutputAssetsMap> {
     source.all_assets_map()
 }

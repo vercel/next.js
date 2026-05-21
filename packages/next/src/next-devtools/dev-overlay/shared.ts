@@ -9,6 +9,9 @@ import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
 import type { CacheIndicatorState } from './cache-indicator'
 import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
+import { isBlockingRouteInNavError } from './container/errors'
+import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
+import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 
 export type DevToolsConfig = {
   theme?: 'light' | 'dark' | 'system'
@@ -107,6 +110,7 @@ export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
 export const ACTION_INSTANT_NAVS_TOGGLE = 'instant-navs-toggle'
 export const ACTION_INSTANT_NAVS_RESET = 'instant-navs-reset'
+export const ACTION_INSTANT_ERRORS_CLEAR = 'instant-errors-clear'
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
   '__nextjs-dev-tools-panel-position'
@@ -231,6 +235,11 @@ interface InstantNavResetAction {
   type: typeof ACTION_INSTANT_NAVS_RESET
 }
 
+interface InstantErrorsClearAction {
+  type: typeof ACTION_INSTANT_ERRORS_CLEAR
+  currentPath: string
+}
+
 export type DispatcherEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -258,6 +267,7 @@ export type DispatcherEvent =
   | DevToolsConfigAction
   | CacheOnlyToggleAction
   | InstantNavResetAction
+  | InstantErrorsClearAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -272,6 +282,33 @@ const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
 // This gets only the stack after React which is unaffected by StrictMode.
 function getStackIgnoringStrictMode(stack: string | undefined) {
   return stack?.split(REACT_ERROR_STACK_BOTTOM_FRAME_REGEX)[0]
+}
+
+export function getInstantErrorRoute(error: unknown): string | null {
+  if (!error || typeof error !== 'object') return null
+  const message = (error as Error).message
+  if (typeof message !== 'string') return null
+  if (!isBlockingRouteInNavError(message)) return null
+  // Most factories prefix `Route "<path>":`; the missing-segment factory in
+  // `dynamic-rendering.ts` writes `Route: <path>` on its own line in the body.
+  const prefixMatch = /^Route "([^"]+)":/.exec(message)
+  if (prefixMatch) return prefixMatch[1]
+  const lineMatch = /\nRoute: (\S+)/.exec(message)
+  return lineMatch ? lineMatch[1] : null
+}
+
+// The route stored on an instant error is the route *template* from
+// `workStore.route` (e.g. `/foo/[slug]`), but the page we track in dev
+// overlay state is the resolved URL (e.g. `/foo/123`). For dynamic routes
+// we compile the template to a regex so the clear-on-nav reducer keeps
+// errors whose template matches the page the user just landed on.
+export function routeTemplateMatchesPath(
+  template: string,
+  path: string
+): boolean {
+  if (template === path) return true
+  if (!isDynamicRoute(template)) return false
+  return getRouteRegex(template).re.test(path)
 }
 
 const shouldDisableDevIndicator =
@@ -538,6 +575,17 @@ export function useErrorOverlayReducer(
         }
         case ACTION_INSTANT_NAVS_RESET: {
           return { ...state, instantNavs: false }
+        }
+        case ACTION_INSTANT_ERRORS_CLEAR: {
+          const remaining = state.errors.filter((event) => {
+            const route = getInstantErrorRoute(event.error)
+            if (route === null) return true
+            return routeTemplateMatchesPath(route, action.currentPath)
+          })
+          if (remaining.length === state.errors.length) {
+            return state
+          }
+          return { ...state, errors: remaining }
         }
         default: {
           return state

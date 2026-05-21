@@ -52,8 +52,14 @@ impl WebpackModuleAsset {
 #[turbo_tasks::value_impl]
 impl Module for WebpackModuleAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().with_modifier(rcstr!("webpack"))
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .source
+            .ident()
+            .owned()
+            .await?
+            .with_modifier(rcstr!("webpack"))
+            .into_vc())
     }
 
     #[turbo_tasks::function]

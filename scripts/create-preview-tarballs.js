@@ -158,7 +158,7 @@ async function main() {
   }
 
   console.info(
-    `When this job is completed, a Next.js preview build will be available under ${packagesByVersion.get('next')}`
+    `A upload_preview_tarballs (https://github.com/vercel/next.js/actions/workflows/upload_preview_tarballs.yml) will be started once this workflow completes which will make the Next.js preview build available under ${packagesByVersion.get('next')}`
   )
 }
 

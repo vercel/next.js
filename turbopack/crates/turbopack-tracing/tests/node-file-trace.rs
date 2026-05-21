@@ -51,6 +51,7 @@ use turbopack_core::{
     rebase::RebasedAsset,
     reference::all_assets_from_entry,
     reference_type::ReferenceType,
+    resolve::options::ConditionValue,
 };
 use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -352,7 +353,7 @@ struct NodeFileTraceResult {
     effects: Effects,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn node_file_trace_operation(
     package_root: RcStr,
     input: RcStr,
@@ -414,6 +415,7 @@ async fn node_file_trace_operation(
             enable_node_native_modules: true,
             enable_node_modules: Some(input_dir.clone()),
             custom_conditions: vec![rcstr!("node")],
+            module_sync: ConditionValue::Unknown,
             collect_affecting_sources: true,
             ..Default::default()
         }
@@ -768,12 +770,12 @@ impl std::str::FromStr for CaseInput {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn asset_path_operation(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Vc<FileSystemPath> {
     asset.path()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn print_graph_operation(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
     let mut visited = HashSet::new();
     let mut queue = Vec::new();

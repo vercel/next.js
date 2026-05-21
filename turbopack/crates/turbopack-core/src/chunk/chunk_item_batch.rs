@@ -11,7 +11,7 @@ use turbo_tasks::{
 };
 
 use crate::{
-    chunk::{ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingContext},
     module_graph::{
         ModuleGraph,
         async_module_info::AsyncModulesInfo,
@@ -46,8 +46,15 @@ pub async fn attach_async_info_to_chunkable_module(
         .as_chunk_item(module_graph, chunking_context)
         .to_resolved()
         .await?;
+    let chunk_type = chunk_item
+        .into_trait_ref()
+        .await?
+        .ty()
+        .to_resolved()
+        .await?;
     Ok(ChunkItemWithAsyncModuleInfo {
         chunk_item,
+        chunk_type,
         module: Some(module),
         async_info,
     })
@@ -103,10 +110,9 @@ impl ChunkItemOrBatchWithAsyncModuleInfo {
         &self,
     ) -> Result<ChunkItemOrBatchWithAsyncModuleInfoByChunkType> {
         Ok(match self {
-            Self::ChunkItem(item) => Either::Left(smallvec![(
-                item.chunk_item.ty().to_resolved().await?,
-                Self::ChunkItem(item.clone())
-            )]),
+            Self::ChunkItem(item) => {
+                Either::Left(smallvec![(item.chunk_type, Self::ChunkItem(*item))])
+            }
             Self::Batch(batch) => Either::Right(batch.split_by_chunk_type().await?),
         })
     }
@@ -167,17 +173,15 @@ impl ChunkItemBatchWithAsyncModuleInfo {
         let Some((_, first)) = iter.next() else {
             return Ok(Vc::cell(SmallVec::new()));
         };
-        let chunk_type = first.chunk_item.ty().to_resolved().await?;
-        while let Some((i, item)) = iter.next() {
-            let ty = item.chunk_item.ty().to_resolved().await?;
+        let chunk_type = first.chunk_type;
+        for (i, item) in iter.by_ref() {
+            let ty = item.chunk_type;
             if ty != chunk_type {
                 let mut map = FxIndexMap::default();
                 map.insert(chunk_type, this.chunk_items[..i].to_vec());
-                map.insert(ty, vec![item.clone()]);
+                map.insert(ty, vec![*item]);
                 for (_, item) in iter {
-                    map.entry(item.chunk_item.ty().to_resolved().await?)
-                        .or_default()
-                        .push(item.clone());
+                    map.entry(item.chunk_type).or_default().push(*item);
                 }
                 return Ok(Vc::cell(
                     map.into_iter()

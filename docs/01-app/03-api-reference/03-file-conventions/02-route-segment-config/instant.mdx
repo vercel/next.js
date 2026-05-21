@@ -44,26 +44,25 @@ export default function Page() {
 
 The export accepts:
 
-- **`true`**: Opts the segment into validation. Validation runs in development (in the dev overlay) and at build (failing the build on violations).
+- **`true`**: Opts the segment into validation at whatever level is configured globally (see [Configuring validation defaults](#configuring-validation-defaults)). With the framework defaults, validation runs in development only and surfaces errors in the dev overlay.
 - **`false`**: Opts the segment out (see [Disabling instant](#disabling-instant)).
-- An **object**: Opts in with additional options. See [`samples`](#samples).
+- An **object**: Opts in with additional options. See [`level`](#level).
 
-### `samples`
+### `level`
 
-Provides representative request data used to validate runtime prefetches. Pair this with [`unstable_prefetch = 'force-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#force-runtime) so validation can verify the caching structure against realistic inputs.
+Sets the severity at which validation runs for this segment.
 
 ```tsx filename="page.tsx"
-export const unstable_prefetch = 'force-runtime'
 export const unstable_instant = {
-  samples: [
-    {
-      cookies: [{ name: 'session', value: 'test' }],
-    },
-  ],
+  level: 'warning',
 }
 ```
 
-Each sample can specify any of `cookies`, `headers`, `params`, or `searchParams`. Provide one entry per representative request shape — for example, one for an authenticated visit and one for an anonymous visit.
+- **`'warning'`**: Validates in development only. Errors appear in the dev overlay; the build is unaffected.
+
+In the future a validation level that supports validation during build will be supported. Unless you are enabling experimental validation modes there is no need to specify level since the only level available is `"warning"`.
+
+When `level` is omitted (or `unstable_instant = true` is used), the segment is validated at whatever level is configured globally — see [Configuring validation defaults](#configuring-validation-defaults).
 
 ### Disabling instant
 
@@ -91,9 +90,35 @@ Setting `false` on the root layout disables static shell validation for the enti
 
 ## How validation works
 
-`unstable_instant` triggers validation at every shared layout boundary in the route. Validation runs during development (on page loads and HMR updates) and at build time. Errors appear in the dev error overlay or fail the build.
+`unstable_instant` triggers validation at every shared layout boundary in the route. Validation runs during development (on page loads and HMR updates) and surfaces errors in the dev error overlay.
 
 Each error identifies the component that would block navigation. The fix is usually to cache the data with `use cache` or wrap it in a `<Suspense>` boundary.
+
+## Configuring validation defaults
+
+By default, only segments that explicitly export `unstable_instant` are validated. The `experimental.instantInsights.validationLevel` config opts every Page and Default segment into validation at once, without needing to repeat `unstable_instant` on each route.
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    instantInsights: {
+      validationLevel: 'warning',
+    },
+  },
+}
+```
+
+The supported levels are:
+
+- **`'manual-warning'`** _(framework default)_: Only segments with an explicit `unstable_instant` are validated, at warning level (dev only).
+- **`'warning'`**: Every Page and Default segment is implicitly validated at warning level (dev only).
+
+Setting `unstable_instant = false` on a segment opts it out of validation entirely.
+
+> **Good to know**:
+>
+> - The framework default may change in future versions to opt users into higher levels of validation. Because this feature is experimental, that change is not considered a breaking change. To pin a specific behavior, set `validationLevel` explicitly.
+> - Framework-synthesized error routes (`/_global-error`, `/_not-found`) are excluded from implicit validation. To validate them, opt in explicitly with `unstable_instant`.
 
 ## Inspecting loading states
 
@@ -133,18 +158,11 @@ The DevTools use a `next-instant-navigation-testing` cookie to hold back dynamic
 ## TypeScript
 
 ```tsx
-type RuntimeSample = {
-  cookies?: Array<{ name: string; value: string | null }>
-  headers?: Array<[string, string | null]>
-  params?: Record<string, string | string[]>
-  searchParams?: Record<string, string | string[] | null>
-}
-
 type InstantConfig =
   | true
   | false
   | {
-      samples?: RuntimeSample[]
+      level?: 'warning'
     }
 
 export const unstable_instant: InstantConfig = true

@@ -1,5 +1,4 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
@@ -46,28 +45,26 @@ function setupLogCapture() {
 
 describe(`Terminal Logging (${bundlerName})`, () => {
   describe('Pages Router', () => {
-    let next: NextInstance
     let logs: string[] = []
     let logCapture: ReturnType<typeof setupLogCapture>
     let browser = null
 
-    beforeAll(async () => {
+    beforeAll(() => {
       logCapture = setupLogCapture()
       logs = logCapture.logs
-
-      next = await createNext({
-        files: {
-          pages: new FileRef(join(__dirname, 'fixtures/pages')),
-          'next.config.js': new FileRef(
-            join(__dirname, 'fixtures/next.config.js')
-          ),
-        },
-      })
     })
 
-    afterAll(async () => {
+    const { next } = nextTestSetup({
+      files: {
+        pages: new FileRef(join(__dirname, 'fixtures/pages')),
+        'next.config.js': new FileRef(
+          join(__dirname, 'fixtures/next.config.js')
+        ),
+      },
+    })
+
+    afterAll(() => {
       logCapture.restore()
-      await next.destroy()
     })
 
     beforeEach(() => {
@@ -152,27 +149,25 @@ describe(`Terminal Logging (${bundlerName})`, () => {
   })
 
   describe('App Router - Server Components', () => {
-    let next: NextInstance
     let logs: string[] = []
     let logCapture: ReturnType<typeof setupLogCapture>
 
-    beforeAll(async () => {
+    beforeAll(() => {
       logCapture = setupLogCapture()
       logs = logCapture.logs
-
-      next = await createNext({
-        files: {
-          app: new FileRef(join(__dirname, 'fixtures/app')),
-          'next.config.js': new FileRef(
-            join(__dirname, 'fixtures/next.config.js')
-          ),
-        },
-      })
     })
 
-    afterAll(async () => {
+    const { next } = nextTestSetup({
+      files: {
+        app: new FileRef(join(__dirname, 'fixtures/app')),
+        'next.config.js': new FileRef(
+          join(__dirname, 'fixtures/next.config.js')
+        ),
+      },
+    })
+
+    afterAll(() => {
       logCapture.restore()
-      await next.destroy()
     })
 
     beforeEach(() => {
@@ -212,27 +207,25 @@ describe(`Terminal Logging (${bundlerName})`, () => {
   })
 
   describe('App Router - Client Components', () => {
-    let next: NextInstance
     let logs: string[] = []
     let logCapture: ReturnType<typeof setupLogCapture>
 
-    beforeAll(async () => {
+    beforeAll(() => {
       logCapture = setupLogCapture()
       logs = logCapture.logs
-
-      next = await createNext({
-        files: {
-          app: new FileRef(join(__dirname, 'fixtures/app')),
-          'next.config.js': new FileRef(
-            join(__dirname, 'fixtures/next.config.js')
-          ),
-        },
-      })
     })
 
-    afterAll(async () => {
+    const { next } = nextTestSetup({
+      files: {
+        app: new FileRef(join(__dirname, 'fixtures/app')),
+        'next.config.js': new FileRef(
+          join(__dirname, 'fixtures/next.config.js')
+        ),
+      },
+    })
+
+    afterAll(() => {
       logCapture.restore()
-      await next.destroy()
     })
 
     beforeEach(() => {
@@ -274,27 +267,25 @@ describe(`Terminal Logging (${bundlerName})`, () => {
   })
 
   describe('App Router - Hydration Errors', () => {
-    let next: NextInstance
     let logs: string[] = []
     let logCapture: ReturnType<typeof setupLogCapture>
 
-    beforeAll(async () => {
+    beforeAll(() => {
       logCapture = setupLogCapture()
       logs = logCapture.logs
-
-      next = await createNext({
-        files: {
-          app: new FileRef(join(__dirname, 'fixtures/app')),
-          'next.config.js': new FileRef(
-            join(__dirname, 'fixtures/next.config.js')
-          ),
-        },
-      })
     })
 
-    afterAll(async () => {
+    const { next } = nextTestSetup({
+      files: {
+        app: new FileRef(join(__dirname, 'fixtures/app')),
+        'next.config.js': new FileRef(
+          join(__dirname, 'fixtures/next.config.js')
+        ),
+      },
+    })
+
+    afterAll(() => {
       logCapture.restore()
-      await next.destroy()
     })
 
     beforeEach(() => {
@@ -374,27 +365,25 @@ describe(`Terminal Logging (${bundlerName})`, () => {
   })
 
   describe('App Router - Edge Runtime', () => {
-    let next: NextInstance
     let logs: string[] = []
     let logCapture: ReturnType<typeof setupLogCapture>
 
-    beforeAll(async () => {
+    beforeAll(() => {
       logCapture = setupLogCapture()
       logs = logCapture.logs
-
-      next = await createNext({
-        files: {
-          app: new FileRef(join(__dirname, 'fixtures/app')),
-          'next.config.js': new FileRef(
-            join(__dirname, 'fixtures/next.config.js')
-          ),
-        },
-      })
     })
 
-    afterAll(async () => {
+    const { next } = nextTestSetup({
+      files: {
+        app: new FileRef(join(__dirname, 'fixtures/app')),
+        'next.config.js': new FileRef(
+          join(__dirname, 'fixtures/next.config.js')
+        ),
+      },
+    })
+
+    afterAll(() => {
       logCapture.restore()
-      await next.destroy()
     })
 
     beforeEach(() => {
