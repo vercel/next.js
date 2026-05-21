@@ -2411,6 +2411,19 @@ impl Project {
         // sessions.
         let _ = session;
 
+        #[turbo_tasks::function(operation, root)]
+        async fn hmr_version_operation(
+            this: ResolvedVc<Project>,
+            chunk_name: RcStr,
+            target: HmrTarget,
+        ) -> Result<Vc<Box<dyn Version>>> {
+            let content = this.hmr_content(chunk_name, target).await?;
+            if let Some(content) = &*content {
+                Ok(content.version())
+            } else {
+                Ok(Vc::upcast(NotFoundVersion::new()))
+            }
+        }
         let version_op = hmr_version_operation(self, chunk_name, target);
 
         // INVALIDATION: This is intentionally untracked to avoid invalidating this
@@ -2722,18 +2735,4 @@ fn all_assets_from_entries_operation(
 ) -> Result<Vc<ExpandedOutputAssets>> {
     let assets = operation.connect();
     Ok(all_assets_from_entries(assets))
-}
-
-#[turbo_tasks::function(operation, root)]
-pub async fn hmr_version_operation(
-    project: ResolvedVc<Project>,
-    chunk_name: RcStr,
-    target: HmrTarget,
-) -> Result<Vc<Box<dyn Version>>> {
-    let content = project.hmr_content(chunk_name, target).await?;
-    if let Some(content) = &*content {
-        Ok(content.version())
-    } else {
-        Ok(Vc::upcast(NotFoundVersion::new()))
-    }
 }

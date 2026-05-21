@@ -26,7 +26,7 @@ use next_api::{
     },
     project::{
         DebugBuildPaths, DefineEnv, DraftModeOptions, HmrTarget, PartialProjectOptions, Project,
-        ProjectContainer, ProjectOptions, WatchOptions, hmr_version_operation,
+        ProjectContainer, ProjectOptions, WatchOptions,
     },
     project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
@@ -65,7 +65,7 @@ use turbopack_core::{
     issue::{IssueFilter, PlainIssue},
     output::{OutputAsset, OutputAssets},
     source_map::{SourceMap, Token},
-    version::{NotFoundVersion, PartialUpdate, TotalUpdate, Update, Version, VersionState},
+    version::{PartialUpdate, TotalUpdate, Update, VersionState},
 };
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, ResourceIdentifier};
 use turbopack_trace_utils::{
@@ -1797,57 +1797,6 @@ pub fn project_entrypoints_subscribe(
 }
 
 #[turbo_tasks::value(serialization = "skip")]
-struct HmrVersionStateWithIssues {
-    state: ResolvedVc<VersionState>,
-    issues: Arc<Vec<ReadRef<PlainIssue>>>,
-}
-
-/// Construct the initial [`VersionState`] for an HMR session while collecting
-/// issues from the underlying version computation. If the version computation
-/// errors (e.g. because the build graph cannot be evaluated transiently — for
-/// example during a pnpm reshuffle), fall back to a [`NotFoundVersion`] so the
-/// subscriber callback does not crash; the issues collected here are surfaced
-/// to JS and the next `hmr_update` cycle will re-resolve.
-#[turbo_tasks::function(operation, root)]
-async fn hmr_version_state_with_issues_operation(
-    project: ResolvedVc<Project>,
-    chunk_name: RcStr,
-    target: HmrTarget,
-    // The session argument is important to avoid caching this function between
-    // sessions — we want to initialize the VersionState with the first seen
-    // version of each session.
-    session: TransientInstance<()>,
-) -> Result<Vc<HmrVersionStateWithIssues>> {
-    let _ = session;
-    let version_op = hmr_version_operation(project, chunk_name, target);
-
-    // INVALIDATION: This is intentionally untracked to avoid invalidating this
-    // function completely. We want to initialize the VersionState with the
-    // first seen version of the session.
-    let version_ref = match version_op
-        .read_trait_strongly_consistent()
-        .untracked()
-        .await
-    {
-        Ok(v) => v,
-        Err(_) => {
-            // Fall back to NotFoundVersion. The error itself is represented as
-            // an Issue emitted during the version computation and will be
-            // surfaced via `peek_issues` below.
-            Vc::upcast::<Box<dyn Version>>(NotFoundVersion::new())
-                .into_trait_ref()
-                .await?
-        }
-    };
-    let state = VersionState::new(version_ref).await?.to_resolved().await?;
-
-    let filter = project.issue_filter();
-    let issues = get_issues(version_op, filter).await?;
-
-    Ok(HmrVersionStateWithIssues { state, issues }.cell())
-}
-
-#[turbo_tasks::value(serialization = "skip")]
 struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -1911,24 +1860,10 @@ pub fn project_hmr_events(
                     // HACK(bgw): Remove this unmark call
                     unmark_top_level_task_may_leak_eventually_consistent_state();
                     let project = container.project().to_resolved().await?;
-
-                    // Note: hmr_version_state_with_issues_operation does not propagate
-                    // Errs from the version computation — it falls back to
-                    // NotFoundVersion and surfaces the failure as Issues. This
-                    // prevents transient build-graph failures (e.g. mid-install
-                    // package reshuffles) from crashing the dev server.
-                    let version_state_op = hmr_version_state_with_issues_operation(
-                        project,
-                        chunk_name.clone(),
-                        hmr_target,
-                        session,
-                    );
-                    let version_state = version_state_op.read_strongly_consistent().await?;
-                    let HmrVersionStateWithIssues {
-                        state,
-                        issues: version_issues,
-                    } = &*version_state;
-                    let state = *state;
+                    let state = project
+                        .hmr_version_state(chunk_name.clone(), hmr_target, session)
+                        .to_resolved()
+                        .await?;
 
                     let update_op = hmr_update_with_issues_operation(
                         project,
@@ -1956,15 +1891,7 @@ pub fn project_hmr_events(
                             state.set(to.clone()).await?;
                         }
                     }
-                    let combined_issues: Arc<Vec<ReadRef<PlainIssue>>> =
-                        if version_issues.is_empty() {
-                            issues.clone()
-                        } else {
-                            let mut all = (**version_issues).clone();
-                            all.extend(issues.iter().cloned());
-                            Arc::new(all)
-                        };
-                    Ok((Some(update.clone()), combined_issues))
+                    Ok((Some(update.clone()), issues.clone()))
                 }
             }
         },
