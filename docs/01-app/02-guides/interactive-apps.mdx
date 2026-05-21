@@ -17,7 +17,7 @@ You can find the resources used in this example here:
 - [Demo](https://async-react-demo.labs.vercel.dev)
 - [Code](https://github.com/vercel-labs/async-react-demo)
 
-The starting point is a Server Component app that fetches tasks and comments at the root of each page, with no [`<Suspense>`](/docs/app/guides/streaming) boundaries and no caching. Client Components call [Server Functions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) to mutate that data. After each mutation, the Server Function calls [`refresh()`](/docs/app/api-reference/functions/refresh) so the server re-renders with fresh data:
+The starting point is a Server Component app that fetches tasks and comments at the root of each page, with no [`<Suspense>`](/docs/app/guides/streaming) boundaries and no caching. Client Components call [Server Functions](/docs/app/getting-started/mutating-data) to mutate that data. After each mutation, the Server Function calls [`refresh()`](/docs/app/api-reference/functions/refresh) so the server re-renders with fresh data:
 
 ```ts filename="data/actions/task.ts"
 'use server'
@@ -720,7 +720,7 @@ Every Server Function follows the same shape: run the write, then call `updateTa
 
 By default, [`<Link>`](/docs/app/api-reference/components/link) prefetches its destinations against build-time inputs only, which covers the static shell and any cached read keyed on build-time inputs.
 
-[Runtime prefetching](/docs/app/guides/runtime-prefetching) renders the destination with the real cookies, headers, and `params` the navigation would carry, then stores the result in the [Client Cache](/docs/app/glossary#client-cache). Opt a route in with the [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) segment export:
+[Runtime prefetching](/docs/app/guides/prefetching) renders the destination with the real cookies, headers, and `params` the navigation would carry, then stores the result in the [Client Cache](/docs/app/glossary#client-cache). Opt a route in with the [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) segment export:
 
 ```tsx filename="app/task/[id]/page.tsx"
 export const unstable_prefetch = 'force-runtime'
@@ -776,7 +776,7 @@ For API details:
 - [React `useOptimistic`](https://react.dev/reference/react/useOptimistic)
 - [React `useTransition`](https://react.dev/reference/react/useTransition)
 - [React `useActionState`](https://react.dev/reference/react/useActionState)
-- [Server Functions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations)
+- [Server Functions](/docs/app/getting-started/mutating-data)
 - [`refresh()`](/docs/app/api-reference/functions/refresh)
 - [`'use cache'`](/docs/app/api-reference/directives/use-cache), [`cacheTag`](/docs/app/api-reference/functions/cacheTag), [`updateTag`](/docs/app/api-reference/functions/updateTag)
 - [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch)
