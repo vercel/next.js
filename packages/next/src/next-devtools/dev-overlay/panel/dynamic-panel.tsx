@@ -160,6 +160,12 @@ export function DynamicPanel({
     }
   )
 
+  useEffect(() => {
+    if (mounted) {
+      resizeContainerRef.current?.focus()
+    }
+  }, [mounted])
+
   const indicatorOffset = getIndicatorOffset(state)
 
   const [indicatorVertical, indicatorHorizontal] = state.devToolsPosition.split(

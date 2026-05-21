@@ -71,7 +71,7 @@ describe('instant-nav-panel', () => {
     await waitForPanelRouterTransition()
   }
 
-  it('should open panel in waiting state without setting cookie', async () => {
+  it('should open panel in the idle state', async () => {
     const browser = await next.browser('/')
     await clearInstantModeCookie(browser)
     await browser.waitForElementByCss('[data-testid="home-title"]')
@@ -81,7 +81,7 @@ describe('instant-nav-panel', () => {
     // Panel should show the idle helper copy and capture controls.
     await retry(async () => {
       const text = await getInstantNavPanelText(browser)
-      expect(text).toContain('Awaiting navigation')
+      expect(text).toContain('Inspect the UI')
       expect(text).toContain('Start Capturing')
       expect(text).toContain('Continue Rendering')
     })

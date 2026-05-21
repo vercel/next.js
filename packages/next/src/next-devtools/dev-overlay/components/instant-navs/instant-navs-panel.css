@@ -142,29 +142,40 @@
 .instant-nav-content-container {
   position: relative;
   height: 83px;
-  overflow: hidden;
+  /* overflow: hidden; */
   margin-bottom: 24px;
-  transition: height 250ms var(--timing-swift);
+  transition: height var(--instant-nav-transition-duration, 200ms)
+    var(--instant-nav-transition-timing, var(--timing-swift));
 }
 
 .instant-nav-content-container.is-expanded {
   height: 140px;
 }
 
-.instant-nav-intro-description {
+.instant-nav-transition-layer {
   position: absolute;
   inset: 0;
+  opacity: var(--instant-nav-layer-opacity, 0);
+  pointer-events: none;
+  transition: opacity var(--instant-nav-layer-transition-duration, 100ms)
+    cubic-bezier(0.25, 0.8, 0.5, 1)
+    var(--instant-nav-layer-transition-delay, 0ms);
+}
+
+.instant-nav-transition-layer.is-visible {
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.instant-nav-transition-layer--no-enter {
+  transition: none;
+}
+
+.instant-nav-intro-description {
   margin: 0;
   color: var(--color-gray-1000);
   font-size: var(--size-14);
   line-height: 1.5;
-  opacity: 1;
-  transition: opacity 175ms var(--timing-swift) 75ms;
-}
-
-.instant-nav-content-container.is-expanded .instant-nav-intro-description {
-  opacity: 0;
-  transition: opacity 50ms var(--timing-swift);
 }
 
 .instant-nav-divider {
@@ -191,7 +202,7 @@
   background: var(--color-background-100);
   color: var(--color-gray-1000);
   font-size: var(--size-14);
-  font-weight: 500;
+  font-weight: 400;
   cursor: pointer;
   transition:
     background-color 150ms var(--timing-swift),
@@ -214,6 +225,11 @@
 
 .instant-nav-capture-button:hover:not(:disabled) {
   background: var(--color-gray-200);
+}
+
+.instant-nav-capture-button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .instant-nav-capture-button:disabled {
@@ -241,13 +257,6 @@
   flex-direction: column;
   height: 140px;
   box-sizing: border-box;
-  opacity: 0;
-  transition: opacity 50ms var(--timing-swift);
-}
-
-.instant-nav-content-container.is-expanded .instant-nav-state-card {
-  opacity: 1;
-  transition: opacity 175ms var(--timing-swift) 75ms;
 }
 
 .instant-nav-state-title {

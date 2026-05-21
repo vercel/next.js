@@ -1,5 +1,6 @@
-import { useEffect, useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
+import { useDelayedRender } from '../../hooks/use-delayed-render'
 import { usePanelRouterContext } from '../../menu/context'
 import { ACTION_INSTANT_NAVS_RESET } from '../../shared'
 import {
@@ -7,9 +8,11 @@ import {
   formatRoutePattern,
 } from './instant-nav-cookie'
 import './instant-navs-panel.css'
+import type { CSSProperties, ReactNode } from 'react'
 import type { InstantCookie } from '../../../../shared/lib/app-router-types'
 
 const COOKIE_NAME = 'next-instant-navigation-testing'
+type InstantNavStatus = 'idle' | 'pending' | 'mpa' | 'spa'
 
 // Module-level state machine for the "Continue Rendering" -> re-arm flow.
 // The panel is a singleton in the dev overlay, so this is safe. Tracking
@@ -51,6 +54,112 @@ function useRearmStatus(): RearmStatus {
   return useSyncExternalStore(subscribeRearm, getRearmStatus, getRearmStatus)
 }
 
+const DURATION = 200
+
+function InstantNavContentTransition({
+  status,
+  children,
+}: {
+  status: InstantNavStatus
+  children: Record<InstantNavStatus, ReactNode>
+}) {
+  const [initialStatus] = useState(status)
+  const [hasChangedStatus, setHasChangedStatus] = useState(false)
+
+  if (status !== initialStatus && !hasChangedStatus) {
+    setHasChangedStatus(true)
+  }
+
+  return (
+    <div
+      className={
+        'instant-nav-content-container' +
+        (status === 'idle' ? '' : ' is-expanded')
+      }
+      style={
+        {
+          '--instant-nav-transition-duration': `${DURATION}ms`,
+          '--instant-nav-transition-half-duration': `${DURATION / 2}ms`,
+          // '--instant-nav-transition-timing': 'ease-in-out',
+          // Action sheet
+          // '--instant-nav-transition-timing': 'cubic-bezier(.36,.66,.04,1)',
+
+          // Accordion
+          '--instant-nav-transition-timing': 'cubic-bezier(0.25, 0.8, 0.5, 1)',
+        } as CSSProperties
+      }
+    >
+      <InstantNavTransitionLayer
+        active={status === 'idle'}
+        enter={hasChangedStatus}
+      >
+        {children.idle}
+      </InstantNavTransitionLayer>
+      <InstantNavTransitionLayer
+        active={status === 'pending'}
+        enter={hasChangedStatus}
+      >
+        {children.pending}
+      </InstantNavTransitionLayer>
+      <InstantNavTransitionLayer
+        active={status === 'mpa'}
+        enter={hasChangedStatus}
+      >
+        {children.mpa}
+      </InstantNavTransitionLayer>
+      <InstantNavTransitionLayer
+        active={status === 'spa'}
+        enter={hasChangedStatus}
+      >
+        {children.spa}
+      </InstantNavTransitionLayer>
+    </div>
+  )
+}
+
+function InstantNavTransitionLayer({
+  active,
+  enter = true,
+  children,
+}: {
+  active: boolean
+  enter?: boolean
+  children: ReactNode
+}) {
+  const { mounted, rendered } = useDelayedRender(active, {
+    enterDelay: enter ? 1 : 0,
+    exitDelay: DURATION,
+  })
+
+  if (!mounted) return null
+
+  const visible = rendered || (active && !enter)
+  const entering = active && enter
+
+  return (
+    <div
+      className={
+        'instant-nav-transition-layer' +
+        (visible ? ' is-visible' : '') +
+        (active && !enter ? ' instant-nav-transition-layer--no-enter' : '')
+      }
+      aria-hidden={!active}
+      style={
+        {
+          '--instant-nav-layer-opacity': visible ? 1 : 0,
+          '--instant-nav-layer-transition-duration':
+            'var(--instant-nav-transition-half-duration, 100ms)',
+          '--instant-nav-layer-transition-delay': entering
+            ? 'var(--instant-nav-transition-half-duration, 100ms)'
+            : '0ms',
+        } as CSSProperties
+      }
+    >
+      {children}
+    </div>
+  )
+}
+
 function clearInstantNavCaptureCookie(): void {
   setRearmStatus('idle')
   if (typeof cookieStore !== 'undefined') {
@@ -85,7 +194,7 @@ export function InstantNavsPanel() {
     }
   }, [panel, dispatch])
 
-  function handleStartClientNav() {
+  function startCapturing() {
     if (typeof cookieStore !== 'undefined') {
       const cookie: InstantCookie = [0, `p${Math.random()}`]
       cookieStore.set({
@@ -159,7 +268,7 @@ export function InstantNavsPanel() {
   const isLocked = cookieData !== null || isRearming
 
   const isPending = cookieData?.state === 'pending' || isRearming
-  let status: 'idle' | 'pending' | 'mpa' | 'spa' = 'idle'
+  let status: InstantNavStatus = 'idle'
   if (cookieData?.state === 'spa') {
     status = 'spa'
   } else if (cookieData?.state === 'mpa') {
@@ -168,60 +277,74 @@ export function InstantNavsPanel() {
     status = 'pending'
   }
 
-  let content
-  if (cookieData?.state === 'spa') {
-    content = (
-      <div className="instant-nav-state-card">
-        <h3 className="instant-nav-state-title">Navigation</h3>
+  const isClosing = panel !== 'instant-navs'
+  const [displayStatus, setDisplayStatus] = useState(status)
+
+  if (!isClosing && displayStatus !== status) {
+    setDisplayStatus(status)
+  }
+
+  const currentSpaSourceUrl =
+    cookieData?.state === 'spa' ? formatRoutePattern(cookieData.fromTree) : null
+  // Keep the most recent SPA source URL available while the outgoing card fades.
+  const [lastSpaSourceUrl, setLastSpaSourceUrl] = useState<string | null>(
+    currentSpaSourceUrl
+  )
+
+  if (
+    currentSpaSourceUrl !== null &&
+    currentSpaSourceUrl !== lastSpaSourceUrl
+  ) {
+    setLastSpaSourceUrl(currentSpaSourceUrl)
+  }
+
+  const spaSourceUrl = currentSpaSourceUrl ?? lastSpaSourceUrl
+
+  const content: Record<InstantNavStatus, ReactNode> = {
+    idle: (
+      <p className="instant-nav-intro-description">
+        Inspect the UI that will show instantly to users as they navigate around
+        your app. Start capturing, then click any link or refresh the current
+        page.
+      </p>
+    ),
+    pending: (
+      <div className="instant-nav-state-card instant-nav-state-card--awaiting">
+        <h3 className="instant-nav-state-title">Awaiting navigation...</h3>
         <p className="instant-nav-state-description">
-          You're viewing the prefetched UI for the last navigation.
-        </p>
-        <p
-          className="instant-nav-state-source-url"
-          title={formatRoutePattern(cookieData.fromTree)}
-        >
-          Source URL: {formatRoutePattern(cookieData.fromTree)}
+          Click any link or refresh the page.
         </p>
       </div>
-    )
-  } else if (cookieData?.state === 'mpa') {
-    content = (
+    ),
+    mpa: (
       <div className="instant-nav-state-card">
         <h3 className="instant-nav-state-title">Page load</h3>
         <p className="instant-nav-state-description">
           You're viewing the prerendered UI for the current page.
         </p>
       </div>
-    )
-  } else {
-    content = (
-      <>
-        <p className="instant-nav-intro-description">
-          Inspect the UI that will show instantly to users as they navigate
-          around your app. Start capturing, then click any link or refresh the
-          current page.
+    ),
+    spa: (
+      <div className="instant-nav-state-card">
+        <h3 className="instant-nav-state-title">Navigation</h3>
+        <p className="instant-nav-state-description">
+          You're viewing the prefetched UI for the last navigation.
         </p>
-        <div className="instant-nav-state-card instant-nav-state-card--awaiting">
-          <h3 className="instant-nav-state-title">Awaiting navigation...</h3>
-          <p className="instant-nav-state-description">
-            Click any link or refresh the page.
+        {spaSourceUrl !== null ? (
+          <p className="instant-nav-state-source-url" title={spaSourceUrl}>
+            Source URL: {spaSourceUrl}
           </p>
-        </div>
-      </>
-    )
+        ) : null}
+      </div>
+    ),
   }
 
   return (
     <div className="instant-nav-panel">
       <div className="instant-nav-content">
-        <div
-          className={
-            'instant-nav-content-container' +
-            (status === 'idle' ? '' : ' is-expanded')
-          }
-        >
+        <InstantNavContentTransition status={displayStatus}>
           {content}
-        </div>
+        </InstantNavContentTransition>
 
         <div className="instant-nav-capture-controls">
           {isLocked ? (
@@ -237,7 +360,7 @@ export function InstantNavsPanel() {
             <button
               type="button"
               className="instant-nav-capture-button"
-              onClick={handleStartClientNav}
+              onClick={startCapturing}
             >
               <RecordIcon />
               Start Capturing

@@ -102,6 +102,15 @@ function getSnapshot(): string {
   return readRawCookieValue()
 }
 
+function isInitialInstantTestStaticShell(rawValue: string): boolean {
+  return (
+    rawValue !== '' &&
+    cachedRawValue === undefined &&
+    typeof self !== 'undefined' &&
+    Boolean(self.__next_instant_test)
+  )
+}
+
 function subscribe(callback: () => void): () => void {
   if (typeof cookieStore === 'undefined') {
     return () => {}
@@ -141,6 +150,12 @@ export function useInstantNavCookieState(): InstantNavCookieData | null {
   const rawValue = useSyncExternalStore(subscribe, getSnapshot)
   return useMemo(() => {
     if (!rawValue) return null
+    // A full page load into an instant-test static shell writes the MPA
+    // cookie asynchronously. Until that CookieStore event lands, the cookie
+    // may still contain the previous SPA capture from before the reload.
+    if (isInitialInstantTestStaticShell(rawValue)) {
+      return { state: 'mpa' }
+    }
     return parseInstantNavCookieValue(rawValue)
   }, [rawValue])
 }
