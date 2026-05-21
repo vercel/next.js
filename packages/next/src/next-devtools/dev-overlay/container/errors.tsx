@@ -567,6 +567,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           headerChildren={
             <InstantHeaderExplanation
               kind="blocking-route"
+              variant={errorDetails.variant}
               explanation={
                 errorDetails.inNavigation
                   ? BLOCKING_ROUTE_NAVIGATION_EXPLANATION

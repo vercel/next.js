@@ -45,6 +45,11 @@ export type FixCard = {
   /** Docs URL the card links to, or `null` for no link. */
   link: string | null
   snippets: Snippet[]
+  /**
+   * AI-agent prompt copied when the user presses the "Copy prompt" button on
+   * the card. Phrased as an instruction the agent can act on directly.
+   */
+  prompt?: string
 }
 
 export type SnippetPart = {
@@ -68,18 +73,20 @@ const runtimeCards: FixCard[] = [
     id: 'wrap-in-or-move-into-suspense',
     title: 'Wrap in or move into Suspense',
     group: 'stream',
-    link: 'https://nextjs.org/docs/messages/blocking-route#wrap-in-or-move-into-suspense',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <DataChild />' },
       { text: '</Suspense>', highlight: true },
     ],
+    prompt:
+      'Wrap the component that reads cookies(), headers(), params, or searchParams in <Suspense>. The fallback prop must render synchronous, deterministic JSX (no fetch, no awaiting, no Math.random or Date.now) that approximates the final layout (skeleton, spinner, or stable placeholder text). Import Suspense from "react". Do not change the data access call. Place the Suspense boundary as close to the access as possible so the cached content above remains in the static shell. If the access is deep in a tree and used for a small piece of UI, prefer to push the access down to the leaf component that needs it instead of awaiting it at the top and forwarding the value.',
   },
   {
     id: 'prerender-known-params',
     title: 'For known params, prerender',
     group: 'cache',
-    link: 'https://nextjs.org/docs/messages/blocking-route#prerender-known-params',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#prerender-known-params',
     snippets: [
       {
         text: 'function generateStaticParams() {',
@@ -98,16 +105,20 @@ const runtimeCards: FixCard[] = [
       },
       { text: '}' },
     ],
+    prompt:
+      'Add a generateStaticParams() export to the dynamic segment. Return an array of param objects whose keys match the segment\'s [param] names. Each entry is prerendered into static HTML at build time. With Cache Components, partialFallbacks (when enabled) serves a fallback shell for params not in the list and upgrades the route in the background. Return a subset of known params for common routes (popular categories, top locales, recent slugs); rare or open-ended params will fall back at runtime. Do not introduce new imports beyond Next.js types. If you can\'t return at least one known param at build time, use "Wrap in or move into Suspense" instead.',
   },
   {
     id: 'allow-blocking-route',
     title: 'Allow blocking route',
     group: 'block',
-    link: 'https://nextjs.org/docs/messages/blocking-route#allow-blocking-route',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
     ],
+    prompt:
+      'Add "export const unstable_instant = false" as a top-level export in the page or layout file. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes. If the user wants to keep the navigation instant, choose "Wrap in or move into Suspense" or "Prerender known params" instead.',
   },
 ]
 
@@ -116,33 +127,39 @@ const dynamicCards: FixCard[] = [
     id: 'cache-the-component-or-data',
     title: 'Cache the component or data',
     group: 'cache',
-    link: 'https://nextjs.org/docs/messages/blocking-route#cache-the-component-or-data',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data',
     snippets: [
       { text: 'async function Posts() {' },
       { text: '  "use cache"', highlight: true },
       { text: '  return <List items={…} />' },
     ],
+    prompt:
+      'Convert the highlighted data access into a cached function. Put "use cache" as the first statement of the function body. If the value depends on input that changes between calls, accept the input as a function argument so it becomes part of the cache key. Optionally call cacheTag(tag) to allow invalidation via revalidateTag(tag), and cacheLife(profile) to set automatic expiration. Do not move the call site. Do not introduce new imports beyond "next/cache".',
   },
   {
     id: 'wrap-in-or-move-into-suspense',
     title: 'Wrap in or move into Suspense',
     group: 'stream',
-    link: 'https://nextjs.org/docs/messages/blocking-route#wrap-in-or-move-into-suspense',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <DataChild />' },
       { text: '</Suspense>', highlight: true },
     ],
+    prompt:
+      'Wrap the component that performs the failing data access in <Suspense>. The fallback prop must render synchronous, deterministic JSX (no fetch, no awaiting, no Math.random or Date.now) that approximates the final layout (skeleton, spinner, or stable placeholder text). Import Suspense from "react". Do not change the data fetching logic. If the surrounding parent component already has cached content, place the Suspense boundary as close to the data access as possible so the cached content remains in the static shell.',
   },
   {
     id: 'allow-blocking-route',
     title: 'Allow blocking route',
     group: 'block',
-    link: 'https://nextjs.org/docs/messages/blocking-route#allow-blocking-route',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
     ],
+    prompt:
+      'Add "export const unstable_instant = false" as a top-level export in the page or layout file. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes. If the user wants to keep the navigation instant, choose "Cache the component or data" or "Wrap in or move into Suspense" instead.',
   },
 ]
 

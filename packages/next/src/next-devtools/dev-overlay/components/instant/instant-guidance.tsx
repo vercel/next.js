@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react'
 import {
   FixCardAlignLeftIcon,
   FixCardDatabaseIcon,
@@ -9,6 +10,7 @@ import {
   FixCardTimerIcon,
   FixCardZapIcon,
 } from '../../icons/fix-card-icons'
+import { CheckIcon, CopyPromptIcon } from '../../icons/copy-prompt'
 import { ExternalIcon } from '../../icons/external'
 import { css } from '../../utils/css'
 import {
@@ -53,6 +55,48 @@ function getCardIcon(icon: FixCardIcon) {
   }
 }
 
+function CopyPromptButton({ prompt }: { prompt: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const onCopy = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      // The card is wrapped in an <a> link; prevent the link from following
+      // when the user clicks the copy button.
+      event.preventDefault()
+      event.stopPropagation()
+
+      if (!navigator.clipboard?.writeText) {
+        return
+      }
+
+      void navigator.clipboard
+        .writeText(prompt)
+        .then(() => {
+          setCopied(true)
+          window.setTimeout(() => {
+            setCopied(false)
+          }, 2000)
+        })
+        .catch(() => {
+          // Ignore clipboard failures (permissions, insecure context).
+        })
+    },
+    [prompt]
+  )
+
+  return (
+    <button
+      type="button"
+      data-nextjs-fix-card-copy-button
+      aria-label={copied ? 'Prompt copied' : 'Copy prompt'}
+      title={copied ? 'Prompt copied' : 'Copy prompt'}
+      onClick={onCopy}
+    >
+      {copied ? <CheckIcon /> : <CopyPromptIcon />}
+    </button>
+  )
+}
+
 function CardGrid({ cards }: { cards: FixCard[] }) {
   return (
     <div data-nextjs-card-grid>
@@ -60,7 +104,9 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
         const groupMeta = FIX_CARD_GROUPS[card.group]
         const inner = (
           <>
-            {card.link ? (
+            {card.prompt ? (
+              <CopyPromptButton prompt={card.prompt} />
+            ) : card.link ? (
               <span data-nextjs-fix-card-link-icon aria-hidden="true">
                 <ExternalIcon width={16} height={16} />
               </span>
@@ -70,6 +116,14 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
               <div data-nextjs-fix-card-header-text>
                 <div data-nextjs-fix-card-title-row>
                   <span data-nextjs-fix-card-title>{groupMeta.label}</span>
+                  {card.prompt && card.link ? (
+                    <span
+                      data-nextjs-fix-card-title-link-icon
+                      aria-hidden="true"
+                    >
+                      <ExternalIcon width={12} height={12} />
+                    </span>
+                  ) : null}
                 </div>
                 <span data-nextjs-fix-card-description>{card.title}</span>
               </div>
@@ -143,6 +197,11 @@ export function InstantGuidance({
     docsUrl = SYNC_IO_DOCS[cause] || DOCS_URLS[kind]
   } else if (kind === 'sync-io-client' && cause) {
     docsUrl = SYNC_IO_CLIENT_DOCS[cause] || DOCS_URLS[kind]
+  } else if (kind === 'blocking-route') {
+    docsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
+        : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
   } else {
     docsUrl = DOCS_URLS[kind]
   }
@@ -175,15 +234,25 @@ export function InstantGuidance({
 
 export function InstantHeaderExplanation({
   kind,
+  variant,
   explanation,
   docsUrl,
 }: {
   kind?: GuidanceKind
+  variant?: GuidanceVariant
   explanation?: string
   docsUrl?: string
 }) {
   const resolvedExplanation = explanation || (kind ? EXPLANATIONS[kind] : '')
-  const resolvedDocsUrl = docsUrl || (kind ? DOCS_URLS[kind] : '')
+  let resolvedDocsUrl = docsUrl
+  if (!resolvedDocsUrl && kind === 'blocking-route') {
+    resolvedDocsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
+        : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
+  } else if (!resolvedDocsUrl && kind) {
+    resolvedDocsUrl = DOCS_URLS[kind]
+  }
 
   return (
     <p data-nextjs-instant-explanation>
@@ -410,5 +479,47 @@ export const INSTANT_GUIDANCE_STYLES = css`
   [data-card-color='amber'] [data-nextjs-fix-card-icon] {
     background: var(--color-amber-100);
     color: var(--color-amber-900);
+  }
+
+  [data-nextjs-fix-card-title-link-icon] {
+    align-items: center;
+    color: var(--color-gray-800);
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  [data-nextjs-fix-card]:hover [data-nextjs-fix-card-title-link-icon] {
+    color: var(--color-gray-1000);
+  }
+
+  [data-nextjs-fix-card-copy-button] {
+    align-items: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--rounded-md);
+    color: var(--color-gray-800);
+    cursor: pointer;
+    display: inline-flex;
+    height: 24px;
+    justify-content: center;
+    padding: 0;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    transition:
+      background 120ms ease,
+      color 120ms ease;
+    width: 24px;
+    z-index: 1;
+  }
+
+  [data-nextjs-fix-card-copy-button]:hover {
+    background: var(--color-background-200);
+    color: var(--color-gray-1000);
+  }
+
+  [data-nextjs-fix-card-copy-button]:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: 2px;
   }
 `
