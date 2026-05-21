@@ -58,3 +58,18 @@ export function getGitDirty(cwd: string): boolean | undefined {
     return undefined
   }
 }
+
+/**
+ * Returns the first line of the HEAD commit message, or undefined when it
+ * cannot be determined. Prefers VERCEL_GIT_COMMIT_MESSAGE when set.
+ */
+export function getGitMessage(cwd: string): string | undefined {
+  if (process.env.VERCEL_GIT_COMMIT_MESSAGE) {
+    return process.env.VERCEL_GIT_COMMIT_MESSAGE.split('\n')[0].trim()
+  }
+  try {
+    return gitExec('log -1 --pretty=%s', cwd)
+  } catch {
+    return undefined
+  }
+}

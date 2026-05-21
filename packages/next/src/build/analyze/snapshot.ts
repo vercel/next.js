@@ -1,7 +1,14 @@
 import * as path from 'node:path'
-import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import * as fs from 'node:fs'
+import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 
-import { getGitBranch, getGitCommit, getGitDirty } from '../../lib/helpers/git'
+import {
+  getGitBranch,
+  getGitCommit,
+  getGitDirty,
+  getGitMessage,
+} from '../../lib/helpers/git'
+import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
 
 /**
  * Maximum number of historical snapshots to keep on disk by default. When the
@@ -29,10 +36,14 @@ export interface SnapshotMetadata {
   gitShortSha?: string
   /** Whether the working tree had uncommitted changes when the build ran. */
   gitDirty?: boolean
+  /** First line of the HEAD commit message when available. */
+  gitMessage?: string
   /** `true` when built with `--app-dir-only`. */
   appDirOnly?: boolean
   /** `true` when built with `--no-mangling`. */
   noMangling?: boolean
+  /** Optional label overriding branch/sha in display. See `--snapshot-label`. */
+  snapshotLabel?: string
   /** Number of routes captured in this snapshot. */
   routeCount: number
 }
@@ -53,7 +64,7 @@ const METADATA_FILENAME = 'metadata.json'
 const HISTORY_INDEX_FILENAME = 'history.json'
 
 interface BuildSnapshotInputs {
-  /** Project root, used to resolve git metadata. */
+  /** Absolute path to the Next.js project root (the directory containing `next.config.*`). */
   projectDir: string
   /** Absolute path of the analyzer output directory (`.next/diagnostics/analyze`). */
   analyzeDir: string
@@ -61,6 +72,8 @@ interface BuildSnapshotInputs {
   routes: string[]
   appDirOnly?: boolean
   noMangling?: boolean
+  /** Optional label to use instead of branch/sha when displaying this snapshot. */
+  snapshotLabel?: string
   /** Maximum number of historical snapshots to keep. Defaults to `MAX_HISTORY`. */
   maxHistory?: number
 }
@@ -89,6 +102,7 @@ export async function writeAnalyzeSnapshot({
   routes,
   appDirOnly,
   noMangling,
+  snapshotLabel,
   maxHistory = MAX_HISTORY,
 }: BuildSnapshotInputs): Promise<SnapshotMetadata> {
   const dataDir = path.join(analyzeDir, DATA_DIRNAME)
@@ -97,6 +111,7 @@ export async function writeAnalyzeSnapshot({
   const gitSha = getGitCommit(projectDir)
   const gitBranch = getGitBranch(projectDir)
   const gitDirty = getGitDirty(projectDir)
+  const gitMessage = getGitMessage(projectDir)
 
   const createdAt = new Date()
   const id = makeSnapshotId(createdAt, gitSha)
@@ -109,8 +124,10 @@ export async function writeAnalyzeSnapshot({
     gitSha,
     gitShortSha: gitSha ? gitSha.slice(0, 7) : undefined,
     gitDirty,
+    gitMessage,
     appDirOnly,
     noMangling,
+    snapshotLabel,
     routeCount: routes.length,
   }
 
@@ -124,8 +141,11 @@ export async function writeAnalyzeSnapshot({
   const snapshotDir = path.join(historyDir, id)
   await mkdir(historyDir, { recursive: true })
   // If the same id already exists (same second + same sha) replace it so the
-  // latest run wins.
-  await rm(snapshotDir, { recursive: true, force: true })
+  // latest run wins. Use Windows-safe deletion with retry logic.
+  if (fs.existsSync(snapshotDir)) {
+    await recursiveDeleteSyncWithAsyncRetries(snapshotDir)
+    fs.rmdirSync(snapshotDir)
+  }
   await cp(dataDir, snapshotDir, { recursive: true })
 
   // 3. Rebuild the history index.
@@ -190,12 +210,15 @@ async function rewriteHistoryIndex(
   const kept = snapshots.slice(0, maxHistory)
   const pruned = snapshots.slice(maxHistory)
   await Promise.all(
-    pruned.map((snapshot) =>
-      rm(path.join(historyDir, snapshot.id), {
-        recursive: true,
-        force: true,
-      })
-    )
+    pruned.map(async (snapshot) => {
+      const snapshotDir = path.join(historyDir, snapshot.id)
+      await recursiveDeleteSyncWithAsyncRetries(snapshotDir)
+      try {
+        fs.rmdirSync(snapshotDir)
+      } catch {
+        // Already gone or non-empty due to a race — not fatal.
+      }
+    })
   )
 
   const index: HistoryIndex = { snapshots: kept }
