@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   FixCardAlignLeftIcon,
   FixCardDatabaseIcon,
@@ -57,32 +57,37 @@ function getCardIcon(icon: FixCardIcon) {
 
 function CopyPromptButton({ prompt }: { prompt: string }) {
   const [copied, setCopied] = useState(false)
+  const resetTimerRef = useRef<number | null>(null)
 
-  const onCopy = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      // The card is wrapped in an <a> link; prevent the link from following
-      // when the user clicks the copy button.
-      event.preventDefault()
-      event.stopPropagation()
-
-      if (!navigator.clipboard?.writeText) {
-        return
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current !== null) {
+        window.clearTimeout(resetTimerRef.current)
       }
+    }
+  }, [])
 
-      void navigator.clipboard
-        .writeText(prompt)
-        .then(() => {
-          setCopied(true)
-          window.setTimeout(() => {
-            setCopied(false)
-          }, 2000)
-        })
-        .catch(() => {
-          // Ignore clipboard failures (permissions, insecure context).
-        })
-    },
-    [prompt]
-  )
+  const onCopy = useCallback(() => {
+    if (!navigator.clipboard?.writeText) {
+      return
+    }
+
+    void navigator.clipboard
+      .writeText(prompt)
+      .then(() => {
+        setCopied(true)
+        if (resetTimerRef.current !== null) {
+          window.clearTimeout(resetTimerRef.current)
+        }
+        resetTimerRef.current = window.setTimeout(() => {
+          setCopied(false)
+          resetTimerRef.current = null
+        }, 2000)
+      })
+      .catch(() => {
+        // Ignore clipboard failures (permissions, insecure context).
+      })
+  }, [prompt])
 
   return (
     <button
@@ -104,9 +109,7 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
         const groupMeta = FIX_CARD_GROUPS[card.group]
         const inner = (
           <>
-            {card.prompt ? (
-              <CopyPromptButton prompt={card.prompt} />
-            ) : card.link ? (
+            {card.link && !card.prompt ? (
               <span data-nextjs-fix-card-link-icon aria-hidden="true">
                 <ExternalIcon width={16} height={16} />
               </span>
@@ -157,20 +160,31 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
           'data-card-color': groupMeta.color,
         }
 
-        return card.link ? (
+        const cardElement = card.link ? (
           <a
             {...sharedProps}
             href={card.link}
             target="_blank"
             rel="noopener noreferrer"
-            key={card.id}
             aria-label={`Open docs for ${card.title}`}
           >
             {inner}
           </a>
         ) : (
-          <div {...sharedProps} key={card.id}>
-            {inner}
+          <div {...sharedProps}>{inner}</div>
+        )
+
+        // Render the copy button as a sibling of the card so the <button>
+        // isn't nested inside the card's <a>, which would be invalid HTML
+        // and break keyboard / focus behavior.
+        return card.prompt ? (
+          <div data-nextjs-fix-card-wrapper key={card.id}>
+            {cardElement}
+            <CopyPromptButton prompt={card.prompt} />
+          </div>
+        ) : (
+          <div data-nextjs-fix-card-wrapper key={card.id}>
+            {cardElement}
           </div>
         )
       })}
@@ -490,6 +504,10 @@ export const INSTANT_GUIDANCE_STYLES = css`
 
   [data-nextjs-fix-card]:hover [data-nextjs-fix-card-title-link-icon] {
     color: var(--color-gray-1000);
+  }
+
+  [data-nextjs-fix-card-wrapper] {
+    position: relative;
   }
 
   [data-nextjs-fix-card-copy-button] {

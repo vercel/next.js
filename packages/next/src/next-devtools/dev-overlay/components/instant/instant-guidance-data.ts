@@ -106,7 +106,7 @@ const runtimeCards: FixCard[] = [
       { text: '}' },
     ],
     prompt:
-      'Add a generateStaticParams() export to the dynamic segment. Return an array of param objects whose keys match the segment\'s [param] names. Each entry is prerendered into static HTML at build time. With Cache Components, partialFallbacks (when enabled) serves a fallback shell for params not in the list and upgrades the route in the background. Return a subset of known params for common routes (popular categories, top locales, recent slugs); rare or open-ended params will fall back at runtime. Do not introduce new imports beyond Next.js types. If you can\'t return at least one known param at build time, use "Wrap in or move into Suspense" instead.',
+      'Add a generateStaticParams() export to the dynamic segment. Return an array of param objects whose keys match the segment\'s [param] names. Each entry is prerendered into static HTML at build time. With Cache Components, requests for params not in the list are served a fallback shell and the route is upgraded in the background. Return a subset of known params for common routes (popular categories, top locales, recent slugs); rare or open-ended params will fall back at runtime. Do not introduce new imports beyond Next.js types. If you can\'t return at least one known param at build time, use "Wrap in or move into Suspense" instead.',
   },
   {
     id: 'allow-blocking-route',
@@ -115,7 +115,7 @@ const runtimeCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
-      { text: 'export const instant = false', highlight: true },
+      { text: 'export const unstable_instant = false', highlight: true },
     ],
     prompt:
       'Add "export const unstable_instant = false" as a top-level export in the page or layout file. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes. If the user wants to keep the navigation instant, choose "Wrap in or move into Suspense" or "Prerender known params" instead.',
@@ -156,7 +156,7 @@ const dynamicCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
-      { text: 'export const instant = false', highlight: true },
+      { text: 'export const unstable_instant = false', highlight: true },
     ],
     prompt:
       'Add "export const unstable_instant = false" as a top-level export in the page or layout file. Confirm with the user that the route is intentionally request-time before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request, so navigations to it block until the render completes. If the user wants to keep the navigation instant, choose "Cache the component or data" or "Wrap in or move into Suspense" instead.',
@@ -234,7 +234,7 @@ const viewportRuntimeCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
-      { text: 'export const instant = false', highlight: true },
+      { text: 'export const unstable_instant = false', highlight: true },
     ],
   },
 ]
@@ -258,7 +258,7 @@ const viewportDynamicCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
-      { text: 'export const instant = false', highlight: true },
+      { text: 'export const unstable_instant = false', highlight: true },
     ],
   },
 ]
