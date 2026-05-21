@@ -10,7 +10,7 @@ This guide shows how to coordinate that pending work in a task management board 
 
 ## Example
 
-We'll start with an instant priority toggle, then stream slow data behind loading boundaries, build a reusable filter with action props, show comments before they're confirmed, move cards between columns on drop, manage form lifecycle for a create dialog, and signal pending deletion to a parent. The final step caches the reusable reads so navigations stay instant.
+We'll start by streaming slow data behind loading boundaries, then add an instant priority toggle, build a reusable filter with action props, show comments before they're confirmed, move cards between columns on drop, manage form lifecycle for a create dialog, and signal pending deletion to a parent. The final step caches the reusable reads so navigations stay instant.
 
 You can find the resources used in this example here:
 
@@ -34,7 +34,76 @@ export async function cyclePriority(taskId: string) {
 }
 ```
 
-### Step 1: Respond instantly to a toggle
+### Step 1: Stream slow data with Suspense
+
+The task detail page reads two things from the server: the task itself and its comments. The starting point awaits both at the top of the page component, so the whole page blocks until the slowest read resolves.
+
+```tsx filename="app/task/[id]/page.tsx"
+import { getTask } from '@/data/queries/task'
+import { TaskDetail } from './_components/task-detail'
+import { CommentSection } from './_components/comment-section'
+
+export default async function TaskPage({ params }) {
+  const { id } = await params
+  const task = await getTask(id)
+
+  return (
+    <div>
+      <TaskDetail task={task} />
+      <CommentSection taskId={id} />
+    </div>
+  )
+}
+```
+
+If we navigate to a task, nothing renders until `getTask` resolves, and the comments fetch starts only after that.
+
+Split the reads into separate components, pass each one a promise, and wrap them in [`<Suspense>`](https://react.dev/reference/react/Suspense). The page becomes synchronous — it returns the shell immediately, and the server streams each section in as its data resolves:
+
+```tsx filename="app/task/[id]/page.tsx"
+import { Suspense } from 'react'
+import { getTask } from '@/data/queries/task'
+import { TaskDetail, TaskDetailSkeleton } from './_components/task-detail'
+import {
+  CommentSection,
+  CommentSectionSkeleton,
+} from './_components/comment-section'
+
+export default function TaskPage({ params }) {
+  const taskPromise = params.then(({ id }) => getTask(id))
+  const taskIdPromise = params.then(({ id }) => id)
+
+  return (
+    <div>
+      <Suspense fallback={<TaskDetailSkeleton />}>
+        <TaskDetail taskPromise={taskPromise} />
+      </Suspense>
+      <Suspense fallback={<CommentSectionSkeleton />}>
+        <CommentSection taskIdPromise={taskIdPromise} />
+      </Suspense>
+    </div>
+  )
+}
+```
+
+Each section component awaits its own promise:
+
+```tsx filename="app/task/[id]/_components/task-detail.tsx"
+export async function TaskDetail({ taskPromise }) {
+  const task = await taskPromise
+  return <TaskHeader task={task} />
+}
+```
+
+Passing promises down (instead of awaiting `params` once and passing the resolved values) lets the page component stay synchronous. A synchronous page can return its shell immediately, with each `<Suspense>` boundary's fallback in place, and the server streams the real content in as each promise resolves. If the page itself awaited a promise, every section would have to wait for that await before any of them could start.
+
+This also avoids coupling unrelated sections. The page doesn't need to know what each section reads. Each component reads what it needs, right next to the JSX that uses it — the same instinct as `useEffect` or a query library, except a server component can `await` directly with no client state to plumb through.
+
+If we navigate to a task now, the page shell paints immediately, the task header streams in when `getTask` resolves, and the comments stream in independently when `getComments` resolves.
+
+For more on streaming patterns, see the [Streaming](/docs/app/guides/streaming) guide.
+
+### Step 2: Respond instantly to a toggle
 
 Each task card has a priority indicator. Clicking it cycles through low, medium, and high.
 
@@ -90,7 +159,7 @@ export function TaskCard({ id, priority }) {
 
 The `setOptimisticPriority` call updates the UI on the current frame. The updater function `(current) => PRIORITY_CYCLE[current]` computes from the latest optimistic state, so rapid double-clicks cycle correctly instead of reading a stale closure value.
 
-`startTransition` wraps the async work so React tracks it as a pending transition. If the Server Function throws, the optimistic value reverts. The standalone `startTransition` import does not bubble errors to error boundaries. If you need errors to reach an error boundary, use `useTransition` instead (shown in Step 2).
+`startTransition` wraps the async work so React tracks it as a pending transition. If the Server Function throws, the optimistic value reverts. The standalone `startTransition` import does not bubble errors to error boundaries. If you need errors to reach an error boundary, use `useTransition` instead (shown in Step 3).
 
 If we click the priority dot now, the color changes the moment the mouse lifts. Clicking again cycles to the next value without waiting for the first mutation to finish.
 
@@ -98,7 +167,7 @@ If we click the priority dot now, the color changes the moment the mouse lifts. 
 
 `useOptimistic(priority)` re-derives from the prop on each render. When `refresh()` delivers fresh data, the component shows it. `useState(priority)` captures the initial value on mount and ignores subsequent prop changes, so after a mutation it shows stale data.
 
-### Step 2: Filter with pending feedback
+### Step 3: Filter with pending feedback
 
 The board has label filter chips (Design, Frontend, Backend). Clicking a chip navigates via query params to filter the task list.
 
@@ -217,75 +286,6 @@ export function ChipGroup({ items, value, changeAction }) {
 The consumer passes a callback (`changeAction`). The design component handles the transition and optimistic state. Props named `action` or suffixed with `Action` signal that the component may call them inside a transition.
 
 If we click the "Frontend" chip now, it highlights on the current frame. The board dims while the filtered data loads, then updates with the filtered tasks.
-
-### Step 3: Stream slow data with Suspense
-
-The task detail page reads two things from the server: the task itself and its comments. The starting point awaits both at the top of the page component, so the whole page blocks until the slowest read resolves.
-
-```tsx filename="app/task/[id]/page.tsx"
-import { getTask } from '@/data/queries/task'
-import { TaskDetail } from './_components/task-detail'
-import { CommentSection } from './_components/comment-section'
-
-export default async function TaskPage({ params }) {
-  const { id } = await params
-  const task = await getTask(id)
-
-  return (
-    <div>
-      <TaskDetail task={task} />
-      <CommentSection taskId={id} />
-    </div>
-  )
-}
-```
-
-If we navigate to a task, nothing renders until `getTask` resolves, and the comments fetch starts only after that.
-
-Split the reads into separate components, pass each one a promise, and wrap them in [`<Suspense>`](https://react.dev/reference/react/Suspense). The page becomes synchronous — it returns the shell immediately, and the server streams each section in as its data resolves:
-
-```tsx filename="app/task/[id]/page.tsx"
-import { Suspense } from 'react'
-import { getTask } from '@/data/queries/task'
-import { TaskDetail, TaskDetailSkeleton } from './_components/task-detail'
-import {
-  CommentSection,
-  CommentSectionSkeleton,
-} from './_components/comment-section'
-
-export default function TaskPage({ params }) {
-  const taskPromise = params.then(({ id }) => getTask(id))
-  const taskIdPromise = params.then(({ id }) => id)
-
-  return (
-    <div>
-      <Suspense fallback={<TaskDetailSkeleton />}>
-        <TaskDetail taskPromise={taskPromise} />
-      </Suspense>
-      <Suspense fallback={<CommentSectionSkeleton />}>
-        <CommentSection taskIdPromise={taskIdPromise} />
-      </Suspense>
-    </div>
-  )
-}
-```
-
-Each section component awaits its own promise:
-
-```tsx filename="app/task/[id]/_components/task-detail.tsx"
-export async function TaskDetail({ taskPromise }) {
-  const task = await taskPromise
-  return <TaskHeader task={task} />
-}
-```
-
-Passing promises down (instead of awaiting `params` once and passing the resolved values) lets the page component stay synchronous. A synchronous page can return its shell immediately, with each `<Suspense>` boundary's fallback in place, and the server streams the real content in as each promise resolves. If the page itself awaited a promise, every section would have to wait for that await before any of them could start.
-
-This also avoids coupling unrelated sections. The page doesn't need to know what each section reads. Each component reads what it needs, right next to the JSX that uses it — the same instinct as `useEffect` or a query library, except a server component can `await` directly with no client state to plumb through.
-
-If we navigate to a task now, the page shell paints immediately, the task header streams in when `getTask` resolves, and the comments stream in independently when `getComments` resolves.
-
-For more on streaming patterns, see the [Streaming](/docs/app/guides/streaming) guide.
 
 ### Step 4: Add comments with instant feedback
 
@@ -457,7 +457,7 @@ export function BoardClient({ tasks }) {
 
 The reducer maps over the task list and updates the status of the dragged card. The rest of the list stays unchanged. If a background refresh arrives mid-drag (e.g., from polling or another user's mutation), React re-runs the reducer with the updated base data, so the optimistic move sits on top of fresh data.
 
-The standalone `startTransition` is used here instead of `useTransition` because the hook's `isPending` would trigger the board fade from Step 2. The optimistic move already covers the visual feedback, so a pending indicator is not needed. If the Server Function fails, the card silently snaps back.
+The standalone `startTransition` is used here instead of `useTransition` because the hook's `isPending` would trigger the board fade from Step 3. The optimistic move already covers the visual feedback, so a pending indicator is not needed. If the Server Function fails, the card silently snaps back.
 
 If we drag a card from "Todo" to "In Progress" now, the card lands in the target column the moment we release.
 
@@ -568,7 +568,7 @@ Each comment card has a delete button. Clicking it removes the comment on the se
 
 Between the click and the next render, the card still renders the old data. The list itself can't show the pending removal — that has to come from the button.
 
-This step reuses the `data-pending` CSS hook from Step 2, but drives it from `useOptimistic(false)` instead of `useTransition`'s `isPending`.
+This step reuses the `data-pending` CSS hook from Step 3, but drives it from `useOptimistic(false)` instead of `useTransition`'s `isPending`.
 
 The starting point calls the Server Function directly:
 
