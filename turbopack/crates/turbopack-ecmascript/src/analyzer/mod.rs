@@ -2315,45 +2315,31 @@ impl JsValue {
                     break;
                 }
                 JsValue::Member(_, obj, prop) => {
-                    if let Some(prop) = prop.as_str() {
-                        segments.push(DefinableNameSegmentRef::Name(prop));
-                    } else {
-                        return None;
-                    }
+                    segments.push(DefinableNameSegmentRef::Name(prop.as_str()?));
                     current = obj;
                 }
                 JsValue::WellKnownObject(obj) => {
-                    if let Some(name) = obj.as_define_name() {
-                        segments.extend(
-                            name.iter()
-                                .rev()
-                                .copied()
-                                .map(DefinableNameSegmentRef::Name),
-                        );
-                        break;
-                    } else {
-                        return None;
-                    }
+                    segments.extend(
+                        obj.as_define_name()?
+                            .iter()
+                            .rev()
+                            .copied()
+                            .map(DefinableNameSegmentRef::Name),
+                    );
+                    break;
                 }
                 JsValue::WellKnownFunction(func) => {
-                    if let Some(name) = func.as_define_name() {
-                        segments.extend(
-                            name.iter()
-                                .rev()
-                                .copied()
-                                .map(DefinableNameSegmentRef::Name),
-                        );
-                        break;
-                    } else {
-                        return None;
-                    }
+                    segments.extend(
+                        func.as_define_name()?
+                            .iter()
+                            .rev()
+                            .copied()
+                            .map(DefinableNameSegmentRef::Name),
+                    );
+                    break;
                 }
                 JsValue::MemberCall(_, call) if call.args().is_empty() => {
-                    if let Some(prop) = call.prop().as_str() {
-                        segments.push(DefinableNameSegmentRef::Call(prop));
-                    } else {
-                        return None;
-                    }
+                    segments.push(DefinableNameSegmentRef::Call(call.prop().as_str()?));
                     current = call.obj();
                 }
                 JsValue::TypeOf(_, arg) => {
