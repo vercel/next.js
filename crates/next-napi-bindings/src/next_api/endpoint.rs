@@ -237,25 +237,24 @@ async fn subscribe_issues_and_diags_operation(
 ) -> Result<Vc<EndpointIssuesAndDiags>> {
     let changed_op = endpoint_server_changed_operation(endpoint_op);
 
-    if should_include_issues {
-        let filter = issue_filter_from_endpoint(endpoint_op).await;
-        let (changed_value, issues, effects) =
-            strongly_consistent_catch_collectables(changed_op, filter).await?;
-        Ok(EndpointIssuesAndDiags {
-            changed: changed_value,
-            issues,
-            effects,
-        }
-        .cell())
-    } else {
-        let changed_value = changed_op.read_strongly_consistent().await?;
-        Ok(EndpointIssuesAndDiags {
-            changed: Some(changed_value),
-            issues: Arc::new(vec![]),
-            effects: Arc::new(Effects::default()),
-        }
-        .cell())
+    // Use catch-collectables in both branches so transient build-graph errors
+    // (e.g. missing `node_modules/next` during a concurrent install) surface as
+    // Issues rather than killing the subscription with a `TurbopackInternalError`.
+    // When `should_include_issues` is false the caller doesn't need the Issue
+    // payload, but we still need the catch path to avoid the FATAL.
+    let filter = issue_filter_from_endpoint(endpoint_op).await;
+    let (changed_value, issues, effects) =
+        strongly_consistent_catch_collectables(changed_op, filter).await?;
+    Ok(EndpointIssuesAndDiags {
+        changed: changed_value,
+        issues: if should_include_issues {
+            issues
+        } else {
+            Arc::new(vec![])
+        },
+        effects,
     }
+    .cell())
 }
 
 #[tracing::instrument(level = "info", name = "get client-side endpoint changes", skip_all)]

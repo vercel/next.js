@@ -129,4 +129,52 @@ describeMaybe('concurrent-install', () => {
       }
     }
   )
+
+  itTurbopack(
+    'does not crash when navigating to an uncompiled route while node_modules/next is missing',
+    async () => {
+      // Compile `/` so the harness has at least one warm chunk.
+      await next.browser('/')
+
+      const getOutput = next.getCliOutputFromHere()
+      const stashInfo = await moveNextAside()
+      try {
+        // Navigating to `/late-route` (never compiled in this session) forces
+        // a fresh `hmr_version_state` evaluation for that chunk. That path
+        // hits `get_next_package`, which Errs when `node_modules/next` is
+        // missing. The dev server must surface the failure as an Issue and
+        // keep the HMR subscription alive — not crash.
+        await next.fetch('/late-route').catch(() => {
+          // The request itself may fail (500) while next is missing. That's
+          // expected. We only care that the dev server stays alive.
+        })
+
+        await retry(
+          async () => {
+            expect(getOutput()).toContain('Could not find the Next.js package')
+          },
+          10000,
+          500
+        )
+
+        expect(getOutput()).not.toContain(
+          'FATAL: An unexpected Turbopack error occurred'
+        )
+        expect(getOutput()).not.toContain('TurbopackInternalError')
+      } finally {
+        await restoreNext(stashInfo)
+      }
+
+      // Once next is restored, `/late-route` should eventually render.
+      await retry(
+        async () => {
+          const res = await next.fetch('/late-route')
+          expect(res.status).toBe(200)
+          expect(await res.text()).toContain('late route')
+        },
+        15000,
+        500
+      )
+    }
+  )
 })
