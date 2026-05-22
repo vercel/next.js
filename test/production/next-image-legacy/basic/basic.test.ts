@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 const emptyImage =
@@ -8,7 +8,7 @@ describe('Image Component Tests', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
-  type Browser = Awaited<ReturnType<typeof next.browser>>
+  type Browser = Playwright
 
   async function hasPreloadLinkMatchingUrl(browser, url) {
     const links = await browser.elementsByCss('link[rel=preload][as=image]')
@@ -287,7 +287,7 @@ describe('Image Component Tests', () => {
   }
 
   describe('SSR Image Component Tests', () => {
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
     beforeAll(async () => {
       browser = await next.browser('/')
     })
@@ -352,7 +352,7 @@ describe('Image Component Tests', () => {
   })
 
   describe('Client-side Image Component Tests', () => {
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
     beforeAll(async () => {
       browser = await next.browser('/')
       await browser.waitForElementByCss('#clientlink').click()
@@ -400,7 +400,7 @@ describe('Image Component Tests', () => {
   })
 
   describe('SSR Lazy Loading Tests', () => {
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
     beforeAll(async () => {
       browser = await next.browser('/lazy')
     })
@@ -408,7 +408,7 @@ describe('Image Component Tests', () => {
   })
 
   describe('Client-side Lazy Loading Tests', () => {
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
     beforeAll(async () => {
       browser = await next.browser('/')
       await browser.waitForElementByCss('#lazylink').click()

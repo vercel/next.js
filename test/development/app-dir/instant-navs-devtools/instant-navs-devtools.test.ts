@@ -1,6 +1,5 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
-import { Playwright } from 'next-webdriver'
 
 describe('instant-nav-panel', () => {
   const { isNextDev, isTurbopack, next } = nextTestSetup({

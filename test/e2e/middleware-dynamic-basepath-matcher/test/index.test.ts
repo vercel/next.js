@@ -2,7 +2,6 @@
 /* eslint-disable jest/no-standalone-expect */
 
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import { check, fetchViaHTTP } from 'next-test-utils'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 
@@ -39,7 +38,7 @@ describe('Middleware custom matchers basePath', () => {
   // FIXME:
   // See https://linear.app/vercel/issue/EC-160/header-value-set-on-middleware-is-not-propagated-on-client-request-of
   itif(!isModeDeploy)('should match query path', async () => {
-    const browser = await webdriver(next.url, '/base/random')
+    const browser = await next.browser('/base/random')
     await check(() => browser.elementById('router-path').text(), 'random')
     await browser.elementById('linkelement').click()
     await check(() => browser.elementById('router-path').text(), 'another-page')

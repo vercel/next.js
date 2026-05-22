@@ -1,5 +1,5 @@
 // @ts-nocheck - On isolated test, this will be a type error.
-import type { Playwright } from '../../../lib/next-webdriver'
+import type { Playwright } from 'e2e-utils'
 
 async function getMetadataLinks(browser: Playwright) {
   const links = await browser.locator('link').evaluateAll((elements: any[]) => {
