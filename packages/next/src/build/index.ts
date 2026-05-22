@@ -3345,7 +3345,10 @@ export default async function build(
               }
             }
 
-            if (!hasRevalidateZero && isDynamicRoute(page)) {
+            const shouldEmitDynamicPrerenderRoutes =
+              !hasRevalidateZero || isRoutePPREnabled
+
+            if (shouldEmitDynamicPrerenderRoutes && isDynamicRoute(page)) {
               // When PPR fallbacks aren't used, we need to include it here. If
               // they are enabled, then it'll already be included in the
               // prerendered routes.
