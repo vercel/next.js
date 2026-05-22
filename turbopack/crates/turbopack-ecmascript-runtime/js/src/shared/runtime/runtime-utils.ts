@@ -448,7 +448,14 @@ contextPrototype.r = commonJsRequire
  * strings passed to `import` but the resolve does it for `import` and `require` and so we do
  * here as well.
  */
-function parseRequest(request: string): string {
+function parseRequest(request: string | URL): string {
+  // Coerce URL objects to their href string. This can happen at runtime when Turbopack's
+  // worker rewrite transforms `new Worker(new URL(...))` but the resolved module context
+  // still receives the URL object (e.g. from library fallback paths like Monaco Editor).
+  // URL objects don't have `.indexOf()`, so we must normalise to a string first.
+  if (typeof request !== 'string') {
+    request = (request as URL).href
+  }
   // Per the URI spec fragments can contain `?` characters, so we should trim it off first
   // https://datatracker.ietf.org/doc/html/rfc3986#section-3.5
   const hashIndex = request.indexOf('#')
