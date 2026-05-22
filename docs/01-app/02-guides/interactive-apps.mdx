@@ -62,7 +62,6 @@ Split the reads into separate components, pass each one a promise, and wrap them
 
 ```tsx filename="app/task/[id]/page.tsx"
 import { Suspense } from 'react'
-import { getTask } from '@/data/queries/task'
 import { TaskDetail, TaskDetailSkeleton } from './_components/task-detail'
 import {
   CommentSection,
