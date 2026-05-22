@@ -1,9 +1,4 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
-import fs from 'fs'
-import path from 'path'
-
-// This test inspects build artifacts in `.next/server/pages` that are not
-// produced in dev mode.
 ;(isNextDev ? describe.skip : describe)('i18n-beforefiles-rewrite', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -11,51 +6,36 @@ import path from 'path'
 
   const locales = ['en', 'fr']
 
-  // Auto-static pages (no getStaticProps / getServerSideProps) that should
-  // only have locale-prefixed HTML in server/pages/ when i18n is configured.
-  const autoStaticPages = [
-    'index',
-    'home/a',
-    'home/b',
-    'dynamic/static',
-    'dynamic/[id]',
-    '[teamId]/[slug]',
+  const autoStaticRoutes = [
+    { pathname: '', content: 'index' },
+    { pathname: '/home/a', content: 'Home A' },
+    { pathname: '/home/b', content: 'Home B' },
+    { pathname: '/dynamic/static', content: 'static route' },
+    { pathname: '/dynamic/first', content: 'dynamic route' },
+    { pathname: '/team/slug', content: '/[teamId]/[slug]' },
   ]
 
-  it('should not produce non-locale-prefixed HTML files for auto-static pages', () => {
-    const pagesDir = path.join(next.testDir, '.next/server/pages')
-
-    for (const page of autoStaticPages) {
-      const orphanPath = path.join(pagesDir, `${page}.html`)
-      expect({
-        page,
-        exists: fs.existsSync(orphanPath),
-      }).toEqual({ page, exists: false })
-    }
-  })
-
-  it('should have locale-prefixed HTML files for auto-static pages', () => {
-    const pagesDir = path.join(next.testDir, '.next/server/pages')
-
-    for (const page of autoStaticPages) {
+  it('should serve locale-prefixed auto-static pages', async () => {
+    for (const { pathname, content } of autoStaticRoutes) {
       for (const locale of locales) {
-        const localePath =
-          page === 'index'
-            ? path.join(pagesDir, `${locale}.html`)
-            : path.join(pagesDir, locale, `${page}.html`)
-        expect({
-          page: `${locale}/${page}`,
-          exists: fs.existsSync(localePath),
-        }).toEqual({ page: `${locale}/${page}`, exists: true })
+        const url = `/${locale}${pathname}`
+        const res = await next.fetch(url)
+        const html = await res.text()
+
+        expect({ url, status: res.status }).toEqual({ url, status: 200 })
+        expect(html).toContain(content)
       }
     }
   })
 
-  it('should 404 for /rewrite-before-files', async () => {
-    // beforeFiles rewrites /rewrite-before-files to /somewhere.
-    // /somewhere does not match any page, so this should 404.
-    // Before the fix, orphan [teamId]/[slug].html would incorrectly match.
-    const res = await next.fetch('/rewrite-before-files')
-    expect(res.status).toBe(404)
-  })
+  it.each(['', '/en', '/fr'])(
+    'should 404 for %s/rewrite-before-files',
+    async (localePrefix) => {
+      // beforeFiles rewrites /rewrite-before-files to /somewhere.
+      // /somewhere does not match any page, so this should 404.
+      // Before the fix, orphan dynamic HTML output could incorrectly match.
+      const res = await next.fetch(`${localePrefix}/rewrite-before-files`)
+      expect(res.status).toBe(404)
+    }
+  )
 })
