@@ -59,30 +59,16 @@ function formatMessage(
       body = body.slice(0, breakingChangeIndex)
     }
 
-    if (process.env.NEXT_RSPACK) {
-      // TODO: Rspack currently doesn't populate moduleName correctly in some cases,
-      // fall back to moduleIdentifier as a workaround
-      if (!message.moduleName && !message.file && message.moduleIdentifier) {
-        const loaderSeparatorIndex = message.moduleIdentifier.lastIndexOf('!')
-        message.moduleName = message.moduleIdentifier.slice(
-          loaderSeparatorIndex + 1
-        )
-      }
-
-      if (filteredModuleTrace?.length === 1) {
-        // Rspack can report a self-only trace for missing files.
-        const traceModuleName = stripAnsi(
-          filteredModuleTrace[0].moduleName || ''
-        )
-        const moduleName = stripAnsi(message.moduleName || '')
-        const fileName = stripAnsi(message.file || '')
-        if (
-          traceModuleName &&
-          (traceModuleName === moduleName || traceModuleName === fileName)
-        ) {
-          filteredModuleTrace = []
-        }
-      }
+    // TODO: Rspack currently doesn't populate moduleName correctly in some cases,
+    // fall back to moduleIdentifier as a workaround
+    if (
+      process.env.NEXT_RSPACK &&
+      !message.moduleName &&
+      !message.file &&
+      message.moduleIdentifier
+    ) {
+      const parts = message.moduleIdentifier.split('!')
+      message.moduleName = parts[parts.length - 1]
     }
 
     message =

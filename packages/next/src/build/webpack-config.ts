@@ -2648,6 +2648,24 @@ export default async function getBaseWebpackConfig(
       )
     }
   }
+
+  if (isRspack && 'CI' in process.env) {
+    // Rspack enables stats colors by default in CI, which can leak ANSI reset
+    // codes into error messages. Keep explicit user stats.colors unchanged.
+    const { stats } = webpackConfig
+
+    if (stats === undefined) {
+      webpackConfig.stats = { colors: false }
+    } else if (
+      stats &&
+      typeof stats === 'object' &&
+      !Array.isArray(stats) &&
+      stats.colors === undefined
+    ) {
+      stats.colors = false
+    }
+  }
+
   const rules = webpackConfig.module?.rules || []
 
   const customSvgRule = rules.find(
