@@ -84,9 +84,9 @@ describe('Error Overlay invalid imports', () => {
          │ The error was caused by using 'styled-jsx' in './app/comp2.js'. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
          │ 
          │ Import trace for requested module:
-         │   ./app/comp2.js
-         │   ./app/comp1.js
-         │   ./app/page.js"
+       │   ./app/comp2.js
+       │   ./app/comp1.js
+       │   ./app/page.js"
       `)
     } else {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
@@ -155,8 +155,8 @@ describe('Error Overlay invalid imports', () => {
          │ The error was caused by importing 'next/dist/compiled/client-only/error.js' in './app/foo.js'.
          │ 
          │ Import trace for requested module:
-         │   ./app/foo.js
-         │   ./app/page.js"
+       │   ./app/foo.js
+       │   ./app/page.js"
       `)
     } else {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
@@ -256,9 +256,9 @@ describe('Error Overlay invalid imports', () => {
          │ The error was caused by importing 'client-only-package/index.js' in './app/comp2.js'.
          │ 
          │ Import trace for requested module:
-         │   ./app/comp2.js
-         │   ./app/comp1.js
-         │   ./app/page.js"
+       │   ./app/comp2.js
+       │   ./app/comp1.js
+       │   ./app/page.js"
       `)
     } else {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
@@ -365,9 +365,9 @@ describe('Error Overlay invalid imports', () => {
          │ The error was caused by importing 'server-only-package/index.js' in './app/comp2.js'.
          │ 
          │ Import trace for requested module:
-         │   ./app/comp2.js
-         │   ./app/comp1.js
-         │   ./app/page.js"
+       │   ./app/comp2.js
+       │   ./app/comp1.js
+       │   ./app/page.js"
       `)
     } else {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`

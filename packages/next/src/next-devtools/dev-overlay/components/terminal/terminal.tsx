@@ -34,10 +34,6 @@ function getImportTraceFiles(lines: string[]) {
     lines.some((line) => /ReactServerComponentsError:/.test(line)) ||
     lines.some((line) => /Import trace for requested module:/.test(line))
   ) {
-    if (process.env.__NEXT_BUNDLER === 'Rspack') {
-      return []
-    }
-
     // Grab the lines at the end containing the files
     const files = []
     while (
