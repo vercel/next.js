@@ -8549,18 +8549,12 @@ async function prerenderToStream(
     }
 
     if (cacheComponents) {
+      const originalFlightPrerenderResult = reactServerPrerenderResult
+
       // Route the recovery render through the Cache Components prerender helper
       // to prerender with CC semantics. Segment-scoped HTTP fallback recovery
       // intentionally skips static shell validation so fallback UIs that were
-      // previously tolerated do not start failing builds. For recoveries that
-      // render the synthetic error shell from `getErrorRSCPayload` (generic
-      // `Error`, `RedirectError`, `HTTPAccessFallbackError` with no matching
-      // boundary, or fall-through from the segment-scoped recovery below), the
-      // helper still runs but no user code participates in the SSR —
-      // `global-error.tsx` is plumbed into the payload but its
-      // `RootErrorBoundary` is never triggered because the synthetic shell can't
-      // throw. We still route synthetic-shell recoveries through the helper so
-      // legacy prerendering is never used when Cache Components is on.
+      // previously tolerated do not start failing builds.
       if (prerenderHTTPError) {
         try {
           return await prerenderWithCacheComponents(
@@ -8577,8 +8571,8 @@ async function prerenderToStream(
           // If the segment-scoped HTTP fallback recovery throws another
           // control-flow error (e.g. the matched boundary's subtree re-throws
           // `notFound()` because the boundary was actually above where the
-          // original notFound() was called), fall through to the generic
-          // synthetic-shell recovery below.
+          // original notFound() was called), fall through to the final recovery
+          // below.
           if (isDynamicServerError(recoveryErr)) {
             throw new InvariantError(
               'Cache Components HTTP fallback recovery unexpectedly produced a DynamicServerError',
@@ -8596,14 +8590,152 @@ async function prerenderToStream(
         }
       }
 
-      return await prerenderWithCacheComponents(() =>
-        getErrorRSCPayload(
-          tree,
-          ctx,
-          reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
-          errorType
+      if (originalFlightPrerenderResult === null) {
+        throw new InvariantError(
+          'Cache Components error recovery expected an original Flight prerender result'
         )
+      }
+
+      // The final recovery still belongs to Cache Components, but it must
+      // preserve the original Flight stream. The static error shell is only the
+      // HTML fallback; the client still needs the original route tree so HTTP
+      // fallback boundaries can recover during hydration.
+      const errorPrerenderController = new AbortController()
+      const errorRenderController = new AbortController()
+      const errorPrerenderStore: PrerenderStore = {
+        type: 'prerender',
+        phase: 'render',
+        rootParams,
+        fallbackRouteParams,
+        implicitTags,
+        renderSignal: errorRenderController.signal,
+        controller: errorPrerenderController,
+        cacheSignal: null,
+        dynamicTracking: null,
+        allowEmptyStaticShell,
+        revalidate:
+          typeof prerenderStore?.revalidate !== 'undefined'
+            ? prerenderStore.revalidate
+            : INFINITE_CACHE,
+        expire:
+          typeof prerenderStore?.expire !== 'undefined'
+            ? prerenderStore.expire
+            : INFINITE_CACHE,
+        stale:
+          typeof prerenderStore?.stale !== 'undefined'
+            ? prerenderStore.stale
+            : INFINITE_CACHE,
+        tags: [...(prerenderStore?.tags || implicitTags.tags)],
+        prerenderResumeDataCache: null,
+        renderResumeDataCache: renderOpts.renderResumeDataCache ?? null,
+        hmrRefreshHash: undefined,
+        varyParamsAccumulator: null,
+      }
+
+      const errorRSCPayload = await workUnitAsyncStorage.run(
+        errorPrerenderStore,
+        getErrorRSCPayload,
+        tree,
+        ctx,
+        reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
+        errorType
       )
+
+      const errorServerStream = workUnitAsyncStorage.run(
+        errorPrerenderStore,
+        renderFlightStream,
+        ComponentMod,
+        errorRSCPayload,
+        clientModules,
+        {
+          filterStackFrame,
+          onError: serverComponentsErrorHandler,
+        }
+      )
+
+      try {
+        const { stream: errorHtmlStream } = await workUnitAsyncStorage.run(
+          errorPrerenderStore,
+          renderFizzStream,
+          // eslint-disable-next-line @next/internal/no-ambiguous-jsx
+          <ErrorApp
+            reactServerStream={errorServerStream}
+            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            preinitScripts={errorPreinitScripts}
+            nonce={nonce}
+            images={ctx.renderOpts.images}
+          />,
+          {
+            nonce,
+            bootstrapScripts: [errorBootstrapScript],
+            formState,
+          },
+          { waitForAllReady: true }
+        )
+
+        if (shouldGenerateStaticFlightData(workStore)) {
+          metadata.flightData = await streamToBuffer(
+            cachedNavigations
+              ? prependIsPartialByte(
+                  originalFlightPrerenderResult.asStream(),
+                  false
+                )
+              : originalFlightPrerenderResult.asStream()
+          )
+
+          // collectSegmentData needs the raw flight data without the marker byte.
+          const flightData = cachedNavigations
+            ? metadata.flightData.subarray(1)
+            : metadata.flightData
+
+          await collectSegmentData(
+            flightData,
+            errorPrerenderStore,
+            ComponentMod,
+            renderOpts,
+            ctx.pagePath,
+            metadata
+          )
+        }
+
+        return {
+          digestErrorsMap: reactServerErrorsByDigest,
+          ssrErrors: allCapturedErrors,
+          stream: await continueFizzStream(errorHtmlStream, {
+            inlinedDataStream: createInlinedDataStream(
+              originalFlightPrerenderResult.consumeAsStream(),
+              nonce,
+              formState
+            ),
+            isStaticGeneration: true,
+            getServerInsertedHTML: makeGetServerInsertedHTML({
+              polyfills,
+              renderServerInsertedHTML,
+              serverCapturedErrors: [],
+              basePath,
+              tracingMetadata: tracingMetadata,
+            }),
+            getServerInsertedMetadata,
+            validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
+            deploymentId: ctx.sharedContext.deploymentId,
+          }),
+          dynamicAccess: null,
+          collectedRevalidate: errorPrerenderStore.revalidate,
+          collectedExpire: errorPrerenderStore.expire,
+          collectedStale: selectStaleTime(errorPrerenderStore.stale),
+          collectedTags: errorPrerenderStore.tags,
+        }
+      } catch (finalErr: any) {
+        if (
+          process.env.__NEXT_DEV_SERVER &&
+          isHTTPAccessFallbackError(finalErr)
+        ) {
+          const { bailOnRootNotFound } =
+            require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
+          bailOnRootNotFound()
+        }
+        throw finalErr
+      }
     }
 
     const prerenderLegacyStore: PrerenderStore = {
