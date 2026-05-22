@@ -2424,6 +2424,7 @@ impl Project {
             chunk_name: RcStr,
             target: HmrTarget,
         ) -> Result<Vc<Box<dyn Version>>> {
+            tracing::info!(chunk_name = %chunk_name, target = %target, "hmr subscription");
             let content = this.hmr_content(chunk_name, target).await?;
             if let Some(content) = &*content {
                 Ok(content.version())

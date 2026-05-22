@@ -1827,6 +1827,7 @@ async fn hmr_update_with_issues_operation(
     state: ResolvedVc<VersionState>,
     target: HmrTarget,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
+    tracing::info!(chunk_name = %chunk_name, target = %target, "hmr subscription");
     let update_op = project_hmr_update_operation(project, chunk_name, target, state);
     // NOTE: we do not use `strongly_consistent_catch_collectables` here. The JS HMR
     // consumers in `hot-reloader-turbopack.ts` (`subscribeToServerHmr` and
