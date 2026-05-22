@@ -258,8 +258,10 @@ where
         self.node.is_transient()
     }
 
-    async fn resolve_input(&self) -> Result<Self> {
-        Ok(*(*self).to_resolved().await?)
+    fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
+        // It isn't ideal to use this function but it exactly matches this usecase (resolved but
+        // still a Vc)
+        (*self).resolve()
     }
 }
 
@@ -275,10 +277,6 @@ where
 
     fn is_transient(&self) -> bool {
         self.node.is_transient()
-    }
-
-    async fn resolve_input(&self) -> Result<Self> {
-        Ok(*self)
     }
 }
 
