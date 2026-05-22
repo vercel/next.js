@@ -412,20 +412,13 @@ async fn chunk_group_content_operation(
             .into_iter()
             .map(async |chunkable_module| match chunkable_module {
                 ChunkableModuleOrBatch::Module(module) => {
-                    if !merged_modules_ref
-                        .should_create_chunk_item_for(ResolvedVc::upcast(module))
-                        .await?
-                    {
-                        return Ok(None);
-                    }
-
-                    let module = if let Some(replacement) = merged_modules_ref
+                    let module = match merged_modules_ref
                         .should_replace_module(ResolvedVc::upcast(module))
                         .await?
                     {
-                        replacement
-                    } else {
-                        module
+                        Some(None) => return Ok(None),
+                        Some(Some(replacement)) => replacement,
+                        None => module,
                     };
 
                     Ok(Some(ChunkableModuleOrBatch::Module(module)))
@@ -485,22 +478,19 @@ async fn map_module_batch(
         .iter()
         .copied()
         .map(async |module| {
-            if !merged_modules
-                .should_create_chunk_item_for(ResolvedVc::upcast(module))
-                .await?
-            {
-                modified.store(true, std::sync::atomic::Ordering::Relaxed);
-                return Ok(None);
-            }
-
-            let module = if let Some(replacement) = merged_modules
+            let module = match merged_modules
                 .should_replace_module(ResolvedVc::upcast(module))
                 .await?
             {
-                modified.store(true, std::sync::atomic::Ordering::Relaxed);
-                replacement
-            } else {
-                module
+                Some(None) => {
+                    modified.store(true, std::sync::atomic::Ordering::Relaxed);
+                    return Ok(None);
+                }
+                Some(Some(replacement)) => {
+                    modified.store(true, std::sync::atomic::Ordering::Relaxed);
+                    replacement
+                }
+                None => module,
             };
 
             Ok(Some(module))
@@ -533,21 +523,16 @@ async fn map_module_batch_group(
         .copied()
         .map(async |chunkable_module| match chunkable_module {
             ModuleOrBatch::Module(module) => {
-                if !merged_modules_ref
-                    .should_create_chunk_item_for(module)
-                    .await?
-                {
-                    modified.store(true, std::sync::atomic::Ordering::Relaxed);
-                    return Ok(None);
-                }
-
-                let module = if let Some(replacement) =
-                    merged_modules_ref.should_replace_module(module).await?
-                {
-                    modified.store(true, std::sync::atomic::Ordering::Relaxed);
-                    ResolvedVc::upcast(replacement)
-                } else {
-                    module
+                let module = match merged_modules_ref.should_replace_module(module).await? {
+                    Some(None) => {
+                        modified.store(true, std::sync::atomic::Ordering::Relaxed);
+                        return Ok(None);
+                    }
+                    Some(Some(replacement)) => {
+                        modified.store(true, std::sync::atomic::Ordering::Relaxed);
+                        ResolvedVc::upcast(replacement)
+                    }
+                    None => module,
                 };
 
                 Ok(Some(ModuleOrBatch::Module(module)))
