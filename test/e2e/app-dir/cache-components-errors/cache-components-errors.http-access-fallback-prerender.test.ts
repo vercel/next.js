@@ -72,6 +72,33 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
       await next.build({ args })
     }
 
+    const buildPath = async (pathname: string) => {
+      const args = ['--debug-build-paths', `app${pathname}/page.tsx`]
+
+      if (isDebugPrerender) {
+        args.push('--debug-prerender')
+      }
+
+      await next.build({ args })
+    }
+
+    const expectStaticRouteArtifacts = async (route: string) => {
+      const meta = JSON.parse(
+        await next.readFile(`.next/server/app/${route}.meta`)
+      )
+
+      expect(await next.readFile(`.next/server/app/${route}.html`)).toEqual(
+        expect.any(String)
+      )
+      expect(meta.status).toBe(404)
+      expect(meta.segmentPaths).toContain('/_tree')
+      expect(
+        await next.readFile(
+          `.next/server/app/${route}.segments/_tree.segment.rsc`
+        )
+      ).toEqual(expect.any(String))
+    }
+
     describe('notFound()', () => {
       const pagePath = '/not-found/[slug]'
       const visitUrl = '/not-found/not-found'
@@ -85,12 +112,8 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
           )
         })
       } else {
-        it('should error the build with a blocking-route error', async () => {
-          try {
-            await prerender(pagePath)
-          } catch {
-            // we expect the build to fail
-          }
+        it('should log the fallback dynamic error without failing the build', async () => {
+          await prerender(pagePath)
 
           const output = getPrerenderOutput(
             next.cliOutput.slice(cliOutputLength),
@@ -111,11 +134,7 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
                  9 | } {
                  reason: 'useSearchParams()',
                  digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
-               Error occurred prerendering page "/not-found/not-found". Read more: https://nextjs.org/docs/messages/prerender-error
-
-               > Export encountered errors on 1 path:
-               	/not-found/[slug]/page: /not-found/not-found"
+               }"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
@@ -130,9 +149,7 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
                  9 | } {
                  reason: 'useSearchParams()',
                  digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
-               Error occurred prerendering page "/not-found/not-found". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /not-found/[slug]/page: /not-found/not-found, exiting the build."
+               }"
               `)
             }
           } else {
@@ -151,11 +168,7 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
                  712 |     case 'prerender-runtime': {
                  reason: 'useSearchParams()',
                  digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
-               Error occurred prerendering page "/not-found/not-found". Read more: https://nextjs.org/docs/messages/prerender-error
-
-               > Export encountered errors on 1 path:
-               	/not-found/[slug]/page: /not-found/not-found"
+               }"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
@@ -165,9 +178,7 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
                    at c (<next-dist-dir>) {
                  reason: 'useSearchParams()',
                  digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
-               Error occurred prerendering page "/not-found/not-found". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /not-found/[slug]/page: /not-found/not-found, exiting the build."
+               }"
               `)
             }
           }
@@ -188,12 +199,8 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
           )
         })
       } else {
-        it('should error the build with a blocking-route error', async () => {
-          try {
-            await prerender(pagePath)
-          } catch {
-            // we expect the build to fail
-          }
+        it('should log the fallback dynamic error without failing the build', async () => {
+          await prerender(pagePath)
 
           const output = getPrerenderOutput(
             next.cliOutput.slice(cliOutputLength),
@@ -214,11 +221,7 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
                  9 | } {
                  reason: 'useSearchParams()',
                  digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
-               Error occurred prerendering page "/forbidden/forbidden". Read more: https://nextjs.org/docs/messages/prerender-error
-
-               > Export encountered errors on 1 path:
-               	/forbidden/[slug]/page: /forbidden/forbidden"
+               }"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
@@ -233,9 +236,7 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
                  9 | } {
                  reason: 'useSearchParams()',
                  digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
-               Error occurred prerendering page "/forbidden/forbidden". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /forbidden/[slug]/page: /forbidden/forbidden, exiting the build."
+               }"
               `)
             }
           } else {
@@ -254,11 +255,7 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
                  712 |     case 'prerender-runtime': {
                  reason: 'useSearchParams()',
                  digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
-               Error occurred prerendering page "/forbidden/forbidden". Read more: https://nextjs.org/docs/messages/prerender-error
-
-               > Export encountered errors on 1 path:
-               	/forbidden/[slug]/page: /forbidden/forbidden"
+               }"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
@@ -268,9 +265,7 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
                    at c (<next-dist-dir>) {
                  reason: 'useSearchParams()',
                  digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
-               Error occurred prerendering page "/forbidden/forbidden". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /forbidden/[slug]/page: /forbidden/forbidden, exiting the build."
+               }"
               `)
             }
           }
@@ -291,12 +286,8 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
           )
         })
       } else {
-        it('should error the build with a blocking-route error', async () => {
-          try {
-            await prerender(pagePath)
-          } catch {
-            // we expect the build to fail
-          }
+        it('should log the fallback dynamic error without failing the build', async () => {
+          await prerender(pagePath)
 
           const output = getPrerenderOutput(
             next.cliOutput.slice(cliOutputLength),
@@ -317,11 +308,7 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
                  9 | } {
                  reason: 'useSearchParams()',
                  digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
-               Error occurred prerendering page "/unauthorized/unauthorized". Read more: https://nextjs.org/docs/messages/prerender-error
-
-               > Export encountered errors on 1 path:
-               	/unauthorized/[slug]/page: /unauthorized/unauthorized"
+               }"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
@@ -336,9 +323,7 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
                  9 | } {
                  reason: 'useSearchParams()',
                  digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
-               Error occurred prerendering page "/unauthorized/unauthorized". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /unauthorized/[slug]/page: /unauthorized/unauthorized, exiting the build."
+               }"
               `)
             }
           } else {
@@ -357,11 +342,7 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
                  712 |     case 'prerender-runtime': {
                  reason: 'useSearchParams()',
                  digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
-               Error occurred prerendering page "/unauthorized/unauthorized". Read more: https://nextjs.org/docs/messages/prerender-error
-
-               > Export encountered errors on 1 path:
-               	/unauthorized/[slug]/page: /unauthorized/unauthorized"
+               }"
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
@@ -371,12 +352,19 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
                    at c (<next-dist-dir>) {
                  reason: 'useSearchParams()',
                  digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
-               Error occurred prerendering page "/unauthorized/unauthorized". Read more: https://nextjs.org/docs/messages/prerender-error
-               Export encountered an error on /unauthorized/[slug]/page: /unauthorized/unauthorized, exiting the build."
+               }"
               `)
             }
           }
+        })
+      }
+    })
+
+    describe('notFound() above the matching not-found boundary', () => {
+      if (!isNextDev) {
+        it('should emit static artifacts', async () => {
+          await buildPath('/not-found-above-boundary/child')
+          await expectStaticRouteArtifacts('not-found-above-boundary/child')
         })
       }
     })
