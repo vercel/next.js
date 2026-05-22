@@ -70,34 +70,33 @@ import {
 } from './_components/comment-section'
 
 export default function TaskPage({ params }) {
-  const taskPromise = params.then(({ id }) => getTask(id))
-  const taskIdPromise = params.then(({ id }) => id)
-
   return (
     <div>
       <Suspense fallback={<TaskDetailSkeleton />}>
-        <TaskDetail taskPromise={taskPromise} />
-      </Suspense>
-      <Suspense fallback={<CommentSectionSkeleton />}>
-        <CommentSection taskIdPromise={taskIdPromise} />
+        {params.then(({ id }) => (
+          <>
+            <TaskDetail id={id} />
+            <Suspense fallback={<CommentSectionSkeleton />}>
+              <CommentSection taskId={id} />
+            </Suspense>
+          </>
+        ))}
       </Suspense>
     </div>
   )
 }
 ```
 
-Each section component awaits its own promise:
+Each section component awaits its own data:
 
 ```tsx filename="app/task/[id]/_components/task-detail.tsx"
-export async function TaskDetail({ taskPromise }) {
-  const task = await taskPromise
+export async function TaskDetail({ id }) {
+  const task = await getTask(id)
   return <TaskHeader task={task} />
 }
 ```
 
-Passing promises down (instead of awaiting `params` once and passing the resolved values) lets the page component stay synchronous. A synchronous page can return its shell immediately, with each `<Suspense>` boundary's fallback in place, and the server streams the real content in as each promise resolves. If the page itself awaited a promise, every section would have to wait for that await before any of them could start.
-
-This also avoids coupling unrelated sections. The page doesn't need to know what each section reads. Each component reads what it needs, right next to the JSX that uses it — the same instinct as `useEffect` or a query library, except a server component can `await` directly with no client state to plumb through.
+The page stays synchronous by using `params.then()` inline in JSX. The outer `<Suspense>` covers the params resolution. Once `id` is available, `TaskDetail` renders immediately (with its own data fetch), and a nested `<Suspense>` lets comments stream in independently.
 
 If we navigate to a task now, the page shell paints immediately, the task header streams in when `getTask` resolves, and the comments stream in independently when `getComments` resolves.
 
