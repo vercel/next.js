@@ -1896,8 +1896,8 @@ importers:
   packages/next-rspack:
     dependencies:
       '@next/rspack-core':
-        specifier: npm:@next-rspack/core@1.0.3-beta.0
-        version: '@next-rspack/core@1.0.3-beta.0(@swc/helpers@0.5.15)'
+        specifier: npm:@next-rspack/core@1.0.3-beta.2
+        version: '@next-rspack/core@1.0.3-beta.2(@swc/helpers@0.5.15)'
 
   packages/next-swc:
     devDependencies:
@@ -4328,75 +4328,75 @@ packages:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
 
-  '@next-rspack/binding-android-arm-eabi@1.0.3-beta.0':
-    resolution: {integrity: sha512-rxcOwoN0FMvJOWSV4fTen9pTMbnpge3fXSeVXLGHQR7H50xQ/sZ/I762UkKrmVCCcDD10Xb7TZ1eNDmGz24CpA==}
+  '@next-rspack/binding-android-arm-eabi@1.0.3-beta.2':
+    resolution: {integrity: sha512-u+k5Ukei1rud5UvDqrxI95/vCgg22IxysLdGu4BAOElcILK2G/Yyf0Iu/MjibOC7Hi8POF9NfDF7qwgBzom5TQ==}
     cpu: [arm]
     os: [android]
 
-  '@next-rspack/binding-android-arm64@1.0.3-beta.0':
-    resolution: {integrity: sha512-qP3imishigwvHgg8lNyBGt79VDt+olJzylkaNBxGK/nL1sGvTyvZmTKh47Huksu51YevW5rsGdMxH1q/VX7a1g==}
+  '@next-rspack/binding-android-arm64@1.0.3-beta.2':
+    resolution: {integrity: sha512-cA8AjwjLPUoWFQ/fST2/e16yMgtgvVMWDON/A/2nXr2VDHPnA1n7NZFyJMk8i7UwURbgKHZzdbXxfanMY5hBGA==}
     cpu: [arm64]
     os: [android]
 
-  '@next-rspack/binding-darwin-arm64@1.0.3-beta.0':
-    resolution: {integrity: sha512-6ycyfRq6B/BxO+osdjWx46smgWDmAaBhVfEQL/dQTECyrK/FuS0lde5eRFeZ+2s9j5bhl2aZqUybsn3i95ozDQ==}
+  '@next-rspack/binding-darwin-arm64@1.0.3-beta.2':
+    resolution: {integrity: sha512-zLF3dCYtlzM8B+wQ0cFJUiNRqkeOi0TsmM5+pIGZtGZkANAdVBeFiKKCNfsZ97XjVD1sWIkHhgfabpnl9o63ow==}
     cpu: [arm64]
     os: [darwin]
 
-  '@next-rspack/binding-darwin-x64@1.0.3-beta.0':
-    resolution: {integrity: sha512-pDNBGLGSawQuNylNpRdlgnczSrxyGTa3zjY7a4PsrWVPZHUopo1oZziLmOKyFWfyuRnK47kUOFOc66aYPzcI5A==}
+  '@next-rspack/binding-darwin-x64@1.0.3-beta.2':
+    resolution: {integrity: sha512-2dWUmFf4rIp14GJvekwNgUZGI61IC31NUyjXXI/KIkDdSWPRYwAkUqyE6+0xNqiNeZfjDPe1j27A3tBqRBJtkA==}
     cpu: [x64]
     os: [darwin]
 
-  '@next-rspack/binding-linux-arm-gnueabihf@1.0.3-beta.0':
-    resolution: {integrity: sha512-Rs0mNWtWwP1dtJpuQEFlP3moJxycdUMt3wsuhK4LZ5LkFQ0JiU8ZhZtaGXH2U7f2sKjZVseUXKELw9VM8RNgMA==}
+  '@next-rspack/binding-linux-arm-gnueabihf@1.0.3-beta.2':
+    resolution: {integrity: sha512-+D6bxZRTq1D7RPGj6n76vpfL7t26fy3s7yUFccXInBDlNL9C55u1tiZ6rywSeiA8JW1yITqmqm7IoLmUIEIMGw==}
     cpu: [arm]
     os: [linux]
 
-  '@next-rspack/binding-linux-arm64-gnu@1.0.3-beta.0':
-    resolution: {integrity: sha512-0dwnpChKbWimHSHntV0+nIO+27dPR8HUbYLtSm1qION3QIU0Hb+/bEgaHxIDK3Ad7G6FsBHXbOkqGwXP+mxQPQ==}
+  '@next-rspack/binding-linux-arm64-gnu@1.0.3-beta.2':
+    resolution: {integrity: sha512-PsZmE4gP/K3z2VsELdUtQNrc0SB2P8y2w2jH2exICzHj/1Aw5jbrjjFgFHAFkGFHzq/kEgjKh140Dk9yKVw9CQ==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@next-rspack/binding-linux-arm64-musl@1.0.3-beta.0':
-    resolution: {integrity: sha512-VqAHYX0R3FwWRUn1yRgCxG8OoBAfRVcMEMMOHjTEnsB/mOv47S4tfv0OwH2IV3K15QEeIwzplQfw0xgJYEI/mQ==}
+  '@next-rspack/binding-linux-arm64-musl@1.0.3-beta.2':
+    resolution: {integrity: sha512-g1G4vKtpd3ho7Q1wQaCK+2658JXIiJ25hCpoGhpcoJ7plLEBSMZAK64Kj9nmKnD/r3WagMWejnRdJd18v5eVtg==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
 
-  '@next-rspack/binding-linux-x64-gnu@1.0.3-beta.0':
-    resolution: {integrity: sha512-tlB+dAMNZl8vNhQiQviDK+w19UC/YI6eCduUoTW9RAB+HKr0tISf30riLhA5f2josd9zQjNIleNJ5Uq8SRWA7g==}
+  '@next-rspack/binding-linux-x64-gnu@1.0.3-beta.2':
+    resolution: {integrity: sha512-Oa346/uBBsnLHQTCyJvVMwECRkzQGvPsNZAzbLP8q04sULPQ2WvCpUzxQ8zuGSdrMOyWK8WVtY3Y/u8+xNza9g==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@next-rspack/binding-linux-x64-musl@1.0.3-beta.0':
-    resolution: {integrity: sha512-1fbuxEP5KjpIc7roGLQHGYjipgEME1gVVWp0xhajFYj4U/ZSz+HqDgoLmZP5YamiW3i+k+a+rYv6UjMBKdzAlQ==}
+  '@next-rspack/binding-linux-x64-musl@1.0.3-beta.2':
+    resolution: {integrity: sha512-jjXJ1mulQA2dITI5QM+Te20jvugrqmZtinmv4/g3ncrxdTW68rhWQUebgWO80+0PLymQteoZIZUIVVWfOlOkMA==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
 
-  '@next-rspack/binding-win32-arm64-msvc@1.0.3-beta.0':
-    resolution: {integrity: sha512-cua0IIzs9btZUepcu1FVo0mR9+2FSiper6mDx47QZQgfQxx3h2WaWgS3RqzcFOGvL1gF1y+uzL2vgMxqHQyMtw==}
+  '@next-rspack/binding-win32-arm64-msvc@1.0.3-beta.2':
+    resolution: {integrity: sha512-OF3T8xM5SF4dlDw9DWyFGLrzhhttJo+89k/Pe+X4+WF63ICmp0GOCdV/Od8g2PsdeYqAqT2hgOGsTbOmJVALVw==}
     cpu: [arm64]
     os: [win32]
 
-  '@next-rspack/binding-win32-ia32-msvc@1.0.3-beta.0':
-    resolution: {integrity: sha512-erMdeBrJRdqHAo3UC9HZBba7s9O+NijioeecXGHjV/8BHqbyn2CsmCM4+KVV4Z9eXwWPHn9fi++LsEy/vjBojA==}
+  '@next-rspack/binding-win32-ia32-msvc@1.0.3-beta.2':
+    resolution: {integrity: sha512-YafRGhSfuuKgALIk+zG7LlUmPtCZ/xI+0OfYNN1yDT2p61KhP1jbROTXgBV7A92YjpUDysOqGvIC4pB5YWDQaw==}
     cpu: [ia32]
     os: [win32]
 
-  '@next-rspack/binding-win32-x64-msvc@1.0.3-beta.0':
-    resolution: {integrity: sha512-QeOTfcLlUJCqlzB53vHFSmMQ6aEhgbvrIwXmXUNTlYxwAGuMe6kNTv4RCJ99TFRvd2zmb4PmXUhdbkhC6D3FtA==}
+  '@next-rspack/binding-win32-x64-msvc@1.0.3-beta.2':
+    resolution: {integrity: sha512-sdC5Ro0+F5Eo5r9c5aJl51o93EBXt5JrylWoDiN/9EGL1l+wHnd6VKVMEltjRUdm+u2PnK+Un814CLAIrpBhVQ==}
     cpu: [x64]
     os: [win32]
 
-  '@next-rspack/binding@1.0.3-beta.0':
-    resolution: {integrity: sha512-wKH+xvo13q38uLYY9WDs2t3TYBUrR35pMGJxlCkJErA3WS+0LlmtvXvJCH8VvP23NHibODwtvAxd2EK4ZoYhXw==}
+  '@next-rspack/binding@1.0.3-beta.2':
+    resolution: {integrity: sha512-/9R2XzNNQ06TprL3FvqPxi4NXb6vtSq4D616nr/YYWOuzuI8N+qFGaoKDW2mwe+dZvPyFqdbvD4yunpi7sqd5A==}
 
-  '@next-rspack/core@1.0.3-beta.0':
-    resolution: {integrity: sha512-ASjppCzCvbpVv3RujG5cPu9qPJk5pYS3+iYCu+FpZtz+ECYtvJ1ZbxFq5sWGxnK6BfC83tJIC86Kni+k9rMO1Q==}
+  '@next-rspack/core@1.0.3-beta.2':
+    resolution: {integrity: sha512-Okm7R4J4rOfFc7DR5XnP3xd7zOX63EwOG1FjsyjUjkNwD8lmJLtJazi4WfABrjzjZMu9VhYVI7Bl9s7KepRf1g==}
 
   '@next/env@16.2.3':
     resolution: {integrity: sha512-ZWXyj4uNu4GCWQw9cjRxWlbD+33mcDszIo9iQxFnBX3Wmgq9ulaSJcl6VhuWx5pCWqqD+9W6Wfz7N0lM5lYPMA==}
@@ -5612,8 +5612,8 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
-  '@rspack/binding-darwin-arm64@2.0.2':
-    resolution: {integrity: sha512-0o7lbgBBsDlICWdjIH0q3e0BsSco4GRiImHWVfZSVEG+q2+ykZJvSvYCVhPM1Co375Z0S3VMPa/8SjcY1FHwlw==}
+  '@rspack/binding-darwin-arm64@2.0.4':
+    resolution: {integrity: sha512-0Q1QXFEsZfDc4opiDnb8q50KlBbC2VovViDaYlMJZBzvjAo325mh3itXPfz7YZ31M+TxRE7TUiJXH3ltiV1Hdg==}
     cpu: [arm64]
     os: [darwin]
 
@@ -5622,8 +5622,8 @@ packages:
     cpu: [x64]
     os: [darwin]
 
-  '@rspack/binding-darwin-x64@2.0.2':
-    resolution: {integrity: sha512-tOwxZpoPlTlRs/w6UyUinXJ4TYRVHMlR7+eQxO1R3muKpixvhXQjtvoaY16HuFyTVky5F0IfOoWr3x9FEsgdLg==}
+  '@rspack/binding-darwin-x64@2.0.4':
+    resolution: {integrity: sha512-oO5J2QYf7+H+aYRj85EiGrDOoDEE9EDDl7NgXv46iWvIF0wXowEHXqnjMFxHxRq2Vf6scT+0yYQX9blWcvMWAA==}
     cpu: [x64]
     os: [darwin]
 
@@ -5633,8 +5633,8 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@rspack/binding-linux-arm64-gnu@2.0.2':
-    resolution: {integrity: sha512-1ZD4YFhG1rmgqj+W8hfwHyKV8xDxGsc/3KgU0FwmiVEX7JfzhCkgBO/xlCG79kRKSrzuVzt4icO/G3cCKn0pag==}
+  '@rspack/binding-linux-arm64-gnu@2.0.4':
+    resolution: {integrity: sha512-BEk6mIYBK4BihW9qXXITJORrVXecTlkRjrqhgefili4xjXtLdcUnxAm9sN/2oJ8m378n2h33qDh4gr2orPBFWQ==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
@@ -5645,8 +5645,8 @@ packages:
     os: [linux]
     libc: [musl]
 
-  '@rspack/binding-linux-arm64-musl@2.0.2':
-    resolution: {integrity: sha512-/PtTkM/DsDLjeuXTmeJeRfbjCDbcL9jvoVgZrgxYFZ28y2cdLvbChbW9uigOzs5dQEs1CIBQXMTTj7KhdBTuQg==}
+  '@rspack/binding-linux-arm64-musl@2.0.4':
+    resolution: {integrity: sha512-Hyt3z1RwNcSMIoaoWLN4Hb/696/O5JPukf8rXQASvf2UkC+X3ij7tr+8lMSYi3Zysi1QL375CnT4fNoABEW0JA==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
@@ -5657,8 +5657,8 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@rspack/binding-linux-x64-gnu@2.0.2':
-    resolution: {integrity: sha512-bBjsZxMHRaPo6X9SokApm6ucs+UhXtAJFyJJyuk2BH4XJsLeCU9Dz1vMwioeohFbJUUeTASVPm6/BL+RhSaunw==}
+  '@rspack/binding-linux-x64-gnu@2.0.4':
+    resolution: {integrity: sha512-xHorBPBZAg0Pn9Q0k9dWZ9euowieDxcSOzQ9JhTCmhDY6wZH5M/kCBFlCs/OQeW5/NUArW3x3MwEdO/0QJHMxg==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
@@ -5669,8 +5669,8 @@ packages:
     os: [linux]
     libc: [musl]
 
-  '@rspack/binding-linux-x64-musl@2.0.2':
-    resolution: {integrity: sha512-HjlpInqzabDNkhVsUJpsHPqa9QYVWBViJoyWNjzXCAW0vKMDvwaphyUvokSinX8FGTlZi/sr5UEaHJo6XtQ35g==}
+  '@rspack/binding-linux-x64-musl@2.0.4':
+    resolution: {integrity: sha512-QLxEGUXofF0kVNU12Y2NT3Qi9lGs+WbnYpapVeb+2IXtrAXJfU7Rhy7lAp5GLMzYMQNrKKL9SVnTWKbODbNW9Q==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
@@ -5679,8 +5679,8 @@ packages:
     resolution: {integrity: sha512-yx88EFdE9RP3hh7VhjjW6uc6wGU0KcpOcZp8T8E/a+X8L98fX0aVrtM1IDbndhmdluIMqGbfJNap2+QqOCY9Mw==}
     cpu: [wasm32]
 
-  '@rspack/binding-wasm32-wasi@2.0.2':
-    resolution: {integrity: sha512-YaRYNFLJRpkGfYjSWR7n9f+nQKtrlmrrffpAn/blc2geHcRvXoBc5SCs1idPtsLhj7H9qWWhs7ucjyHy4csWFg==}
+  '@rspack/binding-wasm32-wasi@2.0.4':
+    resolution: {integrity: sha512-YhN8HkiH46ONU9tm5dyoXDImDWGpU7E4SPqGI4OyAVF0445uIChurIUmTIOYcD6cg81GGeIjozWJOcb635Dcqw==}
     cpu: [wasm32]
 
   '@rspack/binding-win32-arm64-msvc@1.6.7':
@@ -5688,8 +5688,8 @@ packages:
     cpu: [arm64]
     os: [win32]
 
-  '@rspack/binding-win32-arm64-msvc@2.0.2':
-    resolution: {integrity: sha512-d/3kTEKq+asLjRFPO96t+wfWiM7DLN76VQEPDD9bc1kdsZXlVJBuvyXfsgK8bbEvKplWXYcSsokhmEnuXrLOpg==}
+  '@rspack/binding-win32-arm64-msvc@2.0.4':
+    resolution: {integrity: sha512-MUlYIz82xQRN0aoiXXyEBrNVUwiOSSFRi7nuCgUKduaSdlbPWzCY31IdtOygZ06LVp5JIGUEtyqSrjQq4FrMRw==}
     cpu: [arm64]
     os: [win32]
 
@@ -5698,8 +5698,8 @@ packages:
     cpu: [ia32]
     os: [win32]
 
-  '@rspack/binding-win32-ia32-msvc@2.0.2':
-    resolution: {integrity: sha512-161cWineq3RW+Jdm1FAfSpXeUtYWvhB3kAbm46vNT9h/YYz+spwsFMvveAZ1nsVSVL0IC5lDBGUte7yUAY8K2g==}
+  '@rspack/binding-win32-ia32-msvc@2.0.4':
+    resolution: {integrity: sha512-D7UcIFMzlY2yhhyuW4Ej15gBWmTwUM5DxuObl3Kv31qRv/pmV3MsqUeG5m2dqLbUxzqPH87qnp0cArbkJQ1b+w==}
     cpu: [ia32]
     os: [win32]
 
@@ -5708,16 +5708,16 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@rspack/binding-win32-x64-msvc@2.0.2':
-    resolution: {integrity: sha512-y7Q0S1FE+OlkL5GMqLG0PwxrPw6E1r892KhGrGKE1Vdufe5YTEx6xTPxzZ+b7N2KPD7s9G1/iJmWHQxb1+Bjkg==}
+  '@rspack/binding-win32-x64-msvc@2.0.4':
+    resolution: {integrity: sha512-MnYKPfdrAEbtpKg/1SZ6cNtzreIRyQJK4APbxLLPXENdTH5QXQkaTjLMKEeJcJ51FRhI/+yNpOUm2oTHdCQ1Og==}
     cpu: [x64]
     os: [win32]
 
   '@rspack/binding@1.6.7':
     resolution: {integrity: sha512-7ICabuBN3gHc6PPN52+m1kruz3ogiJjg1C0gSWdLRk18m/4jlcM2aAy6wfXjgODJdB0Yh2ro/lIpBbj+AYWUGA==}
 
-  '@rspack/binding@2.0.2':
-    resolution: {integrity: sha512-0kZPplW9GWx8mfC6DfsaRY3QBIYPuUs42JfmSM6aSb8tMHZAXQeLeMB8M+h8i4SeI+aFtCgO6UuYGtyWf7+L+A==}
+  '@rspack/binding@2.0.4':
+    resolution: {integrity: sha512-/QeJDPUw/lWkBJESG264KA9u6/rAjvoJhKncU4rkTi5Ap45kue5HTgOzr0ufxKdd2Xl72fjFBuqlKmtFDD5LiQ==}
 
   '@rspack/core@1.6.7':
     resolution: {integrity: sha512-tkd4nSzTf+pDa9OAE4INi/JEa93HNszjWy5C9+trf4ZCXLLHsHxHQFbzoreuz4Vv2PlCWajgvAdiPMV1vGIkuw==}
@@ -5728,8 +5728,8 @@ packages:
       '@swc/helpers':
         optional: true
 
-  '@rspack/core@2.0.2':
-    resolution: {integrity: sha512-VM3UHOo26uC+4QSqY5tU1ybI7KuXY5rTof8nhFOaBY9SYau0Smvr+hMSAPmrmHwknB6dXT8yaNVxrj7I+qxE1Q==}
+  '@rspack/core@2.0.4':
+    resolution: {integrity: sha512-OuxdQeeKWQpNvFBRDOcnoSaQvp6E4APM/6JJMM/k0p6oL1TEFQVGdNu3VGY4mRAsebnNBXapMVMhj+v66Bn2pg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     peerDependencies:
       '@module-federation/runtime-tools': ^0.24.1 || ^2.0.0
@@ -21291,61 +21291,61 @@ snapshots:
       '@tybys/wasm-util': 0.10.1
     optional: true
 
-  '@next-rspack/binding-android-arm-eabi@1.0.3-beta.0':
+  '@next-rspack/binding-android-arm-eabi@1.0.3-beta.2':
     optional: true
 
-  '@next-rspack/binding-android-arm64@1.0.3-beta.0':
+  '@next-rspack/binding-android-arm64@1.0.3-beta.2':
     optional: true
 
-  '@next-rspack/binding-darwin-arm64@1.0.3-beta.0':
+  '@next-rspack/binding-darwin-arm64@1.0.3-beta.2':
     optional: true
 
-  '@next-rspack/binding-darwin-x64@1.0.3-beta.0':
+  '@next-rspack/binding-darwin-x64@1.0.3-beta.2':
     optional: true
 
-  '@next-rspack/binding-linux-arm-gnueabihf@1.0.3-beta.0':
+  '@next-rspack/binding-linux-arm-gnueabihf@1.0.3-beta.2':
     optional: true
 
-  '@next-rspack/binding-linux-arm64-gnu@1.0.3-beta.0':
+  '@next-rspack/binding-linux-arm64-gnu@1.0.3-beta.2':
     optional: true
 
-  '@next-rspack/binding-linux-arm64-musl@1.0.3-beta.0':
+  '@next-rspack/binding-linux-arm64-musl@1.0.3-beta.2':
     optional: true
 
-  '@next-rspack/binding-linux-x64-gnu@1.0.3-beta.0':
+  '@next-rspack/binding-linux-x64-gnu@1.0.3-beta.2':
     optional: true
 
-  '@next-rspack/binding-linux-x64-musl@1.0.3-beta.0':
+  '@next-rspack/binding-linux-x64-musl@1.0.3-beta.2':
     optional: true
 
-  '@next-rspack/binding-win32-arm64-msvc@1.0.3-beta.0':
+  '@next-rspack/binding-win32-arm64-msvc@1.0.3-beta.2':
     optional: true
 
-  '@next-rspack/binding-win32-ia32-msvc@1.0.3-beta.0':
+  '@next-rspack/binding-win32-ia32-msvc@1.0.3-beta.2':
     optional: true
 
-  '@next-rspack/binding-win32-x64-msvc@1.0.3-beta.0':
+  '@next-rspack/binding-win32-x64-msvc@1.0.3-beta.2':
     optional: true
 
-  '@next-rspack/binding@1.0.3-beta.0':
+  '@next-rspack/binding@1.0.3-beta.2':
     optionalDependencies:
-      '@next-rspack/binding-android-arm-eabi': 1.0.3-beta.0
-      '@next-rspack/binding-android-arm64': 1.0.3-beta.0
-      '@next-rspack/binding-darwin-arm64': 1.0.3-beta.0
-      '@next-rspack/binding-darwin-x64': 1.0.3-beta.0
-      '@next-rspack/binding-linux-arm-gnueabihf': 1.0.3-beta.0
-      '@next-rspack/binding-linux-arm64-gnu': 1.0.3-beta.0
-      '@next-rspack/binding-linux-arm64-musl': 1.0.3-beta.0
-      '@next-rspack/binding-linux-x64-gnu': 1.0.3-beta.0
-      '@next-rspack/binding-linux-x64-musl': 1.0.3-beta.0
-      '@next-rspack/binding-win32-arm64-msvc': 1.0.3-beta.0
-      '@next-rspack/binding-win32-ia32-msvc': 1.0.3-beta.0
-      '@next-rspack/binding-win32-x64-msvc': 1.0.3-beta.0
+      '@next-rspack/binding-android-arm-eabi': 1.0.3-beta.2
+      '@next-rspack/binding-android-arm64': 1.0.3-beta.2
+      '@next-rspack/binding-darwin-arm64': 1.0.3-beta.2
+      '@next-rspack/binding-darwin-x64': 1.0.3-beta.2
+      '@next-rspack/binding-linux-arm-gnueabihf': 1.0.3-beta.2
+      '@next-rspack/binding-linux-arm64-gnu': 1.0.3-beta.2
+      '@next-rspack/binding-linux-arm64-musl': 1.0.3-beta.2
+      '@next-rspack/binding-linux-x64-gnu': 1.0.3-beta.2
+      '@next-rspack/binding-linux-x64-musl': 1.0.3-beta.2
+      '@next-rspack/binding-win32-arm64-msvc': 1.0.3-beta.2
+      '@next-rspack/binding-win32-ia32-msvc': 1.0.3-beta.2
+      '@next-rspack/binding-win32-x64-msvc': 1.0.3-beta.2
 
-  '@next-rspack/core@1.0.3-beta.0(@swc/helpers@0.5.15)':
+  '@next-rspack/core@1.0.3-beta.2(@swc/helpers@0.5.15)':
     dependencies:
-      '@next/rspack-binding': '@next-rspack/binding@1.0.3-beta.0'
-      '@rspack/core': 2.0.2(@swc/helpers@0.5.15)
+      '@next/rspack-binding': '@next-rspack/binding@1.0.3-beta.2'
+      '@rspack/core': 2.0.4(@swc/helpers@0.5.15)
     transitivePeerDependencies:
       - '@module-federation/runtime-tools'
       - '@swc/helpers'
@@ -22598,37 +22598,37 @@ snapshots:
   '@rspack/binding-darwin-arm64@1.6.7':
     optional: true
 
-  '@rspack/binding-darwin-arm64@2.0.2':
+  '@rspack/binding-darwin-arm64@2.0.4':
     optional: true
 
   '@rspack/binding-darwin-x64@1.6.7':
     optional: true
 
-  '@rspack/binding-darwin-x64@2.0.2':
+  '@rspack/binding-darwin-x64@2.0.4':
     optional: true
 
   '@rspack/binding-linux-arm64-gnu@1.6.7':
     optional: true
 
-  '@rspack/binding-linux-arm64-gnu@2.0.2':
+  '@rspack/binding-linux-arm64-gnu@2.0.4':
     optional: true
 
   '@rspack/binding-linux-arm64-musl@1.6.7':
     optional: true
 
-  '@rspack/binding-linux-arm64-musl@2.0.2':
+  '@rspack/binding-linux-arm64-musl@2.0.4':
     optional: true
 
   '@rspack/binding-linux-x64-gnu@1.6.7':
     optional: true
 
-  '@rspack/binding-linux-x64-gnu@2.0.2':
+  '@rspack/binding-linux-x64-gnu@2.0.4':
     optional: true
 
   '@rspack/binding-linux-x64-musl@1.6.7':
     optional: true
 
-  '@rspack/binding-linux-x64-musl@2.0.2':
+  '@rspack/binding-linux-x64-musl@2.0.4':
     optional: true
 
   '@rspack/binding-wasm32-wasi@1.6.7':
@@ -22636,7 +22636,7 @@ snapshots:
       '@napi-rs/wasm-runtime': 1.0.7
     optional: true
 
-  '@rspack/binding-wasm32-wasi@2.0.2':
+  '@rspack/binding-wasm32-wasi@2.0.4':
     dependencies:
       '@emnapi/core': 1.10.0
       '@emnapi/runtime': 1.10.0
@@ -22646,19 +22646,19 @@ snapshots:
   '@rspack/binding-win32-arm64-msvc@1.6.7':
     optional: true
 
-  '@rspack/binding-win32-arm64-msvc@2.0.2':
+  '@rspack/binding-win32-arm64-msvc@2.0.4':
     optional: true
 
   '@rspack/binding-win32-ia32-msvc@1.6.7':
     optional: true
 
-  '@rspack/binding-win32-ia32-msvc@2.0.2':
+  '@rspack/binding-win32-ia32-msvc@2.0.4':
     optional: true
 
   '@rspack/binding-win32-x64-msvc@1.6.7':
     optional: true
 
-  '@rspack/binding-win32-x64-msvc@2.0.2':
+  '@rspack/binding-win32-x64-msvc@2.0.4':
     optional: true
 
   '@rspack/binding@1.6.7':
@@ -22674,18 +22674,18 @@ snapshots:
       '@rspack/binding-win32-ia32-msvc': 1.6.7
       '@rspack/binding-win32-x64-msvc': 1.6.7
 
-  '@rspack/binding@2.0.2':
+  '@rspack/binding@2.0.4':
     optionalDependencies:
-      '@rspack/binding-darwin-arm64': 2.0.2
-      '@rspack/binding-darwin-x64': 2.0.2
-      '@rspack/binding-linux-arm64-gnu': 2.0.2
-      '@rspack/binding-linux-arm64-musl': 2.0.2
-      '@rspack/binding-linux-x64-gnu': 2.0.2
-      '@rspack/binding-linux-x64-musl': 2.0.2
-      '@rspack/binding-wasm32-wasi': 2.0.2
-      '@rspack/binding-win32-arm64-msvc': 2.0.2
-      '@rspack/binding-win32-ia32-msvc': 2.0.2
-      '@rspack/binding-win32-x64-msvc': 2.0.2
+      '@rspack/binding-darwin-arm64': 2.0.4
+      '@rspack/binding-darwin-x64': 2.0.4
+      '@rspack/binding-linux-arm64-gnu': 2.0.4
+      '@rspack/binding-linux-arm64-musl': 2.0.4
+      '@rspack/binding-linux-x64-gnu': 2.0.4
+      '@rspack/binding-linux-x64-musl': 2.0.4
+      '@rspack/binding-wasm32-wasi': 2.0.4
+      '@rspack/binding-win32-arm64-msvc': 2.0.4
+      '@rspack/binding-win32-ia32-msvc': 2.0.4
+      '@rspack/binding-win32-x64-msvc': 2.0.4
 
   '@rspack/core@1.6.7(patch_hash=4cf28ea116b0e27c7c80b09035905f9d16a7b18d1f2b7d312fc80d42cd57068d)(@swc/helpers@0.5.15)':
     dependencies:
@@ -22695,9 +22695,9 @@ snapshots:
     optionalDependencies:
       '@swc/helpers': 0.5.15
 
-  '@rspack/core@2.0.2(@swc/helpers@0.5.15)':
+  '@rspack/core@2.0.4(@swc/helpers@0.5.15)':
     dependencies:
-      '@rspack/binding': 2.0.2
+      '@rspack/binding': 2.0.4
     optionalDependencies:
       '@swc/helpers': 0.5.15
 
