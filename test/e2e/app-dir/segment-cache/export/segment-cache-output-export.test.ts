@@ -1,6 +1,5 @@
 import type * as Playwright from 'playwright'
 import type { Server } from 'http'
-import webdriver from 'next-webdriver'
 import { createRouterAct } from 'router-act'
 import { findPort } from 'next-test-utils'
 import { isNextStart, nextTestSetup } from 'e2e-utils'
@@ -42,7 +41,8 @@ describe('segment cache (output: "export")', () => {
 
   it('basic prefetch in output: "export" mode', async () => {
     let act
-    const browser = await webdriver(port, '/', {
+    const browser = await next.browser('/', {
+      baseUrl: port,
       beforePageLoad(p: Playwright.Page) {
         act = createRouterAct(p)
       },
@@ -78,7 +78,8 @@ describe('segment cache (output: "export")', () => {
 
   it('prefetch a link to a page that is rewritten server side', async () => {
     let act
-    const browser = await webdriver(port, '/', {
+    const browser = await next.browser('/', {
+      baseUrl: port,
       beforePageLoad(p: Playwright.Page) {
         act = createRouterAct(p)
       },
@@ -116,7 +117,8 @@ describe('segment cache (output: "export")', () => {
 
   it('prefetch a link to a page that is redirected server side', async () => {
     let act
-    const browser = await webdriver(port, '/', {
+    const browser = await next.browser('/', {
+      baseUrl: port,
       beforePageLoad(p: Playwright.Page) {
         act = createRouterAct(p)
       },

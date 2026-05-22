@@ -1,10 +1,10 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 
 describe('Custom Resolver Tests', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
-  type Browser = Awaited<ReturnType<typeof next.browser>>
+  type Browser = Playwright
 
   function runTests(browser: () => Browser) {
     it('Should use a custom resolver for image URL', async () => {
@@ -27,7 +27,7 @@ describe('Custom Resolver Tests', () => {
   }
 
   describe('SSR Custom Loader Tests', () => {
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
     beforeAll(async () => {
       browser = await next.browser('/')
     })
@@ -35,7 +35,7 @@ describe('Custom Resolver Tests', () => {
   })
 
   describe('Client-side Custom Loader Tests', () => {
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
     beforeAll(async () => {
       browser = await next.browser('/client-side')
     })

@@ -1,5 +1,4 @@
-import type { Playwright } from 'next-webdriver'
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { check, assertNoConsoleErrors, retry } from 'next-test-utils'
 
 const enableNewScrollHandler =

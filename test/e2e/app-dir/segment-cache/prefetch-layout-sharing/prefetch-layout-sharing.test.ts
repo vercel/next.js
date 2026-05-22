@@ -1,5 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
-import { Playwright as NextBrowser } from '../../../../lib/next-webdriver'
+import { nextTestSetup, type Playwright as NextBrowser } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 

@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup, isNextDev, type Playwright } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 describe('Build Error Tests', () => {
@@ -45,7 +45,7 @@ describe('Static Image Component Tests for basePath', () => {
   })
   if (skipped) return
 
-  let browser: Awaited<ReturnType<typeof next.browser>>
+  let browser: Playwright
   let $: ReturnType<typeof cheerio.load>
 
   beforeAll(async () => {

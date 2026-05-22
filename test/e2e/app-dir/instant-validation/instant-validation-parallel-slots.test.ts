@@ -1,11 +1,10 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import {
   expectNoBuildValidationErrors,
   extractBuildValidationError,
   waitForValidation,
 } from 'e2e-utils/instant-validation'
 import { retry, waitForNoErrorToast } from '../../../lib/next-test-utils'
-import type { Playwright } from '../../../lib/next-webdriver'
 
 describe('instant validation - parallel slot configs', () => {
   const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({

@@ -15,7 +15,6 @@ import {
   fetchViaHTTP,
 } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 
 const glob = promisify(globOrig)
 
@@ -299,12 +298,13 @@ export function runTests({
       await stopOrKill()
     }
   })
+  const openBrowser = (url: string) => next.browser(url, { baseUrl: port })
 
   it('should work', async () => {
     if (expectedErrMsg) {
       if (isNextDev) {
         const url = dynamicPage ? '/another/first' : '/api/json'
-        const browser = await webdriver(port, url)
+        const browser = await openBrowser(url)
         await waitForRedbox(browser)
         const header = await getRedboxHeader(browser)
         const source = await getRedboxSource(browser)
@@ -319,7 +319,7 @@ export function runTests({
       expect(next.cliOutput).toMatch(expectedErrMsg)
     } else {
       const a = (n: number) => `li:nth-child(${n}) a`
-      const browser = await webdriver(port, '/')
+      const browser = await openBrowser('/')
       await retry(async () =>
         expect(await browser.elementByCss('h1').text()).toContain('Home')
       )

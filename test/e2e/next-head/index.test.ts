@@ -1,7 +1,6 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
-import webdriver from 'next-webdriver'
 import { join } from 'path'
 
 describe('next/head', () => {
@@ -13,7 +12,7 @@ describe('next/head', () => {
   })
 
   it(`should place charset element at the top of <head>`, async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
 
     const html = await browser.eval(() => {
       const head = document.querySelector('head')
@@ -42,7 +41,7 @@ describe('next/head', () => {
   })
 
   it('should have correct head tags after hydration', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
 
     for (let i = 1; i < 5; i++) {
       expect(

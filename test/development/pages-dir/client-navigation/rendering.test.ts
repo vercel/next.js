@@ -3,7 +3,6 @@
 import cheerio from 'cheerio'
 import { isReact18, nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP, getDistDir, renderViaHTTP } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import path from 'path'
 
@@ -123,7 +122,7 @@ describe('Client Navigation rendering', () => {
     })
 
     test('getInitialProps circular structure', async () => {
-      const browser = await webdriver(next.appPort, '/circular-json-error')
+      const browser = await next.browser('/circular-json-error')
 
       if (isReact18 && isTurbopack) {
         await expect(browser).toDisplayRedbox(`
@@ -153,10 +152,7 @@ describe('Client Navigation rendering', () => {
     })
 
     test('getInitialProps should be class method', async () => {
-      const browser = await webdriver(
-        next.appPort,
-        '/instance-get-initial-props'
-      )
+      const browser = await next.browser('/instance-get-initial-props')
 
       await expect(browser).toDisplayRedbox(`
        {
@@ -171,7 +167,7 @@ describe('Client Navigation rendering', () => {
     })
 
     test('getInitialProps resolves to null', async () => {
-      const browser = await webdriver(next.appPort, '/empty-get-initial-props')
+      const browser = await next.browser('/empty-get-initial-props')
 
       await expect(browser).toDisplayRedbox(`
        {
@@ -215,7 +211,7 @@ describe('Client Navigation rendering', () => {
     })
 
     test('default export is not a React Component', async () => {
-      const browser = await webdriver(next.appPort, '/no-default-export')
+      const browser = await next.browser('/no-default-export')
 
       await expect(browser).toDisplayRedbox(`
        {
@@ -230,7 +226,7 @@ describe('Client Navigation rendering', () => {
     })
 
     test('error-inside-page', async () => {
-      const browser = await webdriver(next.appPort, '/error-inside-page')
+      const browser = await next.browser('/error-inside-page')
 
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
@@ -281,10 +277,7 @@ describe('Client Navigation rendering', () => {
     })
 
     test('error-in-the-global-scope', async () => {
-      const browser = await webdriver(
-        next.appPort,
-        '/error-in-the-global-scope'
-      )
+      const browser = await next.browser('/error-in-the-global-scope')
 
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
@@ -452,7 +445,7 @@ describe('Client Navigation rendering', () => {
     })
 
     it('should show a valid error when undefined is thrown', async () => {
-      const browser = await webdriver(next.appPort, '/throw-undefined')
+      const browser = await next.browser('/throw-undefined')
 
       await expect(browser).toDisplayRedbox(`
        {

@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup, isNextDev, type Playwright } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 // The fixture page intentionally renders an uncached `await setTimeout(0)`
@@ -52,7 +52,7 @@ import cheerio from 'cheerio'
     })
     if (skipped) return
 
-    let browser: Awaited<ReturnType<typeof next.browser>>
+    let browser: Playwright
     let $: ReturnType<typeof cheerio.load>
 
     beforeAll(async () => {

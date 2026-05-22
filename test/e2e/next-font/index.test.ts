@@ -2,7 +2,6 @@ import cheerio from 'cheerio'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 
 const mockedGoogleFontResponses = require.resolve(
   './google-font-mocked-responses.js'
@@ -175,7 +174,7 @@ describe('next/font', () => {
 
   describe('computed styles', () => {
     test('page with fonts', async () => {
-      const browser = await webdriver(next.url, '/with-fonts')
+      const browser = await next.browser('/with-fonts')
 
       // _app.js
       expect(
@@ -256,7 +255,7 @@ describe('next/font', () => {
     })
 
     test('page using variables', async () => {
-      const browser = await webdriver(next.url, '/variables')
+      const browser = await next.browser('/variables')
 
       // Fira Code Variable
       const firaCodeRegex = /^"Fira Code", "Fira Code Fallback"$/
@@ -299,7 +298,7 @@ describe('next/font', () => {
     })
 
     test('page using fallback fonts', async () => {
-      const browser = await webdriver(next.url, '/with-fallback')
+      const browser = await next.browser('/with-fallback')
 
       // .className
       expect(
@@ -468,7 +467,7 @@ describe('next/font', () => {
   describe('Fallback fontfaces', () => {
     describe('local', () => {
       test('Indie flower', async () => {
-        const browser = await webdriver(next.url, '/with-local-fonts')
+        const browser = await next.browser('/with-local-fonts')
 
         const ascentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("myFont2 Fallback")).ascentOverride'
@@ -492,7 +491,7 @@ describe('next/font', () => {
       })
 
       test('Fraunces', async () => {
-        const browser = await webdriver(next.url, '/with-local-fonts')
+        const browser = await next.browser('/with-local-fonts')
 
         const ascentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("myFont1 Fallback")).ascentOverride'
@@ -516,7 +515,7 @@ describe('next/font', () => {
       })
 
       test('Roboto multiple weights and styles', async () => {
-        const browser = await webdriver(next.url, '/with-local-fonts')
+        const browser = await next.browser('/with-local-fonts')
 
         const ascentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("roboto Fallback")).ascentOverride'
@@ -540,7 +539,7 @@ describe('next/font', () => {
       })
 
       test('Roboto multiple weights and styles - variable 1', async () => {
-        const browser = await webdriver(next.url, '/with-local-fonts')
+        const browser = await next.browser('/with-local-fonts')
 
         const ascentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("robotoVar1 Fallback")).ascentOverride'
@@ -564,7 +563,7 @@ describe('next/font', () => {
       })
 
       test('Roboto multiple weights and styles - variable 2', async () => {
-        const browser = await webdriver(next.url, '/with-local-fonts')
+        const browser = await next.browser('/with-local-fonts')
 
         const ascentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("robotoVar2 Fallback")).ascentOverride'
@@ -590,7 +589,7 @@ describe('next/font', () => {
 
     describe('google', () => {
       test('Indie flower', async () => {
-        const browser = await webdriver(next.url, '/with-google-fonts')
+        const browser = await next.browser('/with-google-fonts')
 
         const ascentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("Indie Flower Fallback")).ascentOverride'
@@ -614,7 +613,7 @@ describe('next/font', () => {
       })
 
       test('Fraunces', async () => {
-        const browser = await webdriver(next.url, '/with-google-fonts')
+        const browser = await next.browser('/with-google-fonts')
 
         const ascentOverride = await browser.eval(
           'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces Fallback")).ascentOverride'
@@ -641,7 +640,7 @@ describe('next/font', () => {
 
   describe('custom declarations', () => {
     test('local font with custom declarations', async () => {
-      const browser = await webdriver(next.url, '/with-local-fonts')
+      const browser = await next.browser('/with-local-fonts')
 
       // Get all stylesheets
       const stylesheets = await browser.eval(`

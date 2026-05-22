@@ -1,5 +1,4 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 
 describe('navigation between pages and app dir', () => {
   const { next } = nextTestSetup({
@@ -12,7 +11,7 @@ describe('navigation between pages and app dir', () => {
   })
 
   it('It should be able to navigate app -> pages', async () => {
-    const browser = await webdriver(next.url, '/app')
+    const browser = await next.browser('/app')
     expect(await browser.elementById('app-page').text()).toBe('App Page')
     // Increased timeout: in dev mode, cross-router navigation triggers on-demand
     // compilation which can take longer than the default timeout.
@@ -25,7 +24,7 @@ describe('navigation between pages and app dir', () => {
   })
 
   it('It should be able to navigate pages -> app', async () => {
-    const browser = await webdriver(next.url, '/pages')
+    const browser = await next.browser('/pages')
     expect(await browser.elementById('pages-page').text()).toBe('Pages Page')
     // Increased timeout: in dev mode, cross-router navigation triggers on-demand
     // compilation which can take longer than the default timeout.
@@ -40,7 +39,7 @@ describe('navigation between pages and app dir', () => {
   // TODO: re-enable after 404 transition bug is addressed
   if (!(global as any).isNextDeploy) {
     it('It should be able to navigate pages -> app and go back an forward', async () => {
-      const browser = await webdriver(next.url, '/pages')
+      const browser = await next.browser('/pages')
       // Increased timeout: in dev mode, cross-router navigation triggers on-demand
       // compilation which can take longer than the default timeout.
       await browser
@@ -60,7 +59,7 @@ describe('navigation between pages and app dir', () => {
     })
 
     it('It should be able to navigate app -> pages and go back and forward', async () => {
-      const browser = await webdriver(next.url, '/app')
+      const browser = await next.browser('/app')
       // Increased timeout: in dev mode, cross-router navigation triggers on-demand
       // compilation which can take longer than the default timeout.
       await browser

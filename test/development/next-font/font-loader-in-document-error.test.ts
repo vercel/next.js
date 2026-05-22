@@ -1,6 +1,5 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { waitForRedbox, getRedboxSource } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 import { join } from 'path'
 
 describe('font-loader-in-document-error', () => {
@@ -11,7 +10,7 @@ describe('font-loader-in-document-error', () => {
   })
 
   test('next/font inside _document', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     await waitForRedbox(browser)
     if (process.env.IS_TURBOPACK_TEST) {
       // TODO: Turbopack doesn't include pages/

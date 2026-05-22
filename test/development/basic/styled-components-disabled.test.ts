@@ -1,5 +1,4 @@
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
@@ -22,7 +21,7 @@ describe.skip('styled-components SWC transform', () => {
     let browser
     try {
       // Compile /_error
-      browser = await webdriver(next.url, '/404')
+      browser = await next.browser('/404')
       await browser.loadPage(new URL('/', next.url).toString())
 
       await retry(async () => {

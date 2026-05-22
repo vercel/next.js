@@ -1,11 +1,10 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import {
   extractBuildValidationError,
   waitForValidation,
 } from 'e2e-utils/instant-validation'
 import { retry, waitForRedbox } from '../../../lib/next-test-utils'
 import { createRedboxSnapshot } from '../../../lib/add-redbox-matchers'
-import { Playwright } from '../../../lib/next-webdriver'
 
 describe('instant validation - server errors', () => {
   const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
