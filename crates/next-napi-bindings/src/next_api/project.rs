@@ -1814,6 +1814,12 @@ fn project_hmr_update_operation(
     project.hmr_update(chunk_name, target, *state)
 }
 
+#[tracing::instrument(
+    level = "info",
+    name = "hmr subscription",
+    skip_all,
+    fields(chunk_name = %chunk_name, target = %target),
+)]
 #[turbo_tasks::function(operation, root)]
 async fn hmr_update_with_issues_operation(
     project: ResolvedVc<Project>,
@@ -1838,7 +1844,7 @@ async fn hmr_update_with_issues_operation(
     .cell())
 }
 
-#[tracing::instrument(level = "info", name = "get HMR events", skip(project, func), fields(target = %target))]
+#[tracing::instrument(level = "info", name = "get HMR events", skip(project, func), fields(target = %target, chunk_name = %chunk_name))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,

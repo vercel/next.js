@@ -2412,6 +2412,12 @@ impl Project {
         // sessions.
         let _ = session;
 
+        #[tracing::instrument(
+            level = "info",
+            name = "get HMR version",
+            skip_all,
+            fields(chunk_name = %chunk_name, target = %target),
+        )]
         #[turbo_tasks::function(operation, root)]
         async fn hmr_version_operation(
             this: ResolvedVc<Project>,
