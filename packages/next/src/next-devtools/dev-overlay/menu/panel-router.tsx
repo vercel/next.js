@@ -109,7 +109,7 @@ const MenuPanel = () => {
         isAppRouter &&
           !!process.env.__NEXT_INSTANT_NAV_TOGGLE && {
             title: 'Test instant navigation behavior.',
-            label: 'Instant Navs',
+            label: 'Navigation Inspector',
             value: <ChevronRight />,
             onClick: () => {
               setPanel('instant-navs')
@@ -275,11 +275,10 @@ export const PanelRouter = () => {
             sharePanelPositionGlobally={false}
             draggable
             sizeConfig={{
-              kind: 'fixed',
-              height: 300 / state.scale,
-              width: 480 / state.scale,
+              kind: 'auto',
+              width: 460 / state.scale,
             }}
-            header={<DevToolsHeader title="Instant Navs" />}
+            header={<DevToolsHeader title="Navigation Inspector" />}
           >
             <InstantNavsPanel />
           </DynamicPanel>

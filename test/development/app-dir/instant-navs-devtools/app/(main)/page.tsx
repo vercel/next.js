@@ -1,8 +1,10 @@
 import Link from 'next/link'
+import { HydrationMarker } from './hydration-marker'
 
 export default function Page() {
   return (
     <div>
+      <HydrationMarker />
       <h1 data-testid="home-title">Instant Navigation Mode Demo</h1>
       <p>
         This fixture tests the <strong>Instant Navigation Mode</strong> toggle
@@ -43,6 +45,35 @@ export default function Page() {
         >
           Go to target page &rarr;
         </Link>
+        <Link
+          href="/mpa-target"
+          id="link-to-mpa-target"
+          style={{
+            display: 'inline-block',
+            marginLeft: '0.75rem',
+            padding: '0.5rem 1rem',
+            background: '#111',
+            color: '#fff',
+            borderRadius: 6,
+            textDecoration: 'none',
+          }}
+        >
+          Go to MPA target &rarr;
+        </Link>
+        {/* <Link
+          href="/blocking-page?foo=bar"
+          id="link-to-target"
+          style={{
+            display: 'inline-block',
+            padding: '0.5rem 1rem',
+            background: '#0070f3',
+            color: '#fff',
+            borderRadius: 6,
+            textDecoration: 'none',
+          }}
+        >
+          Go to blocking page
+        </Link> */}
       </nav>
     </div>
   )

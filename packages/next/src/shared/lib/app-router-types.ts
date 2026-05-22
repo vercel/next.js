@@ -410,3 +410,15 @@ export type RSCPayload =
   | InitialRSCPayload
   | NavigationFlightResponse
   | ActionFlightResponse
+
+export type InstantCookie =
+  // pending (waiting to capture)
+  | [captured: 0, id: string]
+  // captured MPA page load
+  | [captured: 1, id: string, state: null]
+  // captured SPA navigation (from/to route trees)
+  | [
+      captured: 1,
+      id: string,
+      state: { from: FlightRouterState; to: FlightRouterState | null },
+    ]
