@@ -497,7 +497,12 @@ impl IssueSource {
             let mut range = match range {
                 SourceRange::LineColumn(start, end) => Some((start, end)),
                 SourceRange::ByteOffset(start, end) => {
-                    if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
+                    // Defensively read the content, an error there should not prevent all issue
+                    // formatting.  Best practice is for `content` to return `NotFound` instead of
+                    // an error.
+                    if let Ok(content) = self.source.content().lines().await
+                        && let FileLinesContent::Lines(lines) = &*content
+                    {
                         let start = find_line_and_column(lines.as_ref(), start);
                         let end = find_line_and_column(lines.as_ref(), end);
                         Some((start, end))
@@ -602,8 +607,8 @@ impl IssueSource {
     }
 
     /// Returns the file path for the source file.
-    pub fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
+    pub async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.source.ident().await?.path.clone())
     }
 
     /// If this source implements `GenerateSourceMap`, returns an
@@ -1024,8 +1029,8 @@ pub struct PlainIssueSource {
 #[turbo_tasks::value(serialization = "skip")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainSource {
-    pub ident: ReadRef<RcStr>,
-    pub file_path: ReadRef<RcStr>,
+    pub ident: RcStr,
+    pub file_path: RcStr,
     #[turbo_tasks(debug_ignore)]
     pub content: ReadRef<FileContent>,
 }
@@ -1034,15 +1039,22 @@ pub struct PlainSource {
 impl PlainSource {
     #[turbo_tasks::function]
     pub async fn from_source(asset: ResolvedVc<Box<dyn Source>>) -> Result<Vc<PlainSource>> {
-        let asset_content = asset.content().await?;
-        let content = match *asset_content {
-            AssetContent::File(file_content) => file_content.await?,
-            AssetContent::Redirect { .. } => ReadRef::new_owned(FileContent::NotFound),
+        // Defensively read the content, an error there should not prevent all issue
+        // formatting.  Best practice is for `content` to return `NotFound` instead of
+        // an error.
+        let content = if let Ok(asset_content) = asset.content().await
+            && let AssetContent::File(file_content) = &*asset_content
+            && let Ok(file_content) = file_content.await
+        {
+            file_content
+        } else {
+            ReadRef::new_owned(FileContent::NotFound)
         };
+        let ident = asset.ident();
 
         Ok(PlainSource {
-            ident: asset.ident().to_string().await?,
-            file_path: asset.ident().path().to_string().await?,
+            ident: ident.to_string().owned().await?,
+            file_path: ident.await?.path.to_string_ref().await?,
             content,
         }
         .cell())

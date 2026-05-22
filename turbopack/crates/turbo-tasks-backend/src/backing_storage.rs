@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{cmp::max, sync::Arc};
 
 use anyhow::Result;
 use either::Either;
@@ -82,6 +82,26 @@ pub trait BackingStorage: BackingStorageSealed {
     fn invalidate(&self, reason_code: &str) -> Result<()>;
 }
 
+#[derive(Copy, Clone, Debug, Default)]
+pub struct SnapshotMeta {
+    pub data_items: usize,
+    pub meta_items: usize,
+    pub task_cache_items: usize,
+    pub max_next_task_id: u32,
+}
+
+impl SnapshotMeta {
+    /// Merge two snapshots, summing the counts and `max`'ing the task id
+    pub fn merge(&self, rhs: Self) -> Self {
+        Self {
+            data_items: self.data_items + rhs.data_items,
+            meta_items: self.meta_items + rhs.meta_items,
+            task_cache_items: self.task_cache_items + rhs.task_cache_items,
+            max_next_task_id: max(self.max_next_task_id, rhs.max_next_task_id),
+        }
+    }
+}
+
 /// Private methods used by [`BackingStorage`]. This trait is `pub` (because of the sealed-trait
 /// pattern), but should not be exported outside of the crate.
 ///
@@ -91,7 +111,11 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
     fn next_free_task_id(&self) -> Result<TaskId>;
     fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>>;
 
-    fn save_snapshot<I>(&self, operations: Vec<Arc<AnyOperation>>, snapshots: Vec<I>) -> Result<()>
+    fn save_snapshot<I>(
+        &self,
+        operations: Vec<Arc<AnyOperation>>,
+        snapshots: Vec<I>,
+    ) -> Result<SnapshotMeta>
     where
         I: IntoIterator<Item = SnapshotItem> + Send + Sync;
     /// Returns all task IDs that match the given task type (hash collision candidates).
@@ -160,7 +184,11 @@ where
         either::for_both!(self, this => this.uncompleted_operations())
     }
 
-    fn save_snapshot<I>(&self, operations: Vec<Arc<AnyOperation>>, snapshots: Vec<I>) -> Result<()>
+    fn save_snapshot<I>(
+        &self,
+        operations: Vec<Arc<AnyOperation>>,
+        snapshots: Vec<I>,
+    ) -> Result<SnapshotMeta>
     where
         I: IntoIterator<Item = SnapshotItem> + Send + Sync,
     {

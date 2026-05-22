@@ -193,6 +193,14 @@ export interface PrerenderStoreModernRuntime
   readonly headers: RequestStore['headers']
   readonly cookies: RequestStore['cookies']
   readonly draftMode: RequestStore['draftMode']
+
+  /**
+   * When true, `await params` and `await searchParams` both return hanging
+   * promises — segments that depend on either suspend, producing the App
+   * Shell of the route. Set by an App Shell prefetch request
+   * (NEXT_ROUTER_PREFETCH_HEADER === '3').
+   */
+  readonly forceOmitParams: boolean
 }
 
 export interface RevalidateStore {
@@ -364,6 +372,13 @@ export interface PublicUseCacheStore extends CommonUseCacheStore {
    * Tracks which root param names were read during this cache invocation.
    */
   readonly readRootParamNames: Set<string>
+  /**
+   * The first nested public `'use cache'` invocation with a dynamic cache life
+   * (`revalidate === 0` or `expire < DYNAMIC_EXPIRE`) that propagated up to
+   * this store. Used as `cause` for the nested-dynamic cache error so the
+   * redbox can point at the inner invocation site, not just the outer one.
+   */
+  dynamicNestedCacheError: Error | undefined
 }
 
 export interface PrivateUseCacheStore extends CommonUseCacheStore {

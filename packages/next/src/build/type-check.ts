@@ -31,8 +31,7 @@ function verifyAndRunTypeScript(
   hasPagesDir: boolean,
   appDir: string | undefined,
   pagesDir: string | undefined,
-  debugBuildPaths: { app: string[]; pages: string[] } | undefined,
-  rootParams: boolean
+  debugBuildPaths: { app: string[]; pages: string[] } | undefined
 ) {
   let impl: typeof import('../lib/verify-typescript-setup').verifyAndRunTypeScript
   let typeCheckWorker:
@@ -75,7 +74,6 @@ function verifyAndRunTypeScript(
     appDir,
     pagesDir,
     debugBuildPaths,
-    rootParams,
   })
     .then((result) => {
       typeCheckWorker?.end()
@@ -144,8 +142,7 @@ export async function startTypeChecking({
           !!pagesDir,
           appDir,
           pagesDir,
-          debugBuildPaths,
-          !!config.experimental.rootParams || !!config.cacheComponents
+          debugBuildPaths
         ).then((resolved) => {
           const checkEnd = process.hrtime(typeCheckAndLintStart)
           return [resolved, checkEnd] as const

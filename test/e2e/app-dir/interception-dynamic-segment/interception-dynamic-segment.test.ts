@@ -1,6 +1,5 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry } from 'next-test-utils'
-import { Playwright } from 'next-webdriver'
 import { createRouterAct } from 'router-act'
 
 describe('interception-dynamic-segment', () => {

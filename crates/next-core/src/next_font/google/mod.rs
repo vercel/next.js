@@ -68,13 +68,15 @@ pub const GOOGLE_FONTS_STYLESHEET_URL: &str = "https://fonts.googleapis.com/css2
 // Always sending this user agent ensures consistent results from Google Fonts.
 // Google Fonts will vary responses based on user agent, e.g. only returning
 // references to certain font types for certain browsers.
-pub const USER_AGENT_FOR_GOOGLE_FONTS: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
-                                               AppleWebKit/537.36 (KHTML, like Gecko) \
-                                               Chrome/104.0.0.0 Safari/537.36";
+pub const USER_AGENT_FOR_GOOGLE_FONTS: RcStr = rcstr!(
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) \
+     Chrome/104.0.0.0 Safari/537.36"
+);
 
 /// The google fonts plugin downloads fonts locally and transforms the url in the css into a
 /// specific format that is then intercepted later. This is the prefix we use for the new url.
-pub const GOOGLE_FONTS_INTERNAL_PREFIX: &str = "@vercel/turbopack-next/internal/font/google/font";
+pub const GOOGLE_FONTS_INTERNAL_PREFIX: RcStr =
+    rcstr!("@vercel/turbopack-next/internal/font/google/font");
 
 #[turbo_tasks::value(transparent)]
 #[derive(Deserialize)]
@@ -439,7 +441,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         } = font_file_options_from_query_map(query)?;
 
         let (filename, ext) = split_extension(&url);
-        let ext = ext.with_context(|| format!("font url {} is missing an extension", &url))?;
+        let ext = ext.with_context(|| format!("font url {} is missing an extension", url))?;
 
         // remove dashes and dots as they might be used for the markers below.
         let mut name = format!("{:016x}", hash_xxh3_hash64(filename.as_bytes()));
@@ -504,7 +506,7 @@ async fn update_google_stylesheet(
     // Update font-family definitions to the scoped name
     // TODO: Do this more resiliently, e.g. transforming an swc ast
     let mut stylesheet = stylesheet.await?.replace(
-        &format!("font-family: '{}';", &options.font_family),
+        &format!("font-family: '{}';", options.font_family),
         &format!("font-family: '{scoped_font_family}';"),
     );
 
@@ -705,7 +707,7 @@ async fn fetch_from_google_fonts(
     virtual_path: FileSystemPath,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
     let result = fetch_client
-        .fetch(url, Some(rcstr!(USER_AGENT_FOR_GOOGLE_FONTS)))
+        .fetch(url, Some(USER_AGENT_FOR_GOOGLE_FONTS))
         .await?;
 
     Ok(match *result {

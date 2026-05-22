@@ -40,7 +40,7 @@ describe('use-cache-configured-timeout', () => {
          {
            "code": "E236",
            "description": "Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".",
-           "environmentLabel": null,
+           "environmentLabel": "Prerender",
            "label": "Runtime Error",
            "source": "app/above-dev-timeout/page.tsx (4:1) @ getCachedData
          > 4 | async function getCachedData(): Promise<string> {

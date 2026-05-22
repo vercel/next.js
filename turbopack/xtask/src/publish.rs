@@ -132,7 +132,7 @@ pub fn run_publish(name: &str) {
             let dir_name = format!("{}-{}-{}", pkg.crate_name, platform.os, platform.arch);
             let target_dir = package_dir.join("npm").join(dir_name);
             fs::create_dir(&target_dir)
-                .unwrap_or_else(|e| panic!("Unable to create dir: {:?}\n{e}", &target_dir));
+                .unwrap_or_else(|e| panic!("Unable to create dir: {:?}\n{e}", target_dir));
             fs::write(
                 target_dir.join("../../package.json"),
                 serde_json::to_string_pretty(&pkg_json).unwrap(),
@@ -263,7 +263,7 @@ pub fn run_bump(names: FxHashSet<String>, dry_run: bool) {
     }
     let mut tags_to_apply = Vec::new();
     workspaces_to_bump.iter().for_each(|p| {
-        let title = format!("Version for {}", &p.name);
+        let title = format!("Version for {}", p.name);
         let selector = inquire::Select::new(title.as_str(), VERSION_TYPE.to_owned());
         let version_type = selector.prompt().expect("Get version type failed");
         let mut semver_version = Version::parse(&p.version).unwrap_or_else(|e| {

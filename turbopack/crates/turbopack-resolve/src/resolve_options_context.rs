@@ -7,7 +7,7 @@ use turbopack_core::{
     condition::ContextCondition,
     environment::Environment,
     resolve::{
-        options::{ImportMap, ResolvedMap},
+        options::{ConditionValue, ImportMap, ResolvedMap},
         plugin::{AfterResolvePlugin, BeforeResolvePlugin},
     },
 };
@@ -53,6 +53,8 @@ pub struct ResolveOptionsContext {
     pub browser: bool,
     /// Enables the "module" field and export condition in package.json
     pub module: bool,
+    /// Enables the "module-sync" export condition in package.json
+    pub module_sync: ConditionValue,
     pub custom_conditions: Vec<RcStr>,
     pub custom_extensions: Option<Vec<RcStr>>,
     /// An additional import map to use when resolving modules.

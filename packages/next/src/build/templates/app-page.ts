@@ -29,6 +29,7 @@ import {
   NodeNextResponse,
 } from '../../server/base-http/node' with { 'turbopack-transition': 'next-server-utility' }
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr' with { 'turbopack-transition': 'next-server-utility' }
+import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getFallbackRouteParams,
   getPlaceholderFallbackRouteParams,
@@ -47,7 +48,6 @@ import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
-  NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_INSTANT_TEST_COOKIE,
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
@@ -294,7 +294,8 @@ export async function handler(
   // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
 
   const isRSCRequest =
-    getRequestMeta(req, 'isRSCRequest') ?? Boolean(req.headers[RSC_HEADER])
+    getRequestMeta(req, 'isRSCRequest') ??
+    isRSCRequestHeader(req.headers[RSC_HEADER])
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
 
@@ -418,17 +419,20 @@ export async function handler(
   // Enable the Instant Navigation Testing API. Renders only the prefetched
   // portion of the page, excluding dynamic content. This allows tests to
   // assert on the prefetched UI state deterministically.
-  // - Header: Used for client-side navigations where we can set request headers
-  // - Cookie: Used for MPA navigations (page reload, full page load) where we
-  //   can't set request headers. Only applies to document requests (no RSC
-  //   header) - RSC requests should proceed normally even during a locked scope,
-  //   with blocking happening on the client side.
+  //
+  // The instant test cookie is sent automatically with all requests while a
+  // navigation lock is held. We treat a request as a test render when the
+  // cookie is present and either:
+  // - it's a document request (no RSC header) — covers MPA navigations
+  // - it's a prefetch RSC request — covers client-side prefetches
+  // Regular RSC navigation requests proceed normally even during a locked
+  // scope; blocking happens on the client side.
   const isInstantNavigationTest =
     exposeTestingApi &&
-    (req.headers[NEXT_INSTANT_PREFETCH_HEADER] === '1' ||
-      (req.headers[RSC_HEADER] === undefined &&
-        typeof req.headers.cookie === 'string' &&
-        req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=')))
+    typeof req.headers.cookie === 'string' &&
+    req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
+    (!isRSCRequestHeader(req.headers[RSC_HEADER]) ||
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1')
 
   // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
   // prerender manifest and this is an app page.
@@ -535,6 +539,8 @@ export async function handler(
     // If we're in development, we always support dynamic HTML, unless it's
     // a data request, in which case we only produce static HTML.
     routeModule.isDev === true ||
+    // If this is a draft mode request, it supports dynamic HTML.
+    isDraftMode ||
     // If this is not SSG or does not have static paths, then it supports
     // dynamic HTML.
     !isSSG ||
@@ -591,7 +597,6 @@ export async function handler(
       : null
 
     if (
-      nextConfig.experimental.partialFallbacks === true &&
       fallbackPathname &&
       prerenderInfo?.fallbackRouteParams?.length &&
       !hasUnresolvedRootFallbackParams
@@ -676,7 +681,6 @@ export async function handler(
     routerServerContext?.isWrappedByNextServer
   )
   const remainingFallbackRouteParams =
-    nextConfig.experimental.partialFallbacks === true &&
     remainingPrerenderableParams.length > 0
       ? (prerenderInfo?.fallbackRouteParams?.filter(
           (param) =>
@@ -878,6 +882,8 @@ export async function handler(
               }
             : {}),
           cacheComponents: Boolean(nextConfig.cacheComponents),
+          validationLevel:
+            nextConfig.experimental.instantInsights.validationLevel,
           experimental: {
             isRoutePPREnabled,
             expireTime: nextConfig.expireTime,
@@ -1044,7 +1050,6 @@ export async function handler(
         }
 
         if (
-          nextConfig.experimental.partialFallbacks === true &&
           prerenderInfo?.fallback === null &&
           !hasOmittedConcreteFallbackParam &&
           !hasUnresolvedRootFallbackParams &&
@@ -1206,7 +1211,6 @@ export async function handler(
                 // Match the build-time contract: only fallback shells that can
                 // still be completed with prerenderable params should upgrade.
                 remainingPrerenderableParams.length > 0 &&
-                nextConfig.experimental.partialFallbacks === true &&
                 ssgCacheKey &&
                 incrementalCache &&
                 !isOnDemandRevalidate &&
@@ -1914,14 +1918,29 @@ export async function handler(
       const transformer = new TransformStream<Uint8Array, Uint8Array>()
       body.push(transformer.readable)
 
+      // Plumb fallback params via request meta so the RequestStore created
+      // downstream in app-render.tsx knows which params to defer during the
+      // resume. We don't pass them as `fallbackRouteParams` because that
+      // would replace actual param values with opaque placeholders during
+      // segment resolution; the resolved values are baked into the URL and
+      // already interpolated into the postponed state.
+      if (nextConfig.cacheComponents && prerenderInfo?.fallbackRouteParams) {
+        const fallbackParams = createOpaqueFallbackRouteParams(
+          prerenderInfo.fallbackRouteParams
+        )
+        if (fallbackParams) {
+          addRequestMeta(req, 'fallbackParams', fallbackParams)
+        }
+      }
+
       // Perform the render again, but this time, provide the postponed state.
       // We don't await because we want the result to start streaming now, and
       // we've already chained the transformer's readable to the render result.
       doRender({
         span,
         postponed: cachedData.postponed,
-        // This is a resume render, not a fallback render, so we don't need to
-        // set this.
+        // This is a resume render, not a fallback render. Fallback params
+        // (for cacheComponents routes) are plumbed via request meta above.
         fallbackRouteParams: null,
         forceStaticRender: false,
       })
