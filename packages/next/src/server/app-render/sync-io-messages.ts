@@ -20,7 +20,7 @@ const SYNC_IO_RUNTIME_DOCS: Record<SyncIOApiType, string> = {
 
 function elapsedTimeBullet(type: SyncIOApiType): string {
   return type === 'time'
-    ? `  - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`\n`
+    ? `  - If the value is for telemetry, use a timing API such as \`performance.now()\`\n`
     : ''
 }
 
@@ -31,7 +31,7 @@ function createSyncIOErrorImpl(
   docsUrl: string
 ): Error {
   return new Error(
-    `Route "${route}": Next.js encountered ${expression} without an explicit rendering intent.\n\n` +
+    `Route "${route}": Next.js encountered the unstable value ${expression} while prerendering.\n\n` +
       `This value can change between renders, so it must be either prerendered or computed later.\n\n` +
       `Ways to fix this:\n` +
       `  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call\n` +
@@ -70,11 +70,12 @@ export function createSyncIOClientError(
   type: SyncIOApiType
 ): Error {
   return new Error(
-    `Route "${route}": Next.js encountered ${expression} in a Client Component.\n\n` +
-      `This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.\n\n` +
+    `Route "${route}": Next.js encountered the unstable value ${expression} in a Client Component.\n\n` +
+      `This value would be evaluated during the prerender, instead of recomputed on each visit.\n\n` +
       `Ways to fix this:\n` +
       `  - Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
       `  - Move the read into a \`useEffect\` or event handler\n` +
+      elapsedTimeBullet(type) +
       `\n` +
       `Learn more: ${SYNC_IO_CLIENT_DOCS[type]}`
   )
