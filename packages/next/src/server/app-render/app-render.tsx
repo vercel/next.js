@@ -7340,7 +7340,8 @@ async function prerenderToStream(
   let prerenderStore: PrerenderStore | null = null
 
   const prerenderWithCacheComponents = async (
-    getPayload: () => Promise<InitialRSCPayload>
+    getPayload: () => Promise<InitialRSCPayload>,
+    validateStaticShell = true
   ): Promise<PrerenderToStreamResult> => {
     /**
      * cacheComponents with PPR
@@ -7917,13 +7918,15 @@ async function prerenderToStream(
     const { prelude, preludeIsEmpty } =
       await processPreludeOp(unprocessedPrelude)
 
-    throwIfDisallowedDynamic(
-      workStore,
-      preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
-      dynamicValidation,
-      serverDynamicTracking,
-      allowEmptyStaticShell
-    )
+    if (validateStaticShell) {
+      throwIfDisallowedDynamic(
+        workStore,
+        preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
+        dynamicValidation,
+        serverDynamicTracking,
+        allowEmptyStaticShell
+      )
+    }
 
     const getServerInsertedHTML = makeGetServerInsertedHTML({
       polyfills,
@@ -8547,26 +8550,28 @@ async function prerenderToStream(
 
     if (cacheComponents) {
       // Route the recovery render through the Cache Components prerender helper
-      // to prerender with CC semantics. This ensures for example that dynamic
-      // API access in the HTTP fallback boundary (e.g. `useSearchParams()` in
-      // `not-found.tsx`) is observed by the helper's dynamic validation and
-      // surfaces as a blocking-route error rather than the legacy
-      // `BailoutToCSRError`. For recoveries that render the synthetic error
-      // shell from `getErrorRSCPayload` (generic `Error`, `RedirectError`,
-      // `HTTPAccessFallbackError` with no matching boundary, or fall-through
-      // from the segment-scoped recovery below), the helper still runs but no
-      // user code participates in the SSR — `global-error.tsx` is plumbed into
-      // the payload but its `RootErrorBoundary` is never triggered because the
-      // synthetic shell can't throw. We still route synthetic-shell recoveries
-      // through the helper so legacy prerendering is never used when Cache
-      // Components is on.
+      // to prerender with CC semantics. Segment-scoped HTTP fallback recovery
+      // intentionally skips static shell validation so fallback UIs that were
+      // previously tolerated do not start failing builds. For recoveries that
+      // render the synthetic error shell from `getErrorRSCPayload` (generic
+      // `Error`, `RedirectError`, `HTTPAccessFallbackError` with no matching
+      // boundary, or fall-through from the segment-scoped recovery below), the
+      // helper still runs but no user code participates in the SSR —
+      // `global-error.tsx` is plumbed into the payload but its
+      // `RootErrorBoundary` is never triggered because the synthetic shell can't
+      // throw. We still route synthetic-shell recoveries through the helper so
+      // legacy prerendering is never used when Cache Components is on.
       if (prerenderHTTPError) {
         try {
-          return await prerenderWithCacheComponents(() =>
-            getRSCPayload(tree, ctx, {
-              is404: prerenderHTTPError.triggeredStatus === 404,
-              prerenderHTTPError,
-            })
+          return await prerenderWithCacheComponents(
+            () =>
+              getRSCPayload(tree, ctx, {
+                is404: prerenderHTTPError.triggeredStatus === 404,
+                prerenderHTTPError,
+              }),
+            // validateStaticShell: false. This recovery render should not turn
+            // fallback UI shell validation into a build failure.
+            false
           )
         } catch (recoveryErr) {
           // If the segment-scoped HTTP fallback recovery throws another
@@ -8574,10 +8579,16 @@ async function prerenderToStream(
           // `notFound()` because the boundary was actually above where the
           // original notFound() was called), fall through to the generic
           // synthetic-shell recovery below.
+          if (isDynamicServerError(recoveryErr)) {
+            throw new InvariantError(
+              'Cache Components HTTP fallback recovery unexpectedly produced a DynamicServerError',
+              { cause: recoveryErr }
+            )
+          }
+
           if (
             !isHTTPAccessFallbackError(recoveryErr) &&
             !isStaticGenBailoutError(recoveryErr) &&
-            !isDynamicServerError(recoveryErr) &&
             !isBailoutToCSRError(recoveryErr)
           ) {
             throw recoveryErr

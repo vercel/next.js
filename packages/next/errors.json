@@ -1278,5 +1278,6 @@
   "1277": "no route matched for path \"%s\"",
   "1278": "compileRoute: either routeSpecifier or path is required",
   "1279": "\\`experimental.appShells\\` requires the following to also be enabled: %s. Please update your %s accordingly.",
-  "1280": "Invariant: expected static metadata route to have a prerender pathname (%s)"
+  "1280": "Invariant: expected static metadata route to have a prerender pathname (%s)",
+  "1281": "Cache Components HTTP fallback recovery unexpectedly produced a DynamicServerError"
 }
