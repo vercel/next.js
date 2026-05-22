@@ -91,6 +91,28 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
         expect.any(String)
       )
       expect(meta.status).toBe(status)
+      expect(meta.postponed).toBeUndefined()
+      expect(meta.segmentPaths).toContain('/_tree')
+      expect(
+        await next.readFile(
+          `.next/server/app/${route}.segments/_tree.segment.rsc`
+        )
+      ).toEqual(expect.any(String))
+    }
+
+    const expectPartiallyStaticErrorArtifacts = async (
+      route: string,
+      status = 404
+    ) => {
+      const meta = JSON.parse(
+        await next.readFile(`.next/server/app/${route}.meta`)
+      )
+
+      expect(await next.readFile(`.next/server/app/${route}.html`)).toEqual(
+        expect.any(String)
+      )
+      expect(meta.status).toBe(status)
+      expect(meta.postponed).toEqual(expect.any(String))
       expect(meta.segmentPaths).toContain('/_tree')
       expect(
         await next.readFile(
@@ -140,6 +162,44 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
 
           expect(output).toMatchInlineSnapshot(`""`)
           await expectStaticRouteArtifacts('not-found-use-params/not-found')
+        })
+      }
+    })
+
+    describe('notFound() with static RSC data', () => {
+      const pagePath = '/not-found-static-flight/[slug]'
+
+      if (!isNextDev) {
+        it('should preserve the original static Flight data during recovery', async () => {
+          await prerender(pagePath)
+
+          const output = getPrerenderOutput(
+            next.cliOutput.slice(cliOutputLength),
+            { isMinified: !isDebugPrerender }
+          )
+
+          expect(output).toMatchInlineSnapshot(`""`)
+          await expectStaticRouteArtifacts('not-found-static-flight/not-found')
+        })
+      }
+    })
+
+    describe('notFound() with dynamic RSC data', () => {
+      const pagePath = '/not-found-dynamic-flight/[slug]'
+
+      if (!isNextDev) {
+        it('should preserve the original dynamic Flight data during recovery', async () => {
+          await prerender(pagePath)
+
+          const output = getPrerenderOutput(
+            next.cliOutput.slice(cliOutputLength),
+            { isMinified: !isDebugPrerender }
+          )
+
+          expect(output).toMatchInlineSnapshot(`""`)
+          await expectPartiallyStaticErrorArtifacts(
+            'not-found-dynamic-flight/not-found'
+          )
         })
       }
     })
