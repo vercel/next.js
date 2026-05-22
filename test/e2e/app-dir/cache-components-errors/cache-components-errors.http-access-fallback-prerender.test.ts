@@ -127,7 +127,17 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Bail out to client-side rendering: useSearchParams()
+               "Error: Route "/not-found/[slug]": Next.js encountered uncached or runtime data during prerendering.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at NotFound (app/not-found/[slug]/not-found.tsx:6:39)
                  4 |
                  5 | export default function NotFound() {
@@ -135,10 +145,8 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
                    |                                       ^
                  7 |
                  8 |   return <p>not found {searchParams.get('foo')}</p>
-                 9 | } {
-                 reason: 'useSearchParams()',
-                 digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
+                 9 | }
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/not-found/[slug]" in your browser to investigate the error.
                Error occurred prerendering page "/not-found/not-found". Read more: https://nextjs.org/docs/messages/prerender-error
 
                > Export encountered errors on 1 path:
@@ -146,18 +154,30 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Bail out to client-side rendering: useSearchParams()
+               "Error: Route "/not-found/[slug]": Next.js encountered uncached or runtime data during prerendering.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at <unknown> (app/not-found/[slug]/not-found.tsx:6:24)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
                  4 |
                  5 | export default function NotFound() {
                > 6 |   const searchParams = useSearchParams()
                    |                        ^
                  7 |
                  8 |   return <p>not found {searchParams.get('foo')}</p>
-                 9 | } {
-                 reason: 'useSearchParams()',
-                 digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
+                 9 | }
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/not-found/[slug]" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/not-found/not-found". Read more: https://nextjs.org/docs/messages/prerender-error
                Export encountered an error on /not-found/[slug]/page: /not-found/not-found, exiting the build."
               `)
@@ -165,20 +185,26 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Bail out to client-side rendering: useSearchParams()
-                   at useDynamicSearchParams (webpack:///<next-src>)
-                   at useSearchParams (webpack:///<next-src>)
+               "Error: Route "/not-found/[slug]": Next.js encountered uncached or runtime data during prerendering.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at NotFound (webpack:///app/not-found/[slug]/not-found.tsx:6:39)
-                 707 |         return
-                 708 |       }
-               > 709 |       throw new BailoutToCSRError(expression)
-                     |             ^
-                 710 |     }
-                 711 |     case 'prerender':
-                 712 |     case 'prerender-runtime': {
-                 reason: 'useSearchParams()',
-                 digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
+                 4 |
+                 5 | export default function NotFound() {
+               > 6 |   const searchParams = useSearchParams()
+                   |                                       ^
+                 7 |
+                 8 |   return <p>not found {searchParams.get('foo')}</p>
+                 9 | }
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/not-found/[slug]" in your browser to investigate the error.
                Error occurred prerendering page "/not-found/not-found". Read more: https://nextjs.org/docs/messages/prerender-error
 
                > Export encountered errors on 1 path:
@@ -186,13 +212,55 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Bail out to client-side rendering: useSearchParams()
+               "Error: Route "/not-found/[slug]": Next.js encountered uncached or runtime data during prerendering.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
-                   at c (<next-dist-dir>) {
-                 reason: 'useSearchParams()',
-                 digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
+                   at c (<next-dist-dir>)
+                   at d (<next-dist-dir>)
+                   at e (<next-dist-dir>)
+                   at f (<next-dist-dir>)
+                   at g (<next-dist-dir>)
+                   at h (<next-dist-dir>)
+                   at i (<next-dist-dir>)
+                   at j (<next-dist-dir>)
+                   at k (<next-dist-dir>)
+                   at l (<next-dist-dir>)
+                   at m (<next-dist-dir>)
+                   at n (<next-dist-dir>)
+                   at o (<next-dist-dir>)
+                   at p (<next-dist-dir>)
+                   at q (<next-dist-dir>)
+                   at r (<next-dist-dir>)
+                   at s (<next-dist-dir>)
+                   at t (<next-dist-dir>)
+                   at u (<next-dist-dir>)
+                   at v (<next-dist-dir>)
+                   at w (<next-dist-dir>)
+                   at x (<next-dist-dir>)
+                   at y (<next-dist-dir>)
+                   at z (<next-dist-dir>)
+                   at a (<next-dist-dir>)
+                   at b (<next-dist-dir>)
+                   at c (<next-dist-dir>)
+                   at d (<next-dist-dir>)
+                   at e (<next-dist-dir>)
+                   at f (<next-dist-dir>)
+                   at g (<next-dist-dir>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/not-found/[slug]" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/not-found/not-found". Read more: https://nextjs.org/docs/messages/prerender-error
                Export encountered an error on /not-found/[slug]/page: /not-found/not-found, exiting the build."
               `)
@@ -230,7 +298,17 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Bail out to client-side rendering: useSearchParams()
+               "Error: Route "/forbidden/[slug]": Next.js encountered uncached or runtime data during prerendering.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Forbidden (app/forbidden/[slug]/forbidden.tsx:6:39)
                  4 |
                  5 | export default function Forbidden() {
@@ -238,10 +316,8 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
                    |                                       ^
                  7 |
                  8 |   return <p>forbidden {searchParams.get('foo')}</p>
-                 9 | } {
-                 reason: 'useSearchParams()',
-                 digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
+                 9 | }
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/forbidden/[slug]" in your browser to investigate the error.
                Error occurred prerendering page "/forbidden/forbidden". Read more: https://nextjs.org/docs/messages/prerender-error
 
                > Export encountered errors on 1 path:
@@ -249,18 +325,30 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Bail out to client-side rendering: useSearchParams()
+               "Error: Route "/forbidden/[slug]": Next.js encountered uncached or runtime data during prerendering.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at <unknown> (app/forbidden/[slug]/forbidden.tsx:6:24)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
                  4 |
                  5 | export default function Forbidden() {
                > 6 |   const searchParams = useSearchParams()
                    |                        ^
                  7 |
                  8 |   return <p>forbidden {searchParams.get('foo')}</p>
-                 9 | } {
-                 reason: 'useSearchParams()',
-                 digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
+                 9 | }
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/forbidden/[slug]" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/forbidden/forbidden". Read more: https://nextjs.org/docs/messages/prerender-error
                Export encountered an error on /forbidden/[slug]/page: /forbidden/forbidden, exiting the build."
               `)
@@ -268,20 +356,26 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Bail out to client-side rendering: useSearchParams()
-                   at useDynamicSearchParams (webpack:///<next-src>)
-                   at useSearchParams (webpack:///<next-src>)
+               "Error: Route "/forbidden/[slug]": Next.js encountered uncached or runtime data during prerendering.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Forbidden (webpack:///app/forbidden/[slug]/forbidden.tsx:6:39)
-                 707 |         return
-                 708 |       }
-               > 709 |       throw new BailoutToCSRError(expression)
-                     |             ^
-                 710 |     }
-                 711 |     case 'prerender':
-                 712 |     case 'prerender-runtime': {
-                 reason: 'useSearchParams()',
-                 digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
+                 4 |
+                 5 | export default function Forbidden() {
+               > 6 |   const searchParams = useSearchParams()
+                   |                                       ^
+                 7 |
+                 8 |   return <p>forbidden {searchParams.get('foo')}</p>
+                 9 | }
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/forbidden/[slug]" in your browser to investigate the error.
                Error occurred prerendering page "/forbidden/forbidden". Read more: https://nextjs.org/docs/messages/prerender-error
 
                > Export encountered errors on 1 path:
@@ -289,13 +383,55 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Bail out to client-side rendering: useSearchParams()
+               "Error: Route "/forbidden/[slug]": Next.js encountered uncached or runtime data during prerendering.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
-                   at c (<next-dist-dir>) {
-                 reason: 'useSearchParams()',
-                 digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
+                   at c (<next-dist-dir>)
+                   at d (<next-dist-dir>)
+                   at e (<next-dist-dir>)
+                   at f (<next-dist-dir>)
+                   at g (<next-dist-dir>)
+                   at h (<next-dist-dir>)
+                   at i (<next-dist-dir>)
+                   at j (<next-dist-dir>)
+                   at k (<next-dist-dir>)
+                   at l (<next-dist-dir>)
+                   at m (<next-dist-dir>)
+                   at n (<next-dist-dir>)
+                   at o (<next-dist-dir>)
+                   at p (<next-dist-dir>)
+                   at q (<next-dist-dir>)
+                   at r (<next-dist-dir>)
+                   at s (<next-dist-dir>)
+                   at t (<next-dist-dir>)
+                   at u (<next-dist-dir>)
+                   at v (<next-dist-dir>)
+                   at w (<next-dist-dir>)
+                   at x (<next-dist-dir>)
+                   at y (<next-dist-dir>)
+                   at z (<next-dist-dir>)
+                   at a (<next-dist-dir>)
+                   at b (<next-dist-dir>)
+                   at c (<next-dist-dir>)
+                   at d (<next-dist-dir>)
+                   at e (<next-dist-dir>)
+                   at f (<next-dist-dir>)
+                   at g (<next-dist-dir>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/forbidden/[slug]" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/forbidden/forbidden". Read more: https://nextjs.org/docs/messages/prerender-error
                Export encountered an error on /forbidden/[slug]/page: /forbidden/forbidden, exiting the build."
               `)
@@ -333,7 +469,17 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Bail out to client-side rendering: useSearchParams()
+               "Error: Route "/unauthorized/[slug]": Next.js encountered uncached or runtime data during prerendering.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Unauthorized (app/unauthorized/[slug]/unauthorized.tsx:6:39)
                  4 |
                  5 | export default function Unauthorized() {
@@ -341,10 +487,8 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
                    |                                       ^
                  7 |
                  8 |   return <p>unauthorized {searchParams.get('foo')}</p>
-                 9 | } {
-                 reason: 'useSearchParams()',
-                 digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
+                 9 | }
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/unauthorized/[slug]" in your browser to investigate the error.
                Error occurred prerendering page "/unauthorized/unauthorized". Read more: https://nextjs.org/docs/messages/prerender-error
 
                > Export encountered errors on 1 path:
@@ -352,18 +496,30 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Bail out to client-side rendering: useSearchParams()
+               "Error: Route "/unauthorized/[slug]": Next.js encountered uncached or runtime data during prerendering.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at <unknown> (app/unauthorized/[slug]/unauthorized.tsx:6:24)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
                  4 |
                  5 | export default function Unauthorized() {
                > 6 |   const searchParams = useSearchParams()
                    |                        ^
                  7 |
                  8 |   return <p>unauthorized {searchParams.get('foo')}</p>
-                 9 | } {
-                 reason: 'useSearchParams()',
-                 digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
+                 9 | }
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/unauthorized/[slug]" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/unauthorized/unauthorized". Read more: https://nextjs.org/docs/messages/prerender-error
                Export encountered an error on /unauthorized/[slug]/page: /unauthorized/unauthorized, exiting the build."
               `)
@@ -371,20 +527,26 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Bail out to client-side rendering: useSearchParams()
-                   at useDynamicSearchParams (webpack:///<next-src>)
-                   at useSearchParams (webpack:///<next-src>)
+               "Error: Route "/unauthorized/[slug]": Next.js encountered uncached or runtime data during prerendering.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Unauthorized (webpack:///app/unauthorized/[slug]/unauthorized.tsx:6:39)
-                 707 |         return
-                 708 |       }
-               > 709 |       throw new BailoutToCSRError(expression)
-                     |             ^
-                 710 |     }
-                 711 |     case 'prerender':
-                 712 |     case 'prerender-runtime': {
-                 reason: 'useSearchParams()',
-                 digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
+                 4 |
+                 5 | export default function Unauthorized() {
+               > 6 |   const searchParams = useSearchParams()
+                   |                                       ^
+                 7 |
+                 8 |   return <p>unauthorized {searchParams.get('foo')}</p>
+                 9 | }
+               To debug the issue, start the app in development mode by running \`next dev\`, then open "/unauthorized/[slug]" in your browser to investigate the error.
                Error occurred prerendering page "/unauthorized/unauthorized". Read more: https://nextjs.org/docs/messages/prerender-error
 
                > Export encountered errors on 1 path:
@@ -392,13 +554,55 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Bail out to client-side rendering: useSearchParams()
+               "Error: Route "/unauthorized/[slug]": Next.js encountered uncached or runtime data during prerendering.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
-                   at c (<next-dist-dir>) {
-                 reason: 'useSearchParams()',
-                 digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
-               }
+                   at c (<next-dist-dir>)
+                   at d (<next-dist-dir>)
+                   at e (<next-dist-dir>)
+                   at f (<next-dist-dir>)
+                   at g (<next-dist-dir>)
+                   at h (<next-dist-dir>)
+                   at i (<next-dist-dir>)
+                   at j (<next-dist-dir>)
+                   at k (<next-dist-dir>)
+                   at l (<next-dist-dir>)
+                   at m (<next-dist-dir>)
+                   at n (<next-dist-dir>)
+                   at o (<next-dist-dir>)
+                   at p (<next-dist-dir>)
+                   at q (<next-dist-dir>)
+                   at r (<next-dist-dir>)
+                   at s (<next-dist-dir>)
+                   at t (<next-dist-dir>)
+                   at u (<next-dist-dir>)
+                   at v (<next-dist-dir>)
+                   at w (<next-dist-dir>)
+                   at x (<next-dist-dir>)
+                   at y (<next-dist-dir>)
+                   at z (<next-dist-dir>)
+                   at a (<next-dist-dir>)
+                   at b (<next-dist-dir>)
+                   at c (<next-dist-dir>)
+                   at d (<next-dist-dir>)
+                   at e (<next-dist-dir>)
+                   at f (<next-dist-dir>)
+                   at g (<next-dist-dir>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/unauthorized/[slug]" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error occurred prerendering page "/unauthorized/unauthorized". Read more: https://nextjs.org/docs/messages/prerender-error
                Export encountered an error on /unauthorized/[slug]/page: /unauthorized/unauthorized, exiting the build."
               `)
