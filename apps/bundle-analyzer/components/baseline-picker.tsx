@@ -230,7 +230,7 @@ function SnapshotRow({ snapshot }: { snapshot: SnapshotMetadata }) {
         ) : null}
       </div>
       {snapshot.gitMessage ? (
-        <div className="text-xs text-foreground/70 truncate italic">
+        <div className="text-xs text-foreground/70 truncate">
           {snapshot.gitMessage}
         </div>
       ) : null}
