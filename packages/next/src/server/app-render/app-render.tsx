@@ -8497,6 +8497,7 @@ async function prerenderToStream(
     if (reactServerPrerenderResult === null) {
       throw err
     }
+    const fallbackReactServerPrerenderResult = reactServerPrerenderResult
 
     let errorType: MetadataErrorType | 'redirect' | undefined
 
@@ -8527,25 +8528,19 @@ async function prerenderToStream(
       '/_not-found/page'
     )
 
-    const prerenderLegacyStore: PrerenderStore = (prerenderStore = {
-      type: 'prerender-legacy',
-      phase: 'render',
-      rootParams,
-      implicitTags: implicitTags,
-      revalidate:
-        typeof prerenderStore?.revalidate !== 'undefined'
-          ? prerenderStore.revalidate
-          : INFINITE_CACHE,
-      expire:
-        typeof prerenderStore?.expire !== 'undefined'
-          ? prerenderStore.expire
-          : INFINITE_CACHE,
-      stale:
-        typeof prerenderStore?.stale !== 'undefined'
-          ? prerenderStore.stale
-          : INFINITE_CACHE,
-      tags: [...(prerenderStore?.tags || implicitTags.tags)],
-    })
+    const recoveryRevalidate =
+      typeof prerenderStore?.revalidate !== 'undefined'
+        ? prerenderStore.revalidate
+        : INFINITE_CACHE
+    const recoveryExpire =
+      typeof prerenderStore?.expire !== 'undefined'
+        ? prerenderStore.expire
+        : INFINITE_CACHE
+    const recoveryStale =
+      typeof prerenderStore?.stale !== 'undefined'
+        ? prerenderStore.stale
+        : INFINITE_CACHE
+    const recoveryTags = prerenderStore?.tags || implicitTags.tags
     let prerenderHTTPError: PrerenderHTTPErrorState | undefined
     if (cacheComponents && isHTTPAccessFallbackError(err)) {
       const triggeredStatus = getAccessFallbackHTTPStatus(
@@ -8565,52 +8560,11 @@ async function prerenderToStream(
       }
     }
 
-    const errorRSCPayload = prerenderHTTPError
-      ? await workUnitAsyncStorage.run(
-          prerenderLegacyStore,
-          getRSCPayload,
-          tree,
-          ctx,
-          {
-            is404: errorType === 'not-found',
-            prerenderHTTPError,
-          }
-        )
-      : await workUnitAsyncStorage.run(
-          prerenderLegacyStore,
-          getErrorRSCPayload,
-          tree,
-          ctx,
-          reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
-          errorType
-        )
-
-    const errorServerStreamRaw = workUnitAsyncStorage.run(
-      prerenderLegacyStore,
-      renderFlightStream,
-      ComponentMod,
-      errorRSCPayload,
-      clientModules,
-      {
-        filterStackFrame,
-        onError: serverComponentsErrorHandler,
-      }
-    )
-
-    let errorServerStream = errorServerStreamRaw
-    const errorFlightResultPromise = prerenderHTTPError
-      ? (() => {
-          // Fizz still needs to read the Flight stream to render ErrorApp, but
-          // the prerender path also needs a buffered Flight result for the HTML
-          // prelude and segment data collectors. Tee the stream so each consumer
-          // gets its own copy.
-          const [appStream, flightStream] = teeStream(errorServerStreamRaw)
-          errorServerStream = appStream
-          return createReactServerPrerenderResultFromRender(flightStream)
-        })()
-      : null
-
-    try {
+    const renderLegacyErrorResult = async (
+      prerenderLegacyStore: PrerenderStore,
+      errorServerStream: AnyStream,
+      flightResult: ReactServerPrerenderResult
+    ) => {
       const { stream: errorHtmlStream } = await workUnitAsyncStorage.run(
         prerenderLegacyStore,
         renderFizzStream,
@@ -8630,15 +8584,8 @@ async function prerenderToStream(
         { waitForAllReady: true }
       )
 
-      const resolvedFlightResult = errorFlightResultPromise
-        ? await errorFlightResultPromise
-        : reactServerPrerenderResult
-      if (errorFlightResultPromise) {
-        reactServerPrerenderResult.consume()
-      }
-
       if (shouldGenerateStaticFlightData(workStore)) {
-        const flightData = await streamToBuffer(resolvedFlightResult.asStream())
+        const flightData = await streamToBuffer(flightResult.asStream())
         metadata.flightData = flightData
         await collectSegmentData(
           flightData,
@@ -8650,7 +8597,7 @@ async function prerenderToStream(
         )
       }
 
-      const flightStream = resolvedFlightResult.consumeAsStream()
+      const flightStream = flightResult.consumeAsStream()
 
       return {
         digestErrorsMap: reactServerErrorsByDigest,
@@ -8674,15 +8621,112 @@ async function prerenderToStream(
           deploymentId: ctx.sharedContext.deploymentId,
         }),
         dynamicAccess: null,
-        collectedRevalidate:
-          prerenderStore !== null ? prerenderStore.revalidate : INFINITE_CACHE,
-        collectedExpire:
-          prerenderStore !== null ? prerenderStore.expire : INFINITE_CACHE,
-        collectedStale: selectStaleTime(
-          prerenderStore !== null ? prerenderStore.stale : INFINITE_CACHE
-        ),
-        collectedTags: prerenderStore !== null ? prerenderStore.tags : null,
+        collectedRevalidate: prerenderLegacyStore.revalidate,
+        collectedExpire: prerenderLegacyStore.expire,
+        collectedStale: selectStaleTime(prerenderLegacyStore.stale),
+        collectedTags: prerenderLegacyStore.tags,
       }
+    }
+
+    if (prerenderHTTPError) {
+      try {
+        const prerenderLegacyStore: PrerenderStore = {
+          type: 'prerender-legacy',
+          phase: 'render',
+          rootParams,
+          implicitTags,
+          revalidate: recoveryRevalidate,
+          expire: recoveryExpire,
+          stale: recoveryStale,
+          tags: [...recoveryTags],
+        }
+        const errorRSCPayload = await workUnitAsyncStorage.run(
+          prerenderLegacyStore,
+          getRSCPayload,
+          tree,
+          ctx,
+          {
+            is404: prerenderHTTPError.triggeredStatus === 404,
+            prerenderHTTPError,
+          }
+        )
+        const errorServerStreamRaw = workUnitAsyncStorage.run(
+          prerenderLegacyStore,
+          renderFlightStream,
+          ComponentMod,
+          errorRSCPayload,
+          clientModules,
+          {
+            filterStackFrame,
+            onError: serverComponentsErrorHandler,
+          }
+        )
+        // Fizz still needs to read the Flight stream to render ErrorApp, but
+        // the prerender path also needs a buffered Flight result for the HTML
+        // prelude and segment data collectors. Tee the stream so each consumer
+        // gets its own copy.
+        const [errorServerStream, flightStream] =
+          teeStream(errorServerStreamRaw)
+        const errorFlightResult =
+          await createReactServerPrerenderResultFromRender(flightStream)
+
+        const result = await renderLegacyErrorResult(
+          prerenderLegacyStore,
+          errorServerStream,
+          errorFlightResult
+        )
+        fallbackReactServerPrerenderResult.consume()
+        return result
+      } catch (recoveryErr: any) {
+        // If the segment-scoped HTTP fallback recovery throws, fall through to
+        // the generic error recovery path.
+        if (
+          !isHTTPAccessFallbackError(recoveryErr) &&
+          !isStaticGenBailoutError(recoveryErr) &&
+          !isDynamicServerError(recoveryErr) &&
+          !isBailoutToCSRError(recoveryErr)
+        ) {
+          throw recoveryErr
+        }
+      }
+    }
+
+    try {
+      const prerenderLegacyStore: PrerenderStore = {
+        type: 'prerender-legacy',
+        phase: 'render',
+        rootParams,
+        implicitTags,
+        revalidate: recoveryRevalidate,
+        expire: recoveryExpire,
+        stale: recoveryStale,
+        tags: [...recoveryTags],
+      }
+      const errorRSCPayload = await workUnitAsyncStorage.run(
+        prerenderLegacyStore,
+        getErrorRSCPayload,
+        tree,
+        ctx,
+        reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
+        errorType
+      )
+      const errorServerStream = workUnitAsyncStorage.run(
+        prerenderLegacyStore,
+        renderFlightStream,
+        ComponentMod,
+        errorRSCPayload,
+        clientModules,
+        {
+          filterStackFrame,
+          onError: serverComponentsErrorHandler,
+        }
+      )
+
+      return await renderLegacyErrorResult(
+        prerenderLegacyStore,
+        errorServerStream,
+        fallbackReactServerPrerenderResult
+      )
     } catch (finalErr: any) {
       if (
         process.env.__NEXT_DEV_SERVER &&
