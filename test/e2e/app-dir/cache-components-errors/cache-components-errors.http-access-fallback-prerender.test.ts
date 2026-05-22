@@ -126,6 +126,24 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
       }
     })
 
+    describe('notFound() with root client params during recovery', () => {
+      const pagePath = '/not-found-use-params/[slug]'
+
+      if (!isNextDev) {
+        it('should fall through from the resume-abort recovery and emit static artifacts', async () => {
+          await prerender(pagePath)
+
+          const output = getPrerenderOutput(
+            next.cliOutput.slice(cliOutputLength),
+            { isMinified: !isDebugPrerender }
+          )
+
+          expect(output).toMatchInlineSnapshot(`""`)
+          await expectStaticRouteArtifacts('not-found-use-params/not-found')
+        })
+      }
+    })
+
     describe('forbidden()', () => {
       const pagePath = '/forbidden/[slug]'
       const visitUrl = '/forbidden/forbidden'
