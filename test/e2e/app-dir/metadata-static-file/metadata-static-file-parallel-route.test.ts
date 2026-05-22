@@ -1,5 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getCommonMetadataHeadTags } from './utils'
+import {
+  getCommonMetadataHeadTags,
+  readFixtureBuffer,
+  readFixtureText,
+} from './utils'
 
 describe('metadata-files-static-output-parallel-route', () => {
   if (process.env.__NEXT_CACHE_COMPONENTS) {
@@ -26,7 +30,6 @@ describe('metadata-files-static-output-parallel-route', () => {
 
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   if (skipped) {
@@ -118,11 +121,11 @@ describe('metadata-files-static-output-parallel-route', () => {
       actualTwitterImage,
       actualSitemap,
     ] = await Promise.all([
-      next.readFileBuffer('app/parallel/@parallel/apple-icon.png'),
-      next.readFileBuffer('app/parallel/@parallel/icon.png'),
-      next.readFileBuffer('app/parallel/@parallel/opengraph-image.png'),
-      next.readFileBuffer('app/parallel/@parallel/twitter-image.png'),
-      next.readFile('app/parallel/@parallel/sitemap.xml'),
+      readFixtureBuffer('app/parallel/@parallel/apple-icon.png'),
+      readFixtureBuffer('app/parallel/@parallel/icon.png'),
+      readFixtureBuffer('app/parallel/@parallel/opengraph-image.png'),
+      readFixtureBuffer('app/parallel/@parallel/twitter-image.png'),
+      readFixtureText('app/parallel/@parallel/sitemap.xml'),
     ])
 
     expect({

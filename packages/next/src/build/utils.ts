@@ -81,13 +81,9 @@ import type {
 import type { FunctionsConfigManifest, ManifestRoute } from './index'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
-import { fillStaticMetadataSegment } from '../lib/metadata/get-metadata-route'
-import { STATIC_METADATA_IMAGES } from '../lib/metadata/is-metadata-route'
-
-// Build a set of static metadata image filenames for quick lookup
-const staticMetadataImageFilenames = new Set<string>(
-  Object.values(STATIC_METADATA_IMAGES).map((meta) => meta.filename)
-)
+import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata-route'
+import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
+import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 /**
  * Get the display path for build output. For static metadata files under
@@ -95,26 +91,42 @@ const staticMetadataImageFilenames = new Set<string>(
  * e.g., /dynamic/[id]/icon.png -> /dynamic/-/icon.png
  */
 function getTreeViewDisplayPath(pagePath: string): string {
-  // Check if the path contains dynamic segments
-  if (!isDynamicRoute(pagePath)) {
-    return pagePath
+  const prerenderPathname = getStaticMetadataPrerenderPathname(
+    pagePath.startsWith('/') ? pagePath : `/${pagePath}`
+  )
+  return prerenderPathname ?? pagePath
+}
+
+function buildStaticMetadataStaticPaths(page: string): {
+  fallbackMode: FallbackMode | undefined
+  prerenderedRoutes: PrerenderedRoute[]
+} {
+  let pathname = normalizeAppPath(page)
+  if (pathname.endsWith('/route')) {
+    pathname = pathname.slice(0, -'/route'.length)
   }
 
-  // Check if the filename is a static metadata image
-  const lastSlash = pagePath.lastIndexOf('/')
-  const filename = pagePath.slice(lastSlash + 1)
-  const dotIndex = filename.lastIndexOf('.')
-  const baseName = dotIndex > 0 ? filename.slice(0, dotIndex) : filename
-
-  // Check against known static metadata image filenames (e.g., icon, apple-icon, opengraph-image)
-  if (!staticMetadataImageFilenames.has(baseName)) {
-    return pagePath
+  const prerenderPathname = getStaticMetadataPrerenderPathname(pathname)
+  if (!prerenderPathname) {
+    throw new Error(
+      `Invariant: expected static metadata route to have a prerender pathname (${page})`
+    )
   }
 
-  // Transform using the static metadata resolver so dynamic segments use "-"
-  const segment = pagePath.slice(0, lastSlash)
-  const lastSegment = filename
-  return fillStaticMetadataSegment(segment, lastSegment)
+  return {
+    fallbackMode: undefined,
+    prerenderedRoutes: [
+      {
+        params: {},
+        pathname: prerenderPathname,
+        encodedPathname: prerenderPathname,
+        fallbackRouteParams: undefined,
+        fallbackMode: undefined,
+        fallbackRootParams: undefined,
+        throwOnEmptyStaticShell: undefined,
+      },
+    ],
+  }
 }
 
 export type ROUTER_TYPE = 'pages' | 'app'
@@ -871,29 +883,42 @@ export async function isPageStatic({
         // build the static paths. The edge runtime doesn't support static
         // paths.
         if (route.dynamicSegments.length > 0 && !pathIsEdgeRuntime) {
-          ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
-            await buildAppStaticPaths({
-              dir,
-              page,
-              route,
-              cacheComponents,
-              authInterrupts,
-              useCacheTimeout,
-              staticPageGenerationTimeout,
-              segments,
-              distDir,
-              requestHeaders: {},
-              isrFlushToDisk,
-              cacheMaxMemorySize,
-              cacheHandler,
-              cacheLifeProfiles,
-              ComponentMod,
-              nextConfigOutput,
-              isRoutePPREnabled,
-              buildId,
-              deploymentId,
-              rootParamKeys,
-            }))
+          let pathname = normalizeAppPath(page)
+          if (pathname.endsWith('/route')) {
+            pathname = pathname.slice(0, -'/route'.length)
+          }
+
+          if (
+            routeModule.definition.kind === RouteKind.APP_ROUTE &&
+            isStaticMetadataFile(pathname)
+          ) {
+            ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
+              buildStaticMetadataStaticPaths(page))
+          } else {
+            ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
+              await buildAppStaticPaths({
+                dir,
+                page,
+                route,
+                cacheComponents,
+                authInterrupts,
+                useCacheTimeout,
+                staticPageGenerationTimeout,
+                segments,
+                distDir,
+                requestHeaders: {},
+                isrFlushToDisk,
+                cacheMaxMemorySize,
+                cacheHandler,
+                cacheLifeProfiles,
+                ComponentMod,
+                nextConfigOutput,
+                isRoutePPREnabled,
+                buildId,
+                deploymentId,
+                rootParamKeys,
+              }))
+          }
         }
       } else {
         if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {

@@ -1,5 +1,9 @@
 import { nextTestSetup, isNextStart } from 'e2e-utils'
-import { getCommonMetadataHeadTags } from './utils'
+import {
+  getCommonMetadataHeadTags,
+  readFixtureBuffer,
+  readFixtureText,
+} from './utils'
 
 describe('metadata-files-static-output-dynamic-route', () => {
   if (process.env.__NEXT_CACHE_COMPONENTS) {
@@ -26,7 +30,6 @@ describe('metadata-files-static-output-dynamic-route', () => {
 
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   if (skipped) {
@@ -121,11 +124,11 @@ describe('metadata-files-static-output-dynamic-route', () => {
       actualTwitterImage,
       actualSitemap,
     ] = await Promise.all([
-      next.readFileBuffer('app/dynamic/[id]/apple-icon.png'),
-      next.readFileBuffer('app/dynamic/[id]/icon.png'),
-      next.readFileBuffer('app/dynamic/[id]/opengraph-image.png'),
-      next.readFileBuffer('app/dynamic/[id]/twitter-image.png'),
-      next.readFile('app/dynamic/[id]/sitemap.xml'),
+      readFixtureBuffer('app/dynamic/[id]/apple-icon.png'),
+      readFixtureBuffer('app/dynamic/[id]/icon.png'),
+      readFixtureBuffer('app/dynamic/[id]/opengraph-image.png'),
+      readFixtureBuffer('app/dynamic/[id]/twitter-image.png'),
+      readFixtureText('app/dynamic/[id]/sitemap.xml'),
     ])
 
     expect({

@@ -5,7 +5,9 @@ import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { PARAMETER_PATTERN } from '../../shared/lib/router/utils/get-dynamic-param'
 import { djb2Hash } from '../../shared/lib/hash'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { isDynamicRoute } from '../../shared/lib/router/utils'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
+import { isMetadataRouteFile } from './is-metadata-route'
 import {
   isGroupSegment,
   isParallelRouteSegment,
@@ -96,6 +98,32 @@ export function fillStaticMetadataSegment(
       getMetadataRouteFilename(segment, lastSegment)
     )
   )
+}
+
+/**
+ * Returns the pathname used when prerendering static metadata files. Dynamic
+ * segments are replaced with "-" placeholders so the file is exported once.
+ */
+export function getStaticMetadataPrerenderPathname(
+  pathname: string
+): string | null {
+  const normalized = pathname.startsWith('/') ? pathname : `/${pathname}`
+  if (!isMetadataRouteFile(normalized, [], true)) {
+    return null
+  }
+
+  if (!isDynamicRoute(normalized)) {
+    return normalized
+  }
+
+  const lastSlash = normalized.lastIndexOf('/')
+  if (lastSlash === -1) {
+    return normalized
+  }
+
+  const segment = normalized.slice(0, lastSlash) || '/'
+  const lastSegment = normalized.slice(lastSlash + 1)
+  return fillStaticMetadataSegment(segment, lastSegment)
 }
 
 /**

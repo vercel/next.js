@@ -552,4 +552,10 @@ export class NextDeployInstance extends NextInstance {
   ): Promise<void> {
     throw new Error('renameFile is not available in deploy test mode')
   }
+  public async readFileBuffer(filename: string): Promise<Buffer> {
+    throw new Error('readFileBuffer is not available in deploy test mode')
+  }
+  public async writeFileBuffer(filename: string, data: Buffer): Promise<void> {
+    throw new Error('writeFileBuffer is not available in deploy test mode')
+  }
 }
