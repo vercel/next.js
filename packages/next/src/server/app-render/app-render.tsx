@@ -189,8 +189,8 @@ import {
   type OpaqueFallbackRouteParams,
 } from '../request/fallback-params'
 import {
+  ReactServerPrerenderResult,
   createReactServerPrerenderResult,
-  type ReactServerPrerenderResult,
   ReactServerResult,
   ReplayableNodeStream,
   createReactServerPrerenderResultFromRender,
@@ -219,7 +219,6 @@ import {
   StaleTimeIterable,
   createSelectStaleTime,
   trackStaleTime,
-  finishStaleTimeTracking,
 } from './stale-time'
 
 import { HTML_CONTENT_TYPE_HEADER, INFINITE_CACHE } from '../../lib/constants'
@@ -1029,11 +1028,11 @@ async function generateStagedDynamicFlightRenderResultWeb(
     },
     () => {
       // This is a separate task that doesn't advance a stage. It forces
-      // draining the microtask queue so that the stale time iterable and vary
-      // params accumulators are closed before we advance to the dynamic stage.
-      void finishStaleTimeTracking(staleTimeIterable)
+      // draining the immediate queue so that the stale time iterable and vary
+      // params accumulators are flushed before we advance to the dynamic stage.
+      staleTimeIterable.close()
       if (requestStore.varyParamsAccumulator) {
-        void finishAccumulatingVaryParams(requestStore.varyParamsAccumulator)
+        finishAccumulatingVaryParams(requestStore.varyParamsAccumulator)
       }
     },
     () => {
@@ -1191,11 +1190,11 @@ async function generateStagedDynamicFlightRenderResultNode(
     },
     () => {
       // This is a separate task that doesn't advance a stage. It forces
-      // draining the microtask queue so that the stale time iterable and vary
-      // params accumulators are closed before we advance to the dynamic stage.
-      void finishStaleTimeTracking(staleTimeIterable)
+      // draining the immediate queue so that the stale time iterable and vary
+      // params accumulators are flushed before we advance to the dynamic stage.
+      staleTimeIterable.close()
       if (requestStore.varyParamsAccumulator) {
-        void finishAccumulatingVaryParams(requestStore.varyParamsAccumulator)
+        finishAccumulatingVaryParams(requestStore.varyParamsAccumulator)
       }
     },
     () => {
@@ -1934,16 +1933,18 @@ async function finalRuntimeServerPrerender(
     getPayload
   )
 
-  let prerenderIsPending = true
-  const result = await runInSequentialTasks(
+  const streamState = createStreamPendingState()
+  const collectedChunks = createPrerenderChunksAccumulator()
+
+  await runInSequentialTasks(
     async () => {
       // EarlyStatic stage: render begins.
       // Runtime-prefetchable segments render immediately.
       // Non-prefetchable segments are gated until the Static stage.
       finalStageController.advanceStage(RenderStage.EarlyStatic)
-      const prerenderResult = await workUnitAsyncStorage.run(
+      const stream = workUnitAsyncStorage.run(
         finalServerPrerenderStore,
-        getServerPrerender(ComponentMod),
+        ComponentMod.renderToReadableStream,
         finalRSCPayload,
         clientModules,
         {
@@ -1952,8 +1953,15 @@ async function finalRuntimeServerPrerender(
           signal: finalServerController.signal,
         }
       )
-      prerenderIsPending = false
-      return prerenderResult
+
+      // Note: this await will only resolve after the last task (unless sync IO aborts the render earlier)
+      // We await it here so that if the stream errors, it's not an unhandled rejection.
+      await collectPrerenderChunksWeb(
+        stream,
+        collectedChunks,
+        streamState,
+        finalServerController.signal
+      )
     },
     () => {
       // Advance to Static stage: resolve promise holding back
@@ -1970,32 +1978,34 @@ async function finalRuntimeServerPrerender(
       // non-prefetchable segments. Sync IO is allowed here.
       finalStageController.advanceStage(RenderStage.Runtime)
     },
-    () => {
-      Promise.all([
-        finishStaleTimeTracking(staleTimeIterable),
-        finishAccumulatingVaryParams(varyParamsAccumulator),
-      ]).then(() => {
-        // Abort. This runs as a microtask after Flight has flushed the
-        // staleTime and varyParams closing chunks, but before the next
-        // macrotask resolves the overall result.
-        if (finalServerController.signal.aborted) {
-          // If the server controller is already aborted we must have called
-          // something that required aborting the prerender synchronously such
-          // as with new Date()
-          serverIsDynamic = true
-          return
-        }
+    async () => {
+      if (finalServerController.signal.aborted) {
+        // If the server controller is already aborted we must have called
+        // something that required aborting the prerender synchronously such
+        // as with new Date()
+        serverIsDynamic = true
+        return
+      }
 
-        if (prerenderIsPending) {
-          // If prerenderIsPending then we have blocked for longer than a Task
-          // and we assume there is something unfinished.
-          serverIsDynamic = true
-        }
-        finalServerController.abort()
-      })
+      staleTimeIterable.close()
+      finishAccumulatingVaryParams(varyParamsAccumulator)
+      // We're using a render, not a prerender, so React schedules rendering work in fast immediates,
+      // and we need to wait a fast immediate for the stale time/vary params chunks to flush.
+      await waitAtLeastOneReactRenderTask()
+
+      if (streamState.isPending) {
+        // If the prerender is still pending then it must depend on dynamic data.
+        serverIsDynamic = true
+      }
+      finalServerController.abort()
     }
   )
 
+  const result = {
+    prelude: new ReactServerPrerenderResult(
+      collectedChunks.prerenderChunks
+    ).consumeAsStream(),
+  }
   result.prelude = prependIsPartialByte(result.prelude, serverIsDynamic)
 
   return {
@@ -3790,14 +3800,11 @@ async function renderToStream(
             },
             () => {
               // This is a separate task that doesn't advance a stage. It forces
-              // draining the microtask queue so that the stale time iterable and
-              // vary params accumulators are closed before we advance to the
-              // dynamic stage.
-              void finishStaleTimeTracking(staleTimeIterable)
+              // draining the immediate queue so that the stale time iterable and vary
+              // params accumulators are flushed before we advance to the dynamic stage.
+              staleTimeIterable.close()
               if (requestStore.varyParamsAccumulator) {
-                void finishAccumulatingVaryParams(
-                  requestStore.varyParamsAccumulator
-                )
+                finishAccumulatingVaryParams(requestStore.varyParamsAccumulator)
               }
             },
             () => {
@@ -3922,14 +3929,11 @@ async function renderToStream(
             },
             () => {
               // This is a separate task that doesn't advance a stage. It forces
-              // draining the microtask queue so that the stale time iterable and
-              // vary params accumulators are closed before we advance to the
-              // dynamic stage.
-              void finishStaleTimeTracking(staleTimeIterable)
+              // draining the immediate queue so that the stale time iterable and vary
+              // params accumulators are flushed before we advance to the dynamic stage.
+              staleTimeIterable.close()
               if (requestStore.varyParamsAccumulator) {
-                void finishAccumulatingVaryParams(
-                  requestStore.varyParamsAccumulator
-                )
+                finishAccumulatingVaryParams(requestStore.varyParamsAccumulator)
               }
             },
             () => {
@@ -7720,7 +7724,7 @@ async function prerenderToStream(
         varyParamsAccumulator,
       }
 
-      const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
+      const finalServerPayload = await workUnitAsyncStorage.run(
         finalServerPayloadPrerenderStore,
         getRSCPayload,
         tree,
@@ -7731,7 +7735,7 @@ async function prerenderToStream(
       let staleTimeIterable: StaleTimeIterable | undefined
       if (cachedNavigations) {
         staleTimeIterable = new StaleTimeIterable()
-        finalAttemptRSCPayload.s = staleTimeIterable
+        finalServerPayload.s = staleTimeIterable
       }
 
       const serverDynamicTracking = createDynamicTrackingState(
@@ -7769,80 +7773,93 @@ async function prerenderToStream(
         )
       }
 
-      let prerenderIsPending = true
-      const finalRSCPrerenderOptions = {
-        filterStackFrame,
-        onError: (err: unknown) => {
-          return serverComponentsErrorHandler(err)
+      const streamState = createStreamPendingState()
+      const collectedChunks = createPrerenderChunksAccumulator()
+      let debugEndTime: number | undefined = undefined
+
+      await runInSequentialTasks(
+        async () => {
+          if (process.env.NODE_ENV === 'development') {
+            // The end time should be tracked whenever we abort.
+            // We defensively do this before React runs its abort listener,
+            // although in practice this shouldn't matter.
+            finalServerReactController.signal.addEventListener(
+              'abort',
+              () => {
+                debugEndTime = performance.timeOrigin + performance.now()
+              },
+              { once: true }
+            )
+          }
+
+          const stream = workUnitAsyncStorage.run(
+            finalServerPrerenderStore,
+            ComponentMod.renderToReadableStream,
+            finalServerPayload,
+            clientModules,
+            {
+              filterStackFrame,
+              onError: (err: unknown) => {
+                return serverComponentsErrorHandler(err)
+              },
+              signal: finalServerReactController.signal,
+            }
+          )
+
+          // The listener to abort our own render controller must be added
+          // after React has added its listener, to ensure that pending I/O
+          // is not aborted/rejected too early.
+          finalServerReactController.signal.addEventListener(
+            'abort',
+            () => {
+              finalServerRenderController.abort()
+            },
+            { once: true }
+          )
+
+          // Note: this await will only resolve after the last task (unless sync IO aborts the render earlier)
+          // We await it here so that if the stream errors, it's not an unhandled rejection.
+          await collectPrerenderChunksWeb(
+            stream,
+            collectedChunks,
+            streamState,
+            finalServerReactController.signal
+          )
         },
-        signal: finalServerReactController.signal,
-      }
-      const finalRSCAbortCallback = async () => {
-        // Now that the prerendering is complete, we know the final stale
-        // time and vary params. Close the stale time iterable and resolve
-        // the vary params thenable so Flight can serialize their values
-        // into the stream. The timing here is important: both were
-        // included in the Flight payload, but they can only be serialized
-        // at the very end, after all the components have finished.
-        //
-        // We resolve these directly here instead of reading from the work
-        // unit store because this callback runs in a separate task (via
-        // setTimeout) and may not have access to the async storage context.
-        const pendingFinishes: Promise<void>[] = [
-          finishAccumulatingVaryParams(varyParamsAccumulator),
-        ]
-        if (staleTimeIterable !== undefined) {
-          pendingFinishes.push(finishStaleTimeTracking(staleTimeIterable))
+        async () => {
+          if (finalServerReactController.signal.aborted) {
+            // If the server controller is already aborted we must have called something
+            // that required aborting the prerender synchronously such as with new Date()
+            serverIsDynamic = true
+            return
+          }
+
+          // Now that the prerendering is complete, we know the final stale
+          // time and vary params. Close the stale time iterable and resolve
+          // the vary params thenable so Flight can serialize their values
+          // into the stream. The timing here is important: both were
+          // included in the Flight payload, but they can only be serialized
+          // at the very end, after all the components have finished.
+          finishAccumulatingVaryParams(varyParamsAccumulator)
+          if (staleTimeIterable !== undefined) {
+            staleTimeIterable.close()
+          }
+          // We're using a render, not a prerender, so React schedules rendering work in fast immediates,
+          // and we need to wait a fast immediate for the stale time/vary params chunks to flush.
+          await waitAtLeastOneReactRenderTask()
+
+          if (streamState.isPending) {
+            // If prerenderIsPending then we have blocked for longer than a Task and we assume
+            // there is something unfinished.
+            serverIsDynamic = true
+          }
+
+          finalServerReactController.abort()
         }
-        await Promise.all(pendingFinishes)
+      )
 
-        if (finalServerReactController.signal.aborted) {
-          // If the server controller is already aborted we must have called something
-          // that required aborting the prerender synchronously such as with new Date()
-          serverIsDynamic = true
-          return
-        }
-
-        if (prerenderIsPending) {
-          // If prerenderIsPending then we have blocked for longer than a Task and we assume
-          // there is something unfinished.
-          serverIsDynamic = true
-        }
-
-        finalServerReactController.abort()
-      }
-      const finalRSCPrerenderFn = async () => {
-        const pendingPrerenderResult = workUnitAsyncStorage.run(
-          // The store to scope
-          finalServerPrerenderStore,
-          // The function to run
-          getServerPrerender(ComponentMod),
-          // ... the arguments for the function to run
-          finalAttemptRSCPayload,
-          clientModules,
-          finalRSCPrerenderOptions
-        )
-
-        // The listener to abort our own render controller must be added
-        // after React has added its listener, to ensure that pending I/O
-        // is not aborted/rejected too early.
-        finalServerReactController.signal.addEventListener(
-          'abort',
-          () => {
-            finalServerRenderController.abort()
-          },
-          { once: true }
-        )
-
-        const prerenderResult = await pendingPrerenderResult
-        prerenderIsPending = false
-
-        return prerenderResult
-      }
       const reactServerResult = (reactServerPrerenderResult =
-        await createReactServerPrerenderResult(
-          runInSequentialTasks(finalRSCPrerenderFn, finalRSCAbortCallback)
-        ))
+        new ReactServerPrerenderResult(collectedChunks.prerenderChunks))
       reactServerPrerenderResultIsDynamic = serverIsDynamic
       reactServerPrerenderStore = finalServerPrerenderStore
 
@@ -7908,14 +7925,24 @@ async function prerenderToStream(
       let { prelude: unprocessedPrelude, postponed } =
         await runInSequentialTasks(
           () => {
+            const stream =
+              process.env.NODE_ENV === 'development' &&
+              collectedChunks.allChunks
+                ? createNodeStreamWithLateRelease(
+                    collectedChunks.prerenderChunks,
+                    collectedChunks.allChunks,
+                    finalClientReactController.signal
+                  )
+                : reactServerResult.asUnclosingStream()
+
             const pendingFinalClientResult = workUnitAsyncStorage.run(
               finalClientPrerenderStore,
               getClientPrerender,
               // eslint-disable-next-line @next/internal/no-ambiguous-jsx
               <App
-                reactServerStream={reactServerResult.asUnclosingStream()}
+                reactServerStream={stream}
                 reactDebugStream={undefined}
-                debugEndTime={undefined}
+                debugEndTime={debugEndTime}
                 preinitScripts={preinitScripts}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
                 nonce={nonce}
@@ -8967,6 +8994,81 @@ async function prerenderToStream(
       }
       throw finalErr
     }
+  }
+}
+
+type StreamPendingState = { isPending: boolean }
+
+function createStreamPendingState(): StreamPendingState {
+  // This state essentially acts as a mutable out-parameter that should be set
+  // by something that consumes the stream.
+  // As a sanity check, we require it to be set at least once.
+  let _isPending: boolean | undefined
+  return {
+    get isPending() {
+      if (_isPending === undefined) {
+        throw new InvariantError(
+          'Expected stream state to be initialized before reading'
+        )
+      }
+      return _isPending
+    },
+    set isPending(value) {
+      _isPending = value
+    },
+  }
+}
+
+function createPrerenderChunksAccumulator(): PrerenderChunksAccumulator {
+  return {
+    // Chunks emitted before aborting the render.
+    prerenderChunks: [],
+    // In dev, we also collect chunks that the render emits after aborting,
+    // because they can contain debug info for chunks that did not
+    // resolve during the prerender. However, unlike a prerender, a render
+    // will also error all the pending chunks (instead of halting),
+    // so have to use something like `createNodeStreamWithLateRelease`
+    // to make the errors unobservable.
+    allChunks: process.env.NODE_ENV === 'development' ? [] : null,
+  }
+}
+type PrerenderChunksAccumulator = {
+  prerenderChunks: Uint8Array[]
+  allChunks: Uint8Array[] | null
+}
+
+async function collectPrerenderChunksWeb(
+  stream: ReadableStream<Uint8Array>,
+  chunks: PrerenderChunksAccumulator,
+  streamState: StreamPendingState,
+  signal: AbortSignal
+): Promise<void> {
+  const reader = stream.getReader()
+  streamState.isPending = true
+
+  // In production, there's no debug info, so we don't need to capture
+  // anything emitted after the abort and can cancel immediately.
+  if (process.env.NODE_ENV !== 'development') {
+    signal.addEventListener(
+      'abort',
+      () => {
+        reader.cancel(signal.reason)
+      },
+      { once: true }
+    )
+  }
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) {
+      streamState.isPending = false
+      break
+    }
+
+    if (!signal.aborted) {
+      chunks.prerenderChunks.push(value)
+    }
+    chunks.allChunks?.push(value)
   }
 }
 
