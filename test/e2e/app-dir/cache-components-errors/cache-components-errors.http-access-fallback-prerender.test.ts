@@ -72,6 +72,33 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
       await next.build({ args })
     }
 
+    const buildPath = async (pathname: string) => {
+      const args = ['--debug-build-paths', `app${pathname}/page.tsx`]
+
+      if (isDebugPrerender) {
+        args.push('--debug-prerender')
+      }
+
+      await next.build({ args })
+    }
+
+    const expectStaticRouteArtifacts = async (route: string) => {
+      const meta = JSON.parse(
+        await next.readFile(`.next/server/app/${route}.meta`)
+      )
+
+      expect(await next.readFile(`.next/server/app/${route}.html`)).toEqual(
+        expect.any(String)
+      )
+      expect(meta.status).toBe(404)
+      expect(meta.segmentPaths).toContain('/_tree')
+      expect(
+        await next.readFile(
+          `.next/server/app/${route}.segments/_tree.segment.rsc`
+        )
+      ).toEqual(expect.any(String))
+    }
+
     describe('notFound()', () => {
       const pagePath = '/not-found/[slug]'
       const visitUrl = '/not-found/not-found'
@@ -377,6 +404,15 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
               `)
             }
           }
+        })
+      }
+    })
+
+    describe('notFound() above the matching not-found boundary', () => {
+      if (!isNextDev) {
+        it('should emit static artifacts', async () => {
+          await buildPath('/not-found-above-boundary/child')
+          await expectStaticRouteArtifacts('not-found-above-boundary/child')
         })
       }
     })
