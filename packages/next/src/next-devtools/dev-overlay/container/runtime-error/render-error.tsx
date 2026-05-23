@@ -6,6 +6,7 @@ import {
   getErrorByType,
   type ReadyRuntimeError,
 } from '../../utils/get-error-by-type'
+import { isInstantNavigationError } from '../errors'
 
 export type SupportedErrorEvent = {
   id: number
@@ -18,6 +19,7 @@ type Props = {
   children: (params: {
     runtimeErrors: ReadyRuntimeError[]
     totalErrorCount: number
+    instantErrorCount: number
   }) => React.ReactNode
   state: OverlayState
   isAppDir: boolean
@@ -74,8 +76,12 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
   }, [nextError, isAppDir])
 
   const totalErrorCount = errors.length
+  const instantErrorCount = useMemo(
+    () => runtimeErrors.filter((e) => isInstantNavigationError(e.error)).length,
+    [runtimeErrors]
+  )
 
-  return children({ runtimeErrors, totalErrorCount })
+  return children({ runtimeErrors, totalErrorCount, instantErrorCount })
 }
 
 const RenderBuildError = ({ children }: Props) => {
@@ -84,5 +90,6 @@ const RenderBuildError = ({ children }: Props) => {
     // Build errors and missing root layout tags persist until fixed,
     // so we can set a fixed error count of 1
     totalErrorCount: 1,
+    instantErrorCount: 0,
   })
 }

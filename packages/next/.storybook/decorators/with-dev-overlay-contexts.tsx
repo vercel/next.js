@@ -67,6 +67,7 @@ export const withDevOverlayContexts =
           value={{
             runtimeErrors: options?.runtimeErrors ?? [],
             totalErrorCount: options?.totalErrorCount ?? 0,
+            instantErrorCount: 0,
           }}
         >
           <PanelRouterContext.Provider

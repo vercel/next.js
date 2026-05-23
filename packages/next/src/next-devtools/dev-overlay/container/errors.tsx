@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, Suspense, useCallback } from 'react'
+import React, { useMemo, useRef, Suspense, useCallback, useState } from 'react'
 import type { DebugInfo } from '../../shared/types'
 import { Overlay, OverlayBackdrop } from '../components/overlay'
 import { RuntimeError } from './runtime-error'
@@ -85,7 +85,9 @@ export function getErrorTypeLabel(
   errorDetails: ErrorDetails
 ): ErrorOverlayLayoutProps['errorType'] {
   if (errorDetails.type === 'blocking-route') {
-    return `Instant`
+    // Prerender errors get 'Blocking Route' (red, shown in Errors tab)
+    // Navigation errors get 'Instant' (amber, shown in Insights tab)
+    return errorDetails.inNavigation ? `Instant` : `Blocking Route`
   }
   if (errorDetails.type === 'dynamic-metadata') {
     return `Instant`
@@ -385,6 +387,54 @@ export function getBlockingRouteErrorDetails(
   return null
 }
 
+export type ErrorTab = 'errors' | 'instant'
+
+/** Returns true if the error is an instant navigation error (validated during navigation, not prerender) */
+export function isInstantNavigationError(error: Error): boolean {
+  const details = getBlockingRouteErrorDetails(error)
+  if (details === null) return false
+  if (details.type === 'blocking-route') return details.inNavigation
+  // dynamic-metadata, dynamic-viewport, sync-io, sync-io-client are always prerender errors
+  return false
+}
+
+export function ErrorTabBar({
+  activeTab,
+  onTabChange,
+  errorCount,
+  instantCount,
+}: {
+  activeTab: ErrorTab
+  onTabChange: (tab: ErrorTab) => void
+  errorCount: number
+  instantCount: number
+}) {
+  return (
+    <div className="error-overlay-tab-bar" data-nextjs-error-overlay-tab-bar>
+      <button
+        type="button"
+        className="error-overlay-tab"
+        data-active={activeTab === 'errors'}
+        disabled={errorCount === 0}
+        onClick={() => onTabChange('errors')}
+      >
+        Errors
+        <span className="error-overlay-tab-count">{errorCount}</span>
+      </button>
+      <button
+        type="button"
+        className="error-overlay-tab"
+        data-active={activeTab === 'instant'}
+        disabled={instantCount === 0}
+        onClick={() => onTabChange('instant')}
+      >
+        Insights
+        <span className="error-overlay-tab-count">{instantCount}</span>
+      </button>
+    </div>
+  )
+}
+
 export function Errors({
   getSquashedHydrationErrorDetails,
   runtimeErrors,
@@ -394,6 +444,27 @@ export function Errors({
 }: ErrorsProps) {
   const dialogResizerRef = useRef<HTMLDivElement | null>(null)
 
+  // Split errors into normal and instant categories
+  const { normalErrors, instantErrors } = useMemo(() => {
+    const normal: ReadyRuntimeError[] = []
+    const instant: ReadyRuntimeError[] = []
+    for (const err of runtimeErrors) {
+      if (isInstantNavigationError(err.error)) {
+        instant.push(err)
+      } else {
+        normal.push(err)
+      }
+    }
+    return { normalErrors: normal, instantErrors: instant }
+  }, [runtimeErrors])
+
+  // Default to whichever tab has errors, preferring 'errors' tab
+  const [activeTab, setActiveTab] = useState<ErrorTab>(() =>
+    normalErrors.length > 0 ? 'errors' : 'instant'
+  )
+
+  const activeErrors = activeTab === 'instant' ? instantErrors : normalErrors
+
   const {
     isLoading,
     errorCode,
@@ -402,7 +473,10 @@ export function Errors({
     errorDetails,
     activeError,
     setActiveIndex,
-  } = useActiveRuntimeError({ runtimeErrors, getSquashedHydrationErrorDetails })
+  } = useActiveRuntimeError({
+    runtimeErrors: activeErrors,
+    getSquashedHydrationErrorDetails,
+  })
 
   const generateErrorInfo = useCallback(async () => {
     if (!activeError) return ''
@@ -506,6 +580,18 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
     getErrorSource(error) || ''
   )
 
+  // Show the tab bar whenever there are instant errors so the user
+  // knows they're looking at an insight, even if the other tab is empty.
+  const showTabBar = instantErrors.length > 0
+  const tabBar = showTabBar ? (
+    <ErrorTabBar
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      errorCount={normalErrors.length}
+      instantCount={instantErrors.length}
+    />
+  ) : null
+
   let errorMessage: React.ReactNode
   let maybeNotes: React.ReactNode = null
   let maybeDiff: React.ReactNode = null
@@ -574,10 +660,11 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               }
             />
           }
+          tabBar={tabBar}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
-          runtimeErrors={runtimeErrors}
+          runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
@@ -614,10 +701,11 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
             )
           }
           headerChildren={<InstantHeaderExplanation kind="metadata" />}
+          tabBar={tabBar}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
-          runtimeErrors={runtimeErrors}
+          runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
@@ -655,10 +743,11 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
             )
           }
           headerChildren={<InstantHeaderExplanation kind="viewport" />}
+          tabBar={tabBar}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
-          runtimeErrors={runtimeErrors}
+          runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
@@ -694,10 +783,11 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               docsUrl={SYNC_IO_DOCS[errorDetails.cause]}
             />
           }
+          tabBar={tabBar}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
-          runtimeErrors={runtimeErrors}
+          runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
@@ -734,10 +824,11 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               docsUrl={SYNC_IO_CLIENT_DOCS[errorDetails.cause]}
             />
           }
+          tabBar={tabBar}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
-          runtimeErrors={runtimeErrors}
+          runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
@@ -769,10 +860,11 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
       errorCode={errorCode}
       errorType={errorType}
       errorMessage={errorMessage}
+      tabBar={tabBar}
       onClose={isServerError ? undefined : onClose}
       debugInfo={debugInfo}
       error={error}
-      runtimeErrors={runtimeErrors}
+      runtimeErrors={activeErrors}
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
       dialogResizerRef={dialogResizerRef}
@@ -859,5 +951,71 @@ export const styles = `
   }
   .external-link, .external-link:hover {
     color:inherit;
+  }
+
+  .error-overlay-tab-bar {
+    display: flex;
+    gap: 0;
+    translate: var(--next-dialog-border-width) 0;
+    max-width: var(--next-dialog-max-width);
+    width: 100%;
+    border-bottom: 1px solid var(--color-gray-400);
+    background: var(--color-background-100);
+    position: relative;
+    z-index: 1;
+  }
+
+  .error-overlay-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    background: none;
+    color: var(--color-gray-700);
+    font-size: var(--size-14);
+    font-family: var(--font-sans);
+    cursor: pointer;
+    position: relative;
+    transition: color 0.15s ease;
+
+    &:hover {
+      color: var(--color-gray-900);
+    }
+
+    &[data-active='true'] {
+      color: var(--color-gray-1000);
+    }
+
+    &[data-active='true']::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--color-gray-1000);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+  }
+
+  .error-overlay-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: var(--rounded-full);
+    font-size: var(--size-12);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    background: var(--color-gray-alpha-100);
+    color: var(--color-gray-900);
   }
 `

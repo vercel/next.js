@@ -18,6 +18,57 @@ import { StatusIndicator, Status, getCurrentStatus } from './status-indicator'
 
 const SHORT_DURATION_MS = 150
 
+function Plural({ count, animate }: { count: number; animate: boolean }) {
+  if (count <= 1) return null
+  return (
+    <span aria-hidden data-issues-count-plural data-animate={animate}>
+      s
+    </span>
+  )
+}
+
+function PillLabel({
+  normalCount,
+  instantCount,
+  newErrorDetected,
+}: {
+  normalCount: number
+  instantCount: number
+  newErrorDetected: boolean
+}) {
+  if (normalCount > 0 && instantCount === 0) {
+    return (
+      <>
+        Issue
+        <Plural
+          count={normalCount}
+          animate={newErrorDetected && normalCount === 2}
+        />
+      </>
+    )
+  }
+  if (normalCount === 0 && instantCount > 0) {
+    return (
+      <>
+        Insight
+        <Plural
+          count={instantCount}
+          animate={newErrorDetected && instantCount === 2}
+        />
+      </>
+    )
+  }
+  return (
+    <>
+      Issue
+      <Plural count={normalCount} animate={false} />
+      {' · '}
+      {instantCount} Insight
+      <Plural count={instantCount} animate={false} />
+    </>
+  )
+}
+
 // Smooth out rapid status transitions driven by bursty HMR events (e.g.
 // Compiling→None→Compiling when consecutive compile episodes are <300ms apart,
 // or Compiling→Rendering→Compiling oscillation). The debounce bridges burst
@@ -29,7 +80,8 @@ export function NextLogo({
   ...buttonProps
 }: { onTriggerClick: () => void } & React.ComponentProps<'button'>) {
   const { state, dispatch } = useDevOverlayContext()
-  const { totalErrorCount } = useRenderErrorContext()
+  const { totalErrorCount, instantErrorCount } = useRenderErrorContext()
+  const normalErrorCount = totalErrorCount - instantErrorCount
   const SIZE = BASE_LOGO_SIZE / state.scale
   const { panel, triggerRef, setPanel } = usePanelRouterContext()
   const isMenuOpen = panel === 'panel-selector'
@@ -455,23 +507,16 @@ export function NextLogo({
                       animate={newErrorDetected}
                       data-issues-count-animation
                     >
-                      {totalErrorCount}
+                      {normalErrorCount > 0
+                        ? normalErrorCount
+                        : instantErrorCount}
                     </AnimateCount>{' '}
                     <div>
-                      Issue
-                      {totalErrorCount > 1 && (
-                        <span
-                          aria-hidden
-                          data-issues-count-plural
-                          // This only needs to animate once the count changes from 1 -> 2,
-                          // otherwise it should stay static between re-renders.
-                          data-animate={
-                            newErrorDetected && totalErrorCount === 2
-                          }
-                        >
-                          s
-                        </span>
-                      )}
+                      <PillLabel
+                        normalCount={normalErrorCount}
+                        instantCount={instantErrorCount}
+                        newErrorDetected={newErrorDetected}
+                      />
                     </div>
                   </button>
                   {!state.buildError && (
