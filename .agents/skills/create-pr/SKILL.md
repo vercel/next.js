@@ -6,6 +6,8 @@ description: >
   PR or draft PR, publish a pull request, or recover from gh pr create / PR
   template issues. Covers .github/pull_request_template.md, --body formatting,
   NEXT_JS_LLM_PR, codex/ branch names, and Codex app git directives.
+metadata:
+  internal: true
 ---
 
 # Create PR
