@@ -255,7 +255,12 @@ async function launchStandaloneSession(
   } else if (browserName === 'firefox') {
     browser = await firefox.launch({ headless })
   } else {
-    browser = await chromium.launch({ headless })
+    browser = await chromium.launch({
+      headless,
+      ...(process.env.NEXT_TEST_PLAYWRIGHT_CHROMIUM_CHANNEL
+        ? { channel: process.env.NEXT_TEST_PLAYWRIGHT_CHROMIUM_CHANNEL }
+        : {}),
+    })
   }
 
   const context = await browser.newContext()

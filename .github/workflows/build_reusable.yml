@@ -151,6 +151,11 @@ jobs:
   build:
     timeout-minutes: ${{ inputs.timeout_minutes }}
     runs-on: ${{ fromJson(inputs.runs_on_labels) }}
+    env:
+      # GitHub-hosted runners ship Chrome already. Use that installation for
+      # Chromium tests so Playwright does not look for its downloaded
+      # `chromium_headless_shell` under ~/.cache/ms-playwright.
+      NEXT_TEST_PLAYWRIGHT_CHROMIUM_CHANNEL: ${{ inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.browser == 'chromium' && 'chrome' || '' }}
 
     defaults:
       run:
@@ -330,6 +335,10 @@ jobs:
 
       - run: ANALYZE=1 pnpm build
         if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - name: Install Playwright browsers
+        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' && inputs.browser != 'chromium' }}
+        run: pnpm playwright install --with-deps ${{ inputs.browser }}
 
       - name: Download pre-built test timings
         if: ${{ inputs.testTimingsArtifact != '' }}
