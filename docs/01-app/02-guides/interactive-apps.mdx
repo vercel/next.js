@@ -17,20 +17,22 @@ You can find the resources used in this example here:
 - [Demo](https://async-react-demo.labs.vercel.dev)
 - [Code](https://github.com/vercel-labs/async-react-demo)
 
-The starting point is a Server Component app that fetches tasks and comments at the root of each page, with no [`<Suspense>`](/docs/app/guides/streaming) boundaries and no caching. Client Components call [Server Functions](/docs/app/getting-started/mutating-data) to mutate that data. After each mutation, the Server Function calls [`refresh()`](/docs/app/api-reference/functions/refresh) so the server re-renders with fresh data:
+The starting point is a Server Component app that fetches tasks and comments from a SQLite database, with no [`<Suspense>`](/docs/app/guides/streaming) boundaries and no caching. Client Components call [Server Functions](/docs/app/getting-started/mutating-data) to mutate that data. After each mutation, the Server Function calls [`refresh()`](/docs/app/api-reference/functions/refresh) so the server re-renders with fresh data:
 
 ```ts filename="data/actions/task.ts"
 'use server'
 
 import { refresh } from 'next/cache'
-import { tasks, PRIORITY_CYCLE } from '@/lib/data'
+import { PRIORITY_CYCLE } from '@/lib/data'
+import { getTaskById, updateTaskPriority } from '@/lib/db'
 
 export async function cyclePriority(taskId: string) {
-  const task = tasks.find((t) => t.id === taskId)
+  const task = getTaskById(taskId)
   if (!task) return null
-  task.priority = PRIORITY_CYCLE[task.priority]
+  const newPriority = PRIORITY_CYCLE[task.priority]
+  updateTaskPriority(taskId, newPriority)
   refresh()
-  return task.priority
+  return newPriority
 }
 ```
 
@@ -672,13 +674,13 @@ Mark each reusable read with [`'use cache'`](/docs/app/api-reference/directives/
 ```ts filename="data/queries/task.ts"
 import { cache } from 'react'
 import { cacheTag } from 'next/cache'
-import { tasks } from '@/lib/data'
+import { getTaskById } from '@/lib/db'
 
 export const getTask = cache(async (id: string) => {
   'use cache'
   cacheTag('tasks', `task-${id}`)
 
-  return tasks.find((t) => t.id === id) ?? null
+  return getTaskById(id)
 })
 ```
 
