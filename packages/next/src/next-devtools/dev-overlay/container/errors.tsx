@@ -85,8 +85,6 @@ export function getErrorTypeLabel(
   errorDetails: ErrorDetails
 ): ErrorOverlayLayoutProps['errorType'] {
   if (errorDetails.type === 'blocking-route') {
-    // Navigation errors get 'Instant' (amber, shown in Insights tab)
-    // All other blocking errors get 'Blocking Route' (red, shown in Errors tab)
     return errorDetails.inNavigation ? `Instant` : `Blocking Route`
   }
   if (errorDetails.type === 'dynamic-metadata') {
@@ -387,16 +385,12 @@ export function getBlockingRouteErrorDetails(
   return null
 }
 
-export type ErrorTab = 'errors' | 'instant'
-
-/** Returns true if the error is an instant navigation error (validated during navigation, not prerender) */
 export function isInstantNavigationError(error: Error): boolean {
   const details = getBlockingRouteErrorDetails(error)
-  if (details === null) return false
-  if (details.type === 'blocking-route') return details.inNavigation
-  // dynamic-metadata, dynamic-viewport, sync-io, sync-io-client are always prerender errors
-  return false
+  return details?.type === 'blocking-route' && details.inNavigation
 }
+
+export type ErrorTab = 'errors' | 'instant'
 
 export function ErrorTabBar({
   activeTab,
