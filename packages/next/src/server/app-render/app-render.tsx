@@ -370,6 +370,12 @@ interface ParsedRequestHeaders {
   readonly flightRouterState: FlightRouterState | undefined
   readonly isPrefetchRequest: boolean
   readonly isRuntimePrefetchRequest: boolean
+  /**
+   * App Shell prefetch: a runtime prefetch that the server renders with
+   * params omitted (any `await params` hangs forever). Produces the
+   * param-independent shell of the route. Implies isRuntimePrefetchRequest.
+   */
+  readonly isAppShellPrefetchRequest: boolean
   readonly isRouteTreePrefetchRequest: boolean
   readonly isHmrRefresh: boolean
   readonly isRSCRequest: boolean
@@ -387,7 +393,12 @@ function parseRequestHeaders(
   // (TODO: this is confusing, we should refactor this to express this better)
   const isPrefetchRequest = headers[NEXT_ROUTER_PREFETCH_HEADER] === '1'
 
-  const isRuntimePrefetchRequest = headers[NEXT_ROUTER_PREFETCH_HEADER] === '2'
+  const isAppShellPrefetchRequest = headers[NEXT_ROUTER_PREFETCH_HEADER] === '3'
+
+  // App Shell prefetches are a subtype of runtime prefetch — same code path,
+  // with `forceOmitParams` set on the prerender store.
+  const isRuntimePrefetchRequest =
+    headers[NEXT_ROUTER_PREFETCH_HEADER] === '2' || isAppShellPrefetchRequest
 
   const isHmrRefresh = headers[NEXT_HMR_REFRESH_HEADER] !== undefined
 
@@ -440,6 +451,7 @@ function parseRequestHeaders(
     flightRouterState,
     isPrefetchRequest,
     isRuntimePrefetchRequest,
+    isAppShellPrefetchRequest,
     isRouteTreePrefetchRequest,
     isHmrRefresh,
     isRSCRequest,
@@ -1276,7 +1288,8 @@ async function spawnRuntimePrefetchWithFilledCaches(
       requestStore.cookies,
       requestStore.draftMode,
       onError,
-      staleTimeIterable
+      staleTimeIterable,
+      false // forceOmitParams — server-initiated background prefetch, not a shell request
     )
 
     await result.prelude.pipeTo(writable)
@@ -1469,7 +1482,9 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     isBuildTimePrerendering = false,
   } = renderOpts
 
+  let didErrorObservably = false
   function onFlightDataRenderError(err: DigestedError, silenceLog: boolean) {
+    didErrorObservably = true
     return onInstrumentationRequestError?.(
       err,
       req,
@@ -1579,7 +1594,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
         ctx,
         finalRequestStore,
         fallbackParams,
-        validationDebugChannelClient
+        validationDebugChannelClient,
+        didErrorObservably
       )
     } else {
       logValidationSkipped(ctx)
@@ -1660,7 +1676,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
 async function generateRuntimePrefetchResult(
   req: BaseNextRequest,
   ctx: AppRenderContext,
-  requestStore: RequestStore
+  requestStore: RequestStore,
+  forceOmitParams: boolean
 ): Promise<RenderResult> {
   const { workStore, renderOpts } = ctx
   const { isBuildTimePrerendering = false, onInstrumentationRequestError } =
@@ -1710,7 +1727,8 @@ async function generateRuntimePrefetchResult(
     rootParams,
     requestStore.headers,
     requestStore.cookies,
-    requestStore.draftMode
+    requestStore.draftMode,
+    forceOmitParams
   )
 
   const response = await finalRuntimeServerPrerender(
@@ -1723,7 +1741,8 @@ async function generateRuntimePrefetchResult(
     requestStore.cookies,
     requestStore.draftMode,
     onError,
-    staleTimeIterable
+    staleTimeIterable,
+    forceOmitParams
   )
 
   applyMetadataFromPrerenderResult(response, metadata, workStore)
@@ -1740,7 +1759,8 @@ async function prospectiveRuntimeServerPrerender(
   rootParams: Params,
   headers: PrerenderStoreModernRuntime['headers'],
   cookies: PrerenderStoreModernRuntime['cookies'],
-  draftMode: PrerenderStoreModernRuntime['draftMode']
+  draftMode: PrerenderStoreModernRuntime['draftMode'],
+  forceOmitParams: boolean
 ) {
   const { implicitTags, renderOpts, workStore } = ctx
   const { ComponentMod } = renderOpts
@@ -1790,6 +1810,7 @@ async function prospectiveRuntimeServerPrerender(
     headers,
     cookies,
     draftMode,
+    forceOmitParams,
   }
 
   const { clientModules } = getClientReferenceManifest()
@@ -1905,7 +1926,8 @@ async function finalRuntimeServerPrerender(
   cookies: PrerenderStoreModernRuntime['cookies'],
   draftMode: PrerenderStoreModernRuntime['draftMode'],
   onError: (err: unknown) => string | undefined,
-  staleTimeIterable: StaleTimeIterable
+  staleTimeIterable: StaleTimeIterable,
+  forceOmitParams: boolean
 ) {
   const { implicitTags, renderOpts } = ctx
   const { ComponentMod, experimental, isDebugDynamicAccesses } = renderOpts
@@ -1952,6 +1974,7 @@ async function finalRuntimeServerPrerender(
     headers,
     cookies,
     draftMode,
+    forceOmitParams,
   }
 
   trackStaleTime(finalServerPrerenderStore, staleTimeIterable, selectStaleTime)
@@ -2728,6 +2751,7 @@ async function renderToHTMLOrFlightImpl(
     flightRouterState,
     isPrefetchRequest,
     isRuntimePrefetchRequest,
+    isAppShellPrefetchRequest,
     isRSCRequest,
     isHmrRefresh,
     nonce,
@@ -2954,7 +2978,12 @@ async function renderToHTMLOrFlightImpl(
     if (isRSCRequest) {
       if (isRuntimePrefetchRequest) {
         // MARK: RSC runtimePrefetch
-        return generateRuntimePrefetchResult(req, ctx, requestStore)
+        return generateRuntimePrefetchResult(
+          req,
+          ctx,
+          requestStore,
+          isAppShellPrefetchRequest
+        )
       } else {
         if (
           process.env.__NEXT_DEV_SERVER &&
@@ -3401,7 +3430,11 @@ async function renderToStream(
   return getTracer().withSpan(renderSpan, async () => {
     // MARK: renderToStream errorHandlers
     const { reactServerErrorsByDigest } = workStore
+
+    // We use this to determine if we should suppress other derivative errors
+    let didErrorObservably = false
     function onHTMLRenderRSCError(err: DigestedError, silenceLog: boolean) {
+      didErrorObservably = true
       return onInstrumentationRequestError?.(
         err,
         req,
@@ -3533,7 +3566,8 @@ async function renderToStream(
               ctx,
               finalRequestStore,
               fallbackParams,
-              validationDebugChannelClient
+              validationDebugChannelClient,
+              didErrorObservably
             )
 
             reactServerResult = new ReactServerResult(serverStream)
@@ -3652,7 +3686,8 @@ async function renderToStream(
               ctx,
               finalRequestStore,
               fallbackParams,
-              validationDebugChannelClient
+              validationDebugChannelClient,
+              didErrorObservably
             )
 
             reactServerResult = new ReactServerResult(serverStream)
@@ -3716,6 +3751,12 @@ async function renderToStream(
 
           requestStore.stale = INFINITE_CACHE
           requestStore.stagedRendering = stageController
+          requestStore.asyncApiPromises = createAsyncApiPromises(
+            stageController,
+            requestStore.cookies,
+            requestStore.mutableCookies,
+            requestStore.headers
+          )
           requestStore.varyParamsAccumulator =
             createResponseVaryParamsAccumulator()
 
@@ -3845,6 +3886,12 @@ async function renderToStream(
 
           requestStore.stale = INFINITE_CACHE
           requestStore.stagedRendering = stageController
+          requestStore.asyncApiPromises = createAsyncApiPromises(
+            stageController,
+            requestStore.cookies,
+            requestStore.mutableCookies,
+            requestStore.headers
+          )
           requestStore.varyParamsAccumulator =
             createResponseVaryParamsAccumulator()
 
@@ -5592,7 +5639,8 @@ async function spawnStaticShellValidationInDevImpl(
   ctx: AppRenderContext,
   requestStore: RequestStore,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  debugChannelClient: AnyStream | undefined
+  debugChannelClient: AnyStream | undefined,
+  devRenderDidError: boolean
 ): Promise<void> {
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
@@ -5723,7 +5771,8 @@ async function spawnStaticShellValidationInDevImpl(
       fallbackRouteParams,
       ctx,
       hmrRefreshHash,
-      validationSamples
+      validationSamples,
+      devRenderDidError
     )
 
     if (instantConfigsResult.length > 0) {
@@ -6081,7 +6130,8 @@ async function validateInstantConfigs(
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   ctx: AppRenderContext,
   hmrRefreshHash: string | undefined,
-  validationSamples: ValidationStoreClient['validationSamples'] | null
+  validationSamples: ValidationStoreClient['validationSamples'] | null,
+  devRenderDidError: boolean
 ): Promise<Array<unknown>> {
   const debug =
     process.env.NEXT_PRIVATE_DEBUG_VALIDATION === '1' ? console.log : undefined
@@ -6153,8 +6203,8 @@ async function validateInstantConfigs(
     if (previousBoundaryState) {
       // We're doing a followup render to better discriminate error types
       useRuntimeStageForPartialSegments = true
-      for (const id of previousBoundaryState.requiredIds) {
-        boundaryState.requiredIds.add(id)
+      for (const [id, filePath] of previousBoundaryState.requiredIds) {
+        boundaryState.requiredIds.set(id, filePath)
       }
     }
 
@@ -6328,7 +6378,8 @@ async function validateInstantConfigs(
         preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
         instantValidationState,
         validationSampleTracking,
-        boundaryState
+        boundaryState,
+        devRenderDidError
       )
     } catch (thrownValue) {
       result = getNavigationDisallowedDynamicReasons(
@@ -6336,7 +6387,8 @@ async function validateInstantConfigs(
         PreludeState.Errored,
         instantValidationState,
         validationSampleTracking,
-        boundaryState
+        boundaryState,
+        devRenderDidError
       )
     }
 
@@ -6410,10 +6462,12 @@ async function validateInstantConfigs(
         // There was no validation to perform at this level
         debug?.(`  No config at depth ${depth}+${currentGroupDepth}, skipping.`)
       } else {
-        // Something prevented this level from fully validating but there were no detected errors
-        if (impairedValidation === null) {
-          impairedValidation = result
-        }
+        // Something prevented this level from fully validating but there
+        // were no detected errors. Always overwrite — prefer the
+        // shallowest deferred fallback. If a high-level layout drops
+        // children, everything below is unreachable; the shallowest
+        // unrendered segment is closest to the actual cause.
+        impairedValidation = result
       }
     }
   }
@@ -7095,7 +7149,8 @@ async function validateInstantConfigInBuildWithSample(
       fallbackRouteParams,
       validationCtx,
       undefined, // hmrRefreshHash,
-      validationSamples
+      validationSamples,
+      false // build has no shared dev render that would surface errors
     )
   })
 }

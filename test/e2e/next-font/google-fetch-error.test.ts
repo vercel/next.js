@@ -1,6 +1,5 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 
 const mockedGoogleFontResponses = require.resolve(
   './google-font-mocked-responses.js'
@@ -28,7 +27,7 @@ describe('next/font/google fetch error', () => {
     it('should use a fallback font in dev', async () => {
       await next.start()
       const outputIndex = next.cliOutput.length
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
 
       const ascentOverride = await browser.eval(
         'Array.from(document.fonts.values()).find(font => font.family.includes("Inter Fallback")).ascentOverride'

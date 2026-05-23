@@ -34,8 +34,8 @@ use turbo_tasks::{
     TaskId, TaskPersistence, TaskPriority, TraitTypeId, TurboTasksBackendApi, TurboTasksPanic,
     ValueTypeId,
     backend::{
-        Backend, CachedTaskType, CellContent, CellHash, TaskExecutionSpec, TransientTaskType,
-        TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
+        Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskExecutionSpec,
+        TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
         TurboTasksExecutionError, TurboTasksExecutionErrorMessage, TypedCellContent,
         VerificationMode,
     },
@@ -68,10 +68,10 @@ use crate::{
         storage::Storage,
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    backing_storage::{BackingStorage, SnapshotItem, compute_task_type_hash},
+    backing_storage::{BackingStorage, SnapshotItem, SnapshotMeta, compute_task_type_hash},
     data::{
-        ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
-        InProgressState, InProgressStateInner, OutputValue, TransientTask,
+        ActivenessState, CellDependency, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
+        InProgressCellState, InProgressState, InProgressStateInner, OutputValue, TransientTask,
     },
     error::TaskError,
     utils::{
@@ -758,7 +758,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // done: true } it must have Output and would early return.
         let old = task.set_in_progress(in_progress_state);
         debug_assert!(old.is_none(), "InProgress already exists");
-        ctx.schedule_task(task, TaskPriority::Initial);
+        ctx.schedule_task(task, TaskPriority::Recomputation);
 
         Ok(Err(listener))
     }
@@ -785,7 +785,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 && (!task.immutable() || cfg!(feature = "verify_immutable"))
             {
                 let reader = reader.unwrap();
-                let _ = task.add_cell_dependents((cell, key, reader));
+                let _ = task
+                    .add_cell_dependents(CellDependency::new(CellRef { task: reader, cell }, key));
                 drop(task);
 
                 // Note: We use `task_pair` earlier to lock the task and its reader at the same
@@ -797,8 +798,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     task: task_id,
                     cell,
                 };
-                if !reader_task.remove_outdated_cell_dependencies(&(target, key)) {
-                    let _ = reader_task.add_cell_dependencies((target, key));
+                let dep = CellDependency::new(target, key);
+                if !reader_task.remove_outdated_cell_dependencies(&dep) {
+                    let _ = reader_task.add_cell_dependencies(dep);
                 }
                 drop(reader_task);
             }
@@ -896,7 +898,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             TaskExecutionReason::CellNotAvailable,
             EventDescription::new(|| task.get_task_desc_fn()),
         );
-        ctx.schedule_task(task, TaskPriority::Initial);
+        ctx.schedule_task(task, TaskPriority::Recomputation);
 
         Ok(Err(listener))
     }
@@ -1233,13 +1235,32 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         let persist_start = Instant::now();
-        let _span = tracing::info_span!(parent: parent_span, "persist", reason = reason).entered();
+        let span = tracing::info_span!(
+            parent: parent_span,
+            "persist",
+            reason = reason,
+            data_items= tracing::field::Empty,
+            meta_items= tracing::field::Empty,
+            task_cache_items= tracing::field::Empty,
+            next_task_id= tracing::field::Empty,)
+        .entered();
         {
             // Tasks were already consumed by take_snapshot, so a future snapshot
             // would not re-persist them — returning an error signals to the caller
             // that further persist attempts would corrupt the task graph in storage.
-            self.backing_storage
+            let SnapshotMeta {
+                task_cache_items,
+                data_items,
+                meta_items,
+                max_next_task_id,
+            } = self
+                .backing_storage
                 .save_snapshot(suspended_operations, task_snapshots)?;
+            span.record("data_items", data_items);
+            span.record("meta_items", meta_items);
+            span.record("task_cache_items", task_cache_items);
+            span.record("next_task_id", max_next_task_id);
+
             #[cfg(feature = "print_cache_item_size")]
             {
                 let mut task_cache_stats = task_cache_stats
@@ -1526,7 +1547,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     // Only now do we force the allocation.
                     // NOTE: if our caller had to perform resolution, then this will have already
                     // been boxed and take_box just takes it.
-                    let task_type = Arc::new(CachedTaskType {
+                    let task_type = CachedTaskTypeArc::new(CachedTaskType {
                         native_fn,
                         this,
                         arg: arg.take_box(),
@@ -1757,7 +1778,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
     }
 
-    fn debug_get_cached_task_type(&self, task_id: TaskId) -> Option<Arc<CachedTaskType>> {
+    fn debug_get_cached_task_type(&self, task_id: TaskId) -> Option<CachedTaskTypeArc> {
         let task = self.storage.access_mut(task_id);
         task.get_persistent_task_type().cloned()
     }
@@ -2197,7 +2218,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             Some(
                 // Collect all dependencies on tasks to check if all dependencies are immutable
                 task.iter_output_dependencies()
-                    .chain(task.iter_cell_dependencies().map(|(target, _key)| target.task))
+                    .chain(task.iter_cell_dependencies().map(|dep| dep.cell_ref().task))
                     .collect::<FxHashSet<_>>(),
             )
         } else {
@@ -2236,7 +2257,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // breaking dependency tracking.
             old_edges.extend(
                 task.iter_outdated_cell_dependencies()
-                    .map(|(target, key)| OutdatedEdge::CellDependency(target, key)),
+                    .map(OutdatedEdge::CellDependency),
             );
             old_edges.extend(
                 task.iter_outdated_output_dependencies()

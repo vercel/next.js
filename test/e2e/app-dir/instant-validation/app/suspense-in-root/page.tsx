@@ -142,6 +142,12 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/static/valid-client-error-in-parent-does-not-block-validation" />
         </li>
         <li>
+          <DebugLinks href="/suspense-in-root/static/server-error-blocks-children" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/server-error-inside-boundary" />
+        </li>
+        <li>
           <DebugLinks href="/suspense-in-root/static/false-below-static" />
         </li>
         <li>
@@ -256,6 +262,12 @@ export default async function Page() {
         </li>
         <li>
           <DebugLinks href="/suspense-in-root/static/multi-depth-deferred-fallback/inner" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/test-firstmod/inter/inner" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/static/test-multi-unrendered" />
         </li>
       </ul>
 

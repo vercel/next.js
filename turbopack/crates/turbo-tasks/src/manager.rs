@@ -410,6 +410,7 @@ pub enum TaskPriority {
     Invalidation {
         priority: Reverse<u32>,
     },
+    Recomputation,
 }
 
 impl TaskPriority {
@@ -445,6 +446,7 @@ impl TaskPriority {
                     *self
                 }
             }
+            TaskPriority::Recomputation => TaskPriority::Recomputation,
         }
     }
 }
@@ -454,6 +456,7 @@ impl Display for TaskPriority {
         match self {
             TaskPriority::Initial => write!(f, "initial"),
             TaskPriority::Invalidation { priority } => write!(f, "invalidation({})", priority.0),
+            TaskPriority::Recomputation => write!(f, "recomputation"),
         }
     }
 }

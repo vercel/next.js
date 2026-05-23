@@ -4,9 +4,9 @@ import {
   waitForNoErrorToast,
   retry,
 } from 'next-test-utils'
+import type { Playwright } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 import { format } from 'util'
-import { Playwright } from 'next-webdriver'
 import {
   createRenderResumeDataCache,
   RenderResumeDataCache,

@@ -47,7 +47,7 @@ use crate::{
         parse::{Request, stringify_data_uri},
         pattern::{Pattern, PatternMatch, read_matches},
         plugin::{AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin},
-        remap::{ExportsField, ImportsField, ReplacedSubpathValueResult},
+        remap::{ExportImport, ExportsField, ImportsField, ReplacedSubpathValueResult},
     },
     source::Source,
 };
@@ -2940,6 +2940,7 @@ async fn resolve_into_package(
                         conditions,
                         unspecified_conditions,
                         query,
+                        ExportImport::Export,
                     )
                     .await?,
                 );
@@ -3215,6 +3216,7 @@ async fn handle_exports_imports_field(
     conditions: &BTreeMap<RcStr, ConditionValue>,
     unspecified_conditions: &ConditionValue,
     query: RcStr,
+    ty: ExportImport,
 ) -> Result<Vc<ResolveResult>> {
     let mut results = Vec::new();
     let mut conditions_state = FxHashMap::default();
@@ -3248,57 +3250,59 @@ async fn handle_exports_imports_field(
         map_key,
     } in results
     {
-        if let Some(result_path) = result_path.with_normalized_path() {
-            let request = *Request::parse(Pattern::Concatenation(vec![
-                Pattern::Constant(rcstr!("./")),
-                result_path.clone(),
-            ]))
-            .to_resolved()
-            .await?;
+        let request = match ty {
+            ExportImport::Export => {
+                // Only relative paths are allowed in exports fields
+                Pattern::Concatenation(vec![Pattern::Constant(rcstr!("./")), result_path.clone()])
+            }
+            ExportImport::Import => result_path.clone(),
+        };
+        let request = *Request::parse(request).to_resolved().await?;
 
-            let resolve_result = Box::pin(resolve_internal_inline(
-                package_path.clone(),
-                request,
-                options,
-            ))
-            .await?;
+        let resolve_result = Box::pin(resolve_internal_inline(
+            package_path.clone(),
+            request,
+            options,
+        ))
+        .await?;
 
-            let resolve_result = if let Some(req) = req.as_constant_string() {
-                resolve_result.with_request(req.clone())
-            } else {
-                match map_key {
-                    AliasKey::Exact => resolve_result.with_request(map_prefix.clone().into()),
-                    AliasKey::Wildcard { .. } => {
-                        // - `req` is the user's request (key of the export map)
-                        // - `result_path` is the final request (value of the export map), so
-                        //   effectively `'{foo}*{bar}'`
+        let resolve_result = if let Some(req) = req.as_constant_string() {
+            resolve_result.with_request(req.clone())
+        } else {
+            match map_key {
+                AliasKey::Exact => resolve_result.with_request(map_prefix.clone().into()),
+                AliasKey::Wildcard { .. } => {
+                    // - `req` is the user's request (key of the export map)
+                    // - `result_path` is the final request (value of the export map), so
+                    //   effectively `'{foo}*{bar}'`
 
-                        // Because of the assertion in AliasMapLookupIterator, `req` is of the
-                        // form:
-                        // - "prefix...<dynamic>" or
-                        // - "prefix...<dynamic>...suffix"
+                    // Because of the assertion in AliasMapLookupIterator, `req` is of the
+                    // form:
+                    // - "prefix...<dynamic>" or
+                    // - "prefix...<dynamic>...suffix"
 
-                        let mut old_request_key = result_path;
-                        // Remove the Pattern::Constant(rcstr!("./")), from above again
+                    let mut old_request_key = result_path;
+                    if matches!(ty, ExportImport::Export) {
+                        // Remove the Pattern::Constant(rcstr!("./")) from above again
                         old_request_key.push_front(rcstr!("./").into());
-                        let new_request_key = req.clone();
-
-                        resolve_result.with_replaced_request_key_pattern(
-                            Pattern::new(old_request_key),
-                            Pattern::new(new_request_key),
-                        )
                     }
-                }
-            };
+                    let new_request_key = req.clone();
 
-            let resolve_result = if !conditions.is_empty() {
-                let resolve_result = resolve_result.await?.with_conditions(&conditions);
-                resolve_result.cell()
-            } else {
-                resolve_result
-            };
-            resolved_results.push(resolve_result);
-        }
+                    resolve_result.with_replaced_request_key_pattern(
+                        Pattern::new(old_request_key),
+                        Pattern::new(new_request_key),
+                    )
+                }
+            }
+        };
+
+        let resolve_result = if !conditions.is_empty() {
+            let resolve_result = resolve_result.await?.with_conditions(&conditions);
+            resolve_result.cell()
+        } else {
+            resolve_result
+        };
+        resolved_results.push(resolve_result);
     }
 
     // other options do not apply anymore when an exports field exist
@@ -3356,6 +3360,7 @@ async fn resolve_package_internal_with_imports_field(
         conditions,
         unspecified_conditions,
         RcStr::default(),
+        ExportImport::Import,
     )
     .await
 }
