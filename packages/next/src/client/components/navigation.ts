@@ -1,6 +1,6 @@
 import type { Params } from '../../server/request/params'
 
-import React, { useContext, useMemo, use } from 'react'
+import React, { useContext, useEffect, useMemo, useState, use } from 'react'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -102,8 +102,14 @@ export function useSearchParams(): ReadonlyURLSearchParams {
 }
 
 /**
- * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
- * that lets you read the current URL's pathname.
+ *
+ * This hook lets you read the current URL's pathname from a [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components).
+ *
+ * When `{ ssr: false }` is passed, the hook returns `null` during server
+ * rendering and the first client render, then resolves to the real pathname
+ * after mount. This avoids hydration mismatches when your app uses rewrites
+ * in `next.config` or a `Proxy` file, where the prerendered pathname may
+ * differ from the browser URL.
  *
  * @example
  * ```ts
@@ -116,15 +122,40 @@ export function useSearchParams(): ReadonlyURLSearchParams {
  * }
  * ```
  *
+ * @example
+ * ```ts
+ * "use client"
+ * import { usePathname } from 'next/navigation'
+ *
+ * // Defer until after mount to avoid hydration mismatch with rewrites
+ * const pathname = usePathname({ ssr: false })
+ * ```
+ *
  * Read more: [Next.js Docs: `usePathname`](https://nextjs.org/docs/app/api-reference/functions/use-pathname)
  */
 // Client components API
-export function usePathname(): string {
+export function usePathname(options: { ssr: false }): string | null
+export function usePathname(): string
+export function usePathname(options?: { ssr?: boolean }): string | null {
   useDynamicRouteParams?.('usePathname()')
 
   // In the case where this is `null`, the compat types added in `next-env.d.ts`
   // will add a new overload that changes the return type to include `null`.
   const pathname = useContext(PathnameContext) as string
+
+  // When ssr is false, defer the pathname read until after mount so the
+  // prerendered HTML matches across rewrites (source path vs browser URL).
+  const deferToClient = options?.ssr === false
+  const [mounted, setMounted] = useState(!deferToClient)
+  useEffect(() => {
+    if (deferToClient) {
+      setMounted(true)
+    }
+  }, [deferToClient])
+
+  if (!mounted) {
+    return null
+  }
 
   // During build-time instant validation, error if fallback params exist
   // because usePathname() can't return a sensible value without all params.
