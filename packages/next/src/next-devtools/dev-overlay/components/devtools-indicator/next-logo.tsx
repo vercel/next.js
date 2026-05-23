@@ -82,6 +82,9 @@ export function NextLogo({
   const isMenuOpen = panel === 'panel-selector'
 
   const hasError = totalErrorCount > 0
+  // Only insights remain: use amber styling instead of red.
+  const insightsOnly =
+    hasError && normalErrorCount === 0 && instantErrorCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
   const [previousHasError, setPreviousHasError] = useState(hasError)
   if (previousHasError !== hasError) {
@@ -241,6 +244,15 @@ export function NextLogo({
             }
 
             &[data-cache-bypassing='true']:not([data-error='true']) {
+              background: rgba(217, 119, 6, 0.95);
+              --color-inner-border: rgba(245, 158, 11, 0.9);
+
+              [data-issues-open] {
+                color: white;
+              }
+            }
+
+            &[data-insights-only='true']:not([data-error='true']) {
               background: rgba(217, 119, 6, 0.95);
               --color-inner-border: rgba(245, 158, 11, 0.9);
 
@@ -440,7 +452,8 @@ export function NextLogo({
       </style>
       <div
         data-next-badge
-        data-error={hasError}
+        data-error={hasError && !insightsOnly}
+        data-insights-only={insightsOnly}
         data-error-expanded={isExpanded}
         data-status={hasError || isCacheBypassing ? Status.None : currentStatus}
         data-cache-bypassing={isCacheBypassing}

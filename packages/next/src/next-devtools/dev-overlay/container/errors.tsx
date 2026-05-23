@@ -412,7 +412,7 @@ export function ErrorTabBar({
         disabled={errorCount === 0}
         onClick={() => onTabChange('errors')}
       >
-        Errors
+        Issues
         <span className="error-overlay-tab-count" data-variant="errors">
           {errorCount}
         </span>
