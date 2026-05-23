@@ -232,7 +232,7 @@ describe('instant validation - level manual-warning', () => {
              "code": "E1265",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/without-root-suspense/bare/page.tsx (10:19) @ Page
            > 10 |   await connection()
                 |                   ^",
@@ -252,7 +252,7 @@ describe('instant validation - level manual-warning', () => {
              "code": "E1265",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/without-root-suspense/explicit-error/page.tsx (11:19) @ Page
            > 11 |   await connection()
                 |                   ^",
@@ -272,7 +272,7 @@ describe('instant validation - level manual-warning', () => {
              "code": "E1265",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/without-root-suspense/explicit-true/page.tsx (11:19) @ Page
            > 11 |   await connection()
                 |                   ^",
@@ -292,7 +292,7 @@ describe('instant validation - level manual-warning', () => {
              "code": "E1265",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/without-root-suspense/explicit-warning/page.tsx (10:19) @ Page
            > 10 |   await connection()
                 |                   ^",
