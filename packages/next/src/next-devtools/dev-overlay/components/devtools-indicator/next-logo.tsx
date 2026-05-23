@@ -36,35 +36,30 @@ function PillLabel({
   instantCount: number
   newErrorDetected: boolean
 }) {
-  if (normalCount > 0 && instantCount === 0) {
-    return (
-      <>
-        Issue
-        <Plural
-          count={normalCount}
-          animate={newErrorDetected && normalCount === 2}
-        />
-      </>
-    )
-  }
-  if (normalCount === 0 && instantCount > 0) {
-    return (
-      <>
-        Insight
-        <Plural
-          count={instantCount}
-          animate={newErrorDetected && instantCount === 2}
-        />
-      </>
-    )
-  }
+  const hasNormal = normalCount > 0
+  const hasInstant = instantCount > 0
   return (
     <>
-      Issue
-      <Plural count={normalCount} animate={false} />
-      {' · '}
-      {instantCount} Insight
-      <Plural count={instantCount} animate={false} />
+      {hasNormal && (
+        <>
+          Issue
+          <Plural
+            count={normalCount}
+            animate={newErrorDetected && normalCount === 2}
+          />
+        </>
+      )}
+      {hasNormal && hasInstant && ' · '}
+      {hasInstant && (
+        <>
+          {hasNormal && <>{instantCount} </>}
+          Insight
+          <Plural
+            count={instantCount}
+            animate={newErrorDetected && instantCount === 2}
+          />
+        </>
+      )}
     </>
   )
 }

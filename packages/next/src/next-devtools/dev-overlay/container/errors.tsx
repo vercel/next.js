@@ -85,21 +85,21 @@ export function getErrorTypeLabel(
   errorDetails: ErrorDetails
 ): ErrorOverlayLayoutProps['errorType'] {
   if (errorDetails.type === 'blocking-route') {
-    // Prerender errors get 'Blocking Route' (red, shown in Errors tab)
     // Navigation errors get 'Instant' (amber, shown in Insights tab)
+    // All other blocking errors get 'Blocking Route' (red, shown in Errors tab)
     return errorDetails.inNavigation ? `Instant` : `Blocking Route`
   }
   if (errorDetails.type === 'dynamic-metadata') {
-    return `Instant`
+    return `Blocking Route`
   }
   if (errorDetails.type === 'dynamic-viewport') {
-    return `Instant`
+    return `Blocking Route`
   }
   if (errorDetails.type === 'sync-io') {
-    return `Instant`
+    return `Blocking Route`
   }
   if (errorDetails.type === 'sync-io-client') {
-    return `Instant`
+    return `Blocking Route`
   }
   if (type === 'recoverable') {
     return `Recoverable ${error.name}`
@@ -419,7 +419,9 @@ export function ErrorTabBar({
         onClick={() => onTabChange('errors')}
       >
         Errors
-        <span className="error-overlay-tab-count">{errorCount}</span>
+        <span className="error-overlay-tab-count" data-variant="errors">
+          {errorCount}
+        </span>
       </button>
       <button
         type="button"
@@ -429,7 +431,9 @@ export function ErrorTabBar({
         onClick={() => onTabChange('instant')}
       >
         Insights
-        <span className="error-overlay-tab-count">{instantCount}</span>
+        <span className="error-overlay-tab-count" data-variant="instant">
+          {instantCount}
+        </span>
       </button>
     </div>
   )
@@ -444,7 +448,6 @@ export function Errors({
 }: ErrorsProps) {
   const dialogResizerRef = useRef<HTMLDivElement | null>(null)
 
-  // Split errors into normal and instant categories
   const { normalErrors, instantErrors } = useMemo(() => {
     const normal: ReadyRuntimeError[] = []
     const instant: ReadyRuntimeError[] = []
@@ -458,7 +461,6 @@ export function Errors({
     return { normalErrors: normal, instantErrors: instant }
   }, [runtimeErrors])
 
-  // Default to whichever tab has errors, preferring 'errors' tab
   const [activeTab, setActiveTab] = useState<ErrorTab>(() =>
     normalErrors.length > 0 ? 'errors' : 'instant'
   )
@@ -1017,5 +1019,15 @@ export const styles = `
     line-height: 1;
     background: var(--color-gray-alpha-100);
     color: var(--color-gray-900);
+
+    &[data-variant='errors'] {
+      background: var(--color-red-100);
+      color: var(--color-red-900);
+    }
+
+    &[data-variant='instant'] {
+      background: var(--color-amber-100);
+      color: var(--color-amber-900);
+    }
   }
 `
