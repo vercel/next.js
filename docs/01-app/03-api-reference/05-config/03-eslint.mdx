@@ -154,6 +154,29 @@ export default eslintConfig
 
 `rootDir` can be a path (relative or absolute), a glob (i.e. `"packages/*/"`), or an array of paths and/or globs.
 
+If you use custom [`pageExtensions`](/docs/app/api-reference/config/next-config-js/pageExtensions), mirror them in `settings.next.pageExtensions` so ESLint rules that inspect route files can recognize the same filenames:
+
+```js filename="eslint.config.mjs"
+import { defineConfig } from 'eslint/config'
+import eslintNextPlugin from '@next/eslint-plugin-next'
+
+const eslintConfig = defineConfig([
+  {
+    files: ['**/*.{js,jsx,ts,tsx}'],
+    plugins: {
+      next: eslintNextPlugin,
+    },
+    settings: {
+      next: {
+        pageExtensions: ['page.tsx', 'page.ts', 'page.jsx', 'page.js'],
+      },
+    },
+  },
+])
+
+export default eslintConfig
+```
+
 ### Disabling rules
 
 If you would like to modify or disable any rules provided by the supported plugins (`react`, `react-hooks`, `next`), you can directly change them using the `rules` property in your `eslint.config.mjs`:
