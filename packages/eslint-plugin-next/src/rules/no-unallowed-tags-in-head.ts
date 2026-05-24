@@ -43,23 +43,33 @@ export default defineRule({
 
         // Check if this is a <Head> component
         const tagName = node.openingElement?.name
-        if (!tagName || (tagName.type === 'Identifier' && tagName.name !== 'Head')) {
+        if (
+          !tagName ||
+          (tagName.type === 'JSXIdentifier' && tagName.name !== 'Head')
+        ) {
           return
         }
 
         const checkChildren = (children: any[], depth: number) => {
           for (const child of children) {
+            // Handle JSXFragment shorthand (<>...</>)
+            if (child.type === 'JSXFragment') {
+              if (depth < 1) {
+                checkChildren(child.children || [], depth + 1)
+              }
+              continue
+            }
+
             if (child.type === 'JSXElement') {
               const childTagName = child.openingElement?.name
 
               if (!childTagName) continue
 
-              // Handle React.Fragment (<>, <Fragment>, <React.Fragment>)
+              // Handle named Fragment (<Fragment>, <React.Fragment>)
               if (
-                childTagName.type === 'JSXFragment' ||
-                (childTagName.type === 'Identifier' &&
-                  (childTagName.name === 'Fragment' ||
-                    childTagName.name === 'ReactFragment'))
+                childTagName.type === 'JSXIdentifier' &&
+                (childTagName.name === 'Fragment' ||
+                  childTagName.name === 'ReactFragment')
               ) {
                 if (depth < 1) {
                   checkChildren(child.children || [], depth + 1)
@@ -69,7 +79,7 @@ export default defineRule({
 
               // Skip custom React components (PascalCase)
               if (
-                childTagName.type === 'Identifier' &&
+                childTagName.type === 'JSXIdentifier' &&
                 childTagName.name[0] === childTagName.name[0].toUpperCase() &&
                 childTagName.name[0] !== childTagName.name[0].toLowerCase()
               ) {
@@ -78,7 +88,7 @@ export default defineRule({
 
               // Check if it's a lowercase HTML tag that's not in the valid set
               if (
-                childTagName.type === 'Identifier' &&
+                childTagName.type === 'JSXIdentifier' &&
                 !VALID_HEAD_TAGS.has(childTagName.name)
               ) {
                 context.report({
