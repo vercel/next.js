@@ -1,4 +1,5 @@
 import { promises as fs } from 'node:fs'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import FileSystemCache from 'next/dist/server/lib/incremental-cache/file-system-cache'
 import { nodeFs } from 'next/dist/server/lib/node-fs-methods'
@@ -8,6 +9,15 @@ import {
 } from 'next/dist/server/response-cache'
 
 const cacheDir = fileURLToPath(new URL('./cache', import.meta.url))
+
+async function hasCacheFile(...segments: string[]) {
+  try {
+    await fs.access(path.join(cacheDir, ...segments))
+    return true
+  } catch {
+    return false
+  }
+}
 
 describe('FileSystemCache', () => {
   it('set image route', async () => {
@@ -51,6 +61,57 @@ describe('FileSystemCache', () => {
       status: 200,
       kind: IncrementalCacheKind.APP_ROUTE,
     })
+  })
+
+  it('does not write app 404 responses to disk', async () => {
+    const pageKey = `missing-page-${Date.now()}`
+    const routeKey = `missing-route-${Date.now()}`
+    const fsCache = new FileSystemCache({
+      _requestHeaders: {},
+      flushToDisk: true,
+      fs: nodeFs,
+      serverDistDir: cacheDir,
+      revalidatedTags: [],
+      maxMemoryCacheSize: 0,
+    })
+
+    await fsCache.set(
+      pageKey,
+      {
+        kind: CachedRouteKind.APP_PAGE,
+        html: '<html><body>missing</body></html>',
+        rscData: Buffer.from('missing'),
+        headers: {},
+        status: 404,
+        postponed: undefined,
+        segmentData: new Map([['/_tree', Buffer.from('segment')]]),
+      },
+      {
+        cacheControl: { revalidate: 1, expire: undefined },
+      }
+    )
+
+    await fsCache.set(
+      routeKey,
+      {
+        kind: CachedRouteKind.APP_ROUTE,
+        body: Buffer.from('missing'),
+        headers: {},
+        status: 404,
+      },
+      {
+        cacheControl: { revalidate: 1, expire: undefined },
+      }
+    )
+
+    await expect(hasCacheFile('app', `${pageKey}.html`)).resolves.toBe(false)
+    await expect(hasCacheFile('app', `${pageKey}.rsc`)).resolves.toBe(false)
+    await expect(hasCacheFile('app', `${pageKey}.meta`)).resolves.toBe(false)
+    await expect(
+      hasCacheFile('app', `${pageKey}.segments`, '_tree.segment.rsc')
+    ).resolves.toBe(false)
+    await expect(hasCacheFile('app', `${routeKey}.body`)).resolves.toBe(false)
+    await expect(hasCacheFile('app', `${routeKey}.meta`)).resolves.toBe(false)
   })
 })
 
