@@ -21,6 +21,7 @@ import noStyledJsxInDocument from './rules/no-styled-jsx-in-document'
 import noSyncScripts from './rules/no-sync-scripts'
 import noTitleInDocumentHead from './rules/no-title-in-document-head'
 import noTypos from './rules/no-typos'
+import noUnallowedTagsInHead from './rules/no-unallowed-tags-in-head'
 import noUnwantedPolyfillio from './rules/no-unwanted-polyfillio'
 
 const recommendedRules = {
@@ -40,6 +41,7 @@ const recommendedRules = {
   '@next/next/no-sync-scripts': 'warn',
   '@next/next/no-title-in-document-head': 'warn',
   '@next/next/no-typos': 'warn',
+  '@next/next/no-unallowed-tags-in-head': 'warn',
   '@next/next/no-unwanted-polyfillio': 'warn',
   // errors
   '@next/next/inline-script-id': 'error',
@@ -82,6 +84,7 @@ const plugin = {
     'no-sync-scripts': noSyncScripts,
     'no-title-in-document-head': noTitleInDocumentHead,
     'no-typos': noTypos,
+    'no-unallowed-tags-in-head': noUnallowedTagsInHead,
     'no-unwanted-polyfillio': noUnwantedPolyfillio,
   } satisfies Record<string, Rule.RuleModule>,
   configs: {} as ESLintPluginConfigs,

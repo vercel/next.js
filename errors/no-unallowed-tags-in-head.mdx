@@ -1,0 +1,67 @@
+---
+title: No Unallowed Tags in Head
+---
+
+> Prevent usage of invalid HTML tags in `next/head` component.
+
+## Why This Error Occurred
+
+An invalid HTML element (e.g., `<html>`, `<body>`, `<div>`, `<main>`, `<section>`) was used inside the `next/head` component. Only elements valid inside the HTML `<head>` section are allowed as children of `<Head>`: `title`, `meta`, `link`, `style`, `script`, `base`, `noscript`, and `template`.
+
+When invalid elements are rendered inside `<head>`, the browser silently moves them (and all subsequent content) to the `<body>`, causing head tags to not be applied correctly during client-side navigation. This previously resulted in the misleading error: `"next-head-count is missing"`.
+
+## Possible Ways to Fix It
+
+Remove the invalid element from `<Head>` and place it in the appropriate location.
+
+### Before
+
+```jsx filename="pages/index.js"
+import Head from 'next/head'
+
+export default function Page() {
+  return (
+    <Head>
+      <html lang="en" />
+      <title>My Page</title>
+    </Head>
+  )
+}
+```
+
+### After
+
+```jsx filename="pages/index.js"
+import Head from 'next/head'
+
+export default function Page() {
+  return (
+    <Head>
+      <title>My Page</title>
+    </Head>
+  )
+}
+```
+
+For the `lang` attribute, use a [custom `_document`](/docs/pages/building-your-application/routing/custom-document) instead:
+
+```jsx filename="pages/_document.js"
+import { Html, Head, Main, NextScript } from 'next/document'
+
+export default function Document() {
+  return (
+    <Html lang="en">
+      <Head />
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  )
+}
+```
+
+## Useful Links
+
+- [next/head API Reference](/docs/pages/api-reference/components/head)
+- [Custom Document](/docs/pages/building-your-application/routing/custom-document)
