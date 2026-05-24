@@ -1296,12 +1296,16 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
         quote! {}
     };
 
-    // Add lazy vec field if needed (pub(crate) - used by helper methods)
-    // Note: Serialization is handled manually via encode_data/encode_meta methods
     let lazy_field = if has_lazy {
+        let max_lazy: u8 = grouped_fields
+            .all_lazy()
+            .count()
+            .try_into()
+            .expect("cannot have more than 255 lazy fields");
+
         quote! {
-            #[doc = "Lazily-allocated fields stored in a single Vec for memory efficiency"]
-            lazy: Vec<LazyField>,
+            #[doc = "Lazily-allocated fields stored in a compact TinyVec for memory efficiency"]
+            lazy: TinyVec<LazyField, #max_lazy>,
         }
     } else {
         quote! {}
@@ -3686,10 +3690,10 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
 
                 #clone_all_flags
 
-                // Pre-allocate lazy vec (upper bound - some may be transient and skipped)
-                snapshot.lazy.reserve(self.lazy.len());
-
-                // Clone all persistent lazy fields (both meta and data)
+                // Clone all persistent lazy fields (both meta and data).
+                // (No pre-`reserve`: the schema has ≤24 lazy fields, so at most 3 grows
+                // (0→4→8→16→24) total — cheaper than complicating the public API surface
+                // of `TinyVec`.)
                 for field in &self.lazy {
                     match field {
                         #(#clone_data_lazy_arms)*
@@ -3746,7 +3750,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 // and merge each source variant in O(1).
                 let (any_meta, _any_data, index) = Self::build_lazy_index(&self.lazy);
                 if !any_meta {
-                    self.lazy.extend(source.lazy);
+                    self.lazy.extend_exact(source.lazy);
                 } else {
                     for field in source.lazy {
                         debug_assert!(field.is_persistent() && field.is_meta());
@@ -3770,7 +3774,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 // in `self.lazy` is never a collision risk.
                 let (_any_meta, any_data, index) = Self::build_lazy_index(&self.lazy);
                 if !any_data {
-                    self.lazy.extend(source.lazy);
+                    self.lazy.extend_exact(source.lazy);
                 } else {
                     for field in source.lazy {
                         debug_assert!(field.is_persistent() && field.is_data());

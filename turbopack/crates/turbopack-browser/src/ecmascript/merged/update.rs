@@ -96,7 +96,7 @@ impl EcmascriptModuleEntry {
         Ok(EcmascriptModuleEntry {
             // Cloning a rope is cheap.
             code: code.await?.source_code().clone(),
-            url: format!("{}?{}", chunk_path, &id),
+            url: format!("{}?{}", chunk_path, id),
             map,
         })
     }

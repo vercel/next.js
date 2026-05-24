@@ -1,6 +1,6 @@
 use bincode::{Decode, Encode};
 use smallvec::SmallVec;
-use turbo_tasks::{TaskExecutionReason, TaskId, event::EventDescription};
+use turbo_tasks::{TaskExecutionReason, TaskId, TaskPriority, event::EventDescription};
 
 use crate::{
     backend::{
@@ -224,6 +224,16 @@ pub fn make_task_dirty_internal(
         *stale = true;
     }
     let current = task.get_dirty();
+    let parent_priority = ctx.get_current_task_priority();
+    let parent_priority = if matches!(parent_priority, TaskPriority::Recomputation) {
+        // When an invalidation was triggered during recomputation (or an initial execution that was
+        // triggered from recomputation), we do not want to treat that as recomputation.
+        // That would make recomputation to be very viral, and breaks ordering. So we reset
+        // execution order to initial.
+        TaskPriority::Initial
+    } else {
+        parent_priority
+    };
     let (old_self_dirty, old_current_session_self_clean, parent_priority) = match current {
         Some(Dirtyness::Dirty(current_priority)) => {
             #[cfg(feature = "trace_task_dirty")]
@@ -235,15 +245,15 @@ pub fn make_task_dirty_internal(
             )
             .entered();
             // already dirty
-            let parent_priority = ctx.get_current_task_priority();
-            if *current_priority >= parent_priority {
+            if matches!(*current_priority, TaskPriority::Initial)
+                || *current_priority > parent_priority
+            {
                 // Update the priority to be the lower one
                 task.set_dirty(Dirtyness::Dirty(parent_priority));
             }
             return;
         }
         Some(Dirtyness::SessionDependent) => {
-            let parent_priority = ctx.get_current_task_priority();
             task.set_dirty(Dirtyness::Dirty(parent_priority));
             // It was a session-dependent dirty before, so we need to remove that clean count
             let was_current_session_clean = task.current_session_clean();
@@ -265,7 +275,6 @@ pub fn make_task_dirty_internal(
             }
         }
         None => {
-            let parent_priority = ctx.get_current_task_priority();
             task.set_dirty(Dirtyness::Dirty(parent_priority));
             // It was clean before, so we need to increase the dirty count
             (false, false, parent_priority)

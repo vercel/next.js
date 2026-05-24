@@ -224,6 +224,7 @@ export const experimentalSchema = {
   dynamicOnHover: z.boolean().optional(),
   useOffline: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
+  appShells: z.boolean().optional(),
   varyParams: z.boolean().optional(),
   prefetchInlining: z
     .union([
@@ -272,7 +273,21 @@ export const experimentalSchema = {
   middlewareClientMaxBodySize: zSizeLimit.optional(),
   proxyClientMaxBodySize: zSizeLimit.optional(),
   multiZoneDraftMode: z.boolean().optional(),
-  cssChunking: z.union([z.boolean(), z.literal('strict')]).optional(),
+  cssChunking: z
+    .union([
+      z.boolean(),
+      z.literal('strict'),
+      z.literal('loose'),
+      z.literal('graph'),
+      z.strictObject({ type: z.literal('strict') }),
+      z.strictObject({ type: z.literal('loose') }),
+      z.strictObject({
+        type: z.literal('graph'),
+        requestCost: z.number().nonnegative().finite().optional(),
+        moduleFactorCost: z.number().nonnegative().finite().optional(),
+      }),
+    ])
+    .optional(),
   nextScriptWorkers: z.boolean().optional(),
   // The critter option is unknown, use z.any() here
   optimizeCss: z.union([z.boolean(), z.any()]).optional(),
@@ -748,6 +763,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .record(z.string(), z.array(z.string()))
       .optional(),
     pageExtensions: z.array(z.string()).min(1).optional(),
+    instrumentationClientInject: z.array(z.string()).optional(),
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
     reactCompiler: z.union([

@@ -3,10 +3,11 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { runTests, locales, nonDomainLocales } from './shared'
-import webdriver from 'next-webdriver'
 import { findPort, fetchViaHTTP, retry } from 'next-test-utils'
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup, isNextDev, type NextInstance } from 'e2e-utils'
 import assert from 'assert'
+
+type BrowserOptions = Parameters<NextInstance['browser']>[1]
 
 describe('i18n Support', () => {
   const { next, skipped } = nextTestSetup({
@@ -19,6 +20,8 @@ describe('i18n Support', () => {
   const ctx: Record<string, any> = {
     basePath: '',
     isDev: isNextDev,
+    browser: (pathname: string, options?: BrowserOptions) =>
+      next.browser(pathname, options),
   }
 
   let externalServer: http.Server
@@ -214,10 +217,7 @@ describe('i18n Support', () => {
     const runSlashTests = (curCtx) => {
       if (!curCtx.isDev) {
         it('should preload all locales data correctly', async () => {
-          const browser = await webdriver(
-            curCtx.appPort,
-            `${curCtx.basePath}/mixed`
-          )
+          const browser = await curCtx.browser(`${curCtx.basePath}/mixed`)
 
           await browser.eval(`(function() {
             document.querySelector('#to-gsp-en-us').scrollIntoView()
@@ -354,7 +354,7 @@ describe('i18n Support', () => {
       it('should navigate between pages correctly', async () => {
         for (const locale of nonDomainLocales) {
           const localePath = `/${locale !== 'en-US' ? `${locale}/` : ''}`
-          const browser = await webdriver(curCtx.appPort, localePath)
+          const browser = await curCtx.browser(localePath)
 
           await browser.eval('window.beforeNav = 1')
           await browser.elementByCss('#to-gsp').click()
