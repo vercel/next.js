@@ -75,12 +75,12 @@ export default function TaskPage({ params }) {
     <div>
       <Suspense fallback={<TaskDetailSkeleton />}>
         {params.then(({ id }) => (
-          <TaskDetail id={id} />
-        ))}
-      </Suspense>
-      <Suspense fallback={<CommentSectionSkeleton />}>
-        {params.then(({ id }) => (
-          <CommentSection taskId={id} />
+          <>
+            <TaskDetail id={id} />
+            <Suspense fallback={<CommentSectionSkeleton />}>
+              <CommentSection taskId={id} />
+            </Suspense>
+          </>
         ))}
       </Suspense>
     </div>
@@ -97,9 +97,9 @@ export async function TaskDetail({ id }) {
 }
 ```
 
-The page stays synchronous by using `params.then()` inline in JSX. Each `<Suspense>` boundary wraps one section, so the task header and comments stream in independently as their data resolves.
+The page stays synchronous by using `params.then()` inline in JSX. The outer `<Suspense>` covers the params resolution and the task detail fetch. Once `TaskDetail` resolves, React reveals the task header and the nested `<Suspense>` boundary, which shows `CommentSectionSkeleton` while comments load.
 
-If we navigate to a task now, the page shell paints immediately, the task header streams in when `getTask` resolves, and the comments stream in independently when `getComments` resolves.
+If we navigate to a task now, the page shell paints immediately, the task header streams in when `getTask` resolves, and the comments section streams in after that when `getComments` resolves.
 
 For more on streaming patterns, see the [Streaming](/docs/app/guides/streaming) guide.
 
@@ -141,7 +141,7 @@ export function TaskCard({ id, priority }) {
 
   function handlePriority() {
     startTransition(async () => {
-      setOptimisticPriority((current) => PRIORITY_CYCLE[current])
+      setOptimisticPriority(PRIORITY_CYCLE[optimisticPriority])
       await cyclePriority(id)
     })
   }
@@ -157,7 +157,7 @@ export function TaskCard({ id, priority }) {
 }
 ```
 
-The `setOptimisticPriority` call updates the UI on the current frame. The updater function `(current) => PRIORITY_CYCLE[current]` computes from the latest optimistic state, so rapid double-clicks cycle correctly instead of reading a stale closure value.
+The `setOptimisticPriority` call updates the UI on the current frame with the next value in the cycle. Reading from `optimisticPriority` (not the prop) means rapid double-clicks cycle correctly instead of reading a stale closure value.
 
 `startTransition` wraps the async work so React tracks it as a pending transition. If the Server Function throws, the optimistic value reverts. The standalone `startTransition` import does not bubble errors to error boundaries. If you need errors to reach an error boundary, use `useTransition` instead (shown in Step 3).
 
