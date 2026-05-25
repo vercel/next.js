@@ -47,16 +47,22 @@ at the versions above.
 
 Once per session, confirm both views are live.
 
-1. **Open the user's `agent-browser` session at the target URL
-   with `--headed` and react-devtools enabled, then pause.** The
-   browser is the user's, not yours; `agent-browser open` is
-   headless by default, so `--headed` is required. If the page is
-   behind login, gated by a feature flag, or needs specific state,
-   the user drives that — log in, set state, navigate. Continue
-   only after they confirm. Session state is sticky per session:
+1. **Open `agent-browser` at the target URL, restoring saved
+   login state when present.** Build the `open` command from:
+   - `--session-name <slug>` where `<slug>` is the project
+     directory basename.
+   - `--state ~/.agent-browser/sessions/<slug>-default.json` if
+     that file exists. Omit on first run — a missing path fails
+     the open.
+   - `--headed --enable react-devtools`.
+
+   The browser is the user's. If state was not restored (first
+   run, expired session) and the page is gated, the user drives
+   the login — pause until they confirm. Session state is sticky:
    you can't add `--enable react-devtools` after the session is
    open, and `cookies set` on a not-yet-opened session creates a
    sessionless cookie that silently fails to apply.
+
 2. POST `tools/list` to `/_next/mcp`. Send
    `Accept: application/json, text/event-stream`; responses are
    SSE-framed, strip the `data: ` prefix before parsing JSON.
@@ -127,8 +133,9 @@ get_compilation_issues       Turbopack only; errors on webpack
 
 ## teardown
 
-Close the `agent-browser` session. Leave `next dev` up for the next
-loop.
+Close the `agent-browser` session — `--session-name` writes state
+to disk so the next loop's `--state` restores login. Leave
+`next dev` up for the next loop.
 
 ---
 
