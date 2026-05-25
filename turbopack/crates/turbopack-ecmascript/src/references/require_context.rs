@@ -524,7 +524,7 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
         let mut bytes: Vec<u8> = vec![];
         let mut wr: JsWriter<'_, &mut Vec<u8>> =
             JsWriter::new(source_map.clone(), "\n", &mut bytes, None);
-        if matches!(*minify, MinifyType::Minify { .. }) {
+        if matches!(*minify, MinifyType::Minify(_)) {
             wr.set_indent_str("");
         }
 

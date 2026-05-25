@@ -119,7 +119,7 @@ async fn stylesheet_to_css(
     .await?;
 
     let result = ss.to_css(PrinterOptions {
-        minify: matches!(minify_type, MinifyType::Minify { .. }),
+        minify: matches!(minify_type, MinifyType::Minify(_)),
         source_map: srcmap.as_mut(),
         targets,
         analyze_dependencies: None,

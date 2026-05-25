@@ -1122,7 +1122,7 @@ impl EcmascriptModuleContent {
             *specified_module_type,
             *generate_source_map,
             *original_source_map,
-            *minify,
+            (*minify).clone(),
             Some(&*input),
             None,
         )
@@ -1208,7 +1208,7 @@ impl EcmascriptModuleContent {
                         *specified_module_type,
                         *generate_source_map,
                         *original_source_map,
-                        *chunking_context.minify_type().await?,
+                        (*chunking_context.minify_type().await?).clone(),
                         Some(&*options),
                         Some(ScopeHoistingOptions {
                             module: *module,
@@ -1247,7 +1247,7 @@ impl EcmascriptModuleContent {
                 original_source_map: CodeGenResultOriginalSourceMap::ScopeHoisting(
                     original_source_maps,
                 ),
-                minify: *options.chunking_context.minify_type().await?,
+                minify: (*options.chunking_context.minify_type().await?).clone(),
                 scope_hoisting_syntax_contexts: None,
             };
 
@@ -2169,7 +2169,7 @@ async fn emit_content(
             &mut bytes,
             generate_source_map.then_some(&mut mappings),
         );
-        if matches!(minify, MinifyType::Minify { .. }) {
+        if matches!(minify, MinifyType::Minify(_)) {
             wr.set_indent_str("");
         }
 

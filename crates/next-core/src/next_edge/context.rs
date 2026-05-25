@@ -6,8 +6,8 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
-        AssetSuffix, ChunkingConfig, ChunkingContext, CrossOrigin, MangleType, MinifyType,
-        SourceMapsType, UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, ChunkingContext, CrossOrigin, MangleType, SourceMapsType,
+        UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
@@ -32,7 +32,8 @@ use crate::{
     next_shared::resolve::NextSharedRuntimeResolvePlugin,
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
-        free_var_references_with_vercel_system_env_warnings, worker_forwarded_globals,
+        free_var_references_with_vercel_system_env_warnings, turbopack_minify_type,
+        worker_forwarded_globals,
     },
 };
 
@@ -254,14 +255,12 @@ pub async fn get_edge_chunking_context_with_client_assets(
         suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
         static_suffix: css_url_suffix.to_resolved().await?,
     })
-    .minify_type(if *turbo_minify.await? {
-        MinifyType::Minify {
-            // React needs deterministic function names to work correctly.
-            mangle: (!*no_mangling.await?).then_some(MangleType::Deterministic),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
+    .minify_type(turbopack_minify_type(
+        *turbo_minify.await?,
+        *no_mangling.await?,
+        // React needs deterministic function names to work correctly.
+        MangleType::Deterministic,
+    ))
     .source_maps(*turbo_source_maps.await?)
     .cross_origin(cross_origin_loading)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
@@ -359,13 +358,11 @@ pub async fn get_edge_chunking_context(
     // implementation in the edge sandbox. It will respond with the
     // asset from the output directory.
     .asset_base_path(Some(rcstr!("blob:server/edge/")))
-    .minify_type(if *turbo_minify.await? {
-        MinifyType::Minify {
-            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
+    .minify_type(turbopack_minify_type(
+        *turbo_minify.await?,
+        *no_mangling.await?,
+        MangleType::OptimalSize,
+    ))
     .source_maps(*turbo_source_maps.await?)
     .cross_origin(cross_origin)
     .module_id_strategy(module_id_strategy.to_resolved().await?)

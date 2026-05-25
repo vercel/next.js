@@ -12,6 +12,7 @@ use turbo_tasks_fs::{File, FileContent, FileJsonContent, FileSystem, FileSystemP
 use turbopack::module_options::RuleCondition;
 use turbopack_core::{
     asset::AssetContent,
+    chunk::{MangleType, MinifyOptions, MinifyType},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, DefinableNameSegment, FreeVarReference,
         FreeVarReferences,
@@ -556,4 +557,18 @@ pub fn worker_forwarded_globals() -> Vec<RcStr> {
         rcstr!("NEXT_DEPLOYMENT_ID"),
         rcstr!("NEXT_CLIENT_ASSET_SUFFIX"),
     ]
+}
+
+pub(crate) fn turbopack_minify_type(
+    turbo_minify: bool,
+    no_mangling: bool,
+    mangle_when_on: MangleType,
+) -> MinifyType {
+    if !turbo_minify {
+        MinifyType::NoMinify
+    } else {
+        MinifyType::Minify(Box::new(MinifyOptions::from_mangle(
+            (!no_mangling).then_some(mangle_when_on),
+        )))
+    }
 }

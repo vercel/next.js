@@ -29,7 +29,7 @@ use turbopack::{
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
 };
 use turbopack_core::{
-    chunk::{ChunkingConfig, MangleType, MinifyType},
+    chunk::{ChunkingConfig, MangleType, MinifyOptions, MinifyType},
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
@@ -547,9 +547,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     .source_map_source_type(turbopack_core::chunk::SourceMapSourceType::RelativeUri)
     .module_merging(options.scope_hoisting)
     .minify_type(if options.minify {
-        MinifyType::Minify {
-            mangle: Some(MangleType::OptimalSize),
-        }
+        MinifyType::Minify(Box::new(MinifyOptions::from_mangle(Some(
+            MangleType::OptimalSize,
+        ))))
     } else {
         MinifyType::NoMinify
     })

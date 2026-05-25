@@ -510,7 +510,7 @@ impl BrowserChunkingContext {
     /// Returns the minify type.
     #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
-        self.minify_type.cell()
+        self.minify_type.clone().cell()
     }
 
     /// Returns the chunk path information.
@@ -750,7 +750,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
-        self.minify_type.cell()
+        self.minify_type.clone().cell()
     }
 
     #[turbo_tasks::function]

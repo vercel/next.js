@@ -215,7 +215,7 @@ swc_core = { version = "65.0.3", default-features = false, features = [
   "ecma_loader_parking_lot",
   "parallel_rayon",
 ] }
-
+swc_ecma_minifier = "51.1.0"
 swc_plugin_backend_wasmtime = "9.0.0"
 testing = "22.0.0"
 

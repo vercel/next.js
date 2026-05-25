@@ -2,7 +2,17 @@
   "runtime": "NodeJs",
   "minifyType": {
     "Minify": {
-      "mangle": "optimal-size"
+      "compress": {
+        "passes": 2,
+        "keep_classnames": false,
+        "keep_fnames": false
+      },
+      "mangle": {
+        "topLevel": true,
+        "keep_classnames": false,
+        "keep_fnames": false,
+        "reserved": ["AbortSignal"]
+      }
     }
   }
 }

@@ -199,8 +199,8 @@ impl EcmascriptBrowserEvaluateChunk {
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
+        if let MinifyType::Minify(ref options) = *this.chunking_context.minify_type().await? {
+            code = minify(code, source_maps, options)?;
         }
 
         Ok(code.cell())

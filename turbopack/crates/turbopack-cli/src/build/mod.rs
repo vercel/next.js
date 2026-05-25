@@ -27,7 +27,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         ChunkingConfig, ChunkingContext, ChunkingContextExt, ContentHashing, EvaluatableAsset,
-        MangleType, MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
+        MangleType, MinifyOptions, MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
@@ -91,9 +91,9 @@ impl TurbopackBuildBuilder {
             show_all: false,
             log_detail: false,
             source_maps_type: SourceMapsType::Full,
-            minify_type: MinifyType::Minify {
-                mangle: Some(MangleType::OptimalSize),
-            },
+            minify_type: MinifyType::Minify(Box::new(MinifyOptions::from_mangle(Some(
+                MangleType::OptimalSize,
+            )))),
             target: Target::Node,
             scope_hoist: true,
         }
@@ -593,9 +593,9 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         .minify_type(if args.no_minify {
             MinifyType::NoMinify
         } else {
-            MinifyType::Minify {
-                mangle: Some(MangleType::OptimalSize),
-            }
+            MinifyType::Minify(Box::new(MinifyOptions::from_mangle(Some(
+                MangleType::OptimalSize,
+            ))))
         })
         .scope_hoist(!args.no_scope_hoist)
         .target(args.common.target.unwrap_or(Target::Node))

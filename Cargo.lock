@@ -10282,6 +10282,7 @@ dependencies = [
  "serde_json",
  "smallvec",
  "swc_core",
+ "swc_ecma_minifier",
  "swc_sourcemap",
  "tempfile",
  "tokio",

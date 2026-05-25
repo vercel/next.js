@@ -81,8 +81,8 @@ impl EcmascriptBuildNodeChunkContent {
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = *self.chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
+        if let MinifyType::Minify(ref options) = *self.chunking_context.minify_type().await? {
+            code = minify(code, source_maps, options)?;
         }
 
         Ok(code.cell())
@@ -94,7 +94,7 @@ impl EcmascriptBuildNodeChunkContent {
             self.chunking_context.output_root().owned().await?,
             self.chunk.path().owned().await?,
             *self.content,
-            *self.chunking_context.minify_type().await?,
+            (*self.chunking_context.minify_type().await?).clone(),
         ))
     }
 }

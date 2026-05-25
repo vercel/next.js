@@ -334,7 +334,10 @@ impl CssChunkItem for CssModuleChunkItem {
 
         let result = self
             .module
-            .finalize_css(*chunking_context, *chunking_context.minify_type().await?)
+            .finalize_css(
+                *chunking_context,
+                (*chunking_context.minify_type().await?).clone(),
+            )
             .await?;
 
         if let FinalCssResult::Ok {

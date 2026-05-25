@@ -16,7 +16,7 @@ use turbopack_browser::{
 use turbopack_core::{
     chunk::{
         AssetSuffix, ChunkingConfig, ChunkingContext, ContentHashing, CrossOrigin, MangleType,
-        MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
@@ -71,7 +71,7 @@ use crate::{
     util::{
         OptionEnvMap, defines, foreign_code_context_condition,
         free_var_references_with_vercel_system_env_warnings, internal_assets_conditions,
-        module_styles_rule_condition, worker_forwarded_globals,
+        module_styles_rule_condition, turbopack_minify_type, worker_forwarded_globals,
     },
 };
 
@@ -530,13 +530,11 @@ pub async fn get_client_chunking_context(
     )
     .chunk_base_path(Some(asset_prefix.clone()))
     .asset_suffix(AssetSuffix::Inferred.resolved_cell())
-    .minify_type(if *minify.await? {
-        MinifyType::Minify {
-            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
+    .minify_type(turbopack_minify_type(
+        *minify.await?,
+        *no_mangling.await?,
+        MangleType::OptimalSize,
+    ))
     .source_maps(*source_maps.await?)
     .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)

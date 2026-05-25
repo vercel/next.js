@@ -15,7 +15,7 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::{
-        AssetSuffix, ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, SourceMapsType,
+        AssetSuffix, ChunkingConfig, MangleType, SourceMapSourceType, SourceMapsType,
         UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_defines,
@@ -74,7 +74,7 @@ use crate::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
         free_var_references_with_vercel_system_env_warnings, get_transpiled_packages,
         internal_assets_conditions, load_next_js_jsonc_file, module_styles_rule_condition,
-        worker_forwarded_globals,
+        turbopack_minify_type, worker_forwarded_globals,
     },
 };
 
@@ -1083,14 +1083,12 @@ pub async fn get_server_chunking_context_with_client_assets(
         suffix: AssetSuffix::Inferred,
         static_suffix: ResolvedVc::cell(None),
     })
-    .minify_type(if *minify.await? {
-        MinifyType::Minify {
-            // React needs deterministic function names to work correctly.
-            mangle: (!*no_mangling.await?).then_some(MangleType::Deterministic),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
+    .minify_type(turbopack_minify_type(
+        *minify.await?,
+        *no_mangling.await?,
+        // React needs deterministic function names to work correctly.
+        MangleType::Deterministic,
+    ))
     .source_maps(*source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
@@ -1192,13 +1190,11 @@ pub async fn get_server_chunking_context(
         suffix: AssetSuffix::Inferred,
         static_suffix: ResolvedVc::cell(None),
     })
-    .minify_type(if *minify.await? {
-        MinifyType::Minify {
-            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
+    .minify_type(turbopack_minify_type(
+        *minify.await?,
+        *no_mangling.await?,
+        MangleType::OptimalSize,
+    ))
     .source_maps(*source_maps.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)

@@ -2,12 +2,16 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
+use swc_core::atoms::atom;
+use swc_ecma_minifier::option::{
+    CompressOptions, MangleOptions, MinifyOptions as SwcMinifyOptions,
+};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::DeterministicHash;
+use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 use crate::{
     asset::{Asset, AssetContent},
@@ -50,20 +54,80 @@ pub enum MangleType {
     Deterministic,
 }
 
+#[derive(Debug, PartialEq, Eq, Encode, Decode, Hash, Clone, Deserialize)]
+pub struct MinifyOptions(
+    #[bincode(with = "turbo_bincode::serde_self_describing")] SwcMinifyOptions,
+);
+
+impl MinifyOptions {
+    pub fn from_mangle(mangle: Option<MangleType>) -> Self {
+        Self(SwcMinifyOptions {
+            compress: Some(CompressOptions {
+                passes: 2,
+                keep_classnames: mangle.is_none(),
+                keep_fnames: mangle.is_none(),
+                ..Default::default()
+            }),
+            mangle: mangle.map(|mangle| {
+                let reserved = vec![atom!("AbortSignal")];
+                match mangle {
+                    MangleType::OptimalSize => MangleOptions {
+                        reserved,
+                        ..Default::default()
+                    },
+                    MangleType::Deterministic => MangleOptions {
+                        reserved,
+                        disable_char_freq: true,
+                        ..Default::default()
+                    },
+                }
+            }),
+            ..Default::default()
+        })
+    }
+
+    pub fn as_swc(&self) -> &SwcMinifyOptions {
+        &self.0
+    }
+
+    pub fn mangle_is_none(&self) -> bool {
+        self.0.mangle.is_none()
+    }
+}
+
+impl TaskInput for MinifyOptions {
+    fn is_transient(&self) -> bool {
+        false
+    }
+}
+
+impl TraceRawVcs for MinifyOptions {
+    fn trace_raw_vcs(&self, _trace_context: &mut turbo_tasks::trace::TraceRawVcsContext) {}
+}
+
+unsafe impl NonLocalValue for MinifyOptions {}
+
+impl DeterministicHash for MinifyOptions {
+    fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H) {
+        let bytes = bincode::encode_to_vec(self, bincode::config::standard())
+            .expect("MinifyOptions should be encodable");
+        state.write_usize(bytes.len());
+        state.write_bytes(&bytes);
+    }
+}
+
 #[turbo_tasks::value(shared)]
-#[derive(Debug, TaskInput, Clone, Copy, Hash, DeterministicHash, Deserialize)]
+#[derive(Debug, TaskInput, Clone, Hash, DeterministicHash, Deserialize)]
 pub enum MinifyType {
-    // TODO instead of adding a new property here,
-    // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
-    Minify { mangle: Option<MangleType> },
+    Minify(Box<MinifyOptions>),
     NoMinify,
 }
 
 impl Default for MinifyType {
     fn default() -> Self {
-        Self::Minify {
-            mangle: Some(MangleType::OptimalSize),
-        }
+        Self::Minify(Box::new(MinifyOptions::from_mangle(Some(
+            MangleType::OptimalSize,
+        ))))
     }
 }
 
