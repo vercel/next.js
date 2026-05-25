@@ -45,8 +45,67 @@ import {
   NEXT_REWRITTEN_QUERY_HEADER,
   RSC_HEADER,
 } from '../../../client/components/app-router-headers'
+import { resolveRoutes as resolveNextRoutes } from '@next/routing'
+import {
+  createNextRoutingServerState,
+  hasUnsupportedNextRoutingCustomRouteFeatures,
+  mapNextRoutingResultToResolveRoutesResult,
+} from './next-routing-adapter'
 
 const debug = setupDebug('next:router-server:resolve-routes')
+
+function createHeaders(headers: IncomingMessage['headers']) {
+  const result = new Headers()
+
+  for (const [key, value] of Object.entries(headers)) {
+    if (value === undefined) {
+      continue
+    }
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        result.append(key, item)
+      }
+    } else {
+      result.set(key, value)
+    }
+  }
+
+  return result
+}
+
+function createEmptyReadableStream() {
+  return new ReadableStream({
+    start(controller) {
+      controller.close()
+    },
+  })
+}
+
+function createNextRoutingUrl({
+  initUrl,
+  protocol,
+  hostname,
+  port,
+  requestUrl,
+}: {
+  initUrl: string
+  protocol: string
+  hostname?: string | null
+  port?: number | null
+  requestUrl?: string
+}) {
+  if (URL.canParse(initUrl)) {
+    return new URL(initUrl)
+  }
+
+  return new URL(
+    requestUrl || '/',
+    `${protocol}//${formatHostname(hostname || 'localhost')}${
+      port ? `:${port}` : ''
+    }`
+  )
+}
 
 export function getResolveRoutes(
   fsChecker: UnwrapPromise<
@@ -350,6 +409,60 @@ export function getResolveRoutes(
           ? new BasePathPathnameNormalizer(config.basePath)
           : undefined,
       data: new NextDataPathnameNormalizer(fsChecker.buildId),
+    }
+
+    if (
+      process.env.__NEXT_EXPERIMENTAL_USE_NEXT_ROUTING_RESOLVER === '1' &&
+      !opts.dev &&
+      !opts.minimalMode &&
+      !isUpgradeReq &&
+      !config.i18n &&
+      !config.basePath &&
+      !config.trailingSlash &&
+      !fsChecker.exportPathMapRoutes &&
+      !hasUnsupportedNextRoutingCustomRouteFeatures(fsChecker) &&
+      !fsChecker.getMiddlewareMatchers()?.length &&
+      !isRSCRequestHeader(req.headers[RSC_HEADER])
+    ) {
+      const nextRoutingUrl = createNextRoutingUrl({
+        initUrl,
+        protocol,
+        hostname: opts.hostname,
+        port: opts.port,
+        requestUrl: req.url,
+      })
+      const nextRoutingState = createNextRoutingServerState(fsChecker, config, {
+        includeDynamicRoutes: false,
+        invokedOutputs,
+        minimalMode: opts.minimalMode,
+        shouldNormalizeNextData: false,
+      })
+      const nextRoutingResult = await resolveNextRoutes({
+        url: nextRoutingUrl,
+        buildId: nextRoutingState.buildId,
+        basePath: nextRoutingState.basePath,
+        i18n: undefined,
+        requestBody: createEmptyReadableStream(),
+        headers: createHeaders(req.headers),
+        pathnames: nextRoutingState.pathnames,
+        routes: nextRoutingState.routes,
+        invokeMiddleware: async () => ({}),
+      })
+      const mappedResult = await mapNextRoutingResultToResolveRoutesResult({
+        result: nextRoutingResult,
+        fsChecker,
+        initUrl: nextRoutingUrl,
+        requestUrl: req.url || '',
+        invokedOutputs,
+      })
+
+      if (
+        mappedResult.finished ||
+        mappedResult.matchedOutput ||
+        mappedResult.resHeaders === null
+      ) {
+        return mappedResult
+      }
     }
 
     async function handleRoute(

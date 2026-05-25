@@ -82,6 +82,39 @@ describe('Internal Rewrites', () => {
     expect(result.resolvedPathname).toBe('/api/search')
   })
 
+  it('should preserve repeated destination query parameters', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/some-page'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [
+          {
+            sourceRegex: '^/some-page$',
+            destination: '/?items=1&items=2',
+          },
+        ],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/')
+    expect(result.resolvedQuery).toEqual({
+      items: ['1', '2'],
+    })
+    expect(result.invocationTarget).toEqual({
+      pathname: '/',
+      query: {
+        items: ['1', '2'],
+      },
+    })
+  })
+
   it('should preserve original query params during internal rewrite', async () => {
     const params = createBaseParams({
       url: new URL('https://example.com/page?id=123'),

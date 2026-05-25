@@ -22,6 +22,7 @@
   ],
   "scripts": {
     "dev": "ncc build ./src/index.ts -w -o dist/",
+    "pack-for-isolated-tests": "pnpm build && pnpm pack --out ./packed.tgz",
     "prerelease": "node ../../scripts/rm.mjs dist",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "release": "ncc build ./src/index.ts -o ./dist/ --minify --no-cache --no-source-map-register",

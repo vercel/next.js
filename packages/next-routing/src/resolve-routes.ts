@@ -308,8 +308,13 @@ function mergeDestinationQueryIntoUrl(url: URL, destination: string): URL {
   }
 
   const destinationParams = new URLSearchParams(destinationSearch)
+  const destinationKeys = new Set<string>()
   for (const [key, value] of destinationParams.entries()) {
-    mergedUrl.searchParams.set(key, value)
+    if (!destinationKeys.has(key)) {
+      mergedUrl.searchParams.delete(key)
+      destinationKeys.add(key)
+    }
+    mergedUrl.searchParams.append(key, value)
   }
   return mergedUrl
 }
