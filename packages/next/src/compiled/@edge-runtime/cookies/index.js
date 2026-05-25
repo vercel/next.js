@@ -42,7 +42,8 @@ function stringifyCookie(c) {
     "partitioned" in c && c.partitioned && "Partitioned",
     "priority" in c && c.priority && `Priority=${c.priority}`
   ].filter(Boolean);
-  const stringified = `${c.name}=${encodeURIComponent((_a = c.value) != null ? _a : "")}`;
+  const encode = typeof c.encode === 'function' ? c.encode : encodeURIComponent;
+  const stringified = `${c.name}=${encode((_a = c.value) != null ? _a : "")}`;
   return attrs.length === 0 ? stringified : `${stringified}; ${attrs.join("; ")}`;
 }
 function parseCookie(cookie) {
@@ -245,7 +246,7 @@ var RequestCookies = class {
     return `RequestCookies ${JSON.stringify(Object.fromEntries(this._parsed))}`;
   }
   toString() {
-    return [...this._parsed.values()].map((v) => `${v.name}=${encodeURIComponent(v.value)}`).join("; ");
+    return [...this._parsed.values()].map((v) => `${v.name}=${typeof v.encode === 'function' ? v.encode(v.value) : encodeURIComponent(v.value)}`).join("; ");
   }
 };
 

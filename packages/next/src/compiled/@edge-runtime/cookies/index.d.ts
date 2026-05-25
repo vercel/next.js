@@ -131,7 +131,7 @@ interface CookieListItem extends Pick<CookieSerializeOptions, 'domain' | 'path' 
  * Superset of {@link CookieListItem} extending it with
  * the `httpOnly`, `maxAge` and `priority` properties.
  */
-type ResponseCookie = CookieListItem & Pick<CookieSerializeOptions, 'httpOnly' | 'maxAge' | 'priority'>;
+type ResponseCookie = CookieListItem & Pick<CookieSerializeOptions, 'httpOnly' | 'maxAge' | 'priority' | 'encode'>;
 /**
  * Subset of {@link CookieListItem}, only containing `name` and `value`
  * since other cookie attributes aren't be available on a `Request`.
