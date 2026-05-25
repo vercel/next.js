@@ -241,6 +241,7 @@ You can use React's [`use` API](https://react.dev/reference/react/use) to [strea
 
 ```tsx filename="app/blog/page.tsx" switcher
 import Posts from '@/app/ui/posts'
+import { getPosts } from '@/lib/posts'
 import { Suspense } from 'react'
 
 export default function Page() {
@@ -257,6 +258,7 @@ export default function Page() {
 
 ```jsx filename="app/blog/page.js" switcher
 import Posts from '@/app/ui/posts'
+import { getPosts } from '@/lib/posts'
 import { Suspense } from 'react'
 
 export default function Page() {
