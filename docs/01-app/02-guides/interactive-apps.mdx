@@ -75,12 +75,12 @@ export default function TaskPage({ params }) {
     <div>
       <Suspense fallback={<TaskDetailSkeleton />}>
         {params.then(({ id }) => (
-          <>
-            <TaskDetail id={id} />
-            <Suspense fallback={<CommentSectionSkeleton />}>
-              <CommentSection taskId={id} />
-            </Suspense>
-          </>
+          <TaskDetail id={id} />
+        ))}
+      </Suspense>
+      <Suspense fallback={<CommentSectionSkeleton />}>
+        {params.then(({ id }) => (
+          <CommentSection taskId={id} />
         ))}
       </Suspense>
     </div>
@@ -97,7 +97,7 @@ export async function TaskDetail({ id }) {
 }
 ```
 
-The page stays synchronous by using `params.then()` inline in JSX. The outer `<Suspense>` covers the params resolution. Once `id` is available, `TaskDetail` renders immediately (with its own data fetch), and a nested `<Suspense>` lets comments stream in independently.
+The page stays synchronous by using `params.then()` inline in JSX. Each `<Suspense>` boundary wraps one section, so the task header and comments stream in independently as their data resolves.
 
 If we navigate to a task now, the page shell paints immediately, the task header streams in when `getTask` resolves, and the comments stream in independently when `getComments` resolves.
 
@@ -376,8 +376,7 @@ import { getComments } from '@/data/queries/comment'
 import { CommentCard } from './comment-card'
 import { OptimisticComments } from './optimistic-comments'
 
-async function CommentSection({ taskIdPromise }) {
-  const taskId = await taskIdPromise
+async function CommentSection({ taskId }) {
   const comments = await getComments(taskId)
 
   return (
@@ -509,12 +508,12 @@ export function CreateTaskModal() {
 
   const [{ key }, formAction, isPending] = useActionState(
     async (prev, formData) => {
-      const title = formData.get('title')
+      const title = String(formData.get('title'))
       if (!title.trim()) return prev
 
       await createTask({
         title,
-        description: formData.get('description'),
+        description: String(formData.get('description')),
         status: 'todo',
         priority: 'medium',
       })
