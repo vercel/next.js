@@ -10,6 +10,21 @@ import {
   getUrlFromAppDirectory,
 } from '../utils/url'
 
+const defaultPageExtensions = ['js', 'jsx', 'ts', 'tsx']
+
+function parsePageExtensions(options: (string | string[])[]): string[] {
+  // Options can be: 'pagesDir' or ['pagesDir', { pageExtensions: [...] }]
+  const secondOption = options[1]
+  if (secondOption && typeof secondOption === 'object' && !Array.isArray(secondOption)) {
+    const exts = secondOption.pageExtensions
+    if (Array.isArray(exts) && exts.length > 0) {
+      return exts
+    }
+  }
+  // Also check eslint settings
+  return defaultPageExtensions
+}
+
 const pagesDirWarning = execOnce((pagesDirs) => {
   console.warn(
     `Pages directory cannot be found at ${pagesDirs.join(' or ')}. ` +
@@ -72,6 +87,28 @@ export default defineRule({
     const ruleOptions: (string | string[])[] = context.options
     const [customPagesDirectory] = ruleOptions
 
+    // Check settings for pageExtensions
+    const nextSettings: { pageExtensions?: string[] } =
+      (context.settings.next || {}) as { pageExtensions?: string[] }
+
+    const pageExtensions =
+      nextSettings.pageExtensions && nextSettings.pageExtensions.length > 0
+        ? nextSettings.pageExtensions
+        : parsePageExtensions(ruleOptions)
+
+    const extensionRegex = new RegExp(
+      `(\.(${pageExtensions.map((ext) => ext.replace(/^\./, '')).join('|')}))$`
+    )
+    const indexRegex = new RegExp(
+      `^index(\.(${pageExtensions.map((ext) => ext.replace(/^\./, '')).join('|')}))$`
+    )
+    const pageRegex = new RegExp(
+      `^page(\.(${pageExtensions.map((ext) => ext.replace(/^\./, '')).join('|')}))$`
+    )
+    const layoutRegex = new RegExp(
+      `^layout(\.(${pageExtensions.map((ext) => ext.replace(/^\./, '')).join('|')}))$`
+    )
+
     const rootDirs = getRootDirs(context)
 
     const pagesDirs = (
@@ -107,8 +144,8 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs, extensionRegex, indexRegex)
+    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs, extensionRegex, pageRegex, layoutRegex)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
