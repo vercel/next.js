@@ -6,21 +6,27 @@ import * as fs from 'fs'
 const fsReadDirSyncCache = {}
 
 /**
+ * Escapes special regex characters in a string so it can be safely used in a RegExp.
+ */
+function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
  * Recursively parse directory for page URLs.
  */
 function parseUrlForPages(
   urlprefix: string,
   directory: string,
-  extensionRegex?: RegExp
+  extPattern?: string
 ) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
   const res = []
-  const extRegex = extensionRegex || /(\.(j|t)sx?)$/
-  const idxRegex = extensionRegex
-    ? new RegExp(`^index(${extensionRegex.source})$`)
-    : /^index(\.(j|t)sx?)$/
+  const escaped = extPattern ? escapeRegExp(extPattern) : '(j|t)sx?'
+  const extRegex = new RegExp('(\\.(' + escaped + '))$')
+  const idxRegex = new RegExp('^index(\\.(' + escaped + '))$')
   fsReadDirSyncCache[directory].forEach((dirent) => {
     if (extRegex.test(dirent.name)) {
       if (idxRegex.test(dirent.name)) {
@@ -32,7 +38,7 @@ function parseUrlForPages(
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath, extensionRegex))
+        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath, extPattern))
       }
     }
   })
@@ -45,17 +51,16 @@ function parseUrlForPages(
 function parseUrlForAppDir(
   urlprefix: string,
   directory: string,
-  extensionRegex?: RegExp,
-  pageRegex?: RegExp,
-  layoutRegex?: RegExp
+  extPattern?: string
 ) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
   const res = []
-  const extRegex = extensionRegex || /(\.(j|t)sx?)$/
-  const pRegex = pageRegex || /^page(\.(j|t)sx?)$/
-  const lRegex = layoutRegex || /^layout(\.(j|t)sx?)$/
+  const escaped = extPattern ? escapeRegExp(extPattern) : '(j|t)sx?'
+  const extRegex = new RegExp('(\\.(' + escaped + '))$')
+  const pRegex = new RegExp('^page(\\.(' + escaped + '))$')
+  const lRegex = new RegExp('^layout(\\.(' + escaped + '))$')
   fsReadDirSyncCache[directory].forEach((dirent) => {
     if (extRegex.test(dirent.name)) {
       if (pRegex.test(dirent.name)) {
@@ -66,7 +71,7 @@ function parseUrlForAppDir(
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath, extensionRegex))
+        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath, extPattern))
       }
     }
   })
@@ -150,14 +155,13 @@ export function normalizeAppPath(route: string) {
 export function getUrlFromPagesDirectories(
   urlPrefix: string,
   directories: string[],
-  extensionRegex?: RegExp,
-  indexRegex?: RegExp
+  extPattern?: string
 ) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .flatMap((directory) => parseUrlForPages(urlPrefix, directory, extensionRegex))
+        .flatMap((directory) => parseUrlForPages(urlPrefix, directory, extPattern))
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
           (url) => `^${normalizeURL(url)}$`
@@ -172,15 +176,13 @@ export function getUrlFromPagesDirectories(
 export function getUrlFromAppDirectory(
   urlPrefix: string,
   directories: string[],
-  extensionRegex?: RegExp,
-  pageRegex?: RegExp,
-  layoutRegex?: RegExp
+  extPattern?: string
 ) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .map((directory) => parseUrlForAppDir(urlPrefix, directory, extensionRegex, pageRegex, layoutRegex))
+        .map((directory) => parseUrlForAppDir(urlPrefix, directory, extPattern))
         .flat()
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.

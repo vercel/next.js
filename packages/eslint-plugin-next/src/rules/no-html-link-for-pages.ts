@@ -96,18 +96,13 @@ export default defineRule({
         ? nextSettings.pageExtensions
         : parsePageExtensions(ruleOptions)
 
-    const extensionRegex = new RegExp(
-      `(\.(${pageExtensions.map((ext) => ext.replace(/^\./, '')).join('|')}))$`
-    )
-    const indexRegex = new RegExp(
-      `^index(\.(${pageExtensions.map((ext) => ext.replace(/^\./, '')).join('|')}))$`
-    )
-    const pageRegex = new RegExp(
-      `^page(\.(${pageExtensions.map((ext) => ext.replace(/^\./, '')).join('|')}))$`
-    )
-    const layoutRegex = new RegExp(
-      `^layout(\.(${pageExtensions.map((ext) => ext.replace(/^\./, '')).join('|')}))$`
-    )
+    // Build extension pattern string (not RegExp) so it serializes properly
+    // for the memoize cache key. Individual extensions are escaped to prevent
+    // regex special characters (e.g., dots in "custom.ext") from causing
+    // false-positive matches.
+    const extPattern = pageExtensions
+      .map((ext) => ext.replace(/^\./, ''))
+      .join('|')
 
     const rootDirs = getRootDirs(context)
 
@@ -144,8 +139,8 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs, extensionRegex, indexRegex)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs, extensionRegex, pageRegex, layoutRegex)
+    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs, extPattern)
+    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs, extPattern)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
