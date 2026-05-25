@@ -207,8 +207,11 @@ class InnerScrollAndFocusHandlerOld extends React.Component<ScrollAndMaybeFocusH
         const htmlElement = document.documentElement
         const viewportHeight = htmlElement.clientHeight
 
-        // If the element's top edge is already in the viewport, exit early.
-        if (topOfElementInViewport(domNode, viewportHeight)) {
+        // If the element's top edge is already in the viewport and the page is
+        // already scrolled to the top, exit early. We also check scrollTop to
+        // handle the case where a sticky header occupies space at the top of
+        // the viewport even when the document is not scrolled to position 0.
+        if (htmlElement.scrollTop === 0 && topOfElementInViewport(domNode, viewportHeight)) {
           return
         }
 
@@ -316,8 +319,11 @@ function InnerScrollHandlerNew(props: ScrollAndMaybeFocusHandlerProps) {
           const htmlElement = document.documentElement
           const viewportHeight = htmlElement.clientHeight
 
-          // If the element's top edge is already in the viewport, exit early.
-          if (topOfElementInViewport(instance, viewportHeight)) {
+          // If the element's top edge is already in the viewport and the page is
+          // already scrolled to the top, exit early. We also check scrollTop to
+          // handle the case where a sticky header occupies space at the top of
+          // the viewport even when the document is not scrolled to position 0.
+          if (htmlElement.scrollTop === 0 && topOfElementInViewport(instance, viewportHeight)) {
             return
           }
 
