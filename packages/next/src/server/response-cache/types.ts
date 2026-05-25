@@ -2,6 +2,7 @@ import type { OutgoingHttpHeaders } from 'http'
 import type RenderResult from '../render-result'
 import type { CacheControl, Revalidate } from '../lib/cache-control'
 import type { RouteKind } from '../route-kind'
+import type { CollectedSegmentData } from '../app-render/collect-segment-data'
 
 export interface ResponseCacheBase {
   get(
@@ -77,7 +78,7 @@ export interface CachedAppPageValue {
   status: number | undefined
   postponed: string | undefined
   headers: OutgoingHttpHeaders | undefined
-  segmentData: Map<string, Buffer> | undefined
+  segmentData: Map<string, CollectedSegmentData> | undefined
 }
 
 export interface CachedPageValue {
@@ -119,7 +120,7 @@ export interface IncrementalCachedAppPageValue {
   headers: OutgoingHttpHeaders | undefined
   postponed: string | undefined
   status: number | undefined
-  segmentData: Map<string, Buffer> | undefined
+  segmentData: Map<string, CollectedSegmentData> | undefined
 }
 
 export interface IncrementalCachedPageValue {

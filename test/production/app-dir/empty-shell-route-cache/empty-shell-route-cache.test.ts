@@ -19,8 +19,9 @@ describe('empty-shell-route-cache', () => {
     const files = [
       `${route}.html`,
       `${route}.meta`,
-      ...routeMeta.segmentPaths.map(
-        (segmentPath: string) => `${route}.segments${segmentPath}.segment.rsc`
+      ...routeMeta.segments.map(
+        ({ path: segmentPath }: { path: string }) =>
+          `${route}.segments${segmentPath}.segment.rsc`
       ),
     ]
 

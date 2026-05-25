@@ -1,4 +1,5 @@
 import type { CacheHandlerValue } from '.'
+import type { CollectedSegmentData } from '../../app-render/collect-segment-data'
 import { CachedRouteKind } from '../../response-cache/types'
 import { LRUCache } from '../lru-cache'
 
@@ -8,14 +9,16 @@ function getBufferSize(buffer: Buffer | undefined) {
   return buffer?.length || 0
 }
 
-function getSegmentDataSize(segmentData: Map<string, Buffer> | undefined) {
+function getSegmentDataSize(
+  segmentData: Map<string, CollectedSegmentData> | undefined
+) {
   if (!segmentData) {
     return 0
   }
 
   let size = 0
 
-  for (const [segmentPath, buffer] of segmentData) {
+  for (const [segmentPath, { buffer }] of segmentData) {
     size += segmentPath.length + getBufferSize(buffer)
   }
 

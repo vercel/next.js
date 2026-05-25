@@ -1675,7 +1675,7 @@ export async function handler(
             generateEtags: nextConfig.generateEtags,
             poweredByHeader: nextConfig.poweredByHeader,
             result: RenderResult.fromStatic(
-              matchedSegment,
+              matchedSegment.buffer,
               RSC_CONTENT_TYPE_HEADER
             ),
             cacheControl: cacheEntry.cacheControl,
