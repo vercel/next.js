@@ -69,6 +69,43 @@ describe('Has conditions', () => {
     expect(result.resolvedPathname).toBe('/admin-dashboard')
   })
 
+  it('should NOT match substring values in has conditions', async () => {
+    const headers = new Headers({
+      'x-role': 'not-admin',
+    })
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/dashboard'),
+      headers,
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [
+          {
+            sourceRegex: '^/dashboard$',
+            destination: '/admin',
+            has: [
+              {
+                type: 'header',
+                key: 'x-role',
+                value: 'admin',
+              },
+            ],
+          },
+        ],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/dashboard', '/admin'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/dashboard')
+    expect(result.invocationTarget?.pathname).toBe('/dashboard')
+  })
+
   it('should match route with cookie condition', async () => {
     const headers = new Headers({
       cookie: 'session=abc123; theme=dark',
