@@ -24,7 +24,12 @@ function parseUrlForPages(
     withFileTypes: true,
   })
   const res = []
-  const escaped = extPattern ? escapeRegExp(extPattern) : '(j|t)sx?'
+  // Escape each individual extension so that special chars (e.g. dots) are
+  // treated as literals, then join with "|" for alternation.  We must NOT
+  // escape the "|" separator itself — that would break the alternation.
+  const escaped = extPattern
+    ? extPattern.split('|').map(escapeRegExp).join('|')
+    : '(j|t)sx?'
   const extRegex = new RegExp('(\\.(' + escaped + '))$')
   const idxRegex = new RegExp('^index(\\.(' + escaped + '))$')
   fsReadDirSyncCache[directory].forEach((dirent) => {
@@ -57,7 +62,12 @@ function parseUrlForAppDir(
     withFileTypes: true,
   })
   const res = []
-  const escaped = extPattern ? escapeRegExp(extPattern) : '(j|t)sx?'
+  // Escape each individual extension so that special chars (e.g. dots) are
+  // treated as literals, then join with "|" for alternation.  We must NOT
+  // escape the "|" separator itself — that would break the alternation.
+  const escaped = extPattern
+    ? extPattern.split('|').map(escapeRegExp).join('|')
+    : '(j|t)sx?'
   const extRegex = new RegExp('(\\.(' + escaped + '))$')
   const pRegex = new RegExp('^page(\\.(' + escaped + '))$')
   const lRegex = new RegExp('^layout(\\.(' + escaped + '))$')
