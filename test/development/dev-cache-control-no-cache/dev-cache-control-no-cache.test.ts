@@ -5,13 +5,13 @@ describe('dev Cache-Control header', () => {
     files: __dirname,
   })
 
-  it('should use no-cache for pages router', async () => {
+  it('should use no-store for pages router', async () => {
     const res = await next.fetch('/pages-route')
-    expect(res.headers.get('Cache-Control')).toBe('no-cache, must-revalidate')
+    expect(res.headers.get('Cache-Control')).toBe('no-store, must-revalidate')
   })
 
-  it('should use no-cache for app router', async () => {
+  it('should use no-store for app router', async () => {
     const res = await next.fetch('/app-route')
-    expect(res.headers.get('Cache-Control')).toBe('no-cache, must-revalidate')
+    expect(res.headers.get('Cache-Control')).toBe('no-store, must-revalidate')
   })
 })

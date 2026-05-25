@@ -1810,8 +1810,11 @@ export default abstract class Server<
       const { generateEtags, poweredByHeader } = this.renderOpts
 
       // In dev, we should not cache pages for any reason.
+      // no-store (not no-cache) is required to prevent Chrome from serving stale HTML
+      // on back/forward navigation via bfcache/disk cache, which causes hydration failures
+      // with stale __next_f.push() chunks (see https://github.com/vercel/next.js/issues/94036).
       if (this.dev) {
-        res.setHeader('Cache-Control', 'no-cache, must-revalidate')
+        res.setHeader('Cache-Control', 'no-store, must-revalidate')
         cacheControl = undefined
       }
 

@@ -2059,8 +2059,8 @@
   },
   "test/development/dev-cache-control-no-cache/dev-cache-control-no-cache.test.ts": {
     "passed": [
-      "dev Cache-Control header should use no-cache for app router",
-      "dev Cache-Control header should use no-cache for pages router"
+      "dev Cache-Control header should use no-store for app router",
+      "dev Cache-Control header should use no-store for pages router"
     ],
     "failed": [],
     "pending": [],
