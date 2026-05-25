@@ -62,6 +62,7 @@ Once per session, confirm both views are live.
    you can't add `--enable react-devtools` after the session is
    open, and `cookies set` on a not-yet-opened session creates a
    sessionless cookie that silently fails to apply.
+
 2. POST `tools/list` to `/_next/mcp`. Send
    `Accept: application/json, text/event-stream`; responses are
    SSE-framed, strip the `data: ` prefix before parsing JSON.
