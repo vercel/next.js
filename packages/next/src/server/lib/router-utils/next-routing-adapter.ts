@@ -1,13 +1,22 @@
 import type { NextConfigRuntime } from '../../config-shared'
 import type { Header, Redirect, Rewrite } from '../../../lib/load-custom-routes'
-import type { FilesystemDynamicRoute, setupFsCheck } from './filesystem'
+import type {
+  FilesystemDynamicRoute,
+  FsOutput,
+  setupFsCheck,
+} from './filesystem'
+import type { NextUrlWithParsedQuery } from '../../request-meta'
 
 import {
   convertHeaders,
   convertRedirects,
   convertRewrites,
 } from 'next/dist/compiled/@vercel/routing-utils'
-import { getRedirectStatus } from '../../../lib/redirect-status'
+import {
+  allowedStatusCodes,
+  getRedirectStatus,
+} from '../../../lib/redirect-status'
+import { parseUrl } from '../../../shared/lib/router/utils/parse-url'
 
 type FsChecker = Awaited<ReturnType<typeof setupFsCheck>>
 
@@ -52,6 +61,33 @@ export type NextRoutingServerState = {
   i18n?: NextRoutingI18nConfig
   pathnames: string[]
   routes: NextRoutingRouteConfig
+}
+
+export type NextRoutingResolveResult = {
+  middlewareResponded?: boolean
+  externalRewrite?: URL
+  redirect?: {
+    url: URL
+    status: number
+  }
+  resolvedPathname?: string
+  resolvedQuery?: Record<string, string | string[]>
+  invocationTarget?: {
+    pathname: string
+    query: Record<string, string | string[]>
+  }
+  resolvedHeaders?: Headers
+  status?: number
+  routeMatches?: Record<string, string>
+}
+
+export type NextRoutingMappedResult = {
+  finished: boolean
+  statusCode?: number
+  bodyStream?: ReadableStream | null
+  resHeaders: Record<string, string | string[]> | null
+  parsedUrl: NextUrlWithParsedQuery
+  matchedOutput?: FsOutput | null
 }
 
 type LiveHeaderRoute = Header & { regex?: string; internal?: boolean }
@@ -251,5 +287,139 @@ export function createNextRoutingServerState(
         : fsChecker.rewrites.fallback.map(createNextRoutingRewriteRoute),
       shouldNormalizeNextData,
     },
+  }
+}
+
+function headersToRecord(
+  headers: Headers | undefined
+): Record<string, string | string[]> {
+  const record: Record<string, string | string[]> = {}
+
+  if (!headers) {
+    return record
+  }
+
+  headers.forEach((value, key) => {
+    record[key] = value
+  })
+
+  const setCookie = (
+    headers as Headers & { getSetCookie?: () => string[] }
+  ).getSetCookie?.()
+  if (setCookie?.length) {
+    record['set-cookie'] = setCookie
+  }
+
+  return record
+}
+
+function getRelativeUrl(url: URL, initUrl: URL) {
+  if (url.origin === initUrl.origin) {
+    return `${url.pathname}${url.search}${url.hash}`
+  }
+
+  return url.toString()
+}
+
+function parseRedirectDestination(destination: string) {
+  const parsedUrl = parseUrl(destination) as NextUrlWithParsedQuery
+
+  // Live custom-route redirects assign `search` from `stringifyQuery()`,
+  // which intentionally omits the leading `?`.
+  if (parsedUrl.search?.startsWith('?')) {
+    parsedUrl.search = parsedUrl.search.slice(1)
+  }
+
+  return parsedUrl
+}
+
+function setParsedUrlInvocationTarget(
+  parsedUrl: NextUrlWithParsedQuery,
+  invocationTarget: NonNullable<NextRoutingResolveResult['invocationTarget']>
+) {
+  parsedUrl.pathname = invocationTarget.pathname
+  parsedUrl.query = { ...invocationTarget.query }
+}
+
+export async function mapNextRoutingResultToResolveRoutesResult({
+  result,
+  fsChecker,
+  initUrl,
+  requestUrl,
+  invokedOutputs,
+}: {
+  result: NextRoutingResolveResult
+  fsChecker: Pick<FsChecker, 'getItem'>
+  initUrl: URL
+  requestUrl: string
+  invokedOutputs?: Set<string>
+}): Promise<NextRoutingMappedResult> {
+  const resHeaders = headersToRecord(result.resolvedHeaders)
+  const parsedUrl = parseUrl(requestUrl) as NextUrlWithParsedQuery
+
+  if (result.middlewareResponded) {
+    return {
+      finished: true,
+      parsedUrl,
+      resHeaders,
+      statusCode: result.status,
+    }
+  }
+
+  if (result.externalRewrite) {
+    return {
+      finished: true,
+      parsedUrl: parseUrl(
+        result.externalRewrite.toString()
+      ) as NextUrlWithParsedQuery,
+      resHeaders,
+      statusCode: result.status,
+    }
+  }
+
+  if (result.redirect) {
+    return {
+      finished: true,
+      parsedUrl: parseRedirectDestination(
+        getRelativeUrl(result.redirect.url, initUrl)
+      ),
+      resHeaders: null,
+      statusCode: result.redirect.status,
+    }
+  }
+
+  const location = result.resolvedHeaders?.get('location')
+  if (result.status && location && allowedStatusCodes.has(result.status)) {
+    return {
+      finished: true,
+      parsedUrl: parseRedirectDestination(location),
+      resHeaders: null,
+      statusCode: result.status,
+    }
+  }
+
+  if (result.invocationTarget) {
+    setParsedUrlInvocationTarget(parsedUrl, result.invocationTarget)
+  } else if (result.resolvedPathname) {
+    parsedUrl.pathname = result.resolvedPathname
+    if (result.resolvedQuery) {
+      parsedUrl.query = { ...result.resolvedQuery }
+    }
+  }
+
+  let matchedOutput: FsOutput | null = null
+  if (
+    result.resolvedPathname &&
+    !invokedOutputs?.has(result.resolvedPathname)
+  ) {
+    matchedOutput = await fsChecker.getItem(result.resolvedPathname)
+  }
+
+  return {
+    finished: !!matchedOutput,
+    parsedUrl,
+    resHeaders,
+    matchedOutput,
+    statusCode: result.status,
   }
 }
