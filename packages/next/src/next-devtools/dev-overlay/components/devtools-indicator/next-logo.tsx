@@ -75,8 +75,8 @@ export function NextLogo({
   ...buttonProps
 }: { onTriggerClick: () => void } & React.ComponentProps<'button'>) {
   const { state, dispatch } = useDevOverlayContext()
-  const { totalErrorCount, instantErrorCount } = useRenderErrorContext()
-  const normalErrorCount = totalErrorCount - instantErrorCount
+  const { totalErrorCount, normalErrorCount, instantErrorCount } =
+    useRenderErrorContext()
   const SIZE = BASE_LOGO_SIZE / state.scale
   const { panel, triggerRef, setPanel } = usePanelRouterContext()
   const isMenuOpen = panel === 'panel-selector'

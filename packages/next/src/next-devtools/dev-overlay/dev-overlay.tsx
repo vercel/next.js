@@ -14,6 +14,7 @@ import { ACTION_INSTANT_ERRORS_CLEAR, type DispatcherEvent } from './shared'
 export const RenderErrorContext = createContext<{
   runtimeErrors: ReadyRuntimeError[]
   totalErrorCount: number
+  normalErrorCount: number
   instantErrorCount: number
 }>(null!)
 
@@ -56,7 +57,12 @@ export function DevOverlay() {
       <ComponentStyles />
 
       <RenderError state={state} isAppDir={true}>
-        {({ runtimeErrors, totalErrorCount, instantErrorCount }) => {
+        {({
+          runtimeErrors,
+          totalErrorCount,
+          normalErrorCount,
+          instantErrorCount,
+        }) => {
           return (
             <>
               {state.showIndicator ? (
@@ -65,6 +71,7 @@ export function DevOverlay() {
                     value={{
                       runtimeErrors,
                       totalErrorCount,
+                      normalErrorCount,
                       instantErrorCount,
                     }}
                   >

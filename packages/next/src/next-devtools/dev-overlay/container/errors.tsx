@@ -582,7 +582,10 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
   const tabBar = showTabBar ? (
     <ErrorTabBar
       activeTab={activeTab}
-      onTabChange={setActiveTab}
+      onTabChange={(tab) => {
+        setActiveTab(tab)
+        setActiveIndex(0)
+      }}
       errorCount={normalErrors.length}
       instantCount={instantErrors.length}
     />
@@ -970,7 +973,7 @@ export const styles = `
     background: none;
     color: var(--color-gray-700);
     font-size: var(--size-14);
-    font-family: var(--font-sans);
+    font-family: var(--font-stack-sans);
     cursor: pointer;
     position: relative;
     transition: color 0.15s ease;
