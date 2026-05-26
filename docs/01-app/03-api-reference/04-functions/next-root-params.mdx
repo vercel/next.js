@@ -2,7 +2,6 @@
 title: next/root-params
 nav_title: root-params
 description: API Reference for the next/root-params module that provides access to root-level route parameters.
-version: experimental
 related:
   description: Related API references and conventions.
   links:
@@ -48,27 +47,8 @@ Root parameters are the [dynamic segments](/docs/app/api-reference/file-conventi
 >
 > - Root parameter names must be valid JavaScript function identifiers. Kebab-cased segment names (e.g. `[post-slug]`) are not supported and will cause an error at dev time or during build.
 > - `next/root-params` can be used in Server Components. It cannot be used in Client Components, Server Actions, or [Route Handlers](/docs/app/api-reference/file-conventions/route). Support for Route Handlers is planned for a future release.
+> - With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) must return at least one value for each root parameter. Providing values makes them static route parameters, required for prerendering static shells.
 > - The examples on this page use [`PageProps`](/docs/app/api-reference/file-conventions/page#page-props-helper) and [`LayoutProps`](/docs/app/api-reference/file-conventions/layout#layout-props-helper), which are auto-generated type helpers based on your route structure.
-
-## Configuration
-
-Enable the `rootParams` experimental flag in your Next config file:
-
-```js filename="next.config.js"
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  experimental: {
-    rootParams: true,
-  },
-}
-
-module.exports = nextConfig
-```
-
-> **Good to know:**
->
-> - If you have [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, `rootParams` is automatically enabled as well.
-> - With Cache Components, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) must return at least one value for each root parameter. Providing values makes it a static route parameter, which is required for prerendering static shells.
 
 ## Root parameters and other route parameters
 
