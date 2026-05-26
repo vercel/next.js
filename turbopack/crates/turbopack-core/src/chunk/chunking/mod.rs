@@ -7,8 +7,8 @@ use smallvec::{SmallVec, smallvec};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    FxIndexMap, FxIndexSet, IsTransient, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
+    ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 
 use crate::{
@@ -49,7 +49,9 @@ struct BatchChunkItemsWithInfo(
     FxHashMap<ChunkItemOrBatchWithAsyncModuleInfo, ResolvedVc<ChunkItemsWithInfo>>,
 );
 
-#[derive(Clone, PartialEq, Eq, TraceRawVcs, NonLocalValue, ValueDebugFormat, Encode, Decode)]
+#[derive(
+    Clone, PartialEq, Eq, TraceRawVcs, NonLocalValue, IsTransient, ValueDebugFormat, Encode, Decode,
+)]
 enum ChunkItemOrBatchWithInfo {
     ChunkItem {
         chunk_item: ChunkItemWithAsyncModuleInfo,

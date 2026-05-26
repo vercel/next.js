@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{IsTransient, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
 
 static REGISTRATION: Registration = register!();
@@ -76,8 +76,5 @@ async fn read_incorrect_task_input(value: IncorrectTaskInput) -> Result<Vc<u64>>
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode, NonLocalValue)]
 struct IncorrectTaskInput(ResolvedVc<u64>);
 
-impl TaskInput for IncorrectTaskInput {
-    fn is_transient(&self) -> bool {
-        false
-    }
-}
+impl TaskInput for IncorrectTaskInput {}
+impl IsTransient for IncorrectTaskInput {}

@@ -135,8 +135,8 @@ pub async fn get_client_compile_time_info(
     .await
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Hash, TaskInput, IsTransient)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Hash)]
 pub enum ClientContextType {
     Pages { pages_dir: FileSystemPath },
     App { app_dir: FileSystemPath },

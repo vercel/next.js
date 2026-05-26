@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ValueToString, Vc, trace::TraceRawVcs};
+use turbo_tasks::{IsTransient, NonLocalValue, ValueToString, Vc, trace::TraceRawVcs};
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug, Copy, Clone, ValueToString)]
@@ -174,7 +174,9 @@ impl CompileTarget {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(
+    PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, NonLocalValue, IsTransient, Encode, Decode,
+)]
 #[repr(u8)]
 #[non_exhaustive]
 pub enum Arch {
@@ -215,7 +217,9 @@ impl Display for Arch {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(
+    PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, NonLocalValue, IsTransient, Encode, Decode,
+)]
 #[repr(u8)]
 #[non_exhaustive]
 pub enum Platform {
@@ -281,7 +285,9 @@ impl Display for Endianness {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(
+    PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, NonLocalValue, IsTransient, Encode, Decode,
+)]
 #[repr(u8)]
 pub enum Libc {
     Glibc,

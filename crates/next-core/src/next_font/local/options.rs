@@ -12,8 +12,8 @@ use crate::next_font::local::request::{
 
 /// A normalized, Vc-friendly struct derived from validating and transforming
 /// [[NextFontLocalRequest]]
-#[turbo_tasks::value]
-#[derive(Clone, Debug, PartialOrd, Ord, Hash, TaskInput, IsTransient)]
+#[turbo_tasks::value(task_input)]
+#[derive(Clone, Debug, PartialOrd, Ord, Hash)]
 pub(super) struct NextFontLocalOptions {
     pub fonts: FontDescriptors,
     pub default_weight: Option<FontWeight>,

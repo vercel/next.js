@@ -22,6 +22,7 @@ use bytes::Bytes;
 use futures::Stream;
 use tokio::io::{AsyncRead, ReadBuf};
 use triomphe::Arc;
+use turbo_tasks::IsTransient;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 static EMPTY_BUF: &[u8] = &[];
@@ -42,6 +43,9 @@ pub struct Rope {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     data: InnerRope,
 }
+
+// Contains no VCs so default impl works
+impl IsTransient for Rope {}
 
 /// An Arc container for ropes. This indirection allows for easily sharing the
 /// contents between Ropes (and also RopeBuilders/RopeReaders).

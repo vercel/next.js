@@ -133,6 +133,11 @@ struct ValueArguments {
     transparent: bool,
     /// Should we `#[derive(turbo_tasks::OperationValue)]`?
     operation: Option<Span>,
+    /// Set by `task_input` arg: emit an `impl TaskInput` and derive `IsTransient`. Opt-in
+    /// because the vast majority of `#[turbo_tasks::value]` types are output-only and don't
+    /// satisfy `TaskInput`'s supertrait bounds (`Clone + Eq + Hash + Encode + Decode + ...`).
+    /// Add this flag to types intended to be passed as `#[turbo_tasks::function]` arguments.
+    task_input: bool,
 }
 
 impl Parse for ValueArguments {
@@ -146,6 +151,7 @@ impl Parse for ValueArguments {
             manual_hash: false,
             transparent: false,
             operation: None,
+            task_input: false,
         };
         let punctuated = input.parse_terminated(Meta::parse, Token![,])?;
         for meta in punctuated {
@@ -234,13 +240,16 @@ impl Parse for ValueArguments {
                 ("operation", Meta::Path(path)) => {
                     result.operation = Some(path.span());
                 }
+                ("task_input", Meta::Path(_)) => {
+                    result.task_input = true;
+                }
                 (_, meta) => {
                     return Err(Error::new_spanned(
                         &meta,
                         format!(
                             "unexpected {meta:?}, expected \"shared\", \"into\", \
                              \"serialization\", \"evict\", \"cell\", \"eq\", \"hash\", \
-                             \"transparent\", or \"operation\""
+                             \"transparent\", \"operation\", or \"task_input\""
                         ),
                     ));
                 }
@@ -262,6 +271,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         manual_hash,
         transparent,
         operation,
+        task_input,
     } = parse_macro_input!(args as ValueArguments);
 
     // `serialization = "hash"` only makes sense with `cell = "compare"` (the default).
@@ -305,11 +315,24 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         .into();
     }
 
+    // Opt in to the `TaskInput` impl + `IsTransient` derive with `task_input`. The vast
+    // majority of `#[turbo_tasks::value]` types are output-only (cell contents produced by
+    // tasks, never passed as task arguments) and either can't satisfy `TaskInput`'s supertrait
+    // bounds or simply have no need to. Only types intended for use as
+    // `#[turbo_tasks::function]` arguments add `task_input` here, at which point the macro
+    // emits an `impl TaskInput` (using the trait defaults — `is_resolved = true` and
+    // `resolve_input` returns a `CloneReady` future) and adds `IsTransient` to the derive list.
+    let derives_for_task_input = if task_input {
+        quote! { , turbo_tasks::IsTransient }
+    } else {
+        quote! {}
+    };
     let mut struct_attributes = vec![quote! {
         #[derive(
             turbo_tasks::ShrinkToFit,
             turbo_tasks::trace::TraceRawVcs,
-            turbo_tasks::NonLocalValue,
+            turbo_tasks::NonLocalValue
+            #derives_for_task_input
         )]
         #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
     }];
@@ -550,6 +573,19 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         has_serialization,
     );
 
+    // Emit an `impl TaskInput for X {}` only when opted in with
+    // `#[turbo_tasks::value(task_input)]`. The impl uses all trait defaults: `is_resolved =
+    // true` (correct because `NonLocalValue` guarantees no unresolved Vcs) and `resolve_input`
+    // returning a `CloneReady` future (8 bytes, no async-fn envelope).
+    let task_input_impl = if task_input {
+        quote! {
+            #[automatically_derived]
+            impl turbo_tasks::TaskInput for #ident {}
+        }
+    } else {
+        quote! {}
+    };
+
     let expanded = quote! {
         #(#struct_attributes)*
         #item
@@ -557,6 +593,8 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         impl #ident {
             #cell_struct
         }
+
+        #task_input_impl
 
         #value_type_and_register_code
 

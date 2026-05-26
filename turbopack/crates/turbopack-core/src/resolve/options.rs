@@ -4,7 +4,7 @@ use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, IsTransient, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
@@ -26,7 +26,17 @@ pub struct ExcludedExtensions(#[bincode(with = "turbo_bincode::indexset")] pub F
 
 /// A location where to resolve modules.
 #[derive(
-    TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, ValueDebugFormat, NonLocalValue, Encode, Decode,
+    TraceRawVcs,
+    Hash,
+    PartialEq,
+    Eq,
+    Clone,
+    Debug,
+    ValueDebugFormat,
+    NonLocalValue,
+    IsTransient,
+    Encode,
+    Decode,
 )]
 pub enum ResolveModules {
     /// when inside of path, use the list of directories to

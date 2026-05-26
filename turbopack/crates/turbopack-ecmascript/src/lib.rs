@@ -287,8 +287,8 @@ pub struct EcmascriptOptions {
     pub infer_module_side_effects: bool,
 }
 
-#[turbo_tasks::value]
-#[derive(Hash, Debug, Copy, Clone, TaskInput, IsTransient)]
+#[turbo_tasks::value(task_input)]
+#[derive(Hash, Debug, Copy, Clone)]
 pub enum EcmascriptModuleAssetType {
     /// Module with EcmaScript code
     Ecmascript,
@@ -1002,7 +1002,7 @@ pub struct EcmascriptModuleContent {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, Hash, TaskInput, IsTransient)]
+#[derive(Clone, Debug, Hash)]
 pub struct EcmascriptModuleContentOptions {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     parsed: Option<ResolvedVc<ParseResult>>,

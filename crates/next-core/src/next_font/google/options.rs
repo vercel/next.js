@@ -13,8 +13,8 @@ const ALLOWED_DISPLAY_VALUES: &[&str] = &["auto", "block", "swap", "fallback", "
 
 pub(super) type FontData = FxIndexMap<RcStr, FontDataEntry>;
 
-#[turbo_tasks::value]
-#[derive(Clone, Debug, PartialOrd, Ord, Hash, TaskInput, IsTransient)]
+#[turbo_tasks::value(task_input)]
+#[derive(Clone, Debug, PartialOrd, Ord, Hash)]
 pub(super) struct NextFontGoogleOptions {
     /// Name of the requested font from Google. Contains literal spaces.
     pub font_family: RcStr,

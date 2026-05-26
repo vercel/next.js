@@ -46,8 +46,8 @@ pub enum CssModuleType {
 ///
 /// Both fields are raw `Features` bitmasks. `include` bits are OR-ed into the
 /// default feature set; `exclude` bits are masked off.
-#[turbo_tasks::value(shared, serialization = "auto")]
-#[derive(PartialOrd, Ord, Hash, Copy, Clone, Debug, Default, TaskInput, IsTransient)]
+#[turbo_tasks::value(shared, serialization = "auto", task_input)]
+#[derive(PartialOrd, Ord, Hash, Copy, Clone, Debug, Default)]
 pub struct LightningCssFeatureFlags {
     pub include: u32,
     pub exclude: u32,

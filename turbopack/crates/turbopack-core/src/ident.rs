@@ -60,8 +60,8 @@ impl Layer {
     }
 }
 
-#[turbo_tasks::value]
-#[derive(Clone, Debug, Hash, TaskInput, IsTransient)]
+#[turbo_tasks::value(task_input)]
+#[derive(Clone, Debug, Hash)]
 pub struct AssetIdent {
     /// The primary path of the asset
     pub path: FileSystemPath,

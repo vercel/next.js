@@ -51,8 +51,8 @@ pub enum MangleType {
     Deterministic,
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, TaskInput, IsTransient, Clone, Copy, Hash, DeterministicHash, Deserialize)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Copy, Hash, DeterministicHash, Deserialize)]
 pub enum MinifyType {
     // TODO instead of adding a new property here,
     // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
@@ -68,8 +68,8 @@ impl Default for MinifyType {
     }
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Default, TaskInput, IsTransient, Clone, Copy, Hash, DeterministicHash)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Default, Clone, Copy, Hash, DeterministicHash)]
 pub enum SourceMapsType {
     /// Extracts source maps from input files and writes source maps for output files.
     #[default]
@@ -290,7 +290,7 @@ pub struct ChunkingConfig {
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Copy, Hash, TaskInput, IsTransient, Default, Deserialize)]
+#[derive(Debug, Clone, Copy, Hash, Default, Deserialize)]
 pub enum SourceMapSourceType {
     AbsoluteFileUri,
     RelativeUri,

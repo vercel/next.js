@@ -43,8 +43,8 @@ impl F32TaskInput {
 }
 
 /// Selects the algorithm used to compute [`StyleGroups`].
-#[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug, Default, Hash, TaskInput, IsTransient)]
+#[turbo_tasks::value(shared, operation, task_input)]
+#[derive(Clone, Debug, Default, Hash)]
 pub enum StyleGroupsAlgorithm {
     /// Default ("loose") algorithm, see
     /// [`crate::module_graph::style_groups_loose::compute_style_groups`].

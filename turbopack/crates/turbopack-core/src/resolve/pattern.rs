@@ -10,16 +10,13 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    IsTransient, NonLocalValue, TaskInput, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbo_tasks_fs::{
     FileSystemPath, LinkContent, LinkType, RawDirectoryContent, RawDirectoryEntry,
 };
 use turbo_unix_path::normalize_path;
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(task_input)]
 #[derive(Hash, Clone, Debug, Default, ValueToString)]
 #[value_to_string(self.describe_as_string())]
 pub enum Pattern {
@@ -30,13 +27,6 @@ pub enum Pattern {
     Alternatives(Vec<Pattern>),
     Concatenation(Vec<Pattern>),
 }
-
-/// manually implement TaskInput to avoid recursion in the implementation of `resolve_input` in the
-/// derived implementation.  We can instead use the default implementation since `Pattern` contains
-/// no VCs.
-impl TaskInput for Pattern {}
-// Pattern contains no Vcs so it can never be transient.
-impl IsTransient for Pattern {}
 
 fn concatenation_push_or_merge_item(list: &mut Vec<Pattern>, pat: Pattern) {
     if let Pattern::Constant(ref s) = pat

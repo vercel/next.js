@@ -1,7 +1,7 @@
 #![feature(arbitrary_self_types)]
 
 use anyhow::Result;
-use turbo_tasks::{TaskInput, TransientValue, Vc};
+use turbo_tasks::{IsTransient, TransientValue, Vc};
 use turbo_tasks_testing::{Registration, register, run_without_cache_check};
 
 static REGISTRATION: Registration = register!();

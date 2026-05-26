@@ -9833,6 +9833,7 @@ dependencies = [
  "futures",
  "indexmap 2.13.0",
  "inventory",
+ "mime",
  "parking_lot",
  "pin-project-lite",
  "rayon",

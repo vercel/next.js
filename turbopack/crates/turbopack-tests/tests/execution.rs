@@ -82,7 +82,7 @@ struct JsResult {
 }
 
 #[turbo_tasks::value]
-#[derive(Copy, Clone, Debug, Hash, TaskInput, IsTransient)]
+#[derive(Copy, Clone, Debug, Hash)]
 enum IssueSnapshotMode {
     Snapshots,
     NoSnapshots,

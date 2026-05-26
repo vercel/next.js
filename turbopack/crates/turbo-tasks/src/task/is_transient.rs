@@ -47,10 +47,15 @@ macro_rules! impl_is_transient_leaf {
 }
 
 impl_is_transient_leaf! {
-    (), bool,
-    u8, u16, u32, i32, u64, usize,
+    (), bool, char,
+    u8, u16, u32, u64, u128, usize,
+    i8, i16, i32, i64, i128, isize,
+    f32, f64,
     String, RcStr, Duration, HashAlgorithm,
     TaskId, ValueTypeId,
+    std::path::PathBuf, std::path::Path,
+    anyhow::Error,
+    mime::Mime,
 }
 
 // ---- Vc-shaped types: defer to RawVc's transient bit ----
@@ -159,6 +164,82 @@ impl<K: IsTransient, V: IsTransient> IsTransient for BTreeMap<K, V> {
             .any(|(k, v)| k.is_transient() || v.is_transient())
     }
 }
+
+// Hash/index containers used by `#[turbo_tasks::value]` types. Mirror the set the
+// `impl_auto_marker_trait!` macro covers for `NonLocalValue`, since any field that can be
+// `NonLocalValue` should also be checkable for transience.
+impl<T: IsTransient, S> IsTransient for std::collections::HashSet<T, S> {
+    fn is_transient(&self) -> bool {
+        self.iter().any(IsTransient::is_transient)
+    }
+}
+
+impl<K: IsTransient, V: IsTransient, S> IsTransient for std::collections::HashMap<K, V, S> {
+    fn is_transient(&self) -> bool {
+        self.iter()
+            .any(|(k, v)| k.is_transient() || v.is_transient())
+    }
+}
+
+impl<T: IsTransient, S> IsTransient for indexmap::IndexSet<T, S> {
+    fn is_transient(&self) -> bool {
+        self.iter().any(IsTransient::is_transient)
+    }
+}
+
+impl<K: IsTransient, V: IsTransient, S> IsTransient for indexmap::IndexMap<K, V, S> {
+    fn is_transient(&self) -> bool {
+        self.iter()
+            .any(|(k, v)| k.is_transient() || v.is_transient())
+    }
+}
+
+impl<T: IsTransient, S, const I: usize> IsTransient for auto_hash_map::AutoSet<T, S, I> {
+    fn is_transient(&self) -> bool {
+        self.iter().any(IsTransient::is_transient)
+    }
+}
+
+impl<K: IsTransient, V: IsTransient, S, const I: usize> IsTransient
+    for auto_hash_map::AutoMap<K, V, S, I>
+{
+    fn is_transient(&self) -> bool {
+        self.iter()
+            .any(|(k, v)| k.is_transient() || v.is_transient())
+    }
+}
+
+impl<T: IsTransient, const N: usize> IsTransient for smallvec::SmallVec<[T; N]> {
+    fn is_transient(&self) -> bool {
+        self.iter().any(IsTransient::is_transient)
+    }
+}
+
+impl<T: IsTransient, const N: usize> IsTransient for [T; N] {
+    fn is_transient(&self) -> bool {
+        self.iter().any(IsTransient::is_transient)
+    }
+}
+
+impl<T: IsTransient> IsTransient for [T] {
+    fn is_transient(&self) -> bool {
+        self.iter().any(IsTransient::is_transient)
+    }
+}
+
+impl<T: IsTransient + ?Sized> IsTransient for &T {
+    fn is_transient(&self) -> bool {
+        (**self).is_transient()
+    }
+}
+
+impl<B: IsTransient + ToOwned + ?Sized> IsTransient for std::borrow::Cow<'_, B> {
+    fn is_transient(&self) -> bool {
+        (**self).is_transient()
+    }
+}
+
+impl<T: ?Sized> IsTransient for std::marker::PhantomData<T> {}
 
 impl<T: IsTransient + 'static> IsTransient for FrozenSet<T> {
     fn is_transient(&self) -> bool {

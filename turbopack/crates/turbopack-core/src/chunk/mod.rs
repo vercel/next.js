@@ -73,7 +73,7 @@ pub enum ContentHashing {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Default, Clone, Copy, Hash, Serialize, Deserialize, TaskInput, IsTransient)]
+#[derive(Debug, Default, Clone, Copy, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CrossOrigin {
     #[default]

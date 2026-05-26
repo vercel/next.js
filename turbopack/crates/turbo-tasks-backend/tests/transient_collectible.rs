@@ -2,7 +2,7 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use bincode::{Decode, Encode};
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, trace::TraceRawVcs};
+use turbo_tasks::{IsTransient, NonLocalValue, ResolvedVc, TaskInput, trace::TraceRawVcs};
 use turbo_tasks_testing::{Registration, register, run_once_without_cache_check};
 
 static REGISTRATION: Registration = register!();
@@ -33,11 +33,8 @@ fn emit_incorrect_task_input_operation(value: IncorrectTaskInput) {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode, NonLocalValue)]
 struct IncorrectTaskInput(ResolvedVc<U32Wrapper>);
 
-impl TaskInput for IncorrectTaskInput {
-    fn is_transient(&self) -> bool {
-        false
-    }
-}
+impl TaskInput for IncorrectTaskInput {}
+impl IsTransient for IncorrectTaskInput {}
 
 #[turbo_tasks::value_trait]
 trait Number {}

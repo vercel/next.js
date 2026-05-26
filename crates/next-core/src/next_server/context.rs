@@ -78,8 +78,8 @@ use crate::{
     },
 };
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Hash, TaskInput, IsTransient)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Hash)]
 pub enum ServerContextType {
     Pages {
         pages_dir: FileSystemPath,

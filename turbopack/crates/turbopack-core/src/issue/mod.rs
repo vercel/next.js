@@ -36,20 +36,8 @@ use crate::{
     source_pos::SourcePos,
 };
 
-#[turbo_tasks::value(shared)]
-#[derive(
-    PartialOrd,
-    Ord,
-    Copy,
-    Clone,
-    Hash,
-    Debug,
-    DeterministicHash,
-    TaskInput,
-    IsTransient,
-    Serialize,
-    Deserialize,
-)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(PartialOrd, Ord, Copy, Clone, Hash, Debug, DeterministicHash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum IssueSeverity {
     Bug,

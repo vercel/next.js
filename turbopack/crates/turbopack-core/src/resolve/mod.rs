@@ -68,8 +68,8 @@ pub use alias_map::{
 pub use remap::{ResolveAliasMap, SubpathValue};
 
 /// Controls how resolve errors are handled.
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Copy, Default, Hash, TaskInput, IsTransient)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Copy, Default, Hash)]
 pub enum ResolveErrorMode {
     /// Emit an error issue (default behavior)
     #[default]
@@ -540,8 +540,8 @@ pub enum ResolveResultItem {
 /// A primary factor is the actual request string, but there are
 /// other factors like exports conditions that can affect resolving and become
 /// part of the key (assuming the condition is unknown at compile time)
-#[derive(Clone, Debug, Default, Hash, TaskInput, IsTransient)]
-#[turbo_tasks::value]
+#[derive(Clone, Debug, Default, Hash)]
+#[turbo_tasks::value(task_input)]
 pub struct RequestKey {
     pub request: Option<RcStr>,
     pub conditions: FrozenMap<RcStr, bool>,
@@ -1352,7 +1352,7 @@ pub async fn find_context_file_or_package_key(
     Ok(find_context_file(lookup_path.parent(), names, false))
 }
 
-#[derive(Clone, PartialEq, Eq, TraceRawVcs, Debug, NonLocalValue, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, TraceRawVcs, Debug, NonLocalValue, IsTransient, Encode, Decode)]
 enum FindPackageItem {
     PackageDirectory { name: RcStr, dir: FileSystemPath },
     PackageFile { name: RcStr, file: FileSystemPath },

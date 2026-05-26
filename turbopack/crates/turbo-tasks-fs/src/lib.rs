@@ -63,7 +63,7 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effect, EffectStateStorage, InvalidationReason, IsTransient, NonLocalValue,
-    ReadRef, ResolvedVc, TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc,
+    ReadRef, ResolvedVc, TurboTasksApi, ValueToString, ValueToStringRef, Vc,
     debug::ValueDebugFormat, emit_effect, parallel, trace::TraceRawVcs, turbo_tasks_weak,
     turbobail, turbofmt,
 };
@@ -1429,8 +1429,8 @@ fn remove_symbolic_link_dir_helper(path: &Path) -> io::Result<()> {
     }
 }
 
-#[derive(Debug, Clone, Hash, TaskInput, IsTransient)]
-#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Hash)]
+#[turbo_tasks::value(shared, task_input)]
 pub struct FileSystemPath {
     pub fs: ResolvedVc<Box<dyn FileSystem>>,
     pub path: RcStr,
@@ -1902,7 +1902,9 @@ pub struct RealPathResult {
 
 /// Errors that can occur when resolving a path with symlinks.
 /// Many of these can be transient conditions that might happen when package managers are running.
-#[derive(Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, TraceRawVcs, Encode, Decode)]
+#[derive(
+    Debug, Clone, Hash, Eq, PartialEq, NonLocalValue, IsTransient, TraceRawVcs, Encode, Decode,
+)]
 pub enum RealPathResultError {
     TooManySymlinks,
     CycleDetected,
@@ -1942,7 +1944,7 @@ impl RealPathResultError {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, DeterministicHash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Default, DeterministicHash, PartialOrd, Ord, IsTransient)]
 #[turbo_tasks::value(shared)]
 pub enum Permissions {
     Readable,
@@ -2009,7 +2011,7 @@ impl From<File> for FileContent {
 /// the actual data is not available. `PersistedFileContent` provides the full data so that
 /// [`DiskFileSystem::write`] can retrieve it without re-reading from disk.
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
+#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord, IsTransient)]
 pub enum PersistedFileContent {
     Content(File),
     NotFound,
@@ -2082,7 +2084,7 @@ bitflags! {
   #[derive(
     Default,
     TraceRawVcs,
-    NonLocalValue,
+    NonLocalValue, IsTransient,
     DeterministicHash,
     Encode,
     Decode,
@@ -2099,7 +2101,7 @@ bitflags! {
 /// creating a new link, we always create junction points, because symlink creation may fail if
 /// Windows "developer mode" is not enabled and we're running in an unprivileged environment.
 #[turbo_tasks::value(shared)]
-#[derive(Debug, DeterministicHash)]
+#[derive(Debug, DeterministicHash, IsTransient)]
 pub enum LinkContent {
     /// A valid symbolic link pointing to `target`.
     ///
@@ -2122,7 +2124,7 @@ pub enum LinkContent {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, DeterministicHash, PartialOrd, Ord)]
+#[derive(Clone, DeterministicHash, PartialOrd, Ord, IsTransient)]
 pub struct File {
     #[turbo_tasks(debug_ignore)]
     content: Rope,
@@ -2254,7 +2256,7 @@ impl File {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, IsTransient)]
 pub struct FileMeta {
     // Size of the file
     // len: u64,
@@ -2557,7 +2559,9 @@ pub enum FileLinesContent {
     NotFound,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(
+    Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, IsTransient, Encode, Decode,
+)]
 pub enum RawDirectoryEntry {
     File,
     Directory,
@@ -2566,7 +2570,9 @@ pub enum RawDirectoryEntry {
     Other,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(
+    Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, IsTransient, Encode, Decode,
+)]
 pub enum DirectoryEntry {
     File(FileSystemPath),
     Directory(FileSystemPath),
@@ -2910,7 +2916,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
 
 /// Wrapper to convert [`anyhow::Error`] to `impl std::error::Error` for use in [`Effect::apply`].
 // TODO(bgw): use a structured error type instead of anyhow for write/write_link
-#[derive(TraceRawVcs, NonLocalValue)]
+#[derive(TraceRawVcs, NonLocalValue, IsTransient)]
 pub(crate) struct AnyhowWrapper(anyhow::Error);
 
 impl fmt::Display for AnyhowWrapper {

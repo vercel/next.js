@@ -129,7 +129,7 @@ impl ChunkItemOrBatchWithAsyncModuleInfo {
 }
 
 #[turbo_tasks::value]
-#[derive(Debug, Clone, Hash, TaskInput, IsTransient)]
+#[derive(Debug, Clone, Hash)]
 pub struct ChunkItemBatchWithAsyncModuleInfo {
     pub chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
     pub chunk_groups: Option<RoaringBitmapWrapper>,
