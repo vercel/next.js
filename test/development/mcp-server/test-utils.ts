@@ -25,15 +25,7 @@ export async function launchStandaloneSession(
   } else if (browserName === 'firefox') {
     browser = await firefox.launch({ headless })
   } else {
-    browser = await chromium.launch({
-      headless,
-      ...(process.env.NEXT_TEST_PLAYWRIGHT_CHROMIUM_EXECUTABLE
-        ? {
-            executablePath:
-              process.env.NEXT_TEST_PLAYWRIGHT_CHROMIUM_EXECUTABLE,
-          }
-        : {}),
-    })
+    browser = await chromium.launch({ headless })
   }
   const context = await browser.newContext()
   const page = await context.newPage()

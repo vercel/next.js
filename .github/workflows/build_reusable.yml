@@ -331,15 +331,9 @@ jobs:
       - run: ANALYZE=1 pnpm build
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      - name: Use runner Chromium for Playwright
+      - name: Install Playwright Chromium headless shell
         if: ${{ runner.os == 'Linux' && inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' && inputs.browser == 'chromium' }}
-        run: |
-          chromium_path="$(command -v chromium || command -v chromium-browser || true)"
-          if [ -z "$chromium_path" ]; then
-            echo "Unable to find runner Chromium"
-            exit 1
-          fi
-          echo "NEXT_TEST_PLAYWRIGHT_CHROMIUM_EXECUTABLE=$chromium_path" >> "$GITHUB_ENV"
+        run: pnpm playwright install --with-deps --only-shell chromium
 
       - name: Install Playwright browsers
         if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' && (runner.os != 'Linux' || inputs.browser != 'chromium') }}

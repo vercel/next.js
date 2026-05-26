@@ -31,7 +31,6 @@ let pageLogs: Array<Promise<PageLog> | PageLog> = []
 let websocketFrames: Array<{ payload: string | Buffer }> = []
 
 const tracePlaywright = process.env.TRACE_PLAYWRIGHT
-const chromiumExecutable = process.env.NEXT_TEST_PLAYWRIGHT_CHROMIUM_EXECUTABLE
 
 const defaultTimeout = process.env.NEXT_E2E_TEST_TIMEOUT
   ? parseInt(process.env.NEXT_E2E_TEST_TIMEOUT, 10)
@@ -254,7 +253,6 @@ export class Playwright<TCurrent = undefined> {
       }
       return await chromium.launch({
         ...launchOptions,
-        ...(chromiumExecutable ? { executablePath: chromiumExecutable } : {}),
         args: launchArgs,
         ignoreDefaultArgs: ['--disable-back-forward-cache'],
       })
