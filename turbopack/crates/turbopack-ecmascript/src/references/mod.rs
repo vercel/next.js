@@ -1490,6 +1490,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         url_rewrite_behavior,
         collect_affecting_sources,
         tracing_only,
+        allow_project_root_tracing: _,
         ..
     } = state;
 
