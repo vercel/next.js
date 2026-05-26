@@ -29,6 +29,7 @@ use crate::{
 };
 
 mod dev;
+pub(crate) mod merge;
 mod production;
 mod style_production;
 
