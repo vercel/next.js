@@ -479,7 +479,26 @@ function describeNativeComponentFrame(fn, construct) {
               } catch (x$1) {
                 control = x$1;
               }
-              fn.call(Fake.prototype);
+              Fake = !1;
+              try {
+                var prevProps = Object.getOwnPropertyDescriptor(
+                  fn.prototype,
+                  "props"
+                );
+                Object.defineProperty(fn.prototype, "props", {
+                  configurable: !0,
+                  set: function () {
+                    throw Error();
+                  }
+                });
+                Fake = !0;
+                new fn();
+              } finally {
+                Fake &&
+                  (void 0 !== prevProps
+                    ? Object.defineProperty(fn.prototype, "props", prevProps)
+                    : delete fn.prototype.props);
+              }
             }
           } else {
             try {
@@ -19951,14 +19970,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2241 = React.version;
 if (
-  "19.3.0-experimental-d5736f09-20260507" !==
+  "19.3.0-experimental-75b0945b-20260526" !==
   isomorphicReactPackageVersion$jscomp$inline_2241
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2241,
-      "19.3.0-experimental-d5736f09-20260507"
+      "19.3.0-experimental-75b0945b-20260526"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19980,10 +19999,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2926 = {
   bundleType: 0,
-  version: "19.3.0-experimental-d5736f09-20260507",
+  version: "19.3.0-experimental-75b0945b-20260526",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-d5736f09-20260507"
+  reconcilerVersion: "19.3.0-experimental-75b0945b-20260526"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2927 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -20090,4 +20109,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-experimental-d5736f09-20260507";
+exports.version = "19.3.0-experimental-75b0945b-20260526";
