@@ -16,7 +16,7 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::DeterministicHash;
@@ -36,7 +36,7 @@ pub use crate::chunk::{
 };
 use crate::{
     asset::Asset,
-    chunk::availability_info::AvailabilityInfo,
+    chunk::{availability_info::AvailabilityInfo, available_modules::AvailableModulesSet},
     ident::AssetIdent,
     module::Module,
     module_graph::{
@@ -427,11 +427,19 @@ impl ChunkingType {
     }
 }
 
-pub struct ChunkGroupContent {
+#[turbo_tasks::value(cell = "new")]
+pub struct ChunkGroupContentInner {
     pub chunkable_items: Vec<ChunkableModuleOrBatch>,
     pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
+    #[bincode(with = "turbo_bincode::indexset")]
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+    #[bincode(with = "turbo_bincode::indexset")]
     pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
+    pub available_modules: ResolvedVc<AvailableModulesSet>,
+}
+
+pub struct ChunkGroupContent {
+    pub inner: ReadRef<ChunkGroupContentInner>,
     pub availability_info: AvailabilityInfo,
 }
 

@@ -263,7 +263,7 @@ impl MiddlewareEndpoint {
             let edge_assets = edge_chunk_group_ref.assets.await?;
 
             let file_paths_from_root =
-                get_js_paths_from_root(&node_root_value, &edge_assets).await?;
+                get_js_paths_from_root(&node_root_value, edge_assets.iter().copied()).await?;
             let entrypoint_asset = *edge_assets
                 .last()
                 .context("expected assets for edge middleware endpoint")?;
@@ -278,7 +278,7 @@ impl MiddlewareEndpoint {
                 get_wasm_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
 
             let all_assets =
-                get_asset_paths_from_root(&node_root_value, &edge_all_assets.await?).await?;
+                get_asset_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
 
             let regions = if let Some(regions) = config.preferred_region.as_ref() {
                 if regions.len() == 1 {

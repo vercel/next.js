@@ -146,6 +146,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: ['changes']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    env:
+      NEXT_SKIP_NATIVE_POSTINSTALL: 1
     steps:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -916,10 +918,12 @@ jobs:
           test/production/chunk-load-failure/chunk-load-failure.test.ts
 
         TURBOPACK_DEV=1 NEXT_TEST_MODE=dev BROWSER_NAME=firefox node run-tests.js \
-          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts
+          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts \
+          test/e2e/app-dir/bfcache-regression/bfcache-regression.test.ts
 
         TURBOPACK_DEV=1 NEXT_TEST_MODE=dev BROWSER_NAME=safari node run-tests.js \
-          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts
+          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts \
+          test/e2e/app-dir/bfcache-regression/bfcache-regression.test.ts
 
         TURBOPACK_BUILD=1 NEXT_TEST_MODE=start BROWSER_NAME=safari node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \

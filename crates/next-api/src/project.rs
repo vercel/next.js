@@ -2696,10 +2696,7 @@ async fn any_output_changed(
     server: bool,
 ) -> Result<Vc<Completion>> {
     let all_assets = expand_output_assets(
-        roots
-            .await?
-            .into_iter()
-            .map(|&a| ExpandOutputAssetsInput::Asset(a)),
+        roots.await?.into_iter().map(ExpandOutputAssetsInput::Asset),
         true,
     )
     .await?;
