@@ -138,12 +138,12 @@ impl OutputAssetsWithReferenced {
                 .await?
                 .into_iter()
                 .chain(self.referenced_assets.await?)
-                .map(|&asset| ExpandOutputAssetsInput::Asset(asset))
+                .map(ExpandOutputAssetsInput::Asset)
                 .chain(
                     self.references
                         .await?
                         .into_iter()
-                        .map(|&reference| ExpandOutputAssetsInput::Reference(reference)),
+                        .map(ExpandOutputAssetsInput::Reference),
                 ),
             inner_output_assets,
         )
@@ -224,13 +224,11 @@ impl OutputAssetsWithReferenced {
                 self.referenced_assets
                     .await?
                     .into_iter()
-                    .copied()
                     .map(ExpandOutputAssetsInput::Asset)
                     .chain(
                         self.references
                             .await?
                             .into_iter()
-                            .copied()
                             .map(ExpandOutputAssetsInput::Reference),
                     ),
                 false,
@@ -259,12 +257,12 @@ async fn get_referenced_assets(
         .await?
         .into_iter()
         .chain(refs.referenced_assets.await?)
-        .map(|&asset| ExpandOutputAssetsInput::Asset(asset))
+        .map(ExpandOutputAssetsInput::Asset)
         .chain(
             refs.references
                 .await?
                 .into_iter()
-                .map(|&reference| ExpandOutputAssetsInput::Reference(reference)),
+                .map(ExpandOutputAssetsInput::Reference),
         );
     Ok(Either::Right(assets))
 }

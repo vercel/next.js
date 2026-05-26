@@ -107,7 +107,7 @@ impl AvailableModules {
             match idents {
                 IdentStrings::Single(ident) => hasher.write_value(ident),
                 IdentStrings::Multiple(idents) => {
-                    for ident in idents {
+                    for ident in &idents {
                         hasher.write_value(ident);
                     }
                 }

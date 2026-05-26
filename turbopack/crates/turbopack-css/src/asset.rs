@@ -226,7 +226,7 @@ impl OutputAssetsReference for CssModuleChunkItem {
     async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
         let mut references = Vec::new();
         if let ParseCssResult::Ok { url_references, .. } = &*self.module.parse_css().await? {
-            for (_, reference) in url_references.await? {
+            for (_, reference) in &*url_references.await? {
                 if let ReferencedAsset::Some(asset) = *reference
                     .get_referenced_asset(*self.chunking_context)
                     .await?

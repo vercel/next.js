@@ -1470,7 +1470,7 @@ async fn find_package(
                 let matches =
                     read_matches(dir.clone(), rcstr!(""), true, package_name_with_extensions)
                         .await?;
-                for m in matches {
+                for m in &matches {
                     if let PatternMatch::File(_, package_file) = m {
                         packages.push(FindPackageItem::PackageFile {
                             name: get_package_name(dir, package_file)?,

@@ -59,7 +59,7 @@ impl Asset for FontManifest {
         // `_next` gets added again later, so we "strip" it here via
         // `get_font_paths_from_root`.
         let font_paths: Vec<String> =
-            get_font_paths_from_root(client_root, &all_client_output_assets)
+            get_font_paths_from_root(client_root, all_client_output_assets)
                 .await?
                 .iter()
                 .filter_map(|p| p.split("_next/").last().map(|f| f.to_string()))

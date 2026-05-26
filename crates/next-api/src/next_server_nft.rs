@@ -215,7 +215,7 @@ impl ServerNftJsonAsset {
         // These are used by packages/next/src/server/require-hook.ts
         let shared_entries = ["styled-jsx", "styled-jsx/style", "styled-jsx/style.js"];
 
-        let cache_handler_entries = cache_handler.into_iter().chain(cache_handlers).map(|f| {
+        let cache_handler_entries = cache_handler.iter().chain(cache_handlers.iter()).map(|f| {
             asset_context
                 .process(
                     Vc::upcast(FileSource::new(f.clone())),

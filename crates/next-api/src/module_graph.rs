@@ -107,7 +107,6 @@ impl NextDynamicGraphs {
                             .get_next_dynamic_imports_for_endpoint(entry)
                             .await?
                             .into_iter()
-                            .map(|(k, v)| (*k, *v))
                             // TODO remove this collect and return an iterator instead
                             .collect::<Vec<_>>())
                     })

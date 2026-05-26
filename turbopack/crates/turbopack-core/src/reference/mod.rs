@@ -258,7 +258,7 @@ pub async fn all_assets_from_entries(
             entries
                 .await?
                 .into_iter()
-                .map(|&asset| ExpandOutputAssetsInput::Asset(asset)),
+                .map(ExpandOutputAssetsInput::Asset),
             true,
         )
         .await?,

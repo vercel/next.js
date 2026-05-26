@@ -146,9 +146,9 @@ async fn resolve_reference_from_dir(
     };
 
     let matches = abs_matches
-        .into_iter()
+        .iter()
         .flatten()
-        .chain(rel_matches.into_iter().flatten());
+        .chain(rel_matches.iter().flatten());
 
     let mut affecting_sources = Vec::new();
     let mut results = Vec::new();
@@ -168,7 +168,7 @@ async fn resolve_reference_from_dir(
                 results.push((
                     RequestKey::new(matched_path.clone()),
                     ResolvedVc::upcast(
-                        RawModule::new(Vc::upcast(FileSource::new(path)))
+                        RawModule::new(Vc::upcast(FileSource::new(path.clone())))
                             .to_resolved()
                             .await?,
                     ),
