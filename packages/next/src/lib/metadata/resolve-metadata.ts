@@ -7,11 +7,11 @@ import type {
   Viewport,
   WithStringifiedURLs,
 } from './types/metadata-interface'
-import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/types'
+import type { MetadataImageModule } from '../../build/manifests'
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 import type { Twitter } from './types/twitter-types'
 import type { OpenGraph } from './types/opengraph-types'
-import type { AppDirModules } from '../../build/webpack/loaders/next-app-loader'
+import type { AppDirModules } from '../../build/manifests'
 import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type {

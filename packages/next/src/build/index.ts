@@ -1,11 +1,11 @@
-import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
+import type { PagesManifest } from './manifests'
 import type {
   ExportPathMap,
   NextConfigComplete,
   NextConfigRuntime,
 } from '../server/config-shared'
-import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
-import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
+import type { MiddlewareManifest } from './manifests'
+import type { ActionManifest } from './manifests'
 import type { CacheControl, Revalidate } from '../server/lib/cache-control'
 import type { PrefetchHints } from '../shared/lib/app-router-types'
 
@@ -161,7 +161,6 @@ import {
   type NEXT_REWRITTEN_PATH_HEADER,
   type NEXT_REWRITTEN_QUERY_HEADER,
 } from '../client/components/app-router-headers'
-import { webpackBuild } from './webpack-build'
 import { NextBuildContext } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
@@ -170,7 +169,7 @@ import { startTypeChecking } from './type-check'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
-import type { BuildTraceContext } from './webpack/plugins/next-trace-entrypoints-plugin'
+import type { BuildTraceContext } from './manifests'
 import { formatManifest } from './manifests/formatter/format-manifest'
 import {
   recordFrameworkVersion,
@@ -197,7 +196,7 @@ import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
-import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
+import type { UseCacheTrackerKey } from './manifests'
 
 import { turbopackBuild } from './turbopack-build'
 import { inlineStaticEnv } from '../lib/inline-static-env'
@@ -229,6 +228,15 @@ import {
 } from '../server/lib/router-utils/build-prefetch-segment-data-route'
 import { generateRoutesManifest } from './generate-routes-manifest'
 import { validateAppPaths } from './validate-app-paths'
+
+type WebpackBuild = (
+  useBuildWorker: boolean,
+  compilerNames: string[] | null
+) => Promise<any>
+
+function getWebpackBuild(): WebpackBuild {
+  return (require('next/dist/webpack/next-integration') as typeof import('next/dist/webpack/next-integration')).webpackBuild
+}
 
 type Fallback = null | boolean | string
 
@@ -1659,6 +1667,8 @@ export default async function build(
             })
           )
         } else {
+          const webpackBuild = getWebpackBuild()
+
           if (
             runServerAndEdgeInParallel ||
             collectServerBuildTracesInParallel

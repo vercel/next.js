@@ -1758,7 +1758,15 @@ export default async function loadConfig(
   }
 
   // Original implementation continues below...
-  if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
+  if (
+    !process.env.__NEXT_PRIVATE_RENDER_WORKER &&
+    (bundler === Bundler.Webpack ||
+      bundler === Bundler.Rspack ||
+      process.env.NEXT_RSPACK ||
+      (bundler === undefined &&
+        process.env.__NEXT_DEV_SERVER &&
+        !process.env.TURBOPACK))
+  ) {
     try {
       loadWebpackHook()
     } catch (err) {

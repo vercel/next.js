@@ -3,7 +3,7 @@ module.exports = {
     console.log('Initialized config')
     if (
       require('webpack/lib/node/NodeTargetPlugin') !==
-      require('next/dist/compiled/webpack/NodeTargetPlugin')
+      require('next/dist/webpack/compiled/webpack/NodeTargetPlugin')
     )
       throw new Error('Webpack require hook not applying')
     return config

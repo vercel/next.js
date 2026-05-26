@@ -4,7 +4,7 @@ import type {
   DocumentType,
   NextComponentType,
 } from '../shared/lib/utils'
-import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
+import type { ClientReferenceManifest } from '../build/manifests'
 import type {
   PageConfig,
   GetStaticPaths,
@@ -13,7 +13,7 @@ import type {
 } from '../types'
 import type { RouteModule } from './route-modules/route-module'
 import type { BuildManifest } from './get-page-files'
-import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
+import type { ActionManifest } from '../build/manifests'
 
 import {
   BUILD_MANIFEST,

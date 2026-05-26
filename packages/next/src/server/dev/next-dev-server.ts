@@ -20,7 +20,7 @@ import type { IncrementalCache } from '../lib/incremental-cache'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
 import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import type { RouteEnsurer } from '../route-matcher-managers/dev-route-matcher-manager'
-import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
+import type { PagesManifest } from '../../build/manifests'
 
 import * as React from 'react'
 import fs from 'fs'

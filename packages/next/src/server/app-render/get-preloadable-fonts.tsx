@@ -1,4 +1,4 @@
-import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
+import type { NextFontManifest } from '../../build/manifests'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
 /**

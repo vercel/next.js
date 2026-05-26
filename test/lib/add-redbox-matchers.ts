@@ -137,7 +137,7 @@ function focusSource(
   // This is the processed path the nextjs file from node_modules,
   // likely not being processed properly and it's not deterministic among tests.
   // e.g. it could be a encoded url of loader path:
-  // ../packages/next/dist/build/webpack/loaders/next-app-loader/index.js...
+  // ../packages/next/dist/webpack/build/webpack/loaders/next-app-loader/index.js...
   const sourceLines = focusedSource.split('\n')
   if (
     sourceLines[0].startsWith('./node_modules/.pnpm/next@file+') ||

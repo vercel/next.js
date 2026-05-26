@@ -1,4 +1,4 @@
-import type { CssResource } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { CssResource } from '../../build/manifests'
 import { getClientReferenceManifest } from './manifests-singleton'
 
 /**

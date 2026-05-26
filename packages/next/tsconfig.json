@@ -25,6 +25,17 @@
       "next/dist/compiled/@vercel/og/satori": [
         "./src/compiled/@vercel/og/satori"
       ],
+      "next/dist/build/*": ["./src/build/*"],
+      "next/dist/client/*": ["./src/client/*"],
+      "next/dist/export/*": ["./src/export/*"],
+      "next/dist/lib/*": ["./src/lib/*"],
+      "next/dist/next-devtools/*": ["./src/next-devtools/*"],
+      "next/dist/server/*": ["./src/server/*"],
+      "next/dist/shared/*": ["./src/shared/*"],
+      "next/dist/telemetry/*": ["./src/telemetry/*"],
+      "next/dist/trace": ["./src/trace/index.ts"],
+      "next/dist/trace/*": ["./src/trace/*"],
+      "next/dist/types": ["./src/types.ts"],
       // TODO: Enable types by telling Turbopack to ignore this alias.
       // tsconfig#paths are for type locations not source locations.
       // "next/dist/compiled/next-devtools": [
@@ -43,6 +54,7 @@
     "compat/*.d.ts",
     "legacy/*.d.ts",
     "types/compiled.d.ts",
+    "src/webpack/**/*",
     "navigation-types/*.d.ts",
     "navigation-types/compat/*.d.ts",
     "experimental/**/*.d.ts"

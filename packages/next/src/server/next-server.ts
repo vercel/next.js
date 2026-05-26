@@ -8,11 +8,11 @@ import {
   PageNotFoundError,
   MiddlewareNotFoundError,
 } from '../shared/lib/utils'
-import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
+import type { MiddlewareManifest } from '../build/manifests'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest, RoutesManifest } from '../build'
-import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
+import type { PagesManifest } from '../build/manifests'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -109,7 +109,7 @@ import { lazyRenderAppPage } from './route-modules/app-page/module.render'
 import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
-import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
+import type { NextFontManifest } from '../build/manifests'
 import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite'
 import type { ServerOnInstrumentationRequestError } from './app-render/types'
 import type { PrefetchHints } from '../shared/lib/app-router-types'

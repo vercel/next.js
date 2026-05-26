@@ -7,7 +7,7 @@ import {
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
-import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
+import type { PagesManifest } from '../build/manifests'
 import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
 import { LRUCache } from '../server/lib/lru-cache'
 import { loadManifest } from './load-manifest.external'

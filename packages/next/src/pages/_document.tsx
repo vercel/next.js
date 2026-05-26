@@ -10,7 +10,7 @@ import type {
   NEXT_DATA,
 } from '../shared/lib/utils'
 import type { ScriptProps } from '../client/script'
-import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
+import type { NextFontManifest } from '../build/manifests'
 
 import { getPageFiles } from '../server/get-page-files'
 import type { BuildManifest } from '../server/get-page-files'

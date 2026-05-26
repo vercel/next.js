@@ -167,7 +167,7 @@ describe('Production Usage', () => {
     if (process.platform !== 'win32') {
       expect(
         serverTrace.files.some((file) =>
-          file.includes('next/dist/compiled/webpack/bundle5.js')
+          file.includes('next/dist/webpack/compiled/webpack/bundle5.js')
         )
       ).toBe(false)
       expect(

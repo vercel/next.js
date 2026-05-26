@@ -1,6 +1,6 @@
 import { nextTestSetup, type NextInstance } from 'e2e-utils'
 
-// This is from 'next/dist/build/webpack/plugins/flight-client-entry-plugin', but unfortunately
+// This is from 'next/dist/build/manifests', but unfortunately
 // Typescript breaks when importing it directly.
 type Actions = {
   [actionId: string]: {

@@ -1,8 +1,8 @@
-import type { Span } from '../../../trace'
+import type { Span } from 'next/dist/trace'
 import transform from './transform'
 import type { NextJsLoaderContext } from './types'
 import type { SourceMap } from './util'
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/webpack/compiled/webpack/webpack'
 
 async function nextBabelLoader(
   ctx: NextJsLoaderContext,

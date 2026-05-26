@@ -1,5 +1,5 @@
-import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { ActionManifest } from '../../build/manifests'
+import type { ClientReferenceManifest } from '../../build/manifests'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'

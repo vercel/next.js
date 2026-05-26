@@ -1,6 +1,6 @@
-import type { TelemetryPlugin } from '../../build/webpack/plugins/telemetry-plugin/telemetry-plugin'
-import type { SWC_TARGET_TRIPLE } from '../../build/webpack/plugins/telemetry-plugin/telemetry-plugin'
-import type { UseCacheTrackerKey } from '../../build/webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
+import type { TelemetryPlugin } from '../../build/manifests'
+import type { SWC_TARGET_TRIPLE } from '../../build/manifests'
+import type { UseCacheTrackerKey } from '../../build/manifests'
 import { extractNextErrorCode } from '../../lib/error-telemetry-utils'
 
 const REGEXP_DIRECTORY_DUNDER =

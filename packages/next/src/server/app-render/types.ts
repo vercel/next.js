@@ -6,7 +6,7 @@ import type {
   PrefetchInliningConfig,
   ValidationLevel,
 } from '../../server/config-shared'
-import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
+import type { NextFontManifest } from '../../build/manifests'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'

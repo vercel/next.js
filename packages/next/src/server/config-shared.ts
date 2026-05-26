@@ -1,12 +1,11 @@
 import os from 'os'
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import { imageConfigDefault } from '../shared/lib/image-config'
 import type {
   ImageConfig,
   ImageConfigComplete,
 } from '../shared/lib/image-config'
-import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/subresource-integrity-plugin'
+import type { SubresourceIntegrityAlgorithm } from '../build/manifests'
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
@@ -366,7 +365,7 @@ export interface LoggingConfig {
  * related individual features at once.
  *
  * The name→bitmask mapping is duplicated in:
- * - JS:   `packages/next/src/build/webpack/loaders/lightningcss-loader/src/features.ts`
+ * - JS:   `packages/next/src/webpack/build/webpack/loaders/lightningcss-loader/src/features.ts`
  * - Rust: `crates/next-core/src/next_config.rs` (`lightningcss_feature_names_to_mask`)
  */
 export const LIGHTNINGCSS_FEATURE_NAMES = [
@@ -591,7 +590,7 @@ export interface ExperimentalConfig {
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
   fullySpecified?: boolean
-  urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
+  urlImports?: any
   swcTraceProfiling?: boolean
   forceSwcTransforms?: boolean
 

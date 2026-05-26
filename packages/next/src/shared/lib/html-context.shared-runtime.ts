@@ -1,7 +1,7 @@
 import type { BuildManifest } from '../../server/get-page-files'
 import type { ServerRuntime } from '../../types'
 import type { NEXT_DATA } from './utils'
-import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
+import type { NextFontManifest } from '../../build/manifests'
 import type { DeepReadonly } from './deep-readonly'
 
 import { createContext, useContext, type JSX } from 'react'

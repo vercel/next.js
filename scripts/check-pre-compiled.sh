@@ -4,10 +4,10 @@ set -e
 
 cd packages/next
 
-cp node_modules/webpack/lib/hmr/HotModuleReplacement.runtime.js src/bundles/webpack/packages/
-cp node_modules/webpack/lib/hmr/JavascriptHotModuleReplacement.runtime.js src/bundles/webpack/packages/
-cp node_modules/webpack/hot/lazy-compilation-node.js src/bundles/webpack/packages/
-cp node_modules/webpack/hot/lazy-compilation-web.js src/bundles/webpack/packages/
+cp node_modules/webpack/lib/hmr/HotModuleReplacement.runtime.js src/webpack/bundles/webpack/packages/
+cp node_modules/webpack/lib/hmr/JavascriptHotModuleReplacement.runtime.js src/webpack/bundles/webpack/packages/
+cp node_modules/webpack/hot/lazy-compilation-node.js src/webpack/bundles/webpack/packages/
+cp node_modules/webpack/hot/lazy-compilation-web.js src/webpack/bundles/webpack/packages/
 
 pnpm run ncc-compiled
 

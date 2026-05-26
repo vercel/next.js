@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { attachReactRefresh } from 'next/dist/build/webpack-config'
+import { attachReactRefresh } from 'next/dist/webpack/next-integration'
 import * as storybookPlugin from '../../packages/next-plugin-storybook/preset'
 
 describe('next-plugin-storybook filterModuleRules', () => {

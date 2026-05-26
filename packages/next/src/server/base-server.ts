@@ -25,15 +25,15 @@ import {
   normalizeRepeatedSlashes,
   MissingStaticPage,
 } from '../shared/lib/utils'
-import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
+import type { PagesManifest } from '../build/manifests'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type {
   ManifestRewriteRoute,
   ManifestRoute,
   PrerenderManifest,
 } from '../build'
-import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
-import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
+import type { ClientReferenceManifest } from '../build/manifests'
+import type { NextFontManifest } from '../build/manifests'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type {
   Server as HTTPServer,

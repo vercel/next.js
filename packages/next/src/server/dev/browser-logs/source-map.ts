@@ -1,5 +1,5 @@
-import { getOriginalStackFrames as getOriginalStackFramesWebpack } from '../middleware-webpack'
 import { getOriginalStackFrames as getOriginalStackFramesTurbopack } from '../middleware-turbopack'
+import type { OriginalStackFramesResponse } from '../../../next-devtools/server/shared'
 import type { Project } from '../../../build/swc/types'
 import { dim } from '../../../lib/picocolors'
 import { parseStack, type StackFrame } from '../../lib/parse-stack'
@@ -32,9 +32,11 @@ export type MappingContext = WebpackMappingContext | TurbopackMappingContext
 export async function mapFramesUsingBundler(
   frames: StackFrame[],
   ctx: MappingContext
-) {
+): Promise<OriginalStackFramesResponse> {
   switch (ctx.bundler) {
     case 'webpack': {
+      const { getOriginalStackFrames: getOriginalStackFramesWebpack } =
+        (require('next/dist/webpack/server/dev/middleware-webpack') as typeof import('next/dist/webpack/server/dev/middleware-webpack'))
       const {
         isServer,
         isEdgeServer,

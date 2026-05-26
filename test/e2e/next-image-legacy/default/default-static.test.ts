@@ -121,7 +121,7 @@ describe('Static Image Component Tests', () => {
       // In webpack dev, `next/legacy/image` emits a dynamic blur URL via the
       // image optimizer route instead of an inlined base64 data URL, to avoid
       // slowing down the dev server (see
-      // `packages/next/src/build/webpack/loaders/next-image-loader/blur.ts`).
+      // `packages/next/src/webpack/build/webpack/loaders/next-image-loader/blur.ts`).
       expect(replaceBlurUrl(style)).toMatchInlineSnapshot(
         `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("<REPLACED_BLUR_URL>")"`
       )
@@ -143,7 +143,7 @@ describe('Static Image Component Tests', () => {
       // In webpack dev, `next/legacy/image` emits a dynamic blur URL via the
       // image optimizer route instead of an inlined base64 data URL, to avoid
       // slowing down the dev server (see
-      // `packages/next/src/build/webpack/loaders/next-image-loader/blur.ts`).
+      // `packages/next/src/webpack/build/webpack/loaders/next-image-loader/blur.ts`).
       expect(replaceBlurUrl(style)).toMatchInlineSnapshot(
         `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("<REPLACED_BLUR_URL>")"`
       )

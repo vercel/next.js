@@ -2,9 +2,11 @@ import createStore from 'next/dist/compiled/unistore'
 import formatWebpackMessages from '../../shared/lib/format-webpack-messages'
 import { store as consoleStore } from './store'
 import type { OutputState } from './store'
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { COMPILER_NAMES } from '../../shared/lib/constants'
 import type { CompilerNameValues } from '../../shared/lib/constants'
+
+type WebpackCompiler = any
+type WebpackStats = any
 
 type CompilerDiagnostics = {
   totalModulesCount: number
@@ -123,9 +125,9 @@ buildStore.subscribe((state) => {
 })
 
 export function watchCompilers(
-  client: webpack.Compiler,
-  server: webpack.Compiler,
-  edgeServer: webpack.Compiler
+  client: WebpackCompiler,
+  server: WebpackCompiler,
+  edgeServer: WebpackCompiler
 ) {
   buildStore.setState({
     client: { loading: true },
@@ -137,14 +139,14 @@ export function watchCompilers(
 
   function tapCompiler(
     key: CompilerNameValues,
-    compiler: webpack.Compiler,
+    compiler: WebpackCompiler,
     onEvent: (status: WebpackStatus) => void
   ) {
     compiler.hooks.invalid.tap(`NextJsInvalid-${key}`, () => {
       onEvent({ loading: true })
     })
 
-    compiler.hooks.done.tap(`NextJsDone-${key}`, (stats: webpack.Stats) => {
+    compiler.hooks.done.tap(`NextJsDone-${key}`, (stats: WebpackStats) => {
       const { errors, warnings } = formatWebpackMessages(
         stats.toJson({
           preset: 'errors-warnings',

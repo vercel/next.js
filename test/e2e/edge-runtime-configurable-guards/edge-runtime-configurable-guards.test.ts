@@ -44,7 +44,7 @@ describe('Edge runtime configurable guards', () => {
     })
 
     // Webpack treats `node_modules` as a "managed path" in its snapshot
-    // config (see packages/next/src/build/webpack-config.ts), meaning it
+    // config (see packages/next/src/webpack/build/webpack-config.ts), meaning it
     // assumes the contents of any file under `node_modules` are immutable
     // per package version. When a test patches
     // `node_modules/lib/index.js`, webpack's dev server keeps serving the

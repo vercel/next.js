@@ -1,11 +1,15 @@
 const { PHASE_PRODUCTION_BUILD } = require('next/constants')
 const { findPagesDir } = require('next/dist/lib/find-pages-dir')
 const loadConfig = require('next/dist/server/config').default
-const getWebpackConfig = require('next/dist/build/webpack-config').default
+const {
+  getBaseWebpackConfig: getWebpackConfig,
+  loadWebpackHook,
+} = require('next/dist/webpack/next-integration')
 
 const CWD = process.cwd()
 
 async function webpackFinal(config) {
+  loadWebpackHook()
   const nextConfig = await loadConfig(PHASE_PRODUCTION_BUILD, CWD)
   const { pagesDir } = findPagesDir(CWD, !!nextConfig.experimental.appDir)
   const nextWebpackConfig = await getWebpackConfig(CWD, {
@@ -31,9 +35,7 @@ async function webpackFinal(config) {
       // we need to resolve next-babel-loader since it's not available
       // relative with storybook's config
       if (rule.use && rule.use.loader === 'next-babel-loader') {
-        rule.use.loader = require.resolve(
-          'next/dist/build/webpack/loaders/next-babel-loader'
-        )
+        rule.use.loader = require.resolve('next/dist/build/babel/loader')
       }
       return rule
     }),

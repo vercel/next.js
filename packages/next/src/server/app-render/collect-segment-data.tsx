@@ -12,7 +12,7 @@ import {
   StaticPrefetchDisabled,
 } from '../../shared/lib/app-router-types'
 import { readVaryParams } from '../../shared/lib/segment-cache/vary-params-decoding'
-import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { ManifestNode } from '../../build/manifests'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream } from 'react-server-dom-webpack/client'

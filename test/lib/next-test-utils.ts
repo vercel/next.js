@@ -38,7 +38,7 @@ import escapeRegex from 'escape-string-regexp'
 // Edge Runtime unit tests fail with "EvalError: Code generation from strings disallowed for this context" if these matchers are imported in those tests.
 import './add-redbox-matchers'
 import { NextInstance } from 'e2e-utils'
-import { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
+import { ClientReferenceManifest } from 'next/dist/build/manifests'
 
 export { shouldUseTurbopack }
 

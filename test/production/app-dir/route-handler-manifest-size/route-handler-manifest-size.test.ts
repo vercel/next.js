@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { getClientReferenceManifest } from 'next-test-utils'
-import type { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
+import type { ClientReferenceManifest } from 'next/dist/build/manifests'
 
 describe('route-handler-manifest-size', () => {
   const { next, isNextStart, skipped } = nextTestSetup({

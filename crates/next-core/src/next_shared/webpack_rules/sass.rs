@@ -94,7 +94,7 @@ pub async fn get_sass_loader_rules(
         ),
     };
     let resolve_url_loader = WebpackLoaderItem {
-        loader: rcstr!("next/dist/build/webpack/loaders/resolve-url-loader/index"),
+        loader: rcstr!("next/dist/build/resolve-url-loader/index"),
         options: take(
             serde_json::json!({
                 // https://github.com/vercel/turbo/blob/d527eb54be384a4658243304cecd547d09c05c6b/crates/turbopack-node/src/transforms/webpack.rs#L191

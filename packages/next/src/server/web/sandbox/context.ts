@@ -1,8 +1,6 @@
-import type { AssetBinding } from '../../../build/webpack/loaders/get-module-build-info'
-import type {
-  EdgeFunctionDefinition,
-  SUPPORTED_NATIVE_MODULES,
-} from '../../../build/webpack/plugins/middleware-plugin'
+import type { SUPPORTED_NATIVE_MODULES } from '../../../build/manifests'
+import type { AssetBinding } from '../../../build/manifests'
+import type { EdgeFunctionDefinition } from '../../../build/manifests'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import { AsyncLocalStorage } from 'async_hooks'
 import {

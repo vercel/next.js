@@ -3,11 +3,8 @@ import '../server/lib/cpu-profile'
 import { Span } from '../trace'
 import type { NextConfigComplete } from '../server/config-shared'
 
-import {
-  TRACE_IGNORES,
-  type BuildTraceContext,
-  getFilesMapFromReasons,
-} from './webpack/plugins/next-trace-entrypoints-plugin'
+import type { BuildTraceContext } from './manifests'
+import { TRACE_IGNORES, getFilesMapFromReasons } from './trace-utils'
 
 import path from 'path'
 import { resolveCacheHandlerPathToFilesystem } from '../lib/format-dynamic-import-path'
@@ -223,7 +220,7 @@ export async function collectBuildTraces({
       const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
         ...(isStandalone ? [] : ['**/next/dist/compiled/jest-worker/**/*']),
-        '**/next/dist/compiled/webpack/*',
+        '**/next/dist/webpack/compiled/webpack/*',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
         'next/dist/compiled/semver/semver/**/*.js',

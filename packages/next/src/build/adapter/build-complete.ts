@@ -20,10 +20,7 @@ import {
   convertHeaders,
 } from 'next/dist/compiled/@vercel/routing-utils'
 
-import type {
-  MiddlewareManifest,
-  EdgeFunctionDefinition,
-} from '../webpack/plugins/middleware-plugin'
+import type { MiddlewareManifest, EdgeFunctionDefinition } from '../manifests'
 
 import type {
   RoutesManifest,
@@ -2203,7 +2200,7 @@ async function getSharedNodeAssets({
 
     const sharedTraceIgnores = [
       '**/next/dist/compiled/next-server/**/*.dev.js',
-      '**/next/dist/compiled/webpack/*',
+      '**/next/dist/webpack/compiled/webpack/*',
       '**/node_modules/webpack5/**/*',
       '**/next/dist/server/lib/route-resolver*',
       'next/dist/compiled/semver/semver/**/*.js',

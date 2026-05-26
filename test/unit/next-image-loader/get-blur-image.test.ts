@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { getBlurImage } from 'next/dist/build/webpack/loaders/next-image-loader/blur'
+import { getBlurImage } from 'next/dist/webpack/build/webpack/loaders/next-image-loader/blur'
 import { readFile } from 'fs-extra'
 import { join } from 'path'
 

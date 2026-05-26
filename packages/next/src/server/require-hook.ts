@@ -1,6 +1,6 @@
-// Synchronously inject a require hook for webpack and webpack/. It's required to use the internal ncc webpack version.
-// This is needed for userland plugins to attach to the same webpack instance as Next.js'.
-// Individually compiled modules are as defined for the compilation in bundles/webpack/packages/*.
+// Synchronously inject a require hook for shared runtime aliases.
+// Webpack aliases are registered lazily by the webpack integration provider
+// so default Turbopack paths do not load the webpack implementation.
 
 // This module will only be loaded once per process.
 const path = require('path') as typeof import('path')

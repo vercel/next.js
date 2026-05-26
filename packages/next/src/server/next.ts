@@ -15,6 +15,7 @@ import * as log from '../build/output/log'
 import loadConfig from './config'
 import path from 'node:path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
+import { Bundler } from '../lib/bundler'
 import {
   PHASE_DEVELOPMENT_SERVER,
   SERVER_FILES_MANIFEST,
@@ -282,6 +283,7 @@ export class NextServer implements NextWrapperServer {
     const dir = path.resolve(
       /* turbopackIgnore: true */ this.options.dir || '.'
     )
+    const bundlerOptions = this.options as NextBundlerOptions
 
     const config = await loadConfig(
       this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
@@ -289,6 +291,11 @@ export class NextServer implements NextWrapperServer {
       {
         customConfig: this.options.conf,
         silent: true,
+        bundler: bundlerOptions.webpack
+          ? Bundler.Webpack
+          : bundlerOptions.turbopack || bundlerOptions.turbo
+            ? Bundler.Turbopack
+            : undefined,
       }
     )
 

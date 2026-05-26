@@ -16,6 +16,9 @@ pnpm-lock.yaml
 
 packages/next/src/bundles/webpack/packages/*.runtime.js
 packages/next/src/bundles/webpack/packages/lazy-compilation-*.js
+packages/next/src/webpack/bundles/webpack/packages/*.runtime.js
+packages/next/src/webpack/bundles/webpack/packages/lazy-compilation-*.js
+packages/next/src/webpack/compiled/**/*
 packages/next/wasm/@next
 packages/next/errors.json
 

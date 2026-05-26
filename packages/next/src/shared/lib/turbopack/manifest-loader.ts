@@ -1,11 +1,11 @@
 import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
-} from '../../../build/webpack/plugins/middleware-plugin'
+} from '../../../build/manifests'
 import type { BuildManifest } from '../../../server/get-page-files'
-import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
-import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
-import type { NextFontManifest } from '../../../build/webpack/plugins/next-font-manifest-plugin'
+import type { PagesManifest } from '../../../build/manifests'
+import type { ActionManifest } from '../../../build/manifests'
+import type { NextFontManifest } from '../../../build/manifests'
 import type { REACT_LOADABLE_MANIFEST } from '../constants'
 import {
   APP_PATHS_MANIFEST,
@@ -45,7 +45,7 @@ import {
   srcEmptySsgManifest,
   processRoute,
   createEdgeRuntimeManifest,
-} from '../../../build/webpack/plugins/build-manifest-plugin-utils'
+} from '../../../build/manifests'
 import type { SubresourceIntegrityManifest } from '../../../build'
 
 interface InstrumentationDefinition {

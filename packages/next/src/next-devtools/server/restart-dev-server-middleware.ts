@@ -3,7 +3,6 @@ import type { Telemetry } from '../../telemetry/storage'
 import { RESTART_EXIT_CODE } from '../../server/lib/utils'
 import { middlewareResponse } from './middleware-response'
 import type { Project } from '../../build/swc/types'
-import { invalidateFileSystemCache as invalidateWebpackFileSystemCache } from '../../build/webpack/cache-invalidation'
 
 const EVENT_DEV_OVERLAY_RESTART_SERVER = 'DEV_OVERLAY_RESTART_SERVER'
 
@@ -42,6 +41,8 @@ export function getRestartDevServerMiddleware({
     )
     if (shouldInvalidateFileSystemCache) {
       if (webpackCacheDirectories != null) {
+        const { invalidateFileSystemCache: invalidateWebpackFileSystemCache } =
+          require('next/dist/webpack/next-integration') as typeof import('next/dist/webpack/next-integration')
         await Promise.all(
           Array.from(webpackCacheDirectories).map(
             invalidateWebpackFileSystemCache

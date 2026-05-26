@@ -1,4 +1,4 @@
-const { relative, basename, resolve, join, dirname } = require('path')
+const { relative, resolve, join, dirname } = require('path')
 const glob = require('glob')
 const fs = require('fs/promises')
 const resolveFrom = require('resolve-from')
@@ -86,7 +86,7 @@ const externals = {
   'jest-worker': 'jest-worker',
 
   'terser-webpack-plugin':
-    'next/dist/build/webpack/plugins/terser-webpack-plugin/src',
+    'next/dist/webpack/build/webpack/plugins/terser-webpack-plugin/src',
 
   punycode: 'punycode/',
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
@@ -2066,44 +2066,6 @@ export async function ncc_ua_parser_js(task, opts) {
     .ncc({ packageName: 'ua-parser-js', externals })
     .target('src/compiled/ua-parser-js')
 }
-export async function ncc_webpack_bundle5(task, opts) {
-  const bundleExternals = {
-    ...externals,
-    'schema-utils': externals['schema-utils3'],
-    'webpack-sources': externals['webpack-sources3'],
-  }
-  for (const pkg of Object.keys(webpackBundlePackages)) {
-    delete bundleExternals[pkg]
-  }
-  await task
-    .source('src/bundles/webpack/bundle5.js')
-    .ncc({
-      packageName: 'webpack',
-      bundleName: 'webpack',
-      customEmit(path) {
-        if (path.endsWith('.runtime.js')) return `'./${basename(path)}'`
-      },
-      externals: bundleExternals,
-      target: 'es5',
-    })
-    .target('src/compiled/webpack')
-}
-
-const webpackBundlePackages = {
-  webpack: 'next/dist/compiled/webpack/webpack-lib',
-  'webpack/lib/NormalModule': 'next/dist/compiled/webpack/NormalModule',
-  'webpack/lib/node/NodeTargetPlugin':
-    'next/dist/compiled/webpack/NodeTargetPlugin',
-}
-
-Object.assign(externals, webpackBundlePackages)
-
-export async function ncc_webpack_bundle_packages(task, opts) {
-  await task
-    .source('src/bundles/webpack/packages/*')
-    .target('src/compiled/webpack/')
-}
-
 externals['write-file-atomic'] = 'next/dist/compiled/write-file-atomic'
 export async function ncc_write_file_atomic(task, opts) {
   await task
@@ -2314,7 +2276,6 @@ export async function ncc(task, opts) {
         'ncc_watchpack',
         'ncc_web_vitals',
         'ncc_web_vitals_attribution',
-        'ncc_webpack_bundle5',
         'ncc_webpack_sources1',
         'ncc_webpack_sources3',
         'ncc_write_file_atomic',
@@ -2328,7 +2289,6 @@ export async function ncc(task, opts) {
       ],
       opts
     )
-  await task.parallel(['ncc_webpack_bundle_packages'], opts)
   await task.parallel(['ncc_babel_bundle_packages'], opts)
   await task.serial(
     [
@@ -2395,6 +2355,7 @@ export async function next_compile(task, opts) {
     ],
     opts
   )
+  await task.start('webpack', opts)
 }
 
 export async function compile(task, opts) {
@@ -2487,6 +2448,46 @@ export async function nextbuild_esm(task, opts) {
     })
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/build')
+}
+
+export async function webpack(task, opts) {
+  await rmrf(join(__dirname, 'dist/webpack'))
+
+  await task
+    .source('src/webpack/**/!(*.test).+(js|ts|tsx)', {
+      ignore: [
+        'src/webpack/bundles/**',
+        'src/webpack/compiled/**',
+        '**/*.test.+(js|ts|tsx)',
+      ],
+    })
+    .swc('server', { dev: opts.dev })
+    .target('dist/webpack')
+
+  await fs.cp(
+    join(__dirname, 'src/webpack/compiled'),
+    join(__dirname, 'dist/webpack/compiled'),
+    { recursive: true, force: true }
+  )
+  await fs.cp(
+    join(__dirname, 'src/webpack/bundles'),
+    join(__dirname, 'dist/webpack/bundles'),
+    { recursive: true, force: true }
+  )
+
+  for (const file of glob.sync('src/webpack/build/**/*', {
+    cwd: __dirname,
+    nodir: true,
+    ignore: ['**/*.+(js|ts|tsx)'],
+  })) {
+    const outputPath = join(
+      __dirname,
+      'dist/webpack',
+      file.slice('src/webpack/'.length)
+    )
+    await fs.mkdir(dirname(outputPath), { recursive: true })
+    await fs.copyFile(join(__dirname, file), outputPath)
+  }
 }
 
 export async function nextbuildjest(task, opts) {
@@ -2752,6 +2753,7 @@ export default async function (task) {
     ['nextbuild', 'nextbuild_esm', 'nextbuildjest'],
     opts
   )
+  await task.watch('src/webpack', 'webpack', opts)
   await task.watch(
     'src/next-devtools',
     [

@@ -41,7 +41,7 @@ import { checkIsOnDemandRevalidate } from '../api-utils'
 import type { PreviewData } from '../../types'
 import type { BuildManifest } from '../get-page-files'
 import type { ReactLoadableManifest } from '../load-components'
-import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
+import type { NextFontManifest } from '../../build/manifests'
 import { normalizeDataPath } from '../../shared/lib/page-path/normalize-data-path'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import {

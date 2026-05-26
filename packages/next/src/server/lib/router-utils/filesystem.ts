@@ -5,7 +5,7 @@ import type {
   RoutesManifest,
 } from '../../../build'
 import type { NextConfigRuntime } from '../../config-shared'
-import type { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
+import type { MiddlewareManifest } from '../../../build/manifests'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'

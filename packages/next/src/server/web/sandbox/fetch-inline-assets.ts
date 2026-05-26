@@ -1,4 +1,4 @@
-import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
+import type { EdgeFunctionDefinition } from '../../../build/manifests'
 import { createReadStream, promises as fs } from 'fs'
 import { requestToBodyStream } from '../../body-streams'
 import { resolve } from 'path'

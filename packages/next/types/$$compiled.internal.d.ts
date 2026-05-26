@@ -965,7 +965,7 @@ declare module 'next/dist/compiled/webpack-sources3' {
   export let stringBufferUtils: StringBufferUtils
 }
 
-declare module 'next/dist/compiled/webpack/webpack' {
+declare module 'next/dist/webpack/compiled/webpack/webpack' {
   import { type Compilation, Module } from 'webpack'
 
   export function init(): void
@@ -1092,3 +1092,27 @@ declare module 'next/dist/compiled/webpack/webpack' {
 
   export type CacheFacade = ReturnType<Compilation['getCache']>
 }
+
+declare module 'next/dist/webpack/next-integration' {
+  export const webpackBuild: any
+  export const checkFileSystemCacheInvalidationAndCleanup: any
+  export const invalidateFileSystemCache: any
+  export function loadWebpackHook(): void
+  export const HotReloaderWebpack: any
+  export const HotReloaderRspack: any
+  export const getBaseWebpackConfig: any
+  export const getCacheDirectories: any
+  export const loadProjectInfo: any
+  export const attachReactRefresh: any
+  export const babelIncludeRegexes: any
+  export const hasExternalOtelApiPackage: any
+  export const nextImageLoaderRegex: any
+  export const NODE_RESOLVE_OPTIONS: any
+  export const NODE_BASE_RESOLVE_OPTIONS: any
+  export const NODE_ESM_RESOLVE_OPTIONS: any
+  export const NODE_BASE_ESM_RESOLVE_OPTIONS: any
+  export const JsConfigPathsPlugin: any
+}
+
+declare module 'next/dist/webpack/client/app-webpack'
+declare module 'next/dist/webpack/client/webpack'

@@ -4,7 +4,7 @@ import type {
 } from '../server/config-shared'
 import type { ExperimentalPPRConfig } from '../server/lib/experimental/ppr'
 import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
-import type { AssetBinding } from './webpack/loaders/get-module-build-info'
+import type { AssetBinding } from './manifests'
 import type { ServerRuntime } from '../types'
 import type { BuildManifest } from '../server/get-page-files'
 import {
@@ -14,10 +14,7 @@ import {
   type Redirect,
   type Rewrite,
 } from '../lib/load-custom-routes'
-import type {
-  EdgeFunctionDefinition,
-  MiddlewareManifest,
-} from './webpack/plugins/middleware-plugin'
+import type { EdgeFunctionDefinition, MiddlewareManifest } from './manifests'
 import type { WebpackLayerName } from '../lib/constants'
 import {
   INSTRUMENTATION_HOOK_FILENAME,

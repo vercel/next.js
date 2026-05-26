@@ -180,7 +180,7 @@ async function main(): Promise<void> {
       `      "@next/env": ${JSON.stringify(`file:${packageFiles.nextEnvFile}`)},`
     )
     console.log(
-      `      "@next/bundle-analyzer": ${JSON.stringify(`file:${packageFiles.nextBaFile}`)}`
+      `      "@next/bundle-analyzer": ${JSON.stringify(`file:${packageFiles.nextBaFile}`)},`
     )
     console.log(`    }`)
     console.log(`  }`)

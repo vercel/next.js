@@ -129,7 +129,7 @@ module.exports = ({ dev, ...rest }) => {
                 // Keep using `styleTag` to ensure when new styles injected the style can also be updated.
                 injectType: 'styleTag',
                 insert: require.resolve(
-                  './src/build/webpack/loaders/devtool/devtool-style-inject.js'
+                  'next/dist/webpack/build/webpack/loaders/devtool/devtool-style-inject.js'
                 ),
               },
             },

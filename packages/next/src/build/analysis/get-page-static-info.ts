@@ -24,7 +24,7 @@ import {
 } from '../warn-about-edge-runtime'
 import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
-import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
+import type { RSCMeta } from '../manifests'
 import { PAGE_TYPES } from '../../lib/page-types'
 import {
   AppSegmentConfigSchemaKeys,

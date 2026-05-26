@@ -1,4 +1,4 @@
-import type { CssResource } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { CssResource } from '../../build/manifests'
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'

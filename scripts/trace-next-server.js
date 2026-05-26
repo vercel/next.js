@@ -82,7 +82,7 @@ async function main() {
       'node_modules/next/dist/pages/**/*',
       'node_modules/next/dist/server/image-optimizer.js',
       'node_modules/next/dist/compiled/@ampproject/toolbox-optimizer/**/*',
-      'node_modules/next/dist/compiled/webpack/(bundle4|bundle5).js',
+      'node_modules/next/dist/webpack/compiled/webpack/(bundle4|bundle5).js',
       'node_modules/react/**/*.development.js',
       'node_modules/react-dom/**/*.development.js',
       'node_modules/use-subscription/**/*.development.js',

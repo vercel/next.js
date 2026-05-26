@@ -55,7 +55,7 @@ import {
   getPossibleMiddlewareFilenames,
   getPossibleInstrumentationHookFilenames,
 } from '../../../build/utils'
-import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
+import { devPageFiles } from '../../dev/dev-page-files'
 import type { LazyRenderServerInstance } from '../router-server'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
@@ -68,7 +68,6 @@ import {
   fillStaticMetadataSegment,
   normalizeMetadataPageToRoute,
 } from '../../../lib/metadata/get-metadata-route'
-import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
   isFileSystemCacheEnabledForDev,
@@ -225,6 +224,7 @@ async function startWatcher(
   )
 
   const serverFields: ServerFields = {}
+  let JsConfigPathsPlugin: any
 
   // Update logging state once based on next.config.js when initializing
   consoleStore.setState({
@@ -246,13 +246,15 @@ async function startWatcher(
         )
       })()
     : await (async () => {
+        const {
+          HotReloaderRspack,
+          HotReloaderWebpack,
+          JsConfigPathsPlugin: WebpackJsConfigPathsPlugin,
+        } = require('next/dist/webpack/next-integration') as typeof import('next/dist/webpack/next-integration')
+        JsConfigPathsPlugin = WebpackJsConfigPathsPlugin
         const HotReloader = process.env.NEXT_RSPACK
-          ? (
-              require('../../dev/hot-reloader-rspack') as typeof import('../../dev/hot-reloader-rspack')
-            ).default
-          : (
-              require('../../dev/hot-reloader-webpack') as typeof import('../../dev/hot-reloader-webpack')
-            ).default
+          ? HotReloaderRspack
+          : HotReloaderWebpack
         return new HotReloader(opts.dir, {
           isSrcDir: opts.isSrcDir,
           appDir,
@@ -866,11 +868,15 @@ async function startWatcher(
               config.resolve?.plugins?.forEach((plugin: any) => {
                 // look for the JsConfigPathsPlugin and update with
                 // the latest paths/baseUrl config
-                if (plugin instanceof JsConfigPathsPlugin && tsconfigResult) {
+                if (
+                  JsConfigPathsPlugin &&
+                  plugin instanceof JsConfigPathsPlugin &&
+                  tsconfigResult
+                ) {
                   const { resolvedBaseUrl, jsConfig } = tsconfigResult
                   const currentResolvedBaseUrl = plugin.resolvedBaseUrl
                   const resolvedUrlIndex = config.resolve?.modules?.findIndex(
-                    (item) => item === currentResolvedBaseUrl?.baseUrl
+                    (item: string) => item === currentResolvedBaseUrl?.baseUrl
                   )
 
                   if (resolvedBaseUrl) {

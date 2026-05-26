@@ -15,9 +15,9 @@ import {
   type SourceMap,
   type BabelLoaderTransformOptions,
 } from './util'
-import * as Log from '../../output/log'
-import { isReactCompilerRequired } from '../../swc'
-import { installBindings } from '../../swc/install-bindings'
+import * as Log from 'next/dist/build/output/log'
+import { isReactCompilerRequired } from 'next/dist/build/swc'
+import { installBindings } from 'next/dist/build/swc/install-bindings'
 
 /**
  * An internal (non-exported) type used by babel.
@@ -165,7 +165,7 @@ function getPlugins(
 
   const applyCommonJsItem = hasModuleExports
     ? createConfigItem(
-        require('../plugins/commonjs') as typeof import('../plugins/commonjs'),
+        require('next/dist/build/babel/plugins/commonjs') as typeof import('next/dist/build/babel/plugins/commonjs'),
         { type: 'plugin' }
       )
     : null
@@ -182,7 +182,7 @@ function getPlugins(
     !isServer && isPageFile
       ? createConfigItem(
           [
-            require('../plugins/next-page-config') as typeof import('../plugins/next-page-config'),
+            require('next/dist/build/babel/plugins/next-page-config') as typeof import('next/dist/build/babel/plugins/next-page-config'),
           ],
           {
             type: 'plugin',
@@ -193,7 +193,7 @@ function getPlugins(
     !isServer && isPageFile
       ? createConfigItem(
           [
-            require('../plugins/next-page-disallow-re-export-all-exports') as typeof import('../plugins/next-page-disallow-re-export-all-exports'),
+            require('next/dist/build/babel/plugins/next-page-disallow-re-export-all-exports') as typeof import('next/dist/build/babel/plugins/next-page-disallow-re-export-all-exports'),
           ],
           { type: 'plugin' }
         )
@@ -212,9 +212,12 @@ function getPlugins(
   )
   const nextSsgItem =
     !isServer && isPageFile
-      ? createConfigItem([require.resolve('../plugins/next-ssg-transform')], {
-          type: 'plugin',
-        })
+      ? createConfigItem(
+          [require.resolve('next/dist/build/babel/plugins/next-ssg-transform')],
+          {
+            type: 'plugin',
+          }
+        )
       : null
   const commonJsItem = isNextDist
     ? createConfigItem(
@@ -224,7 +227,7 @@ function getPlugins(
     : null
   const nextFontUnsupported = createConfigItem(
     [
-      require('../plugins/next-font-unsupported') as typeof import('../plugins/next-font-unsupported'),
+      require('next/dist/build/babel/plugins/next-font-unsupported') as typeof import('next/dist/build/babel/plugins/next-font-unsupported'),
     ],
     { type: 'plugin' }
   )

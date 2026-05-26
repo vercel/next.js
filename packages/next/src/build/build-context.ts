@@ -3,8 +3,7 @@ import type { Rewrite, Redirect } from '../lib/load-custom-routes'
 import type { __ApiPreviewProps } from '../server/api-utils'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { Span } from '../trace'
-import type getBaseWebpackConfig from './webpack-config'
-import type { TelemetryPluginState } from './webpack/plugins/telemetry-plugin/telemetry-plugin'
+import type { TelemetryPluginState } from './manifests'
 import type { Telemetry } from '../telemetry/storage'
 
 // A layer for storing data that is used by plugins to communicate with each
@@ -87,9 +86,7 @@ export const NextBuildContext: Partial<{
   reactProductionProfiling: boolean
   noMangling: boolean
   appDirOnly: boolean
-  clientRouterFilters: Parameters<
-    typeof getBaseWebpackConfig
-  >[1]['clientRouterFilters']
+  clientRouterFilters: any
   previewModeId: string
   fetchCacheKeyPrefix?: string
   allowedRevalidateHeaderKeys?: string[]

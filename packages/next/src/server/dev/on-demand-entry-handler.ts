@@ -1,5 +1,4 @@
 import type ws from 'next/dist/compiled/ws'
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import type {
   DynamicParamTypesShort,
@@ -266,16 +265,18 @@ const lastServerAccessPagesForAppDir = ['']
 
 type BuildingTracker = Set<CompilerNameValues>
 type RebuildTracker = Set<CompilerNameValues>
+type WebpackCompilation = any
+type WebpackMultiCompiler = any
 
 // Make sure only one invalidation happens at a time
 // Otherwise, webpack hash gets changed and it'll force the client to reload.
 class Invalidator {
-  private multiCompiler: webpack.MultiCompiler
+  private multiCompiler: WebpackMultiCompiler
 
   private building: BuildingTracker = new Set()
   private rebuildAgain: RebuildTracker = new Set()
 
-  constructor(multiCompiler: webpack.MultiCompiler) {
+  constructor(multiCompiler: WebpackMultiCompiler) {
     this.multiCompiler = multiCompiler
   }
 
@@ -550,7 +551,7 @@ export function onDemandEntryHandler({
 }: {
   hotReloader: NextJsHotReloaderInterface
   maxInactiveAge: number
-  multiCompiler: webpack.MultiCompiler
+  multiCompiler: WebpackMultiCompiler
   nextConfig: NextConfigComplete
   pagesBufferLength: number
   pagesDir?: string
@@ -638,7 +639,7 @@ export function onDemandEntryHandler({
     }
   }
 
-  const startBuilding = (compilation: webpack.Compilation) => {
+  const startBuilding = (compilation: WebpackCompilation) => {
     const compilationName = compilation.name as any as CompilerNameValues
     curInvalidator.startBuilding(compilationName)
     // Reset deferred entries state for this compilation cycle
@@ -683,7 +684,7 @@ export function onDemandEntryHandler({
     )
   }
 
-  multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
+  multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats: any) => {
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
     const entryNames = [
       ...getPagePathsFromEntrypoints(

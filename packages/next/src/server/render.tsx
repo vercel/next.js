@@ -32,8 +32,8 @@ import type {
   SizeLimit,
 } from '../types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
-import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
-import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
+import type { ClientReferenceManifest } from '../build/manifests'
+import type { NextFontManifest } from '../build/manifests'
 import type { PagesModule } from './route-modules/pages/module'
 import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'

@@ -1,6 +1,6 @@
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import type { JSONValue } from '../../../server/config-shared'
-import type { Span } from '../../../trace'
+import type { webpack } from 'next/dist/webpack/compiled/webpack/webpack'
+import type { JSONValue } from 'next/dist/server/config-shared'
+import type { Span } from 'next/dist/trace'
 
 export interface NextJsLoaderContext extends webpack.LoaderContext<{}> {
   currentTraceSpan: Span
