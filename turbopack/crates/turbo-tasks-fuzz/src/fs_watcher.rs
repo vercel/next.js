@@ -154,7 +154,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
         .read_strongly_consistent()
         .await?;
         if track_writes {
-            effects.apply().await?;
+            effects.apply_anyhow().await?;
             let (total, mismatched) = verify_written_files(
                 &fs_root,
                 args.depth,
@@ -245,7 +245,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
                 ""
             };
             if track_writes {
-                effects.apply().await?;
+                effects.apply_anyhow().await?;
                 let (total, mismatched) = verify_written_files(
                     &fs_root,
                     args.depth,

@@ -225,7 +225,7 @@ impl DevServerBuilder {
                                 get_source_with_issues_operation(source_provider.get_source());
                             let ContentSourceWithIssues { source_op, effects } =
                                 &*source_with_issues_op.read_strongly_consistent().await?;
-                            effects.apply().await?;
+                            effects.apply_anyhow().await?;
                             handle_issues(
                                 source_with_issues_op,
                                 issue_reporter,

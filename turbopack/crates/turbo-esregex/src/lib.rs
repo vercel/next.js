@@ -1,6 +1,6 @@
 #![feature(arbitrary_self_types_pointers)]
 
-use std::vec;
+use std::{hash::Hash, vec};
 
 use anyhow::{Result, bail};
 use bincode::{
@@ -10,12 +10,13 @@ use bincode::{
     error::{DecodeError, EncodeError},
     impl_borrow_decode,
 };
+use turbo_tasks::TaskInput;
 
 /// A simple regular expression implementation following ecmascript semantics
 ///
 /// Delegates to the `regex` crate when possible and `regress` otherwise.
 #[derive(Debug, Clone)]
-#[turbo_tasks::value(eq = "manual", shared, serialization = "custom")]
+#[turbo_tasks::value(eq = "manual", shared, serialization = "custom", operation)]
 pub struct EsRegex {
     #[turbo_tasks(trace_ignore)]
     delegate: EsRegexImpl,
@@ -40,7 +41,21 @@ impl PartialEq for EsRegex {
         self.pattern == other.pattern && self.flags == other.flags
     }
 }
+
 impl Eq for EsRegex {}
+
+impl Hash for EsRegex {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.pattern.hash(state);
+        self.flags.hash(state);
+    }
+}
+
+impl TaskInput for EsRegex {
+    fn is_transient(&self) -> bool {
+        false
+    }
+}
 
 impl Encode for EsRegex {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {

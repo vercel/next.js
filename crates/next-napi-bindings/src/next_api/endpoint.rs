@@ -14,8 +14,11 @@ use next_api::{
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
-use turbopack_core::issue::{IssueFilter, PlainIssue};
+use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, ResolvedVc, Vc};
+use turbopack_core::{
+    effect::apply_effects_with_plain_issues,
+    issue::{IssueFilter, PlainIssue, extend_issues},
+};
 
 use crate::next_api::utils::{
     DetachedVc, NapiIssue, RootTask, TurbopackResult, strongly_consistent_catch_collectables,
@@ -123,8 +126,9 @@ async fn issue_filter_from_endpoint(
 #[turbo_tasks::value(serialization = "skip")]
 struct WrittenEndpointWithIssues {
     written: Option<ReadRef<EndpointOutputPaths>>,
-    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    issues: Arc<[ReadRef<PlainIssue>]>,
     effects: Arc<Effects>,
+    filter: ReadRef<IssueFilter>,
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -134,11 +138,12 @@ async fn get_written_endpoint_with_issues_operation(
     let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
     let filter = issue_filter_from_endpoint(endpoint_op).await;
     let (written, issues, effects) =
-        strongly_consistent_catch_collectables(write_to_disk_op, &filter).await?;
+        strongly_consistent_catch_collectables(write_to_disk_op, &*filter.await?).await?;
     Ok(WrittenEndpointWithIssues {
         written,
         issues,
         effects,
+        filter,
     }
     .cell())
 }
@@ -160,12 +165,14 @@ pub async fn endpoint_write_to_disk(
                 written,
                 issues,
                 effects,
+                filter,
             } = &*written_entrypoint_with_issues_op
                 .read_strongly_consistent()
                 .await?;
-            effects.apply().await?;
+            let effect_plain_issues = apply_effects_with_plain_issues(effects, *filter).await?;
+            let issues = extend_issues(issues, &effect_plain_issues);
 
-            Ok((written.clone(), issues.clone()))
+            Ok((written.clone(), issues))
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;
@@ -189,20 +196,18 @@ pub fn endpoint_server_changed_subscribe(
         func,
         move || {
             async move {
-                let issues_and_diags_op = subscribe_issues_and_diags_operation(endpoint, issues);
-                let result = issues_and_diags_op.read_strongly_consistent().await?;
-                result.effects.apply().await?;
-                Ok(result)
+                let result = subscribe_issues_and_effects_operation(endpoint, issues)
+                    .read_strongly_consistent()
+                    .await?;
+                let effect_plain_issues =
+                    apply_effects_with_plain_issues(&result.effects, result.filter).await?;
+                let issues = extend_issues(&result.issues, &effect_plain_issues);
+                Ok(issues)
             }
             .instrument(tracing::info_span!("server changes subscription"))
         },
         |ctx| {
-            let EndpointIssuesAndDiags {
-                changed: _,
-                issues,
-                effects: _,
-            } = &*ctx.value;
-
+            let issues = &ctx.value;
             Ok(vec![TurbopackResult {
                 result: (),
                 issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
@@ -212,13 +217,14 @@ pub fn endpoint_server_changed_subscribe(
 }
 
 #[turbo_tasks::value(shared, serialization = "skip", eq = "manual")]
-struct EndpointIssuesAndDiags {
+struct EndpointIssuesAndEffects {
     changed: Option<ReadRef<Completion>>,
-    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    issues: Arc<[ReadRef<PlainIssue>]>,
     effects: Arc<Effects>,
+    filter: ResolvedVc<IssueFilter>,
 }
 
-impl PartialEq for EndpointIssuesAndDiags {
+impl PartialEq for EndpointIssuesAndEffects {
     fn eq(&self, other: &Self) -> bool {
         (match (&self.changed, &other.changed) {
             (Some(a), Some(b)) => ReadRef::ptr_eq(a, b),
@@ -228,13 +234,13 @@ impl PartialEq for EndpointIssuesAndDiags {
     }
 }
 
-impl Eq for EndpointIssuesAndDiags {}
+impl Eq for EndpointIssuesAndEffects {}
 
 #[turbo_tasks::function(operation, root)]
-async fn subscribe_issues_and_diags_operation(
+async fn subscribe_issues_and_effects_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
     should_include_issues: bool,
-) -> Result<Vc<EndpointIssuesAndDiags>> {
+) -> Result<Vc<EndpointIssuesAndEffects>> {
     let changed_op = endpoint_server_changed_operation(endpoint_op);
 
     // Use catch-collectables in both branches so transient build-graph errors
@@ -244,13 +250,13 @@ async fn subscribe_issues_and_diags_operation(
     // payload, but we still need the catch path to avoid the FATAL.
     let filter = issue_filter_from_endpoint(endpoint_op).await;
     let (changed_value, issues, effects) =
-        strongly_consistent_catch_collectables(changed_op, &filter).await?;
-    Ok(EndpointIssuesAndDiags {
+        strongly_consistent_catch_collectables(changed_op, &*filter).await?;
+    Ok(EndpointIssuesAndEffects {
         changed: changed_value,
         issues: if should_include_issues {
             issues
         } else {
-            Arc::new(vec![])
+            Arc::from([])
         },
         effects,
     }
@@ -271,9 +277,9 @@ pub fn endpoint_client_changed_subscribe(
         move || {
             async move {
                 let changed_op = endpoint_client_changed_operation(endpoint_op);
-                // We don't capture issues and diagnostics here since we don't want to be
-                // notified when they change.  We also want errors to propagate so we don't use
-                // strongly_consistent_catch_collectibles either.
+                // We don't capture issues here since we don't want to be notified when they change.
+                // We also want errors to propagate so we don't use
+                // `strongly_consistent_catch_collectibles` either.
                 //
                 // This must be a *read*, not just a resolve, because we need the root task created
                 // by `subscribe` to re-run when the `Completion`'s value changes (via equality),

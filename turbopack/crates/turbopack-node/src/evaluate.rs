@@ -201,7 +201,7 @@ async fn create_evaluate_pool_assets_operation(
     // `mark_top_level_task` to avoid the debug assertion. The consequence is that these effects
     // might get evaluated more than once if this function is invalidated.
     mark_top_level_task();
-    effects.apply().await?;
+    effects.apply_anyhow().await?;
 
     Ok(*assets)
 }

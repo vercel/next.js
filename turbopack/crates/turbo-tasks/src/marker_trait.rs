@@ -66,6 +66,7 @@ macro_rules! impl_auto_marker_trait {
             where T: ::std::ops::Deref, <T as ::std::ops::Deref>::Target: $trait {}
         unsafe impl<T: $trait + ?Sized> $trait for ::std::boxed::Box<T> {}
         unsafe impl<T: $trait + ?Sized> $trait for ::std::sync::Arc<T> {}
+        unsafe impl<T: $trait + ?Sized> $trait for ::triomphe::Arc<T> {}
         unsafe impl<B: $trait + ::std::borrow::ToOwned + ?Sized> $trait
             for ::std::borrow::Cow<'_, B> {}
         unsafe impl<T: $trait, E: $trait> $trait for ::std::result::Result<T, E> {}

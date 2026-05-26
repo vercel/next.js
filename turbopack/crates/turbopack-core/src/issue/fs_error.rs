@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks_fs::{FileSystemPath, error::FileSystemError};
 
-use crate::issue::{Issue, IssueStage, StyledString};
+use crate::issue::{Issue, IssueSeverity, IssueStage, StyledString};
 
 #[turbo_tasks::value(shared)]
 pub struct FileSystemErrorIssue(pub(crate) Arc<FileSystemError>);
@@ -13,6 +13,10 @@ pub struct FileSystemErrorIssue(pub(crate) Arc<FileSystemError>);
 #[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for FileSystemErrorIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Fatal
+    }
+
     async fn file_path(&self) -> Result<FileSystemPath> {
         Ok(self.0.path.clone())
     }

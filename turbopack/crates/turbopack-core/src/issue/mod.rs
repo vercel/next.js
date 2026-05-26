@@ -7,6 +7,7 @@ pub mod resolve;
 use std::{
     cmp::min,
     fmt::{Display, Formatter},
+    sync::Arc,
 };
 
 use anyhow::{Result, bail};
@@ -17,9 +18,9 @@ use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TaskInput,
-    TransientValue, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueDefault, ValueToString,
-    ValueToStringRef, Vc, emit, trace::TraceRawVcs,
+    CollectiblesSource, NonLocalValue, OperationValue, OperationVc, RawVc, ReadRef, ResolvedVc,
+    TaskInput, TransientValue, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueDefault,
+    ValueToString, ValueToStringRef, Vc, emit, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     FileContent, FileLine, FileLinesContent, FileSystem, FileSystemPath, glob::Glob,
@@ -39,7 +40,17 @@ use crate::{
 
 #[turbo_tasks::value(shared)]
 #[derive(
-    PartialOrd, Ord, Copy, Clone, Hash, Debug, DeterministicHash, TaskInput, Serialize, Deserialize,
+    PartialOrd,
+    Ord,
+    Copy,
+    Clone,
+    Hash,
+    Debug,
+    DeterministicHash,
+    TaskInput,
+    Serialize,
+    Deserialize,
+    OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub enum IssueSeverity {
@@ -239,11 +250,20 @@ where
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
-
 /// A pattern that can match by exact string, glob, or regex.
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
+    OperationValue,
+    Hash,
+    TaskInput,
+)]
 pub enum IgnoreIssuePattern {
     /// The value must exactly equal the pattern string.
     ExactString(RcStr),
@@ -266,7 +286,19 @@ impl IgnoreIssuePattern {
 
 /// A rule describing an issue to ignore. `path` is mandatory;
 /// `title` and `description` are optional additional filters.
-#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
+    OperationValue,
+    Hash,
+    TaskInput,
+)]
 pub struct IgnoreIssue {
     /// File-path pattern (mandatory).
     pub path: IgnoreIssuePattern,
@@ -276,7 +308,8 @@ pub struct IgnoreIssue {
     pub description: Option<IgnoreIssuePattern>,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, operation)]
+#[derive(TaskInput)]
 pub struct IssueFilter {
     /// The minimum severity for issues
     severity: IssueSeverity,
@@ -395,6 +428,83 @@ impl IssueFilter {
 
         Ok(true)
     }
+
+    pub async fn matches_ref(&self, issue: &dyn Issue) -> Result<bool> {
+        Ok(self.matches_all_fast_path() || self.matches_ref_slow_path(issue).await?)
+    }
+
+    fn matches_all_fast_path(&self) -> bool {
+        self.severity == IssueSeverity::Info
+            && self.foreign_severity == IssueSeverity::Info
+            && self.ignore_rules.is_empty()
+    }
+
+    async fn matches_ref_slow_path(&self, issue: &dyn Issue) -> Result<bool> {
+        // Fetch the file path once — it's used by both severity and ignore-rule
+        // checks.
+        let file_path = issue.file_path().await?;
+
+        // Check severity first — this is cheap and avoids fetching
+        // title/description for issues that would be filtered out anyway.
+        let severity = issue.severity();
+        // NOTE: Lower severities are _more_ severe
+        let severity_allowed = if severity <= self.severity || severity <= self.foreign_severity {
+            // we need to check the path to see if it is foreign or not.  Only await the
+            // path if it might possibly matter
+            if severity <= self.severity && severity <= self.foreign_severity {
+                // it matches no matter where the path is
+                true
+            } else if ContextCondition::InNodeModules.matches(&file_path) {
+                severity <= self.foreign_severity
+            } else {
+                severity <= self.severity
+            }
+        } else {
+            // it is too low severity to match either way
+            false
+        };
+
+        if !severity_allowed {
+            return Ok(false);
+        }
+
+        // Check ignore rules — if any rule matches, the issue is dropped.
+        // Title and description are fetched lazily: only when a rule's path
+        // matches and the rule also specifies a title/description pattern.
+        if !self.ignore_rules.is_empty() {
+            let file_path_str = file_path.to_string();
+            let mut title_str: Option<String> = None;
+            let mut description_text: Option<Option<String>> = None;
+
+            for rule in &self.ignore_rules {
+                if !rule.path.matches(&file_path_str) {
+                    continue;
+                }
+                if let Some(ref title_pat) = rule.title {
+                    if title_str.is_none() {
+                        title_str = Some(issue.title().await?.to_unstyled_string());
+                    }
+                    if !title_pat.matches(title_str.as_deref().unwrap()) {
+                        continue;
+                    }
+                }
+                if let Some(ref desc_pat) = rule.description {
+                    if description_text.is_none() {
+                        description_text =
+                            Some(issue.description().await?.map(|s| s.to_unstyled_string()));
+                    }
+                    match description_text.as_ref().unwrap().as_deref() {
+                        Some(desc) if desc_pat.matches(desc) => {}
+                        _ => continue,
+                    }
+                }
+                // All specified fields matched — ignore this issue.
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
 }
 
 /// A list of issues captured with [`CollectibleIssuesExt::peek_issues`].
@@ -417,7 +527,7 @@ impl CapturedIssues {
             .issues
             .iter()
             .map(async |issue| {
-                if filter.matches(*issue).await? {
+                if filter.matches(issue).await? {
                     Ok(Some(
                         PlainIssue::from_issue(**issue, Some(*self.tracer)).await?,
                     ))
@@ -1122,6 +1232,31 @@ where
     fn drop_issues(self) {
         self.drop_collectibles::<Box<dyn Issue>>();
     }
+}
+
+/// Extends a sorted issue list returned by [`CapturedIssues::get_plain_issues`].
+pub fn extend_issues(
+    base: &Arc<[ReadRef<PlainIssue>]>,
+    other: &[ReadRef<PlainIssue>],
+) -> Arc<[ReadRef<PlainIssue>]> {
+    debug_assert!(
+        base.is_sorted(),
+        "extend_issues must be called with a sorted base list of issues"
+    );
+    // optimization: Return the given arc if the other one is empty
+    if other.is_empty() {
+        return base.clone();
+    }
+    if base.is_empty() {
+        let mut sorted = Box::<[_]>::from(other);
+        sorted.sort();
+        return Arc::from(sorted);
+    }
+    let mut extended = Vec::with_capacity(base.len() + other.len());
+    extended.extend_from_slice(base);
+    extended.extend_from_slice(other);
+    extended.sort();
+    Arc::from(extended)
 }
 
 /// A helper function to print out issues to the console.
