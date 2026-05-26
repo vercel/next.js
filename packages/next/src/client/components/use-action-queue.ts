@@ -4,6 +4,7 @@ import { isThenable } from '../../shared/lib/is-thenable'
 import type { AppRouterActionQueue } from './app-router-instance'
 import {
   ACTION_REFRESH,
+  ACTION_RESTORE,
   type AppRouterState,
   type ReducerActions,
   type ReducerState,
@@ -90,9 +91,16 @@ export function useActionQueue(
     const appDevRenderingIndicator = useAppDevRenderingIndicator()
 
     nextDispatch = (action: ReducerActions) => {
-      appDevRenderingIndicator(() => {
+      // Dispatch restore actions synchronously — appDevRenderingIndicator
+      // wraps in startTransition which defers the React fiber commit and
+      // causes useEffect to fire late after back/forward navigation.
+      if (action.type === ACTION_RESTORE) {
         actionQueue.dispatch(action, setState)
-      })
+      } else {
+        appDevRenderingIndicator(() => {
+          actionQueue.dispatch(action, setState)
+        })
+      }
     }
   } else {
     nextDispatch = (action: ReducerActions) =>

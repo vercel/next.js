@@ -1,7 +1,6 @@
 import React, {
   useEffect,
   useMemo,
-  startTransition,
   useInsertionEffect,
   useDeferredValue,
 } from 'react'
@@ -314,12 +313,12 @@ function Router({
       const appHistoryState: AppHistoryState | undefined =
         window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
 
-      startTransition(() => {
-        dispatchAppRouterAction({
-          type: ACTION_RESTORE,
-          url: new URL(url ?? href, href),
-          historyState: appHistoryState,
-        })
+      // Dispatch synchronously — wrapping in startTransition defers the React
+      // fiber commit, causing useEffect to fire late after URL restore.
+      dispatchAppRouterAction({
+        type: ACTION_RESTORE,
+        url: new URL(url ?? href, href),
+        historyState: appHistoryState,
       })
     }
 
@@ -388,14 +387,14 @@ function Router({
         return
       }
 
-      // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
-      // Without startTransition works if the cache is there for this path
-      startTransition(() => {
-        dispatchTraverseAction(
-          window.location.href,
-          event.state.__PRIVATE_NEXTJS_INTERNALS_TREE
-        )
-      })
+      // Dispatch synchronously — wrapping in startTransition defers the React
+      // fiber commit, causing useEffect to fire late after bfcache restore.
+      // The ACTION_RESTORE fast-path in dispatchAction is already synchronous,
+      // but only if we don't wrap it in a transition here.
+      dispatchTraverseAction(
+        window.location.href,
+        event.state.__PRIVATE_NEXTJS_INTERNALS_TREE
+      )
     }
 
     // Register popstate event to call onPopstate.
