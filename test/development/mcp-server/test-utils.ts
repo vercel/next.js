@@ -27,8 +27,11 @@ export async function launchStandaloneSession(
   } else {
     browser = await chromium.launch({
       headless,
-      ...(process.env.NEXT_TEST_PLAYWRIGHT_CHROMIUM_CHANNEL
-        ? { channel: process.env.NEXT_TEST_PLAYWRIGHT_CHROMIUM_CHANNEL }
+      ...(process.env.NEXT_TEST_PLAYWRIGHT_CHROMIUM_EXECUTABLE
+        ? {
+            executablePath:
+              process.env.NEXT_TEST_PLAYWRIGHT_CHROMIUM_EXECUTABLE,
+          }
         : {}),
     })
   }
