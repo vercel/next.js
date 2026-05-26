@@ -918,10 +918,12 @@ jobs:
           test/production/chunk-load-failure/chunk-load-failure.test.ts
 
         TURBOPACK_DEV=1 NEXT_TEST_MODE=dev BROWSER_NAME=firefox node run-tests.js \
-          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts
+          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts \
+          test/e2e/app-dir/bfcache-regression/bfcache-regression.test.ts
 
         TURBOPACK_DEV=1 NEXT_TEST_MODE=dev BROWSER_NAME=safari node run-tests.js \
-          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts
+          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts \
+          test/e2e/app-dir/bfcache-regression/bfcache-regression.test.ts
 
         TURBOPACK_BUILD=1 NEXT_TEST_MODE=start BROWSER_NAME=safari node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
