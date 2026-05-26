@@ -1,4 +1,11 @@
-import React, { useMemo, useRef, Suspense, useCallback, useState } from 'react'
+import React, {
+  startTransition,
+  Suspense,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import type { DebugInfo } from '../../shared/types'
 import { Overlay, OverlayBackdrop } from '../components/overlay'
 import { RuntimeError } from './runtime-error'
@@ -33,6 +40,7 @@ import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './runtime-error/error-cause'
 import { useFrames } from '../utils/get-error-by-type'
+import type { ErrorOverlayPaginationControls } from '../components/errors/error-overlay-pagination/error-overlay-pagination'
 
 interface ErrorsProps extends ErrorBaseProps {
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
@@ -397,14 +405,25 @@ export function ErrorTabBar({
   onTabChange,
   errorCount,
   instantCount,
+  errorActiveIdx,
+  instantActiveIdx,
+  previousButton,
+  nextButton,
+  createCount,
 }: {
   activeTab: ErrorTab
   onTabChange: (tab: ErrorTab) => void
   errorCount: number
   instantCount: number
+  errorActiveIdx: number
+  instantActiveIdx: number
+  previousButton: React.ReactNode
+  nextButton: React.ReactNode
+  createCount: (activeIdx: number, total: number) => React.ReactNode
 }) {
   return (
     <div className="error-overlay-tab-bar" data-nextjs-error-overlay-tab-bar>
+      {previousButton}
       <button
         type="button"
         className="error-overlay-tab"
@@ -413,8 +432,11 @@ export function ErrorTabBar({
         onClick={() => onTabChange('errors')}
       >
         Issues
-        <span className="error-overlay-tab-count" data-variant="errors">
-          {errorCount}
+        <span
+          className="error-overlay-tab-count"
+          data-active={activeTab === 'errors'}
+        >
+          {createCount(errorActiveIdx, errorCount)}
         </span>
       </button>
       <button
@@ -425,10 +447,14 @@ export function ErrorTabBar({
         onClick={() => onTabChange('instant')}
       >
         Insights
-        <span className="error-overlay-tab-count" data-variant="instant">
-          {instantCount}
+        <span
+          className="error-overlay-tab-count"
+          data-active={activeTab === 'instant'}
+        >
+          {createCount(instantActiveIdx, instantCount)}
         </span>
       </button>
+      {nextButton}
     </div>
   )
 }
@@ -458,8 +484,30 @@ export function Errors({
   const [activeTab, setActiveTab] = useState<ErrorTab>(() =>
     normalErrors.length > 0 ? 'errors' : 'instant'
   )
-
-  const activeErrors = activeTab === 'instant' ? instantErrors : normalErrors
+  const [activeIndices, setActiveIndices] = useState<Record<ErrorTab, number>>({
+    errors: 0,
+    instant: 0,
+  })
+  const effectiveActiveTab =
+    activeTab === 'errors'
+      ? normalErrors.length > 0
+        ? 'errors'
+        : 'instant'
+      : instantErrors.length > 0
+        ? 'instant'
+        : 'errors'
+  const activeErrors =
+    effectiveActiveTab === 'instant' ? instantErrors : normalErrors
+  const errorActiveIdx = Math.max(
+    0,
+    Math.min(activeIndices.errors, Math.max(0, normalErrors.length - 1))
+  )
+  const instantActiveIdx = Math.max(
+    0,
+    Math.min(activeIndices.instant, Math.max(0, instantErrors.length - 1))
+  )
+  const activeIdxForTab =
+    effectiveActiveTab === 'instant' ? instantActiveIdx : errorActiveIdx
 
   const {
     isLoading,
@@ -472,6 +520,13 @@ export function Errors({
   } = useActiveRuntimeError({
     runtimeErrors: activeErrors,
     getSquashedHydrationErrorDetails,
+    activeIdx: activeIdxForTab,
+    setActiveIndex: (index) => {
+      setActiveIndices((previous) => ({
+        ...previous,
+        [effectiveActiveTab]: index,
+      }))
+    },
   })
 
   const generateErrorInfo = useCallback(async () => {
@@ -579,17 +634,86 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
   // Show the tab bar whenever there are instant errors so the user
   // knows they're looking at an insight, even if the other tab is empty.
   const showTabBar = instantErrors.length > 0
-  const tabBar = showTabBar ? (
-    <ErrorTabBar
-      activeTab={activeTab}
-      onTabChange={(tab) => {
-        setActiveTab(tab)
-        setActiveIndex(0)
-      }}
-      errorCount={normalErrors.length}
-      instantCount={instantErrors.length}
-    />
-  ) : null
+  const renderTabBar = showTabBar
+    ? ({ previousButton, createCount, nextButton }: ErrorOverlayPaginationControls) => (
+        <ErrorTabBar
+          activeTab={effectiveActiveTab}
+          onTabChange={(tab) => {
+            setActiveTab(tab)
+          }}
+          errorCount={normalErrors.length}
+          instantCount={instantErrors.length}
+          errorActiveIdx={errorActiveIdx}
+          instantActiveIdx={instantActiveIdx}
+          previousButton={previousButton}
+          nextButton={nextButton}
+          createCount={createCount}
+        />
+      )
+    : undefined
+
+  const canGoPrevious = showTabBar
+    ? effectiveActiveTab === 'errors'
+      ? errorActiveIdx > 0
+      : instantActiveIdx > 0 || normalErrors.length > 0
+    : activeIdx > 0
+  const canGoNext = showTabBar
+    ? effectiveActiveTab === 'errors'
+      ? errorActiveIdx < normalErrors.length - 1 || instantErrors.length > 0
+      : instantActiveIdx < instantErrors.length - 1
+    : activeIdx < activeErrors.length - 1
+
+  const handlePrevious = showTabBar
+    ? () => {
+        startTransition(() => {
+          if (effectiveActiveTab === 'errors') {
+            if (errorActiveIdx > 0) {
+              setActiveIndex(errorActiveIdx - 1)
+            }
+            return
+          }
+
+          if (instantActiveIdx > 0) {
+            setActiveIndex(instantActiveIdx - 1)
+            return
+          }
+
+          if (normalErrors.length > 0) {
+            setActiveTab('errors')
+            setActiveIndices((previous) => ({
+              ...previous,
+              errors: Math.max(0, normalErrors.length - 1),
+            }))
+          }
+        })
+      }
+    : undefined
+
+  const handleNext = showTabBar
+    ? () => {
+        startTransition(() => {
+          if (effectiveActiveTab === 'errors') {
+            if (errorActiveIdx < normalErrors.length - 1) {
+              setActiveIndex(errorActiveIdx + 1)
+              return
+            }
+
+            if (instantErrors.length > 0) {
+              setActiveTab('instant')
+              setActiveIndices((previous) => ({
+                ...previous,
+                instant: 0,
+              }))
+            }
+            return
+          }
+
+          if (instantActiveIdx < instantErrors.length - 1) {
+            setActiveIndex(instantActiveIdx + 1)
+          }
+        })
+      }
+    : undefined
 
   let errorMessage: React.ReactNode
   let maybeNotes: React.ReactNode = null
@@ -659,7 +783,11 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               }
             />
           }
-          tabBar={tabBar}
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
@@ -700,7 +828,11 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
             )
           }
           headerChildren={<InstantHeaderExplanation kind="metadata" />}
-          tabBar={tabBar}
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
@@ -742,7 +874,11 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
             )
           }
           headerChildren={<InstantHeaderExplanation kind="viewport" />}
-          tabBar={tabBar}
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
@@ -782,7 +918,11 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               docsUrl={SYNC_IO_DOCS[errorDetails.cause]}
             />
           }
-          tabBar={tabBar}
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
@@ -823,7 +963,11 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               docsUrl={SYNC_IO_CLIENT_DOCS[errorDetails.cause]}
             />
           }
-          tabBar={tabBar}
+          renderTabBar={renderTabBar}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
@@ -859,7 +1003,11 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
       errorCode={errorCode}
       errorType={errorType}
       errorMessage={errorMessage}
-      tabBar={tabBar}
+      renderTabBar={renderTabBar}
+      canGoPrevious={canGoPrevious}
+      canGoNext={canGoNext}
+      onPrevious={handlePrevious}
+      onNext={handleNext}
       onClose={isServerError ? undefined : onClose}
       debugInfo={debugInfo}
       error={error}
@@ -954,12 +1102,10 @@ export const styles = `
 
   .error-overlay-tab-bar {
     display: flex;
-    gap: 0;
+    gap: 6px;
     translate: var(--next-dialog-border-width) 0;
     max-width: var(--next-dialog-max-width);
     width: 100%;
-    border-bottom: 1px solid var(--color-gray-400);
-    background: var(--color-background-100);
     position: relative;
     z-index: 1;
   }
@@ -967,33 +1113,24 @@ export const styles = `
   .error-overlay-tab {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
+    gap: 2px;
+    padding: 0 4px;
     border: none;
     background: none;
-    color: var(--color-gray-700);
-    font-size: var(--size-14);
+    color: var(--color-gray-800);
+    font-size: var(--size-13);
     font-family: var(--font-stack-sans);
     cursor: pointer;
     position: relative;
     transition: color 0.15s ease;
 
     &:hover {
-      color: var(--color-gray-900);
+      color: var(--color-gray-1000);
     }
 
     &[data-active='true'] {
       color: var(--color-gray-1000);
-    }
-
-    &[data-active='true']::after {
-      content: '';
-      position: absolute;
-      bottom: -1px;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: var(--color-gray-1000);
+      font-weight: 500;
     }
 
     &:disabled {
@@ -1003,28 +1140,15 @@ export const styles = `
   }
 
   .error-overlay-tab-count {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    justify-content: center;
-    min-width: 20px;
-    height: 20px;
-    padding: 0 6px;
-    border-radius: var(--rounded-full);
-    font-size: var(--size-12);
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-    line-height: 1;
-    background: var(--color-gray-alpha-100);
-    color: var(--color-gray-900);
+    color: inherit;
 
-    &[data-variant='errors'] {
-      background: var(--color-red-100);
-      color: var(--color-red-900);
-    }
-
-    &[data-variant='instant'] {
-      background: var(--color-amber-100);
-      color: var(--color-amber-900);
+    &[data-active='true'] {
+      .error-overlay-pagination-count {
+        font-weight: 500;
+      }
     }
   }
+
 `
