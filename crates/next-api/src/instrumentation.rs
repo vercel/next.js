@@ -148,7 +148,7 @@ impl InstrumentationEndpoint {
             let node_root_value = node_root.clone();
 
             let file_paths_from_root =
-                get_js_paths_from_root(&node_root_value, &edge_chunk_group.await?.assets.await?)
+                get_js_paths_from_root(&node_root_value, edge_chunk_group.await?.assets.await?)
                     .await?;
 
             let mut output_assets = edge_chunk_group.all_assets().owned().await?;
