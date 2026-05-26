@@ -4,7 +4,7 @@ import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
 describe('Error overlay - RSC build errors', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-build-errors')),
     skipStart: true,
   })
@@ -382,6 +382,10 @@ describe('Error overlay - RSC build errors', () => {
       if (isTurbopack) {
         expect(await session.getRedboxSource()).toInclude(
           `Export whatever doesn't exist in target module`
+        )
+      } else if (isRspack) {
+        expect(await session.getRedboxDescription()).toInclude(
+          `'whatever' is not exported from 'next/root-params'`
         )
       } else {
         expect(await session.getRedboxDescription()).toInclude(
