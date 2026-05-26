@@ -3,7 +3,7 @@ name: PR CI Comment
 on:
   workflow_run:
     workflows: ['build-and-test', 'Generate Stats']
-    types: [completed]
+    types: [requested, completed]
 
 permissions:
   actions: read
