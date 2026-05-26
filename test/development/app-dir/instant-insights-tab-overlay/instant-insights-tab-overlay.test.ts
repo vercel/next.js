@@ -39,31 +39,30 @@ describe('instant insights tab overlay', () => {
     return evalInPortal(browser, (root) => {
       const bar = root.querySelector('[data-nextjs-error-overlay-tab-bar]')
       if (!bar) return null
+      const tabs = bar.querySelectorAll('.error-overlay-tab')
+      const parseTotal = (tab: Element | undefined) => {
+        const totalEl = tab?.querySelector(
+          '.error-overlay-pagination-count > span:last-child'
+        )
+        return parseInt(totalEl?.textContent || '0', 10)
+      }
       return {
-        errors: parseInt(
-          bar.querySelector('.error-overlay-tab-count[data-variant="errors"]')
-            ?.textContent || '0',
-          10
-        ),
-        instant: parseInt(
-          bar.querySelector('.error-overlay-tab-count[data-variant="instant"]')
-            ?.textContent || '0',
-          10
-        ),
+        errors: parseTotal(tabs[0]),
+        instant: parseTotal(tabs[1]),
       }
     })
   }
 
   function getActiveErrorOverlayTab(browser: Playwright) {
     return evalInPortal(browser, (root) => {
-      const active = root.querySelector(
-        '[data-nextjs-error-overlay-tab-bar] .error-overlay-tab[data-active="true"]'
+      const bar = root.querySelector('[data-nextjs-error-overlay-tab-bar]')
+      if (!bar) return null
+      const tabs = [...bar.querySelectorAll('.error-overlay-tab')]
+      const activeIndex = tabs.findIndex(
+        (tab) => tab.getAttribute('data-active') === 'true'
       )
-      return (
-        active
-          ?.querySelector('.error-overlay-tab-count')
-          ?.getAttribute('data-variant') ?? null
-      )
+      if (activeIndex === -1) return null
+      return activeIndex === 0 ? 'errors' : 'instant'
     })
   }
 
@@ -71,11 +70,10 @@ describe('instant insights tab overlay', () => {
     return evalInPortal(browser, (root) => {
       const bar = root.querySelector('[data-nextjs-error-overlay-tab-bar]')
       if (!bar) return null
+      const variants = ['errors', 'instant'] as const
       return [...bar.querySelectorAll('.error-overlay-tab')].map(
-        (tab: any) => ({
-          variant: tab
-            .querySelector('.error-overlay-tab-count')
-            ?.getAttribute('data-variant'),
+        (tab: any, index: number) => ({
+          variant: variants[index],
           disabled: tab.disabled === true,
           active: tab.getAttribute('data-active') === 'true',
         })

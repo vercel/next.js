@@ -12,7 +12,11 @@ import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 export type ErrorOverlayPaginationControls = {
   previousButton: React.ReactNode
   nextButton: React.ReactNode
-  createCount: (activeIdx: number, total: number) => React.ReactNode
+  createCount: (
+    activeIdx: number,
+    total: number,
+    isActive?: boolean
+  ) => React.ReactNode
 }
 
 export type ErrorOverlayTabBarRenderer = (
@@ -147,12 +151,24 @@ export function ErrorOverlayPagination({
     </button>
   )
 
-  const createCount = (currentActiveIdx: number, total: number) => (
+  const createCount = (
+    currentActiveIdx: number,
+    total: number,
+    isActive: boolean = true
+  ) => (
     <div className="error-overlay-pagination-count">
-      <span data-nextjs-dialog-error-index={currentActiveIdx}>
+      <span
+        {...(isActive
+          ? { 'data-nextjs-dialog-error-index': currentActiveIdx }
+          : {})}
+      >
         {total === 0 ? 0 : currentActiveIdx + 1}/
       </span>
-      <span data-nextjs-dialog-header-total-count>{total}</span>
+      <span
+        {...(isActive ? { 'data-nextjs-dialog-header-total-count': '' } : {})}
+      >
+        {total}
+      </span>
     </div>
   )
 

@@ -419,7 +419,11 @@ export function ErrorTabBar({
   instantActiveIdx: number
   previousButton: React.ReactNode
   nextButton: React.ReactNode
-  createCount: (activeIdx: number, total: number) => React.ReactNode
+  createCount: (
+    activeIdx: number,
+    total: number,
+    isActive?: boolean
+  ) => React.ReactNode
 }) {
   return (
     <div className="error-overlay-tab-bar" data-nextjs-error-overlay-tab-bar>
@@ -436,7 +440,7 @@ export function ErrorTabBar({
           className="error-overlay-tab-count"
           data-active={activeTab === 'errors'}
         >
-          {createCount(errorActiveIdx, errorCount)}
+          {createCount(errorActiveIdx, errorCount, activeTab === 'errors')}
         </span>
       </button>
       <button
@@ -451,7 +455,7 @@ export function ErrorTabBar({
           className="error-overlay-tab-count"
           data-active={activeTab === 'instant'}
         >
-          {createCount(instantActiveIdx, instantCount)}
+          {createCount(instantActiveIdx, instantCount, activeTab === 'instant')}
         </span>
       </button>
       {nextButton}
