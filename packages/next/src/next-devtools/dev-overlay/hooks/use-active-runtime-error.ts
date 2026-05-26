@@ -16,7 +16,8 @@ export function useActiveRuntimeError({
   activeIdx?: number
   setActiveIndex?: (index: number) => void
 }) {
-  const [uncontrolledActiveIdx, setUncontrolledActiveIndex] = useState<number>(0)
+  const [uncontrolledActiveIdx, setUncontrolledActiveIndex] =
+    useState<number>(0)
   const activeIdx = controlledActiveIdx ?? uncontrolledActiveIdx
   const setActiveIndex = controlledSetActiveIndex ?? setUncontrolledActiveIndex
 

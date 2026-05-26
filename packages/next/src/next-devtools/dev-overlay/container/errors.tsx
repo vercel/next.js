@@ -639,7 +639,11 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
   // knows they're looking at an insight, even if the other tab is empty.
   const showTabBar = instantErrors.length > 0
   const renderTabBar = showTabBar
-    ? ({ previousButton, createCount, nextButton }: ErrorOverlayPaginationControls) => (
+    ? ({
+        previousButton,
+        createCount,
+        nextButton,
+      }: ErrorOverlayPaginationControls) => (
         <ErrorTabBar
           activeTab={effectiveActiveTab}
           onTabChange={(tab) => {

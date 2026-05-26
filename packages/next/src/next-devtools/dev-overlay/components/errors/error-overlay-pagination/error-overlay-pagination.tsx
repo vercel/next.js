@@ -67,8 +67,7 @@ export function ErrorOverlayPagination({
   )
 
   const canNavigatePrevious = canGoPrevious ?? activeIdx > 0
-  const canNavigateNext =
-    canGoNext ?? activeIdx < runtimeErrors.length - 1
+  const canNavigateNext = canGoNext ?? activeIdx < runtimeErrors.length - 1
 
   const handlePrevious = onPrevious ?? handlePreviousWithinGroup
   const handleNext = onNext ?? handleNextWithinGroup
@@ -147,7 +146,10 @@ export function ErrorOverlayPagination({
       data-nextjs-dialog-error-previous
       className="error-overlay-pagination-button"
     >
-      <LeftArrow title="previous" className="error-overlay-pagination-button-icon" />
+      <LeftArrow
+        title="previous"
+        className="error-overlay-pagination-button-icon"
+      />
     </button>
   )
 
@@ -182,7 +184,10 @@ export function ErrorOverlayPagination({
       data-nextjs-dialog-error-next
       className="error-overlay-pagination-button"
     >
-      <RightArrow title="next" className="error-overlay-pagination-button-icon" />
+      <RightArrow
+        title="next"
+        className="error-overlay-pagination-button-icon"
+      />
     </button>
   )
 
@@ -191,15 +196,15 @@ export function ErrorOverlayPagination({
       className="error-overlay-pagination dialog-exclude-closing-from-outside-click"
       ref={onNav}
     >
-      {renderTabBar
-        ? renderTabBar({ previousButton, createCount, nextButton })
-        : (
-            <>
-              {previousButton}
-              {createCount(activeIdx, runtimeErrors.length || 1)}
-              {nextButton}
-            </>
-          )}
+      {renderTabBar ? (
+        renderTabBar({ previousButton, createCount, nextButton })
+      ) : (
+        <>
+          {previousButton}
+          {createCount(activeIdx, runtimeErrors.length || 1)}
+          {nextButton}
+        </>
+      )}
     </nav>
   )
 }
