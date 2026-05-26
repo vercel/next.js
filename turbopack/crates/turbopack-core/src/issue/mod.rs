@@ -1,5 +1,6 @@
 pub mod analyze;
 pub mod code_gen;
+pub mod fs_error;
 pub mod module;
 pub mod resolve;
 
@@ -863,6 +864,7 @@ pub enum IssueStage {
     Bindings,
     CodeGen,
     Emit,
+    WriteOutput,
     Unsupported,
     Misc,
     Other(RcStr),
@@ -884,6 +886,7 @@ impl Display for IssueStage {
             IssueStage::Emit => write!(f, "emit"),
             IssueStage::Unsupported => write!(f, "unsupported"),
             IssueStage::AppStructure => write!(f, "app structure"),
+            IssueStage::WriteOutput => write!(f, "write output"),
             IssueStage::Misc => write!(f, "misc"),
             IssueStage::Other(s) => write!(f, "{s}"),
         }

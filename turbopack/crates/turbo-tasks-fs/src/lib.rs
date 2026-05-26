@@ -15,6 +15,7 @@
 
 pub mod attach;
 pub mod embed;
+pub mod error;
 pub mod glob;
 mod globset;
 pub mod invalidation;
@@ -34,9 +35,8 @@ use std::{
     borrow::Cow,
     cmp::{Ordering, min},
     env,
-    error::Error as StdError,
     fmt::{self, Debug, Formatter},
-    fs::FileType,
+    fs::{FileType, create_dir_all},
     future::Future,
     io::{self, BufRead, BufReader, ErrorKind, Read, Write as _},
     mem::take,
@@ -76,6 +76,7 @@ use turbo_unix_path::{
 
 use crate::{
     attach::AttachedFileSystem,
+    error::{FileSystemError, FileSystemErrorOperation, FileSystemErrorSource, LinkCreationMethod},
     glob::Glob,
     invalidation::Write,
     invalidator_map::InvalidatorMap,
@@ -85,7 +86,6 @@ use crate::{
     read_glob::{read_glob, track_glob},
     retry::{can_retry, retry_blocking, retry_blocking_custom},
     rope::{Rope, RopeReader},
-    util::extract_disk_access,
     watcher::DiskWatcher,
 };
 pub use crate::{read_glob::ReadGlobResult, virtual_fs::VirtualFileSystem};
@@ -114,59 +114,53 @@ pub use crate::{read_glob::ReadGlobResult, virtual_fs::VirtualFileSystem};
 /// 255 characters, because it is the shortest of the three options.
 ///
 /// [PATH_MAX]: https://eklitzke.org/path-max-is-tricky
-pub fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
-    /// Here we check if the path is too long for windows, and if so, attempt to canonicalize it
-    /// to a UNC path.
-    fn validate_path_length_inner(path: &Path) -> Result<Cow<'_, Path>> {
-        if cfg!(windows) {
-            const MAX_PATH_LENGTH_WINDOWS: usize = 260;
-            const UNC_PREFIX: &str = "\\\\?\\";
+fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>, FileSystemErrorSource> {
+    // Here we check if the path is too long for windows, and if so, attempt to canonicalize it
+    // to a UNC path.
+    if cfg!(windows) {
+        const MAX_PATH_LENGTH_WINDOWS: usize = 260;
+        const UNC_PREFIX: &str = "\\\\?\\";
 
-            if path.starts_with(UNC_PREFIX) {
-                return Ok(path.into());
-            }
-
-            if path.as_os_str().len() > MAX_PATH_LENGTH_WINDOWS {
-                let new_path = std::fs::canonicalize(path).map_err(|err| {
-                    anyhow!(err).context("file is too long, and could not be normalized")
-                })?;
-                return Ok(new_path.into());
-            }
-
-            Ok(path.into())
-        } else {
-            /// here we are only going to check if the total length exceeds, or the last segment
-            /// exceeds. This heuristic is primarily to avoid long file names, and it makes the
-            /// operation much cheaper.
-            const MAX_FILE_NAME_LENGTH_UNIX: usize = 255;
-            // macOS reports a limit of 1024, but I (@arlyon) have had issues with paths above 1016
-            // so we subtract a bit to be safe. on most linux distros this is likely a lot larger
-            // than 1024, but macOS is *special*
-            const MAX_PATH_LENGTH: usize = 1024 - 8;
-
-            // check the last segment (file name)
-            if path
-                .file_name()
-                .map(|n| n.as_encoded_bytes().len())
-                .unwrap_or(0)
-                > MAX_FILE_NAME_LENGTH_UNIX
-            {
-                anyhow::bail!(
-                    "file name is too long (exceeds {} bytes)",
-                    MAX_FILE_NAME_LENGTH_UNIX,
-                );
-            }
-
-            if path.as_os_str().len() > MAX_PATH_LENGTH {
-                anyhow::bail!("path is too long (exceeds {MAX_PATH_LENGTH} bytes)");
-            }
-
-            Ok(path.into())
+        if path.starts_with(UNC_PREFIX) {
+            return Ok(path.into());
         }
-    }
 
-    validate_path_length_inner(path)
-        .with_context(|| format!("path length for file {path:?} exceeds max length of filesystem"))
+        if path.as_os_str().len() > MAX_PATH_LENGTH_WINDOWS {
+            let new_path = std::fs::canonicalize(path).map_err(FileSystemErrorSource::Io)?;
+            return Ok(new_path.into());
+        }
+
+        Ok(path.into())
+    } else {
+        // Here we are only going to check if the total length exceeds, or the last segment exceeds.
+        // This heuristic is primarily to avoid long file names, and it makes the operation much
+        // cheaper.
+        const MAX_FILE_NAME_LENGTH_UNIX: usize = 255;
+        // macOS reports a limit of 1024, but I (@arlyon) have had issues with paths above 1016
+        // so we subtract a bit to be safe. on most linux distros this is likely a lot larger
+        // than 1024, but macOS is *special*
+        const MAX_PATH_LENGTH: usize = 1024 - 8;
+
+        // check the last segment (file name)
+        if path
+            .file_name()
+            .map(|n| n.as_encoded_bytes().len())
+            .unwrap_or(0)
+            > MAX_FILE_NAME_LENGTH_UNIX
+        {
+            return Err(FileSystemErrorSource::PathSegmentTooLong {
+                max_length: MAX_FILE_NAME_LENGTH_UNIX,
+            });
+        }
+
+        if path.as_os_str().len() > MAX_PATH_LENGTH {
+            return Err(FileSystemErrorSource::PathTooLong {
+                max_length: MAX_PATH_LENGTH,
+            });
+        }
+
+        Ok(path.into())
+    }
 }
 
 trait ConcurrencyLimitedExt {
@@ -487,7 +481,7 @@ impl DiskFileSystemInner {
         let root_path = self.root_path().to_path_buf();
 
         // create the directory for the filesystem on disk, if it doesn't exist
-        retry_blocking(|| std::fs::create_dir_all(&root_path))
+        retry_blocking(|| create_dir_all(&root_path))
             .instrument(tracing::info_span!("create root directory", name = ?root_path))
             .concurrency_limited(&self.write_semaphore)
             .await?;
@@ -939,13 +933,14 @@ impl FileSystem for DiskFileSystem {
         #[derive(TraceRawVcs, NonLocalValue)]
         struct WriteEffect {
             full_path: PathBuf,
+            fs_path: FileSystemPath,
             inner: Arc<DiskFileSystemInner>,
             content: ReadRef<PersistedFileContent>,
             content_hash: u128,
         }
 
         impl Effect for WriteEffect {
-            type Error = AnyhowWrapper;
+            type Error = FileSystemError;
 
             fn key(&self) -> Box<[u8]> {
                 self.full_path.as_os_str().as_encoded_bytes().into()
@@ -959,15 +954,14 @@ impl FileSystem for DiskFileSystem {
                 &self.inner.effect_state_storage
             }
 
-            async fn apply(&self) -> Result<(), AnyhowWrapper> {
-                self.apply_inner().await.map_err(AnyhowWrapper::from)
-            }
-        }
+            async fn apply(&self) -> Result<(), Self::Error> {
+                let make_err = |source: FileSystemErrorSource| FileSystemError {
+                    operation: FileSystemErrorOperation::Write,
+                    path: self.fs_path.clone(),
+                    source,
+                };
 
-        impl WriteEffect {
-            async fn apply_inner(&self) -> anyhow::Result<()> {
-                let full_path = validate_path_length(&self.full_path)?;
-
+                let full_path = validate_path_length(&self.full_path).map_err(&make_err)?;
                 let _lock = self.inner.lock_path(&full_path).await;
 
                 // We perform an untracked comparison here, so that this write is not dependent
@@ -980,7 +974,8 @@ impl FileSystem for DiskFileSystem {
                     .streaming_compare(&full_path)
                     .instrument(tracing::info_span!("read file before write", name = ?full_path))
                     .concurrency_limited(&self.inner.read_semaphore)
-                    .await?;
+                    .await
+                    .map_err(|err| make_err(FileSystemErrorSource::Io(err)))?;
                 if compare == FileComparison::Equal {
                     return Ok(());
                 }
@@ -1033,33 +1028,21 @@ impl FileSystem for DiskFileSystem {
                                 Err(e) if e.kind() == ErrorKind::NotFound => {
                                     // The parent directory doesn't exist. Create it and retry once.
                                     if let Some(parent) = full_path.parent() {
-                                        retry_blocking(|| std::fs::create_dir_all(parent))
+                                        retry_blocking(|| create_dir_all(parent))
                                             .instrument(tracing::info_span!(
                                                 "create directory",
                                                 name = ?parent
                                             ))
-                                            .await
-                                            .with_context(|| {
-                                                format!(
-                                                    "failed to create directory {parent:?} for \
-                                                     write to {full_path:?}",
-                                                )
-                                            })?;
+                                            .await?
                                     }
-                                    do_write().await.with_context(|| {
-                                        format!("failed to write to {full_path:?}")
-                                    })?;
+                                    do_write().await
                                 }
-                                result => {
-                                    result.with_context(|| {
-                                        format!("failed to write to {full_path:?}")
-                                    })?;
-                                }
+                                result => result,
                             }
-                            anyhow::Ok(())
                         }
                         .concurrency_limited(&self.inner.write_semaphore)
-                        .await?;
+                        .await
+                        .map_err(|err| make_err(FileSystemErrorSource::Io(err)))?;
                     }
                     PersistedFileContent::NotFound => {
                         retry_blocking(|| std::fs::remove_file(&full_path))
@@ -1073,7 +1056,7 @@ impl FileSystem for DiskFileSystem {
                                     Err(err)
                                 }
                             })
-                            .with_context(|| format!("removing {full_path:?} failed"))?;
+                            .map_err(|err| make_err(FileSystemErrorSource::Io(err)))?;
                     }
                 }
 
@@ -1087,6 +1070,7 @@ impl FileSystem for DiskFileSystem {
         let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content));
         emit_effect(WriteEffect {
             full_path,
+            fs_path,
             inner,
             content,
             content_hash,
@@ -1101,7 +1085,6 @@ impl FileSystem for DiskFileSystem {
         // effect and does not need to be re-executed in the next session. All side effects are
         // re-executed in general.
 
-        // Check if path is denied - if so, return an error
         if self.inner.is_path_denied(&fs_path) {
             turbobail!("Cannot write link to denied path: {fs_path}");
         }
@@ -1114,13 +1097,14 @@ impl FileSystem for DiskFileSystem {
         #[derive(TraceRawVcs, NonLocalValue)]
         struct WriteLinkEffect {
             full_path: PathBuf,
+            fs_path: FileSystemPath,
             inner: Arc<DiskFileSystemInner>,
             content: ReadRef<LinkContent>,
             content_hash: u128,
         }
 
         impl Effect for WriteLinkEffect {
-            type Error = AnyhowWrapper;
+            type Error = FileSystemError;
 
             fn key(&self) -> Box<[u8]> {
                 self.full_path.as_os_str().as_encoded_bytes().into()
@@ -1134,14 +1118,23 @@ impl FileSystem for DiskFileSystem {
                 &self.inner.effect_state_storage
             }
 
-            async fn apply(&self) -> Result<(), AnyhowWrapper> {
-                self.apply_inner().await.map_err(AnyhowWrapper::from)
-            }
-        }
+            async fn apply(&self) -> Result<(), Self::Error> {
+                // Helper to construct link errors
+                let make_link_err = |source: FileSystemErrorSource,
+                                     creation_method: LinkCreationMethod|
+                 -> FileSystemError {
+                    FileSystemError {
+                        operation: FileSystemErrorOperation::Link {
+                            creation_method,
+                            content: self.content.clone(),
+                        },
+                        path: self.fs_path.clone(),
+                        source,
+                    }
+                };
 
-        impl WriteLinkEffect {
-            async fn apply_inner(&self) -> anyhow::Result<()> {
-                let full_path = validate_path_length(&self.full_path)?;
+                let full_path = validate_path_length(&self.full_path)
+                    .map_err(|source| make_link_err(source, LinkCreationMethod::Unknown))?;
 
                 let _lock = self.inner.lock_path(&full_path).await;
 
@@ -1211,6 +1204,16 @@ impl FileSystem for DiskFileSystem {
                     } => {
                         let full_path = full_path.into_owned();
 
+                        // Determine the creation method for error reporting
+                        #[cfg(not(windows))]
+                        let creation_method = LinkCreationMethod::Symbolic;
+                        #[cfg(windows)]
+                        let creation_method = if is_directory {
+                            LinkCreationMethod::Junction
+                        } else {
+                            LinkCreationMethod::Symbolic
+                        };
+
                         #[derive(thiserror::Error, Debug)]
                         #[error("{msg}: {source}")]
                         struct SymlinkCreationError {
@@ -1235,126 +1238,86 @@ impl FileSystem for DiskFileSystem {
                                 })?;
                                 has_old_content = false;
                             }
-                            #[cfg(not(windows))]
-                            let io_result = std::os::unix::fs::symlink(&target, &full_path);
-                            #[cfg(windows)]
-                            let io_result = if is_directory {
-                                std::os::windows::fs::junction_point(&target, &full_path)
-                            } else {
-                                std::os::windows::fs::symlink_file(&target, &full_path)
-                            };
-                            io_result.map_err(|err| {
-                                if err.kind() == ErrorKind::AlreadyExists {
+                            let mut created_parent_directories = false;
+                            loop {
+                                #[cfg(not(windows))]
+                                let io_result = std::os::unix::fs::symlink(&target, &full_path);
+                                #[cfg(windows)]
+                                let io_result = if is_directory {
+                                    std::os::windows::fs::junction_point(&target, &full_path)
+                                } else {
+                                    std::os::windows::fs::symlink_file(&target, &full_path)
+                                };
+                                let Err(err) = io_result else {
+                                    return Ok(());
+                                };
+                                match err.kind() {
                                     // try to remove the symlink on the next iteration of the loop
-                                    has_old_content = true;
+                                    ErrorKind::AlreadyExists => {
+                                        has_old_content = true;
+                                    }
+                                    // the parent directory may not exist, create it if needed
+                                    ErrorKind::NotFound
+                                        if !created_parent_directories
+                                            && let Some(parent) = full_path.parent() =>
+                                    {
+                                        if let Err(err) = create_dir_all(parent) {
+                                            return Err(SymlinkCreationError {
+                                                msg: "creation of parent directory for symlink or \
+                                                      junction point failed",
+                                                source: err,
+                                            });
+                                        }
+                                        // retry link creation immediately, it will likely succeed
+                                        created_parent_directories = true;
+                                        continue;
+                                    }
+                                    _ => {}
                                 }
-                                SymlinkCreationError {
+                                return Err(SymlinkCreationError {
                                     msg: "creation of a new symbolic link or junction point failed",
                                     source: err,
-                                }
-                            })
+                                });
+                            }
                         };
                         fn can_retry_link(err: &SymlinkCreationError) -> bool {
-                            err.source.kind() == ErrorKind::AlreadyExists || can_retry(&err.source)
+                            matches!(
+                                err.source.kind(),
+                                ErrorKind::AlreadyExists | ErrorKind::NotFound
+                            ) || can_retry(&err.source)
                         }
-                        let err_context = || {
-                            #[cfg(not(windows))]
-                            let message = format!(
-                                "failed to create symlink at {full_path:?} pointing to {target:?}"
-                            );
-                            #[cfg(windows)]
-                            let message = if is_directory {
-                                format!(
-                                    "failed to create junction point at {full_path:?} pointing to \
-                                     {target:?}"
+                        retry_blocking_custom(try_create_link, can_retry_link)
+                            .instrument(tracing::info_span!(
+                                "write symlink",
+                                name = ?full_path,
+                                target = ?target,
+                            ))
+                            .concurrency_limited(&self.inner.write_semaphore)
+                            .await
+                            .map_err(|err| {
+                                make_link_err(
+                                    FileSystemErrorSource::Io(err.source),
+                                    creation_method,
                                 )
-                            } else {
-                                format!(
-                                    "failed to create symlink at {full_path:?} pointing to \
-                                     {target:?}\n\
-                                    (Note: creating file symlinks on Windows require developer \
-                                     mode or admin permissions: \
-                                     https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode)",
-                                )
-                            };
-                            message
-                        };
-                        async {
-                            let write_result =
-                                retry_blocking_custom(try_create_link, can_retry_link)
-                                    .instrument(tracing::info_span!(
-                                        "write symlink",
-                                        name = ?full_path,
-                                        target = ?target,
-                                    ))
-                                    .await;
-
-                            match write_result {
-                                Err(ref e) if e.source.kind() == ErrorKind::NotFound => {
-                                    // Parent directory doesn't exist. Create it and retry once.
-                                    if let Some(parent) = full_path.parent() {
-                                        retry_blocking(|| std::fs::create_dir_all(parent))
-                                            .instrument(tracing::info_span!(
-                                                "create directory",
-                                                name = ?parent
-                                            ))
-                                            .await
-                                            .with_context(|| {
-                                                format!(
-                                                    "failed to create directory {parent:?} for \
-                                                     write link to {full_path:?}",
-                                                )
-                                            })?;
-                                    }
-                                    // After the first attempt, any pre-existing link was already
-                                    // removed (has_old_content is now false), so just create.
-                                    retry_blocking_custom(
-                                        || {
-                                            #[cfg(not(windows))]
-                                            let io_result =
-                                                std::os::unix::fs::symlink(&target, &full_path);
-                                            #[cfg(windows)]
-                                            let io_result = if is_directory {
-                                                std::os::windows::fs::junction_point(
-                                                    &target, &full_path,
-                                                )
-                                            } else {
-                                                std::os::windows::fs::symlink_file(
-                                                    &target, &full_path,
-                                                )
-                                            };
-                                            io_result.map_err(|err| SymlinkCreationError {
-                                                msg: "creation of a new symbolic link or junction \
-                                                      point failed",
-                                                source: err,
-                                            })
-                                        },
-                                        |e: &SymlinkCreationError| can_retry(&e.source),
-                                    )
-                                    .instrument(tracing::info_span!(
-                                        "write symlink",
-                                        name = ?full_path,
-                                        target = ?target,
-                                    ))
-                                    .await
-                                    .with_context(err_context)?;
-                                }
-                                result => result.with_context(err_context)?,
-                            }
-                            anyhow::Ok(())
-                        }
-                        .concurrency_limited(&self.inner.write_semaphore)
-                        .await?;
+                            })?;
                     }
                     OsSpecificLinkContent::Invalid => {
-                        bail!("invalid symlink target: {full_path:?}");
+                        return Err(make_link_err(
+                            FileSystemErrorSource::InvalidLinkTarget,
+                            LinkCreationMethod::Unknown,
+                        ));
                     }
                     OsSpecificLinkContent::NotFound => {
                         retry_blocking(|| remove_symbolic_link_dir_helper(&full_path))
                             .instrument(tracing::info_span!("remove symlink", name = ?full_path))
                             .concurrency_limited(&self.inner.write_semaphore)
                             .await
-                            .with_context(|| format!("removing {full_path:?} failed"))?;
+                            .map_err(|err| {
+                                make_link_err(
+                                    FileSystemErrorSource::Io(err),
+                                    LinkCreationMethod::Unknown,
+                                )
+                            })?;
                     }
                 }
 
@@ -1368,6 +1331,7 @@ impl FileSystem for DiskFileSystem {
         let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content));
         emit_effect(WriteLinkEffect {
             full_path,
+            fs_path,
             inner,
             content,
             content_hash,
@@ -2015,27 +1979,35 @@ pub enum PersistedFileContent {
 }
 
 impl PersistedFileContent {
-    /// Performs a comparison of self's data against a disk file's streamed read.
-    async fn streaming_compare(&self, path: &Path) -> Result<FileComparison> {
-        let old_file =
-            extract_disk_access(retry_blocking(|| std::fs::File::open(path)).await, path)?;
-        let Some(old_file) = old_file else {
-            return Ok(match self {
-                PersistedFileContent::NotFound => FileComparison::Equal,
-                _ => FileComparison::Create,
-            });
+    /// Performs a comparison of self's data against a disk file's streamed
+    /// read.
+    async fn streaming_compare(&self, path: &Path) -> io::Result<FileComparison> {
+        let old_file = match retry_blocking(|| std::fs::File::open(path)).await {
+            Ok(file) => file,
+            Err(e) if matches!(e.kind(), ErrorKind::NotFound | ErrorKind::InvalidFilename) => {
+                return Ok(match self {
+                    PersistedFileContent::NotFound => FileComparison::Equal,
+                    _ => FileComparison::Create,
+                });
+            }
+            Err(e) => return Err(e),
         };
+
         // We know old file exists, does the new file?
         let PersistedFileContent::Content(new_file) = self else {
             return Ok(FileComparison::NotEqual);
         };
 
-        let old_meta = extract_disk_access(retry_blocking(|| old_file.metadata()).await, path)?;
-        let Some(old_meta) = old_meta else {
-            // If we failed to get meta, then the old file has been deleted between the
-            // handle open. In which case, we just pretend the file never existed.
-            return Ok(FileComparison::Create);
+        let old_meta = match retry_blocking(|| old_file.metadata()).await {
+            Ok(meta) => meta,
+            Err(e) if matches!(e.kind(), ErrorKind::NotFound | ErrorKind::InvalidFilename) => {
+                // If we failed to get meta, then the old file has been deleted between the
+                // handle open. In which case, we just pretend the file never existed.
+                return Ok(FileComparison::Create);
+            }
+            Err(e) => return Err(e),
         };
+
         // If the meta is different, we need to rewrite the file to update it.
         if new_file.meta != old_meta.into() {
             return Ok(FileComparison::NotEqual);
@@ -2905,35 +2877,6 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
         symlinks: symlinks.into_iter().collect(),
     }
     .cell())
-}
-
-/// Wrapper to convert [`anyhow::Error`] to `impl std::error::Error` for use in [`Effect::apply`].
-// TODO(bgw): use a structured error type instead of anyhow for write/write_link
-#[derive(TraceRawVcs, NonLocalValue)]
-pub(crate) struct AnyhowWrapper(anyhow::Error);
-
-impl fmt::Display for AnyhowWrapper {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
-    }
-}
-
-impl fmt::Debug for AnyhowWrapper {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.0, f)
-    }
-}
-
-impl StdError for AnyhowWrapper {
-    fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        self.0.source()
-    }
-}
-
-impl From<anyhow::Error> for AnyhowWrapper {
-    fn from(err: anyhow::Error) -> Self {
-        AnyhowWrapper(err)
-    }
 }
 
 #[cfg(test)]
