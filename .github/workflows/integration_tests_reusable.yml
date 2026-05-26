@@ -56,7 +56,7 @@ jobs:
     secrets: inherit
 
   generate-matrices:
-    runs-on: ubuntu-latest-16-core-oss
+    runs-on: ubuntu-latest-4-core-oss
     steps:
       - id: out
         run: |
@@ -147,7 +147,7 @@ jobs:
   collect_nextjs_development_integration_stat:
     needs: [test-e2e, test-integration]
     name: Next.js integration test development status report
-    runs-on: ubuntu-latest-16-core-oss
+    runs-on: ubuntu-latest-4-core-oss
     if: always()
     permissions:
       pull-requests: write
