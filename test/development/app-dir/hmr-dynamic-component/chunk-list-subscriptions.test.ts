@@ -57,22 +57,15 @@ describe('hmr-dynamic-component chunk list subscriptions', () => {
     })
 
     // Each `turbopack-subscribe` frame corresponds to one `registerChunkList`
-    // call in the browser runtime; the same chunk list path may be subscribed
-    // to more than once (e.g. on socket reconnect), so we assert on the number
-    // of *distinct* chunk list paths. With the fix in place there should be at
-    // most two chunk list paths per page:
-    //   1. The shared client runtime chunk list (shared across all pages).
-    //   2. A page-specific chunk list that owns this page's RSC client
-    //      reference chunks (built outside the shared module graph).
-    // Previously each `chunk_group(IsolatedMerged)` call for a client
-    // component group produced its own Dynamic chunk list, resulting in N+1
-    // subscriptions per page.
+    // call in the browser runtime:
+    //   1. The shared client runtime chunk list (covers react/polyfills/etc.)
+    //   2. A page-specific chunk list that owns the RSC client reference chunks
+    //      (built outside the shared module graph via chunk_group(IsolatedMerged)).
     await retry(async () => {
       const chunkListPaths = new Set(
         sentSubscribes.filter((m) => m.path.endsWith('.js')).map((m) => m.path)
       )
-      expect(chunkListPaths.size).toBeGreaterThan(0)
-      expect(chunkListPaths.size).toBeLessThanOrEqual(2)
+      expect(chunkListPaths.size).toBe(2)
     })
   })
 })
