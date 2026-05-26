@@ -20,7 +20,7 @@ This replaces the `next-transpile-modules` package.
 
 ## When you need it
 
-Turbopack handles workspace packages (npm, pnpm, or Yarn workspaces) in your monorepo automatically under both routers. Webpack does the same for the App Router. Add a package to `transpilePackages` when:
+Turbopack transpiles workspace packages (npm, pnpm, or Yarn workspaces) in your monorepo automatically under both routers. Webpack does the same for the App Router. Add a package to `transpilePackages` when:
 
 - **A `node_modules` dependency ships raw TypeScript or JSX.** Next.js does not compile code inside `node_modules` by default. Listing the package opts it in, or you can build the package to plain JavaScript and point its `main`/`exports` at the compiled output.
 - **You build with webpack for the Pages Router and the dependency's source lives outside the next app's directory.** For example, an `apps/web` app importing `packages/ui` in the same monorepo.
