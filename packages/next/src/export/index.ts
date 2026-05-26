@@ -345,8 +345,10 @@ async function exportAppImpl(
     )
   }
 
-  await fs.rm(outDir, { recursive: true, force: true })
-  await fs.mkdir(join(outDir, '_next', buildId), { recursive: true })
+  if (!options.buildExport) {
+    await fs.rm(outDir, { recursive: true, force: true })
+    await fs.mkdir(join(outDir, '_next', buildId), { recursive: true })
+  }
 
   await fs.writeFile(
     join(distDir, EXPORT_DETAIL),
@@ -653,7 +655,7 @@ async function exportAppImpl(
   }
 
   const pagesDataDir = options.buildExport
-    ? outDir
+    ? join(distDir, 'server', 'pages')
     : join(outDir, '_next/data', buildId)
 
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
@@ -720,7 +722,9 @@ async function exportAppImpl(
             options,
             dir,
             distDir,
-            outDir,
+            outDir: options.buildExport
+              ? join(distDir, 'server', 'pages')
+              : outDir,
             nextConfig,
             cacheHandler: nextConfig.cacheHandler,
             cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
@@ -937,19 +941,25 @@ async function exportAppImpl(
         // realizing the implications.
         const route = normalizePagePath(unnormalizedRoute)
 
-        const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
-        const distPagesDir = join(
-          pagePath,
-          // strip leading / and then recurse number of nested dirs
-          // to place from base folder
-          pageName
-            .slice(1)
-            .split('/')
-            .map(() => '..')
-            .join('/')
-        )
-
-        const orig = join(distPagesDir, route)
+        let orig: string
+        if (isAppPath) {
+          const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
+          const distPagesDir = join(
+            pagePath,
+            // strip leading / and then recurse number of nested dirs
+            // to place from base folder
+            pageName
+              .slice(1)
+              .split('/')
+              .map(() => '..')
+              .join('/')
+          )
+          orig = join(distPagesDir, route)
+        } else {
+          // Pages router files are written directly to server/pages/
+          // by the export worker during build, so read from there.
+          orig = join(distDir, 'server', 'pages', route)
+        }
         const handlerSrc = `${orig}.body`
         const handlerDest = join(outDir, route)
 
