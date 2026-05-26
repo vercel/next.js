@@ -293,6 +293,8 @@ jobs:
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - run: pnpm install
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - name: Install node-file-trace test dependencies
