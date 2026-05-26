@@ -1,8 +1,8 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs, turbofmt,
+    FxIndexSet, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt,
+    ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -61,13 +61,13 @@ pub struct AvailableModulesSet(
 #[turbo_tasks::value]
 pub struct AvailableModules {
     parent: Option<ResolvedVc<AvailableModules>>,
-    modules: ResolvedVc<AvailableModulesSet>,
+    modules: OperationVc<AvailableModulesSet>,
 }
 
 #[turbo_tasks::value_impl]
 impl AvailableModules {
     #[turbo_tasks::function]
-    pub fn new(modules: ResolvedVc<AvailableModulesSet>) -> Vc<Self> {
+    pub fn new(modules: OperationVc<AvailableModulesSet>) -> Vc<Self> {
         AvailableModules {
             parent: None,
             modules,
@@ -78,7 +78,7 @@ impl AvailableModules {
     #[turbo_tasks::function]
     pub fn with_modules(
         self: ResolvedVc<Self>,
-        modules: ResolvedVc<AvailableModulesSet>,
+        modules: OperationVc<AvailableModulesSet>,
     ) -> Result<Vc<Self>> {
         Ok(AvailableModules {
             parent: Some(self),
@@ -97,6 +97,7 @@ impl AvailableModules {
         }
         let item_idents = self
             .modules
+            .connect()
             .await?
             .iter()
             .map(async |&module| module.ident_strings().await)
@@ -118,7 +119,7 @@ impl AvailableModules {
 
     #[turbo_tasks::function]
     pub async fn get(&self, item: AvailableModuleItem) -> Result<Vc<bool>> {
-        if self.modules.await?.contains(&item) {
+        if self.modules.connect().await?.contains(&item) {
             return Ok(Vc::cell(true));
         };
         if let Some(parent) = self.parent {
@@ -129,7 +130,7 @@ impl AvailableModules {
 
     #[turbo_tasks::function]
     pub async fn snapshot(&self) -> Result<Vc<AvailableModulesSnapshot>> {
-        let modules = self.modules.await?;
+        let modules = self.modules.connect().await?;
         let parent = if let Some(parent) = self.parent {
             Some(parent.snapshot().await?)
         } else {
