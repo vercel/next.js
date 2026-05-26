@@ -103,6 +103,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn worker_asset_prefix(mut self, worker_asset_prefix: Option<RcStr>) -> Self {
+        self.chunking_context.worker_asset_prefix = worker_asset_prefix;
+        self
+    }
+
     pub fn asset_suffix(mut self, asset_suffix: ResolvedVc<AssetSuffix>) -> Self {
         self.chunking_context.asset_suffix = Some(asset_suffix);
         self
@@ -267,6 +272,14 @@ pub struct BrowserChunkingContext {
     /// Base path that will be prepended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
     chunk_base_path: Option<RcStr>,
+    /// Base path for Web Worker URLs (the entrypoint and the module chunks
+    /// loaded inside the worker). When `Some`, overrides `chunk_base_path`
+    /// for those URLs. Mirrors webpack's `output.workerPublicPath`. Primary
+    /// use case: keep Worker URLs same-origin when
+    /// `chunk_base_path`/`assetPrefix` points to a cross-origin CDN
+    /// (browsers reject cross-origin Worker construction, and the worker
+    /// bootstrap rejects cross-origin module chunks).
+    worker_asset_prefix: Option<RcStr>,
     /// Suffix that will be appended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
     asset_suffix: Option<ResolvedVc<AssetSuffix>>,
@@ -355,6 +368,7 @@ impl BrowserChunkingContext {
                 asset_root_path,
                 asset_root_paths: Default::default(),
                 chunk_base_path: None,
+                worker_asset_prefix: None,
                 asset_suffix: None,
                 asset_base_path: None,
                 asset_base_paths: Default::default(),
@@ -467,6 +481,14 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn chunk_base_path(&self) -> Vc<Option<RcStr>> {
         Vc::cell(self.chunk_base_path.clone())
+    }
+
+    /// Returns the worker base-path override. When `Some`, takes precedence
+    /// over `chunk_base_path` for the entrypoint URL and the module chunks
+    /// loaded inside the worker.
+    #[turbo_tasks::function]
+    pub fn worker_asset_prefix(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.worker_asset_prefix.clone())
     }
 
     /// Returns the asset suffix path.
@@ -656,7 +678,8 @@ impl ChunkingContext for BrowserChunkingContext {
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        let source_path = original_asset_ident.path().await?;
+        let ident = original_asset_ident.await?;
+        let source_path = &ident.path;
         let basename = source_path.file_name();
         let ContentHashing::Direct { length } = this.asset_content_hashing;
         let hash = content
@@ -740,13 +763,12 @@ impl ChunkingContext for BrowserChunkingContext {
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
         async move {
             let this = self.await?;
-            let entries = chunk_group.entries();
             let input_availability_info = availability_info;
             let MakeChunkGroupResult {
                 chunks,
@@ -754,7 +776,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 references,
                 availability_info,
             } = make_chunk_group(
-                entries,
+                chunk_group,
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -770,11 +792,17 @@ impl ChunkingContext for BrowserChunkingContext {
                 .await?;
 
             if this.enable_hot_module_replacement {
-                let mut ident = ident;
-                if let Some(input_availability_info_ident) = input_availability_info.ident().await?
+                let ident = if let Some(input_availability_info_ident) =
+                    input_availability_info.ident().await?
                 {
-                    ident = ident.with_modifier(input_availability_info_ident);
-                }
+                    ident
+                        .owned()
+                        .await?
+                        .with_modifier(input_availability_info_ident)
+                        .into_vc()
+                } else {
+                    ident
+                };
                 let other_assets = Vc::cell(assets.clone());
                 assets.push(
                     self.generate_chunk_list_register_chunk(
@@ -805,7 +833,7 @@ impl ChunkingContext for BrowserChunkingContext {
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         input_availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!(
@@ -815,14 +843,13 @@ impl ChunkingContext for BrowserChunkingContext {
         );
         async move {
             let this = self.await?;
-            let entries = chunk_group.entries();
             let MakeChunkGroupResult {
                 chunks,
                 referenced_output_assets,
                 references,
                 availability_info,
             } = make_chunk_group(
-                entries,
+                chunk_group.clone(),
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -850,11 +877,17 @@ impl ChunkingContext for BrowserChunkingContext {
             );
 
             if this.enable_hot_module_replacement {
-                let mut ident = ident;
-                if let Some(input_availability_info_ident) = input_availability_info.ident().await?
+                let ident = if let Some(input_availability_info_ident) =
+                    input_availability_info.ident().await?
                 {
-                    ident = ident.with_modifier(input_availability_info_ident);
-                }
+                    ident
+                        .owned()
+                        .await?
+                        .with_modifier(input_availability_info_ident)
+                        .into_vc()
+                } else {
+                    ident
+                };
                 assets.push(
                     self.generate_chunk_list_register_chunk(
                         ident,
@@ -868,7 +901,7 @@ impl ChunkingContext for BrowserChunkingContext {
             }
 
             assets.push(
-                self.generate_evaluate_chunk(ident, other_assets, entries, module_graph)
+                self.generate_evaluate_chunk(ident, other_assets, entries, *module_graph)
                     .to_resolved()
                     .await?,
             );

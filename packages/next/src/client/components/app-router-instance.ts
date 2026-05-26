@@ -495,6 +495,9 @@ export const publicAppRouterInstance: AppRouterInstance = {
       })
     }
   },
+  // Default value. Each route segment provides its own value at runtime. Refer
+  // to `useRouter()`.
+  bfcacheId: '0',
 }
 
 // Conditionally add experimental_gesturePush when gestureTransition is enabled

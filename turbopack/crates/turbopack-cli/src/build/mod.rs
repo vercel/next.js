@@ -180,13 +180,13 @@ impl TurbopackBuildBuilder {
     }
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn extract_effects_operation(op: OperationVc<()>) -> Result<Vc<Effects>> {
     let _ = op.resolve().strongly_consistent().await?;
     Ok(take_effects(op).await?.cell())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn build_internal(
     project_dir: RcStr,
     root_dir: RcStr,
@@ -294,6 +294,7 @@ async fn build_internal(
                 let request = request_vc.await?;
                 origin
                     .resolve_asset(request_vc, origin.resolve_options(), ty)
+                    .await?
                     .await?
                     .first_module()
                     .await?
@@ -450,11 +451,10 @@ async fn build_internal(
                             Target::Browser => chunking_context.evaluated_chunk_group_assets(
                                 AssetIdent::from_path(
                                     build_output_root
-                                        .join(
-                                            ecmascript.ident().path().await?.file_stem().unwrap(),
-                                        )?
+                                        .join(ecmascript.ident().await?.path.file_stem().unwrap())?
                                         .with_extension("entry.js"),
-                                ),
+                                )
+                                .into_vc(),
                                 ChunkGroup::Entry(
                                     [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
                                 ),
@@ -469,8 +469,8 @@ async fn build_internal(
                                                 .join(
                                                     ecmascript
                                                         .ident()
-                                                        .path()
                                                         .await?
+                                                        .path
                                                         .file_stem()
                                                         .unwrap(),
                                                 )?

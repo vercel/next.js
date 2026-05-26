@@ -9,7 +9,11 @@ use turbopack_core::{
     source_map::{GenerateSourceMap, SourceMapAsset},
     version::{Update, Version, VersionedContent},
 };
-use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
+use turbopack_ecmascript::{
+    chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
+    minify::minify,
+    utils::StringifyJs,
+};
 
 use super::{
     chunk::EcmascriptBuildNodeChunk, update::update_node_chunk,
@@ -41,6 +45,11 @@ impl EcmascriptBuildNodeChunkContent {
             source_map,
         }
         .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub(crate) fn entries(&self) -> Vc<EcmascriptChunkContentEntries> {
+        EcmascriptChunkContentEntries::new(*self.content)
     }
 }
 

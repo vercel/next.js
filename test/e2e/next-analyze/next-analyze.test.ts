@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
-import { runNextCommand, shouldUseTurbopack } from 'next-test-utils'
+import { shouldUseTurbopack } from 'next-test-utils'
 import path from 'node:path'
-import { ChildProcess, spawn } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 
 describe('next experimental-analyze', () => {
@@ -24,27 +24,46 @@ describe('next experimental-analyze', () => {
   }
 
   it('runs successfully without errors', async () => {
-    const nextDir = path.dirname(require.resolve('next/package'))
-    const nextBin = path.join(nextDir, 'dist/bin/next')
+    let serveProcess: ChildProcess | undefined
+    let stdoutBuffer = ''
+    let resolveUrl!: (url: string) => void
+    let rejectUrl!: (err: Error) => void
+    const urlPromise = new Promise<string>((resolve, reject) => {
+      resolveUrl = resolve
+      rejectUrl = reject
+    })
 
-    const serveProcess = spawn(
-      'node',
-      [nextBin, 'experimental-analyze', '--port', '0'],
-      {
-        cwd: next.testDir,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      }
-    )
+    const timeout = setTimeout(() => {
+      rejectUrl(new Error('Server did not start within timeout'))
+    }, 30000)
+
+    const exit = next
+      .runCommand(['experimental-analyze', '--port', '0'], {
+        onStdout(msg) {
+          stdoutBuffer += msg
+          const urlMatch = stdoutBuffer.match(/http:\/\/[^\s]+/)
+          if (urlMatch) {
+            resolveUrl(urlMatch[0])
+          }
+        },
+        instance(p) {
+          serveProcess = p
+        },
+      })
+      .finally(() => {
+        clearTimeout(timeout)
+      })
 
     try {
-      const url = await waitForServer(serveProcess)
+      const url = await urlPromise
       const response = await fetch(url)
       expect(response.status).toBe(200)
       expect(await response.text()).toContain(
         '<title>Next.js Bundle Analyzer</title>'
       )
     } finally {
-      serveProcess.kill()
+      serveProcess?.kill()
+      await exit.catch(() => {})
     }
   })
   ;['-o', '--output'].forEach((flag) => {
@@ -55,16 +74,12 @@ describe('next experimental-analyze', () => {
           '.next/diagnostics/analyze'
         )
 
-        const { code, stderr, stdout } = await runNextCommand(
-          ['experimental-analyze', flag],
-          {
-            cwd: next.testDir,
-            stderr: true,
-            stdout: true,
-          }
-        )
+        const { exitCode, stderr, stdout } = await next.runCommand([
+          'experimental-analyze',
+          flag,
+        ])
 
-        expect(code).toBe(0)
+        expect(exitCode).toBe(0)
         expect(stderr).not.toContain('Error')
         expect(stdout).toContain('.next/diagnostics/analyze')
 
@@ -88,51 +103,3 @@ describe('next experimental-analyze', () => {
     })
   })
 })
-
-function waitForServer(process: ChildProcess, timeoutMs: number = 30000) {
-  const serverUrlPromise = new Promise<string>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      process.stdout.off('data', onStdout)
-      process.off('error', onError)
-      process.off('exit', onExit)
-      reject(new Error('Server did not start within timeout'))
-    }, timeoutMs)
-
-    function onStdout(data: Buffer) {
-      const urlMatch = data.toString().match(/http:\/\/[^\s]+/)
-      if (urlMatch) {
-        clearTimeout(timeout)
-        process.stdout.off('data', onStdout)
-        process.off('error', onError)
-        process.off('exit', onExit)
-        resolve(urlMatch[0])
-      }
-    }
-
-    function onError(error: Error) {
-      clearTimeout(timeout)
-      process.stdout.off('data', onStdout)
-      process.off('error', onError)
-      process.off('exit', onExit)
-      reject(error)
-    }
-
-    function onExit(code: number) {
-      clearTimeout(timeout)
-      process.stdout.off('data', onStdout)
-      process.off('error', onError)
-      process.off('exit', onExit)
-      reject(
-        new Error(
-          `Server process exited with code ${code} before URL was emitted`
-        )
-      )
-    }
-
-    process.stdout.on('data', onStdout)
-    process.on('error', onError)
-    process.on('exit', onExit)
-  })
-
-  return serverUrlPromise
-}

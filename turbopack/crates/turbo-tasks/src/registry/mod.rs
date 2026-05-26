@@ -137,12 +137,15 @@ fn get_item<T: Registerable>(registry: &LazyLock<Box<[&'static T]>>, id: T::Id) 
     registry[*id as usize - 1]
 }
 
-/// Get the ID for a registered item. Forces registry init if needed, which
-/// assigns IDs to all items as a side effect.
+/// Read an item's assigned id directly, without touching `LazyLock`.
+///
+/// # Safety
+///
+/// Caller must guarantee that `init_registry` has already written the id for this `item`.
 #[inline]
-fn get_id<T: Registerable>(registry: &LazyLock<Box<[&'static T]>>, item: &'static T) -> T::Id {
-    LazyLock::force(registry);
-    // SAFETY: The ID write happens-before this read thanks to the fence inside of LazyLock
+unsafe fn get_id_unchecked<T: Registerable>(item: &'static T) -> T::Id {
+    // SAFETY: caller guarantees the id has been written. The write and this read are both
+    // inside the registry's single-threaded lazy init.
     let n = unsafe { std::ptr::read(item.ty().id.get()) };
     let Some(id) = NonZeroU16::new(n) else {
         panic!(
@@ -152,6 +155,15 @@ fn get_id<T: Registerable>(registry: &LazyLock<Box<[&'static T]>>, item: &'stati
         );
     };
     T::Id::from(id)
+}
+
+/// Get the ID for a registered item. Forces registry init if needed, which
+/// assigns IDs to all items as a side effect.
+#[inline]
+fn get_id<T: Registerable>(registry: &LazyLock<Box<[&'static T]>>, item: &'static T) -> T::Id {
+    LazyLock::force(registry);
+    // SAFETY: The ID write happens-before this read thanks to the fence inside of LazyLock
+    unsafe { get_id_unchecked(item) }
 }
 
 /// Validate that an ID is within the valid range
@@ -207,6 +219,20 @@ pub(crate) static VALUES: LazyLock<Box<[&'static ValueType]>> = LazyLock::new(||
 #[inline]
 pub fn get_value_type_id(value: &'static ValueType) -> ValueTypeId {
     get_id(&VALUES, value)
+}
+
+/// Read a `ValueType`'s assigned id directly, without touching `LazyLock`. See
+/// [`get_id_unchecked`] for the safety contract.
+///
+/// # Safety
+///
+/// The only legitimate caller is `VTableRegistry::finalize`, which runs inside the `VALUES`
+/// `LazyLock` initializer (via `register_all_trait_methods`), after `init_registry` has
+/// assigned ids. Calling `get_value_type_id` from there would re-enter `LazyLock::force` and
+/// deadlock.
+#[inline]
+pub(crate) unsafe fn get_value_type_id_unchecked(value: &'static ValueType) -> ValueTypeId {
+    unsafe { get_id_unchecked(value) }
 }
 
 #[inline]

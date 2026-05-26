@@ -64,8 +64,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effect, EffectStateStorage, InvalidationReason, NonLocalValue, ReadRef, ResolvedVc,
     TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc, debug::ValueDebugFormat,
-    emit_effect, mark_session_dependent, parallel, trace::TraceRawVcs, turbo_tasks_weak, turbobail,
-    turbofmt,
+    emit_effect, parallel, trace::TraceRawVcs, turbo_tasks_weak, turbobail, turbofmt,
 };
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
@@ -223,7 +222,7 @@ pub trait FileSystem: ValueToString {
     /// Returns the path to the root of the file system.
     #[turbo_tasks::function]
     fn root(self: ResolvedVc<Self>) -> Vc<FileSystemPath> {
-        FileSystemPath::new_normalized(self, RcStr::default()).cell()
+        FileSystemPath::new_normalized_unchecked(self, RcStr::default()).cell()
     }
     #[turbo_tasks::function]
     fn read(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<FileContent>;
@@ -501,9 +500,14 @@ impl DiskFileSystemInner {
     }
 }
 
+/// `DiskFileSystem` carries serializable fields (`name`, `root`,
+/// `denied_paths`) inside `DiskFileSystemInner` alongside session-scoped
+/// state (the `notify` watcher, invalidator maps, weak `TurboTasksApi`,
+/// etc.) This is important to maintain invariants in a session and ensure invalidations work, so we
+/// never evict this data.
 #[derive(Clone, ValueToString)]
 #[value_to_string(self.inner.name)]
-#[turbo_tasks::value(cell = "new", eq = "manual")]
+#[turbo_tasks::value(cell = "new", eq = "manual", evict = "never")]
 pub struct DiskFileSystem {
     inner: Arc<DiskFileSystemInner>,
 }
@@ -707,10 +711,8 @@ impl Debug for DiskFileSystem {
 
 #[turbo_tasks::value_impl]
 impl FileSystem for DiskFileSystem {
-    #[turbo_tasks::function(fs)]
+    #[turbo_tasks::function(fs, session_dependent)]
     async fn read(&self, fs_path: FileSystemPath) -> Result<Vc<FileContent>> {
-        mark_session_dependent();
-
         // Check if path is denied - if so, treat as NotFound
         if self.inner.is_path_denied(&fs_path) {
             return Ok(FileContent::NotFound.cell());
@@ -735,10 +737,8 @@ impl FileSystem for DiskFileSystem {
         Ok(content.cell())
     }
 
-    #[turbo_tasks::function(fs)]
+    #[turbo_tasks::function(fs, session_dependent)]
     async fn raw_read_dir(&self, fs_path: FileSystemPath) -> Result<Vc<RawDirectoryContent>> {
-        mark_session_dependent();
-
         // Check if directory itself is denied - if so, treat as NotFound
         if self.inner.is_path_denied(&fs_path) {
             return Ok(RawDirectoryContent::not_found());
@@ -825,10 +825,8 @@ impl FileSystem for DiskFileSystem {
         Ok(RawDirectoryContent::new(entries))
     }
 
-    #[turbo_tasks::function(fs)]
+    #[turbo_tasks::function(fs, session_dependent)]
     async fn read_link(&self, fs_path: FileSystemPath) -> Result<Vc<LinkContent>> {
-        mark_session_dependent();
-
         // Check if path is denied - if so, treat as NotFound
         if self.inner.is_path_denied(&fs_path) {
             return Ok(LinkContent::NotFound.cell());
@@ -885,9 +883,12 @@ impl FileSystem for DiskFileSystem {
             let target_string = RcStr::from(relative_to_root_path.to_string_lossy());
             (
                 target_string.clone(),
-                FileSystemPath::new_normalized(fs_path.fs().to_resolved().await?, target_string)
-                    .get_type()
-                    .await?,
+                FileSystemPath::new_normalized_unchecked(
+                    fs_path.fs().to_resolved().await?,
+                    target_string,
+                )
+                .get_type()
+                .await?,
             )
         } else {
             let link_path_string_cow = link_path.to_string_lossy();
@@ -916,9 +917,9 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write(&self, fs_path: FileSystemPath, content: Vc<FileContent>) -> Result<()> {
-        // You might be tempted to use `mark_session_dependent` here, but
-        // `write` purely declares a side effect and does not need to be reexecuted in the next
-        // session. All side effects are reexecuted in general.
+        // You might be tempted to use `session_dependent` here, but `write` purely declares a side
+        // effect and does not need to be reexecuted in the next session. All side effects are
+        // reexecuted in general.
 
         // Check if path is denied - if so, return an error
         if self.inner.is_path_denied(&fs_path) {
@@ -945,14 +946,13 @@ impl FileSystem for DiskFileSystem {
 
         impl Effect for WriteEffect {
             type Error = AnyhowWrapper;
-            type Value = u128;
 
-            fn key(&self) -> Vec<u8> {
-                self.full_path.as_os_str().as_encoded_bytes().to_vec()
+            fn key(&self) -> Box<[u8]> {
+                self.full_path.as_os_str().as_encoded_bytes().into()
             }
 
-            fn value(&self) -> &u128 {
-                &self.content_hash
+            fn value_hash(&self) -> u128 {
+                self.content_hash
             }
 
             fn state_storage(&self) -> &EffectStateStorage {
@@ -1097,7 +1097,7 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write_link(&self, fs_path: FileSystemPath, target: Vc<LinkContent>) -> Result<()> {
-        // You might be tempted to use `mark_session_dependent` here, but we purely declare a side
+        // You might be tempted to use `session_dependent` here, but we purely declare a side
         // effect and does not need to be re-executed in the next session. All side effects are
         // re-executed in general.
 
@@ -1121,14 +1121,13 @@ impl FileSystem for DiskFileSystem {
 
         impl Effect for WriteLinkEffect {
             type Error = AnyhowWrapper;
-            type Value = u128;
 
-            fn key(&self) -> Vec<u8> {
-                self.full_path.as_os_str().as_encoded_bytes().to_vec()
+            fn key(&self) -> Box<[u8]> {
+                self.full_path.as_os_str().as_encoded_bytes().into()
             }
 
-            fn value(&self) -> &u128 {
-                &self.content_hash
+            fn value_hash(&self) -> u128 {
+                self.content_hash
             }
 
             fn state_storage(&self) -> &EffectStateStorage {
@@ -1376,9 +1375,8 @@ impl FileSystem for DiskFileSystem {
         Ok(())
     }
 
-    #[turbo_tasks::function(fs)]
+    #[turbo_tasks::function(fs, session_dependent)]
     async fn metadata(&self, fs_path: FileSystemPath) -> Result<Vc<FileMeta>> {
-        mark_session_dependent();
         let full_path = self.to_sys_path(&fs_path);
 
         // Check if path is denied - if so, return an error (metadata shouldn't be readable)
@@ -1594,7 +1592,7 @@ impl FileSystemPath {
     /// Create a new FileSystemPath from a path within a FileSystem. The
     /// /-separated path is expected to be already normalized (this is asserted
     /// in dev mode).
-    fn new_normalized(fs: ResolvedVc<Box<dyn FileSystem>>, path: RcStr) -> Self {
+    pub fn new_normalized_unchecked(fs: ResolvedVc<Box<dyn FileSystem>>, path: RcStr) -> Self {
         // On Windows, the path must be converted to a unix path before creating. But on
         // Unix, backslashes are a valid char in file names, and the path can be
         // provided by the user, so we allow it.
@@ -1614,7 +1612,7 @@ impl FileSystemPath {
     /// "." segments, but it must not leave the root of the filesystem.
     pub fn join(&self, path: &str) -> Result<Self> {
         if let Some(path) = join_path(&self.path, path) {
-            Ok(Self::new_normalized(self.fs, path.into()))
+            Ok(Self::new_normalized_unchecked(self.fs, path.into()))
         } else {
             bail!(
                 "FileSystemPath(\"{}\").join(\"{}\") leaves the filesystem root",
@@ -1633,7 +1631,7 @@ impl FileSystemPath {
                 path,
             )
         }
-        Ok(Self::new_normalized(
+        Ok(Self::new_normalized_unchecked(
             self.fs,
             format!("{}{}", self.path, path).into(),
         ))
@@ -1650,12 +1648,12 @@ impl FileSystemPath {
             )
         }
         if let (path, Some(ext)) = self.split_extension() {
-            return Ok(Self::new_normalized(
+            return Ok(Self::new_normalized_unchecked(
                 self.fs,
                 format!("{path}{appending}.{ext}").into(),
             ));
         }
-        Ok(Self::new_normalized(
+        Ok(Self::new_normalized_unchecked(
             self.fs,
             format!("{}{}", self.path, appending).into(),
         ))
@@ -1669,7 +1667,8 @@ impl FileSystemPath {
         #[cfg(target_os = "windows")]
         let path = path.replace('\\', "/");
 
-        join_path(&self.path, &path).map(|p| Self::new_normalized(self.fs, RcStr::from(p)))
+        join_path(&self.path, &path)
+            .map(|p| Self::new_normalized_unchecked(self.fs, RcStr::from(p)))
     }
 
     /// Similar to [FileSystemPath::try_join], but returns [`None`] when the new path would leave
@@ -1679,7 +1678,7 @@ impl FileSystemPath {
         if let Some(p) = join_path(&self.path, path)
             && p.starts_with(&*self.path)
         {
-            return Some(Self::new_normalized(self.fs, RcStr::from(p)));
+            return Some(Self::new_normalized_unchecked(self.fs, RcStr::from(p)));
         }
         None
     }
@@ -1719,7 +1718,7 @@ impl FileSystemPath {
     /// extension.
     pub fn with_extension(&self, extension: &str) -> FileSystemPath {
         let (path_without_extension, _) = self.split_extension();
-        Self::new_normalized(
+        Self::new_normalized_unchecked(
             self.fs,
             // Like `Path::with_extension` and `PathBuf::set_extension`, if the extension is empty,
             // we remove the extension altogether.
@@ -1873,7 +1872,7 @@ impl FileSystemPath {
         if path.is_empty() {
             return self.clone();
         }
-        FileSystemPath::new_normalized(self.fs, RcStr::from(get_parent_path(path)))
+        FileSystemPath::new_normalized_unchecked(self.fs, RcStr::from(get_parent_path(path)))
     }
 
     // It is important that get_type uses read_dir and not stat/metadata.
@@ -2441,8 +2440,9 @@ impl FileContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn hash(&self) -> Result<Vc<u64>> {
-        Ok(Vc::cell(hash_xxh3_hash64(self)))
+    pub fn hash(&self, algorithm: HashAlgorithm) -> Vc<RcStr> {
+        // no_hash_salt
+        Vc::cell(RcStr::from(deterministic_hash("", self, algorithm)))
     }
 
     /// Converts this [`FileContent`] into a [`PersistedFileContent`] by cloning.
@@ -2781,7 +2781,7 @@ async fn read_dir(path: FileSystemPath) -> Result<Vc<DirectoryContent>> {
                     RcStr::from(format!("{dir_path}/{name}"))
                 };
 
-                let entry_path = FileSystemPath::new_normalized(fs, path);
+                let entry_path = FileSystemPath::new_normalized_unchecked(fs, path);
                 let entry = match entry {
                     RawDirectoryEntry::File => DirectoryEntry::File(entry_path),
                     RawDirectoryEntry::Directory => DirectoryEntry::Directory(entry_path),
@@ -2944,7 +2944,7 @@ mod tests {
 
     use super::*;
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
         let _ = op.resolve().strongly_consistent().await?;
         Ok(take_effects(op).await?.cell())
@@ -2973,7 +2973,7 @@ mod tests {
                 .to_resolved()
                 .await?;
 
-            let path_txt = FileSystemPath::new_normalized(fs, rcstr!("foo/bar.txt"));
+            let path_txt = FileSystemPath::new_normalized_unchecked(fs, rcstr!("foo/bar.txt"));
 
             let path_json = path_txt.with_extension("json");
             assert_eq!(&*path_json.path, "foo/bar.json");
@@ -2984,7 +2984,7 @@ mod tests {
             let path_new_ext = path_no_ext.with_extension("json");
             assert_eq!(&*path_new_ext.path, "foo/bar.json");
 
-            let path_no_slash_txt = FileSystemPath::new_normalized(fs, rcstr!("bar.txt"));
+            let path_no_slash_txt = FileSystemPath::new_normalized_unchecked(fs, rcstr!("bar.txt"));
 
             let path_no_slash_json = path_no_slash_txt.with_extension("json");
             assert_eq!(path_no_slash_json.path.as_str(), "bar.json");
@@ -3008,19 +3008,19 @@ mod tests {
                 .to_resolved()
                 .await?;
 
-            let path = FileSystemPath::new_normalized(fs, rcstr!(""));
+            let path = FileSystemPath::new_normalized_unchecked(fs, rcstr!(""));
             assert_eq!(path.file_stem(), None);
 
-            let path = FileSystemPath::new_normalized(fs, rcstr!("foo/bar.txt"));
+            let path = FileSystemPath::new_normalized_unchecked(fs, rcstr!("foo/bar.txt"));
             assert_eq!(path.file_stem(), Some("bar"));
 
-            let path = FileSystemPath::new_normalized(fs, rcstr!("bar.txt"));
+            let path = FileSystemPath::new_normalized_unchecked(fs, rcstr!("bar.txt"));
             assert_eq!(path.file_stem(), Some("bar"));
 
-            let path = FileSystemPath::new_normalized(fs, rcstr!("foo/bar"));
+            let path = FileSystemPath::new_normalized_unchecked(fs, rcstr!("foo/bar"));
             assert_eq!(path.file_stem(), Some("bar"));
 
-            let path = FileSystemPath::new_normalized(fs, rcstr!("foo/.bar"));
+            let path = FileSystemPath::new_normalized_unchecked(fs, rcstr!("foo/.bar"));
             assert_eq!(path.file_stem(), Some(".bar"));
 
             anyhow::Ok(())
@@ -3052,7 +3052,7 @@ mod tests {
         .unwrap();
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn assert_try_from_sys_path_operation(sys_root: RcStr) -> anyhow::Result<()> {
         let sys_root = Path::new(sys_root.as_str());
         let fs_vc = DiskFileSystem::new(
@@ -3155,7 +3155,7 @@ mod tests {
         use super::extract_effects_operation;
         use crate::{DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkType};
 
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn test_write_link_effect_operation(
             fs: ResolvedVc<DiskFileSystem>,
             path: FileSystemPath,
@@ -3265,7 +3265,7 @@ mod tests {
         const STRESS_TARGET_COUNT: usize = 20;
         const STRESS_SYMLINK_COUNT: usize = 16;
 
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
             DiskFileSystem::new(rcstr!("test"), Vc::cell(fs_root))
         }
@@ -3277,7 +3277,7 @@ mod tests {
             }
         }
 
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn write_symlink_stress_batch(
             fs: ResolvedVc<DiskFileSystem>,
             symlinks_dir: FileSystemPath,
@@ -3442,7 +3442,7 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read() {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
                 let fs = DiskFileSystem::new_with_denied_paths(
                     rcstr!("test"),
@@ -3505,7 +3505,7 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read_dir() {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
                 let fs = DiskFileSystem::new_with_denied_paths(
                     rcstr!("test"),
@@ -3567,7 +3567,7 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read_glob() {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
                 let fs = DiskFileSystem::new_with_denied_paths(
                     rcstr!("test"),
@@ -3633,7 +3633,7 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_write() {
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn write_file_operation(
                 path: FileSystemPath,
                 contents: RcStr,
@@ -3648,7 +3648,7 @@ mod tests {
 
             /// Writes the allowed file and captures effects to be applied at
             /// the top level.
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn write_allowed_file_operation(
                 root: RcStr,
                 denied_path: RcStr,
@@ -3667,7 +3667,7 @@ mod tests {
                 Ok(take_effects(write_op).await?.cell())
             }
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn test_denied_writes_operation(
                 root: RcStr,
                 denied_path: RcStr,

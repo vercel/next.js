@@ -6,6 +6,8 @@ description: >
   next-server.ts, export/worker.ts, or module.compiled.js. Covers type
   declaration, zod schema, build-time injection, runtime env plumbing,
   and the decision between runtime env-var branching vs separate bundle variants.
+metadata:
+  internal: true
 ---
 
 # Feature Flags
