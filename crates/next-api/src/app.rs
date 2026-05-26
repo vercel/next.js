@@ -1471,7 +1471,7 @@ impl AppEndpoint {
             )
             .to_resolved()
             .await?;
-        server_assets.extend(app_entry_chunks.all_assets().await?.into_iter());
+        server_assets.extend(app_entry_chunks.all_assets().await?);
         let app_entry_chunk_group_ref = app_entry_chunks.await?;
         let app_entry_chunks = app_entry_chunk_group_ref.assets;
         let app_entry_chunks_ref = app_entry_chunks.await?;

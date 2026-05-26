@@ -131,7 +131,7 @@ pub async fn sources_hash(module_graph: Vc<ModuleGraph>, modules: Vc<Modules>) -
     let module_graph = module_graph.await?;
 
     module_graph.traverse_nodes_dfs(
-        modules.into_iter(),
+        modules,
         &mut all_modules,
         |module, all_modules| {
             all_modules.insert(*module);
