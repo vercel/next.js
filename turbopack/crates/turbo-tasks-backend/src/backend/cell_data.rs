@@ -85,8 +85,8 @@ impl DropPartial for CellData {
     fn drop_partial(&mut self) -> DropPartialOutcome {
         self.0.retain(
             |cell_id, _| match registry::get_value_type(cell_id.type_id).evictability {
-                Evictability::Expensive | Evictability::Always => false,
-                Evictability::Never => true,
+                Evictability::Always => false,
+                Evictability::Expensive | Evictability::Never => true,
             },
         );
         if self.0.is_empty() {
