@@ -14,7 +14,7 @@ use std::{
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use turbo_tasks::{IsTransient, NonLocalValue, TaskInput, trace::TraceRawVcs};
 
 pub use crate::next_app::{
     app_client_references_chunks::{ClientReferencesChunks, get_app_client_references_chunks},
@@ -34,6 +34,7 @@ pub use crate::next_app::{
     PartialOrd,
     Ord,
     TaskInput,
+    IsTransient,
     TraceRawVcs,
     NonLocalValue,
     Encode,
@@ -139,6 +140,7 @@ impl Display for PageSegment {
     PartialOrd,
     Ord,
     TaskInput,
+    IsTransient,
     TraceRawVcs,
     NonLocalValue,
     Encode,
@@ -169,6 +171,7 @@ impl Display for PageType {
     Eq,
     Default,
     TaskInput,
+    IsTransient,
     TraceRawVcs,
     NonLocalValue,
     Encode,
@@ -365,6 +368,7 @@ impl PartialOrd for AppPage {
     PartialOrd,
     Ord,
     TaskInput,
+    IsTransient,
     TraceRawVcs,
     NonLocalValue,
     Encode,
@@ -417,6 +421,7 @@ impl Display for PathSegment {
     Eq,
     Default,
     TaskInput,
+    IsTransient,
     TraceRawVcs,
     NonLocalValue,
     Encode,

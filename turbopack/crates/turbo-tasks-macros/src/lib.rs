@@ -57,6 +57,11 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
     derive::derive_task_input(input)
 }
 
+#[proc_macro_derive(IsTransient, attributes(turbo_tasks))]
+pub fn derive_is_transient(input: TokenStream) -> TokenStream {
+    derive::derive_is_transient(input)
+}
+
 /// Derive macro for `ValueToString`. Also generates `ValueToStringify for &T`.
 #[doc = include_str!("../../turbo-tasks/FORMATTING.md")]
 #[proc_macro_derive(ValueToString, attributes(value_to_string))]

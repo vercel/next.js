@@ -47,9 +47,9 @@ use tracing::Instrument;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, PrettyPrintError, ReadRef,
-    ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi,
-    UpdateInfo, Vc, mark_top_level_task,
+    Effects, FxIndexSet, IsTransient, NonLocalValue, OperationValue, OperationVc, PrettyPrintError,
+    ReadRef, ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi,
+    TurboTasksCallApi, UpdateInfo, Vc, mark_top_level_task,
     message_queue::{CompilationEvent, Severity},
     take_effects,
     trace::TraceRawVcs,
@@ -1051,6 +1051,7 @@ pub struct NapiDebugBuildPaths {
     OperationValue,
     PartialEq,
     TaskInput,
+    IsTransient,
     TraceRawVcs,
     Encode,
     Decode,
@@ -2182,6 +2183,7 @@ pub fn project_compilation_events_subscribe(
     OperationValue,
     PartialEq,
     TaskInput,
+    IsTransient,
     TraceRawVcs,
     Encode,
     Decode,

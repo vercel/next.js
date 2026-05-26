@@ -6,7 +6,7 @@ use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, PrettyPrintError, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
+    IsTransient, NonLocalValue, PrettyPrintError, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
@@ -40,6 +40,7 @@ use crate::{
     Hash,
     TraceRawVcs,
     TaskInput,
+    IsTransient,
     NonLocalValue,
     Default,
     Encode,
@@ -228,7 +229,17 @@ pub struct EcmascriptChunkItemOptions {
 }
 
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    TaskInput,
+    IsTransient,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct EcmascriptChunkItemWithAsyncInfo {
     pub chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,

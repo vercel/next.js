@@ -4,7 +4,9 @@ use std::{
     future::Future,
     hash::Hash,
     ops::{Deref, DerefMut},
+    pin::Pin,
     sync::Arc,
+    task::{Context, Poll},
     time::Duration,
 };
 
@@ -22,11 +24,41 @@ use turbo_tasks_hash::HashAlgorithm;
 
 // This import is necessary for derive macros to work, as their expansion refers to the crate
 // name directly.
-use crate::{self as turbo_tasks, ReadRef};
+use crate::{self as turbo_tasks, IsTransient, ReadRef};
 use crate::{
     DynTaskInputs, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
     trace::TraceRawVcs,
 };
+
+/// An 8-byte hand-rolled [`Future`] that immediately resolves to `Ok(self.clone())` of the
+/// referenced value.
+///
+/// Emitted by the [`TaskInput`] derive macro for types annotated with
+/// `#[turbo_tasks(already_resolved)]` to replace what would otherwise be a generated async
+/// block with embedded `.await?` calls. As a child `__awaitee` in a caller's coroutine, this
+/// occupies only `size_of::<&T>() = 8` bytes (no enum discriminant, no captured cloned state)
+/// regardless of `T`'s size.
+///
+/// This is internal to the derive macro and not intended to be named directly by users.
+#[doc(hidden)]
+pub struct CloneReady<'a, T> {
+    pub inner: Option<&'a T>,
+}
+
+impl<'a, T: Clone> Future for CloneReady<'a, T> {
+    type Output = Result<T>;
+
+    fn poll(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Self::Output> {
+        Poll::Ready(Ok(self
+            .inner
+            .take()
+            .expect("future already polled")
+            .clone()))
+    }
+}
+
+// `CloneReady` holds only a shared reference; it has no self-referential state.
+impl<'a, T> Unpin for CloneReady<'a, T> {}
 
 /// Trait to implement in order for a type to be accepted as a
 /// [`#[turbo_tasks::function]`][crate::function] argument.
@@ -65,7 +97,7 @@ use crate::{
 /// Structs or enums can be made into task inputs by deriving `TaskInput`:
 ///
 /// ```rust
-/// #[derive(TaskInput)]
+/// #[derive(TaskInput, IsTransient)]
 /// struct MyStruct {
 ///     // Fields go here...
 /// }
@@ -81,13 +113,28 @@ use crate::{
 /// space. If an [`Arc`] points to a large type, consider wrapping that type in [`Vc`], so that only
 /// one copy of the value will be serialized.
 pub trait TaskInput:
-    Send + Sync + Clone + Debug + PartialEq + Eq + Hash + TraceRawVcs + Encode + Decode<()>
+    Send
+    + Sync
+    + Clone
+    + Debug
+    + PartialEq
+    + Eq
+    + Hash
+    + TraceRawVcs
+    + Encode
+    + Decode<()>
+    + IsTransient
 {
     /// This method should resolve any [`Vc`]s nested inside of this object, cloning the object in
     /// the process. If the input is unresolved ([`TaskInput::is_resolved`]) a "local" resolution
     /// task is created that runs this method.
+    ///
+    /// The default returns a [`CloneReady`] future — an 8-byte named future that holds only
+    /// `&Self` and returns `Ok(self.clone())` on first poll. This is structurally equivalent to
+    /// an `async { Ok(self.clone()) }` block but produces a smaller, named child `__awaitee` in
+    /// caller coroutines (no enum discriminant).
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
-        async { Ok(self.clone()) }
+        CloneReady { inner: Some(self) }
     }
 
     /// This should return `true` if there are any unresolved [`Vc`]s in the type.
@@ -104,27 +151,12 @@ pub trait TaskInput:
     fn is_resolved(&self) -> bool {
         true
     }
-
-    /// This should return true if this object contains a [`Vc`] (or any subtype of [`Vc`]) pointing
-    /// to a cell owned by a transient task.
-    ///
-    /// Any function called with a transient `TaskInput` will be transient. Any [`Vc`] constructed
-    /// in a transient task or in a top-level [`run_once`][crate::run_once] closure will be
-    /// transient.
-    ///
-    /// Internally, a [`Vc`] can be determined to be transient by comparing the owning task's id
-    /// with the [`TRANSIENT_TASK_BIT`][crate::TRANSIENT_TASK_BIT] mask.
-    fn is_transient(&self) -> bool;
 }
 
 macro_rules! impl_task_input {
     ($($t:ty),*) => {
         $(
-            impl TaskInput for $t {
-                fn is_transient(&self) -> bool {
-                    false
-                }
-            }
+            impl TaskInput for $t {}
         )*
     };
 }
@@ -154,10 +186,6 @@ where
         self.iter().all(TaskInput::is_resolved)
     }
 
-    fn is_transient(&self) -> bool {
-        self.iter().any(TaskInput::is_transient)
-    }
-
     async fn resolve_input(&self) -> Result<Self> {
         let mut resolved = Vec::with_capacity(self.len());
         for value in self {
@@ -175,10 +203,6 @@ where
         self.as_ref().is_resolved()
     }
 
-    fn is_transient(&self) -> bool {
-        self.as_ref().is_transient()
-    }
-
     async fn resolve_input(&self) -> Result<Self> {
         Ok(Box::new(Box::pin(self.as_ref().resolve_input()).await?))
     }
@@ -192,10 +216,6 @@ where
         self.as_ref().is_resolved()
     }
 
-    fn is_transient(&self) -> bool {
-        self.as_ref().is_transient()
-    }
-
     async fn resolve_input(&self) -> Result<Self> {
         Ok(Arc::new(Box::pin(self.as_ref().resolve_input()).await?))
     }
@@ -207,10 +227,6 @@ where
 {
     fn is_resolved(&self) -> bool {
         Self::as_raw_ref(self).is_resolved()
-    }
-
-    fn is_transient(&self) -> bool {
-        Self::as_raw_ref(self).is_transient()
     }
 
     async fn resolve_input(&self) -> Result<Self> {
@@ -231,13 +247,6 @@ where
         }
     }
 
-    fn is_transient(&self) -> bool {
-        match self {
-            Some(value) => value.is_transient(),
-            None => false,
-        }
-    }
-
     async fn resolve_input(&self) -> Result<Self> {
         match self {
             Some(value) => Ok(Some(value.resolve_input().await?)),
@@ -252,10 +261,6 @@ where
 {
     fn is_resolved(&self) -> bool {
         Vc::is_resolved(*self)
-    }
-
-    fn is_transient(&self) -> bool {
-        self.node.is_transient()
     }
 
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
@@ -274,19 +279,11 @@ where
     fn is_resolved(&self) -> bool {
         true
     }
-
-    fn is_transient(&self) -> bool {
-        self.node.is_transient()
-    }
 }
 
-impl<T> TaskInput for TransientValue<T>
-where
-    T: DynTaskInputs + Clone + Debug + Hash + Eq + TraceRawVcs + 'static,
+impl<T> TaskInput for TransientValue<T> where
+    T: DynTaskInputs + Clone + Debug + Hash + Eq + TraceRawVcs + 'static
 {
-    fn is_transient(&self) -> bool {
-        true
-    }
 }
 
 impl<T> Encode for TransientValue<T> {
@@ -301,14 +298,7 @@ impl<Context, T> Decode<Context> for TransientValue<T> {
     }
 }
 
-impl<T> TaskInput for TransientInstance<T>
-where
-    T: Sync + Send + TraceRawVcs + 'static,
-{
-    fn is_transient(&self) -> bool {
-        true
-    }
-}
+impl<T> TaskInput for TransientInstance<T> where T: Sync + Send + TraceRawVcs + 'static {}
 
 impl<T> Encode for TransientInstance<T> {
     fn encode<E: Encoder>(&self, _encoder: &mut E) -> Result<(), EncodeError> {
@@ -342,11 +332,6 @@ where
         self.iter()
             .all(|(k, v)| TaskInput::is_resolved(k) && TaskInput::is_resolved(v))
     }
-
-    fn is_transient(&self) -> bool {
-        self.iter()
-            .any(|(k, v)| TaskInput::is_transient(k) || TaskInput::is_transient(v))
-    }
 }
 
 impl<T> TaskInput for BTreeSet<T>
@@ -363,10 +348,6 @@ where
 
     fn is_resolved(&self) -> bool {
         self.iter().all(TaskInput::is_resolved)
-    }
-
-    fn is_transient(&self) -> bool {
-        self.iter().any(TaskInput::is_transient)
     }
 }
 
@@ -391,11 +372,6 @@ where
         self.iter()
             .all(|(k, v)| TaskInput::is_resolved(k) && TaskInput::is_resolved(v))
     }
-
-    fn is_transient(&self) -> bool {
-        self.iter()
-            .any(|(k, v)| TaskInput::is_transient(k) || TaskInput::is_transient(v))
-    }
 }
 
 impl<T> TaskInput for FrozenSet<T>
@@ -412,10 +388,6 @@ where
 
     fn is_resolved(&self) -> bool {
         self.iter().all(TaskInput::is_resolved)
-    }
-
-    fn is_transient(&self) -> bool {
-        self.iter().any(TaskInput::is_transient)
     }
 }
 
@@ -474,11 +446,6 @@ where
         self.as_ref()
             .either(TaskInput::is_resolved, TaskInput::is_resolved)
     }
-
-    fn is_transient(&self) -> bool {
-        self.as_ref()
-            .either(TaskInput::is_transient, TaskInput::is_transient)
-    }
 }
 
 macro_rules! tuple_impls {
@@ -490,12 +457,6 @@ macro_rules! tuple_impls {
             fn is_resolved(&self) -> bool {
                 let ($($name,)+) = self;
                 $($name.is_resolved() &&)+ true
-            }
-
-            #[allow(non_snake_case)]
-            fn is_transient(&self) -> bool {
-                let ($($name,)+) = self;
-                $($name.is_transient() ||)+ false
             }
 
             #[allow(non_snake_case)]
@@ -536,7 +497,9 @@ mod tests {
 
     #[test]
     fn test_no_fields() -> Result<()> {
-        #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        #[derive(
+            Clone, TaskInput, IsTransient, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs,
+        )]
         struct NoFields;
 
         assert_task_input(NoFields);
@@ -545,7 +508,9 @@ mod tests {
 
     #[test]
     fn test_one_unnamed_field() -> Result<()> {
-        #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        #[derive(
+            Clone, TaskInput, IsTransient, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs,
+        )]
         struct OneUnnamedField(u32);
 
         assert_task_input(OneUnnamedField(42));
@@ -554,7 +519,9 @@ mod tests {
 
     #[test]
     fn test_multiple_unnamed_fields() -> Result<()> {
-        #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        #[derive(
+            Clone, TaskInput, IsTransient, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs,
+        )]
         struct MultipleUnnamedFields(u32, RcStr);
 
         assert_task_input(MultipleUnnamedFields(42, rcstr!("42")));
@@ -563,7 +530,9 @@ mod tests {
 
     #[test]
     fn test_one_named_field() -> Result<()> {
-        #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        #[derive(
+            Clone, TaskInput, IsTransient, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs,
+        )]
         struct OneNamedField {
             named: u32,
         }
@@ -574,7 +543,9 @@ mod tests {
 
     #[test]
     fn test_multiple_named_fields() -> Result<()> {
-        #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        #[derive(
+            Clone, TaskInput, IsTransient, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs,
+        )]
         struct MultipleNamedFields {
             named: u32,
             other: RcStr,
@@ -589,7 +560,9 @@ mod tests {
 
     #[test]
     fn test_generic_field() -> Result<()> {
-        #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        #[derive(
+            Clone, TaskInput, IsTransient, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs,
+        )]
         struct GenericField<T>(T);
 
         assert_task_input(GenericField(42));
@@ -597,7 +570,9 @@ mod tests {
         Ok(())
     }
 
-    #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+    #[derive(
+        Clone, TaskInput, IsTransient, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs,
+    )]
     enum OneVariant {
         Variant,
     }
@@ -610,7 +585,9 @@ mod tests {
 
     #[test]
     fn test_multiple_variants() -> Result<()> {
-        #[derive(Clone, TaskInput, PartialEq, Eq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        #[derive(
+            Clone, TaskInput, IsTransient, PartialEq, Eq, Hash, Debug, Encode, Decode, TraceRawVcs,
+        )]
         enum MultipleVariants {
             Variant1,
             Variant2,
@@ -620,7 +597,9 @@ mod tests {
         Ok(())
     }
 
-    #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+    #[derive(
+        Clone, TaskInput, IsTransient, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs,
+    )]
     enum MultipleVariantsAndHeterogeneousFields {
         Variant1,
         Variant2(u32),
@@ -640,7 +619,9 @@ mod tests {
 
     #[test]
     fn test_nested_variants() -> Result<()> {
-        #[derive(Clone, TaskInput, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs)]
+        #[derive(
+            Clone, TaskInput, IsTransient, Eq, PartialEq, Hash, Debug, Encode, Decode, TraceRawVcs,
+        )]
         enum NestedVariants {
             Variant1,
             Variant2(MultipleVariantsAndHeterogeneousFields),

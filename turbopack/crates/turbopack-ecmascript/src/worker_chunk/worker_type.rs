@@ -1,10 +1,21 @@
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use turbo_tasks::{IsTransient, NonLocalValue, TaskInput, trace::TraceRawVcs};
 use turbopack_core::reference_type::{ReferenceType, WorkerReferenceSubType};
 
 #[derive(
-    Debug, Clone, Copy, Hash, PartialEq, Eq, Encode, Decode, TraceRawVcs, NonLocalValue, TaskInput,
+    Debug,
+    Clone,
+    Copy,
+    Hash,
+    PartialEq,
+    Eq,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    TaskInput,
+    IsTransient,
 )]
 pub enum WorkerType {
     WebWorker,

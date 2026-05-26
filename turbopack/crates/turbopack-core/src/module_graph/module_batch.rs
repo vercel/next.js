@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
+    IsTransient, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
     trace::TraceRawVcs,
 };
 
@@ -25,6 +25,7 @@ use crate::{
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    IsTransient,
     Encode,
     Decode,
 )]
@@ -47,7 +48,18 @@ impl ModuleOrBatch {
 }
 
 #[derive(
-    Debug, Copy, Clone, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
+    Debug,
+    Copy,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    TaskInput,
+    IsTransient,
+    Encode,
+    Decode,
 )]
 pub enum ChunkableModuleOrBatch {
     Module(ResolvedVc<Box<dyn ChunkableModule>>),

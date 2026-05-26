@@ -3,7 +3,9 @@ use std::fmt::Display;
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{
+    FxIndexMap, IsTransient, NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs,
+};
 
 use crate::{loader::ResolvedWebpackLoaderItem, module::Module, resolve::ModulePart};
 
@@ -41,6 +43,7 @@ impl InnerAssets {
     Copy,
     Hash,
     TaskInput,
+    IsTransient,
     Encode,
     Decode,
 )]
@@ -51,7 +54,18 @@ pub enum CommonJsReferenceSubType {
 }
 
 #[derive(
-    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Debug,
+    Clone,
+    Copy,
+    Hash,
+    TaskInput,
+    IsTransient,
+    Encode,
+    Decode,
 )]
 pub enum ImportWithType {
     Json,
@@ -68,6 +82,7 @@ pub enum ImportWithType {
     Clone,
     Hash,
     TaskInput,
+    IsTransient,
     Encode,
     Decode,
 )]
@@ -216,6 +231,7 @@ impl ImportContext {
     Copy,
     Hash,
     TaskInput,
+    IsTransient,
     Encode,
     Decode,
 )]
@@ -244,6 +260,7 @@ pub enum CssReferenceSubType {
     Copy,
     Hash,
     TaskInput,
+    IsTransient,
     Encode,
     Decode,
 )]
@@ -256,7 +273,18 @@ pub enum UrlReferenceSubType {
 }
 
 #[derive(
-    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Debug,
+    Clone,
+    Copy,
+    Hash,
+    TaskInput,
+    IsTransient,
+    Encode,
+    Decode,
 )]
 pub enum TypeScriptReferenceSubType {
     Custom(u8),
@@ -264,7 +292,18 @@ pub enum TypeScriptReferenceSubType {
 }
 
 #[derive(
-    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Debug,
+    Clone,
+    Copy,
+    Hash,
+    TaskInput,
+    IsTransient,
+    Encode,
+    Decode,
 )]
 pub enum WorkerReferenceSubType {
     WebWorker,
@@ -278,7 +317,18 @@ pub enum WorkerReferenceSubType {
 // TODO(sokra) this was next.js specific values. We want to solve this in a
 // different way.
 #[derive(
-    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Copy, Hash, TaskInput, Encode, Decode,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Debug,
+    Clone,
+    Copy,
+    Hash,
+    TaskInput,
+    IsTransient,
+    Encode,
+    Decode,
 )]
 pub enum EntryReferenceSubType {
     Web,
@@ -307,6 +357,7 @@ pub enum EntryReferenceSubType {
     Clone,
     Hash,
     TaskInput,
+    IsTransient,
     Encode,
     Decode,
 )]
@@ -373,7 +424,17 @@ impl ReferenceType {
 ///   `ReferenceTypeCondition::Url(Some(UrlReferenceSubType::EcmaScriptNewUrl))` matching
 ///   `ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl)`
 #[derive(
-    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Hash, TaskInput, Encode, Decode,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Debug,
+    Clone,
+    Hash,
+    TaskInput,
+    IsTransient,
+    Encode,
+    Decode,
 )]
 pub enum ReferenceTypeCondition {
     CommonJs(Option<CommonJsReferenceSubType>),

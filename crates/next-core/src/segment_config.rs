@@ -18,8 +18,8 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault, Vc, trace::TraceRawVcs,
-    util::WrapFuture,
+    IsTransient, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault, Vc,
+    trace::TraceRawVcs, util::WrapFuture,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -289,7 +289,18 @@ impl Issue for NextSegmentConfigParsingIssue {
 }
 
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, NonLocalValue, TraceRawVcs, Encode, Decode,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    TaskInput,
+    IsTransient,
+    NonLocalValue,
+    TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub enum ParseSegmentMode {
     Base,

@@ -105,8 +105,8 @@ pub use crate::{
     spawn::{JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread},
     state::{State, parking_lot_mutex_bincode},
     task::{
-        SharedReference, TypedSharedReference,
-        task_input::{EitherTaskInput, TaskInput},
+        IsTransient, SharedReference, TypedSharedReference,
+        task_input::{CloneReady, EitherTaskInput, TaskInput},
     },
     task_execution_reason::TaskExecutionReason,
     tiny_vec::TinyVec,
@@ -394,6 +394,9 @@ pub use turbo_tasks_macros::task_storage;
 /// Refer to [the trait documentation][trait@TaskInput] for usage.
 #[rustfmt::skip]
 pub use turbo_tasks_macros::TaskInput;
+
+/// Derive macro that emits a field-walking [`IsTransient`] impl.
+pub use turbo_tasks_macros::IsTransient;
 
 pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
 

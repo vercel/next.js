@@ -1,5 +1,6 @@
 mod from_task_input;
 pub(crate) mod function;
+pub(crate) mod is_transient;
 pub mod local_task;
 pub(crate) mod shared_reference;
 pub(crate) mod task_input;
@@ -7,6 +8,7 @@ pub(crate) mod task_output;
 
 pub use from_task_input::FromTaskInput;
 pub use function::{TaskFn, TaskFnInputs};
+pub use is_transient::IsTransient;
 pub use shared_reference::{SharedReference, TypedSharedReference};
 pub use task_input::TaskInput;
 pub use task_output::TaskOutput;

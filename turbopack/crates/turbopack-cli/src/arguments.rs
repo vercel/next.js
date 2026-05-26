@@ -7,7 +7,7 @@ use std::{
 use anyhow::anyhow;
 use bincode::{Decode, Encode};
 use clap::{Args, Parser, ValueEnum};
-use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use turbo_tasks::{IsTransient, NonLocalValue, TaskInput, trace::TraceRawVcs};
 use turbopack_core::issue::IssueSeverity;
 
 #[derive(Debug, Parser)]
@@ -44,6 +44,7 @@ impl Arguments {
     Eq,
     Hash,
     TaskInput,
+    IsTransient,
     NonLocalValue,
     TraceRawVcs,
     Encode,

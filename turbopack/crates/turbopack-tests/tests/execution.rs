@@ -14,8 +14,8 @@ use serde::Deserialize;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TaskInput, TurboTasks,
-    Vc, debug::ValueDebugFormat, fxindexmap, take_effects, trace::TraceRawVcs,
+    Completion, Effects, IsTransient, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TaskInput,
+    TurboTasks, Vc, debug::ValueDebugFormat, fxindexmap, take_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -82,7 +82,7 @@ struct JsResult {
 }
 
 #[turbo_tasks::value]
-#[derive(Copy, Clone, Debug, Hash, TaskInput)]
+#[derive(Copy, Clone, Debug, Hash, TaskInput, IsTransient)]
 enum IssueSnapshotMode {
     Snapshots,
     NoSnapshots,

@@ -4,7 +4,8 @@ use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToStringRef, Vc, trace::TraceRawVcs,
+    IsTransient, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToStringRef, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystem, FileSystemPath, LinkType, VirtualFileSystem, rope::RopeBuilder};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
@@ -44,7 +45,18 @@ use crate::{
 };
 
 #[derive(
-    Copy, Clone, Debug, Eq, PartialEq, TraceRawVcs, TaskInput, Hash, NonLocalValue, Encode, Decode,
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    TraceRawVcs,
+    TaskInput,
+    IsTransient,
+    Hash,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum CachedExternalType {
     CommonJs,
@@ -55,7 +67,17 @@ pub enum CachedExternalType {
 }
 
 #[derive(
-    Clone, Debug, Eq, PartialEq, TraceRawVcs, TaskInput, Hash, NonLocalValue, Encode, Decode,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    TraceRawVcs,
+    TaskInput,
+    IsTransient,
+    Hash,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 /// Whether to add a traced reference to the external module using the given context and resolve
 /// origin.

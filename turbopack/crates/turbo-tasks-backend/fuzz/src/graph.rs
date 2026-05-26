@@ -3,7 +3,9 @@ use std::sync::{Arc, LazyLock};
 use anyhow::Result;
 use arbitrary::Arbitrary;
 use bincode::{Decode, Encode};
-use turbo_tasks::{self, NonLocalValue, State, TaskInput, TurboTasks, Vc, trace::TraceRawVcs};
+use turbo_tasks::{
+    self, IsTransient, NonLocalValue, State, TaskInput, TurboTasks, Vc, trace::TraceRawVcs,
+};
 use turbo_tasks_malloc::TurboMalloc;
 
 #[derive(
@@ -16,6 +18,7 @@ use turbo_tasks_malloc::TurboMalloc;
     NonLocalValue,
     TraceRawVcs,
     TaskInput,
+    IsTransient,
     Encode,
     Decode,
 )]
@@ -36,6 +39,7 @@ pub struct TaskReferenceSpec {
     NonLocalValue,
     TraceRawVcs,
     TaskInput,
+    IsTransient,
     Encode,
     Decode,
 )]

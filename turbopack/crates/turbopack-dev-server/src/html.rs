@@ -3,7 +3,8 @@ use bincode::{Decode, Encode};
 use mime_guess::mime::TEXT_HTML_UTF_8;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs,
+    IsTransient, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
@@ -20,7 +21,17 @@ use turbopack_core::{
 };
 
 #[derive(
-    Clone, Debug, Eq, Hash, NonLocalValue, PartialEq, TaskInput, TraceRawVcs, Encode, Decode,
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    NonLocalValue,
+    PartialEq,
+    TaskInput,
+    IsTransient,
+    TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub struct DevHtmlEntry {
     pub chunkable_module: ResolvedVc<Box<dyn ChunkableModule>>,

@@ -3710,11 +3710,8 @@ pub struct AstPath(
     Vec<AstParentKind>,
 );
 
-impl TaskInput for AstPath {
-    fn is_transient(&self) -> bool {
-        false
-    }
-}
+impl TaskInput for AstPath {}
+impl turbo_tasks::IsTransient for AstPath {}
 unsafe impl NonLocalValue for AstPath {}
 
 impl Deref for AstPath {

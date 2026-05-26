@@ -4,11 +4,21 @@ use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use dunce::canonicalize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{IsTransient, NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
 #[derive(
-    Clone, Debug, TaskInput, Hash, PartialEq, Eq, NonLocalValue, TraceRawVcs, Encode, Decode,
+    Clone,
+    Debug,
+    TaskInput,
+    IsTransient,
+    Hash,
+    PartialEq,
+    Eq,
+    NonLocalValue,
+    TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub enum EntryRequest {
     Relative(RcStr),

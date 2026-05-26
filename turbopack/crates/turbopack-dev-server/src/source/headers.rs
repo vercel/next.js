@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, hash::Hash, mem::replace, ops::DerefMut};
 
 use bincode::{Decode, Encode};
-use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use turbo_tasks::{IsTransient, NonLocalValue, TaskInput, trace::TraceRawVcs};
 
 /// A parsed query string from a http request
 #[derive(
@@ -14,6 +14,7 @@ use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    IsTransient,
     Encode,
     Decode,
 )]
@@ -22,7 +23,17 @@ pub struct Headers(BTreeMap<String, HeaderValue>);
 /// The value of an http header. HTTP headers might contain non-utf-8 bytes. An
 /// header might also occur multiple times.
 #[derive(
-    Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    NonLocalValue,
+    TaskInput,
+    IsTransient,
+    Encode,
+    Decode,
 )]
 pub enum HeaderValue {
     SingleString(String),

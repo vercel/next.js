@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_prehash::BuildHasherExt;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
-    Vc, trace::TraceRawVcs, turbobail,
+    FxIndexMap, FxIndexSet, IsTransient, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt,
+    ValueToString, Vc, trace::TraceRawVcs, turbobail,
 };
 
 use crate::{
@@ -28,7 +28,7 @@ use crate::{
     },
 };
 #[turbo_tasks::value]
-#[derive(Debug, Clone, Default, TaskInput, Hash)]
+#[derive(Debug, Clone, Default, TaskInput, IsTransient, Hash)]
 pub struct BatchingConfig {
     /// Use a heuristic based on the module path to create batches. It aims for batches of a good
     /// size.

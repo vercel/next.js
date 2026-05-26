@@ -5,7 +5,9 @@ use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{
+    IsTransient, NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
     WebpackLoaderBuiltinConditionSet, WebpackLoaderBuiltinConditionSetMatch, WebpackLoadersOptions,
@@ -44,6 +46,7 @@ pub(crate) mod sass;
     Hash,
     Deserialize,
     TaskInput,
+    IsTransient,
     TraceRawVcs,
     NonLocalValue,
     OperationValue,

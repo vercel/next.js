@@ -4,8 +4,8 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
-    fxindexmap, trace::TraceRawVcs,
+    FxIndexMap, IsTransient, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt,
+    ValueToString, Vc, fxindexmap, trace::TraceRawVcs,
 };
 
 use crate::source::{GetContentSourceContent, GetContentSourceContents};
@@ -13,7 +13,17 @@ use crate::source::{GetContentSourceContent, GetContentSourceContents};
 /// The type of the route. This will decide about the remaining segments of the
 /// route after the base.
 #[derive(
-    TaskInput, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue, Encode, Decode,
+    TaskInput,
+    IsTransient,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum RouteType {
     Exact,
@@ -24,7 +34,17 @@ pub enum RouteType {
 
 /// Some normal segment of a route.
 #[derive(
-    TaskInput, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue, Encode, Decode,
+    TaskInput,
+    IsTransient,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum BaseSegment {
     Static(RcStr),

@@ -242,11 +242,8 @@ pub struct AstSyntaxContext(
     SyntaxContext,
 );
 
-impl TaskInput for AstSyntaxContext {
-    fn is_transient(&self) -> bool {
-        false
-    }
-}
+impl TaskInput for AstSyntaxContext {}
+impl turbo_tasks::IsTransient for AstSyntaxContext {}
 unsafe impl NonLocalValue for AstSyntaxContext {}
 
 impl Deref for AstSyntaxContext {

@@ -17,8 +17,8 @@ use tracing::{Instrument, Level};
 use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
-    ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
+    FxIndexMap, IsTransient, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 use turbo_unix_path::normalize_request;
@@ -69,7 +69,7 @@ pub use remap::{ResolveAliasMap, SubpathValue};
 
 /// Controls how resolve errors are handled.
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Copy, Default, Hash, TaskInput)]
+#[derive(Debug, Clone, Copy, Default, Hash, TaskInput, IsTransient)]
 pub enum ResolveErrorMode {
     /// Emit an error issue (default behavior)
     #[default]
@@ -453,6 +453,7 @@ impl ModuleResolveResult {
     PartialEq,
     Eq,
     TaskInput,
+    IsTransient,
     Hash,
     NonLocalValue,
     TraceRawVcs,
@@ -486,6 +487,7 @@ impl Display for ExternalTraced {
     Deserialize,
     TraceRawVcs,
     TaskInput,
+    IsTransient,
     NonLocalValue,
     Encode,
     Decode,
@@ -538,7 +540,7 @@ pub enum ResolveResultItem {
 /// A primary factor is the actual request string, but there are
 /// other factors like exports conditions that can affect resolving and become
 /// part of the key (assuming the condition is unknown at compile time)
-#[derive(Clone, Debug, Default, Hash, TaskInput)]
+#[derive(Clone, Debug, Default, Hash, TaskInput, IsTransient)]
 #[turbo_tasks::value]
 pub struct RequestKey {
     pub request: Option<RcStr>,
@@ -3378,6 +3380,7 @@ async fn resolve_package_internal_with_imports_field(
     Hash,
     TraceRawVcs,
     TaskInput,
+    IsTransient,
     NonLocalValue,
     Encode,
     Decode,

@@ -2,7 +2,9 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs};
+use turbo_tasks::{
+    IsTransient, NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -122,6 +124,7 @@ impl Asset for EcmascriptDevChunkList {
     Copy,
     Hash,
     TaskInput,
+    IsTransient,
     NonLocalValue,
     TraceRawVcs,
     Serialize,

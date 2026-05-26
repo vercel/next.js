@@ -12,8 +12,8 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
-    Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
+    FxIndexMap, FxIndexSet, IsTransient, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt,
+    ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
 };
 
 use crate::{
@@ -30,11 +30,8 @@ pub struct RoaringBitmapWrapper(
     pub RoaringBitmap,
 );
 
-impl TaskInput for RoaringBitmapWrapper {
-    fn is_transient(&self) -> bool {
-        false
-    }
-}
+impl TaskInput for RoaringBitmapWrapper {}
+impl IsTransient for RoaringBitmapWrapper {}
 
 impl RoaringBitmapWrapper {
     /// Whether `self` contains bits that are not in `other`
@@ -128,7 +125,17 @@ impl ChunkGroupInfo {
 
 /// See [ChunkGroup] for documentation
 #[derive(
-    Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode,
+    Debug,
+    Clone,
+    Hash,
+    TaskInput,
+    IsTransient,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum ChunkGroupEntry {
     Entry(Vec<ResolvedVc<Box<dyn Module>>>),
@@ -161,7 +168,9 @@ impl ChunkGroupEntry {
     }
 }
 
-#[derive(Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(
+    Debug, Clone, Hash, TaskInput, IsTransient, PartialEq, Eq, TraceRawVcs, Encode, Decode,
+)]
 pub enum ChunkGroup {
     /// The entry chunk group of the compilation, e.g. src/index.js for a SPA, or app/foo/page.js
     /// for Next.js.

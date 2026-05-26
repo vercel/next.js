@@ -34,9 +34,9 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Completions, FxIndexMap, NonLocalValue, OperationValue, OperationVc, ReadRef,
-    ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt, Vc,
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
+    Completion, Completions, FxIndexMap, IsTransient, NonLocalValue, OperationValue, OperationVc,
+    ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt,
+    Vc, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
@@ -107,6 +107,7 @@ use crate::{
     Deserialize,
     Clone,
     TaskInput,
+    IsTransient,
     PartialEq,
     Eq,
     Hash,
@@ -131,6 +132,7 @@ pub struct DraftModeOptions {
     Copy,
     Clone,
     TaskInput,
+    IsTransient,
     PartialEq,
     Eq,
     Hash,
@@ -157,6 +159,7 @@ pub struct WatchOptions {
     Deserialize,
     Clone,
     TaskInput,
+    IsTransient,
     PartialEq,
     Eq,
     Hash,
@@ -179,6 +182,7 @@ pub struct DebugBuildPaths {
     Copy,
     Clone,
     TaskInput,
+    IsTransient,
     PartialEq,
     Eq,
     Hash,
@@ -427,6 +431,7 @@ pub struct PartialProjectOptions {
     Deserialize,
     Clone,
     TaskInput,
+    IsTransient,
     PartialEq,
     Eq,
     Hash,

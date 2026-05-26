@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, OperationVc, PrettyPrintError, ResolvedVc, TaskInput,
-    TryJoinIterExt, ValueToString, Vc, duration_span, fxindexmap, mark_top_level_task,
+    Completion, FxIndexMap, IsTransient, NonLocalValue, OperationVc, PrettyPrintError, ResolvedVc,
+    TaskInput, TryJoinIterExt, ValueToString, Vc, duration_span, fxindexmap, mark_top_level_task,
     parallel::available_parallelism, take_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -207,7 +207,18 @@ async fn create_evaluate_pool_assets_operation(
 }
 
 #[derive(
-    Clone, Copy, Hash, Debug, PartialEq, Eq, TaskInput, NonLocalValue, TraceRawVcs, Encode, Decode,
+    Clone,
+    Copy,
+    Hash,
+    Debug,
+    PartialEq,
+    Eq,
+    TaskInput,
+    IsTransient,
+    NonLocalValue,
+    TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub enum EnvVarTracking {
     WholeEnvTracked,

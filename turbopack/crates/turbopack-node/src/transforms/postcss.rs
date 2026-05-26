@@ -4,8 +4,8 @@ use indoc::formatdoc;
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Completions, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, Vc,
-    fxindexmap, trace::TraceRawVcs,
+    Completion, Completions, IsTransient, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt,
+    Vc, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     File, FileContent, FileSystemEntryType, FileSystemPath, json::parse_json_with_source_context,
@@ -55,6 +55,7 @@ struct PostCssProcessingResult {
     Debug,
     TraceRawVcs,
     TaskInput,
+    IsTransient,
     NonLocalValue,
     Encode,
     Decode,

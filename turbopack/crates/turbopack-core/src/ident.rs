@@ -5,8 +5,8 @@ use bincode::{Decode, Encode};
 use regex::Regex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, ValueToStringRef, Vc,
-    trace::TraceRawVcs, turbofmt,
+    IsTransient, NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, ValueToStringRef,
+    Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_base38, hash_xxh3_hash64};
@@ -17,6 +17,7 @@ use crate::resolve::ModulePart;
 #[derive(
     Clone,
     TaskInput,
+    IsTransient,
     Hash,
     Debug,
     DeterministicHash,
@@ -60,7 +61,7 @@ impl Layer {
 }
 
 #[turbo_tasks::value]
-#[derive(Clone, Debug, Hash, TaskInput)]
+#[derive(Clone, Debug, Hash, TaskInput, IsTransient)]
 pub struct AssetIdent {
     /// The primary path of the asset
     pub path: FileSystemPath,

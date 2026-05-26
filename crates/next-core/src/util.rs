@@ -6,7 +6,8 @@ use next_taskless::{expand_next_js_template, expand_next_js_template_no_imports}
 use serde::{Deserialize, de::DeserializeOwned};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, TaskInput, Vc, fxindexset, trace::TraceRawVcs, turbobail,
+    FxIndexMap, IsTransient, NonLocalValue, TaskInput, Vc, fxindexset, trace::TraceRawVcs,
+    turbobail,
 };
 use turbo_tasks_fs::{File, FileContent, FileJsonContent, FileSystem, FileSystemPath, rope::Rope};
 use turbopack::module_options::RuleCondition;
@@ -205,7 +206,9 @@ pub fn free_var_references_with_vercel_system_env_warnings(
     FreeVarReferences(entries)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, IsTransient, TraceRawVcs, Encode, Decode,
+)]
 pub enum PathType {
     PagesPage,
     PagesApi,
@@ -340,6 +343,7 @@ pub fn pages_function_name(page: impl Display) -> String {
     PartialOrd,
     Ord,
     TaskInput,
+    IsTransient,
     NonLocalValue,
     Encode,
     Decode,

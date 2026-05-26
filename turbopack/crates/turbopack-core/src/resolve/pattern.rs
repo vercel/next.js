@@ -11,7 +11,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, TaskInput, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    IsTransient, NonLocalValue, TaskInput, ValueToString, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     FileSystemPath, LinkContent, LinkType, RawDirectoryContent, RawDirectoryEntry,
@@ -33,12 +34,9 @@ pub enum Pattern {
 /// manually implement TaskInput to avoid recursion in the implementation of `resolve_input` in the
 /// derived implementation.  We can instead use the default implementation since `Pattern` contains
 /// no VCs.
-impl TaskInput for Pattern {
-    fn is_transient(&self) -> bool {
-        // We contain no vcs so they cannot be transient.
-        false
-    }
-}
+impl TaskInput for Pattern {}
+// Pattern contains no Vcs so it can never be transient.
+impl IsTransient for Pattern {}
 
 fn concatenation_push_or_merge_item(list: &mut Vec<Pattern>, pat: Pattern) {
     if let Pattern::Constant(ref s) = pat

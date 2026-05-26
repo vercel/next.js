@@ -24,11 +24,8 @@ pub struct Query(BTreeMap<String, QueryValue>);
 
 // This type contains no VCs so the default implementation works.
 // Query is also recursive through QueryValue so the derive macro doesnt work
-impl TaskInput for Query {
-    fn is_transient(&self) -> bool {
-        false
-    }
-}
+impl TaskInput for Query {}
+impl turbo_tasks::IsTransient for Query {}
 
 impl Query {
     pub fn filter_with(&mut self, filter: &ContentSourceDataFilter) {

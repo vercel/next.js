@@ -6,8 +6,8 @@ use either::Either;
 use rustc_hash::FxHashMap;
 use smallvec::{SmallVec, smallvec};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
-    Vc, trace::TraceRawVcs,
+    FxIndexMap, IsTransient, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc, trace::TraceRawVcs,
 };
 
 use crate::{
@@ -61,7 +61,17 @@ pub async fn attach_async_info_to_chunkable_module(
 }
 
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    NonLocalValue,
+    TaskInput,
+    IsTransient,
+    Encode,
+    Decode,
 )]
 pub enum ChunkItemOrBatchWithAsyncModuleInfo {
     ChunkItem(ChunkItemWithAsyncModuleInfo),
@@ -119,7 +129,7 @@ impl ChunkItemOrBatchWithAsyncModuleInfo {
 }
 
 #[turbo_tasks::value]
-#[derive(Debug, Clone, Hash, TaskInput)]
+#[derive(Debug, Clone, Hash, TaskInput, IsTransient)]
 pub struct ChunkItemBatchWithAsyncModuleInfo {
     pub chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
     pub chunk_groups: Option<RoaringBitmapWrapper>,

@@ -12,7 +12,7 @@ pub(crate) mod process;
 pub(crate) mod references;
 
 use bincode::{Decode, Encode};
-use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use turbo_tasks::{IsTransient, NonLocalValue, TaskInput, trace::TraceRawVcs};
 
 use crate::references::import::ImportAssetReference;
 pub use crate::{asset::CssModule, module_asset::EcmascriptCssModule, process::*};
@@ -28,6 +28,7 @@ pub use crate::{asset::CssModule, module_asset::EcmascriptCssModule, process::*}
     Clone,
     Default,
     TaskInput,
+    IsTransient,
     TraceRawVcs,
     NonLocalValue,
     Encode,
@@ -46,7 +47,7 @@ pub enum CssModuleType {
 /// Both fields are raw `Features` bitmasks. `include` bits are OR-ed into the
 /// default feature set; `exclude` bits are masked off.
 #[turbo_tasks::value(shared, serialization = "auto")]
-#[derive(PartialOrd, Ord, Hash, Copy, Clone, Debug, Default, TaskInput)]
+#[derive(PartialOrd, Ord, Hash, Copy, Clone, Debug, Default, TaskInput, IsTransient)]
 pub struct LightningCssFeatureFlags {
     pub include: u32,
     pub exclude: u32,

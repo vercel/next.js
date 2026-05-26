@@ -8,8 +8,8 @@ use serde_json::Value as JsonValue;
 use turbo_esregex::EsRegex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
+    FxIndexMap, IsTransient, NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fetch::FetchClientConfig;
@@ -358,6 +358,7 @@ pub struct OptionOutputType(Option<OutputType>);
     Ord,
     PartialOrd,
     TaskInput,
+    IsTransient,
     TraceRawVcs,
     Serialize,
     Deserialize,

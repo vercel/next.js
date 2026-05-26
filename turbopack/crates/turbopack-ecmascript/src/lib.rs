@@ -77,9 +77,9 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator,
-    parking_lot_mutex_bincode, trace::TraceRawVcs, turbofmt,
+    FxDashMap, FxIndexMap, IsTransient, NonLocalValue, ReadRef, ResolvedVc,
+    SerializationInvalidator, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc,
+    get_serialization_invalidator, parking_lot_mutex_bincode, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -139,6 +139,7 @@ pub use crate::{
     Copy,
     Default,
     TaskInput,
+    IsTransient,
     TraceRawVcs,
     NonLocalValue,
     Deserialize,
@@ -164,6 +165,7 @@ pub enum SpecifiedModuleType {
     Default,
     Deserialize,
     TaskInput,
+    IsTransient,
     TraceRawVcs,
     NonLocalValue,
     Encode,
@@ -188,6 +190,7 @@ pub enum TreeShakingMode {
     Default,
     Deserialize,
     TaskInput,
+    IsTransient,
     TraceRawVcs,
     NonLocalValue,
     Encode,
@@ -225,7 +228,18 @@ pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
 
 /// The constant to replace `typeof window` with.
 #[derive(
-    Copy, Clone, PartialEq, Eq, Debug, Hash, TraceRawVcs, NonLocalValue, TaskInput, Encode, Decode,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    Hash,
+    TraceRawVcs,
+    NonLocalValue,
+    TaskInput,
+    IsTransient,
+    Encode,
+    Decode,
 )]
 pub enum TypeofWindow {
     Object,
@@ -274,7 +288,7 @@ pub struct EcmascriptOptions {
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug, Copy, Clone, TaskInput)]
+#[derive(Hash, Debug, Copy, Clone, TaskInput, IsTransient)]
 pub enum EcmascriptModuleAssetType {
     /// Module with EcmaScript code
     Ecmascript,
@@ -988,7 +1002,7 @@ pub struct EcmascriptModuleContent {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, Hash, TaskInput)]
+#[derive(Clone, Debug, Hash, TaskInput, IsTransient)]
 pub struct EcmascriptModuleContentOptions {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     parsed: Option<ResolvedVc<ParseResult>>,

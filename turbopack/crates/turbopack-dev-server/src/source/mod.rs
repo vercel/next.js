@@ -18,8 +18,8 @@ use bincode::{Decode, Encode};
 use futures::{TryStreamExt, stream::Stream as StreamTrait};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, NonLocalValue, OperationVc, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs,
-    util::SharedError,
+    Completion, IsTransient, NonLocalValue, OperationVc, ResolvedVc, TaskInput, Upcast, Vc,
+    trace::TraceRawVcs, util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPath;
@@ -168,6 +168,7 @@ impl HeaderList {
     Hash,
     Default,
     TaskInput,
+    IsTransient,
     Encode,
     Decode,
 )]

@@ -1,7 +1,9 @@
 use anyhow::{Context, Result, bail};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexMap, IsTransient, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
@@ -40,7 +42,7 @@ use crate::ecmascript::{
 };
 
 #[turbo_tasks::value]
-#[derive(Debug, Clone, Copy, Hash, TaskInput)]
+#[derive(Debug, Clone, Copy, Hash, TaskInput, IsTransient)]
 pub enum CurrentChunkMethod {
     StringLiteral,
     DocumentCurrentScript,

@@ -6,7 +6,8 @@
 
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs,
+    FxIndexMap, IsTransient, NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc,
+    trace::TraceRawVcs,
 };
 
 use crate::chunk::{ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo};
@@ -17,6 +18,7 @@ use crate::chunk::{ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleIn
 /// `u32` directly.
 #[derive(
     TaskInput,
+    IsTransient,
     Debug,
     Clone,
     Copy,
@@ -42,7 +44,7 @@ impl F32TaskInput {
 
 /// Selects the algorithm used to compute [`StyleGroups`].
 #[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug, Default, Hash, TaskInput)]
+#[derive(Clone, Debug, Default, Hash, TaskInput, IsTransient)]
 pub enum StyleGroupsAlgorithm {
     /// Default ("loose") algorithm, see
     /// [`crate::module_graph::style_groups_loose::compute_style_groups`].
@@ -69,7 +71,17 @@ impl StyleGroupsAlgorithm {
 }
 
 #[derive(
-    TaskInput, Debug, Clone, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode,
+    TaskInput,
+    IsTransient,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    NonLocalValue,
+    TraceRawVcs,
+    Encode,
+    Decode,
 )]
 pub struct StyleGroupsConfig {
     pub max_chunk_size: usize,
@@ -78,7 +90,17 @@ pub struct StyleGroupsConfig {
 
 /// Per-item metadata produced by the style chunking algorithms.
 #[derive(
-    Debug, Clone, PartialEq, Eq, Hash, NonLocalValue, TraceRawVcs, Encode, Decode, TaskInput,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    NonLocalValue,
+    TraceRawVcs,
+    Encode,
+    Decode,
+    TaskInput,
+    IsTransient,
 )]
 pub struct StyleItemInfo {
     /// Stable sort key applied by the production-chunking pass when ordering chunks within a chunk

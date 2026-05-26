@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{IsTransient, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
     CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule,
@@ -136,7 +136,7 @@ pub async fn get_client_compile_time_info(
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Hash, TaskInput)]
+#[derive(Debug, Clone, Hash, TaskInput, IsTransient)]
 pub enum ClientContextType {
     Pages { pages_dir: FileSystemPath },
     App { app_dir: FileSystemPath },
@@ -454,7 +454,9 @@ pub async fn get_client_module_options_context(
     Ok(module_options_context)
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Hash, TaskInput, IsTransient, TraceRawVcs, Encode, Decode,
+)]
 pub struct ClientChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,

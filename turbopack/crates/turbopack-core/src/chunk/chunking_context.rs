@@ -4,7 +4,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs, turbobail,
+    IsTransient, NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
@@ -32,6 +32,7 @@ use crate::{
 #[derive(
     Debug,
     TaskInput,
+    IsTransient,
     Clone,
     Copy,
     PartialEq,
@@ -51,7 +52,7 @@ pub enum MangleType {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, TaskInput, Clone, Copy, Hash, DeterministicHash, Deserialize)]
+#[derive(Debug, TaskInput, IsTransient, Clone, Copy, Hash, DeterministicHash, Deserialize)]
 pub enum MinifyType {
     // TODO instead of adding a new property here,
     // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
@@ -68,7 +69,7 @@ impl Default for MinifyType {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Default, TaskInput, Clone, Copy, Hash, DeterministicHash)]
+#[derive(Debug, Default, TaskInput, IsTransient, Clone, Copy, Hash, DeterministicHash)]
 pub enum SourceMapsType {
     /// Extracts source maps from input files and writes source maps for output files.
     #[default]
@@ -108,6 +109,7 @@ pub struct UrlBehavior {
 #[derive(
     Debug,
     TaskInput,
+    IsTransient,
     Clone,
     Copy,
     PartialEq,
@@ -258,6 +260,7 @@ pub struct EntryChunkGroupResult {
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    IsTransient,
     Encode,
     Decode,
 )]
@@ -287,7 +290,7 @@ pub struct ChunkingConfig {
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Copy, Hash, TaskInput, Default, Deserialize)]
+#[derive(Debug, Clone, Copy, Hash, TaskInput, IsTransient, Default, Deserialize)]
 pub enum SourceMapSourceType {
     AbsoluteFileUri,
     RelativeUri,

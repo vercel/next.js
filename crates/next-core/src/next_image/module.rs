@@ -1,7 +1,9 @@
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, fxindexmap, trace::TraceRawVcs};
+use turbo_tasks::{
+    IsTransient, NonLocalValue, ResolvedVc, TaskInput, Vc, fxindexmap, trace::TraceRawVcs,
+};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
     context::AssetContext, module::Module, reference_type::ReferenceType, source::Source,
@@ -21,6 +23,7 @@ use super::source_asset::StructuredImageFileSource;
     Ord,
     Hash,
     TaskInput,
+    IsTransient,
     TraceRawVcs,
     NonLocalValue,
     Encode,

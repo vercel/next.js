@@ -16,7 +16,7 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
+    FxIndexSet, IsTransient, NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::DeterministicHash;
@@ -49,6 +49,7 @@ use crate::{
 #[derive(
     Debug,
     TaskInput,
+    IsTransient,
     Clone,
     Copy,
     PartialEq,
@@ -72,7 +73,7 @@ pub enum ContentHashing {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Default, Clone, Copy, Hash, Serialize, Deserialize, TaskInput)]
+#[derive(Debug, Default, Clone, Copy, Hash, Serialize, Deserialize, TaskInput, IsTransient)]
 #[serde(rename_all = "kebab-case")]
 pub enum CrossOrigin {
     #[default]
@@ -187,7 +188,18 @@ impl MergeableModules {
 
 /// Whether a given module needs to be exposed (depending on how it is imported by other modules)
 #[derive(
-    Copy, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, TaskInput, Hash, Encode, Decode,
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    NonLocalValue,
+    TaskInput,
+    IsTransient,
+    Hash,
+    Encode,
+    Decode,
 )]
 pub enum MergeableModuleExposure {
     // This module is only used from within the current group, and only individual exports are
@@ -512,7 +524,18 @@ impl AsyncModuleInfo {
 }
 
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    TaskInput,
+    IsTransient,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct ChunkItemWithAsyncModuleInfo {
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,

@@ -12,8 +12,8 @@ use serde_with::serde_as;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
-    ValueToStringRef, Vc, trace::TraceRawVcs,
+    Completion, IsTransient, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt,
+    ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
@@ -438,7 +438,17 @@ pub enum InfoMessage {
 }
 
 #[derive(
-    Debug, Clone, TaskInput, Hash, PartialEq, Eq, Deserialize, TraceRawVcs, Encode, Decode,
+    Debug,
+    Clone,
+    TaskInput,
+    IsTransient,
+    Hash,
+    PartialEq,
+    Eq,
+    Deserialize,
+    TraceRawVcs,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct WebpackResolveOptions {
@@ -495,7 +505,9 @@ pub enum ResponseMessage {
     },
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, TraceRawVcs, Encode, Decode)]
+#[derive(
+    Clone, PartialEq, Eq, Hash, TaskInput, IsTransient, Debug, TraceRawVcs, Encode, Decode,
+)]
 pub struct WebpackLoaderContext {
     pub entries: ResolvedVc<EvaluateEntries>,
     pub cwd: FileSystemPath,

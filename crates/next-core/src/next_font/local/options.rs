@@ -3,7 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{IsTransient, NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
 
 use crate::next_font::local::request::{
     AdjustFontFallback, NextFontLocalDeclaration, NextFontLocalRequest,
@@ -13,7 +13,7 @@ use crate::next_font::local::request::{
 /// A normalized, Vc-friendly struct derived from validating and transforming
 /// [[NextFontLocalRequest]]
 #[turbo_tasks::value]
-#[derive(Clone, Debug, PartialOrd, Ord, Hash, TaskInput)]
+#[derive(Clone, Debug, PartialOrd, Ord, Hash, TaskInput, IsTransient)]
 pub(super) struct NextFontLocalOptions {
     pub fonts: FontDescriptors,
     pub default_weight: Option<FontWeight>,
@@ -63,6 +63,7 @@ impl NextFontLocalOptions {
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    IsTransient,
     Encode,
     Decode,
 )]
@@ -105,6 +106,7 @@ impl FontDescriptor {
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    IsTransient,
     Encode,
     Decode,
 )]
@@ -128,6 +130,7 @@ pub(super) enum FontDescriptors {
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    IsTransient,
     Encode,
     Decode,
 )]

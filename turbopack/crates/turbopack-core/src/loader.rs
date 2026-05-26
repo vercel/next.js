@@ -2,7 +2,7 @@ use std::hash::{Hash, Hasher};
 
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{NonLocalValue, OperationValue, TaskInput, trace::TraceRawVcs};
+use turbo_tasks::{IsTransient, NonLocalValue, OperationValue, TaskInput, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 
 #[derive(
@@ -36,11 +36,8 @@ impl Hash for WebpackLoaderItem {
     }
 }
 
-impl TaskInput for WebpackLoaderItem {
-    fn is_transient(&self) -> bool {
-        false
-    }
-}
+impl TaskInput for WebpackLoaderItem {}
+impl IsTransient for WebpackLoaderItem {}
 
 /// Like `WebpackLoaderItem`, but with the loader path already resolved to a `FileSystemPath`.
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
@@ -58,11 +55,8 @@ impl Hash for ResolvedWebpackLoaderItem {
     }
 }
 
-impl TaskInput for ResolvedWebpackLoaderItem {
-    fn is_transient(&self) -> bool {
-        false
-    }
-}
+impl TaskInput for ResolvedWebpackLoaderItem {}
+impl IsTransient for ResolvedWebpackLoaderItem {}
 
 #[derive(Debug, Clone)]
 #[turbo_tasks::value(shared, transparent)]

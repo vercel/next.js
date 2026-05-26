@@ -12,8 +12,8 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
+    FxIndexMap, IsTransient, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId},
@@ -89,7 +89,18 @@ pub(crate) enum PatternMapping {
 }
 
 #[derive(
-    Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    TraceRawVcs,
+    TaskInput,
+    IsTransient,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub(crate) enum ResolveType {
     AsyncChunkLoader,

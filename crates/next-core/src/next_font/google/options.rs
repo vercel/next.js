@@ -3,7 +3,8 @@ use bincode::{Decode, Encode};
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, TaskInput, Vc, fxindexset, trace::TraceRawVcs,
+    FxIndexMap, FxIndexSet, IsTransient, NonLocalValue, TaskInput, Vc, fxindexset,
+    trace::TraceRawVcs,
 };
 
 use super::request::{NextFontRequest, OneOrManyStrings};
@@ -13,7 +14,7 @@ const ALLOWED_DISPLAY_VALUES: &[&str] = &["auto", "block", "swap", "fallback", "
 pub(super) type FontData = FxIndexMap<RcStr, FontDataEntry>;
 
 #[turbo_tasks::value]
-#[derive(Clone, Debug, PartialOrd, Ord, Hash, TaskInput)]
+#[derive(Clone, Debug, PartialOrd, Ord, Hash, TaskInput, IsTransient)]
 pub(super) struct NextFontGoogleOptions {
     /// Name of the requested font from Google. Contains literal spaces.
     pub font_family: RcStr,
@@ -56,6 +57,7 @@ impl NextFontGoogleOptions {
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    IsTransient,
     Encode,
     Decode,
 )]

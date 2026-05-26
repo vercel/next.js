@@ -1,56 +1,18 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, parse_macro_input, spanned::Spanned};
+use syn::{DeriveInput, parse_macro_input};
 
-use crate::expand::{generate_exhaustive_destructuring, match_expansion};
+use crate::{
+    derive::check_supported_generics,
+    expand::{generate_exhaustive_destructuring, match_expansion},
+};
 
 pub fn derive_task_input(input: TokenStream) -> TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);
     let ident = &derive_input.ident;
     let generics = &derive_input.generics;
 
-    if let Some(where_clause) = &generics.where_clause {
-        // NOTE(alexkirsz) We could support where clauses and generic parameters bounds
-        // in the future, but for simplicity's sake, we don't support them yet.
-        where_clause
-            .span()
-            .unwrap()
-            .error("the TaskInput derive macro does not support where clauses yet")
-            .emit();
-    }
-
-    for param in &generics.params {
-        match param {
-            syn::GenericParam::Type(param) => {
-                if !param.bounds.is_empty() {
-                    // NOTE(alexkirsz) See where clause above.
-                    param
-                        .span()
-                        .unwrap()
-                        .error(
-                            "the TaskInput derive macro does not support generic parameters \
-                             bounds yet",
-                        )
-                        .emit();
-                }
-            }
-            syn::GenericParam::Lifetime(param) => {
-                param
-                    .span()
-                    .unwrap()
-                    .error("the TaskInput derive macro does not support generic lifetimes")
-                    .emit();
-            }
-            syn::GenericParam::Const(param) => {
-                // NOTE(alexkirsz) Ditto: not supported yet for simplicity's sake.
-                param
-                    .span()
-                    .unwrap()
-                    .error("the TaskInput derive macro does not support const generics yet")
-                    .emit();
-            }
-        }
-    }
+    check_supported_generics(generics, "TaskInput");
 
     let is_resolved_impl = match_expansion(
         &derive_input,
@@ -77,32 +39,6 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
             )
         },
         &|_ident| quote! {true},
-    );
-    let is_transient_impl = match_expansion(
-        &derive_input,
-        &|_ident, fields| {
-            let (capture, fields) = generate_exhaustive_destructuring(fields.named.iter());
-            (
-                capture,
-                quote! {
-                    {#(
-                        turbo_tasks::TaskInput::is_transient(#fields) ||
-                    )* false}
-                },
-            )
-        },
-        &|_ident, fields| {
-            let (capture, fields) = generate_exhaustive_destructuring(fields.unnamed.iter());
-            (
-                capture,
-                quote! {
-                    {#(
-                        turbo_tasks::TaskInput::is_transient(#fields) ||
-                    )* false}
-                },
-            )
-        },
-        &|_ident| quote! {false},
     );
     let resolve_impl = match_expansion(
         &derive_input,
@@ -160,12 +96,6 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
             #[allow(unreachable_code)] // This can occur for enums with no variants.
             fn is_resolved(&self) -> bool {
                 #is_resolved_impl
-            }
-
-            #[allow(non_snake_case)]
-            #[allow(unreachable_code)] // This can occur for enums with no variants.
-            fn is_transient(&self) -> bool {
-                #is_transient_impl
             }
 
             #[allow(non_snake_case)]
