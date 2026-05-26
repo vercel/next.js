@@ -154,8 +154,8 @@ pub async fn sources_hash(module_graph: Vc<ModuleGraph>, modules: Vc<Modules>) -
 }
 
 #[derive(Serialize)]
-struct RoutesHashesManifest {
-    pub routes: FxIndexMap<String, EndpointHashStrings>,
+struct RoutesHashesManifest<'l> {
+    pub routes: FxIndexMap<&'l str, EndpointHashStrings>,
 }
 
 #[derive(Serialize)]
@@ -210,7 +210,7 @@ impl Asset for RoutesHashesManifestAsset {
                     outputs_hash(endpoints_outputs(endpoints)),
                 )
             };
-            entrypoint_hashes.insert(key.as_str().to_string(), entry);
+            entrypoint_hashes.insert(key.as_str(), entry);
         }
 
         let entrypoint_hashes_values = entrypoint_hashes
