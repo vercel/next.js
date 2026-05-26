@@ -134,7 +134,7 @@ async fn get_written_endpoint_with_issues_operation(
     let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
     let filter = issue_filter_from_endpoint(endpoint_op).await;
     let (written, issues, effects) =
-        strongly_consistent_catch_collectables(write_to_disk_op, &*filter).await?;
+        strongly_consistent_catch_collectables(write_to_disk_op, &filter).await?;
     Ok(WrittenEndpointWithIssues {
         written,
         issues,
@@ -244,7 +244,7 @@ async fn subscribe_issues_and_diags_operation(
     // payload, but we still need the catch path to avoid the FATAL.
     let filter = issue_filter_from_endpoint(endpoint_op).await;
     let (changed_value, issues, effects) =
-        strongly_consistent_catch_collectables(changed_op, &*filter).await?;
+        strongly_consistent_catch_collectables(changed_op, &filter).await?;
     Ok(EndpointIssuesAndDiags {
         changed: changed_value,
         issues: if should_include_issues {

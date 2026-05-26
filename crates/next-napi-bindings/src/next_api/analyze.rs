@@ -29,7 +29,7 @@ pub async fn write_analyze_data_with_issues_operation(
     let filter = project.project().issue_filter().await?;
 
     let (_analyze_data, issues, effects) =
-        strongly_consistent_catch_collectables(analyze_data_op, &*filter).await?;
+        strongly_consistent_catch_collectables(analyze_data_op, &filter).await?;
 
     Ok(WriteAnalyzeResult { issues, effects }.cell())
 }
