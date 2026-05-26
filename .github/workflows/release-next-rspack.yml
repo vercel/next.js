@@ -30,7 +30,7 @@ env:
 jobs:
   build:
     name: Build
-    uses: rspack-contrib/rspack-toolchain/.github/workflows/build.yml@f69dc04fcae6b38d97b87acef448ed7a285b01cc
+    uses: rstackjs/rspack-toolchain/.github/workflows/build.yml@c0b7f47d0d657adbc4fddb3b3f2b607019004491
     with:
       package-json-path: rspack/crates/binding/package.json
       napi-build-command: pnpm build --release
@@ -89,12 +89,12 @@ jobs:
 
       - name: Get NAPI info
         id: napi-info
-        uses: rspack-contrib/rspack-toolchain/get-napi-info@f69dc04fcae6b38d97b87acef448ed7a285b01cc
+        uses: rstackjs/rspack-toolchain/get-napi-info@c0b7f47d0d657adbc4fddb3b3f2b607019004491
         with:
           package-json-path: rspack/crates/binding/package.json
 
       - name: Download rspack binding
-        uses: rspack-contrib/rspack-toolchain/download-rspack-binding@f69dc04fcae6b38d97b87acef448ed7a285b01cc
+        uses: rstackjs/rspack-toolchain/download-rspack-binding@c0b7f47d0d657adbc4fddb3b3f2b607019004491
         with:
           path: ${{ steps.napi-info.outputs.binding-directory }}/artifacts
 
@@ -118,6 +118,7 @@ jobs:
         run: |
           npm config set access public
           npm config set provenance true
+          npm config set tag "${{ inputs.npm-tag }}"
           pnpm napi pre-publish --no-gh-release -t npm ${{ inputs.dry-run && '--dry-run' || '' }}
         working-directory: ${{ steps.napi-info.outputs.binding-directory }}
 
