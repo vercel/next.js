@@ -151,7 +151,6 @@ import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
-import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import {
   ACTION_HEADER,
   type NEXT_ROUTER_PREFETCH_HEADER,
@@ -2867,42 +2866,6 @@ export default async function build(
               )
             )
           )
-
-          // Fan out static metadata files (e.g. `opengraph-image.png`) that
-          // live in a dynamic route segment to inherit the colocated page's
-          // prerendered routes. The metadata route handler returns the same
-          // buffer regardless of params, so prerendering it for each
-          // concrete URL produces N `.body` files that the deploy adapter
-          // and `handle:'filesystem'` then serve as static assets — instead
-          // of leaving the route as a dynamic handler returning the
-          // embedded buffer at runtime.
-          const pageStaticPathsByPathname = new Map<string, PrerenderedRoute[]>()
-          for (const [originalAppPath, routes] of staticPaths) {
-            if (!originalAppPath.endsWith('/page')) continue
-            const normalized = appPathRoutes[originalAppPath]
-            if (normalized) pageStaticPathsByPathname.set(normalized, routes)
-          }
-          for (const [originalAppPath, routes] of staticPaths) {
-            if (!originalAppPath.endsWith('/route')) continue
-            if (routes.length > 0) continue
-            const normalized = appPathRoutes[originalAppPath]
-            if (!normalized || !isStaticMetadataFile(normalized)) continue
-            const lastSlash = normalized.lastIndexOf('/')
-            if (lastSlash <= 0) continue
-            const filename = normalized.slice(lastSlash + 1)
-            const parentPathname = normalized.slice(0, lastSlash)
-            if (!isDynamicRoute(parentPathname)) continue
-            const parentRoutes = pageStaticPathsByPathname.get(parentPathname)
-            if (!parentRoutes || parentRoutes.length === 0) continue
-            staticPaths.set(
-              originalAppPath,
-              parentRoutes.map((r) => ({
-                ...r,
-                pathname: `${r.pathname}/${filename}`,
-                encodedPathname: `${r.encodedPathname}/${filename}`,
-              }))
-            )
-          }
 
           const sortedStaticPaths = Array.from(staticPaths.entries()).sort(
             ([a], [b]) => a.localeCompare(b)
