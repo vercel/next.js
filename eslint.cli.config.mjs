@@ -15,6 +15,7 @@ export default defineConfig([
       'examples/**/*',
       'test/**/*',
       '**/*.d.ts',
+      'packages/next/src/webpack/**/*',
       'turbopack/**/*',
     ],
     languageOptions: {

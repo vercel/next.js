@@ -1114,5 +1114,9 @@ declare module 'next/dist/webpack/next-integration' {
   export const JsConfigPathsPlugin: any
 }
 
+declare module 'next/dist/webpack/server/dev/middleware-webpack' {
+  export const getOriginalStackFrames: any
+}
+
 declare module 'next/dist/webpack/client/app-webpack'
 declare module 'next/dist/webpack/client/webpack'
