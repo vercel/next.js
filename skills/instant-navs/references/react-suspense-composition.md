@@ -28,7 +28,7 @@ Avoid:
 
 - Put stable layout above the smallest dataful boundary.
 - Let the route/layout that owns the visible shell own the fallback.
-- A list/data boundary fallback should render list/data placeholders only; it should not recreate app chrome.
+- A list/data boundary fallback should render list/data placeholders only; it should not recreate app-level shared layout.
 - A child data boundary should not know whether it is in an Instant shell.
 - If a public URL rewrites through a generic owner that cannot know the shell shape, change ownership or split the stable frame so the lower owner captures first.
 
@@ -37,7 +37,7 @@ Avoid:
 - Provider placement is architecture. Providers that unwrap session, flags, params, cookies, headers, or request promises above the route block the shell before useful fallbacks render.
 - Split providers into stable shape/defaults that render immediately, plus dataful children that suspend locally.
 - A fallback rendering only inert primitives does not need the full provider stack.
-- A fallback rendering real children or client components using app hooks must sit under the same providers as released UI, or stop rendering those children.
+- A fallback rendering real children or client components using app hooks must sit under the same providers as the loaded UI, or stop rendering those children.
 - When introducing a pending provider, audit shared client controls that call `useUser()`, `useFlags()`, `useSearchParams()`, or session hooks. A provider fix can make those reads surface as build-only `blocking-route` failures on routes outside the current slice. Wrap each control in a local Suspense boundary with an inert fallback instead of dragging a larger shell rewrite into the provider PR.
 
 ### Pending Provider Pattern
@@ -68,20 +68,20 @@ Do not use this as a license to hardcode request-derived state. If a value can d
 
 ## Locale And Translations
 
-Treat locale as part of shell identity when visible shell text is localized. Released UI should use the real variant locale. A fallback may use the default locale only when the pending shell is inert, internal-only, or explicitly allowed to show one locale until real content resolves.
+Treat locale as part of shell identity when visible shell text is localized. The loaded UI should use the real variant locale. A fallback may use the default locale only when the pending shell is inert, internal-only, or explicitly allowed to show one locale until real content resolves.
 
 Prefer:
 
 - make locale a route-owned/static variant input,
 - pass the route-known locale when the segment already owns it,
-- move locale-dependent released text below a route-owned Suspense boundary,
+- move locale-dependent loaded text below a route-owned Suspense boundary,
 - render generic non-localized skeleton shapes in the fallback.
 
 For function-valued translation keys, missing-provider or missing-key fallbacks can turn a function into a string and crash at call time. If `t('some.key')(...)` fails, check the locale provider and locale data before moving boundaries.
 
 ## Shared Frames
 
-Avoid fallback drift by extracting stable released primitives:
+Avoid fallback drift by extracting stable loaded primitives:
 
 ```tsx
 <SidebarFrame>
@@ -91,9 +91,9 @@ Avoid fallback drift by extracting stable released primitives:
 </SidebarFrame>
 ```
 
-Good shared primitives: header/logo frame, sidebar frame, collapse-button space reservation, app/card frame, page title/control frame, grid/list shell, first-card dimensions. Extract constants/config for labels, icons, ordering, and sizes so fallback and released UI cannot drift.
+Good shared primitives: header/logo frame, sidebar frame, collapse-button space reservation, app/card frame, page title/control frame, grid/list shell, first-card dimensions. Extract constants/config for labels, icons, ordering, and sizes so fallback and loaded UI cannot drift.
 
-For chrome that must stay resolved across client navigation, keep the shared frame mounted as a stable layout-owned client component. Passing a fresh server `defaultSlot` through a client router can still remount the subtree and show its own skeleton during the lock.
+For shared layout that must stay resolved across client navigation, keep the shared frame mounted as a stable layout-owned client component. Passing a fresh server `defaultSlot` through a client router can still remount the subtree and show its own skeleton while the shell is captured.
 
 ## Standalone Route Frames
 
@@ -117,11 +117,11 @@ Before accepting a fallback:
 
 - Renders under the providers and adapters required by any active children.
 - Avoids live client hooks, routing behavior, query mutation, and personalized actions.
-- Reserves stable geometry for persistent chrome and the first meaningful content region.
+- Reserves stable layout space for persistent shared layout and the first meaningful content region.
 - Represents only route-known facts.
 - Does not render multiple candidate route/auth shells.
-- Shares released frame primitives where labels, icons, spacing, or dimensions would otherwise drift.
-- Has a route-owner marker or locked-DOM evidence that proves this boundary was captured.
+- Shares loaded frame primitives where labels, icons, spacing, or dimensions would otherwise drift.
+- Has a route-owner marker or captured-shell DOM evidence that proves this boundary was captured.
 
 ## When Null Fallbacks Are Appropriate
 
@@ -135,12 +135,12 @@ Before accepting a fallback:
 Use this rule:
 
 ```text
-If the user would notice the region missing during the Instant lock, do not use null.
+If the user would notice the region missing while the shell is captured, do not use null.
 If children below the boundary are supposed to produce the route shell, do not use null.
 If the only correct pending state is absence, null is fine.
 ```
 
-For shared layouts, prefer an inert frame fallback over null when released UI will later occupy stable geometry. For leaf controls, prefer a disabled or skeleton twin when the control box affects alignment.
+For shared layouts, prefer an inert frame fallback over null when loaded UI will later occupy stable layout space. For leaf controls, prefer a disabled or skeleton twin when the control box affects alignment.
 
 ## Client And Runtime Data
 
@@ -169,13 +169,13 @@ The fallback should share the same outer element, size, padding, placeholder sha
 
 For an existing route with mixed shell, data, providers, and query controls:
 
-1. Prove the released route works.
+1. Prove the route works in its normal loaded state.
 2. Map visible URL to internal route owner.
 3. Add a route-owned marker for the intended shell.
-4. Extract stable frame primitives from released UI.
+4. Extract stable frame primitives from the loaded UI.
 5. Move request, params, query, user, flag, and uncached reads below local Suspense boundaries.
 6. Add inert fallbacks for client controls and data regions.
 7. Keep provider shape available, but do not expose resolved facts until they are real.
 8. Delete fake whole-page shells and duplicate candidate route/auth DOM.
-9. Add geometry assertions for persistent chrome, route title, primary frame, and first content region.
-10. Run the full state matrix; update screenshots only after diagnostics and geometry are clean.
+9. Add layout-dimension assertions for persistent shared layout, route title, primary frame, and first content region.
+10. Run the full state matrix; update screenshots only after diagnostics and layout dimensions are clean.

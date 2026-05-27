@@ -27,7 +27,7 @@ Add Instant Navigation to a single route in 5 minutes:
      return <main data-instant-boundary="dashboard">{/* ... */}</main>
    }
    ```
-2. Wrap each dataful region in `<Suspense>` with an inert fallback that reserves geometry. Keep the page frame above Suspense.
+2. Wrap each dataful region in `<Suspense>` with an inert fallback that reserves layout space. Keep the page frame above Suspense.
 3. Write the focused test (see [references/playwright-verification.md](./references/playwright-verification.md) for the full pattern):
    ```ts
    import { instant } from '@next/playwright'
@@ -46,7 +46,7 @@ Add Instant Navigation to a single route in 5 minutes:
 5. If running against a production build or preview, enable
    `experimental.exposeTestingApiInProductionBuild` for that environment, or
    the `next-instant-navigation-testing` cookie is silently ignored and the
-   test observes released UI.
+   test observes the loaded UI.
 
 ## Reference Map
 
@@ -63,7 +63,7 @@ Order matters. Playwright first, build second:
 2. Run that focused test; inspect artifacts, route diagnostics, and dev logs.
 3. Run a local production-like build with the app's supported Node version. Use Vercel preview as confirmation, not as the primary loop.
 
-Do not invert. A green `next build` does not prove the locked shell, the captured route owner, persistent chrome, or geometry. If a build ran before the focused test passed, label it a compiler smoke signal and rerun the corrected test before calling the slice validated.
+Do not invert. A green `next build` does not prove the captured shell, the captured route owner, persistent shared layout, or matching layout dimensions. If a build ran before the focused test passed, label it a compiler smoke signal and rerun the corrected test before calling the slice validated.
 
 ## Ten Rules That Always Apply
 
@@ -93,13 +93,13 @@ User, account, team, chat, project, notification, or any per-request fact must e
 
 A child suspends because it naturally reads async/request data. Do not teach components they are "in an Instant shell" through context, a global flag, a pathname script, or a DOM marker that toggles loading behavior. Move the data, not the awareness.
 
-### 5. Initial-load and client-navigation oracles differ
+### 5. Initial-load and client-navigation tests differ
 
-On cold initial load, an inert fallback control (a readonly textarea, a disabled button) is a legitimate locked shell. During client navigation from a loaded source route, the same control should remain resolved during the lock; a skeleton there means persistent chrome resuspended.
+On cold initial load, an inert fallback control (a readonly textarea, a disabled button) is a legitimate captured shell. During client navigation from a loaded source route, the same control should remain resolved while the shell is captured; a skeleton there means the persistent shared layout resuspended.
 
-### 6. Persistent chrome cannot survive crossing parent owners
+### 6. Persistent shared layout cannot survive crossing parent owners
 
-A header, sidebar, or switcher only stays mounted across navigations when source and destination share the same parent route owner. If they do not, either stabilize the owner across the navigation or hoist the chrome above the changing segment. A client router cannot rescue a remount that the App Router caused.
+A header, sidebar, or switcher only stays mounted across navigations when source and destination share the same parent route owner. If they do not, either stabilize the owner across the navigation or hoist the shared layout above the changing segment. A client router cannot rescue a remount that the App Router caused.
 
 ### 7. PPR plus `notFound()` under parallel routes can serve 200
 
@@ -107,7 +107,7 @@ A server-side `notFound()` inside a PPR + parallel-route leaf can stream as a 20
 
 ### 8. A client router arbitrating slots cannot trust `usePathname()` for first paint
 
-After a rewrite, the server slot tree is the truth for the first paint; the browser-visible URL is only available after hydration. If a client router picks between `children` and a parallel slot, render what the server provided until mount, then switch to pathname-based arbitration. Add a no-hydration Playwright oracle when first paint must already be correct.
+After a rewrite, the server slot tree is the truth for the first paint; the browser-visible URL is only available after hydration. If a client router picks between `children` and a parallel slot, render what the server provided until mount, then switch to pathname-based arbitration. Add a no-hydration Playwright test when first paint must already be correct.
 
 ### 9. Parallel slot defaults must match the route variant
 
@@ -119,38 +119,38 @@ A logged-in scoped route that falls back through a shared header/sidebar slot mu
 
 ## Shell Capture Rules
 
-- **Prove ownership before refactoring UI.** A visible URL may rewrite through a different internal owner. Add a route-owned marker (`data-instant-boundary="..."`) or inspect locked DOM to identify the captured boundary first.
-- **Static owner = route file plus the right `generateStaticParams()`.** For every dynamic segment on the owner path, check the rewrite value against `generateStaticParams()`. A non-generated dynamic param produces an empty locked shell with no obvious page marker.
+- **Prove ownership before refactoring UI.** A visible URL may rewrite through a different internal owner. Add a route-owned marker (`data-instant-boundary="..."`) or inspect the captured shell DOM to identify the captured boundary first.
+- **Static owner = route file plus the right `generateStaticParams()`.** For every dynamic segment on the owner path, check the rewrite value against `generateStaticParams()`. A non-generated dynamic param produces an empty captured shell with no obvious page marker.
 - **A parent layout's `generateStaticParams()` does not cover a new generated page owner.** If a page owns a hidden static segment, export the concrete static params on that page too.
 - **Treat `generateStaticParams()` as a static shell-ownership claim, not a route-table detail.** If the layout exports static params but providers or slots above the inert boundary still start request-backed work, the route is not actually static.
 - **Audit sibling parallel slots when restoring static ownership.** A content page fallback does not protect `@header`, `@sidebar`, or other slots from their own `params`, `searchParams`, `headers()`, or `cookies()` reads.
 
-## Test Oracle Correctness
+## Test Correctness
 
 A passing test that cannot fail for the right reasons is not Instant evidence. Before trusting a focused Playwright test, confirm it would fail for:
 
 - the wrong route owner,
 - a hidden duplicate shell,
-- stale persistent chrome,
+- stale persistent shared layout,
 - route-specific blocking diagnostics,
-- a bad released-route status,
-- geometry drift.
+- a bad HTTP status when the route fully loads,
+- visual layout drift.
 
-### Common test-oracle traps
+### Common test-side traps
 
 - **Hidden React 19 staging DOM.** Strict locators like `h1`, `getByText`, or shared `data-testid` values match `<div hidden id="S:...">` Suspense staging payloads in addition to visible DOM. Scope assertions to a route-owned container or use role-based visible locators (`getByRole('button', { name: /.../ })`).
-- **Interactive helpers typing into inert shell controls.** A fallback prompt surface can be a valid geometry marker while its textarea is `aria-hidden` or `readonly`. Submit helpers must require a visible, enabled, editable control.
-- **`waitUntil: 'domcontentloaded'` missing fast-resolving shells.** When the locked shell releases before the first locator poll, use `waitUntil: 'commit'` inside `instant(...)`. Keep post-unlock assertions.
-- **Asserting before the navigation started.** If a click immediately polls for the target boundary without waiting for the real target RSC request or URL transition, the oracle spends its timeout inspecting the old page.
-- **Prefetch races on stale-data oracles.** When freezing payloads, ignore RSC requests with `next-router-prefetch: 1`; otherwise the test asserts before the real navigation lock.
+- **Interactive helpers typing into inert shell controls.** A fallback prompt surface can be a valid layout-dimension marker while its textarea is `aria-hidden` or `readonly`. Submit helpers must require a visible, enabled, editable control.
+- **`waitUntil: 'domcontentloaded'` missing fast-resolving shells.** When the captured shell releases before the first locator poll, use `waitUntil: 'commit'` inside `instant(...)`. Keep post-release assertions.
+- **Asserting before the navigation started.** If a click immediately polls for the target boundary without waiting for the real target RSC request or URL transition, the test spends its timeout inspecting the old page.
+- **Prefetch races on stale-data tests.** When freezing payloads, ignore RSC requests with `next-router-prefetch: 1`; otherwise the test asserts before the real navigation captures the shell.
 - **Broad `page.route('**/\*')`probes starving narrower handlers.** Use`route.fallback()`for non-matching requests, not`route.continue()`, so earlier fixture handlers still run.
-- **Do not rely on `networkidle` in dev.** Prefer the earliest truthful event: `commit`, `domcontentloaded`, visible DOM, app readiness markers, or post-unlock assertions.
+- **Do not rely on `networkidle` in dev.** Prefer the earliest truthful event: `commit`, `domcontentloaded`, visible DOM, app readiness markers, or post-release assertions.
 
 ## Debug Ladder
 
 When something fails, investigate in order:
 
-1. **Prove the released route works outside `instant(...)`.** Auth, env, provider, module resolution, and unrelated render errors make Instant evidence inconclusive.
+1. **Prove the route works outside `instant(...)` in its normal loaded state.** Auth, env, provider, module resolution, and unrelated render errors make Instant evidence inconclusive.
 2. **Read the first route-specific Next diagnostic.** Dev stdout often has more precise blocking-route output than the browser overlay. For large logs, run `scripts/extract-instant-diagnostics.mjs <files>`.
 3. **Prove route ownership.** Compare visible URL to middleware/rewrites/parallel slots. Confirm the owner is statically generated for the current variant tuple.
 4. **Move exactly one boundary.** Move the runtime read, provider, or Suspense boundary named by the diagnostic. Avoid broad visual cleanup until owner and blocker are understood.
@@ -158,7 +158,7 @@ When something fails, investigate in order:
 
 ### Classify before patching source
 
-When a Playwright failure could be a test-oracle bug, check these patterns first:
+When a Playwright failure could be a test-side bug, check these patterns first:
 
 - hidden-DOM match (strict locator hitting `<div hidden>` staging)
 - prefetch race (assertion fires before real navigation)
@@ -183,10 +183,10 @@ Use the first blocker to choose the smallest useful move:
 | Function-valued translation crash (`t('key')(...)` is not a function)  | Verify locale provider and missing-key fallback shape before treating as an Instant blocker                                                            |
 | Render recursion or stack overflow during capture                      | Check whether a server Suspense fallback imports through a `"use client"` module; split inert fallback UI into a server-safe module                    |
 | Strict Playwright failure with two matching visible-shell locators     | Inspect trace snapshot for hidden streaming DOM first. One visible: fix the test with a visible-scoped selector. Two visible: fix the app architecture |
-| Blank locked shell                                                     | Inspect parent layout/provider/null fallback and verify the rewritten owner matches generated params before editing page skeletons                     |
+| Blank captured shell                                                   | Inspect parent layout/provider/null fallback and verify the rewritten owner matches generated params before editing page skeletons                     |
 | Wrong route/auth shell                                                 | Prove rewrites and owner; do not render multiple candidate shells and hide one                                                                         |
-| Persistent chrome resuspends on client nav                             | Fix route/layout architecture; check changing parallel slots, keyed subtrees, or client mount gates before tuning child fallbacks                      |
-| Geometry drift                                                         | Fix shared frame or fallback box model before changing tolerance                                                                                       |
+| Persistent shared layout resuspends on client nav                      | Fix route/layout architecture; check changing parallel slots, keyed subtrees, or client mount gates before tuning child fallbacks                      |
+| Visual layout drift                                                    | Fix shared frame or fallback box model before changing tolerance                                                                                       |
 
 ## Marker Convention
 
@@ -200,25 +200,25 @@ Use markers to prove ownership, not to alter behavior. Do not add an "instant mo
 
 ## When Not To Use Instant
 
-Consider opting out (only after user approval) when a route has no useful stable shell: immediate redirects, auth handoff, admin/debug/internal with low user value, or routes whose first meaningful UI depends on unrecoverable request-only state. Record the tradeoff and keep the released route tested. Treat `instant: false` and `connection()` as emergency escape hatches that require approval, not routine tools.
+Consider opting out (only after user approval) when a route has no useful stable shell: immediate redirects, auth handoff, admin/debug/internal with low user value, or routes whose first meaningful UI depends on unrecoverable request-only state. Record the tradeoff and keep the route's normal loaded state tested. Treat `instant: false` and `connection()` as emergency escape hatches that require approval, not routine tools.
 
 ## Related Primitives
 
 - **Cache Components / `use cache`**: stable data above the shell often belongs in a cached function with `cacheTag` and `cacheLife`, not in an awaited fetch.
-- **PPR (`experimental.ppr`)**: Instant Navigation builds on PPR. A route's locked shell is its prerendered prefix; the rest streams.
+- **PPR (`experimental.ppr`)**: Instant Navigation builds on PPR. A route's captured shell is its prerendered prefix; the rest streams.
 - **`next/root-params`**: the supported way to read generated root params below the owner that generates them.
 - **`generateStaticParams()`**: the static-ownership claim that makes a dynamic segment capturable.
-- **`@next/playwright` `instant()`**: the only way to observe the locked shell in tests; honor the production-testing flag when not in dev.
+- **`@next/playwright` `instant()`**: the only way to observe the captured shell in tests; honor the production-testing flag when not in dev.
 
 ## Acceptance
 
 Before calling work done:
 
 - Focused Instant test ran first, audited for correctness, and passed.
-- Released route works outside the Instant lock.
+- Route works outside Instant capture in its normal loaded state.
 - Captured boundary is proven and owned by the rewritten internal route tree.
 - Console and dev stdout show no route-specific Instant validation failures.
-- Locked-shell geometry matches released UI within tight tolerances.
+- Captured-shell layout dimensions match the loaded UI within tight tolerances.
 - Local production-like build passes (or remaining build blocker is documented with owner).
 - No reliance on `connection()`, `instant: false`, pathname scripts, private internals, or child-side shell detection to force the shell.
 - Final explanation names what is shared, what remains dynamic, and any known environment limitations.
@@ -226,4 +226,4 @@ Before calling work done:
 ## Related Skills
 
 - `$next-cache-components-optimizer` — when the route uses `cacheComponents: true` and you need to grow the static shell (page-render loop) or optimize in-app A → B navigation (nav loop). Instant tests assert what that optimizer produces.
-- `$next-dev-loop` — the underlying dev-server verification rhythm (`/_next/mcp` + `agent-browser`). Use it to observe runtime behavior while iterating on a shell; this skill layers the Playwright oracle on top.
+- `$next-dev-loop` — the underlying dev-server verification rhythm (`/_next/mcp` + `agent-browser`). Use it to observe runtime behavior while iterating on a shell; this skill layers the Playwright test on top.
