@@ -45,7 +45,7 @@ jobs:
         run: corepack prepare
 
       - name: Cache dependencies
-        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3.5.0
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-${{ runner.arch }}-pnpm-v2-${{
