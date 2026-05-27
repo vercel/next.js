@@ -4,7 +4,7 @@ import type {
   JSONValue,
   ReactCompilerOptions,
 } from 'next/dist/server/config-shared'
-import type { NextBabelLoaderOptions } from './babel/loader/types'
+import type { NextBabelLoaderOptions } from 'next/dist/build/babel/loader/types'
 
 function getReactCompiler() {
   try {
@@ -91,7 +91,7 @@ const getBabelLoader = (
       reactCompilerExclude,
     }
     return {
-      loader: require.resolve('./babel/loader/index'),
+      loader: require.resolve('next/dist/build/babel/loader/index'),
       options,
     }
   }
@@ -133,7 +133,7 @@ const getReactCompilerLoader = (
   }
 
   return {
-    loader: require.resolve('./babel/loader/index'),
+    loader: require.resolve('next/dist/build/babel/loader/index'),
     options: babelLoaderOptions,
   }
 }
