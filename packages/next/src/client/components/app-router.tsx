@@ -163,6 +163,27 @@ function Router({
   staticIndicatorState: StaticIndicatorState | undefined
 }) {
   const state = useActionQueue(actionQueue)
+  return (
+    <RouterContent
+      state={state}
+      globalError={globalError}
+      webSocket={webSocket}
+      staticIndicatorState={staticIndicatorState}
+    />
+  )
+}
+
+function RouterContent({
+  state,
+  globalError,
+  webSocket,
+  staticIndicatorState,
+}: {
+  state: AppRouterState
+  globalError: GlobalErrorState
+  webSocket: WebSocket | undefined
+  staticIndicatorState: StaticIndicatorState | undefined
+}) {
   const { canonicalUrl } = state
   // Add memoized pathname/query for useSearchParams and usePathname.
   const { searchParams, pathname } = useMemo(() => {
