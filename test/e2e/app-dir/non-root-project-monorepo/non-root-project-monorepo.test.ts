@@ -48,17 +48,20 @@ describe('non-root-project-monorepo', () => {
     })
   })
 
+  // TODO: These file URIs are wrong on turbopack+windows:
+  // https://en.wikipedia.org/wiki/File_URI_scheme
+  // The URIs should always use forward slashes, but use backslashes on windows.
   describe('import.meta.url', () => {
     it('should work during RSC', async () => {
       const $ = await next.render$('/import-meta-url-rsc')
-      expect($('p').text()).toMatch(
+      expect($('p').text().replaceAll('\\', '/')).toMatch(
         /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-rsc\/page.tsx$/
       )
     })
 
     it('should work during SSR', async () => {
       const $ = await next.render$('/import-meta-url-ssr')
-      expect($('p').text()).toMatch(
+      expect($('p').text().replaceAll('\\', '/')).toMatch(
         /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-ssr\/page.tsx$/
       )
     })
@@ -68,11 +71,13 @@ describe('non-root-project-monorepo', () => {
       await waitForNoRedbox(browser)
       if (isTurbopack) {
         // Turbopack intentionally doesn't expose the full path to the browser bundles
-        expect(await browser.elementByCss('p').text()).toBe(
-          'file:///ROOT/apps/web/app/import-meta-url-ssr/page.tsx'
-        )
+        expect(
+          (await browser.elementByCss('p').text()).replaceAll('\\', '/')
+        ).toBe('file:///ROOT/apps/web/app/import-meta-url-ssr/page.tsx')
       } else {
-        expect(await browser.elementByCss('p').text()).toMatch(
+        expect(
+          (await browser.elementByCss('p').text()).replaceAll('\\', '/')
+        ).toMatch(
           /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-ssr\/page.tsx$/
         )
       }
