@@ -87,17 +87,24 @@ const config: NextConfig = {
 export default config
 ```
 
-**Per route (opt-in or opt-out):**
+**Per route (opt-in, opt-out, or fine-grained):**
 
 ```ts
 // app/dashboard/page.tsx
 export const unstable_instant = true
 // or, to opt a blocking route out:
 export const unstable_instant = false
-// or, with samples and options:
+// or, fine-grained:
 export const unstable_instant = {
-  level: 'warning',
-  unstable_samples: [{ cookies: [{ name: 'session', value: 'abc' }] }],
+  // Override the global validation level for this route only.
+  // 'experimental-error' promotes one high-value route to strict
+  // while the rest of the app stays at 'warning'.
+  level: 'experimental-error',
+
+  // Granular escape hatches when full opt-out is too coarse:
+  unstable_disableDevValidation: true, // keep build strict, silence dev
+  unstable_disableBuildValidation: true, // keep dev warnings, unblock CI
+  unstable_disableValidation: true, // skip validation on this subtree entirely
 }
 ```
 

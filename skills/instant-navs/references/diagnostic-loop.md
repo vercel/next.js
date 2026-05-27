@@ -4,7 +4,7 @@ Use this when Instant work drifts, a shell is blank, the wrong boundary appears,
 
 ## Source Priority
 
-1. Next route-specific diagnostics from Next DevTools, framework diagnostics, or dev stdout.
+1. Next route-specific diagnostics from the dev overlay's **Instant Navigation** panel (the dedicated surface for blocking-route output and the re-arm flow), framework diagnostics, or dev stdout.
 2. Browser page errors and console errors captured before navigation.
 3. Captured shell DOM from `instant(page, ...)`.
 4. Screenshots and visual judgment (last).
@@ -135,4 +135,12 @@ Use the first blocker to choose the smallest useful move:
 
 ## Escape Hatches
 
-Use `export const unstable_instant = false` or `connection()` only after explaining the tradeoff and getting user approval. A test that passes only because `connection()` forced a fallback is proving the workaround, not the intended architecture.
+Pick the smallest hatch that unblocks the work, in this order:
+
+1. `unstable_disableDevValidation: true` — silence dev noise on a route you plan to fix; build stays strict.
+2. `unstable_disableBuildValidation: true` — keep dev warnings but stop blocking CI while you stabilize.
+3. `unstable_disableValidation: true` — skip validation on this subtree entirely.
+4. `export const unstable_instant = false` — whole-route opt-out.
+5. `connection()` — force the route dynamic.
+
+Any of these need user approval and a recorded tradeoff. A test that passes only because `connection()` forced a fallback is proving the workaround, not the intended architecture.
