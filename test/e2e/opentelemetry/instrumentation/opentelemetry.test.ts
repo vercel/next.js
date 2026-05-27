@@ -1159,6 +1159,74 @@ describe('opentelemetry', () => {
     )
   }
 })
+;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
+  'opentelemetry NEXT_OTEL_VERBOSE=1',
+  () => {
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipDeployment: true,
+      dependencies: require('./package.json').dependencies,
+      env: {
+        TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
+        NEXT_TELEMETRY_DISABLED: '1',
+        NEXT_OTEL_VERBOSE: '1',
+      },
+    })
+
+    if (skipped) {
+      return
+    }
+
+    let collector: Collector | undefined
+
+    beforeEach(async () => {
+      collector = await connectCollector({ port: COLLECTOR_PORT })
+    })
+
+    afterEach(async () => {
+      await collector?.shutdown()
+      collector = undefined
+    })
+
+    // Regression for https://github.com/vercel/otel/issues/107.
+    it('all spans (including verbose) inherit traceId from incoming traceparent header', async () => {
+      const pathname = '/app/param/rsc-fetch'
+      await next.fetch(pathname, {
+        headers: {
+          traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+        },
+      })
+
+      let spans: SavedSpan[] = []
+      await retry(async () => {
+        const all = collector?.getSpans() ?? []
+        const root = all.find(
+          (s) =>
+            s.attributes?.['next.span_type'] === 'BaseServer.handleRequest' &&
+            s.attributes?.['http.target'] === pathname
+        )
+        expect(root).toBeDefined()
+        expect(root!.traceId).toBe(EXTERNAL.traceId)
+
+        spans = all.filter((s) => s.traceId === root!.traceId)
+        expect(spans.length).toBeGreaterThan(1)
+
+        const verbose = spans.find(
+          (s) =>
+            s.attributes?.['next.span_type'] === 'NextServer.getRequestHandler'
+        )
+        expect(verbose).toBeDefined()
+        expect(verbose!.traceId).toBe(EXTERNAL.traceId)
+        const parentSpanId = verbose!.parentId
+        expect(parentSpanId).toBe(EXTERNAL.spanId)
+      })
+
+      for (const span of spans) {
+        expect(span.traceId).toBe(EXTERNAL.traceId)
+      }
+    })
+  }
+)
 
 describe('opentelemetry with disabled fetch tracing', () => {
   const { next, skipped } = nextTestSetup({

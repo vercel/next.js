@@ -8,7 +8,6 @@ import {
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import fs from 'fs-extra'
 
 describe('jsconfig-path-reloading', () => {
@@ -62,7 +61,7 @@ describe('jsconfig-path-reloading', () => {
       const tsconfigContent = await next.readFile(tsConfigFile)
       const parsedTsConfig = JSON.parse(tsconfigContent)
 
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
 
       try {
         const html = await browser.eval('document.documentElement.innerHTML')
@@ -125,7 +124,7 @@ describe('jsconfig-path-reloading', () => {
       const tsconfigContent = await next.readFile(tsConfigFile)
       const parsedTsConfig = JSON.parse(tsconfigContent)
 
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
 
       try {
         const html = await browser.eval('document.documentElement.innerHTML')

@@ -2,6 +2,8 @@
 .vscode
 
 e2e/**/tsconfig.json
+# See PACK-6932: we need to submit this so that builds are more consistent
+!e2e/filesystem-cache/tsconfig.json
 production/**/tsconfig.json
 development/**/tsconfig.json
 
