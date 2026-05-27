@@ -39,7 +39,6 @@ pub mod webpack;
 pub mod worker_chunk;
 
 use std::{
-    borrow::Cow,
     collections::hash_map::Entry,
     fmt::{Debug, Display, Formatter},
     mem::take,
@@ -1766,25 +1765,9 @@ async fn process_parse_result(
     with_consumed_parse_result(
         parsed,
         async |mut program, source_map, globals, eval_context, comments| -> Result<CodeGenResult> {
-            let (top_level_mark, is_esm, strict) = eval_context
-                .as_ref()
-                .map_either(
-                    |e| {
-                        (
-                            e.top_level_mark,
-                            e.is_esm(specified_module_type),
-                            e.imports.strict,
-                        )
-                    },
-                    |e| {
-                        (
-                            e.top_level_mark,
-                            e.is_esm(specified_module_type),
-                            e.imports.strict,
-                        )
-                    },
-                )
-                .into_inner();
+            let top_level_mark = eval_context.top_level_mark;
+            let is_esm = eval_context.is_esm(specified_module_type);
+            let strict = eval_context.imports.strict;
 
             let (mut code_gens, retain_syntax_context, prepend_ident_comment) =
                 if let Some(scope_hoisting_options) = scope_hoisting_options {
@@ -1798,23 +1781,9 @@ async fn process_parse_result(
                         is_import_mark,
                         globals,
                     };
-                    let code_gens = options
-                        .unwrap()
-                        .merged_code_gens(
-                            ctx,
-                            match &eval_context {
-                                Either::Left(e) => e,
-                                Either::Right(e) => e,
-                            },
-                        )
-                        .await?;
+                    let code_gens = options.unwrap().merged_code_gens(ctx, eval_context).await?;
 
-                    let export_contexts = eval_context
-                        .map_either(
-                            |e| Cow::Owned(e.imports.exports_ids),
-                            |e| Cow::Borrowed(&e.imports.exports_ids),
-                        )
-                        .into_inner();
+                    let export_contexts = &eval_context.imports.exports_ids;
                     let preserved_exports =
                         match &*scope_hoisting_options.module.get_exports().await? {
                             EcmascriptExports::EsmExports(exports) => exports
@@ -1856,13 +1825,7 @@ async fn process_parse_result(
                 } else if let Some(options) = options {
                     (
                         options
-                            .merged_code_gens(
-                                ScopeHoistingContext::None,
-                                match &eval_context {
-                                    Either::Left(e) => e,
-                                    Either::Right(e) => e,
-                                },
-                            )
+                            .merged_code_gens(ScopeHoistingContext::None, eval_context)
                             .await?,
                         None,
                         None,
@@ -1945,7 +1908,7 @@ async fn process_parse_result(
                 minify,
                 scope_hoisting_syntax_contexts: retain_syntax_context
                     // TODO ideally don't clone here
-                    .map(|(_, ctxts, _, export_contexts)| (ctxts, export_contexts.into_owned())),
+                    .map(|(_, ctxts, _, export_contexts)| (ctxts, export_contexts.clone())),
             })
         },
         async |parse_result| -> Result<CodeGenResult> {
@@ -2031,7 +1994,7 @@ async fn with_consumed_parse_result<T>(
         Program,
         &Arc<SourceMap>,
         &Arc<Globals>,
-        Either<EvalContext, &'_ EvalContext>,
+        &EvalContext,
         Either<ImmutableComments, Arc<ImmutableComments>>,
     ) -> Result<T>,
     error: impl AsyncFnOnce(&ParseResult) -> Result<T>,
@@ -2048,7 +2011,7 @@ async fn with_consumed_parse_result<T>(
             Program::Module(swc_core::ecma::ast::Module::dummy()),
             &Default::default(),
             &Default::default(),
-            Either::Left(eval_context),
+            &eval_context,
             Either::Left(Default::default()),
         )
         .await;
@@ -2058,6 +2021,7 @@ async fn with_consumed_parse_result<T>(
     match &*parsed {
         ParseResult::Ok { .. } => {
             let mut parsed = ReadRef::try_unwrap(parsed);
+            let mut owned_eval_context: Option<EvalContext> = None;
             let (program, source_map, globals, eval_context, comments) = match &mut parsed {
                 Ok(ParseResult::Ok {
                     program,
@@ -2066,11 +2030,8 @@ async fn with_consumed_parse_result<T>(
                     eval_context,
                     comments,
                     ..
-                }) => (
-                    program.take(),
-                    &*source_map,
-                    &*globals,
-                    Either::Left(std::mem::replace(
+                }) => {
+                    let ec = owned_eval_context.insert(std::mem::replace(
                         eval_context,
                         EvalContext {
                             unresolved_mark: eval_context.unresolved_mark,
@@ -2078,12 +2039,18 @@ async fn with_consumed_parse_result<T>(
                             imports: Default::default(),
                             force_free_values: Default::default(),
                         },
-                    )),
-                    match Arc::try_unwrap(take(comments)) {
-                        Ok(comments) => Either::Left(comments),
-                        Err(comments) => Either::Right(comments),
-                    },
-                ),
+                    ));
+                    (
+                        program.take(),
+                        &*source_map,
+                        &*globals,
+                        &*ec,
+                        match Arc::try_unwrap(take(comments)) {
+                            Ok(comments) => Either::Left(comments),
+                            Err(comments) => Either::Right(comments),
+                        },
+                    )
+                }
                 Err(parsed) => {
                     let ParseResult::Ok {
                         program,
@@ -2100,7 +2067,7 @@ async fn with_consumed_parse_result<T>(
                         program.clone(),
                         source_map,
                         globals,
-                        Either::Right(eval_context),
+                        eval_context,
                         Either::Right(comments.clone()),
                     )
                 }
