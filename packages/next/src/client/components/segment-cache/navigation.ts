@@ -437,6 +437,7 @@ async function navigateToUnknownRoute(
     discoverKnownRoute(
       now,
       url.pathname,
+      url.search as NormalizedSearch,
       nextUrl,
       null, // No pending entry
       navigationSeed.routeTree,
