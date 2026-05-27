@@ -348,7 +348,7 @@ export async function signup(state, formData) {
   // e.g. Hash the user's password before storing it
   const hashedPassword = await bcrypt.hash(password, 10)
 
-  // 3. Insert the user into the database or call an Library API
+  // 3. Insert the user into the database or call an Auth Library's API
   const data = await db
     .insert(users)
     .values({
@@ -681,7 +681,7 @@ export async function signup(state: FormState, formData: FormData) {
   // Previous steps:
   // 1. Validate form fields
   // 2. Prepare data for insertion into database
-  // 3. Insert the user into the database or call an Library API
+  // 3. Insert the user into the database or call an Auth Library's API
 
   // Current steps:
   // 4. Create user session
@@ -698,7 +698,7 @@ export async function signup(state, formData) {
   // Previous steps:
   // 1. Validate form fields
   // 2. Prepare data for insertion into database
-  // 3. Insert the user into the database or call an Library API
+  // 3. Insert the user into the database or call an Auth Library's API
 
   // Current steps:
   // 4. Create user session
@@ -756,9 +756,10 @@ export async function updateSession() {
     return null
   }
 
-  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)(
-    await cookies()
-  ).set('session', session, {
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+  const cookieStore = await cookies()
+  cookieStore.set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expires,
