@@ -661,7 +661,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [22, 24]
+        # HACK: node 24 is hanging during `pnpm install` on this backport
+        # branch, only enable node 22 on this branch:
+        # https://vercel.slack.com/archives/C0B0LKK5QD7/p1779825011578549
+        node: [22]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -683,7 +686,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [22, 24]
+        # HACK: node 24 is hanging during `pnpm install` on this backport
+        # branch, only enable node 22 on this branch:
+        # https://vercel.slack.com/archives/C0B0LKK5QD7/p1779825011578549
+        node: [22]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
