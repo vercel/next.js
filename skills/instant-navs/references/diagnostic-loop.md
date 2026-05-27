@@ -91,7 +91,7 @@ Use production-like build output as a separate signal from dev Instant tests.
 
 - Compare visible URL with middleware, proxy, rewrites, route groups, and parallel slots. A public URL may render through a hidden internal route tree.
 - Prove the captured owner with a stable route marker or captured shell DOM evidence before refactoring UI.
-- For shell generation that depends on root variant identity, use the `next/root-params` generated getter API. Treat `props.params` reads in root or shared layouts as suspect until the focused Instant probe proves they do not trigger `NEXT_STATIC_GEN_BAILOUT`.
+- For shell generation that depends on root variant identity, use the named getters from `next/root-params` (one per generated root param). Treat `props.params` reads in root or shared layouts as suspect until the focused Instant probe proves they do not trigger `NEXT_STATIC_GEN_BAILOUT`.
 - If a parent root/layout fallback captures before the target route, fix the parent boundary first. Do not tune child skeletons and call the work done.
 
 ## Shell Capture Checks
@@ -111,7 +111,7 @@ Use the first blocker to choose the smallest useful move:
 | Blocker                                                                | Prefer                                                                                                                                                 |
 | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `cookies()`, `headers()`, session, user, flags                         | Keep shared frame above Suspense; move stateful region below; or use a pending provider that exposes shape without resolved facts                      |
-| `params` / root params in shared layout or sibling parallel slot       | Use `rootParams()` getters from `next/root-params`; read only params the layout owns; audit sibling `@header`/`@sidebar` slots                         |
+| `params` / root params in shared layout or sibling parallel slot       | Use named getters from `next/root-params`; read only params the layout owns; audit sibling `@header`/`@sidebar` slots                                  |
 | Per-request identity (scope, tenant, team) drifting across navigations | Include the identity in cache keys, request de-dupe keys, and SWR keys; do not rely only on request headers                                            |
 | Localized shell text                                                   | Treat locale as part of the route/variant tuple, or suspend the localized region; default locale only in inert fallback                                |
 | `useSearchParams()`, router/query-state hooks                          | Wrap the client control in Suspense with an inert box-model fallback                                                                                   |
@@ -135,4 +135,4 @@ Use the first blocker to choose the smallest useful move:
 
 ## Escape Hatches
 
-Use `instant: false` or `connection()` only after explaining the tradeoff and getting user approval. A test that passes only because `connection()` forced a fallback is proving the workaround, not the intended architecture.
+Use `export const unstable_instant = false` or `connection()` only after explaining the tradeoff and getting user approval. A test that passes only because `connection()` forced a fallback is proving the workaround, not the intended architecture.

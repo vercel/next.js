@@ -51,6 +51,69 @@ Add Instant Navigation to a single route in 5 minutes:
 See `references/playwright-verification.md` for the full pattern with
 diagnostics capture and layout-dimension assertions.
 
+## Version And Flag Requirements
+
+This skill targets Next.js **16.3+** and `@next/playwright`. Earlier
+versions either lack the testing API or use older config shapes.
+
+**`next.config.ts` (or `next.config.js`):**
+
+```ts
+import type { NextConfig } from 'next'
+
+const config: NextConfig = {
+  // Foundation. Instant Navigation builds on Cache Components / PPR.
+  // Without this, there is no captured shell to validate.
+  cacheComponents: true,
+
+  experimental: {
+    // When and how validation runs. Pick one:
+    //   'warning'                      — dev only, every navigation (recommended while iterating)
+    //   'manual-warning'               — dev only, routes with `unstable_instant` set
+    //   'experimental-error'           — dev + build, every navigation (strict)
+    //   'experimental-manual-error'    — dev + build, opted-in routes only
+    instantInsights: { validationLevel: 'warning' },
+
+    // Only needed for tests against `next build`/preview. Dev exposes
+    // the testing API unconditionally. Do NOT enable in real production.
+    exposeTestingApiInProductionBuild: true,
+
+    // Optional. Adds an "Instant Navigation Mode" toggle to the dev
+    // tools indicator so you can lock navigations to the cached state.
+    instantNavigationDevToolsToggle: true,
+  },
+}
+
+export default config
+```
+
+**Per route (opt-in or opt-out):**
+
+```ts
+// app/dashboard/page.tsx
+export const unstable_instant = true
+// or, to opt a blocking route out:
+export const unstable_instant = false
+// or, with samples and options:
+export const unstable_instant = {
+  level: 'warning',
+  unstable_samples: [{ cookies: [{ name: 'session', value: 'abc' }] }],
+}
+```
+
+The config key is `unstable_instant`, not `instant`. The route segment
+schema strips unknown keys silently, so a typo compiles and does nothing.
+
+**Test dependency:**
+
+```bash
+pnpm add -D @next/playwright @playwright/test
+```
+
+`@next/playwright` re-exports `instant(page, fn, options?)`; pass
+`{ baseURL }` only when the page has never navigated before entering the
+scope.
+
 ## Reference Map
 
 - `references/playwright-verification.md`: writing and auditing focused
@@ -86,11 +149,12 @@ composition itself.
 
 ### Data Semantics
 
-**Use `rootParams()` for generated root params, not `await props.params`.**
+**Use `next/root-params` for generated root params, not `await props.params`.**
 When a layout needs a root-generated param (locale, tenant, variant),
-import the getter from `next/root-params`. Awaiting `props.params` for
-params the layout does not own can bail static generation with
-`NEXT_STATIC_GEN_BAILOUT` or trigger `Expected workStore to be initialized`.
+import the compiler-generated named getter (one per root param). Awaiting
+`props.params` for params the layout does not own can bail static
+generation with `NEXT_STATIC_GEN_BAILOUT` or trigger `Expected workStore
+to be initialized`.
 
 ```tsx
 import { locale } from 'next/root-params'
@@ -99,6 +163,10 @@ export default async function Layout({ children }) {
   return <html lang={lang}>{children}</html>
 }
 ```
+
+`next/root-params` is regenerated per project from your `generateStaticParams()`
+returns; the exports you see in autocomplete are real, but only inside
+Server Components (not Route Handlers or Server Actions).
 
 **Do not read `headers()` or `cookies()` above the Instant shell.** Calling
 them in a server component or provider above the captured Suspense
@@ -112,9 +180,9 @@ stable, or be replaced by an inert pending UI. Stale loaded facts as
 fallbacks lie to the user.
 
 **Do not call `headers()` inside `after()`.** `after()` runs outside the
-request scope. The error currently does not point at the call site, so
-wrap the read or move it to the request body. Same applies to `cookies()`
-and other request-scoped APIs.
+request scope. Read the request data before the `after()` callback and
+close over it, or move the work out of `after()`. Same applies to
+`cookies()` and other request-scoped APIs.
 
 ### Composition
 
@@ -185,8 +253,9 @@ Consider opting out (only after user approval) when a route has no useful
 stable shell: immediate redirects, auth handoff, admin/debug/internal with
 low user value, or routes whose first meaningful UI depends on
 unrecoverable request-only state. Record the tradeoff and keep the route's
-normal loaded state tested. Treat `instant: false` and `connection()` as
-emergency escape hatches that require approval, not routine tools.
+normal loaded state tested. Treat `export const unstable_instant = false`
+and `connection()` as emergency escape hatches that require approval, not
+routine tools.
 
 ## Related Primitives
 
@@ -212,8 +281,9 @@ Before calling work done:
 - Console and dev stdout show no route-specific Instant validation failures.
 - Captured-shell layout dimensions match the loaded UI within tight tolerances.
 - Local production-like build passes (or remaining blocker is documented).
-- No reliance on `connection()`, `instant: false`, pathname scripts,
-  private internals, or child-side shell detection to force the shell.
+- No reliance on `connection()`, `unstable_instant = false`, pathname
+  scripts, private internals, or child-side shell detection to force the
+  shell.
 - Final explanation names what is shared, what remains dynamic, and any
   known environment limitations.
 

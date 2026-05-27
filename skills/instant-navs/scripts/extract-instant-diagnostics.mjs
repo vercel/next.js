@@ -19,12 +19,12 @@ const patterns = [
   ['uncached-data', /encountered uncached data|uncached data/i],
   [
     'render-prevented-validation',
-    /Could not validate unstable_instant because an error prevented/i,
+    /Could not validate `?unstable_instant`? because (an error prevented|the target segment was prevented|a Client Component)/i,
   ],
   ['workstore-invariant', /Expected workStore to be initialized/i],
   [
     'request-scope',
-    /cookies\(\) outside a request scope|headers\(\) outside a request scope/i,
+    /`?(cookies|headers)\(\)`? was called outside a request scope/i,
   ],
   [
     'stale-export',
