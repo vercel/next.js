@@ -527,7 +527,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     async fn chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_group: ResolvedVc<ChunkGroup>,
         module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
@@ -570,7 +570,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     pub async fn entry_chunk_group(
         self: ResolvedVc<Self>,
         path: FileSystemPath,
-        chunk_group: ChunkGroup,
+        chunk_group: ResolvedVc<ChunkGroup>,
         module_graph: ResolvedVc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -588,7 +588,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group.clone(),
+                chunk_group,
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
@@ -607,6 +607,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
             referenced_output_assets.extend(extra_referenced_assets.await?.iter().copied());
 
+            let chunk_group = chunk_group.await?;
             let Some(module) = ResolvedVc::try_sidecast(chunk_group.entries().last().unwrap())
             else {
                 bail!("module must be placeable in an ecmascript chunk");
@@ -649,7 +650,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     fn evaluated_chunk_group(
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
-        _chunk_group: ChunkGroup,
+        _chunk_group: Vc<ChunkGroup>,
         _module_graph: Vc<ModuleGraph>,
         _availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {

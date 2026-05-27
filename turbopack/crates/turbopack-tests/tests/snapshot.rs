@@ -587,7 +587,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let chunks = match options.runtime {
         Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
             entry_module.ident(),
-            ChunkGroup::Entry(entry_modules.into_iter().collect()),
+            ChunkGroup::Entry(entry_modules.into_iter().collect()).cell(),
             module_graph,
             AvailabilityInfo::root(),
         ),
@@ -600,7 +600,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                             chunk_root_path
                                 .join(entry_module.ident().await?.path.file_stem().unwrap())?
                                 .with_extension("entry.js"),
-                            ChunkGroup::Entry(entry_modules),
+                            ChunkGroup::Entry(entry_modules).cell(),
                             module_graph,
                             OutputAssets::empty(),
                             OutputAssets::empty(),

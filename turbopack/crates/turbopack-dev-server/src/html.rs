@@ -134,7 +134,7 @@ impl DevHtmlAsset {
         let all_chunk_groups = self
             .entries
             .iter()
-            .map(|entry| async move {
+            .map(async |entry| {
                 let &DevHtmlEntry {
                     chunkable_module,
                     chunking_context,
@@ -161,7 +161,8 @@ impl DevHtmlAsset {
                                     .iter()
                                     .map(|v| ResolvedVc::upcast(*v))
                                     .collect(),
-                            ),
+                            )
+                            .cell(),
                             *module_graph,
                             AvailabilityInfo::root(),
                         )
@@ -170,7 +171,7 @@ impl DevHtmlAsset {
                     chunking_context
                         .root_chunk_group_assets(
                             chunkable_module.ident(),
-                            ChunkGroup::Entry(vec![ResolvedVc::upcast(chunkable_module)]),
+                            ChunkGroup::Entry(vec![ResolvedVc::upcast(chunkable_module)]).cell(),
                             *module_graph,
                         )
                         .await?

@@ -45,7 +45,7 @@ pub struct MakeChunkGroupResult {
 
 /// Creates a chunk group from a set of entries.
 pub async fn make_chunk_group(
-    chunk_group: ChunkGroup,
+    chunk_group: ResolvedVc<ChunkGroup>,
     module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     availability_info: AvailabilityInfo,
@@ -207,7 +207,7 @@ pub struct ChunkGroupContentOptions {
 /// Computes the content of a chunk group.
 pub async fn chunk_group_content(
     module_graph: ResolvedVc<ModuleGraph>,
-    chunk_group: ChunkGroup,
+    chunk_group: ResolvedVc<ChunkGroup>,
     options: ChunkGroupContentOptions,
 ) -> Result<ChunkGroupContent> {
     let availability_info = options.availability_info;
@@ -231,7 +231,7 @@ async fn available_modules_operation(
 #[turbo_tasks::function(operation)]
 async fn chunk_group_content_operation(
     module_graph: ResolvedVc<ModuleGraph>,
-    chunk_group: ChunkGroup,
+    chunk_group: ResolvedVc<ChunkGroup>,
     ChunkGroupContentOptions {
         availability_info,
         can_split_async,
@@ -262,6 +262,8 @@ async fn chunk_group_content_operation(
         Some(available_modules) => Some(available_modules.snapshot().await?),
         None => None,
     };
+
+    let chunk_group = chunk_group.await?;
 
     let mut entries = Vec::with_capacity(chunk_group.entries_count());
     for entry in chunk_group.entries() {

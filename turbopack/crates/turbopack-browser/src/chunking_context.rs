@@ -762,7 +762,7 @@ impl ChunkingContext for BrowserChunkingContext {
     async fn chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_group: ResolvedVc<ChunkGroup>,
         module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
@@ -832,7 +832,7 @@ impl ChunkingContext for BrowserChunkingContext {
     async fn evaluated_chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: ChunkGroup,
+        chunk_group: ResolvedVc<ChunkGroup>,
         module_graph: ResolvedVc<ModuleGraph>,
         input_availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
@@ -849,7 +849,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 references,
                 availability_info,
             } = make_chunk_group(
-                chunk_group.clone(),
+                chunk_group,
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -866,6 +866,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
             let other_assets = Vc::cell(assets.clone());
 
+            let chunk_group = chunk_group.await?;
             let entries = Vc::cell(
                 chunk_group
                     .entries()
@@ -922,7 +923,7 @@ impl ChunkingContext for BrowserChunkingContext {
     fn entry_chunk_group(
         self: Vc<Self>,
         _path: FileSystemPath,
-        _chunk_group: ChunkGroup,
+        _chunk_group: Vc<ChunkGroup>,
         _module_graph: Vc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,
         _extra_referenced_assets: Vc<OutputAssets>,

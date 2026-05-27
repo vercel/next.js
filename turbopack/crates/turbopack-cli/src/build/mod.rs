@@ -439,64 +439,58 @@ async fn build_internal(
 
     let entry_chunk_groups = entries
         .into_iter()
-        .map(|entry_module| {
+        .map(async |entry_module| {
             let build_output_root = build_output_root.clone();
-
-            async move {
-                Ok(
-                    if let Some(ecmascript) =
-                        ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry_module)
-                    {
-                        match target {
-                            Target::Browser => chunking_context.evaluated_chunk_group_assets(
-                                AssetIdent::from_path(
-                                    build_output_root
-                                        .join(ecmascript.ident().await?.path.file_stem().unwrap())?
-                                        .with_extension("entry.js"),
-                                )
-                                .into_vc(),
-                                ChunkGroup::Entry(
-                                    [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
-                                ),
-                                module_graph,
-                                AvailabilityInfo::root(),
-                            ),
-                            Target::Node => OutputAssetsWithReferenced {
-                                assets: ResolvedVc::cell(vec![
-                                    chunking_context
-                                        .entry_chunk_group(
-                                            build_output_root
-                                                .join(
-                                                    ecmascript
-                                                        .ident()
-                                                        .await?
-                                                        .path
-                                                        .file_stem()
-                                                        .unwrap(),
-                                                )?
-                                                .with_extension("entry.js"),
-                                            ChunkGroup::Entry(vec![ResolvedVc::upcast(ecmascript)]),
-                                            module_graph,
-                                            OutputAssets::empty(),
-                                            OutputAssets::empty(),
-                                            AvailabilityInfo::root(),
-                                        )
-                                        .await?
-                                        .asset,
-                                ]),
-                                referenced_assets: ResolvedVc::cell(vec![]),
-                                references: ResolvedVc::cell(vec![]),
-                            }
+            Ok(
+                if let Some(ecmascript) =
+                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry_module)
+                {
+                    match target {
+                        Target::Browser => chunking_context.evaluated_chunk_group_assets(
+                            AssetIdent::from_path(
+                                build_output_root
+                                    .join(ecmascript.ident().await?.path.file_stem().unwrap())?
+                                    .with_extension("entry.js"),
+                            )
+                            .into_vc(),
+                            ChunkGroup::Entry(
+                                [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
+                            )
                             .cell(),
+                            module_graph,
+                            AvailabilityInfo::root(),
+                        ),
+                        Target::Node => OutputAssetsWithReferenced {
+                            assets: ResolvedVc::cell(vec![
+                                chunking_context
+                                    .entry_chunk_group(
+                                        build_output_root
+                                            .join(
+                                                ecmascript.ident().await?.path.file_stem().unwrap(),
+                                            )?
+                                            .with_extension("entry.js"),
+                                        ChunkGroup::Entry(vec![ResolvedVc::upcast(ecmascript)])
+                                            .cell(),
+                                        module_graph,
+                                        OutputAssets::empty(),
+                                        OutputAssets::empty(),
+                                        AvailabilityInfo::root(),
+                                    )
+                                    .await?
+                                    .asset,
+                            ]),
+                            referenced_assets: ResolvedVc::cell(vec![]),
+                            references: ResolvedVc::cell(vec![]),
                         }
-                    } else {
-                        bail!(
-                            "Entry module is not chunkable, so it can't be used to bootstrap the \
-                             application"
-                        )
-                    },
-                )
-            }
+                        .cell(),
+                    }
+                } else {
+                    bail!(
+                        "Entry module is not chunkable, so it can't be used to bootstrap the \
+                         application"
+                    )
+                },
+            )
         })
         .try_join()
         .await?;

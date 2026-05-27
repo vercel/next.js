@@ -31,7 +31,8 @@ pub async fn get_app_client_shared_chunk_group(
                         .iter()
                         .map(|v| ResolvedVc::upcast(*v))
                         .collect(),
-                ),
+                )
+                .cell(),
                 module_graph,
                 AvailabilityInfo::root(),
             )

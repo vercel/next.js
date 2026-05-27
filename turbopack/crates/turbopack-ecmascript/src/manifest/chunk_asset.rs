@@ -64,7 +64,7 @@ impl ManifestAsyncModule {
     pub(super) fn chunk_group(&self) -> Vc<OutputAssetsWithReferenced> {
         self.chunking_context.chunk_group_assets(
             self.inner.ident(),
-            ChunkGroup::Async(ResolvedVc::upcast(self.inner)),
+            ChunkGroup::async_interned(*ResolvedVc::upcast(self.inner)),
             *self.module_graph,
             self.availability_info,
         )
@@ -96,7 +96,7 @@ impl ManifestAsyncModule {
         }
         Ok(this.chunking_context.chunk_group_assets(
             self.ident(),
-            ChunkGroup::Async(ResolvedVc::upcast(self)),
+            ChunkGroup::async_interned(*ResolvedVc::upcast(self)),
             *this.module_graph,
             this.availability_info,
         ))
