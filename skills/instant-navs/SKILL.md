@@ -251,9 +251,6 @@ scope.
   and the boundary decision table.
 - `references/react-suspense-composition.md`: layout, provider, fallback,
   shell-capture ownership, and data-ownership patterns.
-- Bundled `scripts/extract-instant-diagnostics.mjs <log...>`: pulls the first
-  route-specific Instant blocker out of large dev or trace logs. Resolve this
-  path relative to the installed `instant-navs` skill directory.
 
 ## Validation Order
 
