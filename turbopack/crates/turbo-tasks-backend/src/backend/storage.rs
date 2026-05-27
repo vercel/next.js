@@ -13,10 +13,7 @@ use thread_local::ThreadLocal;
 use tracing::span::Id;
 use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{
-    FxDashMap, TaskId, ValueTypeId,
-    backend::{CachedTaskType, CachedTaskTypeArc},
-    event::Event,
-    parallel,
+    FxDashMap, TaskId, ValueTypeId, backend::CachedTaskTypeArc, event::Event, parallel,
 };
 
 use crate::{
