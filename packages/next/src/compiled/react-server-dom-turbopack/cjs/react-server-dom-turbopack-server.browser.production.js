@@ -555,7 +555,10 @@ function trackUsedThenable(thenableState, thenable, index) {
     case "fulfilled":
       return thenable.value;
     case "rejected":
-      throw thenable.reason;
+      thenableState = thenable.reason;
+      if (void 0 === thenableState && !("reason" in thenable))
+        throw Error(formatProdErrorMessage(600));
+      throw thenableState;
     default:
       "string" === typeof thenable.status
         ? thenable.then(noop, noop)

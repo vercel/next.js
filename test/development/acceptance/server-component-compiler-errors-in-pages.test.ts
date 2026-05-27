@@ -306,13 +306,6 @@ describe('Error Overlay for server components compiler errors in pages', () => {
           }
         `,
       ],
-      [
-        // the import is guarded behind an experimental flag
-        'next.config.js',
-        outdent`
-          module.exports = { experimental: { rootParams: true } }
-        `,
-      ],
     ])
     await using sandbox = await createSandbox(next, files)
     const { session } = sandbox

@@ -3,7 +3,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, State, Vc, mark_session_dependent};
+use turbo_tasks::{ResolvedVc, State, Vc};
 use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
@@ -76,9 +76,8 @@ async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
     Ok(last.unwrap())
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(session_dependent)]
 async fn compute2(input: Vc<u32>) -> Result<Vc<u32>> {
-    mark_session_dependent();
     println!("compute2()");
     let value = *input.await?;
     Ok(Vc::cell(value))

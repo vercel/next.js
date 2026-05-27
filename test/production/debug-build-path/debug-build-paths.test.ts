@@ -3,12 +3,10 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('debug-build-paths', () => {
   describe('default fixture', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: path.join(__dirname, 'fixtures/default'),
       skipStart: true,
     })
-
-    if (skipped) return
 
     describe('explicit path formats', () => {
       it('should build single page with pages/ prefix', async () => {
@@ -279,13 +277,62 @@ describe('debug-build-paths', () => {
     })
   })
 
-  describe('with-compile-error fixture', () => {
-    const { next, skipped } = nextTestSetup({
-      files: path.join(__dirname, 'fixtures/with-compile-error'),
+  describe('src-dir fixture', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures/src-dir'),
       skipStart: true,
     })
 
-    if (skipped) return
+    it('should resolve app patterns with explicit src/ prefix', async () => {
+      const buildResult = await next.build({
+        args: ['--debug-build-paths', 'src/app/blog/[slug]/page.tsx'],
+      })
+      expect(buildResult.exitCode).toBe(0)
+      expect(buildResult.cliOutput).toContain('Route (app)')
+      expect(buildResult.cliOutput).toContain('/blog/[slug]')
+      // Should not build other app routes
+      expect(buildResult.cliOutput).not.toMatch(/○ \/\n/)
+      expect(buildResult.cliOutput).not.toContain('Route (pages)')
+    })
+
+    it('should resolve app patterns without src/ prefix when project uses src/app', async () => {
+      const buildResult = await next.build({
+        args: ['--debug-build-paths', 'app/blog/[slug]/page.tsx'],
+      })
+      expect(buildResult.exitCode).toBe(0)
+      expect(buildResult.cliOutput).toContain('Route (app)')
+      expect(buildResult.cliOutput).toContain('/blog/[slug]')
+      expect(buildResult.cliOutput).not.toMatch(/○ \/\n/)
+      expect(buildResult.cliOutput).not.toContain('Route (pages)')
+    })
+
+    it('should resolve pages patterns without src/ prefix when project uses src/pages', async () => {
+      const buildResult = await next.build({
+        args: ['--debug-build-paths', 'pages/foo.tsx'],
+      })
+      expect(buildResult.exitCode).toBe(0)
+      expect(buildResult.cliOutput).toContain('Route (pages)')
+      expect(buildResult.cliOutput).toContain('○ /foo')
+      expect(buildResult.cliOutput).not.toContain('Route (app)')
+    })
+
+    it('should resolve glob patterns without src/ prefix when project uses src/app', async () => {
+      const buildResult = await next.build({
+        args: ['--debug-build-paths', 'app/(group)/**/page.tsx'],
+      })
+      expect(buildResult.exitCode).toBe(0)
+      expect(buildResult.cliOutput).toContain('Route (app)')
+      // Route groups are stripped from the path
+      expect(buildResult.cliOutput).toContain('/nested')
+      expect(buildResult.cliOutput).not.toContain('/blog/[slug]')
+    })
+  })
+
+  describe('with-compile-error fixture', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures/with-compile-error'),
+      skipStart: true,
+    })
 
     it('should skip compilation of excluded routes with compile errors', async () => {
       // Build only the valid page, excluding the broken page

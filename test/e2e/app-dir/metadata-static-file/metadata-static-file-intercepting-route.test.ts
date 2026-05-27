@@ -1,5 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getCommonMetadataHeadTags } from './utils'
+import {
+  getCommonMetadataHeadTags,
+  readFixtureBuffer,
+  readFixtureText,
+} from './utils'
 
 describe('metadata-files-static-output-intercepting-route', () => {
   if (process.env.__NEXT_CACHE_COMPONENTS) {
@@ -26,7 +30,6 @@ describe('metadata-files-static-output-intercepting-route', () => {
 
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   if (skipped) {
@@ -124,15 +127,13 @@ describe('metadata-files-static-output-intercepting-route', () => {
       actualTwitterImage,
       actualSitemap,
     ] = await Promise.all([
-      next.readFileBuffer('app/intercepting/(..)intercept-me/apple-icon.png'),
-      next.readFileBuffer('app/intercepting/(..)intercept-me/icon.png'),
-      next.readFileBuffer(
+      readFixtureBuffer('app/intercepting/(..)intercept-me/apple-icon.png'),
+      readFixtureBuffer('app/intercepting/(..)intercept-me/icon.png'),
+      readFixtureBuffer(
         'app/intercepting/(..)intercept-me/opengraph-image.png'
       ),
-      next.readFileBuffer(
-        'app/intercepting/(..)intercept-me/twitter-image.png'
-      ),
-      next.readFile('app/intercepting/(..)intercept-me/sitemap.xml'),
+      readFixtureBuffer('app/intercepting/(..)intercept-me/twitter-image.png'),
+      readFixtureText('app/intercepting/(..)intercept-me/sitemap.xml'),
     ])
 
     expect({

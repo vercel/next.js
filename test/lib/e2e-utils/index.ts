@@ -9,6 +9,7 @@ import { NextDeployInstance } from '../next-modes/next-deploy'
 import { shouldUseTurbopack } from '../next-test-utils'
 
 export type { NextInstance }
+export type { Playwright } from '../browsers/playwright'
 
 const individualTestTimeout = 60 * 1000
 
@@ -236,9 +237,12 @@ const setupTracing = () => {
 /**
  * Sets up and manages a Next.js instance in the configured
  * test mode. The next instance will be isolated from the monorepo
- * to prevent relying on modules that shouldn't be
+ * to prevent relying on modules that shouldn't be.
+ *
+ * Internal helper used by `nextTestSetup`. Tests should call
+ * `nextTestSetup` directly instead of `createNext`.
  */
-export async function createNext(
+async function createNext(
   opts: NextInstanceOpts & { skipStart?: boolean; patchFileDelay?: number }
 ): Promise<NextInstance> {
   try {
