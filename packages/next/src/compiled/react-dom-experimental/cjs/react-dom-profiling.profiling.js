@@ -4091,11 +4091,11 @@ function trackUsedThenable(thenableState, thenable, index) {
     case "fulfilled":
       return thenable.value;
     case "rejected":
-      throw (
-        ((thenableState = thenable.reason),
-        checkIfUseWrappedInAsyncCatch(thenableState),
-        thenableState)
-      );
+      thenableState = thenable.reason;
+      checkIfUseWrappedInAsyncCatch(thenableState);
+      if (void 0 === thenableState && !("reason" in thenable))
+        throw Error(formatProdErrorMessage(600));
+      throw thenableState;
     default:
       if ("string" === typeof thenable.status) thenable.then(noop$1, noop$1);
       else {
@@ -22053,14 +22053,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2545 = React.version;
 if (
-  "19.3.0-experimental-75b0945b-20260526" !==
+  "19.3.0-experimental-c0cd4d5d-20260527" !==
   isomorphicReactPackageVersion$jscomp$inline_2545
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2545,
-      "19.3.0-experimental-75b0945b-20260526"
+      "19.3.0-experimental-c0cd4d5d-20260527"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -22082,10 +22082,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_3247 = {
   bundleType: 0,
-  version: "19.3.0-experimental-75b0945b-20260526",
+  version: "19.3.0-experimental-c0cd4d5d-20260527",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-experimental-75b0945b-20260526"
+  reconcilerVersion: "19.3.0-experimental-c0cd4d5d-20260527"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_3248 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -22353,7 +22353,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-experimental-75b0945b-20260526";
+exports.version = "19.3.0-experimental-c0cd4d5d-20260527";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

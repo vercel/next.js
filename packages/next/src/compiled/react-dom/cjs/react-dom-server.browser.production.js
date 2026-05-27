@@ -3524,7 +3524,10 @@ function trackUsedThenable(thenableState, thenable, index) {
     case "fulfilled":
       return thenable.value;
     case "rejected":
-      throw thenable.reason;
+      thenableState = thenable.reason;
+      if (void 0 === thenableState && !("reason" in thenable))
+        throw Error(formatProdErrorMessage(600));
+      throw thenableState;
     default:
       "string" === typeof thenable.status
         ? thenable.then(noop, noop)
@@ -7397,12 +7400,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-canary-75b0945b-20260526" !== isomorphicReactPackageVersion)
+  if ("19.3.0-canary-c0cd4d5d-20260527" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.3.0-canary-75b0945b-20260526"
+        "19.3.0-canary-c0cd4d5d-20260527"
       )
     );
 }
@@ -7653,4 +7656,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.3.0-canary-75b0945b-20260526";
+exports.version = "19.3.0-canary-c0cd4d5d-20260527";
