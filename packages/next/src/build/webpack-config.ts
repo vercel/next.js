@@ -7,6 +7,7 @@ import path from 'path'
 import fs from 'fs'
 
 import { getDefineEnv } from './define-env'
+import { isDocker } from '../lib/is-docker'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
@@ -147,6 +148,7 @@ const nodePathList = (process.env.NODE_PATH || '')
 
 const baseWatchOptions: webpack.Configuration['watchOptions'] = Object.freeze({
   aggregateTimeout: 5,
+  poll: isDocker() ? 1000 : undefined,
   ignored:
     // Matches **/node_modules/**, **/.git/** and **/.next/**
     /^((?:[^/]*(?:\/|$))*)(\.(git|next)|node_modules)(\/((?:[^/]*(?:\/|$))*)(?:$|\/))?/,

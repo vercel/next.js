@@ -28,6 +28,7 @@ import type {
   NodeJsPartialHmrUpdate,
 } from '../../build/swc/types'
 import { createDefineEnv, getBindingsSync, HmrTarget } from '../../build/swc'
+import { isDocker } from '../../lib/is-docker'
 import * as Log from '../../build/output/log'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
@@ -386,7 +387,7 @@ export async function createHotReloaderTurbopack(
       nextConfig: opts.nextConfig,
       watch: {
         enable: dev,
-        pollIntervalMs: nextConfig.watchOptions?.pollIntervalMs,
+        pollIntervalMs: nextConfig.watchOptions?.pollIntervalMs ?? (isDocker() ? 1000 : undefined),
       },
       dev,
       env: process.env as Record<string, string>,
