@@ -2,6 +2,9 @@ import { Suspense } from 'react'
 import { connection } from 'next/server'
 import Link from 'next/link'
 import { ClientFeatures } from './client'
+import { HydrationMarker } from '../../hydration-marker'
+
+export const unstable_prefetch = 'force-runtime'
 
 function Box({
   label,
@@ -90,6 +93,7 @@ export default async function TargetPage({
 }) {
   return (
     <div>
+      <HydrationMarker />
       <style>{`
         @keyframes shimmer {
           0% { background-position: -400px 0; }
