@@ -1995,7 +1995,7 @@ async fn with_consumed_parse_result<T>(
         &Arc<SourceMap>,
         &Arc<Globals>,
         &EvalContext,
-        Either<ImmutableComments, Arc<ImmutableComments>>,
+        Arc<ImmutableComments>,
     ) -> Result<T>,
     error: impl AsyncFnOnce(&ParseResult) -> Result<T>,
 ) -> Result<T> {
@@ -2012,7 +2012,7 @@ async fn with_consumed_parse_result<T>(
             &Default::default(),
             &Default::default(),
             &eval_context,
-            Either::Left(Default::default()),
+            Arc::new(Default::default()),
         )
         .await;
     };
@@ -2045,10 +2045,7 @@ async fn with_consumed_parse_result<T>(
                         &*source_map,
                         &*globals,
                         &*ec,
-                        match Arc::try_unwrap(take(comments)) {
-                            Ok(comments) => Either::Left(comments),
-                            Err(comments) => Either::Right(comments),
-                        },
+                        take(comments),
                     )
                 }
                 Err(parsed) => {
@@ -2068,7 +2065,7 @@ async fn with_consumed_parse_result<T>(
                         source_map,
                         globals,
                         eval_context,
-                        Either::Right(comments.clone()),
+                        comments.clone(),
                     )
                 }
                 _ => unreachable!(),
@@ -2650,7 +2647,7 @@ struct ModulePosition(u32, u32);
 
 enum CodeGenResultComments {
     Single {
-        comments: Either<ImmutableComments, Arc<ImmutableComments>>,
+        comments: Arc<ImmutableComments>,
         extra_comments: SwcComments,
     },
     ScopeHoisting {
@@ -2754,10 +2751,7 @@ impl CodeGenResultComments {
                 comments,
                 extra_comments,
             } => CodeGenResultCommentsConsumable::Single {
-                comments: match comments {
-                    Either::Left(comments) => comments.consumable(),
-                    Either::Right(comments) => comments.consumable(),
-                },
+                comments: comments.consumable(),
                 extra_comments,
             },
             CodeGenResultComments::ScopeHoisting {
