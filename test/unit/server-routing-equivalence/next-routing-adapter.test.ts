@@ -1,19 +1,25 @@
 /* eslint-env jest */
 
-import type { NextConfigRuntime } from '../../../packages/next/src/server/config-shared'
-import type {
-  FilesystemDynamicRoute,
-  setupFsCheck,
-} from '../../../packages/next/src/server/lib/router-utils/filesystem'
-
 import { resolveRoutes } from '../../../packages/next-routing/src/resolve-routes'
-import { defaultConfig } from '../../../packages/next/src/server/config-shared'
-import { buildCustomRoute } from '../../../packages/next/src/server/lib/router-utils/filesystem'
-import { createNextRoutingServerState } from '../../../packages/next/src/server/lib/router-utils/next-routing-adapter'
-import { getRouteMatcher } from '../../../packages/next/src/shared/lib/router/utils/route-matcher'
-import { getNamedRouteRegex } from '../../../packages/next/src/shared/lib/router/utils/route-regex'
+const {
+  defaultConfig,
+} = require('../../../packages/next/src/server/config-shared')
+const {
+  buildCustomRoute,
+} = require('../../../packages/next/src/server/lib/router-utils/filesystem')
+const {
+  createNextRoutingServerState,
+} = require('../../../packages/next/src/server/lib/router-utils/next-routing-adapter')
+const {
+  getRouteMatcher,
+} = require('../../../packages/next/src/shared/lib/router/utils/route-matcher')
+const {
+  getNamedRouteRegex,
+} = require('../../../packages/next/src/shared/lib/router/utils/route-regex')
 
-type FsChecker = Awaited<ReturnType<typeof setupFsCheck>>
+type NextConfigRuntime = any
+type FilesystemDynamicRoute = any
+type FsChecker = any
 
 function createConfig(
   overrides: Partial<NextConfigRuntime> = {}
@@ -61,10 +67,10 @@ function createFsChecker({
   nextDataRoutes = [],
   buildId = 'BUILD_ID',
 }: {
-  headers?: FsChecker['headers']
-  redirects?: FsChecker['redirects']
-  rewrites?: Partial<FsChecker['rewrites']>
-  onMatchHeaders?: FsChecker['onMatchHeaders']
+  headers?: any[]
+  redirects?: any[]
+  rewrites?: Record<string, any[]>
+  onMatchHeaders?: any[]
   dynamicRoutes?: FilesystemDynamicRoute[]
   appFiles?: string[]
   pageFiles?: string[]
