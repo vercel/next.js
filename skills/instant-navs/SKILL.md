@@ -2,11 +2,12 @@
 name: instant-navs
 description: >
   Next.js Instant Navigation, PPR shell capture, and `@next/playwright`
-  testing. Use when adding, testing, debugging, or reviewing route shells,
-  loading UI, Suspense fallbacks, parallel slot composition, or
-  `unstable_instant` tests. Keywords: Instant Navigation, PPR,
-  unstable_instant, shell capture, Suspense fallback, @next/playwright,
-  loading UI, rootParams, generateStaticParams.
+  testing. Use when client navigations to a route feel slow, or when
+  adding, testing, debugging, or reviewing route shells, loading UI,
+  Suspense fallbacks, parallel slot composition, or `unstable_instant`
+  tests. Keywords: slow navigation, slow client nav, Instant Navigation,
+  PPR, unstable_instant, shell capture, Suspense fallback,
+  @next/playwright, loading UI, rootParams, generateStaticParams.
 ---
 
 # instant-navs
@@ -14,7 +15,80 @@ description: >
 Make App Router routes capture a truthful, fast, stable shell, and prove it
 with `@next/playwright`.
 
+## Diagnose Slow Navigations
+
+Use when client navigations to a route feel slow and you have not yet
+committed to how invasive the fix should be. This is the diagnostic loop.
+It does not require a route marker, a Playwright test, or a build. Add
+those only at step 6 if you want to lock the fix in.
+
+1. Enable validation in `next.config.ts`. No per-route opt-in needed at
+   this level:
+
+   ```ts
+   experimental: {
+     instantInsights: { validationLevel: 'warning' },
+     instantNavigationDevToolsToggle: true,
+   }
+   ```
+
+   `cacheComponents: true` is the prerequisite. See Version And Flag
+   Requirements below for the full config shape.
+
+2. Run `pnpm next dev` and navigate to the slow route from a sibling
+   route in the browser. Reproduce the slowness. Note whether you see
+   `loading.tsx`, a blank frame, or a blocking pause: the classification
+   informs later steps.
+
+3. Open the dev overlay's **Instant Navigation panel** (the dedicated
+   surface for blocking-route output) and read the first route-specific
+   diagnostic. If the panel is unhelpful, tail dev stdout with
+   `__NEXT_SHOW_IGNORE_LISTED=true` so internal frames are not collapsed.
+   This is the source of truth; do not act on screenshots or vibes.
+
+4. Apply one move from the Boundary Decision Table in
+   `references/diagnostic-loop.md`, matched to the named blocker. The
+   common cases:
+   - `cookies()` / `headers()` above the shell: move the read below
+     Suspense, or use a pending provider that exposes shape without
+     resolved facts.
+   - `params` in a shared layout: switch to `next/root-params` named
+     getters; do not `await props.params` for params the layout does
+     not own.
+   - `useSearchParams()` in a client child: wrap the control in
+     Suspense with an inert fallback that reserves layout space.
+   - Uncached fetch in a data region: keep the section frame visible,
+     suspend only the row, list, or cards.
+
+   Move exactly one boundary per iteration. Broad visual cleanup before
+   the owner and the blocker are understood wastes iterations.
+
+5. Re-navigate. Loop steps 3 and 4 until the Instant Navigation panel is
+   clean for this route.
+
+6. Decide intent. The diagnostic loop is complete. The rest is optional:
+   - **Stop here** if you just wanted the page fast.
+   - **Prevent regression**: go to Quickstart below to add the route
+     marker and the focused Playwright test. Promotion of the route to
+     `unstable_instant = { level: 'experimental-error' }` only makes
+     sense once that test exists; without a regression test, promotion
+     is premature and will surprise the next person who edits the route.
+   - **Catch sibling-route fallout**: run `pnpm next build` to surface
+     `blocking-route` on neighbors the dev loop never touched. Build is
+     a separate signal, not a continuation of the dev loop. Read
+     references/diagnostic-loop.md Build And Prerender Triage if it
+     reports failures.
+
+When something blocks inside step 4 (the panel reports a diagnostic but
+the obvious move does not clear it), drop into the Debug Ladder in
+`references/diagnostic-loop.md`.
+
 ## Quickstart
+
+Use this path when you want to lock in a fix from the diagnostic loop, or
+to adopt Instant Navigation on a new route from scratch. If your trigger
+is "this page feels slow," start at Diagnose Slow Navigations above
+instead.
 
 Add Instant Navigation to a single route in 5 minutes:
 
@@ -131,8 +205,9 @@ scope.
   and the boundary decision table.
 - `references/react-suspense-composition.md`: layout, provider, fallback,
   shell-capture ownership, and data-ownership patterns.
-- `scripts/extract-instant-diagnostics.mjs <log...>`: pulls the first
-  route-specific Instant blocker out of large dev or trace logs.
+- Bundled `scripts/extract-instant-diagnostics.mjs <log...>`: pulls the first
+  route-specific Instant blocker out of large dev or trace logs. Resolve this
+  path relative to the installed `instant-navs` skill directory.
 
 ## Validation Order
 
@@ -296,9 +371,12 @@ Before calling work done:
 
 ## Related Skills
 
-- `$next-cache-components-optimizer`: grow the static shell or optimize
-  in-app navigation when the route uses `cacheComponents: true`. Instant
-  tests assert what that optimizer produces.
+These are companion skills in the external published skill bundle. Use them
+when they are installed alongside `$instant-navs`.
+
+- `$next-cache-components-optimizer`: grow the static shell or optimize in-app
+  navigation when the route uses `cacheComponents: true`. Instant tests assert
+  what that optimizer produces.
 - `$next-dev-loop`: the underlying dev-server verification rhythm
-  (`/_next/mcp` + `agent-browser`). Use it to observe runtime behavior
-  while iterating on a shell; this skill layers the Playwright test on top.
+  (`/_next/mcp` + `agent-browser`). Use it to observe runtime behavior while
+  iterating on a shell; this skill layers the Playwright test on top.
