@@ -17,9 +17,22 @@ related:
     - app/api-reference/config/next-config-js/serverActions
 ---
 
-A **Server Action** is a [React Server Function](https://react.dev/reference/rsc/server-functions) dispatched inside a [transition](https://react.dev/reference/react/startTransition). React wraps the call automatically when the function is passed to a `<form action>` or a `<button formAction>`. In Next.js, this typically maps to a data mutation: writing to a database, updating cookies, or invalidating cached data. You create one by adding the [`'use server'`](/docs/app/api-reference/directives/use-server) directive, then invoke it from a form, or from an event handler or `useEffect` wrapped in `startTransition`. For the basics of creating and invoking Server Functions, see [Mutating data](/docs/app/getting-started/mutating-data) and the [Forms guide](/docs/app/guides/forms).
+A **Server Action** is a [React Server Function](https://react.dev/reference/rsc/server-functions) dispatched inside a [transition](https://react.dev/reference/react/startTransition). React wraps the call automatically when the function is passed to a `<form action>` or a `<button formAction>`.
 
+You create one by adding the [`'use server'`](/docs/app/api-reference/directives/use-server) directive, then invoke it from a form, or from an event handler or `useEffect` wrapped in `startTransition`. For the basics of creating and invoking Server Functions, see [Mutating data](/docs/app/getting-started/mutating-data) and the [Forms guide](/docs/app/guides/forms).
+
+{/* i think we can somehow merge these two paragraphs */}
 This page covers the parts of Server Actions that are specific to Next.js: how the response carries both data and re-rendered UI, how the client dispatches them, the security boundary the framework enforces, and the configuration available.
+
+In Next.js, it typically maps to a data mutation: writing to a database, updating cookies, or invalidating cached data.
+
+## Sequential dispatch on the client
+
+Next.js dispatches Server Actions one at a time per client. If a user triggers three actions in quick succession, the second waits for the first to finish, then the third waits for the second. This keeps the re-rendered server tree consistent with the action result that produced it.
+
+A consequence: do not rely on `Promise.all` to parallelize Server Actions from the client. If you need parallel work, do it inside a single Server Action, fetch in parallel from a [Server Component](/docs/app/getting-started/fetching-data#server-components), or use a [Route Handler](/docs/app/guides/backend-for-frontend#manipulating-data) for non-mutation requests.
+
+> **Good to know:** This is a property of the client dispatcher, not of Server Functions in general. Server-side, an action runs in its own request and can do anything an async function can do.
 
 ## A single response carries data and UI
 
@@ -98,17 +111,9 @@ export function LoginForm({ initial }: { initial: ReactNode }) {
 
 Caveats:
 
-- **Sequential dispatch still applies.** The returned UI lands in the same one-at-a-time queue described in the next section, so back-to-back submissions render in order, not in parallel.
+- **Sequential dispatch still applies.** The returned UI lands in the same one-at-a-time queue described in [Sequential dispatch](#sequential-dispatch-on-the-client), so back-to-back submissions render in order, not in parallel.
 - **Client Components in the returned tree must already be reachable from the route's module graph.** A Client Component imported _only_ inside a Server Action is not traced into the React Client Manifest, and returning it fails with `Could not find the module in the React Client Manifest`. Make sure the same Client Component is rendered or imported elsewhere in the route, or wrap it in a Server Component that the action returns.
 - **Initial state must be serializable.** `useActionState`'s initial state is bound into the form for no-JS submissions, so a React element can't go there. Pass `null` and render the initial view yourself, as above. JSX returned by the action only renders once JS has loaded.
-
-## Sequential dispatch on the client
-
-Next.js dispatches Server Actions one at a time per client. If a user triggers three actions in quick succession, the second waits for the first to finish, then the third waits for the second. This keeps the re-rendered server tree consistent with the action result that produced it.
-
-A consequence: do not rely on `Promise.all` to parallelize Server Actions from the client. If you need parallel work, do it inside a single Server Action, fetch in parallel from a [Server Component](/docs/app/getting-started/fetching-data#server-components), or use a [Route Handler](/docs/app/guides/backend-for-frontend#manipulating-data) for non-mutation requests.
-
-> **Good to know:** This is a property of the client dispatcher, not of Server Functions in general. Server-side, an action runs in its own request and can do anything an async function can do.
 
 ## Security
 
@@ -144,6 +149,8 @@ export async function deletePost(postId: string) {
   await db.post.delete({ where: { id: postId } })
 }
 ```
+
+If you've enabled the experimental [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts) flag, you can throw [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) and [`forbidden()`](/docs/app/api-reference/functions/forbidden) from `next/navigation` instead, so Next.js renders the corresponding `unauthorized.tsx` / `forbidden.tsx` UI segment automatically.
 
 For example, a client legitimately tells the server _which_ item to act on, but it should not supply the row's contents or ownership. Send a reference (typically an ID) plus the user's change, and re-read the rest from a trusted source using the session. Schema validation (zod or similar) only checks the _shape_ of the input. A well-formed `Item` object can still refer to a row the caller does not own.
 
