@@ -38,6 +38,7 @@ phf = { version = "0.11", features = ["macros"] }
 petgraph = { workspace = true }
 dashmap = { workspace = true }
 regex = { workspace = true }
+rstest = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["raw_value"] }
