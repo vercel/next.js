@@ -21,7 +21,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, OperationVc, ResolvedVc, TryFlatJoinIterExt, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
@@ -524,8 +524,9 @@ pub struct AllModuleActions(
 
 #[turbo_tasks::function]
 pub async fn map_server_actions(
-    graph: ResolvedVc<ModuleGraphLayer>,
+    graph: OperationVc<ModuleGraphLayer>,
 ) -> Result<Vc<AllModuleActions>> {
+    let graph = graph.connect();
     let actions = graph
         .await?
         .iter_reachable_modules()?
