@@ -18,7 +18,7 @@ on:
         description: "'true' if expensive CI checks should be skipped, 'false' otherwise."
         value: ${{ jobs.optimize-ci.outputs.skip }}
     secrets:
-      GRAPHITE_TOKEN:
+      GRAPHITE_CI_OPTIMIZER_TOKEN:
         description: 'The Graphite CI optimization secret'
         # secrets are not available in forks, check-skip will just fail-open with a warning
         required: false
@@ -46,13 +46,13 @@ jobs:
         continue-on-error: true
         uses: withgraphite/graphite-ci-action@ee395f3a78254c006d11339669c6cabddf196f72 # main
         with:
-          graphite_token: ${{ secrets.GRAPHITE_TOKEN }}
+          graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
       - name: Debug Output
         run: |
           echo 'github.event_name: ${{ github.event_name }}'
-          echo "secrets.GRAPHITE_TOKEN != '': ${GRAPHITE_TOKEN}"
+          echo "secrets.GRAPHITE_CI_OPTIMIZER_TOKEN != '': ${GRAPHITE_CI_OPTIMIZER_TOKEN_NON_EMPTY}"
           echo 'env.HAS_BYPASS_LABEL: ${{ env.HAS_BYPASS_LABEL }}'
           echo 'steps.check-skip.outputs.skip: ${{ steps.check-skip.outputs.skip }}'
 
         env:
-          GRAPHITE_TOKEN: ${{ secrets.GRAPHITE_TOKEN != '' }}
+          GRAPHITE_CI_OPTIMIZER_TOKEN_NON_EMPTY: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN != '' }}
