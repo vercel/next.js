@@ -528,19 +528,18 @@ impl ChunkingContext for NodeJsChunkingContext {
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
         async move {
-            let modules = chunk_group.entries();
             let MakeChunkGroupResult {
                 chunks,
                 referenced_output_assets,
                 references,
                 availability_info,
             } = make_chunk_group(
-                modules,
+                chunk_group,
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
@@ -572,7 +571,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         self: ResolvedVc<Self>,
         path: FileSystemPath,
         chunk_group: ChunkGroup,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
         availability_info: AvailabilityInfo,
@@ -583,14 +582,13 @@ impl ChunkingContext for NodeJsChunkingContext {
             chunking_type = "entry",
         );
         async move {
-            let entries = chunk_group.entries();
             let MakeChunkGroupResult {
                 chunks,
                 mut referenced_output_assets,
                 references,
                 availability_info,
             } = make_chunk_group(
-                entries,
+                chunk_group.clone(),
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info,
@@ -630,7 +628,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                     *module,
                     Vc::cell(referenced_output_assets),
                     Vc::cell(references),
-                    module_graph,
+                    *module_graph,
                     *self,
                 )
                 .to_resolved()

@@ -763,13 +763,12 @@ impl ChunkingContext for BrowserChunkingContext {
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
         async move {
             let this = self.await?;
-            let entries = chunk_group.entries();
             let input_availability_info = availability_info;
             let MakeChunkGroupResult {
                 chunks,
@@ -777,7 +776,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 references,
                 availability_info,
             } = make_chunk_group(
-                entries,
+                chunk_group,
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -834,7 +833,7 @@ impl ChunkingContext for BrowserChunkingContext {
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         input_availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!(
@@ -844,14 +843,13 @@ impl ChunkingContext for BrowserChunkingContext {
         );
         async move {
             let this = self.await?;
-            let entries = chunk_group.entries();
             let MakeChunkGroupResult {
                 chunks,
                 referenced_output_assets,
                 references,
                 availability_info,
             } = make_chunk_group(
-                entries,
+                chunk_group.clone(),
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -903,7 +901,7 @@ impl ChunkingContext for BrowserChunkingContext {
             }
 
             assets.push(
-                self.generate_evaluate_chunk(ident, other_assets, entries, module_graph)
+                self.generate_evaluate_chunk(ident, other_assets, entries, *module_graph)
                     .to_resolved()
                     .await?,
             );

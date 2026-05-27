@@ -129,6 +129,19 @@ pub struct SpanInfo {
     pub avg_corrected_duration: Option<u64>,
     /// Raw span ID for aggregated groups (the index of the first span).
     pub first_span_id: Option<String>,
+    /// TurboMalloc memory-usage samples recorded while this span (or its
+    /// example span, for aggregated groups) was live.
+    ///
+    /// Each tuple is `(ts_offset_from_span_start_in_ticks, bytes, pressure)`,
+    /// where `pressure` is the memory-pressure byte recorded with the sample
+    /// (0 = no pressure, higher = more pressure). `100 ticks = 1 µs`. The
+    /// offset is always `>= 0` and `<= span_duration`.
+    ///
+    /// The store caps the series at `MAX_MEMORY_SAMPLES`; when more samples
+    /// exist in the range, consecutive groups are merged by picking the
+    /// group's max-memory sample (timestamp, value, and pressure kept
+    /// together).
+    pub memory_samples: Vec<(i64, u64, u8)>,
 }
 
 /// Result of a `query_spans` call.
@@ -283,6 +296,15 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                 let rel_start = (span_start as i64) - (parent_start as i64);
                 let rel_end = (span_end as i64) - (parent_start as i64);
 
+                let first_start_ticks = *first.start();
+                let memory_samples: Vec<(i64, u64, u8)> = store_ref
+                    .memory_samples_for_range_with_ts(first.start(), first.end())
+                    .into_iter()
+                    .map(|(ts, mem, pressure)| {
+                        ((*ts as i64) - (first_start_ticks as i64), mem, pressure)
+                    })
+                    .collect();
+
                 SpanInfo {
                     id: graph_id,
                     name,
@@ -301,6 +323,7 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                     total_corrected_duration: Some(total_corrected),
                     avg_corrected_duration: Some(avg_corrected),
                     first_span_id: Some(first_index.to_string()),
+                    memory_samples,
                 }
             })
             .collect();
@@ -361,6 +384,15 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                 let rel_start = (span_start as i64) - (parent_start as i64);
                 let rel_end = (span_end as i64) - (parent_start as i64);
 
+                let raw_span_start = span_start;
+                let memory_samples: Vec<(i64, u64, u8)> = store_ref
+                    .memory_samples_for_range_with_ts(span.start(), span.end())
+                    .into_iter()
+                    .map(|(ts, mem, pressure)| {
+                        ((*ts as i64) - (raw_span_start as i64), mem, pressure)
+                    })
+                    .collect();
+
                 SpanInfo {
                     id: build_span_id(options.parent.as_deref(), &span.index.to_string()),
                     name,
@@ -379,6 +411,7 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                     total_corrected_duration: None,
                     avg_corrected_duration: None,
                     first_span_id: None,
+                    memory_samples,
                 }
             })
             .collect();

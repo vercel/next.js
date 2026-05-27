@@ -101,7 +101,7 @@ export type RequestHeaders = {
   [RSC_HEADER]?: '1'
   [NEXT_ROUTER_STATE_TREE_HEADER]?: string
   [NEXT_URL]?: string
-  [NEXT_ROUTER_PREFETCH_HEADER]?: '1' | '2'
+  [NEXT_ROUTER_PREFETCH_HEADER]?: '1' | '2' | '3'
   [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]?: string
   'x-deployment-id'?: string
   [NEXT_HMR_REFRESH_HEADER]?: '1'

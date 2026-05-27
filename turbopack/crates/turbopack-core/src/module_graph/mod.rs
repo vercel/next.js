@@ -35,7 +35,9 @@ use crate::{
         chunk_group_info::{ChunkGroupEntry, ChunkGroupInfo, compute_chunk_group_info},
         merged_modules::{MergedModuleInfo, compute_merged_modules},
         module_batches::{ModuleBatchesGraph, compute_module_batches},
-        style_groups::{StyleGroups, StyleGroupsConfig, compute_style_groups},
+        style_groups::{StyleGroups, StyleGroupsAlgorithm, StyleGroupsConfig},
+        style_groups_graph::compute_style_groups_graph,
+        style_groups_loose::compute_style_groups,
         traced_di_graph::TracedDiGraph,
     },
     reference::{ModuleReference, primary_chunkable_referenced_modules},
@@ -49,7 +51,9 @@ pub mod merged_modules;
 pub mod module_batch;
 pub(crate) mod module_batches;
 mod side_effect_module_info;
-pub(crate) mod style_groups;
+pub mod style_groups;
+pub mod style_groups_graph;
+pub mod style_groups_loose;
 mod traced_di_graph;
 
 pub use self::module_batches::BatchingConfig;
@@ -714,7 +718,7 @@ impl ModuleGraph {
         Ok(ReadRef::cell(graph))
     }
 
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn from_graphs_inner(
         graphs: Vec<OperationVc<SingleModuleGraph>>,
         binding_usage: Option<OperationVc<BindingUsageInfo>>,
@@ -760,10 +764,27 @@ impl ModuleGraph {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         config: StyleGroupsConfig,
     ) -> Result<Vc<StyleGroups>> {
-        compute_style_groups(self, chunking_context, &config).await
+        match &config.algorithm {
+            StyleGroupsAlgorithm::Default => {
+                compute_style_groups(self, chunking_context, &config).await
+            }
+            StyleGroupsAlgorithm::Graph {
+                module_factor_cost,
+                request_cost,
+            } => {
+                compute_style_groups_graph(
+                    self,
+                    chunking_context,
+                    request_cost.get(),
+                    module_factor_cost.get(),
+                    config.max_chunk_size as u64,
+                )
+                .await
+            }
+        }
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     pub async fn async_module_info(self: Vc<Self>) -> Result<Vc<AsyncModulesInfo>> {
         // `compute_async_module_info` calls `module.is_self_async()`, so we need to again ignore
         // all issues such that they aren't emitted multiple times.
@@ -833,7 +854,7 @@ pub struct ModuleGraphLayer {
 
 #[turbo_tasks::value_impl]
 impl ModuleGraphLayer {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn new(
         graph: OperationVc<SingleModuleGraph>,
         graph_idx: u32,
@@ -2108,7 +2129,7 @@ pub mod tests {
                 reverse_from_b: Vec<RcStr>,
             }
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn reverse_traversal_results_operation() -> Result<Vc<ReverseTraversalResults>> {
                 let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
                 let root = fs.root().await?;
@@ -2281,7 +2302,7 @@ pub mod tests {
                 iter_modules_single: Vec<Vec<RcStr>>,
             }
 
-            #[turbo_tasks::function(operation)]
+            #[turbo_tasks::function(operation, root)]
             async fn reverse_traversal_results_operation() -> Result<Vc<Results>> {
                 let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
                 let root = fs.root().await?;
@@ -2567,7 +2588,7 @@ pub mod tests {
             module_to_name: FxHashMap<ResolvedVc<Box<dyn Module>>, RcStr>,
         }
 
-        #[turbo_tasks::function(operation)]
+        #[turbo_tasks::function(operation, root)]
         async fn setup_graph(
             entries: Vec<RcStr>,
             graph_entries: Vec<(RcStr, Vec<RcStr>)>,
