@@ -2526,10 +2526,10 @@ impl JsValue {
             },
             JsValue::Logical(_, op, list) => match op {
                 LogicalOperator::And => {
-                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_nullish)
+                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_nullish)
                 }
                 LogicalOperator::Or => {
-                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_nullish)
+                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_nullish)
                 }
                 LogicalOperator::NullishCoalescing => all_if_known(list, JsValue::is_nullish),
             },
@@ -2558,10 +2558,10 @@ impl JsValue {
             } => merge_if_known(values, JsValue::is_empty_string),
             JsValue::Logical(_, op, list) => match op {
                 LogicalOperator::And => {
-                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_empty_string)
+                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_empty_string)
                 }
                 LogicalOperator::Or => {
-                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_empty_string)
+                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_empty_string)
                 }
                 LogicalOperator::NullishCoalescing => {
                     shortcircuit_if_known(list, JsValue::is_not_nullish, JsValue::is_empty_string)
@@ -2619,10 +2619,10 @@ impl JsValue {
             JsValue::Add(_, list) => any_if_known(list, JsValue::is_string),
             JsValue::Logical(_, op, list) => match op {
                 LogicalOperator::And => {
-                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_string)
+                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_string)
                 }
                 LogicalOperator::Or => {
-                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_string)
+                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_string)
                 }
                 LogicalOperator::NullishCoalescing => {
                     shortcircuit_if_known(list, JsValue::is_not_nullish, JsValue::is_string)
@@ -4490,5 +4490,224 @@ mod tests {
     #[cfg(target_pointer_width = "64")]
     fn jsvalue_size() {
         assert_eq!(32, size_of::<JsValue>());
+    }
+
+    #[test]
+    fn is_string_constant() {
+        let value = EvalContext::eval_single_expr_lit(&rcstr!("'hello'")).unwrap();
+        assert_eq!(value.is_string(), Some(true));
+    }
+
+    #[test]
+    fn is_string_and_short_circuit() {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("'hello' && 2"))
+                .unwrap()
+                .is_string(),
+            Some(false)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("2 && 1 && 'hello'"))
+                .unwrap()
+                .is_string(),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn is_string_or_short_circuit() {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("'hello' || 'bye' || 2"))
+                .unwrap()
+                .is_string(),
+            Some(true)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("'hello' || 2 || 1 || 'bye'"))
+                .unwrap()
+                .is_string(),
+            Some(true)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("2 || 1 || 'hello' || 'bye'"))
+                .unwrap()
+                .is_string(),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn is_empty_string_and_short_circuit() {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("'' && 'string'"))
+                .unwrap()
+                .is_empty_string(),
+            Some(true)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("false && ''"))
+                .unwrap()
+                .is_empty_string(),
+            Some(false)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("0 && false && ''"))
+                .unwrap()
+                .is_empty_string(),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn is_empty_string_or_short_circuit() {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("'' || 'string'"))
+                .unwrap()
+                .is_empty_string(),
+            Some(false)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("false || ''"))
+                .unwrap()
+                .is_empty_string(),
+            Some(true)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("0 || false || ''"))
+                .unwrap()
+                .is_empty_string(),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn is_nullish_and_short_circuit() {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("'' && null"))
+                .unwrap()
+                .is_nullish(),
+            Some(false)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("null && ''"))
+                .unwrap()
+                .is_nullish(),
+            Some(true)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("0 && null && ''"))
+                .unwrap()
+                .is_nullish(),
+            Some(false)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("null && 1 && 2"))
+                .unwrap()
+                .is_nullish(),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn is_nullish_or_short_circuit() {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("'' || null"))
+                .unwrap()
+                .is_nullish(),
+            Some(true)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("null || ''"))
+                .unwrap()
+                .is_nullish(),
+            Some(false)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("0 || '' || null"))
+                .unwrap()
+                .is_nullish(),
+            Some(true)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("null || 1 || 2"))
+                .unwrap()
+                .is_nullish(),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn is_not_nullish_and_short_circuit() {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("'' && null"))
+                .unwrap()
+                .is_not_nullish(),
+            Some(true)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("null && ''"))
+                .unwrap()
+                .is_not_nullish(),
+            Some(false)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("0 && null && ''"))
+                .unwrap()
+                .is_not_nullish(),
+            Some(true)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("null && 1 && 2"))
+                .unwrap()
+                .is_not_nullish(),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn is_not_nullish_or_short_circuit() {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("'' || null"))
+                .unwrap()
+                .is_not_nullish(),
+            Some(false)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("null || ''"))
+                .unwrap()
+                .is_not_nullish(),
+            Some(true)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("0 || '' || null"))
+                .unwrap()
+                .is_not_nullish(),
+            Some(false)
+        );
+
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&rcstr!("null || 1 || 2"))
+                .unwrap()
+                .is_not_nullish(),
+            Some(true)
+        );
     }
 }
