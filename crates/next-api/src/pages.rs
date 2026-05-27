@@ -1003,7 +1003,12 @@ impl PageEndpoint {
                 async {
                     let chunk_group = chunking_context.chunk_group(
                         layout.ident(),
-                        ChunkGroup::Shared(layout).cell(),
+                        // Layout segment optimization relies on
+                        // `chunking_context.chunk_group()` being the same task
+                        // for a given layout across pages. So use
+                        // `ChunkGroup::shared_interned` instead of
+                        // `ChunkGroup::Shared().cell()` here.
+                        ChunkGroup::shared_interned(*layout),
                         ssr_module_graph,
                         current_chunk_group.await?.availability_info,
                     );
