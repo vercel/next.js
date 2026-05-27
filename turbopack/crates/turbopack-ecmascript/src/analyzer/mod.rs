@@ -4616,6 +4616,7 @@ mod tests {
     #[rstest]
     #[case("x && null")]
     #[case("x || null")]
+    #[case("null || x")]
     fn is_nullish_short_circuiting_unknown(#[case] input: &str) {
         assert_eq!(
             EvalContext::eval_single_expr_lit(&input.into())
@@ -4658,6 +4659,7 @@ mod tests {
     #[rstest]
     #[case("x && null")]
     #[case("x || null")]
+    #[case("null || x")]
     fn is_not_nullish_short_circuiting_unknown(#[case] input: &str) {
         assert_eq!(
             EvalContext::eval_single_expr_lit(&input.into())
