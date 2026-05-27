@@ -70,8 +70,8 @@ importers:
         specifier: 1.10.1
         version: 1.10.1
       '@ast-grep/cli':
-        specifier: 0.31.0
-        version: 0.31.0
+        specifier: 0.42.0
+        version: 0.42.0
       '@babel/core':
         specifier: 7.26.10
         version: 7.26.10
@@ -2118,52 +2118,52 @@ packages:
     resolution: {integrity: sha512-lFMjJTrFL3j7L9yBxwYfCq2k6qqwHyzuUl/XBnif78PWTJYyL/dfowQHWE3sp6U6ZzqWiiIZnpTMO96zhkjwtg==}
     engines: {node: '>=6.0.0'}
 
-  '@ast-grep/cli-darwin-arm64@0.31.0':
-    resolution: {integrity: sha512-6hQjv3JNMwECcbOEqn3dRAFOf0gsM4Q1/UzBW9mLfQVae935+zw+DIgBKjzKHQPdxr4XO+KJr8GcfeEhOLMbJw==}
+  '@ast-grep/cli-darwin-arm64@0.42.0':
+    resolution: {integrity: sha512-t88mxf9MxhNj7bx+0+/mrtTxuXtlwGZo9HqhOT00EaOXdtH+D6l5zmOnIGcogvieKUmF1b2H3QbRnR79LR8HzQ==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [darwin]
 
-  '@ast-grep/cli-darwin-x64@0.31.0':
-    resolution: {integrity: sha512-3HXzzgrcm4UA3iE+LpZ0jyODW2FBFligH6cuA5au087W8IYOGg9jeaBIt4rDpiLqVvmukr4EciYBPFi7k07Gww==}
+  '@ast-grep/cli-darwin-x64@0.42.0':
+    resolution: {integrity: sha512-GZR3uybX+wP/iiEaix99MqoCyxrbl5raoWIc1zLrqslwg2pqgXKdjMgxjyIYDCb/NYQTjL0LGLG+mIGFPg7K8w==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [darwin]
 
-  '@ast-grep/cli-linux-arm64-gnu@0.31.0':
-    resolution: {integrity: sha512-gXNEG4iN0xG9quisvIOyl35kFnuYxaJxYG6+QoP+jsxlqKK6arbOomNJvczS2RSXDbr9iIgOixuWPoTC4jP/Kw==}
+  '@ast-grep/cli-linux-arm64-gnu@0.42.0':
+    resolution: {integrity: sha512-6iuBRqKZuNKs3BHMuDlnAk876F4CWNBf3RRttO4Bi+uTMTOTd/z/PsvAFDDSfL4yhTLqUS0Ip1JyWps5oerJNQ==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@ast-grep/cli-linux-x64-gnu@0.31.0':
-    resolution: {integrity: sha512-LqJpwTrEfOrV1+zMkBvYNmDTcMVAt4xZI5aIOVw4bau78jYTnu7gbwZnofx67ZdLKInnxlE2+oKKLVO/seNbgw==}
+  '@ast-grep/cli-linux-x64-gnu@0.42.0':
+    resolution: {integrity: sha512-nN7+JTJL1PGH8fvyKgXlSuOzL4SHPqNUwEFPklE0d5BoZ5CRFFMI0XqR0NRscOEmbX61uAiRJMqMJ9ZGOyZtqQ==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@ast-grep/cli-win32-arm64-msvc@0.31.0':
-    resolution: {integrity: sha512-rQWWEvpOMp11VoCyJIJgyB8xc/QbOXnJ+8bqHmOKdpK2gfwHevgQbwlPEMGDCah1rYyzt/2X8MSw0DtcRIrzvw==}
+  '@ast-grep/cli-win32-arm64-msvc@0.42.0':
+    resolution: {integrity: sha512-5py2wZPCXRqaLdc+38iSLvifKFMM8dJqC547aLgI/7KVcN+SS9XO9++TD7sBRAy3+/Xq3Unw3OJjiffwfxXjhw==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [win32]
 
-  '@ast-grep/cli-win32-ia32-msvc@0.31.0':
-    resolution: {integrity: sha512-CffVTpU+fS5crqEPjyUrMLoq7S4SzfO1K8HWWk/tFtOxNeF1M/ad+TbWkicLqDy9mQOYovP0iTP0Ywp/60TzUw==}
+  '@ast-grep/cli-win32-ia32-msvc@0.42.0':
+    resolution: {integrity: sha512-1+C4AxOopWz4meWtReElN1HqyPNhTWjxO0Th3GJsIq3QiCouih6sS52dkbyTjWnss5SdLeHUpHSvXa2V+87teA==}
     engines: {node: '>= 10'}
     cpu: [ia32]
     os: [win32]
 
-  '@ast-grep/cli-win32-x64-msvc@0.31.0':
-    resolution: {integrity: sha512-WoG3JxVLygR16EM0/rBdNn6Y/qWyTvE+uhUocO2KszkuuvRZKJ9o2zEN4pURbPnW4TMKaEJ0w+8FyBFEvHiLUA==}
+  '@ast-grep/cli-win32-x64-msvc@0.42.0':
+    resolution: {integrity: sha512-Nn3nSr/viSJUWTrH7JmOHl0kBs/1XksUq4awkCaz5JEx7O6aiQhjxqiSp1KkuwJ9WWdjE7D6meYIYkoqJyvQ/w==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [win32]
 
-  '@ast-grep/cli@0.31.0':
-    resolution: {integrity: sha512-I/vUDVFiU4uFK8hyxlc1ssFReDRFTSjXrZbXCtt9EgvM83x+VuoejGJtLK7R3QA85/tHjiRerW+6XFJTQS7RXw==}
+  '@ast-grep/cli@0.42.0':
+    resolution: {integrity: sha512-iu82h+PImRmuVzjoU9G8KtfzqZCGP6pODTvtHemBUYwvli3HoE2jkqx6bdeSA9Po10vSPvU1epLX+mE7oMHNRA==}
     engines: {node: '>= 12.0.0'}
     hasBin: true
 
@@ -9315,10 +9315,6 @@ packages:
     resolution: {integrity: sha512-pGjwhsmsp4kL2RTz08wcOlGN83otlqHeD/Z5T8GXZB+/YcpQ/dgo+lbU8ZsGxV0HIvqqxo9l7mqYwyYMD9bKDg==}
     engines: {node: '>=0.10'}
     hasBin: true
-
-  detect-libc@2.0.3:
-    resolution: {integrity: sha512-bwy0MGW55bG41VqxxypOsdSdGqLwXPI/focwgTYCFMbdUiBAxLg9CFzG08sz2aqzknwiX7Hkl0bQENjg8iLByw==}
-    engines: {node: '>=8'}
 
   detect-libc@2.1.0:
     resolution: {integrity: sha512-vEtk+OcP7VBRtQZ1EJ3bdgzSfBjgnEalLTp5zjJrS+2Z1w2KZly4SBdac/WDU3hhsNAZ9E8SC96ME4Ey8MZ7cg==}
@@ -18636,38 +18632,38 @@ snapshots:
       '@jridgewell/gen-mapping': 0.3.3
       '@jridgewell/trace-mapping': 0.3.25
 
-  '@ast-grep/cli-darwin-arm64@0.31.0':
+  '@ast-grep/cli-darwin-arm64@0.42.0':
     optional: true
 
-  '@ast-grep/cli-darwin-x64@0.31.0':
+  '@ast-grep/cli-darwin-x64@0.42.0':
     optional: true
 
-  '@ast-grep/cli-linux-arm64-gnu@0.31.0':
+  '@ast-grep/cli-linux-arm64-gnu@0.42.0':
     optional: true
 
-  '@ast-grep/cli-linux-x64-gnu@0.31.0':
+  '@ast-grep/cli-linux-x64-gnu@0.42.0':
     optional: true
 
-  '@ast-grep/cli-win32-arm64-msvc@0.31.0':
+  '@ast-grep/cli-win32-arm64-msvc@0.42.0':
     optional: true
 
-  '@ast-grep/cli-win32-ia32-msvc@0.31.0':
+  '@ast-grep/cli-win32-ia32-msvc@0.42.0':
     optional: true
 
-  '@ast-grep/cli-win32-x64-msvc@0.31.0':
+  '@ast-grep/cli-win32-x64-msvc@0.42.0':
     optional: true
 
-  '@ast-grep/cli@0.31.0':
+  '@ast-grep/cli@0.42.0':
     dependencies:
-      detect-libc: 2.0.3
+      detect-libc: 2.1.2
     optionalDependencies:
-      '@ast-grep/cli-darwin-arm64': 0.31.0
-      '@ast-grep/cli-darwin-x64': 0.31.0
-      '@ast-grep/cli-linux-arm64-gnu': 0.31.0
-      '@ast-grep/cli-linux-x64-gnu': 0.31.0
-      '@ast-grep/cli-win32-arm64-msvc': 0.31.0
-      '@ast-grep/cli-win32-ia32-msvc': 0.31.0
-      '@ast-grep/cli-win32-x64-msvc': 0.31.0
+      '@ast-grep/cli-darwin-arm64': 0.42.0
+      '@ast-grep/cli-darwin-x64': 0.42.0
+      '@ast-grep/cli-linux-arm64-gnu': 0.42.0
+      '@ast-grep/cli-linux-x64-gnu': 0.42.0
+      '@ast-grep/cli-win32-arm64-msvc': 0.42.0
+      '@ast-grep/cli-win32-ia32-msvc': 0.42.0
+      '@ast-grep/cli-win32-x64-msvc': 0.42.0
 
   '@babel/code-frame@7.12.11':
     dependencies:
@@ -26782,12 +26778,9 @@ snapshots:
 
   detect-libc@1.0.3: {}
 
-  detect-libc@2.0.3: {}
-
   detect-libc@2.1.0: {}
 
-  detect-libc@2.1.2:
-    optional: true
+  detect-libc@2.1.2: {}
 
   detect-newline@3.1.0: {}
 
@@ -31122,7 +31115,7 @@ snapshots:
 
   lightningcss@1.30.1:
     dependencies:
-      detect-libc: 2.1.0
+      detect-libc: 2.1.2
     optionalDependencies:
       lightningcss-darwin-arm64: 1.30.1
       lightningcss-darwin-x64: 1.30.1
