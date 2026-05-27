@@ -17,7 +17,8 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    CollectiblesSource, FxIndexMap, FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -256,9 +257,8 @@ impl ServerActionsGraphs {
         let server_actions = async {
             graphs_ref
                 .iter()
-                .map(|graph| {
-                    ServerActionsGraph::new_with_entries(graph.connect(), is_single_page)
-                        .to_resolved()
+                .map(|&graph| {
+                    ServerActionsGraph::new_with_entries(graph, is_single_page).to_resolved()
                 })
                 .try_join()
                 .await
@@ -320,14 +320,14 @@ impl ServerActionsGraphs {
 impl ServerActionsGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
-        graph: ResolvedVc<ModuleGraphLayer>,
+        graph: OperationVc<ModuleGraphLayer>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let mapped = map_server_actions(*graph);
+        let mapped = map_server_actions(graph);
 
         Ok(ServerActionsGraph {
             is_single_page,
-            graph,
+            graph: graph.connect().to_resolved().await?,
             data: mapped.to_resolved().await?,
         }
         .cell())
