@@ -50,6 +50,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
+          package-manager-cache: false
       - name: Setup corepack
         run: |
           npm i -g corepack@0.31
@@ -118,6 +119,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
+          package-manager-cache: false
       - name: Setup corepack
         run: |
           npm i -g corepack@0.31
@@ -346,6 +348,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
+          package-manager-cache: false
 
       - name: Prepare corepack
         if: ${{ matrix.settings.host != 'windows-latest-8-core-oss' }}
@@ -475,6 +478,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
+          package-manager-cache: false
       - run: corepack enable
 
       - name: Install Rust
@@ -523,6 +527,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
+          package-manager-cache: false
       - name: Setup corepack
         run: |
           npm i -g corepack@0.31
@@ -588,6 +593,7 @@ jobs:
           node-version: 24
           check-latest: true
           registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
       - name: Setup corepack
         run: |
           npm i -g corepack@0.31
