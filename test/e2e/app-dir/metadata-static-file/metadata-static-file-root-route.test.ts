@@ -1,5 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getCommonMetadataHeadTags } from './utils'
+import {
+  getCommonMetadataHeadTags,
+  readFixtureBuffer,
+  readFixtureText,
+} from './utils'
 
 describe('metadata-files-static-output-root-route', () => {
   if (process.env.__NEXT_CACHE_COMPONENTS) {
@@ -26,7 +30,6 @@ describe('metadata-files-static-output-root-route', () => {
 
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   if (skipped) {
@@ -69,10 +72,10 @@ describe('metadata-files-static-output-root-route', () => {
     // Compare response content with actual files
     const [actualFavicon, actualManifest, actualRobots, actualSitemap] =
       await Promise.all([
-        next.readFileBuffer('app/favicon.ico'),
-        next.readFile('app/manifest.json'),
-        next.readFile('app/robots.txt'),
-        next.readFile('app/sitemap.xml'),
+        readFixtureBuffer('app/favicon.ico'),
+        readFixtureText('app/manifest.json'),
+        readFixtureText('app/robots.txt'),
+        readFixtureText('app/sitemap.xml'),
       ])
 
     expect({

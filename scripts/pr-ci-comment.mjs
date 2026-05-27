@@ -130,11 +130,9 @@ class GitHubClient {
     )
   }
 
-  async upsertIssueComment(issueNumber, marker, body, fallbackHeadings = []) {
-    body = fitComment(body)
-
+  async findExistingBotComment(issueNumber, marker, fallbackHeadings = []) {
     const comments = await this.listIssueComments(issueNumber)
-    const existing = [...comments].reverse().find((comment) => {
+    return [...comments].reverse().find((comment) => {
       if (comment.user?.login !== COMMENT_AUTHOR) {
         return false
       }
@@ -144,6 +142,16 @@ class GitHubClient {
         fallbackHeadings.some((heading) => comment.body?.includes(heading))
       )
     })
+  }
+
+  async upsertIssueComment(issueNumber, marker, body, fallbackHeadings = []) {
+    body = fitComment(body)
+
+    const existing = await this.findExistingBotComment(
+      issueNumber,
+      marker,
+      fallbackHeadings
+    )
 
     if (this.dryRun) {
       console.log(
@@ -180,6 +188,45 @@ class GitHubClient {
       }
     )
     console.log(`Created comment ${created.html_url}`)
+  }
+
+  async insertIssueCommentIfMissing(
+    issueNumber,
+    marker,
+    body,
+    fallbackHeadings = []
+  ) {
+    body = fitComment(body)
+
+    const existing = await this.findExistingBotComment(
+      issueNumber,
+      marker,
+      fallbackHeadings
+    )
+
+    if (existing) {
+      console.log(
+        `Existing comment ${existing.html_url} found for #${issueNumber}; requested-phase is create-only, leaving it alone`
+      )
+      return
+    }
+
+    if (this.dryRun) {
+      console.log(
+        `[dry-run] Would create placeholder comment for #${issueNumber}`
+      )
+      console.log(body)
+      return
+    }
+
+    const created = await this.request(
+      `/repos/${this.owner}/${this.repo}/issues/${issueNumber}/comments`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      }
+    )
+    console.log(`Created placeholder comment ${created.html_url}`)
   }
 
   async findPullRequestForCommit(sha) {
@@ -244,13 +291,26 @@ async function main() {
     return
   }
 
+  const phase = event.action
+  if (phase !== 'requested' && phase !== 'completed') {
+    console.log(`Ignoring workflow_run action "${phase}"`)
+    return
+  }
+
   if (workflowRun.name === 'Generate Stats') {
-    await handleStatsWorkflow({ github, workflowRun, pr })
+    await handleStatsWorkflow({ github, workflowRun, pr, phase })
     return
   }
 
   if (workflowRun.name === 'build-and-test') {
-    await handleBuildAndTestWorkflow({ github, workflowRun, pr, owner, repo })
+    await handleBuildAndTestWorkflow({
+      github,
+      workflowRun,
+      pr,
+      owner,
+      repo,
+      phase,
+    })
     return
   }
 
@@ -398,9 +458,41 @@ async function readPullRequestMetadataArtifact() {
   }
 }
 
-async function handleStatsWorkflow({ github, workflowRun, pr }) {
+async function handleStatsWorkflow({ github, workflowRun, pr, phase }) {
+  if (phase === 'requested') {
+    const sha = pr.headSha || workflowRun.head_sha
+    const body = [
+      STATS_COMMENT_MARKER,
+      '## Stats in progress',
+      '',
+      `Commit: ${sha}`,
+      `[View workflow run](${workflowRun.html_url})`,
+      '',
+    ].join('\n')
+
+    await github.insertIssueCommentIfMissing(
+      pr.number,
+      STATS_COMMENT_MARKER,
+      body,
+      ['## Stats from current PR']
+    )
+    return
+  }
+
   if (workflowRun.conclusion === 'cancelled') {
-    console.log('Stats workflow was cancelled, skipping')
+    const sha = pr.headSha || workflowRun.head_sha
+    const body = [
+      STATS_COMMENT_MARKER,
+      '## Stats cancelled',
+      '',
+      `Commit: ${sha}`,
+      `[View workflow run](${workflowRun.html_url})`,
+      '',
+    ].join('\n')
+
+    await github.upsertIssueComment(pr.number, STATS_COMMENT_MARKER, body, [
+      '## Stats from current PR',
+    ])
     return
   }
 
@@ -439,7 +531,22 @@ async function handleStatsWorkflow({ github, workflowRun, pr }) {
     return
   }
 
-  console.log('No stats block found in the completed stats workflow')
+  console.log(
+    'No stats block found in the completed stats workflow. Assuming stats were skipped.'
+  )
+
+  const sha = pr.headSha || workflowRun.head_sha
+  const body = [
+    STATS_COMMENT_MARKER,
+    '## Stats skipped',
+    '',
+    `Commit: ${sha}`,
+    `[View workflow run](${workflowRun.html_url})`,
+    '',
+  ].join('\n')
+  await github.upsertIssueComment(pr.number, STATS_COMMENT_MARKER, body, [
+    '## Stats from current PR',
+  ])
 }
 
 async function handleBuildAndTestWorkflow({
@@ -448,9 +555,25 @@ async function handleBuildAndTestWorkflow({
   pr,
   owner,
   repo,
+  phase,
 }) {
-  if (workflowRun.conclusion === 'cancelled') {
-    console.log('build-and-test was cancelled, skipping')
+  if (phase === 'requested') {
+    const sha = pr.headSha || workflowRun.head_sha
+    const body = [
+      TEST_COMMENT_MARKER,
+      '## Tests in progress',
+      '',
+      `Commit: ${sha}`,
+      `[View workflow run](${workflowRun.html_url})`,
+      '',
+    ].join('\n')
+
+    await github.insertIssueCommentIfMissing(
+      pr.number,
+      TEST_COMMENT_MARKER,
+      body,
+      ['## Failing test suites', '## Failing CI jobs']
+    )
     return
   }
 

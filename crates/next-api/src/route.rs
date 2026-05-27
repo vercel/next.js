@@ -176,7 +176,6 @@ async fn module_graphs_of_endpoints(
         .try_flat_join()
         .await?
         .into_iter()
-        .copied()
         .collect::<FxIndexSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();

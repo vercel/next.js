@@ -597,7 +597,6 @@ export async function handler(
       : null
 
     if (
-      nextConfig.experimental.partialFallbacks === true &&
       fallbackPathname &&
       prerenderInfo?.fallbackRouteParams?.length &&
       !hasUnresolvedRootFallbackParams
@@ -682,7 +681,6 @@ export async function handler(
     routerServerContext?.isWrappedByNextServer
   )
   const remainingFallbackRouteParams =
-    nextConfig.experimental.partialFallbacks === true &&
     remainingPrerenderableParams.length > 0
       ? (prerenderInfo?.fallbackRouteParams?.filter(
           (param) =>
@@ -1052,7 +1050,6 @@ export async function handler(
         }
 
         if (
-          nextConfig.experimental.partialFallbacks === true &&
           prerenderInfo?.fallback === null &&
           !hasOmittedConcreteFallbackParam &&
           !hasUnresolvedRootFallbackParams &&
@@ -1214,7 +1211,6 @@ export async function handler(
                 // Match the build-time contract: only fallback shells that can
                 // still be completed with prerenderable params should upgrade.
                 remainingPrerenderableParams.length > 0 &&
-                nextConfig.experimental.partialFallbacks === true &&
                 ssgCacheKey &&
                 incrementalCache &&
                 !isOnDemandRevalidate &&
@@ -1922,14 +1918,29 @@ export async function handler(
       const transformer = new TransformStream<Uint8Array, Uint8Array>()
       body.push(transformer.readable)
 
+      // Plumb fallback params via request meta so the RequestStore created
+      // downstream in app-render.tsx knows which params to defer during the
+      // resume. We don't pass them as `fallbackRouteParams` because that
+      // would replace actual param values with opaque placeholders during
+      // segment resolution; the resolved values are baked into the URL and
+      // already interpolated into the postponed state.
+      if (nextConfig.cacheComponents && prerenderInfo?.fallbackRouteParams) {
+        const fallbackParams = createOpaqueFallbackRouteParams(
+          prerenderInfo.fallbackRouteParams
+        )
+        if (fallbackParams) {
+          addRequestMeta(req, 'fallbackParams', fallbackParams)
+        }
+      }
+
       // Perform the render again, but this time, provide the postponed state.
       // We don't await because we want the result to start streaming now, and
       // we've already chained the transformer's readable to the render result.
       doRender({
         span,
         postponed: cachedData.postponed,
-        // This is a resume render, not a fallback render, so we don't need to
-        // set this.
+        // This is a resume render, not a fallback render. Fallback params
+        // (for cacheComponents routes) are plumbed via request meta above.
         fallbackRouteParams: null,
         forceStaticRender: false,
       })

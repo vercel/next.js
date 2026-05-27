@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup, isNextDev, type Playwright } from 'e2e-utils'
 import { waitForNoRedbox } from 'next-test-utils'
 
 describe('Image qualities config', () => {
@@ -7,10 +7,7 @@ describe('Image qualities config', () => {
     skipDeployment: true,
   })
 
-  async function getSrc(
-    browser: Awaited<ReturnType<typeof next.browser>>,
-    id: string
-  ) {
+  async function getSrc(browser: Playwright, id: string) {
     const src = await browser.elementById(id).getAttribute('src')
     if (src) {
       const url = new URL(src, next.url)

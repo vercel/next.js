@@ -89,6 +89,6 @@ swc_core = { workspace = true, features = [
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
 turbo-tasks-backend = { workspace = true }
-turbo-tasks-malloc = { workspace = true }
+turbo-tasks-malloc = { workspace = true, features  = ["custom_allocator"] }
 turbo-tasks-testing = { workspace = true }
 turbopack-test-utils = { workspace = true }

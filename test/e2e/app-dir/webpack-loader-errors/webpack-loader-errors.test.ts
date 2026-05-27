@@ -88,6 +88,31 @@ describe('webpack-loader-errors', () => {
           expect(output).toMatch(/\(from .+loaders\/fs-error-loader/)
         })
       })
+
+      // Turbopack-only: webpack runs loaders in-process, so a loader calling
+      // process.exit() would kill the dev server itself. In Turbopack the
+      // loader runs in a Node.js subprocess from a worker pool; a hard
+      // process exit closes the IPC socket mid-message. This used to surface
+      // as an opaque "failed to receive message / unexpected end of file"
+      // cascade with no diagnostic context.
+      it('should surface a useful error when a loader crashes the Node.js subprocess', async () => {
+        await next.fetch('/crash')
+        await retry(async () => {
+          const output = stripAnsi(next.cliOutput)
+          // The crashing loader wrote to stderr before exiting. With the
+          // fix, that output is captured and attached to the error.
+          expect(output).toContain('TURBOPACK_CRASH_LOADER_STDERR_MARKER')
+          // The crash should not surface as the raw internal cascade.
+          expect(output).not.toContain(
+            '<WebpackLoadersProcessedAsset as Asset>::content failed'
+          )
+          // The synthesized error should reference both the crashing
+          // resource and the loader that was running, so the user knows
+          // exactly which loader to look at.
+          expect(output).toContain('crash.data')
+          expect(output).toMatch(/loaders \[[^\]]*loaders\/crash-loader/)
+        }, 30_000)
+      })
     }
   })
 

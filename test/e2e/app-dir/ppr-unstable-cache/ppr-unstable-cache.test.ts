@@ -1,4 +1,4 @@
-import { NextInstance, createNext, isNextDeploy, isNextDev } from 'e2e-utils'
+import { nextTestSetup, isNextDeploy, isNextDev } from 'e2e-utils'
 import { findPort } from 'next-test-utils'
 import http from 'node:http'
 
@@ -13,14 +13,13 @@ describe('ppr-unstable-cache', () => {
     return
   }
 
-  let next: NextInstance | null = null
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+  })
+
   let server: http.Server | null = null
   afterEach(async () => {
-    if (next) {
-      await next.destroy()
-      next = null
-    }
-
     if (server) {
       await server.close()
       server = null
@@ -48,10 +47,8 @@ describe('ppr-unstable-cache', () => {
     const port = await findPort()
     server.listen(port)
 
-    next = await createNext({
-      files: __dirname,
-      env: { TEST_DATA_SERVER: `http://localhost:${port}/` },
-    })
+    next.env.TEST_DATA_SERVER = `http://localhost:${port}/`
+    await next.start()
 
     expect(generations).toHaveLength(2)
 

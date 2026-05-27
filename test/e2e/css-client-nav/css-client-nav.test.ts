@@ -3,7 +3,6 @@ import http from 'http'
 import httpProxy from 'http-proxy'
 import cheerio from 'cheerio'
 import { findPort } from 'next-test-utils'
-import webdriver from 'next-webdriver'
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 
 describe('CSS Module client-side navigation', () => {
@@ -69,12 +68,15 @@ describe('CSS Module client-side navigation', () => {
   beforeEach(() => {
     stallCss = false
   })
+  const openBrowser = (url: string) =>
+    isNextDev ? next.browser(url) : next.browser(url, { baseUrl: proxyPort })
+
   ;(isNextStart ? it : it.skip)(
     'should time out and hard navigate for stalled CSS request',
     async () => {
       stallCss = true
 
-      const browser = await webdriver(proxyPort, '/red')
+      const browser = await next.browser('/red', { baseUrl: proxyPort })
       try {
         await browser.eval('window.beforeNav = "hello"')
 
@@ -103,9 +105,7 @@ describe('CSS Module client-side navigation', () => {
   )
 
   it('should be able to client-side navigate from red to blue', async () => {
-    const browser = isNextDev
-      ? await next.browser('/red')
-      : await webdriver(proxyPort, '/red')
+    const browser = await openBrowser('/red')
 
     try {
       await browser.eval(`window.__did_not_ssr = 'make sure this is set'`)
@@ -144,9 +144,7 @@ describe('CSS Module client-side navigation', () => {
       expect(serverCssPrefetches.length).toBe(0)
     }
 
-    const browser = isNextDev
-      ? await next.browser('/blue')
-      : await webdriver(proxyPort, '/blue')
+    const browser = await openBrowser('/blue')
 
     try {
       await browser.eval(`window.__did_not_ssr = 'make sure this is set'`)
@@ -174,9 +172,7 @@ describe('CSS Module client-side navigation', () => {
   })
 
   it('should be able to client-side navigate from none to red', async () => {
-    const browser = isNextDev
-      ? await next.browser('/none')
-      : await webdriver(proxyPort, '/none')
+    const browser = await openBrowser('/none')
 
     try {
       await browser.eval(`window.__did_not_ssr = 'make sure this is set'`)
@@ -198,9 +194,7 @@ describe('CSS Module client-side navigation', () => {
   })
 
   it('should be able to client-side navigate from none to blue', async () => {
-    const browser = isNextDev
-      ? await next.browser('/none')
-      : await webdriver(proxyPort, '/none')
+    const browser = await openBrowser('/none')
 
     try {
       await browser.eval(`window.__did_not_ssr = 'make sure this is set'`)
