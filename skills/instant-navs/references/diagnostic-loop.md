@@ -19,6 +19,20 @@ scripts/extract-instant-diagnostics.mjs path/to/dev.log path/to/trace.network
 
 Treat the script output as a shortlist; still read surrounding context when the first blocker is ambiguous.
 
+## Debug Ladder
+
+When something fails, investigate in order:
+
+1. **Prove the route works outside `instant(...)` in its normal loaded state.** Auth, env, provider, module resolution, and unrelated render errors make Instant evidence inconclusive.
+2. **Read the first route-specific Next diagnostic.** Dev stdout often has more precise blocking-route output than the browser overlay. For large logs, run `scripts/extract-instant-diagnostics.mjs`.
+3. **Prove route ownership.** Compare visible URL to middleware/rewrites/parallel slots. Confirm the owner is statically generated for the current variant tuple.
+4. **Move exactly one boundary.** Move the runtime read, provider, or Suspense boundary named by the diagnostic. Avoid broad visual cleanup until owner and blocker are understood.
+5. **Restart dev only when stale.** Delete `.next` only with stale-dev-server evidence: contradictory diagnostics, removed code still executing, or Turbopack cache restore failures. Do not delete reflexively.
+
+### Classify before patching source
+
+When a Playwright failure could be a test-side bug, the test-side trap list in `playwright-verification.md` is the first place to look.
+
 ## Current-Blocker Format
 
 Keep a short note while iterating; rewrite after each run. If the diagnostic changes, drop the old theory.
@@ -80,21 +94,36 @@ Use production-like build output as a separate signal from dev Instant tests.
 - For shell generation that depends on root variant identity, use the `next/root-params` generated getter API. Treat `props.params` reads in root or shared layouts as suspect until the focused Instant probe proves they do not trigger `NEXT_STATIC_GEN_BAILOUT`.
 - If a parent root/layout fallback captures before the target route, fix the parent boundary first. Do not tune child skeletons and call the work done.
 
-## Failure Taxonomy
+## Shell Capture Checks
 
-| Symptom                                           | Most likely cause                                                                                                                                                  |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Blank captured shell body                         | Parent layout/provider/runtime read suspends before a visible fallback can render, or the rewrite targeted a dynamic owner param not generated for Instant capture |
-| Route 500 in Instant only                         | Dev stdout has the blocking-route diagnostic or a render error preventing validation                                                                               |
-| Normal route also fails                           | Not an Instant result yet; fix the route in its normal loaded state                                                                                                |
-| Wrong owner captured                              | Inspect rewrites, hidden segments, parallel routes, parent fallbacks                                                                                               |
-| Provider crash in fallback                        | Fallback rendered real children/slots/client hooks without the loaded provider stack                                                                               |
-| `useSearchParams()` warning                       | Move that client component under a local Suspense boundary                                                                                                         |
-| Hidden duplicate DOM                              | Multiple candidate shells rendering; fix architecture, do not just loosen locators                                                                                 |
-| Persistent shared layout resuspends on client nav | Shared frame lives inside a changing parallel slot, keyed subtree, or mount-gated client shell                                                                     |
-| Persistent list resuspends after frame stabilizes | Data continuity problem (SWR keys, request de-dupe), not frame ownership                                                                                           |
-| Layout dimension mismatch                         | Inspect box-model deltas before changing tolerance                                                                                                                 |
-| Dev passes but preview janks                      | Check CSS load order, deployment protection, theme/auth cookies, production-only prefetch behavior                                                                 |
+Before refactoring UI for a blank or wrong shell:
+
+- **Prove ownership first.** A visible URL may rewrite through a different internal owner. Add a route-owned marker (`data-instant-boundary="..."`) or inspect the captured shell DOM to identify the captured boundary.
+- **Static owner = route file plus the right `generateStaticParams()`.** For every dynamic segment on the owner path, check the rewrite value against `generateStaticParams()`. A non-generated dynamic param produces an empty captured shell with no obvious page marker.
+- **A parent layout's `generateStaticParams()` does not cover a new generated page owner.** If a page owns a hidden static segment, export the concrete static params on that page too.
+- **`generateStaticParams()` is a static shell-ownership claim, not a route-table detail.** If the layout exports static params but providers or slots above the inert boundary still start request-backed work, the route is not actually static.
+- **Audit sibling parallel slots.** A content page fallback does not protect `@header`, `@sidebar`, or other slots from their own `params`, `searchParams`, `headers()`, or `cookies()` reads.
+
+## Boundary Decision Table
+
+Use the first blocker to choose the smallest useful move:
+
+| Blocker                                                                | Prefer                                                                                                                                                 |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `cookies()`, `headers()`, session, user, flags                         | Keep shared frame above Suspense; move stateful region below; or use a pending provider that exposes shape without resolved facts                      |
+| `params` / root params in shared layout or sibling parallel slot       | Use `rootParams()` getters from `next/root-params`; read only params the layout owns; audit sibling `@header`/`@sidebar` slots                         |
+| Per-request identity (scope, tenant, team) drifting across navigations | Include the identity in cache keys, request de-dupe keys, and SWR keys; do not rely only on request headers                                            |
+| Localized shell text                                                   | Treat locale as part of the route/variant tuple, or suspend the localized region; default locale only in inert fallback                                |
+| `useSearchParams()`, router/query-state hooks                          | Wrap the client control in Suspense with an inert box-model fallback                                                                                   |
+| Uncached fetch or async data section                                   | Keep the section frame visible; suspend only the data row/list/cards                                                                                   |
+| Optional lower-page data throws                                        | Isolate with a local degraded frame or route error boundary; do not let a catalog query block the primary shell                                        |
+| Function-valued translation crash (`t('key')(...)` is not a function)  | Verify locale provider and missing-key fallback shape before treating as an Instant blocker                                                            |
+| Render recursion or stack overflow during capture                      | Check whether a server Suspense fallback imports through a `"use client"` module; split inert fallback UI into a server-safe module                    |
+| Strict Playwright failure with two matching visible-shell locators     | Inspect trace snapshot for hidden streaming DOM first. One visible: fix the test with a visible-scoped selector. Two visible: fix the app architecture |
+| Blank captured shell                                                   | Inspect parent layout/provider/null fallback and verify the rewritten owner matches generated params before editing page skeletons                     |
+| Wrong route/variant shell                                              | Prove rewrites and owner; do not render multiple candidate shells and hide one                                                                         |
+| Persistent shared layout resuspends on client nav                      | Fix route/layout architecture; check changing parallel slots, keyed subtrees, or client mount gates before tuning child fallbacks                      |
+| Visual layout drift                                                    | Fix shared frame or fallback box model before changing tolerance                                                                                       |
 
 ## Faster Triage Moves
 

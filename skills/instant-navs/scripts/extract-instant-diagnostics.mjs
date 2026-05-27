@@ -33,12 +33,12 @@ const patterns = [
   ['use-client-fallback', /server Suspense fallback|server shell|use client/i],
   [
     'translation-function',
-    /t\([^)]+\).*is not a function|is not a function.*t\(|missing.*translation|translation key|i18n.*is not a function|locale provider|server locale/i,
+    /\bt\(['"][^'"]+['"]\)[^a-z]*is not a function|i18n.*is not a function|missing translation key/i,
   ],
   ['rewrite', /x-middleware-rewrite|x-nextjs-rewritten-path/i],
   ['instant-cookie', /next-instant-navigation-testing/i],
   ['postponed', /x-nextjs-postponed/i],
-  ['route-path', /Route "\/[^"]+"|\/\[[^\]]+\][^\s"']*/i],
+  ['route-path', /Route "\/[^"]+"/],
   [
     'first-stack-frame',
     /^\s+at\s+(cookies|headers|generateStaticParams|rootParams|Providers|Layout|Page)\b/,
@@ -89,14 +89,13 @@ for (const file of files) {
       if (!pattern.test(line)) {
         continue
       }
-      const match = line.match(pattern)?.[0]
       const key = `${label}:${index}`
       if (seen.has(key)) {
         continue
       }
       seen.add(key)
       counts.set(label, count + 1)
-      hits.push({ label, index, match, context: context(lines, index) })
+      hits.push({ label, index, context: context(lines, index) })
     }
   })
 
@@ -114,9 +113,6 @@ for (const file of files) {
 
   for (const hit of hits) {
     console.log(`\n### ${hit.label} at line ${hit.index + 1}`)
-    if (hit.match) {
-      console.log(`match: ${trimLine(hit.match)}`)
-    }
     console.log(hit.context.join('\n'))
   }
 
