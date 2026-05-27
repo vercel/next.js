@@ -4529,6 +4529,8 @@ mod tests {
 
     #[rstest]
     #[case("x && 2")]
+    #[case("1 && x")]
+    #[case("1 && 'a' && x")]
     #[case("x || 'bye'")]
     #[case("false || x")]
     fn is_string_short_circuiting_unknown(#[case] input: &str) {
@@ -4545,6 +4547,7 @@ mod tests {
     #[rstest]
     #[case("'' && 'string'")]
     #[case("false || ''")]
+    #[case("1 && 'a' && ''")]
     fn is_empty_string_short_circuiting_positive(#[case] input: &str) {
         assert_eq!(
             EvalContext::eval_single_expr_lit(&input.into())
@@ -4559,6 +4562,7 @@ mod tests {
     #[rstest]
     #[case("false && ''")]
     #[case("'' || 'string'")]
+    #[case("'' || 0 || 'string'")]
     fn is_empty_string_short_circuiting_negative(#[case] input: &str) {
         assert_eq!(
             EvalContext::eval_single_expr_lit(&input.into())
@@ -4572,8 +4576,10 @@ mod tests {
 
     #[rstest]
     #[case("x && ''")]
+    #[case("1 && x")]
     #[case("x || ''")]
     #[case("'' || x")]
+    #[case("false || 0 || x")]
     fn is_empty_string_short_circuiting_unknown(#[case] input: &str) {
         assert_eq!(
             EvalContext::eval_single_expr_lit(&input.into())
@@ -4588,6 +4594,7 @@ mod tests {
     #[rstest]
     #[case("null && ''")]
     #[case("'' || null")]
+    #[case("1 && 2 && null")]
     fn is_nullish_short_circuiting_positive(#[case] input: &str) {
         assert_eq!(
             EvalContext::eval_single_expr_lit(&input.into())
@@ -4602,6 +4609,7 @@ mod tests {
     #[rstest]
     #[case("'' && null")]
     #[case("null || ''")]
+    #[case("null || '' || 'a'")]
     fn is_nullish_short_circuiting_negative(#[case] input: &str) {
         assert_eq!(
             EvalContext::eval_single_expr_lit(&input.into())
@@ -4615,8 +4623,11 @@ mod tests {
 
     #[rstest]
     #[case("x && null")]
+    #[case("1 && x")]
     #[case("x || null")]
     #[case("null || x")]
+    #[case("false || x")]
+    #[case("1 && x && null")]
     fn is_nullish_short_circuiting_unknown(#[case] input: &str) {
         assert_eq!(
             EvalContext::eval_single_expr_lit(&input.into())
@@ -4631,6 +4642,7 @@ mod tests {
     #[rstest]
     #[case("'' && null")]
     #[case("null || ''")]
+    #[case("null || 0 || 'a'")]
     fn is_not_nullish_short_circuiting_positive(#[case] input: &str) {
         assert_eq!(
             EvalContext::eval_single_expr_lit(&input.into())
@@ -4645,6 +4657,7 @@ mod tests {
     #[rstest]
     #[case("null && ''")]
     #[case("'' || null")]
+    #[case("'' || 0 || null")]
     fn is_not_nullish_short_circuiting_negative(#[case] input: &str) {
         assert_eq!(
             EvalContext::eval_single_expr_lit(&input.into())
@@ -4658,8 +4671,11 @@ mod tests {
 
     #[rstest]
     #[case("x && null")]
+    #[case("1 && x")]
     #[case("x || null")]
     #[case("null || x")]
+    #[case("false || x")]
+    #[case("false || x || ''")]
     fn is_not_nullish_short_circuiting_unknown(#[case] input: &str) {
         assert_eq!(
             EvalContext::eval_single_expr_lit(&input.into())
