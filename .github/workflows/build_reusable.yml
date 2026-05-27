@@ -17,11 +17,6 @@ on:
         required: false
         description: 'whether to skip pnpm install && pnpm build'
         type: string
-      skipPlaywrightInstall:
-        required: false
-        description: 'whether to skip installing Playwright browsers'
-        type: string
-        default: 'no'
       skipNativeBuild:
         required: false
         description: 'whether to skip building native modules'
@@ -298,8 +293,6 @@ jobs:
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - run: pnpm install
-        env:
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - name: Install node-file-trace test dependencies
@@ -311,7 +304,7 @@ jobs:
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - run: pnpm playwright install --with-deps ${{ inputs.browser }}
-        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.skipPlaywrightInstall != 'yes' }}
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - name: Download pre-built test timings
         if: ${{ inputs.testTimingsArtifact != '' }}

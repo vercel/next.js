@@ -666,7 +666,6 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ matrix.node }}
-      skipPlaywrightInstall: 'yes'
       afterBuild: |
         export __NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
@@ -689,7 +688,6 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ matrix.node }}
-      skipPlaywrightInstall: 'yes'
       afterBuild: |
         export __NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
