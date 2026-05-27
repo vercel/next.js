@@ -235,7 +235,9 @@ type WebpackBuild = (
 ) => Promise<any>
 
 function getWebpackBuild(): WebpackBuild {
-  return (require('next/dist/webpack/next-integration') as typeof import('next/dist/webpack/next-integration')).webpackBuild
+  return (
+    require('next/dist/webpack/next-integration') as typeof import('next/dist/webpack/next-integration')
+  ).webpackBuild
 }
 
 type Fallback = null | boolean | string
