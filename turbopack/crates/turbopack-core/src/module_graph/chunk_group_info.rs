@@ -195,11 +195,14 @@ pub enum ChunkGroup {
 
 #[turbo_tasks::value_impl]
 impl ChunkGroup {
-    /// Use this for async chunk groups, so that the chunks are deduplicated when using
-    /// nested_async_availability=false
     #[turbo_tasks::function]
     pub async fn async_interned(entry: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
         Self::Async(entry).cell()
+    }
+
+    #[turbo_tasks::function]
+    pub async fn shared_interned(entry: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::Shared(entry).cell()
     }
 }
 
