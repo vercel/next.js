@@ -6,18 +6,18 @@ FROM ubuntu:noble
 
 ARG NODE_VERSION=20.9.0
 ARG PLAYWRIGHT_VERSION
-ARG IMAGE_NAME_TEMPLATE=ghcr.io/vercel/next.js-playwright-chromium:v%version%-noble-r1
+ARG IMAGE_NAME_TEMPLATE=ghcr.io/vercel/next.js-playwright-chromium:v%version%-noble-r2
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV FNM_DIR=/usr/local/share/fnm
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
-ENV PATH=/usr/local/share/fnm:$PATH
+ENV NVM_DIR=/usr/local/share/nvm
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ENV TZ=Etc/UTC
-ENV FNM_VERSION=v1.39.0
-ENV FNM_SHA256=7807664f39d39fc518da1c35ba0181e4b3267603c4b1dedeb4b5fc6ae440a224
-ENV FNM_PATH=/usr/bin/fnm
+# https://github.com/nvm-sh/nvm/releases/tag/v0.40.4
+ENV NVM_COMMIT=62387b8f92aa012d48202747fd75c40850e5e261
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN test -n "${NODE_VERSION}" && \
     test -n "${PLAYWRIGHT_VERSION}" && \
@@ -28,21 +28,18 @@ RUN test -n "${NODE_VERSION}" && \
       ca-certificates \
       curl \
       git \
-      jq \
       openssh-client \
-      unzip \
       wget && \
-    curl -L --fail --retry 2 -o /tmp/fnm-linux.zip \
-      "https://github.com/Schniz/fnm/releases/download/$FNM_VERSION/fnm-linux.zip" && \
-    echo "$FNM_SHA256  /tmp/fnm-linux.zip" | sha256sum --check --status && \
-    unzip /tmp/fnm-linux.zip fnm  -d "$(dirname "$FNM_PATH")" && \
-    rm /tmp/fnm-linux.zip && \
-    chmod +x "$FNM_PATH" && \
-    fnm install "$NODE_VERSION" && \
-    fnm default "$NODE_VERSION"
+    mkdir -p "$NVM_DIR" && \
+    curl -L --fail --retry 3 \
+      "https://github.com/nvm-sh/nvm/archive/$NVM_COMMIT.tar.gz" \
+      | tar -xz -C "$NVM_DIR" --strip-components=1 && \
+    . "$NVM_DIR/nvm.sh" && \
+    nvm install "$NODE_VERSION" && \
+    nvm alias default "$NODE_VERSION"
 
 # put chrome in a separate layer to get some benefits from parallel pulling
-RUN eval "$(fnm env)" && \
+RUN . "$NVM_DIR/nvm.sh" && \
     npm install -g yarn && \
     mkdir -p /ms-playwright /ms-playwright-agent && \
     cd /ms-playwright-agent && \
@@ -53,4 +50,4 @@ RUN eval "$(fnm env)" && \
     rm -rf /var/lib/apt/lists/* /ms-playwright-agent ~/.npm && \
     chmod -R 777 /ms-playwright && \
     useradd --uid 1001 --create-home --shell /bin/bash pwuser && \
-    chown -R pwuser:pwuser "$FNM_DIR" /home/pwuser
+    chown -R pwuser:pwuser "$NVM_DIR" /home/pwuser

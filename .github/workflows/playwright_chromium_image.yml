@@ -17,7 +17,7 @@ permissions:
 
 env:
   IMAGE_NAME: ghcr.io/vercel/next.js-playwright-chromium
-  IMAGE_REVISION: 1
+  IMAGE_REVISION: 2
 
 jobs:
   build:

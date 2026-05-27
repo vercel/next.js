@@ -225,33 +225,22 @@ jobs:
           git config --global core.eol lf
         shell: bash
 
-      - name: Check if fnm is installed
-        id: check-fnm
-        run: |
-          if [ -x "$(command -v fnm)" ]; then
-            echo "fnm found."
-            echo "found=true" >> $GITHUB_OUTPUT
-          else
-            echo "fnm not found."
-            echo "found=false" >> $GITHUB_OUTPUT
-          fi
-
       # The Microsoft Playwright image is browser-focused and does not ship
-      # `jq`/`unzip` (required by the fnm install + `fnm env --json` parse
-      # below) or `build-essential` (required by `node-gyp` when test
-      # fixtures install native modules like `node-pty`). Install them
-      # unconditionally inside the container.
+      # `build-essential` (required by `node-gyp` when test fixtures install
+      # native modules like `node-pty`). Install it unconditionally inside
+      # the container.
       - name: Install container build dependencies (Linux container)
         if: ${{ runner.os == 'Linux' && inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows') }}
         run: |
+          set -euo pipefail
           apt-get update
-          apt-get install -y --no-install-recommends jq unzip build-essential
+          apt-get install -y --no-install-recommends build-essential
 
       # GitHub Actions sets `HOME=/github/home` for every step in a
       # container job and overrides anything set via `container.env`.
       # Playwright's GitHub Actions example runs the container as a
       # non-root user, but this reusable workflow needs root so it can
-      # install jq/unzip/build-essential from the upstream image before
+      # install build-essential from the upstream image before
       # bootstrapping. Firefox still requires $HOME to be owned by the
       # current user, so re-own GitHub's mounted home directory in the
       # Playwright container before tests run.
@@ -262,15 +251,6 @@ jobs:
             chown -R root:root /github/home
           fi
 
-      - name: Install fnm
-        if: steps.check-fnm.outputs.found != 'true'
-        run: |
-          export FNM_DIR="${HOME}/.local/share/fnm"
-          curl -fsSL https://fnm.vercel.app/install | bash
-          export PATH="$FNM_DIR:$PATH"
-          echo "$FNM_DIR" >> $GITHUB_PATH
-          fnm env --json | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs -I {} echo "{}" >> $GITHUB_ENV
-
       - name: Normalize input step names into path key
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         id: var
@@ -279,16 +259,20 @@ jobs:
             core.setOutput('input_step_key', '${{ inputs.stepName }}'.toLowerCase().replaceAll(/[/.]/g, '-').trim('-'));
 
       - name: Use Node.js ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }} for default shell
+        env:
+          # Routed through env to avoid `${{ }}` script injection.
+          NODE_VERSION: ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
         run: |
+          set -euo pipefail
           node --version || true
           which node || true
-          # TODO: May be sufficient to just set `$FNM_MULTISHELL_PATH/bin` from `fnm env --json` into GITHUB_PATH
-          fnm_env=$(fnm env)
-          # Debug what we're about to eval
-          echo "$fnm_env"
-          eval "$fnm_env"
-          fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
-          fnm default ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+          # nvm is preinstalled on the GitHub Actions runner image and in
+          # our Playwright container image, so just source it and use it.
+          # shellcheck disable=SC1091
+          . "$NVM_DIR/nvm.sh"
+          nvm install "$NODE_VERSION"
+          nvm alias default "$NODE_VERSION"
+          nvm use default
           node --version
           which node
           NODE_SHELL_PATH=$(dirname "$(which node)")
@@ -462,7 +446,8 @@ jobs:
         # Set this back to github action's weaker defaults:
         # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
         #
-        # We must use a login shell: fnm installation may modify the `.profile`
+        # We must use a login shell so `/etc/profile.d/*` (which sets
+        # `NVM_DIR` and adds the active Node version to `PATH`) is sourced.
         shell: bash -le {0}
         timeout-minutes: ${{ inputs.timeout_minutes }}
 
