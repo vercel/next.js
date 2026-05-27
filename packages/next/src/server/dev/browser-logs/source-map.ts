@@ -36,7 +36,13 @@ export async function mapFramesUsingBundler(
   switch (ctx.bundler) {
     case 'webpack': {
       const { getOriginalStackFrames: getOriginalStackFramesWebpack } =
-        (require('next/dist/webpack/server/dev/middleware-webpack') as typeof import('next/dist/webpack/server/dev/middleware-webpack'))
+        require('next/dist/webpack/server/dev/middleware-webpack') as {
+          getOriginalStackFrames: (
+            options: Omit<WebpackMappingContext, 'bundler'> & {
+              frames: readonly StackFrame[]
+            }
+          ) => Promise<OriginalStackFramesResponse>
+        }
       const {
         isServer,
         isEdgeServer,
