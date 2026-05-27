@@ -4578,7 +4578,7 @@ mod tests {
         assert_eq!(
             EvalContext::eval_single_expr_lit(&input.into())
                 .unwrap()
-                .is_string(),
+                .is_empty_string(),
             None,
             "expected to be unable to determine whether '{}' is an empty string",
             input
