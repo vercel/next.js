@@ -1108,6 +1108,7 @@ export function fulfillRouteCacheEntry(
 export function writeRouteIntoCache(
   now: number,
   pathname: NormalizedPathname,
+  search: NormalizedSearch,
   nextUrl: string | null,
   tree: RouteTree,
   metadataVaryPath: PageVaryPath,
@@ -1125,10 +1126,9 @@ export function writeRouteIntoCache(
     canonicalUrl,
     supportsPerSegmentPrefetching
   )
-  const renderedSearch = fulfilledEntry.renderedSearch
   const varyPath = getFulfilledRouteVaryPath(
     pathname,
-    renderedSearch,
+    search,
     nextUrl as NormalizedNextUrl | null,
     couldBeIntercepted
   )
@@ -1764,6 +1764,7 @@ export async function fetchRouteOnCacheMiss(
       discoverKnownRoute(
         Date.now(),
         pathname,
+        search,
         nextUrl,
         entry,
         routeTree,
@@ -1821,6 +1822,7 @@ export async function fetchRouteOnCacheMiss(
         routeIsPPREnabled,
         headVaryParams,
         pathname,
+        search,
         nextUrl
       )
     }
@@ -2305,6 +2307,7 @@ function writeDynamicTreeResponseIntoCache(
   routeIsPPREnabled: boolean,
   headVaryParams: VaryParams | null,
   originalPathname: string,
+  originalSearch: NormalizedSearch,
   nextUrl: string | null
 ): void {
   const renderedSearch = getRenderedSearch(response)
@@ -2353,6 +2356,7 @@ function writeDynamicTreeResponseIntoCache(
   discoverKnownRoute(
     now,
     originalPathname,
+    originalSearch,
     nextUrl,
     entry,
     routeTree,

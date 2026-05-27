@@ -1633,6 +1633,7 @@ function dispatchRetryDueToTreeMismatch(
       discoverKnownRoute(
         now,
         retryUrl.pathname,
+        retryUrl.search as NormalizedSearch,
         retryNextUrl,
         null,
         seed.routeTree,
