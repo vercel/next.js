@@ -6542,20 +6542,58 @@
       turbopackMap,
       options
     ) {
-      var response = createResponse(
+      function flush() {
+        for (; null !== head; ) {
+          var current = head;
+          if (!current.complete) return;
+          try {
+            var response = response$jscomp$0,
+              key = current.name,
+              handle = current.file,
+              blob = new Blob(handle.chunks, { type: handle.mime }),
+              backingStore = response._formData;
+            response = key;
+            backingStore.data.append(response, blob, handle.filename);
+            var keys = backingStore.keys;
+            null === keys
+              ? ((backingStore.keys = Array.from(backingStore.data.keys())),
+                (backingStore.keyPointer = 0))
+              : keys.push(response);
+            var queuedFields = current.queuedFields;
+            if (null !== queuedFields)
+              for (response = 0; response < queuedFields.length; response += 2)
+                resolveField(
+                  response$jscomp$0,
+                  queuedFields[response],
+                  queuedFields[response + 1]
+                );
+          } catch (error) {
+            busboyStream.destroy(error);
+            return;
+          }
+          head = current.next;
+        }
+        tail = null;
+        bodyFinished && !closed && ((closed = !0), close(response$jscomp$0));
+      }
+      var response$jscomp$0 = createResponse(
           turbopackMap,
           "",
           options ? options.temporaryReferences : void 0,
           void 0,
           options ? options.arraySizeLimit : void 0
         ),
-        pendingFiles = 0,
-        queuedFields = [];
+        head = null,
+        tail = null,
+        bodyFinished = !1,
+        closed = !1;
       busboyStream.on("field", function (name, value) {
-        if (0 < pendingFiles) queuedFields.push(name, value);
+        if (null !== tail)
+          null === tail.queuedFields && (tail.queuedFields = []),
+            tail.queuedFields.push(name, value);
         else
           try {
-            resolveField(response, name, value);
+            resolveField(response$jscomp$0, name, value);
           } catch (error) {
             busboyStream.destroy(error);
           }
@@ -6570,46 +6608,45 @@
             )
           );
         else {
-          pendingFiles++;
-          var JSCompiler_object_inline_chunks_294 = [];
+          var file = { chunks: [], filename: filename, mime: mimeType },
+            pendingFile = {
+              name: name,
+              file: file,
+              complete: !1,
+              queuedFields: null,
+              next: null
+            };
+          null === tail ? (head = pendingFile) : (tail.next = pendingFile);
+          tail = pendingFile;
           value.on("data", function (chunk) {
-            JSCompiler_object_inline_chunks_294.push(chunk);
-          });
-          value.on("end", function () {
             try {
-              var blob = new Blob(JSCompiler_object_inline_chunks_294, {
-                  type: mimeType
-                }),
-                backingStore = response._formData;
-              backingStore.data.append(name, blob, filename);
-              var keys = backingStore.keys;
-              null === keys
-                ? ((backingStore.keys = Array.from(backingStore.data.keys())),
-                  (backingStore.keyPointer = 0))
-                : keys.push(name);
-              pendingFiles--;
-              if (0 === pendingFiles) {
-                for (blob = 0; blob < queuedFields.length; blob += 2)
-                  resolveField(
-                    response,
-                    queuedFields[blob],
-                    queuedFields[blob + 1]
-                  );
-                queuedFields.length = 0;
-              }
+              file.chunks.push(chunk);
             } catch (error) {
               busboyStream.destroy(error);
             }
           });
+          value.on("error", function (error) {
+            busboyStream.destroy(error);
+          });
+          value.on("end", function () {
+            pendingFile.complete = !0;
+            flush();
+          });
         }
       });
       busboyStream.on("finish", function () {
-        close(response);
+        bodyFinished = !0;
+        flush();
+        closed ||
+          reportGlobalError(
+            response$jscomp$0,
+            Error("Reply finished with incomplete file part.")
+          );
       });
       busboyStream.on("error", function (err) {
-        reportGlobalError(response, err);
+        reportGlobalError(response$jscomp$0, err);
       });
-      return getChunk(response, 0);
+      return getChunk(response$jscomp$0, 0);
     };
     exports.prerender = function (model, turbopackMap, options) {
       return new Promise(function (resolve, reject) {

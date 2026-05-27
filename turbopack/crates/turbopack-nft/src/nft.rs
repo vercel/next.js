@@ -52,7 +52,7 @@ pub async fn node_file_trace(
     }
 
     println!("FILELIST:");
-    for a in result {
+    for a in &result {
         println!("{a}");
     }
 
