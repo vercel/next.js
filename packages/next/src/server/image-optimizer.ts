@@ -1164,7 +1164,7 @@ export async function imageOptimizer(
     return {
       buffer: previouslyCachedImage.buffer,
       contentType,
-      maxAge: opts?.previousCacheEntry?.cacheControl?.revalidate || maxAge,
+      maxAge,
       etag: previouslyCachedImage.etag,
       upstreamEtag: previouslyCachedImage.upstreamEtag,
     }
