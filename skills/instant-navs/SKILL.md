@@ -77,6 +77,13 @@ those only at step 6 if you want to lock the fix in.
    blocking call; act on that frame first, before consulting the wider
    Debug Ladder.
 
+   Apply the boundary in the segment that owns the data. Hoisting
+   `<Suspense>` or `loading.tsx` to a parent layout will render a
+   runtime fallback for cross-layout navigations (React's Suspense
+   inheritance works), but does not silence the validator and will
+   leave sibling navigations within the same parent on an empty
+   changing region. See "Composition" below for why.
+
    The dev runtime also sometimes suggests `export const instant = false`
    in its blocking-route output. Ignore the suggested key: the real key
    is `unstable_instant`, and the route segment schema strips unknown
@@ -313,14 +320,30 @@ components they are "in an Instant shell" through context, a global flag,
 a pathname script, or a DOM marker that toggles loading behavior. Move the
 data, not the awareness.
 
-**Instant Navigation validation is segment-scoped.** A `<Suspense>` in a
-parent layout wrapped around `{children}` does not protect a child page
-segment's suspending data access, even if the parent's fallback is
-non-null and streams correctly. The boundary must live in the segment
-that owns the data: inside the page itself or in that segment's
-`loading.tsx`. Each route segment is its own prerender unit; for its
-captured shell to be non-empty, the segment must supply its own
-boundary. The runtime currently surfaces this as "accessed outside of
+**Instant Navigation validation is segment-scoped because App Router
+navigations are segment-scoped.** Each segment is independently
+mountable depending on where the user is navigating from. A sibling
+navigation within a shared layout (`/dashboard/overview` →
+`/dashboard/settings`) only re-renders the changing leaf segment; the
+shared layout and its `loading.tsx` stay mounted from the previous
+navigation and do not re-fire. A cross-layout navigation (`/about` →
+`/dashboard/settings`) mounts the dashboard layout fresh and its
+`loading.tsx` does cover the suspending settings page. The two
+navigation sources land on the same route through different segment
+boundaries.
+
+For a route's shell to be capturable from any navigation source, each
+segment must contribute its own piece of the shell: its own local
+`<Suspense>` around any suspending data, or its own `loading.tsx`. A
+parent layout's `<Suspense>` around `{children}` does not protect a
+child page segment's suspending data, even if the fallback is non-null
+and streams correctly. A parent segment's `loading.tsx` renders fine at
+runtime when the parent itself is being mounted fresh, but for sibling
+navigations within that parent the changing segment is on its own. The
+validator enforces this by requiring the boundary to live in the
+suspending segment itself.
+
+The runtime currently surfaces this as "accessed outside of
 `<Suspense>`", which reads as wrong when an ancestor Suspense exists;
 treat the message as "outside of a Suspense within this segment."
 
