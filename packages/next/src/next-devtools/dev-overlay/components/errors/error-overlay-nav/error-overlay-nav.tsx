@@ -76,6 +76,7 @@ export const styles = `
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
     flex-shrink: 0;
 
     width: 100%;
@@ -98,6 +99,19 @@ export const styles = `
 
       &[data-side='right'] {
         padding-left: 0;
+      }
+    }
+  }
+
+  @media (max-width: 767px) {
+    [data-nextjs-error-overlay-nav] {
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+
+      &::-webkit-scrollbar {
+        display: none;
       }
     }
   }
