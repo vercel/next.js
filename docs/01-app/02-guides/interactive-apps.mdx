@@ -12,7 +12,7 @@ related:
     - app/guides/streaming
 ---
 
-Server Components render the current server data. Client Components start interactions before the next server render is ready. Without additional state, the UI keeps showing the old server props while a Server Function, form action, or navigation is still running.
+When a user interaction requires server-side work, the result is not available immediately. Network requests take an unknown amount of time to complete and may succeed or fail. While that work is in progress, the client should provide feedback and update the UI accordingly. Without it, users are left looking at stale data and may wonder whether their action had any effect.
 
 This guide walks you through how to coordinate that pending work using a task management board called _Taskboard_ as an example.
 
