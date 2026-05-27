@@ -4008,7 +4008,7 @@ mod tests {
         },
         testing::{NormalizedOutput, fixture, run_test},
     };
-    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_rcstr::rcstr;
     use turbo_tasks::{ResolvedVc, util::FormatDuration};
     use turbopack_core::{
         compile_time_info::CompileTimeInfo,
@@ -4500,13 +4500,13 @@ mod tests {
     }
 
     #[rstest]
-    #[case(&rcstr!("'hello' && 2"), false)]
-    #[case(&rcstr!("1 && 'hello'"), true)]
-    #[case(&rcstr!("'hello' || 'bye' || 2"), true)]
-    #[case(&rcstr!("2 || 1 || 'hello' || 'bye'"), false)]
-    fn is_string_short_circuiting(#[case] input: &RcStr, #[case] expected: bool) {
+    #[case("'hello' && 2", false)]
+    #[case("1 && 'hello'", true)]
+    #[case("'hello' || 'bye' || 2", true)]
+    #[case("2 || 1 || 'hello' || 'bye'", false)]
+    fn is_string_short_circuiting(#[case] input: &str, #[case] expected: bool) {
         assert_eq!(
-            EvalContext::eval_single_expr_lit(input)
+            EvalContext::eval_single_expr_lit(&input.into())
                 .unwrap()
                 .is_string(),
             Some(expected)
@@ -4514,13 +4514,13 @@ mod tests {
     }
 
     #[rstest]
-    #[case(&rcstr!("'' && 'string'"), true)]
-    #[case(&rcstr!("false && ''"), false)]
-    #[case(&rcstr!("'' || 'string'"), false)]
-    #[case(&rcstr!("false || ''"), true)]
-    fn is_empty_string_short_circuiting(#[case] input: &RcStr, #[case] expected: bool) {
+    #[case("'' && 'string'", true)]
+    #[case("false && ''", false)]
+    #[case("'' || 'string'", false)]
+    #[case("false || ''", true)]
+    fn is_empty_string_short_circuiting(#[case] input: &str, #[case] expected: bool) {
         assert_eq!(
-            EvalContext::eval_single_expr_lit(input)
+            EvalContext::eval_single_expr_lit(&input.into())
                 .unwrap()
                 .is_empty_string(),
             Some(expected)
@@ -4528,13 +4528,13 @@ mod tests {
     }
 
     #[rstest]
-    #[case(&rcstr!("'' && null"), false)]
-    #[case(&rcstr!("null && ''"), true)]
-    #[case(&rcstr!("'' || null"), true)]
-    #[case(&rcstr!("null || ''"), false)]
-    fn is_nullish_short_circuiting(#[case] input: &RcStr, #[case] expected: bool) {
+    #[case("'' && null", false)]
+    #[case("null && ''", true)]
+    #[case("'' || null", true)]
+    #[case("null || ''", false)]
+    fn is_nullish_short_circuiting(#[case] input: &str, #[case] expected: bool) {
         assert_eq!(
-            EvalContext::eval_single_expr_lit(input)
+            EvalContext::eval_single_expr_lit(&input.into())
                 .unwrap()
                 .is_nullish(),
             Some(expected)
@@ -4542,13 +4542,13 @@ mod tests {
     }
 
     #[rstest]
-    #[case(&rcstr!("'' && null"), true)]
-    #[case(&rcstr!("null && ''"), false)]
-    #[case(&rcstr!("'' || null"), false)]
-    #[case(&rcstr!("null || ''"), true)]
-    fn is_not_nullish_short_circuiting(#[case] input: &RcStr, #[case] expected: bool) {
+    #[case("'' && null", true)]
+    #[case("null && ''", false)]
+    #[case("'' || null", false)]
+    #[case("null || ''", true)]
+    fn is_not_nullish_short_circuiting(#[case] input: &str, #[case] expected: bool) {
         assert_eq!(
-            EvalContext::eval_single_expr_lit(input)
+            EvalContext::eval_single_expr_lit(&input.into())
                 .unwrap()
                 .is_not_nullish(),
             Some(expected)
