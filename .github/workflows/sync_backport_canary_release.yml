@@ -73,6 +73,7 @@ jobs:
         with:
           node-version: 20
           check-latest: true
+          package-manager-cache: false
 
       - name: Setup corepack
         if: steps.precheck.outputs.should_evaluate == 'true'
