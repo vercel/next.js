@@ -2789,7 +2789,7 @@ fn any_if_known<T: Copy>(
 }
 
 /// Selects the first element of the list where `use_item` is compile-time true.
-/// For this element returns the result of `item_value`. Otherwise returns None.
+/// For this element returns the result of `item_value`. Otherwise returns the last item.
 fn shortcircuit_if_known<T: Copy>(
     list: impl IntoIterator<Item = T>,
     use_item: impl Fn(T) -> Option<bool>,
