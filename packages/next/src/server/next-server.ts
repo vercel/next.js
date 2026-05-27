@@ -33,6 +33,7 @@ import type { PagesModule } from './route-modules/pages/module.compiled'
 
 import fs from 'fs'
 import { join, relative } from 'path'
+import { format as formatUrl } from 'url'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { addRequestMeta, getRequestMeta, setRequestMeta } from './request-meta'
 import {
@@ -95,13 +96,12 @@ import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 
 import { isPagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
-import type { MatchOptions } from './route-matcher-managers/route-matcher-manager'
 import { BubbledError, getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { pipeToNodeResponse } from './pipe-readable'
-import { createRequestResponseMocks } from './lib/mock-request'
+import { createRequestResponseMocks, MockedResponse } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
 import { loadManifest } from './load-manifest.external'
@@ -589,7 +589,10 @@ export default class NextNodeServer extends BaseServer<
     req.url = `${parsedInitUrl.pathname}${parsedInitUrl.search || ''}`
 
     const loader = new NodeModuleLoader()
-    const module = (await loader.load(match.definition.filename)) as {
+    const modulePath = this.isDev
+      ? join(this.distDir, 'server', `${match.definition.bundlePath}.js`)
+      : match.definition.filename
+    const module = (await loader.load(modulePath)) as {
       handler: (
         req: IncomingMessage,
         res: ServerResponse,
@@ -1125,10 +1128,18 @@ export default class NextNodeServer extends BaseServer<
       // next.js core assumes page path without trailing slash
       pathname = removeTrailingSlash(pathname)
 
-      const options: MatchOptions = {
-        i18n: this.i18nProvider?.fromRequest(req, pathname),
+      let match = getRequestMeta(req, 'match')
+
+      if (!match) {
+        const localeAnalysisResult = this.i18nProvider?.analyze(pathname, {
+          defaultLocale: getRequestMeta(req, 'defaultLocale'),
+        })
+
+        const routeMatch = this.getRouteMatch(pathname, localeAnalysisResult)
+        if (routeMatch) {
+          match = routeMatch
+        }
       }
-      const match = await this.matchers.match(pathname, options)
 
       // If we don't have a match, try to render it anyways.
       if (!match) {
@@ -1368,12 +1379,57 @@ export default class NextNodeServer extends BaseServer<
     pathname: string,
     query?: ParsedUrlQuery
   ): Promise<string | null> {
-    return super.renderToHTML(
-      this.normalizeReq(req),
-      this.normalizeRes(res),
+    const normalizedRes = this.normalizeRes(res)
+    const normalizedReq = this.normalizeReq(req)
+    normalizedReq.url = formatUrl({
+      pathname,
+      query,
+    })
+
+    if (this.dev) {
+      await this.ensurePage({
+        page: pathname,
+        clientOnly: false,
+        url: normalizedReq.url,
+      })
+    }
+
+    // renderToHTML returns the body to legacy custom servers. Route modules
+    // write to the response, so capture their output instead of sending it.
+    const mockedRes = new MockedResponse({
+      headers: normalizedRes.getHeaders(),
+      statusCode: normalizedRes.statusCode,
+      socket: normalizedRes.originalResponse.socket,
+    })
+
+    const result = await super.renderToHTML(
+      normalizedReq,
+      this.normalizeRes(mockedRes),
       pathname,
       query
     )
+
+    if (result === null && mockedRes.isSent) {
+      await mockedRes.hasStreamed
+    }
+
+    for (const [key, value] of Object.entries(mockedRes.getHeaders())) {
+      if (value !== undefined) {
+        normalizedRes.setHeader(
+          key,
+          Array.isArray(value) ? value.map(String) : String(value)
+        )
+      }
+    }
+    normalizedRes.statusCode = mockedRes.statusCode
+
+    if (result !== null) {
+      return result
+    }
+    if (mockedRes.buffers.length > 0) {
+      return Buffer.concat(mockedRes.buffers).toString('utf8')
+    }
+    return null
   }
 
   protected async renderErrorToResponseImpl(

@@ -1096,9 +1096,6 @@ export async function createHotReloaderTurbopack(
         },
       })
 
-      // Reload matchers when the files have been compiled
-      await propagateServerField(opts, 'reloadMatchers', undefined)
-
       if (addedRoutes.length > 0 || removedRoutes.length > 0) {
         // When the list of routes changes a new manifest should be fetched for Pages Router.
         hotReloader.send({

@@ -42,3 +42,18 @@ export function buildDataRoute(page: string, buildId: string) {
     namedDataRouteRegex,
   }
 }
+
+export function addLocalePrefixToDataRouteRegex(
+  dataRouteRegex: string,
+  buildId: string
+) {
+  const buildIdSegment = `/${escapeStringRegexp(buildId)}`
+  const buildIdIndex = dataRouteRegex.indexOf(buildIdSegment)
+
+  if (buildIdIndex === -1) {
+    return dataRouteRegex
+  }
+
+  const insertIndex = buildIdIndex + buildIdSegment.length
+  return `${dataRouteRegex.slice(0, insertIndex)}/(?:[^/]+?)${dataRouteRegex.slice(insertIndex)}`
+}

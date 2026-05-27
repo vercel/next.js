@@ -322,7 +322,8 @@ export function getResolveRoutes(
 
         if (params) {
           const pageOutput = await fsChecker.getItem(
-            addPathPrefix(route.page, config.basePath || '')
+            addPathPrefix(route.page, config.basePath || ''),
+            curPathname || undefined
           )
 
           // i18n locales aren't matched for app dir
@@ -337,8 +338,11 @@ export function getResolveRoutes(
             setIsNextDataRequest()
           }
 
-          if (config.useFileSystemPublicRoutes || didRewrite) {
-            return pageOutput
+          if (pageOutput && (config.useFileSystemPublicRoutes || didRewrite)) {
+            return {
+              ...pageOutput,
+              params,
+            }
           }
         }
       }
