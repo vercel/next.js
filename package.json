@@ -109,7 +109,7 @@
   },
   "devDependencies": {
     "@actions/core": "1.10.1",
-    "@ast-grep/cli": "0.31.0",
+    "@ast-grep/cli": "0.42.0",
     "@babel/core": "7.26.10",
     "@babel/eslint-parser": "7.24.6",
     "@babel/generator": "7.27.0",
