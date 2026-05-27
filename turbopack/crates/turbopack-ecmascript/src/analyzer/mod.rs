@@ -3686,7 +3686,7 @@ pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> 
         // https://webpack.js.org/api/module-methods/#requirecontext
         // > optional, default /^\.\/.*$/, any file
         static DEFAULT_REGEX: LazyLock<EsRegex> =
-            LazyLock::new(|| EsRegex::new(r"^\\./.*$", "").unwrap());
+            LazyLock::new(|| EsRegex::new(r"^\./.*$", "").unwrap());
 
         DEFAULT_REGEX.clone()
     };
