@@ -64,7 +64,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effect, EffectStateStorage, InvalidationReason, NonLocalValue, ReadRef, ResolvedVc,
     TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc, debug::ValueDebugFormat,
-    emit_effect, parallel, trace::TraceRawVcs, turbo_tasks_weak, turbobail, turbofmt,
+    emit_effect, parallel, spawn, trace::TraceRawVcs, turbo_tasks_weak, turbobail, turbofmt,
 };
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
@@ -936,9 +936,9 @@ impl FileSystem for DiskFileSystem {
 
         let inner = self.inner.clone();
 
-        #[derive(TraceRawVcs, NonLocalValue)]
+        #[derive(TraceRawVcs, NonLocalValue, Clone)]
         struct WriteEffect {
-            full_path: PathBuf,
+            full_path: Arc<PathBuf>,
             inner: Arc<DiskFileSystemInner>,
             content: ReadRef<PersistedFileContent>,
             content_hash: u128,
@@ -960,12 +960,14 @@ impl FileSystem for DiskFileSystem {
             }
 
             async fn apply(&self) -> Result<(), AnyhowWrapper> {
-                self.apply_inner().await.map_err(AnyhowWrapper::from)
+                spawn(self.clone().apply_inner())
+                    .await
+                    .map_err(AnyhowWrapper::from)
             }
         }
 
         impl WriteEffect {
-            async fn apply_inner(&self) -> anyhow::Result<()> {
+            async fn apply_inner(self) -> anyhow::Result<()> {
                 let full_path = validate_path_length(&self.full_path)?;
 
                 let _lock = self.inner.lock_path(&full_path).await;
@@ -1086,7 +1088,7 @@ impl FileSystem for DiskFileSystem {
 
         let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content));
         emit_effect(WriteEffect {
-            full_path,
+            full_path: Arc::new(full_path),
             inner,
             content,
             content_hash,
@@ -1111,9 +1113,9 @@ impl FileSystem for DiskFileSystem {
         let full_path = self.to_sys_path(&fs_path);
         let inner = self.inner.clone();
 
-        #[derive(TraceRawVcs, NonLocalValue)]
+        #[derive(TraceRawVcs, NonLocalValue, Clone)]
         struct WriteLinkEffect {
-            full_path: PathBuf,
+            full_path: Arc<PathBuf>,
             inner: Arc<DiskFileSystemInner>,
             content: ReadRef<LinkContent>,
             content_hash: u128,
@@ -1135,12 +1137,14 @@ impl FileSystem for DiskFileSystem {
             }
 
             async fn apply(&self) -> Result<(), AnyhowWrapper> {
-                self.apply_inner().await.map_err(AnyhowWrapper::from)
+                spawn(self.clone().apply_inner())
+                    .await
+                    .map_err(AnyhowWrapper::from)
             }
         }
 
         impl WriteLinkEffect {
-            async fn apply_inner(&self) -> anyhow::Result<()> {
+            async fn apply_inner(self) -> anyhow::Result<()> {
                 let full_path = validate_path_length(&self.full_path)?;
 
                 let _lock = self.inner.lock_path(&full_path).await;
@@ -1367,7 +1371,7 @@ impl FileSystem for DiskFileSystem {
 
         let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content));
         emit_effect(WriteLinkEffect {
-            full_path,
+            full_path: Arc::new(full_path),
             inner,
             content,
             content_hash,
