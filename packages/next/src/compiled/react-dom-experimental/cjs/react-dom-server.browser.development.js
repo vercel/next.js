@@ -4220,7 +4220,12 @@
         case "fulfilled":
           return thenable.value;
         case "rejected":
-          throw thenable.reason;
+          thenableState = thenable.reason;
+          if (void 0 === thenableState && !("reason" in thenable))
+            throw Error(
+              "A rejected Promise was passed to React without a `reason` property. React threw a generic error from where the Promise was used to assist in identifying the problematic Promise. Make sure that instrumented Promises correctly set the `reason` property when setting `status` to `'rejected'`."
+            );
+          throw thenableState;
         default:
           "string" === typeof thenable.status
             ? thenable.then(noop, noop)
@@ -4296,10 +4301,13 @@
             lastThenable.status = "fulfilled";
           };
         case "rejected":
-          var previousThenableReason = lastThenable.reason;
+          var previousThenableReason = lastThenable.reason,
+            _previousThenableThen = lastThenable.then.bind(lastThenable);
           delete lastThenable.reason;
           delete lastThenable.status;
+          lastThenable.then = noop;
           return function () {
+            lastThenable.then = _previousThenableThen;
             lastThenable.reason = previousThenableReason;
             lastThenable.status = "rejected";
           };
@@ -9523,11 +9531,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-75b0945b-20260526" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-c0cd4d5d-20260527" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-75b0945b-20260526\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-c0cd4d5d-20260527\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -11354,5 +11362,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.3.0-experimental-75b0945b-20260526";
+    exports.version = "19.3.0-experimental-c0cd4d5d-20260527";
   })();
