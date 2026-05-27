@@ -36,15 +36,28 @@ those only at step 6 if you want to lock the fix in.
    Requirements below for the full config shape.
 
 2. Run `pnpm next dev` and navigate to the slow route from a sibling
-   route in the browser. Reproduce the slowness. Note whether you see
+   route. Use a browser if you have one; in a headless context, `curl`
+   the route or run a `@next/playwright` `instant()` test from
+   Quickstart. Reproduce the slowness. Note whether you see
    `loading.tsx`, a blank frame, or a blocking pause: the classification
    informs later steps.
 
-3. Open the dev overlay's **Instant Navigation panel** (the dedicated
-   surface for blocking-route output) and read the first route-specific
-   diagnostic. If the panel is unhelpful, tail dev stdout with
-   `__NEXT_SHOW_IGNORE_LISTED=true` so internal frames are not collapsed.
-   This is the source of truth; do not act on screenshots or vibes.
+3. Read the first route-specific diagnostic. Three valid sources, pick
+   the one that fits your context:
+   - **Browser:** the dev overlay's **Instant Navigation panel** (the
+     dedicated surface for blocking-route output). Primary signal.
+   - **Headless, interactive (terminal, agent run):** tail dev stdout
+     with `__NEXT_SHOW_IGNORE_LISTED=true` so internal frames are not
+     collapsed. Stdout is a legitimate primary signal here; the
+     diagnostic usually names the exact file and line, and it prints at
+     request time (navigate first, then read the request's log window).
+   - **Headless, automated (CI, regression):** run the focused
+     `@next/playwright` `instant()` test from Quickstart. It observes
+     the captured shell directly and gives a positive pass/fail, which
+     stdout cannot.
+
+   The panel, the Playwright test, and dev stdout are the sources of
+   truth. Do not act on screenshots or vibes.
 
 4. Apply one move from the Boundary Decision Table in
    `references/diagnostic-loop.md`, matched to the named blocker. The
@@ -60,11 +73,35 @@ those only at step 6 if you want to lock the fix in.
    - Uncached fetch in a data region: keep the section frame visible,
      suspend only the row, list, or cards.
 
+   The diagnostic usually points to the exact file and line of the
+   blocking call; act on that frame first, before consulting the wider
+   Debug Ladder.
+
+   The dev runtime also sometimes suggests `export const instant = false`
+   in its blocking-route output. Ignore the suggested key: the real key
+   is `unstable_instant`, and the route segment schema strips unknown
+   keys silently, so a typo compiles and does nothing. The escape-hatch
+   form is `export const unstable_instant = false`.
+
    Move exactly one boundary per iteration. Broad visual cleanup before
    the owner and the blocker are understood wastes iterations.
 
-5. Re-navigate. Loop steps 3 and 4 until the Instant Navigation panel is
-   clean for this route.
+5. Re-navigate. Loop steps 3 and 4 until the diagnostic source is clean
+   for this route. Then confirm the exit positively:
+   - A second client navigation to the same route returns in under
+     ~100ms with no new `blocking-route` line in dev stdout. In a
+     headless run, `curl` timing is a proxy for the in-browser client
+     nav, not the real contract; treat sub-100ms there as a smoke
+     check, not proof.
+   - If you have already added a route-owned `data-instant-boundary`
+     marker, also confirm it appears in the response HTML. That
+     converts the exit from "no diagnostic" to "shell present and
+     named." Without a marker, the timing + clean-stdout pair is
+     enough for the diagnostic exit; adding a marker is what Quickstart
+     does to harden the result.
+
+   Quiet stdout alone is necessary but not sufficient; a fast second nav
+   is the user-visible contract you actually came here to fix.
 
 6. Decide intent. The diagnostic loop is complete. The rest is optional:
    - **Stop here** if you just wanted the page fast.
@@ -184,6 +221,8 @@ export const unstable_instant = {
 
 The config key is `unstable_instant`, not `instant`. The route segment
 schema strips unknown keys silently, so a typo compiles and does nothing.
+See step 4 of Diagnose Slow Navigations above for the matching runtime
+gotcha.
 
 **Test dependency:**
 
@@ -273,6 +312,17 @@ suspends because it naturally reads async/request data. Do not teach
 components they are "in an Instant shell" through context, a global flag,
 a pathname script, or a DOM marker that toggles loading behavior. Move the
 data, not the awareness.
+
+**Instant Navigation validation is segment-scoped.** A `<Suspense>` in a
+parent layout wrapped around `{children}` does not protect a child page
+segment's suspending data access, even if the parent's fallback is
+non-null and streams correctly. The boundary must live in the segment
+that owns the data: inside the page itself or in that segment's
+`loading.tsx`. Each route segment is its own prerender unit; for its
+captured shell to be non-empty, the segment must supply its own
+boundary. The runtime currently surfaces this as "accessed outside of
+`<Suspense>`", which reads as wrong when an ancestor Suspense exists;
+treat the message as "outside of a Suspense within this segment."
 
 **Initial-load and client-navigation tests differ.** On cold initial load,
 an inert fallback control (a disabled button, readonly input) is a
