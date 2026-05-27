@@ -14,7 +14,8 @@ Screenshots show what happened; diagnostics show why.
 For large saved logs:
 
 ```bash
-scripts/extract-instant-diagnostics.mjs path/to/dev.log path/to/trace.network
+# From the installed instant-navs skill directory:
+node scripts/extract-instant-diagnostics.mjs path/to/dev.log path/to/trace.network
 ```
 
 Treat the script output as a shortlist; still read surrounding context when the first blocker is ambiguous.
@@ -24,7 +25,7 @@ Treat the script output as a shortlist; still read surrounding context when the 
 When something fails, investigate in order:
 
 1. **Prove the route works outside `instant(...)` in its normal loaded state.** Auth, env, provider, module resolution, and unrelated render errors make Instant evidence inconclusive.
-2. **Read the first route-specific Next diagnostic.** Dev stdout often has more precise blocking-route output than the browser overlay. For large logs, run `scripts/extract-instant-diagnostics.mjs`.
+2. **Read the first route-specific Next diagnostic.** Dev stdout often has more precise blocking-route output than the browser overlay. For large logs, run the bundled `scripts/extract-instant-diagnostics.mjs` from the installed skill directory.
 3. **Prove route ownership.** Compare visible URL to middleware/rewrites/parallel slots. Confirm the owner is statically generated for the current variant tuple.
 4. **Move exactly one boundary.** Move the runtime read, provider, or Suspense boundary named by the diagnostic. Avoid broad visual cleanup until owner and blocker are understood.
 5. **Restart dev only when stale.** Delete `.next` only with stale-dev-server evidence: contradictory diagnostics, removed code still executing, or Turbopack cache restore failures. Do not delete reflexively.

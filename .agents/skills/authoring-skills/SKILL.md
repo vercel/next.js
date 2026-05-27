@@ -13,7 +13,22 @@ metadata:
 
 # Authoring Skills
 
-Use this skill when creating or modifying agent skills in `.agents/skills/`.
+Use this skill when creating or modifying repo-local agent skills in
+`.agents/skills/`.
+
+## Skill Surfaces
+
+This skill covers the repo-local `.agents/skills/` surface only.
+
+- `.agents/skills/`: loaded by agent sessions in this checkout. These skills
+  should have an `AGENTS.md` one-line hook when they add reusable repo workflow.
+- `skills/`: externally published skill bundle surface. Do not flag these files
+  for missing `.agents/skills/` placement, missing `AGENTS.md` hooks, or absence
+  from this repo's rendered Codex prompt.
+
+When reviewing `skills/`, treat sibling skills and bundled `references/` or
+`scripts/` as part of the external package unless the publishing contract says
+otherwise.
 
 ## When to Create a Skill
 
