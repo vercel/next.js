@@ -4500,58 +4500,172 @@ mod tests {
     }
 
     #[rstest]
-    #[case("'hello' && 2", false)]
-    #[case("1 && 'hello'", true)]
-    #[case("'hello' || 'bye' || 2", true)]
-    #[case("2 || 1 || 'hello' || 'bye'", false)]
-    fn is_string_short_circuiting(#[case] input: &str, #[case] expected: bool) {
+    #[case("1 && 'hello'")]
+    #[case("'hello' || 'bye' || 2")]
+    fn is_string_short_circuiting_positive(#[case] input: &str) {
         assert_eq!(
             EvalContext::eval_single_expr_lit(&input.into())
                 .unwrap()
                 .is_string(),
-            Some(expected)
+            Some(true),
+            "expected '{}' to be a string",
+            input
         );
     }
 
     #[rstest]
-    #[case("'' && 'string'", true)]
-    #[case("false && ''", false)]
-    #[case("'' || 'string'", false)]
-    #[case("false || ''", true)]
-    fn is_empty_string_short_circuiting(#[case] input: &str, #[case] expected: bool) {
+    #[case("'hello' && 2")]
+    #[case("2 || 1 || 'hello' || 'bye'")]
+    fn is_string_short_circuiting_negative(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_string(),
+            Some(false),
+            "expected '{}' not to be a string",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("x && 2")]
+    #[case("x || 'bye'")]
+    #[case("false || x")]
+    fn is_string_short_circuiting_unknown(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_string(),
+            None,
+            "expected to be unable to determine whether '{}' is a string",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("'' && 'string'")]
+    #[case("false || ''")]
+    fn is_empty_string_short_circuiting_positive(#[case] input: &str) {
         assert_eq!(
             EvalContext::eval_single_expr_lit(&input.into())
                 .unwrap()
                 .is_empty_string(),
-            Some(expected)
+            Some(true),
+            "expected '{}' to be an empty string",
+            input
         );
     }
 
     #[rstest]
-    #[case("'' && null", false)]
-    #[case("null && ''", true)]
-    #[case("'' || null", true)]
-    #[case("null || ''", false)]
-    fn is_nullish_short_circuiting(#[case] input: &str, #[case] expected: bool) {
+    #[case("false && ''")]
+    #[case("'' || 'string'")]
+    fn is_empty_string_short_circuiting_negative(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_empty_string(),
+            Some(false),
+            "expected '{}' not to be an empty string",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("x && ''")]
+    #[case("x || ''")]
+    #[case("'' || x")]
+    fn is_empty_string_short_circuiting_unknown(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_string(),
+            None,
+            "expected to be unable to determine whether '{}' is an empty string",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("null && ''")]
+    #[case("'' || null")]
+    fn is_nullish_short_circuiting_positive(#[case] input: &str) {
         assert_eq!(
             EvalContext::eval_single_expr_lit(&input.into())
                 .unwrap()
                 .is_nullish(),
-            Some(expected)
+            Some(true),
+            "expected '{}' to be nullish",
+            input
         );
     }
 
     #[rstest]
-    #[case("'' && null", true)]
-    #[case("null && ''", false)]
-    #[case("'' || null", false)]
-    #[case("null || ''", true)]
-    fn is_not_nullish_short_circuiting(#[case] input: &str, #[case] expected: bool) {
+    #[case("'' && null")]
+    #[case("null || ''")]
+    fn is_nullish_short_circuiting_negative(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_nullish(),
+            Some(false),
+            "expected '{}' not to be nullish",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("x && null")]
+    #[case("x || null")]
+    fn is_nullish_short_circuiting_unknown(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_nullish(),
+            None,
+            "expected to be unable to determine whether '{}' is nullish",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("'' && null")]
+    #[case("null || ''")]
+    fn is_not_nullish_short_circuiting_positive(#[case] input: &str) {
         assert_eq!(
             EvalContext::eval_single_expr_lit(&input.into())
                 .unwrap()
                 .is_not_nullish(),
-            Some(expected)
+            Some(true),
+            "expected '{}' to be not-nullish",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("null && ''")]
+    #[case("'' || null")]
+    fn is_not_nullish_short_circuiting_negative(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_not_nullish(),
+            Some(false),
+            "expected '{}' not to be not-nullish",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("x && null")]
+    #[case("x || null")]
+    fn is_not_nullish_short_circuiting_unknown(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_not_nullish(),
+            None,
+            "expected to be unable to determine whether '{}' is not-nullish",
+            input
         );
     }
 }
