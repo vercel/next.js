@@ -1,5 +1,4 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
 import { getContentOfPageFilesFromBuildManifest } from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
 import path from 'node:path'
@@ -8,7 +7,7 @@ import fs from 'fs-extra'
 export default (next: NextInstance) => {
   describe('process.env', () => {
     it('should set process.env.NODE_ENV in production', async () => {
-      const browser = await webdriver(next.appPort, '/process-env')
+      const browser = await next.browser('/process-env')
       const nodeEnv = await browser.elementByCss('#node-env').text()
       expect(nodeEnv).toBe('production')
       await browser.close()
