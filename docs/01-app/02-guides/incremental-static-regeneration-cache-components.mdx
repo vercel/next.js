@@ -197,8 +197,6 @@ After the first visit, Next.js renders the page in the background with the known
 
 > **Good to know**: Prefetching also triggers upgrades. When a [`<Link>`](/docs/app/api-reference/components/link) enters the viewport or [`router.prefetch`](/docs/app/api-reference/functions/use-router) is called, Next.js can upgrade the shell in the background, so the next visitor gets the more specific version even before anyone actually navigates to the page.
 
-> **Good to know**: When [self-hosting](/docs/app/guides/self-hosting#caching-and-isr) with a custom [`cacheHandler`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath) for ISR, you can keep it alongside [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers) for `'use cache'`. They serve different layers and coexist.
-
 ## Coming from the Pages Router
 
 If you are migrating from the Pages Router:
@@ -214,3 +212,4 @@ If you are migrating from the Pages Router:
 - [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) for controlling which param combinations are prerendered
 - [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) for providing skeleton UI in fallback shells
 - [Streaming](/docs/app/guides/streaming) to learn how to progressively render UI as data becomes available
+- [Self-hosting](/docs/app/guides/self-hosting#caching-and-isr) to keep an existing ISR [`cacheHandler`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath) alongside [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers) for `'use cache'`
