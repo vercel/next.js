@@ -34,10 +34,22 @@ export type NextRoutingRouteConfig = {
   shouldNormalizeNextData: boolean
 }
 
+type NextRoutingI18nConfig = {
+  defaultLocale: string
+  domains?: Array<{
+    defaultLocale: string
+    domain: string
+    http?: true
+    locales?: string[]
+  }>
+  localeDetection?: false
+  locales: string[]
+}
+
 export type NextRoutingServerState = {
   buildId: string
   basePath: string
-  i18n?: NextConfigRuntime['i18n']
+  i18n?: NextRoutingI18nConfig
   pathnames: string[]
   routes: NextRoutingRouteConfig
 }
@@ -74,6 +86,26 @@ function getDestinationQuery(routeKeys: Record<string, string> | undefined) {
   }
 
   return `?${items.map(([key, value]) => `${value}=$${key}`).join('&')}`
+}
+
+function createNextRoutingI18nConfig(
+  i18n: NextConfigRuntime['i18n']
+): NextRoutingI18nConfig | undefined {
+  if (!i18n) {
+    return undefined
+  }
+
+  return {
+    defaultLocale: i18n.defaultLocale,
+    domains: i18n.domains?.map((domain) => ({
+      defaultLocale: domain.defaultLocale,
+      domain: domain.domain,
+      http: domain.http,
+      locales: domain.locales ? [...domain.locales] : undefined,
+    })),
+    localeDetection: i18n.localeDetection,
+    locales: [...i18n.locales],
+  }
 }
 
 export function createNextRoutingHeaderRoute(
@@ -190,7 +222,7 @@ export function createNextRoutingServerState(
   return {
     buildId: fsChecker.buildId,
     basePath: config.basePath || '',
-    i18n: config.i18n,
+    i18n: createNextRoutingI18nConfig(config.i18n),
     pathnames: createNextRoutingPathnames(fsChecker, {
       additionalPathnames,
       invokedOutputs,

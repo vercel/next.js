@@ -813,8 +813,12 @@ declare module 'next/dist/compiled/ws' {
   export = m
 }
 declare module 'next/dist/compiled/@vercel/routing-utils' {
-  import m from '@vercel/routing-utils/dist/superstatic'
-  export = m
+  export function convertHeaders(routes: any[]): any[]
+  export function convertRedirects(routes: any[], defaultStatus?: number): any[]
+  export function convertRewrites(
+    routes: any[],
+    internalParamNames?: string[]
+  ): any[]
 }
 
 declare module 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp' {
