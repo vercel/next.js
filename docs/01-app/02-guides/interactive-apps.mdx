@@ -1,6 +1,6 @@
 ---
 title: Building interactive apps
-description: Learn how to build responsive interactions with Server Functions, transitions, optimistic UI, action props, and pending feedback.
+description: Learn how to build responsive interactions with Server Functions, transitions, optimistic UI, and pending feedback.
 nav_title: Interactive apps
 related:
   description: Learn more about the APIs used in this guide.
@@ -12,13 +12,13 @@ related:
     - app/guides/streaming
 ---
 
-When a user interaction requires server-side work, the result is not available immediately. Network requests take an unknown amount of time to complete and may succeed or fail. While that work is in progress, the client should provide feedback and update the UI accordingly. Without it, users are left looking at stale data and may wonder whether their action had any effect.
+When a user interaction requires server-side work, the result is not available immediately. Network requests take an unknown amount of time to complete and may succeed or fail. While waiting, the client should provide feedback and respond to those states. Otherwise, users are left looking at stale data and may wonder whether anything is happening.
 
 This guide walks you through how to coordinate that pending work using a task management board called _Taskboard_ as an example.
 
 ## Example
 
-You'll start by streaming slow data behind loading boundaries, then add an instant priority toggle, build a reusable filter with action props, show comments before they're confirmed, move cards between columns on drop, manage form lifecycle for a create dialog, and signal pending deletion to a parent. The final step caches the reusable reads so navigations stay instant.
+You'll start by streaming slow data behind loading boundaries, then add an instant priority toggle, build a reusable filter with a callback prop, show comments before they're confirmed, move cards between columns on drop, manage form lifecycle for a create dialog, and signal pending deletion to a parent. The final step caches the reusable reads so navigations stay instant.
 
 The companion [Taskboard demo](https://async-react-demo.labs.vercel.dev) ([source](https://github.com/vercel-labs/async-react-demo)) lets you see each pattern from this guide in action.
 
@@ -132,7 +132,7 @@ export function TaskCard({ id, priority }) {
 
 If you click the dot, the Server Function runs, but the button keeps rendering the old `priority` prop until the next server render arrives.
 
-Replace the direct call with `useOptimistic` and `startTransition`. `useOptimistic` renders a temporary value while the Server Function is pending. `startTransition` scopes the async work so React knows when to keep or discard the optimistic value:
+Replace the direct call with [`useOptimistic`](https://react.dev/reference/react/useOptimistic) and [`startTransition`](https://react.dev/reference/react/startTransition). `useOptimistic` provides a value to render in place of the stale prop. `startTransition` runs the Server Function as part of a transition. The optimistic value applies for as long as that transition is pending:
 
 ```tsx filename="components/task-card.tsx"
 'use client'
@@ -164,13 +164,13 @@ export function TaskCard({ id, priority }) {
 
 The `setOptimisticPriority` call updates the UI on the current frame with the next value in the cycle. Reading from `optimisticPriority` (not the prop) means rapid double-clicks cycle correctly instead of reading a stale closure value.
 
-`startTransition` wraps the async work so React tracks it as a pending transition. If the Server Function throws, the optimistic value reverts. The standalone `startTransition` import does not bubble errors to error boundaries. If you need errors to reach an error boundary, use `useTransition` instead (shown in Step 3).
+If the transition ends without revalidating to new data, the optimistic value reverts. The standalone `startTransition` import does not bubble errors to error boundaries. If you need errors to reach an error boundary, use [`useTransition`](https://react.dev/reference/react/useTransition) instead (shown in Step 3).
 
 If you click the priority dot now, the color changes the moment the mouse lifts. Clicking again cycles to the next value without waiting for the first mutation to finish.
 
 #### `useOptimistic` vs `useState`
 
-`useOptimistic(priority)` re-derives from the prop on each render. When `refresh()` delivers fresh data, the component shows it. `useState(priority)` captures the initial value on mount and ignores subsequent prop changes, so after a mutation it shows stale data.
+`useOptimistic(priority)` updates to match the `priority` prop on each render. When `refresh()` delivers fresh data, the component shows it. `useState(priority)` captures the initial value on mount and ignores subsequent prop changes, so after a mutation it shows stale data.
 
 ### Step 3: Filter with pending feedback
 
@@ -178,7 +178,7 @@ The board has label filter chips (Design, Frontend, Backend). Clicking a chip na
 
 The selected filter comes from the URL. Calling `router.push()` starts a client navigation, and the server re-renders the board with the new search params. Until that navigation completes, the current page keeps rendering the old URL state.
 
-The filter also separates into two components. `LabelFilter` owns the query string update. `ChipGroup` owns the selected visual state. Passing an action prop lets `ChipGroup` update its own optimistic state while `LabelFilter` decides how the app navigates.
+The filter also separates into two components. `LabelFilter` owns the query string update. `ChipGroup` owns the selected visual state. Passing the navigation callback to `ChipGroup` lets it manage its own optimistic state while `LabelFilter` decides how the app navigates.
 
 Here `router.push()` is called directly:
 
@@ -204,7 +204,7 @@ export function LabelFilter() {
 
 If you click a chip, `router.push()` starts the navigation, but there is no local pending state. The chip keeps rendering the old URL value, and the board gives no indication that a new server render is loading.
 
-Wrap `router.push()` in `useTransition` and set a `data-pending` attribute while the transition runs:
+Wrap `router.push()` in [`useTransition`](https://react.dev/reference/react/useTransition) and set a `data-pending` attribute while the transition runs:
 
 ```tsx filename="components/label-filter.tsx"
 'use client'
@@ -249,11 +249,11 @@ The `data-pending` attribute on the wrapper lets parent components react via CSS
 
 If you click a chip now, the board dims while the filtered data loads. The `data-pending` attribute stays on the wrapper until the navigation completes, then the board updates with the filtered tasks.
 
-But the chip itself still doesn't highlight until after the transition. The `isPending` boolean tells us the navigation is in flight, but it doesn't help the chip show a selected state before the new data arrives.
+But the chip itself still doesn't highlight until the navigation completes. The `isPending` boolean tells us the navigation is in flight, but it doesn't help the chip show a selected state before the new data arrives.
 
-#### Compose reusable controls with action props
+#### Compose reusable controls with a callback prop
 
-`ChipGroup` solves the selected-state problem by accepting a `changeAction` prop. It wraps the callback in its own `startTransition` and manages `useOptimistic` internally:
+`ChipGroup` solves the selected-state problem by accepting a `changeAction` prop. It calls the callback inside its own `startTransition` and manages `useOptimistic` internally:
 
 ```tsx filename="components/design/chip-group.tsx"
 'use client'
@@ -288,7 +288,7 @@ export function ChipGroup({ items, value, changeAction }) {
 }
 ```
 
-The consumer passes a callback (`changeAction`). The design component handles the transition and optimistic state. Props named `action` or suffixed with `Action` signal that the component may call them inside a transition.
+The consumer passes a callback (`changeAction`). The design component handles the transition and optimistic state. By convention, props named `action` or suffixed with `Action` signal that the component may call them inside a transition.
 
 If you click the "Frontend" chip now, it highlights on the current frame. The board dims while the filtered data loads, then updates with the filtered tasks.
 
@@ -321,7 +321,7 @@ export function CommentForm({ taskId }) {
 
 If you type a comment and press Send, the form action runs, but the input stays filled and the list does not change until the server responds.
 
-Split the comment list into two parts. A server component renders the persisted comments. A client component tracks only **pending** comments using `useOptimistic([])` with an empty initial array. When the transition completes and `refresh()` delivers fresh data, the pending list resets to empty and the real comment appears in the server-rendered list:
+Split the comment list into two parts. A server component renders the persisted comments. A client component tracks only **pending** comments using `useOptimistic([])` with an empty initial array. When the transition completes and a new render arrives with fresh data, the pending list resets to empty and the real comment appears in the server-rendered list:
 
 ```tsx filename="app/task/[id]/_components/optimistic-comments.tsx"
 'use client'
@@ -370,9 +370,9 @@ export function OptimisticComments({ taskId }) {
 
 Three things happen when the user submits:
 
-1. `formRef.current?.reset()` clears the input using direct DOM manipulation. Inside a transition, `useState` setters are deferred until the transition completes. `useOptimistic` setters and direct DOM calls like `formRef.reset()` apply on the current frame.
+1. `formRef.current?.reset()` clears the input using direct DOM manipulation. Inside a transition, [`useState`](https://react.dev/reference/react/useState) setters are deferred until the transition completes. `useOptimistic` setters and direct DOM calls like `formRef.reset()` apply on the current frame.
 2. `setPendingComments` adds the new comment to the pending list with a client-generated UUID.
-3. The form `action` wraps the handler in a transition automatically.
+3. The form `action` calls the handler inside a transition.
 
 The server component renders the real list alongside:
 
@@ -461,7 +461,7 @@ export function BoardClient({ tasks }) {
 
 The reducer maps over the task list and updates the status of the dragged card. The rest of the list stays unchanged. If a background refresh arrives mid-drag (e.g., from polling or another user's mutation), React re-runs the reducer with the updated base data, so the optimistic move sits on top of fresh data.
 
-The standalone `startTransition` is used here instead of `useTransition` because the hook's `isPending` would trigger the board fade from Step 3. The optimistic move already covers the visual feedback, so a pending indicator is not needed. If the Server Function fails, the card silently snaps back.
+The standalone `startTransition` is used here instead of `useTransition` because the hook's `isPending` would trigger the board fade from Step 3. The optimistic move already covers the visual feedback, so a pending indicator is not needed. If the Server Function fails, the card silently reverts.
 
 If you drag a card from "Todo" to "In Progress" now, the card lands in the target column the moment you release.
 
@@ -469,7 +469,7 @@ If you drag a card from "Todo" to "In Progress" now, the card lands in the targe
 
 The board has a "New Task" button that opens a create dialog. The form action creates the task on the server and then refreshes the board.
 
-The dialog has three pieces of client state to coordinate while the action is pending: the submit button, the field values, and whether the dialog is open.
+The dialog has three pieces of client state to coordinate while the action is pending: the submit button, the field values, and whether the dialog is open. [`useActionState`](https://react.dev/reference/react/useActionState) coordinates all three.
 
 Consider a form that calls the Server Function as a form action:
 
@@ -498,9 +498,9 @@ export function CreateTaskModal() {
 }
 ```
 
-If you fill out the form and click "Create Task", the button stays enabled with no progress text. The form fields keep their values. The dialog closes before the board shows the new task (because `setIsOpen(false)` runs outside the transition scope after the `await`).
+If you fill out the form and click "Create Task", the button stays enabled with no progress text. The form fields keep their values. The dialog closes before the board shows the new task, because state updates after the `await` are not automatically part of the surrounding transition.
 
-`useActionState` handles all three: `isPending` for the button, key-based reset for the fields, and a double-transition to batch the dialog close with the board update:
+`useActionState` handles all three: `isPending` for the button, key-based reset for the fields, and a wrap around the dialog close:
 
 ```tsx filename="components/create-task-modal.tsx"
 'use client'
@@ -547,7 +547,7 @@ export function CreateTaskModal() {
 
 The `key` in the returned state controls form reset. On success, `key` increments, which remounts the `<div key={key}>` and resets all inputs inside it.
 
-`useActionState` runs the action inside a transition, so the dialog stays open and `isPending` stays `true` while `createTask` runs. State updates after the `await` are not automatically part of that transition, so wrapping `setIsOpen(false)` in `startTransition` is a workaround that puts the close back into a transition.
+`useActionState` runs the action as a transition, so the dialog stays open and `isPending` stays `true` while `createTask` runs. State updates after the `await` are not automatically part of that transition, so wrapping `setIsOpen(false)` in `startTransition` is a workaround that runs the close as part of a transition.
 
 With the workaround in place, React batches the dialog close with the board update that `refresh()` triggers inside `createTask`, so the new task appears at the moment the dialog closes. Without it, the dialog would close first and the board would update a frame later.
 
@@ -766,30 +766,25 @@ Three layers combine for instant repeat navigation, each with a different cost:
 
 ## Next steps
 
-Each pattern adds state for a different kind of pending work:
+Pick the API that matches the situation you're solving:
 
-| Pattern            | Use it when                                                   |
-| ------------------ | ------------------------------------------------------------- |
-| Optimistic value   | One value should update before the server responds            |
-| Pending navigation | A URL change triggers a new server render                     |
-| Suspense boundary  | Slow data should stream in without blocking the page shell    |
-| Action prop        | A reusable component owns part of the pending UI              |
-| Pending-only list  | A new item should appear before it exists on the server       |
-| Optimistic reducer | A collection needs a temporary structural change              |
-| Action state       | A form needs pending state, reset behavior, and result state  |
-| Pending attribute  | A parent should style itself while a child action is pending  |
-| Cached read + tag  | A reusable read should survive across renders and navigations |
-| Runtime prefetch   | A cached destination should be filled before the user clicks  |
+| Situation                                                     | Use                                                                                                                                                                                   |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Slow data should stream in without blocking the page shell    | [`<Suspense>`](https://react.dev/reference/react/Suspense)                                                                                                                            |
+| One value should update before the server responds            | [`useOptimistic`](https://react.dev/reference/react/useOptimistic) + [`startTransition`](https://react.dev/reference/react/startTransition)                                           |
+| A URL change triggers a new server render                     | [`useTransition`](https://react.dev/reference/react/useTransition) + `data-pending`                                                                                                   |
+| A reusable component owns part of the pending UI              | Callback prop named `action` or suffixed with `Action`                                                                                                                                |
+| A new item should appear before it exists on the server       | [`useOptimistic([])`](https://react.dev/reference/react/useOptimistic) with an empty initial array                                                                                    |
+| A collection needs a temporary structural change              | [`useOptimistic`](https://react.dev/reference/react/useOptimistic) with a reducer                                                                                                     |
+| A form needs pending state, reset behavior, and result state  | [`useActionState`](https://react.dev/reference/react/useActionState)                                                                                                                  |
+| A parent should style itself while a child action is pending  | [`useOptimistic(false)`](https://react.dev/reference/react/useOptimistic) + `data-pending` attribute                                                                                  |
+| A reusable read should survive across renders and navigations | [`'use cache'`](/docs/app/api-reference/directives/use-cache) + [`cacheTag`](/docs/app/api-reference/functions/cacheTag) + [`updateTag`](/docs/app/api-reference/functions/updateTag) |
+| A cached destination should be filled before the user clicks  | [`unstable_prefetch = 'force-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch)                                                                       |
 
-For API details:
+For more on each API, see:
 
-- [React `useOptimistic`](https://react.dev/reference/react/useOptimistic)
-- [React `useTransition`](https://react.dev/reference/react/useTransition)
-- [React `useActionState`](https://react.dev/reference/react/useActionState)
-- [Server Functions](/docs/app/getting-started/mutating-data)
-- [`refresh()`](/docs/app/api-reference/functions/refresh)
-- [`'use cache'`](/docs/app/api-reference/directives/use-cache), [`cacheTag`](/docs/app/api-reference/functions/cacheTag), [`updateTag`](/docs/app/api-reference/functions/updateTag)
-- [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch)
+- [Server Functions](/docs/app/getting-started/mutating-data) for the server side of any mutation
+- [`refresh()`](/docs/app/api-reference/functions/refresh) for revalidating dynamic work after a write
 
 Related guides:
 
