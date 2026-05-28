@@ -1,6 +1,5 @@
 import path from 'path'
 import escapeRegex from 'escape-string-regexp'
-import webdriver from 'next-webdriver'
 import {
   waitFor,
   stopApp,
@@ -55,6 +54,8 @@ function runTests({
   // `fetchViaHTTP` with a numeric port concatenates the path onto the origin
   // verbatim, preserving the repeated-slash/backslash behavior under test.
   const resolvePort = () => (getPort ? getPort() : Number(next.appPort))
+  const openBrowser = (url: string, baseUrl: number = resolvePort()) =>
+    next.browser(url, { baseUrl })
 
   if (!isExport) {
     it('should normalize repeated slashes in redirects correctly', async () => {
@@ -104,7 +105,7 @@ function runTests({
       expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
     }
 
-    const browser = await webdriver(port, '//google.com')
+    const browser = await openBrowser('//google.com', port)
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       isExport ? '//google.com' : '/google.com'
@@ -134,7 +135,7 @@ function runTests({
       })
     }
 
-    const browser = await webdriver(port, '//google.com?h=1')
+    const browser = await openBrowser('//google.com?h=1', port)
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       isExport ? '//google.com' : '/google.com'
@@ -159,7 +160,7 @@ function runTests({
       expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
     }
 
-    const browser = await webdriver(port, '//google.com#hello')
+    const browser = await openBrowser('//google.com#hello', port)
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       isExport ? '//google.com' : '/google.com'
@@ -181,7 +182,7 @@ function runTests({
       expect(await res.text()).toContain(notFoundContent)
     }
 
-    const browser = await webdriver(port, '/%2Fgoogle.com')
+    const browser = await openBrowser('/%2Fgoogle.com', port)
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       '/%2Fgoogle.com'
@@ -204,7 +205,7 @@ function runTests({
       expect(await res.text()).toContain(notFoundContent)
     }
 
-    const browser = await webdriver(port, '/%2Fgoogle.com?hello=1')
+    const browser = await openBrowser('/%2Fgoogle.com?hello=1', port)
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       '/%2Fgoogle.com'
@@ -225,7 +226,7 @@ function runTests({
       expect(await res.text()).toContain(notFoundContent)
     }
 
-    const browser = await webdriver(port, '/%2Fgoogle.com#hello')
+    const browser = await openBrowser('/%2Fgoogle.com#hello', port)
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       '/%2Fgoogle.com'
@@ -250,7 +251,7 @@ function runTests({
       expect(await res.text()).toBe('/google.com')
     }
 
-    const browser = await webdriver(port, '/\\google.com')
+    const browser = await openBrowser('/\\google.com', port)
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       isExport ? '//google.com' : '/google.com'
@@ -276,7 +277,7 @@ function runTests({
       expect(await res.text()).toBe('/google.com')
     }
 
-    const browser = await webdriver(port, '/\\/google.com#hello')
+    const browser = await openBrowser('/\\/google.com#hello', port)
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       isExport ? '///google.com' : '/google.com'
@@ -290,7 +291,10 @@ function runTests({
 
   it('should handle slashes in next/link correctly', async () => {
     const port = resolvePort()
-    const browser = await webdriver(port, `/invalid${isExport ? '.html' : ''}`)
+    const browser = await openBrowser(
+      `/invalid${isExport ? '.html' : ''}`,
+      port
+    )
     const invalidHrefs = [
       '//google.com',
       '//google.com?hello=1',
@@ -338,7 +342,7 @@ function runTests({
         hash: '#hello',
       },
     ]) {
-      const browser = await webdriver(resolvePort(), '/')
+      const browser = await openBrowser('/')
       await browser.eval(
         `window.next.router.push("${item.href}"${
           item.as ? `, "${item.as}"` : ''
@@ -382,7 +386,7 @@ function runTests({
         hash: '#hello',
       },
     ]) {
-      const browser = await webdriver(resolvePort(), '/')
+      const browser = await openBrowser('/')
       await browser.eval(`(function() {
         window.beforeNav = 1
         window.next.router.push("${item.href}"${

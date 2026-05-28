@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox, check } from 'next-test-utils'
 
@@ -31,7 +30,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
   })
 
   it('should not reload page when client-side is changed too GSP', async () => {
-    const browser = await webdriver(next.url, '/gsp-blog/first')
+    const browser = await next.browser('/gsp-blog/first')
     await check(() => browser.elementByCss('#change').text(), 'change me')
     await browser.eval(`window.beforeChange = 'hi'`)
 
@@ -52,7 +51,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
   })
 
   it('should update page when getStaticProps is changed only', async () => {
-    const browser = await webdriver(next.url, '/gsp-blog/first')
+    const browser = await next.browser('/gsp-blog/first')
     await browser.eval(`window.beforeChange = 'hi'`)
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
@@ -81,7 +80,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
   })
 
   it('should show indicator when re-fetching data', async () => {
-    const browser = await webdriver(next.url, '/gsp-blog/second')
+    const browser = await next.browser('/gsp-blog/second')
     await installCheckVisible(browser)
     await browser.eval(`window.beforeChange = 'hi'`)
 
@@ -112,7 +111,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
   })
 
   it('should update page when getStaticPaths is changed only', async () => {
-    const browser = await webdriver(next.url, '/gsp-blog/first')
+    const browser = await next.browser('/gsp-blog/first')
     await browser.eval(`window.beforeChange = 'hi'`)
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
@@ -130,7 +129,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
   })
 
   it('should update page when getStaticProps is changed only for /index', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     await browser.eval(`window.beforeChange = 'hi'`)
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
@@ -148,7 +147,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
   })
 
   it('should update page when getStaticProps is changed only for /another/index', async () => {
-    const browser = await webdriver(next.url, '/another')
+    const browser = await next.browser('/another')
     await browser.eval(`window.beforeChange = 'hi'`)
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
@@ -171,7 +170,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
   })
 
   it('should keep scroll position when updating from change in getStaticProps', async () => {
-    const browser = await webdriver(next.url, '/another')
+    const browser = await next.browser('/another')
     await browser.eval(
       'document.getElementById("scroll-target").scrollIntoView()'
     )
@@ -203,7 +202,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
   })
 
   it('should not reload page when client-side is changed too GSSP', async () => {
-    const browser = await webdriver(next.url, '/gssp-blog/first')
+    const browser = await next.browser('/gssp-blog/first')
     await check(() => browser.elementByCss('#change').text(), 'change me')
     await browser.eval(`window.beforeChange = 'hi'`)
 
@@ -224,7 +223,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
   })
 
   it('should update page when getServerSideProps is changed only', async () => {
-    const browser = await webdriver(next.url, '/gssp-blog/first')
+    const browser = await next.browser('/gssp-blog/first')
     await check(
       async () =>
         JSON.parse(await browser.elementByCss('#props').text()).count + '',
@@ -258,7 +257,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
   })
 
   it('should update on props error in getStaticProps', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     await browser.eval(`window.beforeChange = 'hi'`)
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
@@ -294,7 +293,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
   })
 
   it('should update on thrown error in getStaticProps', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     await browser.eval(`window.beforeChange = 'hi'`)
 
     const props = JSON.parse(await browser.elementByCss('#props').text())
@@ -336,7 +335,7 @@ describe('GS(S)P Server-Side Change Reloading', () => {
   })
 
   it('should refresh data when server import is updated', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     await browser.eval(`window.beforeChange = 'hi'`)
 
     const props = JSON.parse(await browser.elementByCss('#props').text())

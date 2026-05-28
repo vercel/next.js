@@ -96,6 +96,8 @@ async function Component({ userId }: { userId: string }) {
 
 In the snippet above, `userId` is captured from the outer scope and `filter` is passed as an argument, so both become part of the `getData` function's cache key. This means different user and filter combinations will have separate cache entries.
 
+> **Good to know:** When a cached function reads [root parameters](/docs/app/api-reference/functions/next-root-params), only the ones it actually reads become part of its cache key.
+
 ## Serialization
 
 Arguments to cached functions and their return values must be serializable.

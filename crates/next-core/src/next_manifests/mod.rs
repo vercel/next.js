@@ -53,7 +53,6 @@ impl OutputAssetsReference for BuildManifest {
         let references = chunks
             .into_iter()
             .flatten()
-            .copied()
             .chain(root_main_files)
             .chain(self.polyfill_files.iter().copied())
             .collect();
