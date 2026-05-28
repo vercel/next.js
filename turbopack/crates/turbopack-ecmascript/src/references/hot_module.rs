@@ -70,9 +70,21 @@ impl ModuleHotReferenceAssetReference {
     }
 }
 
-impl ModuleHotReferenceAssetReference {
-    /// Shared resolve logic used by both `resolve_reference` and code generation.
-    pub async fn resolve(&self) -> Result<Vc<ModuleResolveResult>> {
+#[turbo_tasks::value_impl]
+impl ValueToString for ModuleHotReferenceAssetReference {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        let request_str = self.request.to_string().await?;
+        Ok(Vc::cell(
+            format!("module.hot.accept/decline {}", request_str).into(),
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for ModuleHotReferenceAssetReference {
+    #[turbo_tasks::function]
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         if self.is_esm {
             esm_resolve(
                 *self.origin,
@@ -91,25 +103,6 @@ impl ModuleHotReferenceAssetReference {
                 self.error_mode,
             ))
         }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for ModuleHotReferenceAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let request_str = self.request.to_string().await?;
-        Ok(Vc::cell(
-            format!("module.hot.accept/decline {}", request_str).into(),
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for ModuleHotReferenceAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        self.resolve().await
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
@@ -155,7 +148,7 @@ impl ModuleHotReferenceCodeGen {
             .iter()
             .map(|reference| async move {
                 let r = reference.await?;
-                let resolve_result = r.resolve().await?;
+                let resolve_result = reference.resolve_reference();
                 PatternMapping::resolve_request(
                     *r.request,
                     *r.origin,
