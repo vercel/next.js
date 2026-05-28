@@ -5644,7 +5644,6 @@ async function spawnStaticShellValidationInDevImpl(
     dynamicChunks,
     rootParams,
     fallbackRouteParams,
-    allowEmptyStaticShell,
     ctx,
     validationSamples,
     validationSampleTracking
@@ -5718,7 +5717,6 @@ async function warmupClientModulesForStagedValidation(
   allServerChunks: Array<Uint8Array>,
   rootParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
-  allowEmptyStaticShell: boolean,
   ctx: AppRenderContext,
   validationSamples: ValidationStoreClient['validationSamples'],
   validationSampleTracking: ValidationStoreClient['validationSampleTracking']
@@ -5747,7 +5745,6 @@ async function warmupClientModulesForStagedValidation(
       // is module loading, which has it's own cache signal
       cacheSignal: null,
       dynamicTracking: null,
-      allowEmptyStaticShell,
       revalidate: INFINITE_CACHE,
       expire: INFINITE_CACHE,
       stale: INFINITE_CACHE,
@@ -5920,7 +5917,6 @@ async function validateStagedShell(
     // No APIs require a cacheSignal through the workUnitStore during the HTML prerender
     cacheSignal: null,
     dynamicTracking: clientDynamicTracking,
-    allowEmptyStaticShell,
     revalidate: INFINITE_CACHE,
     expire: INFINITE_CACHE,
     stale: INFINITE_CACHE,
@@ -7033,10 +7029,6 @@ async function validateInstantConfigInBuildWithSample(
       return [stageController.syncInterruptReason]
     }
 
-    const allowEmptyStaticShell =
-      (validationCtx.renderOpts.allowEmptyStaticShell ?? false) ||
-      (await isPageAllowedToBlock(loaderTree))
-
     // Now we the chunks of a fully rendered page, just like in dev.
     // We can use them to validate all the navigations required by `instant` configs.
     // Note that we're not performing static shell validation here -- that happens
@@ -7056,7 +7048,6 @@ async function validateInstantConfigInBuildWithSample(
       accumulatedChunks.dynamicChunks,
       sampleRootParams,
       fallbackRouteParams,
-      allowEmptyStaticShell,
       validationCtx,
       validationSamples,
       warmupValidationSamplesTracking
@@ -7407,7 +7398,6 @@ async function prerenderToStream(
         // the final prerender.
         cacheSignal,
         dynamicTracking: null,
-        allowEmptyStaticShell,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
@@ -7441,7 +7431,6 @@ async function prerenderToStream(
         // the final prerender.
         cacheSignal,
         dynamicTracking: null,
-        allowEmptyStaticShell,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
@@ -7563,7 +7552,6 @@ async function prerenderToStream(
           // is module loading, which has it's own cache signal
           cacheSignal: null,
           dynamicTracking: null,
-          allowEmptyStaticShell,
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
@@ -7680,7 +7668,6 @@ async function prerenderToStream(
         // All caches we could read must already be filled so no tracking is necessary
         cacheSignal: null,
         dynamicTracking: null,
-        allowEmptyStaticShell,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
@@ -7720,7 +7707,6 @@ async function prerenderToStream(
         // All caches we could read must already be filled so no tracking is necessary
         cacheSignal: null,
         dynamicTracking: serverDynamicTracking,
-        allowEmptyStaticShell,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
@@ -7871,7 +7857,6 @@ async function prerenderToStream(
         // No APIs require a cacheSignal through the workUnitStore during the HTML prerender
         cacheSignal: null,
         dynamicTracking: clientDynamicTracking,
-        allowEmptyStaticShell,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
         stale: INFINITE_CACHE,
@@ -8546,7 +8531,6 @@ async function prerenderToStream(
         controller: errorServerReactController,
         cacheSignal: null,
         dynamicTracking: errorServerDynamicTracking,
-        allowEmptyStaticShell,
         revalidate:
           typeof prerenderStore?.revalidate !== 'undefined'
             ? prerenderStore.revalidate
@@ -8630,7 +8614,6 @@ async function prerenderToStream(
           controller: errorClientReactController,
           cacheSignal: null,
           dynamicTracking: errorClientDynamicTracking,
-          allowEmptyStaticShell,
           revalidate: errorPrerenderStore.revalidate,
           expire: errorPrerenderStore.expire,
           stale: errorPrerenderStore.stale,
