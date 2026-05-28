@@ -754,6 +754,7 @@ export async function handleBuildComplete({
           wasmAssets: {},
           config: {
             env: page.env,
+            preferredRegion: page.regions,
           },
         }
 
