@@ -333,9 +333,12 @@ describe('typed-routes-validator', () => {
             `
       )
 
-      const { exitCode } = await next.build()
-      await next.deleteFile('pages/api/valid-api.ts')
-      expect(exitCode).toBe(0)
+      try {
+        const { exitCode } = await next.build()
+        expect(exitCode).toBe(0)
+      } finally {
+        await next.deleteFile('pages/api/valid-api.ts')
+      }
     })
 
     it('should pass type checking when sizeLimit is a number', async () => {
