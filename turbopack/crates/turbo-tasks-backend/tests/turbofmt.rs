@@ -16,13 +16,13 @@ struct FmtTest {
     count: u32,
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn turbofmt_operation(value: ResolvedVc<FmtTest>) -> anyhow::Result<Vc<RcStr>> {
     let s: RcStr = turbofmt!("prefix {} vc {}", 42u32, value).await?;
     Ok(Vc::cell(s))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn turbobail_operation(value: ResolvedVc<FmtTest>) -> anyhow::Result<Vc<RcStr>> {
     turbobail!("error: {} with {}", 42u32, value)
 }

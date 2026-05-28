@@ -130,7 +130,7 @@ impl CssChunk {
         }
 
         for external_import in external_imports {
-            writeln!(code, "{}", &external_import)?;
+            writeln!(code, "{}", external_import)?;
         }
 
         let built = &body.build();

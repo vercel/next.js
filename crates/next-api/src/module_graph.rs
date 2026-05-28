@@ -17,7 +17,8 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    CollectiblesSource, FxIndexMap, FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -50,7 +51,7 @@ pub struct NextDynamicGraphs(Vec<ResolvedVc<NextDynamicGraph>>);
 
 #[turbo_tasks::value_impl]
 impl NextDynamicGraphs {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn new_operation(
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
@@ -71,7 +72,7 @@ impl NextDynamicGraphs {
         Ok(Self(next_dynamic).cell())
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         // TODO get rid of this function once everything inside of
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
@@ -107,7 +108,6 @@ impl NextDynamicGraphs {
                             .get_next_dynamic_imports_for_endpoint(entry)
                             .await?
                             .into_iter()
-                            .map(|(k, v)| (*k, *v))
                             // TODO remove this collect and return an iterator instead
                             .collect::<Vec<_>>())
                     })
@@ -248,7 +248,7 @@ pub struct ServerActionsGraphs(Vec<ResolvedVc<ServerActionsGraph>>);
 
 #[turbo_tasks::value_impl]
 impl ServerActionsGraphs {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn new_operation(
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
@@ -257,9 +257,8 @@ impl ServerActionsGraphs {
         let server_actions = async {
             graphs_ref
                 .iter()
-                .map(|graph| {
-                    ServerActionsGraph::new_with_entries(graph.connect(), is_single_page)
-                        .to_resolved()
+                .map(|&graph| {
+                    ServerActionsGraph::new_with_entries(graph, is_single_page).to_resolved()
                 })
                 .try_join()
                 .await
@@ -269,7 +268,7 @@ impl ServerActionsGraphs {
         Ok(Self(server_actions).cell())
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         // TODO get rid of this function once everything inside of
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
@@ -321,14 +320,14 @@ impl ServerActionsGraphs {
 impl ServerActionsGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
-        graph: ResolvedVc<ModuleGraphLayer>,
+        graph: OperationVc<ModuleGraphLayer>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let mapped = map_server_actions(*graph);
+        let mapped = map_server_actions(graph);
 
         Ok(ServerActionsGraph {
             is_single_page,
-            graph,
+            graph: graph.connect().to_resolved().await?,
             data: mapped.to_resolved().await?,
         }
         .cell())
@@ -426,7 +425,7 @@ pub struct ClientReferencesGraphs(Vec<ResolvedVc<ClientReferencesGraph>>);
 
 #[turbo_tasks::value_impl]
 impl ClientReferencesGraphs {
-    #[turbo_tasks::function(operation)]
+    #[turbo_tasks::function(operation, root)]
     async fn new_operation(
         graphs: ResolvedVc<ModuleGraph>,
         is_single_page: bool,
@@ -447,7 +446,7 @@ impl ClientReferencesGraphs {
         Ok(Self(client_references).cell())
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(root)]
     pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         // TODO get rid of this function once everything inside of
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed

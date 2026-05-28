@@ -98,7 +98,7 @@ pub async fn get_browser_runtime_code(
     let asset_suffix = asset_suffix.await?;
     let chunk_loading_global = chunk_loading_global.await?;
     let cross_origin = *cross_origin.await?;
-    let chunk_lists_global = format!("{}_CHUNK_LISTS", &*chunk_loading_global);
+    let chunk_lists_global = format!("{}_CHUNK_LISTS", chunk_loading_global);
 
     if *environment
         .runtime_versions()

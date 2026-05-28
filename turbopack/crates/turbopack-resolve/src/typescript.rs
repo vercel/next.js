@@ -25,7 +25,7 @@ use turbopack_core::{
         pattern::Pattern,
         resolve,
     },
-    source::{OptionSource, Source},
+    source::Source,
 };
 
 use crate::ecmascript::get_condition_maps;
@@ -88,7 +88,7 @@ pub async fn read_tsconfigs(
                 configs.push((parsed_data, tsconfig));
                 if let Some(extends) = json["extends"].as_str() {
                     let resolved = resolve_extends(*tsconfig, extends, resolve_options).await?;
-                    if let Some(source) = *resolved.await? {
+                    if let Some(source) = resolved {
                         data = source.content().file_content();
                         tsconfig = source;
                         continue;
@@ -118,7 +118,7 @@ async fn resolve_extends(
     tsconfig: Vc<Box<dyn Source>>,
     extends: &str,
     resolve_options: Vc<ResolveOptions>,
-) -> Result<Vc<OptionSource>> {
+) -> Result<Option<ResolvedVc<Box<dyn Source>>>> {
     let parent_dir = tsconfig.ident().await?.path.parent();
     let request = Request::parse_string(extends.into());
 
@@ -148,18 +148,18 @@ async fn resolve_extends(
         Request::Empty => {
             let request = Request::parse_string(rcstr!("./tsconfig"));
             Ok(resolve(parent_dir,
-                ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).first_source())
+                ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).await?.first_source())
         }
 
         // All other types are treated as module imports, and potentially joined with
         // "tsconfig.json". This includes "relative" imports like '.' and '..'.
         _ => {
-            let mut result = resolve(parent_dir.clone(), ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).first_source();
-            if result.await?.is_none() {
-                let request = Request::parse_string(format!("{extends}/tsconfig").into());
-                result = resolve(parent_dir, ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).first_source();
+            let result = resolve(parent_dir.clone(), ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).await?;
+            if let Some(source) = result.first_source() {
+                return Ok(Some(source));
             }
-            Ok(result)
+            let request = Request::parse_string(format!("{extends}/tsconfig").into());
+            Ok(resolve(parent_dir, ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined), request, resolve_options).await?.first_source())
         }
     }
 }
@@ -169,19 +169,21 @@ async fn resolve_extends_rooted_or_relative(
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     path: &str,
-) -> Result<Vc<OptionSource>> {
-    let mut result = resolve(
+) -> Result<Option<ResolvedVc<Box<dyn Source>>>> {
+    let result = resolve(
         lookup_path.clone(),
         ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined),
         request,
         resolve_options,
     )
-    .first_source();
+    .await?;
+
+    let mut result = result.first_source();
 
     // If the file doesn't end with ".json" and we can't find the file, then we have
     // to try again with it.
     // https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3305
-    if !path.ends_with(".json") && result.await?.is_none() {
+    if !path.ends_with(".json") && result.is_none() {
         let request = Request::parse_string(format!("{path}.json").into());
         result = resolve(
             lookup_path.clone(),
@@ -189,6 +191,7 @@ async fn resolve_extends_rooted_or_relative(
             request,
             resolve_options,
         )
+        .await?
         .first_source();
     }
     Ok(result)
@@ -424,7 +427,7 @@ pub async fn type_resolve(
             request,
             options,
         );
-        if !*result1.is_unresolvable().await? {
+        if !result1.await?.is_unresolvable() {
             result1
         } else {
             resolve(

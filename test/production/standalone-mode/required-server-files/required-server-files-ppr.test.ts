@@ -1,8 +1,7 @@
 import fs from 'node:fs/promises'
 import { join } from 'node:path'
 import cheerio from 'cheerio'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
   createNowRouteMatches,
   fetchViaHTTP,
@@ -16,7 +15,6 @@ import { ChildProcess } from 'node:child_process'
 
 // TODO(NAR-423): Migrate to Cache Components.
 describe.skip('required server files app router', () => {
-  let next: NextInstance
   let server: ChildProcess
   let appPort: number | string
   let delayedPostpone: string
@@ -25,42 +23,43 @@ describe.skip('required server files app router', () => {
   let secondCookieHTML: string
   let cliOutput = ''
 
-  beforeAll(async () => {
+  beforeAll(() => {
     process.env.NOW_BUILDER = '1'
     process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
     process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS =
       './cache-entry-handlers.js'
+  })
 
-    // Setup the Next.js app and build it.
-    next = await createNext({
-      files: {
-        app: new FileRef(join(__dirname, 'app')),
-        'pages/catch-all/[[...rest]].js': new FileRef(
-          join(__dirname, 'pages', 'catch-all', '[[...rest]].js')
-        ),
-        lib: new FileRef(join(__dirname, 'lib')),
-        'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
-        'middleware.js': new FileRef(join(__dirname, 'middleware.js')),
-        'data.txt': new FileRef(join(__dirname, 'data.txt')),
-        '.env': new FileRef(join(__dirname, '.env')),
-        '.env.local': new FileRef(join(__dirname, '.env.local')),
-        '.env.production': new FileRef(join(__dirname, '.env.production')),
-        'cache-entry-handlers.js': new FileRef(
-          join(__dirname, 'cache-entry-handlers.js')
-        ),
-      },
-      overrideFiles: {
-        'app/not-found.js': new FileRef(
-          join(__dirname, 'ppr', 'app', 'not-found.js')
-        ),
-      },
-      nextConfig: {
-        cacheHandler: './cache-handler.js',
-        cacheComponents: true,
-        output: 'standalone',
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      app: new FileRef(join(__dirname, 'app')),
+      'pages/catch-all/[[...rest]].js': new FileRef(
+        join(__dirname, 'pages', 'catch-all', '[[...rest]].js')
+      ),
+      lib: new FileRef(join(__dirname, 'lib')),
+      'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
+      'middleware.js': new FileRef(join(__dirname, 'middleware.js')),
+      'data.txt': new FileRef(join(__dirname, 'data.txt')),
+      '.env': new FileRef(join(__dirname, '.env')),
+      '.env.local': new FileRef(join(__dirname, '.env.local')),
+      '.env.production': new FileRef(join(__dirname, '.env.production')),
+      'cache-entry-handlers.js': new FileRef(
+        join(__dirname, 'cache-entry-handlers.js')
+      ),
+    },
+    overrideFiles: {
+      'app/not-found.js': new FileRef(
+        join(__dirname, 'ppr', 'app', 'not-found.js')
+      ),
+    },
+    nextConfig: {
+      cacheHandler: './cache-handler.js',
+      cacheComponents: true,
+      output: 'standalone',
+    },
+  })
 
+  beforeAll(async () => {
     // Stop the server, we're going to restart it using the standalone server
     // below after some cleanup.
     await next.stop()
@@ -126,7 +125,6 @@ describe.skip('required server files app router', () => {
     delete process.env.NOW_BUILDER
     delete process.env.NEXT_PRIVATE_TEST_HEADERS
     delete process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
-    await next.destroy()
     if (server) await killApp(server)
   })
 

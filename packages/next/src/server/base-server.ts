@@ -48,6 +48,7 @@ import type { InstrumentationModule } from './instrumentation/types'
 import * as path from 'path'
 import { format as formatUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
+import { isRSCRequestHeader } from './lib/is-rsc-request'
 import {
   APP_PATHS_MANIFEST,
   NEXT_BUILTIN_DOCUMENT,
@@ -660,7 +661,7 @@ export default abstract class Server<
       stripFlightHeaders(req.headers)
 
       return false
-    } else if (req.headers[RSC_HEADER] === '1') {
+    } else if (isRSCRequestHeader(req.headers[RSC_HEADER])) {
       addRequestMeta(req, 'isRSCRequest', true)
 
       if (req.headers[NEXT_ROUTER_PREFETCH_HEADER] === '1') {
@@ -2070,8 +2071,10 @@ export default abstract class Server<
       const prefetchHeaderValue = headers[NEXT_ROUTER_PREFETCH_HEADER]
       const routerPrefetch =
         prefetchHeaderValue !== undefined
-          ? // We only recognize '1' and '2'. Strip all other values here.
-            prefetchHeaderValue === '1' || prefetchHeaderValue === '2'
+          ? // We only recognize '1', '2', and '3'. Strip all other values here.
+            prefetchHeaderValue === '1' ||
+            prefetchHeaderValue === '2' ||
+            prefetchHeaderValue === '3'
             ? prefetchHeaderValue
             : undefined
           : // For runtime prefetches, we always perform a dynamic request,
@@ -2235,7 +2238,7 @@ export default abstract class Server<
     // even during a locked scope, with blocking happening on the client side.
     const hasInstantTestCookie =
       exposeTestingApi &&
-      req.headers[RSC_HEADER] === undefined &&
+      !isRSCRequestHeader(req.headers[RSC_HEADER]) &&
       typeof req.headers.cookie === 'string' &&
       req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
       couldSupportPPR

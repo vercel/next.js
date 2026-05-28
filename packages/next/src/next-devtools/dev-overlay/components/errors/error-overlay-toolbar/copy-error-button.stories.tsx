@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { CopyErrorButton } from './copy-error-button'
-import { withShadowPortal } from '../../../storybook/with-shadow-portal'
+import { withShadowPortal } from '../../../../../../.storybook/decorators/with-shadow-portal'
 
 const meta: Meta<typeof CopyErrorButton> = {
   component: CopyErrorButton,

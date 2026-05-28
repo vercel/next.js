@@ -2,7 +2,6 @@
 /* eslint-disable jest/no-standalone-expect */
 
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 import { fetchViaHTTP } from 'next-test-utils'
 import { FileRef, isNextDeploy, nextTestSetup } from 'e2e-utils'
 
@@ -36,7 +35,7 @@ describe('Middleware custom matchers i18n', () => {
   itif(!isNextDeploy).each(['hello', 'en_hello', 'nl-NL_hello', 'nl-NL_about'])(
     'should match has query on client routing %s',
     async (id) => {
-      const browser = await webdriver(next.url, '/routes')
+      const browser = await next.browser('/routes')
       await browser.eval('window.__TEST_NO_RELOAD = true')
       await browser.elementById(id).click()
       const fromMiddleware = await browser.elementById('from-middleware').text()

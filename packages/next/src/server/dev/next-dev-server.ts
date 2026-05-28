@@ -807,8 +807,6 @@ export default class DevServer extends Server {
           pathname,
           config: {
             pprConfig: this.nextConfig.experimental.ppr,
-            partialFallbacks:
-              this.nextConfig.experimental.partialFallbacks === true,
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
           },

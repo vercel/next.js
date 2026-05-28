@@ -1490,7 +1490,6 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         url_rewrite_behavior,
         collect_affecting_sources,
         tracing_only,
-        allow_project_root_tracing: _,
         ..
     } = state;
 
@@ -1505,7 +1504,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 add_effects(block.effects);
                 value
             }
-            EffectArg::Spread => JsValue::unknown_empty(true, "spread is not supported yet"),
+            EffectArg::Spread => {
+                JsValue::unknown_empty(true, rcstr!("spread is not supported yet"))
+            }
         })
         .collect::<Vec<_>>();
 
@@ -1627,7 +1628,9 @@ async fn handle_dynamic_import<G: Fn(Vec<Effect>) + Send + Sync>(
                 add_effects(block.effects);
                 value
             }
-            EffectArg::Spread => JsValue::unknown_empty(true, "spread is not supported yet"),
+            EffectArg::Spread => {
+                JsValue::unknown_empty(true, rcstr!("spread is not supported yet"))
+            }
         })
         .collect();
 
@@ -1969,11 +1972,20 @@ where
                     } else {
                         ResolveErrorMode::Error
                     };
+                    // WorkerThreads resolve URLs relative to import.meta.url
+                    // and string paths relative to the process root
+                    let context_dir = if matches!(
+                        args.first(),
+                        Some(JsValue::Url(_, JsValueUrlKind::Relative))
+                    ) {
+                        origin.origin_path().await?.parent()
+                    } else {
+                        get_traced_project_dir().await?
+                    };
                     analysis.add_reference_code_gen(
                         WorkerAssetReference::new_node_worker_thread(
                             origin,
-                            // WorkerThreads resolve filepaths relative to the process root
-                            get_traced_project_dir().await?,
+                            context_dir,
                             Pattern::new(pat).to_resolved().await?,
                             collect_affecting_sources,
                             get_issue_source(),
@@ -2334,12 +2346,10 @@ where
 
             let linked_func_call = state
                 .link_value(
-                    JsValue::call(
-                        Box::new(JsValue::WellKnownFunction(
-                            WellKnownFunctionKind::PathResolve(Box::new(
-                                parent_path.path.as_str().into(),
-                            )),
-                        )),
+                    JsValue::call_from_parts(
+                        JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(Box::new(
+                            parent_path.path.as_str().into(),
+                        ))),
                         args.clone(),
                     ),
                     ImportAttributes::empty_ref(),
@@ -2385,8 +2395,8 @@ where
             let args = linked_args().await?;
             let linked_func_call = state
                 .link_value(
-                    JsValue::call(
-                        Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin)),
+                    JsValue::call_from_parts(
+                        JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
                         args.clone(),
                     ),
                     ImportAttributes::empty_ref(),
@@ -2683,10 +2693,10 @@ where
                             } else {
                                 let linked_func_call = state
                                     .link_value(
-                                        JsValue::call(
-                                            Box::new(JsValue::WellKnownFunction(
+                                        JsValue::call_from_parts(
+                                            JsValue::WellKnownFunction(
                                                 WellKnownFunctionKind::PathJoin,
-                                            )),
+                                            ),
                                             vec![
                                                 JsValue::FreeVar(atom!("__dirname")),
                                                 pkg_or_dir.clone(),
@@ -2754,10 +2764,8 @@ where
                 } else {
                     let linked_func_call = state
                         .link_value(
-                            JsValue::call(
-                                Box::new(JsValue::WellKnownFunction(
-                                    WellKnownFunctionKind::PathJoin,
-                                )),
+                            JsValue::call_from_parts(
+                                JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
                                 vec![
                                     JsValue::FreeVar(atom!("__dirname")),
                                     p.into(),
@@ -3435,71 +3443,83 @@ async fn value_visitor_inner(
         return Ok(((&*value).try_into()?, true));
     }
     let value = match v {
-        JsValue::Call(
-            _,
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
-            args,
-        ) => require_resolve_visitor(origin, args).await?,
-        JsValue::Call(
-            _,
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::ImportMetaGlob),
-            _,
-        ) => {
+        JsValue::Call(_, call)
+            if matches!(
+                call.callee(),
+                JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
+            ) =>
+        {
+            let (_, args) = call.into_parts();
+            require_resolve_visitor(origin, args).await?
+        }
+        JsValue::Call(_, ref call)
+            if matches!(
+                call.callee(),
+                JsValue::WellKnownFunction(WellKnownFunctionKind::ImportMetaGlob)
+            ) =>
+        {
             // import.meta.glob() result is handled by the effect handler;
             // in value_visitor_inner we just return unknown.
-            v.into_unknown(false, "import.meta.glob()")
+            v.into_unknown(false, rcstr!("import.meta.glob()"))
         }
-        JsValue::Call(
-            _,
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
-            args,
-        ) => require_context_visitor(origin, args).await?,
-        JsValue::Call(
-            _,
-            box JsValue::WellKnownFunction(
-                WellKnownFunctionKind::RequireContextRequire(..)
-                | WellKnownFunctionKind::RequireContextRequireKeys(..)
-                | WellKnownFunctionKind::RequireContextRequireResolve(..),
-            ),
-            _,
-        ) => {
+        JsValue::Call(_, call)
+            if matches!(
+                call.callee(),
+                JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext)
+            ) =>
+        {
+            let (_, args) = call.into_parts();
+            require_context_visitor(origin, args).await?
+        }
+        JsValue::Call(_, ref call)
+            if matches!(
+                call.callee(),
+                JsValue::WellKnownFunction(
+                    WellKnownFunctionKind::RequireContextRequire(..)
+                        | WellKnownFunctionKind::RequireContextRequireKeys(..)
+                        | WellKnownFunctionKind::RequireContextRequireResolve(..),
+                )
+            ) =>
+        {
             // TODO: figure out how to do static analysis without invalidating the whole
             // analysis when a new file gets added
             v.into_unknown(
                 true,
-                "require.context() static analysis is currently limited",
+                rcstr!("require.context() static analysis is currently limited"),
             )
         }
-        JsValue::Call(
-            _,
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire),
-            ref args,
-        ) => {
+        JsValue::Call(_, ref call)
+            if matches!(
+                call.callee(),
+                JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire)
+            ) =>
+        {
             if let [
                 JsValue::Member(
                     _,
                     box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
                     box JsValue::Constant(super::analyzer::ConstantValue::Str(prop)),
                 ),
-            ] = &args[..]
+            ] = call.args()
                 && prop.as_str() == "url"
             {
                 // `createRequire(import.meta.url)`
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
-            } else if let [JsValue::Url(rel, JsValueUrlKind::Relative)] = &args[..] {
+            } else if let [JsValue::Url(rel, JsValueUrlKind::Relative)] = call.args() {
                 // `createRequire(new URL("<rel>", import.meta.url))`
                 JsValue::WellKnownFunction(WellKnownFunctionKind::RequireFrom(Box::new(
                     rel.clone(),
                 )))
             } else {
-                v.into_unknown(true, "createRequire() non constant")
+                v.into_unknown(true, rcstr!("createRequire() non constant"))
             }
         }
-        JsValue::New(
-            _,
-            box JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-            ref args,
-        ) => {
+        JsValue::New(_, ref call)
+            if matches!(
+                call.callee(),
+                JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor)
+            ) =>
+        {
             if let [
                 JsValue::Constant(super::analyzer::ConstantValue::Str(url)),
                 JsValue::Member(
@@ -3507,15 +3527,15 @@ async fn value_visitor_inner(
                     box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
                     box JsValue::Constant(super::analyzer::ConstantValue::Str(prop)),
                 ),
-            ] = &args[..]
+            ] = call.args()
             {
                 if prop.as_str() == "url" {
                     JsValue::Url(url.clone(), JsValueUrlKind::Relative)
                 } else {
-                    v.into_unknown(true, "new URL() non constant")
+                    v.into_unknown(true, rcstr!("new URL() non constant"))
                 }
             } else {
-                v.into_unknown(true, "new non constant")
+                v.into_unknown(true, rcstr!("new non constant"))
             }
         }
         JsValue::WellKnownFunction(
@@ -3525,7 +3545,7 @@ async fn value_visitor_inner(
         ) => {
             if ignore {
                 return Ok((
-                    JsValue::unknown(v, true, "ignored well known function"),
+                    JsValue::unknown(v, true, rcstr!("ignored well known function")),
                     true,
                 ));
             } else {
@@ -3540,25 +3560,25 @@ async fn value_visitor_inner(
                 ignore,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                 true,
-                "ignored require",
+                rcstr!("ignored require"),
             ),
             "import" => JsValue::unknown_if(
                 ignore,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
                 true,
-                "ignored import",
+                rcstr!("ignored import"),
             ),
             "Worker" => JsValue::unknown_if(
                 ignore,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
                 true,
-                "ignored Worker constructor",
+                rcstr!("ignored Worker constructor"),
             ),
             "SharedWorker" => JsValue::unknown_if(
                 ignore,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::SharedWorkerConstructor),
                 true,
-                "ignored SharedWorker constructor",
+                rcstr!("ignored SharedWorker constructor"),
             ),
             "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
             "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
@@ -3574,10 +3594,13 @@ async fn value_visitor_inner(
             // TODO check externals
             .then(|| module_value_to_well_known_object(mv))
             .flatten()
-            .unwrap_or_else(|| v.into_unknown(true, "cross module analyzing is not yet supported")),
-        JsValue::Argument(..) => {
-            v.into_unknown(true, "cross function analyzing is not yet supported")
-        }
+            .unwrap_or_else(|| {
+                v.into_unknown(true, rcstr!("cross module analyzing is not yet supported"))
+            }),
+        JsValue::Argument(..) => v.into_unknown(
+            true,
+            rcstr!("cross function analyzing is not yet supported"),
+        ),
         _ => {
             let (mut v, mut modified) =
                 replace_well_known(v, compile_time_info, allow_project_root_tracing).await?;
@@ -3607,10 +3630,9 @@ async fn require_resolve_visitor(
         .await?;
         let mut values =
             resolved
-                .primary_sources()
                 .await?
-                .iter()
-                .map(|&source| async move {
+                .primary_sources()
+                .map(|source| async move {
                     Ok(require_resolve(source.ident().await?.path.clone()).into())
                 })
                 .try_join()
@@ -3618,28 +3640,24 @@ async fn require_resolve_visitor(
 
         match values.len() {
             0 => JsValue::unknown(
-                JsValue::call(
-                    Box::new(JsValue::WellKnownFunction(
-                        WellKnownFunctionKind::RequireResolve,
-                    )),
+                JsValue::call_from_parts(
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
                     args,
                 ),
                 false,
-                "unresolvable request",
+                rcstr!("unresolvable request"),
             ),
             1 => values.pop().unwrap(),
             _ => JsValue::alternatives(values),
         }
     } else {
         JsValue::unknown(
-            JsValue::call(
-                Box::new(JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireResolve,
-                )),
+            JsValue::call_from_parts(
+                JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
                 args,
             ),
             true,
-            "only a single argument is supported",
+            rcstr!("only a single argument is supported"),
         )
     })
 }
@@ -3652,14 +3670,12 @@ async fn require_context_visitor(
         Ok(options) => options,
         Err(err) => {
             return Ok(JsValue::unknown(
-                JsValue::call(
-                    Box::new(JsValue::WellKnownFunction(
-                        WellKnownFunctionKind::RequireContext,
-                    )),
+                JsValue::call_from_parts(
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
                     args,
                 ),
                 true,
-                PrettyPrintError(&err).to_string(),
+                PrettyPrintError(&err).to_string().into(),
             ));
         }
     };
@@ -3681,9 +3697,9 @@ async fn require_context_visitor(
     );
 
     Ok(JsValue::WellKnownFunction(
-        WellKnownFunctionKind::RequireContextRequire(
+        WellKnownFunctionKind::RequireContextRequire(Box::new(
             RequireContextValue::from_context_map(map).await?,
-        ),
+        )),
     ))
 }
 
