@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="63d3116b-6e4c-29e3-253a-989477151583")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="f1ff9cb0-5b7a-4d26-9103-d3219b1b1aa1")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -727,6 +727,13 @@ browserContextPrototype.R = resolvePathFromModule;
     return `/ROOT/${modulePath ?? ''}`;
 }
 browserContextPrototype.P = resolveAbsolutePath;
+/**
+ * Returns a placeholder `file://` URL for the given module path. The browser
+ * runtime intentionally does not expose the real filesystem path.
+ */ function resolveFileUrl(modulePath) {
+    return `file:///ROOT/${modulePath ?? ''}`;
+}
+browserContextPrototype.F = resolveFileUrl;
 /**
  * Exports a URL with the static suffix appended.
  */ function exportUrl(url, id) {
@@ -2253,5 +2260,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=63d3116b-6e4c-29e3-253a-989477151583
+//# debugId=f1ff9cb0-5b7a-4d26-9103-d3219b1b1aa1
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

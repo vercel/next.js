@@ -1277,6 +1277,13 @@ browserContextPrototype.R = resolvePathFromModule;
 }
 browserContextPrototype.P = resolveAbsolutePath;
 /**
+ * Returns a placeholder `file://` URL for the given module path. The browser
+ * runtime intentionally does not expose the real filesystem path.
+ */ function resolveFileUrl(modulePath) {
+    return `file:///ROOT/${modulePath !== null && modulePath !== void 0 ? modulePath : ''}`;
+}
+browserContextPrototype.F = resolveFileUrl;
+/**
  * Exports a URL with the static suffix appended.
  */ function exportUrl(url, id) {
     exportValue.call(this, `${url}${ASSET_SUFFIX}`, id);
