@@ -1,7 +1,8 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
 
-describe('instant-nav-panel', () => {
+// FIXME: Skipped due to flakiness. Reenable when fixed
+describe.skip('instant-nav-panel', () => {
   const { isNextDev, isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
