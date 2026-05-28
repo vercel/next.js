@@ -270,7 +270,7 @@ const syncMathCards: FixCard[] = [
     id: 'render-at-request-time',
     title: 'Generate on every request',
     group: 'dynamic',
-    link: 'https://nextjs.org/docs/messages/next-prerender-random#render-at-request-time',
+    link: 'https://nextjs.org/docs/messages/next-prerender-random#generate-on-every-request',
     snippets: [
       { text: 'await connection()', highlight: true },
       { text: 'const id = Math.random()' },
@@ -306,7 +306,7 @@ const syncDateCards: FixCard[] = [
     id: 'render-at-request-time',
     title: 'Generate on every request',
     group: 'dynamic',
-    link: 'https://nextjs.org/docs/messages/next-prerender-current-time#render-at-request-time',
+    link: 'https://nextjs.org/docs/messages/next-prerender-current-time#generate-on-every-request',
     snippets: [
       { text: 'await connection()', highlight: true },
       { text: 'const t = Date.now()' },
@@ -339,7 +339,7 @@ const syncDateCards: FixCard[] = [
     id: 'measure-elapsed-time',
     title: 'For telemetry, use a timing API',
     group: 'measure',
-    link: 'https://nextjs.org/docs/messages/next-prerender-current-time#measure-elapsed-time',
+    link: 'https://nextjs.org/docs/messages/next-prerender-current-time#for-telemetry-use-a-timing-api',
     snippets: [
       { text: 'const start = performance.now()', highlight: true },
       { text: 'doWork()' },
@@ -353,7 +353,7 @@ const syncCryptoCards: FixCard[] = [
     id: 'render-at-request-time',
     title: 'Generate on every request',
     group: 'dynamic',
-    link: 'https://nextjs.org/docs/messages/next-prerender-crypto#render-at-request-time',
+    link: 'https://nextjs.org/docs/messages/next-prerender-crypto#generate-on-every-request',
     snippets: [
       { text: 'await connection()', highlight: true },
       { text: 'const id = crypto.randomUUID()' },
@@ -413,7 +413,7 @@ const syncClientDateCards: FixCard[] = [
     id: 'measure-elapsed-time',
     title: 'For telemetry, use a timing API',
     group: 'measure',
-    link: 'https://nextjs.org/docs/messages/next-prerender-current-time-client#measure-elapsed-time',
+    link: 'https://nextjs.org/docs/messages/next-prerender-current-time-client#for-telemetry-use-a-timing-api',
     snippets: [
       { text: 'const start = performance.now()', highlight: true },
       { text: 'doWork()' },
