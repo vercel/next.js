@@ -1845,22 +1845,16 @@ async function prospectiveRuntimeServerPrerender(
 }
 
 /**
- * Prepends a single ASCII byte to the stream indicating whether the response
+ * Prepends a single ASCII byte to the chunks indicating whether the response
  * is partial (contains dynamic holes): '~' (0x7e) for partial, '#' (0x23)
  * for complete.
  */
-function prependIsPartialByte(
-  stream: ReadableStream<Uint8Array>,
+function prependIsPartialByteToChunks(
+  chunks: Uint8Array[],
   isPartial: boolean
-): ReadableStream<Uint8Array> {
-  const byte = new Uint8Array([isPartial ? 0x7e : 0x23])
-  return stream.pipeThrough(
-    new TransformStream({
-      start(controller) {
-        controller.enqueue(byte)
-      },
-    })
-  )
+) {
+  const markerByte = isPartial ? 0x7e : 0x23
+  return [new Uint8Array([markerByte]), ...chunks]
 }
 
 async function finalRuntimeServerPrerender(
@@ -2003,10 +1997,12 @@ async function finalRuntimeServerPrerender(
 
   const result = {
     prelude: new ReactServerPrerenderResult(
-      collectedChunks.prerenderChunks
+      prependIsPartialByteToChunks(
+        collectedChunks.prerenderChunks,
+        serverIsDynamic
+      )
     ).consumeAsStream(),
   }
-  result.prelude = prependIsPartialByte(result.prelude, serverIsDynamic)
 
   return {
     result,
@@ -7864,13 +7860,13 @@ async function prerenderToStream(
       reactServerPrerenderStore = finalServerPrerenderStore
 
       if (shouldGenerateStaticFlightData(workStore)) {
-        metadata.flightData = await streamToBuffer(
+        metadata.flightData = Buffer.concat(
           cachedNavigations
-            ? prependIsPartialByte(
-                reactServerResult.asStream(),
+            ? prependIsPartialByteToChunks(
+                reactServerResult.asChunks(),
                 serverIsDynamic
               )
-            : reactServerResult.asStream()
+            : reactServerResult.asChunks()
         )
 
         // collectSegmentData needs the raw flight data without the marker byte.

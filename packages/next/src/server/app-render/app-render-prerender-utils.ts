@@ -295,6 +295,11 @@ export class ReactServerPrerenderResult {
     this._chunks = chunks
   }
 
+  asChunks(): Array<Uint8Array> {
+    const chunks = this.assertChunks('asChunks()')
+    return chunks
+  }
+
   asUnclosingStream(): ReadableStream<Uint8Array> {
     const chunks = this.assertChunks('asUnclosingStream()')
     return createUnclosingStream(chunks)
