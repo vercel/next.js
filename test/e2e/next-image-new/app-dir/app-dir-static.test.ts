@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev, type Playwright } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 // The fixture page intentionally renders an uncached `await setTimeout(0)`
@@ -52,16 +52,15 @@ import cheerio from 'cheerio'
     })
     if (skipped) return
 
-    let browser: Playwright
     let $: ReturnType<typeof cheerio.load>
 
     beforeAll(async () => {
       const html = await next.render('/static-img')
       $ = cheerio.load(html)
-      browser = await next.browser('/static-img')
     })
 
     it('Should allow an image with a static src to omit height and width', async () => {
+      const browser = await next.browser('/static-img')
       expect(await browser.elementById('basic-static')).toBeTruthy()
       expect(await browser.elementById('blur-png')).toBeTruthy()
       expect(await browser.elementById('blur-webp')).toBeTruthy()
@@ -80,6 +79,7 @@ import cheerio from 'cheerio'
 
     if (!isNextDev) {
       it('Should use immutable cache-control header for static import', async () => {
+        const browser = await next.browser('/static-img')
         await browser.eval(
           `document.getElementById("basic-static").scrollIntoView()`
         )
@@ -96,6 +96,7 @@ import cheerio from 'cheerio'
       })
 
       it('Should use immutable cache-control header even when unoptimized', async () => {
+        const browser = await next.browser('/static-img')
         await browser.eval(
           `document.getElementById("static-unoptimized").scrollIntoView()`
         )
@@ -258,6 +259,7 @@ import cheerio from 'cheerio'
     })
 
     it('should load direct imported image', async () => {
+      const browser = await next.browser('/static-img')
       const src = await browser.elementById('basic-static').getAttribute('src')
       expect(src).toMatch(
         /_next\/image\?url=%2F_next%2Fstatic(%2Fimmutable)?%2Fmedia%2Ftest-rect(.+)\.jpg&w=828&q=75/

@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev, type Playwright } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 describe('Build Error Tests', () => {
@@ -45,16 +45,15 @@ describe('Static Image Component Tests for basePath', () => {
   })
   if (skipped) return
 
-  let browser: Playwright
   let $: ReturnType<typeof cheerio.load>
 
   beforeAll(async () => {
     const html = await next.render('/docs/static-img')
     $ = cheerio.load(html)
-    browser = await next.browser('/docs/static-img')
   })
 
   it('Should allow an image with a static src to omit height and width', async () => {
+    const browser = await next.browser('/docs/static-img')
     expect(await browser.elementById('basic-static')).toBeTruthy()
     expect(await browser.elementById('blur-png')).toBeTruthy()
     expect(await browser.elementById('blur-webp')).toBeTruthy()
@@ -69,6 +68,7 @@ describe('Static Image Component Tests for basePath', () => {
 
   if (!isNextDev) {
     it('Should use immutable cache-control header for static import', async () => {
+      const browser = await next.browser('/docs/static-img')
       await browser.eval(
         `document.getElementById("basic-static").scrollIntoView()`
       )
@@ -83,6 +83,7 @@ describe('Static Image Component Tests for basePath', () => {
     })
 
     it('Should use immutable cache-control header even when unoptimized', async () => {
+      const browser = await next.browser('/docs/static-img')
       await browser.eval(
         `document.getElementById("static-unoptimized").scrollIntoView()`
       )

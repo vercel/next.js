@@ -1,10 +1,5 @@
 /* eslint-disable jest/no-standalone-expect */
-import {
-  nextTestSetup,
-  isNextDev,
-  isNextStart,
-  type Playwright,
-} from 'e2e-utils'
+import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 describe('Build Error Tests', () => {
@@ -48,15 +43,14 @@ describe('Static Image Component Tests', () => {
   })
   if (skipped) return
 
-  let browser: Playwright
   let html: string
 
   beforeAll(async () => {
     html = await next.render('/static-img')
-    browser = await next.browser('/static-img')
   })
 
   it('Should allow an image with a static src to omit height and width', async () => {
+    const browser = await next.browser('/static-img')
     expect(await browser.elementById('basic-static')).toBeTruthy()
     expect(await browser.elementById('blur-png')).toBeTruthy()
     expect(await browser.elementById('blur-webp')).toBeTruthy()
@@ -71,6 +65,7 @@ describe('Static Image Component Tests', () => {
   ;(isNextStart ? it : it.skip)(
     'Should use immutable cache-control header for static import',
     async () => {
+      const browser = await next.browser('/static-img')
       await browser.eval(
         `document.getElementById("basic-static").scrollIntoView()`
       )
@@ -87,6 +82,7 @@ describe('Static Image Component Tests', () => {
   ;(isNextStart ? it : it.skip)(
     'Should use immutable cache-control header even when unoptimized',
     async () => {
+      const browser = await next.browser('/static-img')
       await browser.eval(
         `document.getElementById("static-unoptimized").scrollIntoView()`
       )
@@ -158,6 +154,7 @@ describe('Static Image Component Tests', () => {
   })
 
   it('should load direct imported image', async () => {
+    const browser = await next.browser('/static-img')
     const src = await browser.elementById('basic-static').getAttribute('src')
     expect(src).toMatch(
       /_next\/image\?url=%2F_next%2Fstatic%2F(immutable%2F)?media%2Ftest-rect(.+)\.jpg&w=828&q=75/
@@ -168,6 +165,7 @@ describe('Static Image Component Tests', () => {
   })
 
   it('should load staticprops imported image', async () => {
+    const browser = await next.browser('/static-img')
     const src = await browser
       .elementById('basic-staticprop')
       .getAttribute('src')
