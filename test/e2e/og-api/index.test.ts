@@ -1,18 +1,15 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import fs from 'fs-extra'
 import { join } from 'path'
 
 describe('og-api', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: new FileRef(join(__dirname, 'app')),
-    })
+  const { next, skipped } = nextTestSetup({
+    files: new FileRef(join(__dirname, 'app')),
+    skipDeployment: process.env.TEST_OUTPUT_STANDALONE === 'true',
   })
-  afterAll(() => next.destroy())
+
+  if (skipped) return
 
   it('should respond from index', async () => {
     const html = await renderViaHTTP(next.url, '/')
@@ -51,7 +48,10 @@ describe('og-api', () => {
     expect(body.size).toBeGreaterThan(0)
   })
 
-  if ((global as any).isNextStart) {
+  if (
+    (global as any).isNextStart &&
+    process.env.TEST_OUTPUT_STANDALONE === 'true'
+  ) {
     it('should copy files correctly', async () => {
       expect(next.cliOutput).not.toContain('Failed to copy traced files')
 

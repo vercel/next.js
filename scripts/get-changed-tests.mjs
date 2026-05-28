@@ -164,10 +164,7 @@ export default async function getChangedTests() {
         devTests.add(file)
         prodTests.add(file)
         deployTests.add(file)
-      } else if (file.startsWith('test/integration/')) {
-        devTests.add(file)
-        prodTests.add(file)
-      } else if (file.startsWith('test/prod')) {
+      } else if (file.startsWith('test/production')) {
         prodTests.add(file)
       } else if (file.startsWith('test/development')) {
         devTests.add(file)

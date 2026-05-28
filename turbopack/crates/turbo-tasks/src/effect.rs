@@ -1,5 +1,5 @@
 use std::{
-    any::Any,
+    collections::hash_map,
     error::Error as StdError,
     future::Future,
     mem::{forget, replace},
@@ -11,9 +11,7 @@ use anyhow::Result;
 use futures::{StreamExt, TryStreamExt};
 use parking_lot::{Mutex, MutexGuard};
 use rustc_hash::{FxHashMap, FxHashSet};
-use smallvec::SmallVec;
 use tracing::Instrument;
-use turbo_dyn_eq_hash::DynPartialEq;
 
 use crate::{
     self as turbo_tasks, CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
@@ -42,14 +40,11 @@ pub trait Effect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
     /// [`SharedError`]: crate::util::SharedError
     type Error: EffectError;
 
-    /// The type of this effect's value for storage and comparison.
-    type Value: Clone + DynPartialEq + Eq + Send + Sync + 'static;
-
     /// Unique key identifying this effect's target (e.g., absolute path bytes).
     fn key(&self) -> Box<[u8]>;
 
-    /// Extract the value part of this effect for storage and comparison.
-    fn value(&self) -> &Self::Value;
+    /// Extract the hash of the value part of this effect for comparison.
+    fn value_hash(&self) -> u128;
 
     /// Returns a reference to the state storage.
     fn state_storage(&self) -> &EffectStateStorage;
@@ -80,7 +75,7 @@ enum EffectLastApplied {
         write_event: Event,
     },
     Applied {
-        value: Box<dyn Any + Send + Sync>,
+        value_hash: u128,
         result: Result<(), Arc<dyn EffectError>>,
     },
 }
@@ -98,9 +93,7 @@ pub struct EffectStateStorage {
 // that the dynosaur crate uses: https://github.com/spastorino/dynosaur
 trait DynEffect: TraceRawVcs + NonLocalValue + Send + Sync + 'static {
     fn key(&self) -> Box<[u8]>;
-    /// Compare `self`'s value against a stored `Box<dyn Any>`, using [`DynPartialEq`].
-    fn eq_value_dyn(&self, other: &dyn Any) -> bool;
-    fn value_dyn(&self) -> Box<dyn Any + Send + Sync>;
+    fn value_hash(&self) -> u128;
     fn state_storage(&self) -> &EffectStateStorage;
     fn dyn_apply<'a>(&'a self) -> DynEffectApplyFuture<'a>;
 }
@@ -113,12 +106,8 @@ where
         Effect::key(self)
     }
 
-    fn eq_value_dyn(&self, other: &dyn Any) -> bool {
-        DynPartialEq::dyn_partial_eq(Effect::value(self), other)
-    }
-
-    fn value_dyn(&self) -> Box<dyn Any + Send + Sync> {
-        Box::new(Effect::value(self).clone())
+    fn value_hash(&self) -> u128 {
+        Effect::value_hash(self)
     }
 
     fn state_storage(&self) -> &EffectStateStorage {
@@ -318,27 +307,27 @@ impl Effects {
             let unique_indices = self
                 .unique_indices
                 .get_or_init(|| {
-                    let mut by_key: FxHashMap<Box<[u8]>, SmallVec<[usize; 1]>> =
-                        FxHashMap::default();
-                    for (i, effect) in self.effects.iter().enumerate() {
-                        let key = effect.inner.key();
-                        by_key.entry(key).or_default().push(i);
-                    }
-
-                    let mut indices = Vec::with_capacity(by_key.len());
-                    for (key, group) in by_key {
-                        if group.len() > 1 {
-                            let first_value = self.effects[group[0]].inner.value_dyn();
-                            for &idx in &group[1..] {
-                                if !self.effects[idx].inner.eq_value_dyn(&*first_value) {
+                    let mut by_key: FxHashMap<Box<[u8]>, usize> = FxHashMap::default();
+                    for (idx, effect) in self.effects.iter().enumerate() {
+                        match by_key.entry(effect.inner.key()) {
+                            hash_map::Entry::Vacant(entry) => {
+                                entry.insert(idx);
+                            }
+                            hash_map::Entry::Occupied(entry) => {
+                                if self.effects[*entry.get()].inner.value_hash()
+                                    != effect.inner.value_hash()
+                                {
                                     return Err(Arc::new(ConflictingEffectError {
-                                        key_len: key.len(),
+                                        key_len: entry.key().len(),
                                     }));
                                 }
                             }
                         }
-                        let idx = group[0];
-                        let state_storage = self.effects[idx].inner.state_storage();
+                    }
+
+                    let mut indices = Vec::with_capacity(by_key.len());
+                    for (key, effect_idx) in by_key {
+                        let state_storage = self.effects[effect_idx].inner.state_storage();
                         // Look up or create the per-key state entry and cache the Arc directly.
                         let entry = state_storage
                             .effect_state
@@ -346,7 +335,7 @@ impl Effects {
                             .entry(key)
                             .or_insert_with(|| Arc::new(Mutex::new(EffectLastApplied::Unapplied)))
                             .clone();
-                        indices.push((idx, entry));
+                        indices.push((effect_idx, entry));
                     }
                     Ok(indices)
                 })
@@ -396,9 +385,9 @@ impl Effects {
                                 EffectLastApplied::Unapplied => {
                                     break begin_in_progress(last_applied_guard);
                                 }
-                                EffectLastApplied::Applied { value, result } => {
+                                EffectLastApplied::Applied { value_hash, result } => {
                                     // Fast path: check if the stored value already matches
-                                    if effect.eq_value_dyn(&**value) {
+                                    if effect.value_hash() == *value_hash {
                                         return result.clone();
                                     } else {
                                         break begin_in_progress(last_applied_guard);
@@ -425,7 +414,7 @@ impl Effects {
                     let prev_state = replace(
                         &mut *entry.lock(),
                         EffectLastApplied::Applied {
-                            value: effect.value_dyn(),
+                            value_hash: effect.value_hash(),
                             result: effect_result.clone(),
                         },
                     );

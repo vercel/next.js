@@ -175,7 +175,6 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         verification_mode: VerificationMode,
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
-    fn mark_own_task_as_session_dependent(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
 
@@ -411,6 +410,7 @@ pub enum TaskPriority {
     Invalidation {
         priority: Reverse<u32>,
     },
+    Recomputation,
 }
 
 impl TaskPriority {
@@ -446,6 +446,7 @@ impl TaskPriority {
                     *self
                 }
             }
+            TaskPriority::Recomputation => TaskPriority::Recomputation,
         }
     }
 }
@@ -455,6 +456,7 @@ impl Display for TaskPriority {
         match self {
             TaskPriority::Initial => write!(f, "initial"),
             TaskPriority::Invalidation { priority } => write!(f, "invalidation({})", priority.0),
+            TaskPriority::Recomputation => write!(f, "recomputation"),
         }
     }
 }
@@ -1185,70 +1187,66 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                 let this = this.clone();
                 let future = async move {
                     abort_on_panic(async {
-                        let mut schedule_again = true;
-                        while schedule_again {
-                            // it's okay for execution ids to overflow and wrap, they're just used
-                            // for an assert
-                            let execution_id = this.execution_id_factory.wrapping_get();
-                            let current_task_state = Arc::new(RwLock::new(CurrentTaskState::new(
-                                task_id,
-                                execution_id,
-                                priority,
-                                false, // in_top_level_task
-                            )));
-                            let single_execution_future = async {
-                                if this.stopped.load(Ordering::Acquire) {
-                                    this.backend.task_execution_canceled(task_id, &*this);
-                                    return false;
-                                }
+                        // it's okay for execution ids to overflow and wrap, they're just used
+                        // for an assert
+                        let execution_id = this.execution_id_factory.wrapping_get();
+                        let current_task_state = Arc::new(RwLock::new(CurrentTaskState::new(
+                            task_id,
+                            execution_id,
+                            priority,
+                            false, // in_top_level_task
+                        )));
+                        let single_execution_future = async {
+                            if this.stopped.load(Ordering::Acquire) {
+                                this.backend.task_execution_canceled(task_id, &*this);
+                                return None;
+                            }
 
-                                let Some(TaskExecutionSpec { future, span }) = this
-                                    .backend
-                                    .try_start_task_execution(task_id, priority, &*this)
-                                else {
-                                    return false;
+                            let TaskExecutionSpec { future, span } = this
+                                .backend
+                                .try_start_task_execution(task_id, priority, &*this)?;
+
+                            async {
+                                let result = CaptureFuture::new(future).await;
+
+                                // wait for all spawned local tasks using `local` to finish
+                                wait_for_local_tasks().await;
+
+                                let result = match result {
+                                    Ok(Ok(raw_vc)) => {
+                                        // This is safe because we waited for all local tasks to
+                                        // complete above
+                                        raw_vc
+                                            .to_non_local_unchecked_sync(&*this)
+                                            .map_err(|err| err.into())
+                                    }
+                                    Ok(Err(err)) => Err(err.into()),
+                                    Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
                                 };
 
-                                async {
-                                    let result = CaptureFuture::new(future).await;
-
-                                    // wait for all spawned local tasks using `local` to finish
-                                    wait_for_local_tasks().await;
-
-                                    let result = match result {
-                                        Ok(Ok(raw_vc)) => {
-                                            // This is safe because we waited for all local tasks to
-                                            // complete above
-                                            raw_vc
-                                                .to_non_local_unchecked_sync(&*this)
-                                                .map_err(|err| err.into())
-                                        }
-                                        Ok(Err(err)) => Err(err.into()),
-                                        Err(err) => {
-                                            Err(TurboTasksExecutionError::Panic(Arc::new(err)))
-                                        }
-                                    };
-
-                                    let finished_state = this.finish_current_task_state();
-                                    let cell_counters = CURRENT_TASK_STATE.with(|ts| {
-                                        ts.write().unwrap().cell_counters.take().unwrap()
-                                    });
-                                    this.backend.task_execution_completed(
-                                        task_id,
-                                        result,
-                                        &cell_counters,
-                                        #[cfg(feature = "verify_determinism")]
-                                        finished_state.stateful,
-                                        finished_state.has_invalidator,
-                                        &*this,
-                                    )
-                                }
-                                .instrument(span)
-                                .await
-                            };
-                            schedule_again = CURRENT_TASK_STATE
-                                .scope(current_task_state, single_execution_future)
-                                .await;
+                                let finished_state = this.finish_current_task_state();
+                                let cell_counters = CURRENT_TASK_STATE
+                                    .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
+                                this.backend.task_execution_completed(
+                                    task_id,
+                                    result,
+                                    &cell_counters,
+                                    #[cfg(feature = "verify_determinism")]
+                                    finished_state.stateful,
+                                    finished_state.has_invalidator,
+                                    &*this,
+                                )
+                            }
+                            .instrument(span)
+                            .await
+                        };
+                        if let Some(stale_priority) = CURRENT_TASK_STATE
+                            .scope(current_task_state, single_execution_future)
+                            .await
+                        {
+                            // Task was stale; re-schedule at the correct invalidation priority so
+                            // other tasks can run in the right priority order.
+                            this.schedule(task_id, stale_priority);
                         }
                         this.finish_foreground_job();
                     })
@@ -1572,10 +1570,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.mark_own_task_as_finished(task, self);
     }
 
-    fn mark_own_task_as_session_dependent(&self, task: TaskId) {
-        self.backend.mark_own_task_as_session_dependent(task, self);
-    }
-
     /// Creates a future that inherits the current task id and task state. The current global task
     /// will wait for this future to be dropped before exiting.
     fn spawn_detached_for_testing(&self, fut: Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
@@ -1895,13 +1889,6 @@ pub fn spawn_detached_for_testing(f: impl Future<Output = ()> + Send + 'static) 
 
 pub fn current_task_for_testing() -> Option<TaskId> {
     CURRENT_TASK_STATE.with(|ts| ts.read().unwrap().task_id)
-}
-
-/// Marks the current task as dirty when restored from filesystem cache.
-pub fn mark_session_dependent() {
-    with_turbo_tasks(|tt| {
-        tt.mark_own_task_as_session_dependent(current_task("turbo_tasks::mark_session_dependent()"))
-    });
 }
 
 /// Marks the current task as finished. This excludes it from waiting for

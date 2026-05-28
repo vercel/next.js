@@ -163,6 +163,43 @@ describe('cache-indicator', () => {
       })
     })
 
+    it('opens cache-disabled info panel from the devtools menu', async () => {
+      const browser = await next.browser('/', {
+        extraHTTPHeaders: { 'cache-control': 'no-cache' },
+      })
+
+      await retry(async () => {
+        const hasCacheBypassBadge = await browser.hasElementByCss(
+          '[data-cache-bypass-badge]'
+        )
+        expect(hasCacheBypassBadge).toBe(true)
+      })
+
+      // Open the devtools menu via the cache-bypass badge (the regular
+      // indicator is hidden when caches are bypassed).
+      await browser
+        .elementByCss('[data-cache-bypass-badge] [data-issues-open]')
+        .click()
+
+      await retry(async () => {
+        const hasMenu = await browser.hasElementByCss('#nextjs-dev-tools-menu')
+        expect(hasMenu).toBe(true)
+      })
+
+      await browser.elementByCss('[data-cache-disabled]').click()
+
+      await retry(async () => {
+        const article = await browser.elementByCss('.dev-tools-info-article')
+        expect(await article.text()).toMatchInlineSnapshot(`
+         "While loading this page, all caches were bypassed.
+
+         This is the case when the cache was disabled in the browser's devtools, the page was hard-reloaded, or draft mode is enabled.
+
+         As a result, the loading experience might not be the same as in production. React's DevTools will also not accurately show information about what would normally suspend in the page, and Next.js cannot validate whether a navigation to this page would be instant or blocking."
+        `)
+      })
+    })
+
     it('can dismiss cache-bypassing badge', async () => {
       const browser = await next.browser('/', {
         extraHTTPHeaders: { 'cache-control': 'no-cache' },

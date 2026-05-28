@@ -12,34 +12,37 @@ use bincode::{
 };
 use rustc_hash::FxHasher;
 
-type InnerMap<K, V> = AutoMap<K, V, BuildHasherDefault<FxHasher>, 1>;
+type InnerMap<K, V, const I: usize> = AutoMap<K, V, BuildHasherDefault<FxHasher>, I>;
 
 /// A map optimized for reference counting, backed by AutoMap.
 ///
 /// Entries are automatically removed when their count reaches zero.
 /// This provides memory-efficient storage for sparse counter data.
+///
+/// The `I` const generic forwards the inline capacity to the backing `AutoMap`
+/// — see the schema field-by-field sizing for the chosen values.
 #[derive(Debug, Clone)]
-pub struct CounterMap<K, V>(InnerMap<K, V>);
+pub struct CounterMap<K, V, const I: usize>(InnerMap<K, V, I>);
 
-impl<K, V> Default for CounterMap<K, V> {
+impl<K, V, const I: usize> Default for CounterMap<K, V, I> {
     fn default() -> Self {
         Self(InnerMap::default())
     }
 }
 
-impl<K: Eq + Hash, V: Eq> PartialEq for CounterMap<K, V> {
+impl<K: Eq + Hash, V: Eq, const I: usize> PartialEq for CounterMap<K, V, I> {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 }
 
-impl<K: Encode, V: Encode> Encode for CounterMap<K, V> {
+impl<K: Encode, V: Encode, const I: usize> Encode for CounterMap<K, V, I> {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         self.0.encode(encoder)
     }
 }
 
-impl<Context, K, V> Decode<Context> for CounterMap<K, V>
+impl<Context, K, V, const I: usize> Decode<Context> for CounterMap<K, V, I>
 where
     K: Decode<Context> + Eq + Hash,
     V: Decode<Context>,
@@ -80,7 +83,7 @@ impl CounterValue for i32 {
     }
 }
 
-impl<K, V> CounterMap<K, V> {
+impl<K, V, const I: usize> CounterMap<K, V, I> {
     pub fn new() -> Self {
         Self(AutoMap::default())
     }
@@ -117,9 +120,37 @@ impl<K, V> CounterMap<K, V> {
     {
         self.0.remove(key)
     }
+
+    /// Retain only entries for which `f(key, value)` returns `true`.
+    pub fn retain<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&K, &V) -> bool,
+        K: Eq + Hash,
+    {
+        self.0.retain(|k, v| f(k, v));
+    }
+
+    /// Extend this map with the entries from an iterator. Used by restore paths
+    /// to merge persistent entries loaded from disk into an existing map that
+    /// may hold transient residue.
+    pub fn extend(&mut self, iter: impl IntoIterator<Item = (K, V)>)
+    where
+        K: Eq + Hash,
+    {
+        self.0.extend(iter);
+    }
 }
 
-impl<K: Hash + Eq, V: CounterValue> CounterMap<K, V> {
+impl<K, V, const I: usize> IntoIterator for CounterMap<K, V, I> {
+    type Item = (K, V);
+    type IntoIter = <InnerMap<K, V, I> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<K: Hash + Eq, V: CounterValue, const I: usize> CounterMap<K, V, I> {
     /// Insert a key-value pair. Panics if value is zero (invariant: zero values are not stored).
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         debug_assert!(
@@ -269,7 +300,7 @@ mod tests {
 
     #[test]
     fn test_update_count_new_entry() {
-        let mut map: CounterMap<u32, u32> = CounterMap::new();
+        let mut map: CounterMap<u32, u32, 1> = CounterMap::new();
         // Adding new entry crosses zero (from nothing to something)
         assert!(map.update_count(1, 5));
         assert_eq!(map.get(&1), Some(&5));
@@ -277,7 +308,7 @@ mod tests {
 
     #[test]
     fn test_update_count_increment() {
-        let mut map: CounterMap<u32, u32> = CounterMap::new();
+        let mut map: CounterMap<u32, u32, 1> = CounterMap::new();
         map.update_count(1, 5);
         // Incrementing existing entry doesn't cross zero
         assert!(!map.update_count(1, 3));
@@ -286,7 +317,7 @@ mod tests {
 
     #[test]
     fn test_update_count_removal_on_zero() {
-        let mut map: CounterMap<u32, i32> = CounterMap::new();
+        let mut map: CounterMap<u32, i32, 1> = CounterMap::new();
         map.update_count(1, 5);
         // Subtracting to zero removes entry and crosses zero
         assert!(map.update_count(1, -5));
@@ -296,7 +327,7 @@ mod tests {
 
     #[test]
     fn test_update_count_zero_delta_on_empty() {
-        let mut map: CounterMap<u32, u32> = CounterMap::new();
+        let mut map: CounterMap<u32, u32, 1> = CounterMap::new();
         // Adding zero to non-existent entry doesn't create it
         assert!(!map.update_count(1, 0));
         assert!(map.is_empty());
@@ -304,14 +335,14 @@ mod tests {
 
     #[test]
     fn test_update_and_get_new_entry() {
-        let mut map: CounterMap<u32, u32> = CounterMap::new();
+        let mut map: CounterMap<u32, u32, 1> = CounterMap::new();
         assert_eq!(map.update_and_get(1, 5), 5);
         assert_eq!(map.get(&1), Some(&5));
     }
 
     #[test]
     fn test_update_and_get_increment() {
-        let mut map: CounterMap<u32, u32> = CounterMap::new();
+        let mut map: CounterMap<u32, u32, 1> = CounterMap::new();
         map.update_and_get(1, 5);
         assert_eq!(map.update_and_get(1, 3), 8);
         assert_eq!(map.get(&1), Some(&8));
@@ -319,7 +350,7 @@ mod tests {
 
     #[test]
     fn test_update_and_get_removal() {
-        let mut map: CounterMap<u32, i32> = CounterMap::new();
+        let mut map: CounterMap<u32, i32, 1> = CounterMap::new();
         map.update_and_get(1, 5);
         assert_eq!(map.update_and_get(1, -5), 0);
         assert!(map.is_empty());
@@ -327,7 +358,7 @@ mod tests {
 
     #[test]
     fn test_add_entry() {
-        let mut map: CounterMap<u32, u32> = CounterMap::new();
+        let mut map: CounterMap<u32, u32, 1> = CounterMap::new();
         map.add_entry(1, 10);
         assert_eq!(map.get(&1), Some(&10));
     }
@@ -335,14 +366,14 @@ mod tests {
     #[test]
     #[should_panic(expected = "Entry already exists")]
     fn test_add_entry_panics_on_duplicate() {
-        let mut map: CounterMap<u32, u32> = CounterMap::new();
+        let mut map: CounterMap<u32, u32, 1> = CounterMap::new();
         map.add_entry(1, 10);
         map.add_entry(1, 20); // Should panic
     }
 
     #[test]
     fn test_update_positive_crossing_new_positive() {
-        let mut map: CounterMap<u32, i32> = CounterMap::new();
+        let mut map: CounterMap<u32, i32, 1> = CounterMap::new();
         // From nothing to positive - crosses positive boundary
         assert!(map.update_positive_crossing(1, 5));
         assert_eq!(map.get(&1), Some(&5));
@@ -350,7 +381,7 @@ mod tests {
 
     #[test]
     fn test_update_positive_crossing_new_negative() {
-        let mut map: CounterMap<u32, i32> = CounterMap::new();
+        let mut map: CounterMap<u32, i32, 1> = CounterMap::new();
         // From nothing to negative - doesn't cross positive boundary
         assert!(!map.update_positive_crossing(1, -5));
         assert_eq!(map.get(&1), Some(&-5));
@@ -358,7 +389,7 @@ mod tests {
 
     #[test]
     fn test_update_positive_crossing_stay_positive() {
-        let mut map: CounterMap<u32, i32> = CounterMap::new();
+        let mut map: CounterMap<u32, i32, 1> = CounterMap::new();
         map.update_positive_crossing(1, 5);
         // Staying positive doesn't cross boundary
         assert!(!map.update_positive_crossing(1, 3));
@@ -367,7 +398,7 @@ mod tests {
 
     #[test]
     fn test_update_positive_crossing_to_non_positive() {
-        let mut map: CounterMap<u32, i32> = CounterMap::new();
+        let mut map: CounterMap<u32, i32, 1> = CounterMap::new();
         map.update_positive_crossing(1, 5);
         // Crossing to non-positive
         assert!(map.update_positive_crossing(1, -8));
@@ -376,7 +407,7 @@ mod tests {
 
     #[test]
     fn test_update_positive_crossing_to_zero_removes() {
-        let mut map: CounterMap<u32, i32> = CounterMap::new();
+        let mut map: CounterMap<u32, i32, 1> = CounterMap::new();
         map.update_positive_crossing(1, 5);
         // Crossing to zero removes and crosses boundary
         assert!(map.update_positive_crossing(1, -5));
@@ -385,14 +416,14 @@ mod tests {
 
     #[test]
     fn test_update_with_create() {
-        let mut map: CounterMap<u32, u32> = CounterMap::new();
+        let mut map: CounterMap<u32, u32, 1> = CounterMap::new();
         map.update_with(1, |_| Some(10));
         assert_eq!(map.get(&1), Some(&10));
     }
 
     #[test]
     fn test_update_with_modify() {
-        let mut map: CounterMap<u32, u32> = CounterMap::new();
+        let mut map: CounterMap<u32, u32, 1> = CounterMap::new();
         map.update_with(1, |_| Some(10));
         map.update_with(1, |v| v.map(|x| x + 5));
         assert_eq!(map.get(&1), Some(&15));
@@ -400,7 +431,7 @@ mod tests {
 
     #[test]
     fn test_update_with_remove() {
-        let mut map: CounterMap<u32, u32> = CounterMap::new();
+        let mut map: CounterMap<u32, u32, 1> = CounterMap::new();
         map.update_with(1, |_| Some(10));
         map.update_with(1, |_| None);
         assert!(map.is_empty());
@@ -408,14 +439,14 @@ mod tests {
 
     #[test]
     fn test_update_with_no_op() {
-        let mut map: CounterMap<u32, u32> = CounterMap::new();
+        let mut map: CounterMap<u32, u32, 1> = CounterMap::new();
         map.update_with(1, |_| None);
         assert!(map.is_empty());
     }
 
     #[test]
     fn test_len_and_is_empty() {
-        let mut map: CounterMap<u32, u32> = CounterMap::new();
+        let mut map: CounterMap<u32, u32, 1> = CounterMap::new();
         assert!(map.is_empty());
         assert_eq!(map.len(), 0);
 
@@ -429,7 +460,7 @@ mod tests {
 
     #[test]
     fn test_iter() {
-        let mut map: CounterMap<u32, u32> = CounterMap::new();
+        let mut map: CounterMap<u32, u32, 1> = CounterMap::new();
         map.update_count(1, 5);
         map.update_count(2, 10);
 

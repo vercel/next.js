@@ -35,6 +35,7 @@ import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
+import { isRSCRequestHeader } from '../lib/is-rsc-request'
 import { setRequestMeta } from '../request-meta'
 
 export class NextRequestHint extends NextRequest {
@@ -151,7 +152,7 @@ export async function adapter(
 
   const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const isNextDataRequest = requestHeaders.has('x-nextjs-data')
-  const isRSCRequest = requestHeaders.get(RSC_HEADER) === '1'
+  const isRSCRequest = isRSCRequestHeader(requestHeaders.get(RSC_HEADER))
 
   if (isNextDataRequest && requestURL.pathname === '/index') {
     requestURL.pathname = '/'

@@ -376,7 +376,7 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
 
     // Process the output assets and extract chunk parts.
     // Also creates sources for the chunk parts.
-    for &asset in output_assets.await? {
+    for asset in output_assets.await? {
         let filename = asset.path().to_string().owned().await?;
         if filename.ends_with(".map") || filename.ends_with(".nft.json") {
             // Skip source maps.
@@ -385,7 +385,7 @@ pub async fn analyze_output_assets(output_assets: Vc<OutputAssets>) -> Result<Vc
 
         let output_file_index = builder.add_output_file(AnalyzeOutputFile { filename });
         let chunk_parts = split_output_asset_into_parts(*asset).await?;
-        for chunk_part in chunk_parts {
+        for chunk_part in &chunk_parts {
             let decoded_source = urlencoding::decode(&chunk_part.source)?;
             let source = if let Some(stripped) = decoded_source.strip_prefix(&prefix) {
                 Cow::Borrowed(stripped)
@@ -439,7 +439,7 @@ pub async fn analyze_module_graphs(module_graphs: Vc<ModuleGraphs>) -> Result<Vc
     let mut all_modules = FxIndexSet::default();
     let mut all_edges = FxIndexSet::default();
     let mut all_async_edges = FxIndexSet::default();
-    for &module_graph in module_graphs.await? {
+    for module_graph in module_graphs.await? {
         let module_graph = module_graph.await?;
         module_graph.traverse_edges_unordered(|parent, node| {
             if let Some((parent_node, reference)) = parent {
