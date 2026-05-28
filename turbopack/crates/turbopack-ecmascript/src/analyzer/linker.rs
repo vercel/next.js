@@ -39,7 +39,7 @@ const LIMIT_NODE_SIZE: u32 = 100;
 const LIMIT_IN_PROGRESS_NODES: u32 = 500;
 const LIMIT_LINK_STEPS: u32 = 1500;
 
-#[derive(Debug, Hash, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 enum Step {
     /// Take all children out of the value (replacing temporarily with unknown) and queue them
     /// for processing using individual `Enter`s.

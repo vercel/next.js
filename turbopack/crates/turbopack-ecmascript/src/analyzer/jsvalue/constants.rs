@@ -12,14 +12,13 @@ use swc_core::{
     ecma::{ast::Lit, atoms::Atom},
 };
 use turbo_rcstr::RcStr;
-use turbopack_core::compile_time_info::TotalOrderF64;
 
 use crate::{
     analyzer::{JsValue, imports::ImportAnnotations},
     utils::StringifyJs,
 };
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq)]
 pub enum ObjectPart {
     KeyValue(JsValue, JsValue),
     Spread(JsValue),
@@ -31,15 +30,22 @@ impl Default for ObjectPart {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct ConstantNumber(pub TotalOrderF64);
+#[derive(Debug, Clone, PartialEq)]
+pub struct ConstantNumber(pub f64);
 
 impl ConstantNumber {
     pub fn as_u32_index(&self) -> Option<usize> {
-        let index: u32 = *self.0 as u32;
-        (index as f64 == *self.0).then_some(index as usize)
+        let index: u32 = self.0 as u32;
+        (index as f64 == self.0).then_some(index as usize)
     }
 }
+
+impl Hash for ConstantNumber {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.to_ne_bytes().hash(state);
+    }
+}
+
 impl From<f64> for ConstantNumber {
     fn from(value: f64) -> Self {
         ConstantNumber(value.into())
@@ -123,7 +129,7 @@ impl From<RcStr> for ConstantString {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Hash)]
 pub enum ConstantValue {
     #[default]
     Undefined,
@@ -157,7 +163,7 @@ impl ConstantValue {
             Self::Undefined | Self::False | Self::Null => false,
             Self::True | Self::Regex(..) => true,
             Self::Str(s) => !s.is_empty(),
-            Self::Num(ConstantNumber(n)) => **n != 0.0,
+            Self::Num(ConstantNumber(n)) => *n != 0.0,
             Self::BigInt(n) => !n.is_zero(),
         }
     }
