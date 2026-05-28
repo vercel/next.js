@@ -500,7 +500,10 @@ impl TryFrom<&CompileTimeDefineValue> for JsValue {
             CompileTimeDefineValue::Undefined => ConstantValue::Undefined,
             CompileTimeDefineValue::Null => ConstantValue::Null,
             CompileTimeDefineValue::Bool(b) => (*b).into(),
-            CompileTimeDefineValue::Number(n) => ConstantValue::Num(ConstantNumber(**n)),
+            CompileTimeDefineValue::Number(n) => ConstantValue::Num(ConstantNumber(
+                n.as_f64()
+                    .expect("unreachable: serde-json has arbitrary_precision disabled"),
+            )),
             CompileTimeDefineValue::BigInt(n) => ConstantValue::BigInt(n.clone()),
             CompileTimeDefineValue::String(s) => s.as_str().into(),
             CompileTimeDefineValue::Regex(pattern, flags) => {
@@ -548,7 +551,10 @@ impl TryFrom<&ConstantValue> for CompileTimeDefineValue {
             ConstantValue::Null => CompileTimeDefineValue::Null,
             ConstantValue::True => CompileTimeDefineValue::Bool(true),
             ConstantValue::False => CompileTimeDefineValue::Bool(false),
-            ConstantValue::Num(n) => CompileTimeDefineValue::Number(n.0.into()),
+            ConstantValue::Num(n) => CompileTimeDefineValue::Number(
+                serde_json::Number::from_f64(n.0)
+                    .ok_or_else(|| anyhow::anyhow!("NaN and Infinity cannot be represented"))?,
+            ),
             ConstantValue::Str(s) => CompileTimeDefineValue::String(s.as_rcstr()),
             ConstantValue::BigInt(n) => CompileTimeDefineValue::BigInt(n.clone()),
             ConstantValue::Regex(regex) => CompileTimeDefineValue::Regex(
