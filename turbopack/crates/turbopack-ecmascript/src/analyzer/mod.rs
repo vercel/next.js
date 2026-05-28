@@ -2430,6 +2430,7 @@ impl JsValue {
             JsValue::Url(..)
             | JsValue::Array { .. }
             | JsValue::Object { .. }
+            | JsValue::Promise(..)
             | JsValue::WellKnownObject(..)
             | JsValue::WellKnownFunction(..)
             | JsValue::Function(..) => Some(true),
@@ -2515,6 +2516,7 @@ impl JsValue {
             | JsValue::WellKnownFunction(..)
             | JsValue::Not(..)
             | JsValue::Binary(..)
+            | JsValue::Promise(..)
             | JsValue::Function(..) => Some(false),
             JsValue::Alternatives {
                 total_nodes: _,
@@ -4017,7 +4019,7 @@ mod tests {
     };
 
     use super::{
-        JsValue,
+        ConstantValue, JsValue,
         graph::{ConditionalKind, Effect, EffectArg, EvalContext, VarGraph, create_graph},
         linker::link,
     };
@@ -4684,6 +4686,46 @@ mod tests {
             None,
             "expected to be unable to determine whether '{}' is not-nullish",
             input
+        );
+    }
+
+    #[rstest]
+    #[case(JsValue::from(1.0))]
+    #[case(JsValue::from("hi"))]
+    #[case(ConstantValue::True.into())]
+    #[case(JsValue::promise(ConstantValue::Null.into()))]
+    fn is_truthy_positive(#[case] v: JsValue) {
+        assert_eq!(v.is_truthy(), Some(true), "expected '{v}' to be truthy");
+    }
+
+    #[rstest]
+    #[case(JsValue::from(0.0))]
+    #[case(JsValue::from(""))]
+    #[case(ConstantValue::False.into())]
+    #[case(ConstantValue::Null.into())]
+    #[case(ConstantValue::Undefined.into())]
+    fn is_truthy_negative(#[case] v: JsValue) {
+        assert_eq!(v.is_truthy(), Some(false), "expected '{v}' to be falsy");
+    }
+
+    #[rstest]
+    #[case(ConstantValue::Null.into())]
+    #[case(ConstantValue::Undefined.into())]
+    fn is_nullish_positive(#[case] v: JsValue) {
+        assert_eq!(v.is_nullish(), Some(true), "expected '{v}' to be nullish");
+    }
+
+    #[rstest]
+    #[case(JsValue::from(0.0))]
+    #[case(JsValue::from(""))]
+    #[case(JsValue::from("hi"))]
+    #[case(ConstantValue::True.into())]
+    #[case(JsValue::promise(ConstantValue::Null.into()))]
+    fn is_nullish_negative(#[case] v: JsValue) {
+        assert_eq!(
+            v.is_nullish(),
+            Some(false),
+            "expected '{v}' not to be nullish"
         );
     }
 }
