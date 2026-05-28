@@ -45,7 +45,6 @@ import {
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
 import { getStaticMetadataPrerenderPathname } from '../../lib/metadata/get-metadata-route'
 import { isStaticMetadataFile } from '../../lib/metadata/is-metadata-route'
-import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
@@ -580,7 +579,6 @@ export async function handleBuildComplete({
         distDir,
         requiredServerFiles,
         dir,
-        config,
         tracingRoot,
         bundler,
         hasInstrumentationHook,
@@ -2123,7 +2121,6 @@ export async function handleBuildComplete({
 
 async function getSharedNodeAssets({
   dir,
-  config,
   bundler,
   distDir,
   tracingRoot,
@@ -2131,7 +2128,6 @@ async function getSharedNodeAssets({
   hasInstrumentationHook,
 }: {
   dir: string
-  config: NextConfigComplete
   bundler: Bundler
   distDir: string
   tracingRoot: string
@@ -2203,42 +2199,7 @@ async function getSharedNodeAssets({
     bundler
   )
 
-  const cacheHandlerEntries = [
-    config.cacheHandler,
-    ...Object.values(config.cacheHandlers ?? {}),
-  ].flatMap((handlerPath) => {
-    if (!handlerPath) {
-      return []
-    }
-
-    const resolvedPath = resolveCacheHandlerPathToFilesystem(handlerPath)
-    return [
-      require.resolve(
-        path.isAbsolute(resolvedPath)
-          ? resolvedPath
-          : path.join(dir, resolvedPath)
-      ),
-    ]
-  })
-
-  const necessaryNodeDependencies =
-    bundler !== Bundler.Turbopack
-      ? [
-          require.resolve('next/dist/server/node-environment'),
-          require.resolve('next/dist/server/require-hook'),
-          require.resolve('next/dist/server/node-polyfill-crypto'),
-          ...Object.values(defaultOverrides).filter((item) =>
-            path.extname(item)
-          ),
-        ]
-      : []
-
-  const sharedTraceEntries = [
-    ...necessaryNodeDependencies,
-    ...cacheHandlerEntries,
-  ]
-
-  if (sharedTraceEntries.length > 0) {
+  if (bundler !== Bundler.Turbopack) {
     const { nodeFileTrace } =
       require('next/dist/compiled/@vercel/nft') as typeof import('next/dist/compiled/@vercel/nft')
     const { makeIgnoreFn } =
@@ -2262,10 +2223,21 @@ async function getSharedNodeAssets({
     ]
     const sharedIgnoreFn = makeIgnoreFn(tracingRoot, sharedTraceIgnores)
 
-    const { fileList, esmFileList } = await nodeFileTrace(sharedTraceEntries, {
-      base: tracingRoot,
-      ignore: sharedIgnoreFn,
-    })
+    // These are modules that are necessary for bootstrapping node env
+    const necessaryNodeDependencies = [
+      require.resolve('next/dist/server/node-environment'),
+      require.resolve('next/dist/server/require-hook'),
+      require.resolve('next/dist/server/node-polyfill-crypto'),
+      ...Object.values(defaultOverrides).filter((item) => path.extname(item)),
+    ]
+
+    const { fileList, esmFileList } = await nodeFileTrace(
+      necessaryNodeDependencies,
+      {
+        base: tracingRoot,
+        ignore: sharedIgnoreFn,
+      }
+    )
     esmFileList.forEach((item) => fileList.add(item))
 
     for (const rootRelativeFilePath of fileList) {
