@@ -1936,7 +1936,7 @@ export default async function getBaseWebpackConfig(
         // `export { a } from 'next-flight-server-reference-proxy-loader?id=idOfA&name=a!
         // `export { b } from 'next-flight-server-reference-proxy-loader?id=idOfB&name=b!
         {
-          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]next-flight-loader[\\/]action-client-wrapper\.js/,
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?webpack[\\/]build[\\/]webpack[\\/]loaders[\\/]next-flight-loader[\\/]action-client-wrapper\.js/,
           sideEffects: false,
         },
         // The placeholder file aliased from `private-next-instrumentation-client`.
@@ -1945,7 +1945,7 @@ export default async function getBaseWebpackConfig(
         // the user's `instrumentation-client.{pageExt}` (composing
         // `onRouterTransitionStart` hooks across all of them).
         {
-          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]instrumentation-client-stub\.js$/,
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?webpack[\\/]build[\\/]webpack[\\/]loaders[\\/]instrumentation-client-stub\.js$/,
           use: {
             loader: 'next-instrumentation-client-loader',
             options: {

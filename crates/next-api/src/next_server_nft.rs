@@ -317,6 +317,7 @@ impl ServerNftJsonAsset {
             "**/*.map",
             "**/next/dist/pages/**/*",
             "**/next/dist/compiled/next-server/**/*.dev.js",
+            "**/next/dist/webpack/load-webpack-hook.js",
             "**/next/dist/compiled/webpack/*",
             "**/node_modules/webpack5/**/*",
             "**/next/dist/server/lib/route-resolver*",

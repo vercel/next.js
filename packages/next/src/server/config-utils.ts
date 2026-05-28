@@ -7,7 +7,9 @@ export function loadWebpackHook() {
   installed = true
 
   const { loadWebpackHook: installWebpackHook } =
-    require('next/dist/webpack/next-integration') as typeof import('next/dist/webpack/next-integration')
+    require('next/dist/webpack/load-webpack-hook') as {
+      loadWebpackHook: () => void
+    }
 
   installWebpackHook()
 }
