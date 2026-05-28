@@ -31,7 +31,6 @@ pub enum WebpackRuntime {
         /// There is a [JsValue]::FreeVar("chunkId") that need to be replaced
         /// before converting to string
         #[turbo_tasks(trace_ignore)]
-        chunk_request_expr: JsValue,
         context_path: FileSystemPath,
     },
     None,
@@ -209,34 +208,14 @@ pub async fn webpack_runtime(
     )
     .await?;
     match &*parsed {
-        ParseResult::Ok {
-            program,
-            eval_context,
-            globals,
-            ..
-        } => {
+        ParseResult::Ok { program, .. } => {
             if let Some(stmts) = program_iife(program)
                 && stmts.iter().any(is_webpack_require_decl)
             {
-                // extract webpack/runtime/get javascript chunk filename
-                let chunk_filename = GLOBALS.set(globals, || {
-                    get_javascript_chunk_filename(stmts, eval_context)
-                });
-
-                let prefix_path = get_require_prefix(stmts);
-
-                if let (Some(chunk_filename), Some(prefix_path)) = (chunk_filename, prefix_path) {
-                    let value = JsValue::concat(vec![
-                        JsValue::Constant(prefix_path.into()),
-                        chunk_filename,
-                    ]);
-
-                    return Ok(WebpackRuntime::Webpack5 {
-                        chunk_request_expr: value,
-                        context_path: source.ident().await?.path.parent(),
-                    }
-                    .cell());
+                return Ok(WebpackRuntime::Webpack5 {
+                    context_path: source.ident().await?.path.parent(),
                 }
+                .cell());
             }
         }
         ParseResult::Unparsable { .. } | ParseResult::NotFound => {}
