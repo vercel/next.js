@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Create GitHub App token
         id: release-app-token
-        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
@@ -32,7 +32,7 @@ jobs:
           GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           # Commits made with the default `GITHUB_TOKEN` won't trigger workflows.
           # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
@@ -77,7 +77,7 @@ jobs:
     steps:
       - name: Create GitHub App token
         id: release-app-token
-        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
@@ -94,7 +94,7 @@ jobs:
           GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           # Commits made with the default `GITHUB_TOKEN` won't trigger workflows.
           # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow

@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'vercel'
     steps:
-      - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9.1.0
+      - uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899 # v10.3.0
         id: issue-stale
         name: 'Mark stale issues, close stale issues'
         with:
@@ -26,7 +26,7 @@ jobs:
           stale-issue-message: 'This issue has been automatically marked as stale due to inactivity. It will be closed in 7 days unless there’s further input. If you believe this issue is still relevant, please leave a comment or provide updated details. Thank you.'
           close-issue-message: 'This issue has been automatically closed due to inactivity. If you’re still experiencing a similar problem or have additional details to share, please open a new issue following our current issue template. Your updated report helps us investigate and address concerns more efficiently. Thank you for your understanding!'
           operations-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close
-      - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9.1.0
+      - uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899 # v10.3.0
         id: stale-no-repro
         name: 'Close stale issues with no reproduction'
         with:
@@ -41,7 +41,7 @@ jobs:
           stale-issue-label: 'stale'
           labels-to-add-when-unstale: 'not stale'
           operations-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close
-      - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9.1.0
+      - uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899 # v10.3.0
         id: stale-simple-repro
         name: 'Close issues with no simple repro'
         with:
@@ -56,7 +56,7 @@ jobs:
           stale-issue-label: 'stale'
           labels-to-add-when-unstale: 'not stale'
           operations-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close
-      - uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9.1.0
+      - uses: actions/stale@eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899 # v10.3.0
         id: stale-no-canary
         name: 'Close issues not verified on canary'
         with:

@@ -40,7 +40,7 @@ jobs:
     steps:
       - name: Check whether head commit is a stable release
         id: precheck
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
         with:
           script: |
             if (context.eventName === 'workflow_dispatch') {
@@ -88,7 +88,7 @@ jobs:
       - name: Create GitHub App token
         id: release-app-token
         if: steps.precheck.outputs.should_evaluate == 'true'
-        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
@@ -123,7 +123,7 @@ jobs:
     steps:
       - name: Create GitHub App token
         id: release-app-token
-        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
@@ -131,7 +131,7 @@ jobs:
           repositories: next.js
           permission-actions: write
 
-      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+      - uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
         with:
           github-token: ${{ steps.release-app-token.outputs.token }}
           script: |
