@@ -1,5 +1,7 @@
 use std::mem::take;
 
+pub mod kinds;
+
 use anyhow::Result;
 use turbo_rcstr::rcstr;
 use turbo_tasks::Vc;
