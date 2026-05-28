@@ -7,9 +7,7 @@ export function loadWebpackHook() {
   installed = true
 
   const { loadWebpackHook: installWebpackHook } =
-    require('next/dist/webpack/load-webpack-hook') as {
-      loadWebpackHook: () => void
-    }
+    require('../webpack/load-webpack-hook') as typeof import('../webpack/load-webpack-hook')
 
   installWebpackHook()
 }
