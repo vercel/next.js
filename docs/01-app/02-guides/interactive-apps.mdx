@@ -9,7 +9,6 @@ related:
     - app/api-reference/directives/use-cache
     - app/api-reference/functions/cacheTag
     - app/api-reference/functions/updateTag
-    - app/guides/streaming
 ---
 
 When a user interaction requires server-side work, the result is not available immediately. Network requests take an unknown amount of time to complete and may succeed or fail. While waiting, the client should provide feedback and respond to those states. Otherwise, users are left looking at stale data and may wonder whether anything is happening.
@@ -167,10 +166,6 @@ The `setOptimisticPriority` call updates the UI on the current frame with the ne
 If the transition ends without revalidating to new data, the optimistic value reverts. The standalone `startTransition` import does not bubble errors to error boundaries. If you need errors to reach an error boundary, use [`useTransition`](https://react.dev/reference/react/useTransition) instead (shown in Step 3).
 
 If you click the priority dot now, the color changes the moment the mouse lifts. Clicking again cycles to the next value without waiting for the first mutation to finish.
-
-#### `useOptimistic` vs `useState`
-
-`useOptimistic(priority)` updates to match the `priority` prop on each render. When `refresh()` delivers fresh data, the component shows it. `useState(priority)` captures the initial value on mount and ignores subsequent prop changes, so after a mutation it shows stale data.
 
 ### Step 3: Filter with pending feedback
 
@@ -667,17 +662,11 @@ The button is the only component that knows when deletion is pending. Passing `i
 
 Every pattern so far smooths a single interaction. Across navigations, the same reads still rerun and the same fallbacks still paint. Caching reusable reads — and prefetching them with the real request — closes that gap without moving the data model into the browser.
 
-This step uses `'use cache'` and `updateTag`, which require [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) mode. Steps 1–7 work without it. If you are not using Cache Components, see [Caching without Cache Components](/docs/app/guides/caching-without-cache-components).
+This step uses [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) APIs. Steps 1–7 work without it. If you are not using Cache Components, see [Caching without Cache Components](/docs/app/guides/caching-without-cache-components).
 
-For each server read, ask: _would the next viewer see the same thing?_ Most tasks and comments would.
+#### Cache reusable reads
 
-| Read                       | Reusable?     |
-| -------------------------- | ------------- |
-| `getTasks` / board columns | Yes           |
-| `getTask(id)`              | Yes, per task |
-| `getComments(taskId)`      | Yes, per task |
-
-Mark each reusable read with [`'use cache'`](/docs/app/api-reference/directives/use-cache) and tag it so mutations can invalidate the right entries:
+For each server read, ask: _would the next viewer see the same thing?_ Tasks and comments would, so mark each one with [`'use cache'`](/docs/app/api-reference/directives/use-cache) and tag it for invalidation:
 
 ```ts filename="data/queries/task.ts"
 import { cache } from 'react'
@@ -692,25 +681,11 @@ export const getTask = cache(async (id: string) => {
 })
 ```
 
-The function's arguments form the cache key. `getTask('a')` and `getTask('b')` end up as separate entries. `cacheTag` labels each entry so a Server Function can invalidate it later. The per-id tag `task-${id}` gives a single task its own handle; the broader `tasks` tag covers the list.
+The per-id tag `task-${id}` gives a single task its own handle. The broader `tasks` tag covers the list. See the [`'use cache'` reference](/docs/app/api-reference/directives/use-cache) for cache scoping (`'use cache: private'`, `'use cache: remote'`) and tag patterns.
 
-Comments take the same shape, tagged per task:
+#### Invalidate from mutations
 
-```ts filename="data/queries/comment.ts"
-export const getComments = cache(async (taskId: string) => {
-  'use cache'
-  cacheTag(`comments-${taskId}`)
-  // …
-})
-```
-
-> **Good to know:** Per-viewer reads (like the current user) belong in [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) so each viewer gets their own entry. For a durable cache that's shared across server instances, use [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote).
-
-#### Invalidate from mutations with `updateTag`
-
-Once reads are cached, [`refresh()`](/docs/app/api-reference/functions/refresh) reruns dynamic work but leaves cached entries in place. Lists can stay stale after a mutation.
-
-Replace `refresh()` with [`updateTag`](/docs/app/api-reference/functions/updateTag) for the entries each write touched. The next render reads the fresh value:
+[`refresh()`](/docs/app/api-reference/functions/refresh) reruns dynamic work but leaves cached entries in place. Replace it with [`updateTag`](/docs/app/api-reference/functions/updateTag) for the tags each write touched:
 
 ```ts filename="data/actions/task.ts"
 'use server'
@@ -724,13 +699,11 @@ export async function updateStatus(taskId: string, newStatus: Status) {
 }
 ```
 
-Every Server Function follows the same shape: run the write, then call `updateTag` for whichever cached reads changed.
+Every Server Function follows the same shape: run the write, then call `updateTag` for the cached reads that changed.
 
 #### Prefetch the destination with the real request
 
-By default, [`<Link>`](/docs/app/api-reference/components/link) prefetches its destinations against build-time inputs only, which covers the static shell and any cached read keyed on build-time inputs.
-
-[Runtime prefetching](/docs/app/guides/prefetching) renders the destination with the real cookies, headers, and `params` the navigation would carry, then stores the result in the [Client Cache](/docs/app/glossary#client-cache). Opt a route in with the [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) segment export:
+By default, [`<Link>`](/docs/app/api-reference/components/link) prefetches against build-time inputs only. For destinations that read cookies, headers, or `params`, opt the route into [runtime prefetching](/docs/app/guides/prefetching) with the [`prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) segment export:
 
 ```tsx filename="app/task/[id]/page.tsx"
 export const unstable_prefetch = 'force-runtime'
@@ -740,51 +713,19 @@ export default function TaskPage({ params }) {
 }
 ```
 
-Apply the same export to any route whose destination reads depend on the real request. For example, the home page reads `searchParams.label` to filter the board, so navigating back from a task detail page benefits from runtime prefetch there too:
-
-```tsx filename="app/page.tsx"
-export const unstable_prefetch = 'force-runtime'
-
-export default function Home({ searchParams }) {
-  // …
-}
-```
-
-Prefetch only sticks if the destination reads are cached. Without `'use cache'` and tags on those reads, the prefetched output has no entry to reuse and the next click rerenders from scratch. The reads above already carry tags, so prefetched output has a stable slot.
-
-As task cards scroll into view, the detail page prefetches into the Client Cache. By the time the user clicks, the destination paints instantly. If a card hasn't been prefetched yet, the existing `<Suspense>` fallbacks still cover the gap.
-
-#### Choosing what to cache and prefetch
-
-Three layers combine for instant repeat navigation, each with a different cost:
-
-| Layer                                 | Cost                         | Apply to                                                 |
-| ------------------------------------- | ---------------------------- | -------------------------------------------------------- |
-| `<Suspense>`                          | None                         | Any uncached read that can stream                        |
-| `'use cache'` + `cacheTag`            | Server memory                | Reads that return the same value for the next viewer     |
-| `unstable_prefetch = 'force-runtime'` | Server work per visible link | Destinations where the read is keyed on the real request |
+Prefetch only sticks if the destination reads are cached. The tags from the previous subsections give the prefetched output a stable slot in the [Client Cache](/docs/app/glossary#client-cache). When a card scrolls into view, the detail page prefetches; by the time the user clicks, the destination paints instantly.
 
 ## Next steps
 
-Pick the API that matches the situation you're solving:
+The patterns in this guide combine a handful of primitives:
 
-| Situation                                                     | Use                                                                                                                                                                                   |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Slow data should stream in without blocking the page shell    | [`<Suspense>`](https://react.dev/reference/react/Suspense)                                                                                                                            |
-| One value should update before the server responds            | [`useOptimistic`](https://react.dev/reference/react/useOptimistic) + [`startTransition`](https://react.dev/reference/react/startTransition)                                           |
-| A URL change triggers a new server render                     | [`useTransition`](https://react.dev/reference/react/useTransition) + `data-pending`                                                                                                   |
-| A reusable component owns part of the pending UI              | Callback prop named `action` or suffixed with `Action`                                                                                                                                |
-| A new item should appear before it exists on the server       | [`useOptimistic([])`](https://react.dev/reference/react/useOptimistic) with an empty initial array                                                                                    |
-| A collection needs a temporary structural change              | [`useOptimistic`](https://react.dev/reference/react/useOptimistic) with a reducer                                                                                                     |
-| A form needs pending state, reset behavior, and result state  | [`useActionState`](https://react.dev/reference/react/useActionState)                                                                                                                  |
-| A parent should style itself while a child action is pending  | [`useOptimistic(false)`](https://react.dev/reference/react/useOptimistic) + `data-pending` attribute                                                                                  |
-| A reusable read should survive across renders and navigations | [`'use cache'`](/docs/app/api-reference/directives/use-cache) + [`cacheTag`](/docs/app/api-reference/functions/cacheTag) + [`updateTag`](/docs/app/api-reference/functions/updateTag) |
-| A cached destination should be filled before the user clicks  | [`unstable_prefetch = 'force-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch)                                                                       |
+- [`<Suspense>`](https://react.dev/reference/react/Suspense) reveals streamed UI when data arrives.
+- [`useOptimistic`](https://react.dev/reference/react/useOptimistic) renders a temporary value while the server works.
+- [`useTransition`](https://react.dev/reference/react/useTransition) and [`startTransition`](https://react.dev/reference/react/startTransition) mark async updates as transitions and expose `isPending`.
+- [`useActionState`](https://react.dev/reference/react/useActionState) wraps a form action with pending state, reset behavior, and result handling.
+- [`'use cache'`](/docs/app/api-reference/directives/use-cache) with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) and [`updateTag`](/docs/app/api-reference/functions/updateTag) keeps reusable reads warm across navigations. [Runtime prefetching](/docs/app/guides/prefetching) fills the next destination before the click.
 
-For more on each API, see:
-
-- [Server Functions](/docs/app/getting-started/mutating-data) for the server side of any mutation
-- [`refresh()`](/docs/app/api-reference/functions/refresh) for revalidating dynamic work after a write
+Most patterns mix two or more of these. Reach for whichever primitive fits the constraint you're solving.
 
 Related guides:
 
