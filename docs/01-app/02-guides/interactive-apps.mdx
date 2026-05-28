@@ -547,7 +547,11 @@ export function CreateTaskModal() {
 
 The `key` in the returned state controls form reset. On success, `key` increments, which remounts the `<div key={key}>` and resets all inputs inside it.
 
-The dialog stays open while the task is being created. `useActionState` wraps the action in a transition, so state updates are deferred until it completes and `setIsOpen(false)` cannot run during the `await`. After the `await`, `startTransition(() => setIsOpen(false))` starts a second transition that batches the dialog close with the board update from `refresh()` inside `createTask`. Without it, the dialog would close before the board shows the new task.
+`useActionState` runs the action inside a transition, so the dialog stays open and `isPending` stays `true` while `createTask` runs. State updates after the `await` are not automatically part of that transition, so wrapping `setIsOpen(false)` in `startTransition` is a workaround that puts the close back into a transition.
+
+With the workaround in place, React batches the dialog close with the board update that `refresh()` triggers inside `createTask`, so the new task appears at the moment the dialog closes. Without it, the dialog would close first and the board would update a frame later.
+
+> **Good to know:** This limitation is documented in React under [React doesn't treat my state update after `await` as a transition](https://react.dev/reference/react/useTransition#react-doesnt-treat-my-state-update-after-await-as-a-transition). Until it's fixed, the explicit `startTransition` wrap around post-`await` state updates is the recommended workaround.
 
 The same post-`await` window is where side effects like toasts belong:
 
