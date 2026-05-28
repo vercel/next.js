@@ -19,15 +19,16 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     context::AssetContext,
     file_source::FileSource,
+    module::{Module, Modules},
+    module_graph::{ModuleGraph, SingleModuleGraph, chunk_group_info::ChunkGroupEntry},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request},
-    traced_asset::TracedAsset,
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
-    nft_json::{all_assets_from_entries_filtered, relativize_glob},
+    nft_json::{relativize_glob, traced_modules_for_entries},
     project::Project,
 };
 
@@ -106,6 +107,7 @@ impl Asset for ServerNftJsonAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
+
         // Example: [project]/apps/my-website/.next/
         let base_dir = this
             .project
@@ -113,16 +115,31 @@ impl Asset for ServerNftJsonAsset {
             .await?
             .join(&this.project.node_root().await?.path)?;
 
+        let module_graph = ModuleGraph::from_graphs(
+            vec![SingleModuleGraph::new_with_traced_entries(
+                ResolvedVc::cell(vec![ChunkGroupEntry::Entry(self.entries().owned().await?)]),
+                true,
+                false,
+            )],
+            None,
+        )
+        .connect();
+
         let mut server_output_assets =
-            all_assets_from_entries_filtered(self.entries(), None, Some(self.ignores()))
+            traced_modules_for_entries(module_graph, self.entries(), Some(self.ignores()), true)
                 .await?
                 .iter()
                 .map(async |m| {
                     Ok((
                         base_dir
-                            .get_relative_path_to(&*m.path().await?)
+                            .get_relative_path_to(&m.ident().await?.path)
                             .context("failed to compute relative path for server NFT JSON")?,
-                        m.content().hash(HashAlgorithm::Xxh3Hash128Hex).await?,
+                        m.source()
+                            .await?
+                            .context("NFT module has no content")?
+                            .content()
+                            .hash(HashAlgorithm::Xxh3Hash128Hex)
+                            .await?,
                     ))
                 })
                 .try_join()
@@ -186,7 +203,7 @@ impl Asset for ServerNftJsonAsset {
 #[turbo_tasks::value_impl]
 impl ServerNftJsonAsset {
     #[turbo_tasks::function]
-    async fn entries(&self) -> Result<Vc<OutputAssets>> {
+    async fn entries(&self) -> Result<Vc<Modules>> {
         let is_standalone = *self.project.next_config().is_standalone().await?;
 
         let asset_context = Vc::upcast(externals_tracing_module_context(
@@ -215,14 +232,20 @@ impl ServerNftJsonAsset {
         // These are used by packages/next/src/server/require-hook.ts
         let shared_entries = ["styled-jsx", "styled-jsx/style", "styled-jsx/style.js"];
 
-        let cache_handler_entries = cache_handler.iter().chain(cache_handlers.iter()).map(|f| {
-            asset_context
-                .process(
-                    Vc::upcast(FileSource::new(f.clone())),
-                    ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-                )
-                .module()
-        });
+        let cache_handler_entries = cache_handler
+            .iter()
+            .chain(cache_handlers.iter())
+            .map(|f| {
+                asset_context
+                    .process(
+                        Vc::upcast(FileSource::new(f.clone())),
+                        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+                    )
+                    .module()
+            })
+            .map(|m| m.to_resolved())
+            .try_join()
+            .await?;
 
         let entries = match self.ty {
             ServerNftType::Full => Either::Left(
@@ -247,6 +270,7 @@ impl ServerNftJsonAsset {
 
         Ok(Vc::cell(
             cache_handler_entries
+                .into_iter()
                 .chain(
                     shared_entries
                         .into_iter()
@@ -262,15 +286,12 @@ impl ServerNftJsonAsset {
                             .await?
                             .primary_modules()
                             .await?
-                            .into_iter()
-                            .map(|m| *m))
+                            .into_iter())
                         })
                         .try_flat_join()
                         .await?,
                 )
-                .map(|m| Vc::upcast::<Box<dyn OutputAsset>>(TracedAsset::new(m)).to_resolved())
-                .try_join()
-                .await?,
+                .collect(),
         ))
     }
 

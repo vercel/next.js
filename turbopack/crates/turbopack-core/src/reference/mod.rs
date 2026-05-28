@@ -4,12 +4,12 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 
 use crate::{
-    chunk::ChunkingType,
+    chunk::{ChunkingType, TracedMode},
     module::{Module, Modules},
     output::{
         ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
@@ -34,9 +34,7 @@ pub trait ModuleReference: ValueToString {
     // TODO think about different types
     // fn kind(&self) -> Vc<AssetReferenceType>;
 
-    fn chunking_type(&self) -> Option<ChunkingType> {
-        None
-    }
+    fn chunking_type(&self) -> Option<ChunkingType>;
 
     fn binding_usage(&self) -> BindingUsage {
         BindingUsage::default()
@@ -111,33 +109,51 @@ impl ModuleReference for SingleChunkableModuleReference {
 #[turbo_tasks::function]
 pub async fn referenced_modules_and_affecting_sources(
     module: Vc<Box<dyn Module>>,
-) -> Result<Vc<Modules>> {
-    let references = module.references().await?;
-
-    let resolved_references = references
+    include_binding_usage: bool,
+) -> Result<Vc<ModulesWithRefData>> {
+    let modules = module
+        .references()
+        .await?
         .iter()
-        .map(|r| r.resolve_reference())
-        .try_join()
+        .map(|reference| async {
+            let trait_ref = reference.into_trait_ref().await?;
+            let resolve_result = reference.resolve_reference().await?;
+            if let Some(chunking_type) = &trait_ref.chunking_type() {
+                let mut modules = resolve_result
+                    .primary_modules_raw_iter()
+                    .collect::<Vec<_>>();
+                modules.extend(
+                    resolve_result
+                        .affecting_sources_iter()
+                        .map(|source| async move {
+                            Ok(ResolvedVc::upcast(
+                                RawModule::new(*source).to_resolved().await?,
+                            ))
+                        })
+                        .try_join()
+                        .await?,
+                );
+
+                let binding_usage = if include_binding_usage {
+                    trait_ref.binding_usage()
+                } else {
+                    BindingUsage::default()
+                };
+
+                return Ok(Some((
+                    *reference,
+                    ResolvedReference {
+                        chunking_type: chunking_type.clone(),
+                        binding_usage,
+                        modules,
+                    },
+                )));
+            }
+            Ok(None)
+        })
+        .try_flat_join()
         .await?;
-    let mut modules = Vec::new();
-    for resolve_result in resolved_references {
-        modules.extend(resolve_result.primary_modules_raw_iter());
-        modules.extend(
-            resolve_result
-                .affecting_sources_iter()
-                .map(|source| async move {
-                    Ok(ResolvedVc::upcast(
-                        RawModule::new(*source).to_resolved().await?,
-                    ))
-                })
-                .try_join()
-                .await?,
-        );
-    }
-
-    let resolved_modules: FxIndexSet<_> = modules.into_iter().collect();
-
-    Ok(Vc::cell(resolved_modules.into_iter().collect()))
+    Ok(Vc::cell(modules))
 }
 
 #[turbo_tasks::value]
@@ -145,6 +161,7 @@ pub async fn referenced_modules_and_affecting_sources(
 #[value_to_string("traced {}", self.module.ident())]
 pub struct TracedModuleReference {
     module: ResolvedVc<Box<dyn Module>>,
+    mode: TracedMode,
 }
 
 #[turbo_tasks::value_impl]
@@ -155,15 +172,15 @@ impl ModuleReference for TracedModuleReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Traced)
+        Some(ChunkingType::Traced { mode: self.mode })
     }
 }
 
 #[turbo_tasks::value_impl]
 impl TracedModuleReference {
     #[turbo_tasks::function]
-    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
-        Self::cell(TracedModuleReference { module })
+    pub fn new(module: ResolvedVc<Box<dyn Module>>, mode: TracedMode) -> Vc<Self> {
+        Self::cell(TracedModuleReference { module, mode })
     }
 }
 
@@ -216,7 +233,7 @@ pub async fn primary_chunkable_referenced_modules(
         .map(|reference| async {
             let trait_ref = reference.into_trait_ref().await?;
             if let Some(chunking_type) = &trait_ref.chunking_type() {
-                if !include_traced && matches!(chunking_type, ChunkingType::Traced) {
+                if !include_traced && chunking_type.is_traced() {
                     return Ok(None);
                 }
 

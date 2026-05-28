@@ -1087,6 +1087,8 @@ impl PageEndpoint {
                             Some(pages_function_name(&this.original_name).into()),
                             *ssr_entry_chunk,
                             additional_assets,
+                            ssr_module_graph,
+                            vec![*ssr_module],
                         )
                         .to_resolved()
                         .await?,

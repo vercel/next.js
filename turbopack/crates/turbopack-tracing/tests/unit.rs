@@ -7,9 +7,10 @@ use std::{path::PathBuf, sync::LazyLock};
 use anyhow::Result;
 use regex::Regex;
 use rstest::*;
+use rustc_hash::FxHashSet;
 use similar::TextDiff;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, TurboTasks, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TurboTasks, Vc};
 use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
@@ -27,11 +28,9 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     module::Module,
-    output::OutputAsset,
-    reference::all_assets_from_entries,
+    reference::referenced_modules_and_affecting_sources,
     reference_type::ReferenceType,
     resolve::options::ConditionValue,
-    traced_asset::TracedAsset,
 };
 use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -265,22 +264,32 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
         .module();
 
     // We treat the entry as an external
-    let mut paths = to_list(vec![ResolvedVc::upcast(
-        TracedAsset::new(module).to_resolved().await?,
-    )])
-    .await?;
+    let mut paths = to_list(module).await?;
     paths.push(module.ident().await?.path.path.clone());
 
     Ok(Vc::cell(paths))
 }
 
-async fn to_list(assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>) -> Result<Vec<RcStr>> {
-    let mut assets = all_assets_from_entries(Vc::cell(assets))
-        .await?
-        .iter()
-        .map(async |a| Ok(a.path().await?.path.clone()))
-        .try_join()
-        .await?;
+async fn to_list(asset: Vc<Box<dyn Module>>) -> Result<Vec<RcStr>> {
+    let mut assets = vec![];
+
+    let mut visited = FxHashSet::default();
+    let mut queue = Vec::new();
+    queue.push(asset);
+
+    while let Some(asset) = queue.pop() {
+        let references = referenced_modules_and_affecting_sources(asset, false).await?;
+        let path = &asset.ident().await?.path;
+        if visited.insert(asset) {
+            for (_, references) in references.iter().rev() {
+                for asset in references.modules.iter() {
+                    queue.push(**asset);
+                }
+            }
+        }
+        assets.push(path.path.clone());
+    }
+
     assets.sort();
     assets.dedup();
 
