@@ -803,6 +803,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
+          dialogResizerResetKey={effectiveActiveTab}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -848,6 +849,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
+          dialogResizerResetKey={effectiveActiveTab}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -894,6 +896,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
+          dialogResizerResetKey={effectiveActiveTab}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -938,6 +941,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
+          dialogResizerResetKey={effectiveActiveTab}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -983,6 +987,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
+          dialogResizerResetKey={effectiveActiveTab}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -1023,6 +1028,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
       dialogResizerRef={dialogResizerRef}
+      dialogResizerResetKey={effectiveActiveTab}
       generateErrorInfo={generateErrorInfo}
       {...props}
     >
@@ -1131,6 +1137,7 @@ export const styles = `
     cursor: pointer;
     position: relative;
     transition: color 0.15s ease;
+    border-radius: var(--rounded-md);
 
     &:hover {
       color: var(--color-gray-1000);
@@ -1144,6 +1151,11 @@ export const styles = `
     &:disabled {
       opacity: 0.4;
       cursor: default;
+    }
+
+    &:focus-visible {
+      outline: var(--focus-ring);
+      outline-offset: 2px;
     }
   }
 

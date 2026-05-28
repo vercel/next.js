@@ -4,15 +4,24 @@ export const Resizer = forwardRef(function Resizer(
   {
     children,
     measure,
+    resetKey,
     ...props
   }: {
     children: React.ReactNode
     measure: boolean
+    resetKey?: string | number
   } & React.HTMLProps<HTMLDivElement>,
   resizerRef: React.Ref<HTMLDivElement | null>
 ) {
   const [element, setElement] = useState<HTMLDivElement | null>(null)
-  const [height, measuring] = useMeasureHeight(element, measure)
+
+  const [previousResetKey, setPreviousResetKey] = useState(resetKey)
+  const skipTransition = previousResetKey !== resetKey
+  if (skipTransition) {
+    setPreviousResetKey(resetKey)
+  }
+
+  const [height, measuring] = useMeasureHeight(element, measure, resetKey)
 
   return (
     <div
@@ -23,7 +32,9 @@ export const Resizer = forwardRef(function Resizer(
       // [x] Responds to content growth
       style={{
         height: measuring ? 'auto' : height,
-        transition: 'height 250ms var(--timing-swift)',
+        transition: skipTransition
+          ? 'none'
+          : 'height 250ms var(--timing-swift)',
       }}
     >
       <div ref={setElement}>{children}</div>
@@ -33,10 +44,17 @@ export const Resizer = forwardRef(function Resizer(
 
 function useMeasureHeight(
   element: HTMLDivElement | null,
-  measure: boolean
+  measure: boolean,
+  resetKey?: string | number
 ): [number, boolean] {
   const [height, setHeight] = useState<number>(0)
   const [measuring, setMeasuring] = useState<boolean>(true)
+  const [previousResetKey, setPreviousResetKey] = useState(resetKey)
+
+  if (previousResetKey !== resetKey) {
+    setPreviousResetKey(resetKey)
+    setMeasuring(true)
+  }
 
   useEffect(() => {
     if (!measure) {

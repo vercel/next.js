@@ -30,11 +30,13 @@ function Plural({ count, animate }: { count: number; animate: boolean }) {
 function PillLabel({
   normalCount,
   instantCount,
-  newErrorDetected,
+  normalCountAnimating,
+  instantCountAnimating,
 }: {
   normalCount: number
   instantCount: number
-  newErrorDetected: boolean
+  normalCountAnimating: boolean
+  instantCountAnimating: boolean
 }) {
   const hasNormal = normalCount > 0
   const hasInstant = instantCount > 0
@@ -45,7 +47,7 @@ function PillLabel({
           Issue
           <Plural
             count={normalCount}
-            animate={newErrorDetected && normalCount === 2}
+            animate={normalCountAnimating && normalCount === 2}
           />
         </>
       )}
@@ -56,7 +58,7 @@ function PillLabel({
           Insight
           <Plural
             count={instantCount}
-            animate={newErrorDetected && instantCount === 2}
+            animate={instantCountAnimating && instantCount === 2}
           />
         </>
       )}
@@ -93,10 +95,19 @@ export function NextLogo({
     setIsErrorExpanded(hasError)
   }
   const [dismissed, setDismissed] = useState(false)
-  const newErrorDetected = useUpdateAnimation(
-    totalErrorCount,
+  const normalErrorAnimating = useUpdateAnimation(
+    normalErrorCount,
     SHORT_DURATION_MS
   )
+  const instantErrorAnimating = useUpdateAnimation(
+    instantErrorCount,
+    SHORT_DURATION_MS
+  )
+  const newErrorDetected = normalErrorAnimating || instantErrorAnimating
+  const leadingCount =
+    normalErrorCount > 0 ? normalErrorCount : instantErrorCount
+  const leadingCountAnimating =
+    normalErrorCount > 0 ? normalErrorAnimating : instantErrorAnimating
 
   // Cache indicator state management
   const isCacheBypassing = state.cacheIndicator === 'bypass'
@@ -511,19 +522,18 @@ export function NextLogo({
                     )}
                     <AnimateCount
                       // Used the key to force a re-render when the count changes.
-                      key={totalErrorCount}
-                      animate={newErrorDetected}
+                      key={leadingCount}
+                      animate={leadingCountAnimating}
                       data-issues-count-animation
                     >
-                      {normalErrorCount > 0
-                        ? normalErrorCount
-                        : instantErrorCount}
+                      {leadingCount}
                     </AnimateCount>{' '}
                     <div>
                       <PillLabel
                         normalCount={normalErrorCount}
                         instantCount={instantErrorCount}
-                        newErrorDetected={newErrorDetected}
+                        normalCountAnimating={normalErrorAnimating}
+                        instantCountAnimating={instantErrorAnimating}
                       />
                     </div>
                   </button>
