@@ -9,11 +9,11 @@ related:
     - app/api-reference/functions/draft-mode
 ---
 
-**Draft Mode** lets editors preview unpublished content from a headless CMS without rebuilding or redeploying. When Draft Mode is enabled, Next.js bypasses every caching layer for that request so your data fetching reaches the source CMS and returns the latest draft.
+**Draft Mode** lets editors see how draft or in-progress content will render on your site, without waiting for revalidation. While an editor is in Draft Mode, cached or pre-rendered content is bypassed, and fetched from upstream sources directly. Other visitors continue to see the cached or pre-rendered version of the page.
 
-Your data-fetching code does not need to change. The bypass is automatic for any request carrying the Draft Mode cookie. If your CMS serves draft and published content from different URLs, see [When your CMS uses a separate draft endpoint](#when-your-cms-uses-a-separate-draft-endpoint).
+Your data-fetching code does not need to change if your CMS serves draft and published content from the same URL. Otherwise, see [When your CMS uses a separate draft endpoint](#when-your-cms-uses-a-separate-draft-endpoint).
 
-## How Draft Mode interacts with the cache
+## What Draft Mode does
 
 When Draft Mode is enabled for a request:
 
@@ -21,6 +21,30 @@ When Draft Mode is enabled for a request:
 - Components and functions inside [`'use cache'`](/docs/app/api-reference/directives/use-cache) re-execute on every request, and their results are not saved to the cache.
 - [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) reads and writes are bypassed in the same way.
 - The page is excluded from the ISR response cache and is served with `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate`.
+
+The effect applies whether the page is statically generated, served from cache, or revalidated through ISR.
+
+## What this guide covers
+
+This guide assumes:
+
+- Your headless CMS supports configurable preview URLs (most do).
+- The CMS opens a URL like `/api/draft?secret=XXX&slug=/posts/foo` in a new tab when an editor clicks "Preview". The secret is a shared token; the slug is the path to preview.
+- Your Next.js app validates the secret, enables Draft Mode, and redirects to the slug.
+
+With that contract in mind, the rest of this guide walks through:
+
+1. Creating a Route Handler that enables Draft Mode by setting a cookie.
+2. Securing that handler with the shared secret and slug from the CMS.
+3. Rendering pages that read the latest draft.
+4. Showing a preview banner with an exit form.
+
+Then, depending on your setup:
+
+- [Draft Mode with Cache Components](#draft-mode-with-cache-components) for surfacing the preview state from a `'use cache'` boundary.
+- [When your CMS uses a separate draft endpoint](#when-your-cms-uses-a-separate-draft-endpoint) for branching the fetch URL on `isEnabled`.
+
+> **Good to know:** `GET` is meant to be a safe, read-only method. Operations that affect future requests, like enabling Draft Mode via a cookie, should use `POST`. The entry handler uses `GET` because we're assuming a CMS preview integration: the CMS opens the URL in a new browser tab, which is a `GET` request. The exit flow in Step 4 uses `POST` (via [Server Action](/docs/app/getting-started/mutating-data) or `POST` Route Handler).
 
 ## Step 1: Create a Route Handler
 
@@ -49,6 +73,8 @@ export async function GET(request) {
 `draft.enable()` sets a cookie named `__prerender_bypass`. Subsequent requests that carry this cookie skip every cache layer listed above.
 
 You can test this manually by visiting `/api/draft` and looking at your browser's developer tools. Notice the `Set-Cookie` response header.
+
+As written, the handler is public: anyone who hits `/api/draft` enables Draft Mode for themselves. Step 2 closes that with a shared secret so only your CMS can call it.
 
 ## Step 2: Access the Route Handler from your headless CMS
 
@@ -127,7 +153,7 @@ export async function GET(request) {
 
 If it succeeds, the browser is redirected to the target path with the Draft Mode cookie set.
 
-## Step 3: Render the page
+## Step 3: Preview the draft content
 
 Because Draft Mode bypasses the cache automatically, your page does not need to know whether Draft Mode is on to receive fresh content. Fetch as you normally would:
 
@@ -137,9 +163,7 @@ async function getPost(slug: string) {
   return res.json()
 }
 
-export default async function Page({
-  params,
-}: PageProps<'/posts/[slug]'>) {
+export default async function Page({ params }: PageProps<'/posts/[slug]'>) {
   const { slug } = await params
   const post = await getPost(slug)
 
@@ -173,13 +197,22 @@ export default async function Page({ params }) {
 
 When the Draft Mode cookie is present, the `fetch` above skips the Next.js fetch cache and hits your CMS for the current draft. When it is not, the same request can be served from cache as usual.
 
+If your CMS uses a different URL for drafts rather than serving them from the same endpoint, see [When your CMS uses a separate draft endpoint](#when-your-cms-uses-a-separate-draft-endpoint).
+
 ## Step 4: Show a preview indicator
 
-`isEnabled` is most useful as a signal to the editor: a banner that confirms they are looking at draft content, plus a way to exit. Render an indicator from your root layout so it appears on every preview page:
+`isEnabled` is most useful as a signal to the editor: a banner that confirms they are looking at draft content, plus a way to exit. Render an indicator from your root layout so it appears on every preview page.
 
 ```tsx filename="app/preview-banner.tsx" switcher
 import { draftMode } from 'next/headers'
-import Link from 'next/link'
+import { redirect } from 'next/navigation'
+
+async function exitPreview() {
+  'use server'
+  const draft = await draftMode()
+  draft.disable()
+  redirect('/')
+}
 
 export async function PreviewBanner() {
   const { isEnabled } = await draftMode()
@@ -188,9 +221,9 @@ export async function PreviewBanner() {
   return (
     <aside role="status">
       Preview mode is on.{' '}
-      <Link href="/api/draft/disable" prefetch={false}>
-        Exit preview
-      </Link>
+      <form action={exitPreview}>
+        <button type="submit">Exit preview</button>
+      </form>
     </aside>
   )
 }
@@ -198,7 +231,14 @@ export async function PreviewBanner() {
 
 ```jsx filename="app/preview-banner.js" switcher
 import { draftMode } from 'next/headers'
-import Link from 'next/link'
+import { redirect } from 'next/navigation'
+
+async function exitPreview() {
+  'use server'
+  const draft = await draftMode()
+  draft.disable()
+  redirect('/')
+}
 
 export async function PreviewBanner() {
   const { isEnabled } = await draftMode()
@@ -207,41 +247,19 @@ export async function PreviewBanner() {
   return (
     <aside role="status">
       Preview mode is on.{' '}
-      <Link href="/api/draft/disable" prefetch={false}>
-        Exit preview
-      </Link>
+      <form action={exitPreview}>
+        <button type="submit">Exit preview</button>
+      </form>
     </aside>
   )
 }
 ```
 
-The matching Route Handler clears the cookie:
+Exiting Draft Mode also works with a `GET` Route Handler, but a `POST` is semantically more correct, for example via a form submitted through a [Server Action](/docs/app/getting-started/mutating-data) or to a `POST` Route Handler.
 
-```ts filename="app/api/draft/disable/route.ts" switcher
-import { draftMode } from 'next/headers'
-import { redirect } from 'next/navigation'
+If you do use a `GET` Route Handler, trigger it from a `<form method="GET">` rather than a [`<Link>`](/docs/app/api-reference/components/link). Next.js prefetches `<Link>` components by default, which would clear the cookie before the editor clicks. Forms are not prefetched, regardless of method.
 
-export async function GET() {
-  const draft = await draftMode()
-  draft.disable()
-  redirect('/')
-}
-```
-
-```js filename="app/api/draft/disable/route.js" switcher
-import { draftMode } from 'next/headers'
-import { redirect } from 'next/navigation'
-
-export async function GET() {
-  const draft = await draftMode()
-  draft.disable()
-  redirect('/')
-}
-```
-
-`prefetch={false}` on the link prevents the cookie from being cleared accidentally when the link is prefetched.
-
-## Reading Draft Mode inside cached components
+## Draft Mode with Cache Components
 
 You can read `isEnabled` inside a [`'use cache'`](/docs/app/api-reference/directives/use-cache) scope to render a preview indicator from a cached component. The cache bypass still applies, so the component re-executes with fresh data on every draft request.
 
@@ -251,8 +269,8 @@ import { draftMode } from 'next/headers'
 async function Post({ slug }: { slug: string }) {
   'use cache'
 
-  const post = await fetch(`https://cms.example.com/posts/${slug}`).then(
-    (r) => r.json()
+  const post = await fetch(`https://cms.example.com/posts/${slug}`).then((r) =>
+    r.json()
   )
   const { isEnabled } = await draftMode()
 
@@ -272,8 +290,8 @@ import { draftMode } from 'next/headers'
 async function Post({ slug }) {
   'use cache'
 
-  const post = await fetch(`https://cms.example.com/posts/${slug}`).then(
-    (r) => r.json()
+  const post = await fetch(`https://cms.example.com/posts/${slug}`).then((r) =>
+    r.json()
   )
   const { isEnabled } = await draftMode()
 
