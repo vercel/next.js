@@ -176,7 +176,7 @@ jobs:
           fnm env --json | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs -I {} echo "{}" >> $GITHUB_ENV
 
       - name: Normalize input step names into path key
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
         id: var
         with:
           script: |
@@ -213,7 +213,7 @@ jobs:
 
       - run: rm -rf .git
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 25
 
