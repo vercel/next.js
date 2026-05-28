@@ -4,7 +4,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::ChunkingType,
+    chunk::{ChunkingType, TracedMode},
     file_source::FileSource,
     issue::IssueSource,
     raw_module::RawModule,
@@ -79,7 +79,9 @@ impl ModuleReference for FileSourceReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Traced)
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Entry,
+        })
     }
 }
 
@@ -146,9 +148,9 @@ async fn resolve_reference_from_dir(
     };
 
     let matches = abs_matches
-        .into_iter()
+        .iter()
         .flatten()
-        .chain(rel_matches.into_iter().flatten());
+        .chain(rel_matches.iter().flatten());
 
     let mut affecting_sources = Vec::new();
     let mut results = Vec::new();
@@ -168,7 +170,7 @@ async fn resolve_reference_from_dir(
                 results.push((
                     RequestKey::new(matched_path.clone()),
                     ResolvedVc::upcast(
-                        RawModule::new(Vc::upcast(FileSource::new(path)))
+                        RawModule::new(Vc::upcast(FileSource::new(path.clone())))
                             .to_resolved()
                             .await?,
                     ),
@@ -207,6 +209,8 @@ impl ModuleReference for DirAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Traced)
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Entry,
+        })
     }
 }

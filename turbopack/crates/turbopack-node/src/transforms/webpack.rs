@@ -300,6 +300,7 @@ impl WebpackLoadersProcessedAsset {
                     project_path
                 );
             };
+            let loader_names: Vec<RcStr> = loaders.iter().map(|l| l.loader.clone()).collect();
             let config_value = evaluate_webpack_loader(WebpackLoaderContext {
                 entries,
                 cwd: project_path.clone(),
@@ -320,6 +321,7 @@ impl WebpackLoadersProcessedAsset {
                     ResolvedVc::cell(transform.source_maps.into()),
                 ],
                 additional_invalidation: Completion::immutable().to_resolved().await?,
+                loader_names,
             })
             .await?;
 
@@ -507,6 +509,34 @@ pub struct WebpackLoaderContext {
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub args: Vec<ResolvedVc<JsonValue>>,
     pub additional_invalidation: ResolvedVc<Completion>,
+    /// Names of the loaders being applied to the source, in pipeline order.
+    /// Used to enrich error messages and issue details so users know which
+    /// loader chain was running when an error occurred.
+    pub loader_names: Vec<RcStr>,
+}
+
+impl WebpackLoaderContext {
+    /// Format the loader chain as "loaders [a, b, c]" for inclusion in
+    /// error messages and issue detail text. Returns `None` if there are
+    /// no loaders, which should not normally happen but keeps the helper
+    /// well-defined.
+    fn loader_chain_description(&self) -> Option<RcStr> {
+        if self.loader_names.is_empty() {
+            None
+        } else {
+            Some(
+                format!(
+                    "loaders [{}]",
+                    self.loader_names
+                        .iter()
+                        .map(|n| n.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+                .into(),
+            )
+        }
+    }
 }
 
 impl EvaluateContext for WebpackLoaderContext {
@@ -544,6 +574,10 @@ impl EvaluateContext for WebpackLoaderContext {
         true
     }
 
+    fn crash_context_prefix(&self) -> Option<RcStr> {
+        self.loader_chain_description()
+    }
+
     async fn emit_error(&self, error: StructuredError, pool: &EvaluatePool) -> Result<()> {
         EvaluationIssue {
             error,
@@ -551,6 +585,7 @@ impl EvaluateContext for WebpackLoaderContext {
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root.clone(),
             root_path: self.chunking_context.root_path().owned().await?,
+            detail: self.loader_chain_description(),
         }
         .resolved_cell()
         .emit();

@@ -25,7 +25,7 @@ pub async fn compute_async_module_info(
     // Layout segment optimization, we can individually compute the async modules for each graph.
     let mut result = None;
     for graph in graphs.iter_graphs().await? {
-        result = Some(compute_async_module_info_single(*graph, result));
+        result = Some(compute_async_module_info_single(graph, result));
     }
     Ok(result
         .context("There must be at least one single graph in the module graph")?

@@ -7,12 +7,13 @@ use next_taskless::{EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
-use turbo_tasks_fs::{FileSystem, FileSystemPath, to_sys_path};
+use turbo_tasks_fs::{FileContent, FileSystem, FileSystemPath, to_sys_path};
 use turbopack_core::{
+    asset::AssetContent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
-        AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, SubpathValue,
+        AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, ResolveResult, SubpathValue,
         node::node_cjs_resolve_options,
         options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
         parse::Request,
@@ -20,6 +21,7 @@ use turbopack_core::{
         resolve,
     },
     source::Source,
+    virtual_source::VirtualSource,
 };
 use turbopack_node::execution_context::ExecutionContext;
 
@@ -209,13 +211,7 @@ pub async fn get_next_client_import_map(
         rcstr!("next/dist/compiled/server-only") => rcstr!("next/dist/compiled/server-only/index"),
         rcstr!("next/dist/compiled/client-only") => rcstr!("next/dist/compiled/client-only/index"),},
     );
-    insert_next_root_params_mapping(
-        &mut import_map,
-        next_config.enable_root_params(),
-        Either::Right(ty.clone()),
-        None,
-    )
-    .await?;
+    insert_next_root_params_mapping(&mut import_map, Either::Right(ty.clone()), None).await?;
 
     match ty {
         ClientContextType::Pages { .. }
@@ -231,7 +227,7 @@ pub async fn get_next_client_import_map(
         ClientContextType::Other => {}
     }
 
-    insert_instrumentation_client_alias(&mut import_map, project_path).await?;
+    insert_instrumentation_client_alias(&mut import_map, project_path, next_config).await?;
 
     insert_server_only_error_alias(&mut import_map);
 
@@ -745,13 +741,7 @@ async fn insert_next_server_special_aliases(
         }
     }
 
-    insert_next_root_params_mapping(
-        import_map,
-        next_config.enable_root_params(),
-        Either::Left(ty),
-        collected_root_params,
-    )
-    .await?;
+    insert_next_root_params_mapping(import_map, Either::Left(ty), collected_root_params).await?;
 
     import_map.insert_exact_alias(
         rcstr!("@vercel/og"),
@@ -1205,7 +1195,10 @@ impl Issue for MissingNextFolderIssue {
     }
 
     fn severity(&self) -> IssueSeverity {
-        IssueSeverity::Fatal
+        // In theory this should be fatal (how can we ever recover from next missing when we are
+        // next), but we actually might be detecting an ephemeral scenario where 'next' is moving
+        // and we can recover.
+        IssueSeverity::Error
     }
 
     fn stage(&self) -> IssueStage {
@@ -1213,48 +1206,68 @@ impl Issue for MissingNextFolderIssue {
     }
 
     async fn title(&self) -> Result<StyledString> {
-        let system_path = match to_sys_path(self.path.clone()).await? {
-            Some(path) => path.to_str().unwrap_or("{unknown}").to_string(),
-            _ => "{unknown}".to_string(),
+        Ok(StyledString::Text(rcstr!(
+            "Could not find the Next.js package (next/package.json)"
+        )))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let context_path: RcStr = match to_sys_path(self.path.clone()).await? {
+            Some(path) => path.to_str().unwrap_or("{unknown}").into(),
+            _ => rcstr!("{unknown}"),
         };
-        let root_path = match to_sys_path(self.root.clone()).await? {
-            Some(path) => path.to_str().unwrap_or("{unknown}").to_string(),
-            _ => "{unknown}".to_string(),
+        let root_path: RcStr = match to_sys_path(self.root.clone()).await? {
+            Some(path) => path.to_str().unwrap_or("{unknown}").into(),
+            _ => rcstr!("{unknown}"),
         };
 
-        Ok(StyledString::Stack(vec![
+        Ok(Some(StyledString::Stack(vec![
             StyledString::Line(vec![
-                StyledString::Text(
-                    "Error: Next.js inferred your workspace root, but it may not be correct."
-                        .into(),
-                ),
+                StyledString::Text(rcstr!("Resolved from: ")),
+                StyledString::Strong(context_path),
             ]),
             StyledString::Line(vec![
-                StyledString::Text("We couldn't find the Next.js package (".into()),
-                StyledString::Strong("next/package.json".into()),
-                StyledString::Text(") from the project directory: ".into()),
-                StyledString::Strong(system_path.into()),
+                StyledString::Text(rcstr!("Filesystem root used for resolution: ")),
+                StyledString::Strong(root_path),
             ]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(""))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!("Possible causes:"))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "  - node_modules is being reorganized by a concurrent install (e.g. pnpm adding \
+                 a package with a `next` peer dependency). This is transient and should clear \
+                 once the install completes."
+            ))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "  - node_modules/next was removed, renamed, or has a broken symlink."
+            ))]),
             StyledString::Line(vec![
-                StyledString::Text("Filesystem root used for resolution: ".into()),
-                StyledString::Strong(root_path.into()),
+                StyledString::Text(rcstr!("  - The workspace root is incorrect — see ")),
+                StyledString::Code(rcstr!("turbopack.root")),
+                StyledString::Text(rcstr!(
+                    " in the Next.js config docs for how to configure it."
+                )),
             ]),
-            StyledString::Line(vec![
-                StyledString::Text("To fix this, set ".into()),
-                StyledString::Code("turbopack.root".into()),
-                StyledString::Text(
-                    " in your Next.js config, or ensure the Next.js package is resolvable from the project directory.".into(),
-                ),
-            ]),
-            StyledString::Line(vec![
-                StyledString::Text("Note: For security and performance reasons, files outside of the project directory will not be compiled.".into()),
-            ]),
-            StyledString::Line(vec![
-                StyledString::Text("See ".into()),
-                StyledString::Strong("https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory".into()),
-                StyledString::Text(" for more information.".into()),
-            ]),
-        ]))
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "  - In a monorepo, the Next.js package may only exist in a directory above the \
+                 closest directory containing a package manager lockfile. The workspace root is \
+                 detected by locating the nearest package manager lockfile."
+            ))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "  - Next.js is installed globally rather than as a project dependency. This is \
+                 not supported; install it locally."
+            ))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(""))]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "Note: To ensure a hermetic build and a portable cache, files outside of the \
+                 workspace root are not compiled."
+            ))]),
+        ])))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        rcstr!(
+            "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory"
+        )
     }
 }
 
@@ -1376,24 +1389,84 @@ fn insert_package_alias(import_map: &mut ImportMap, prefix: &str, package_root: 
     );
 }
 
-/// Handles instrumentation-client.ts bundling logic
+/// Handles instrumentation-client.ts bundling logic.
+///
+/// Resolves the `private-next-instrumentation-client` alias to a virtual module
+/// that first requires each entry of `instrumentationClientInject` for side
+/// effects (in array order) and then re-exports the user's
+/// `instrumentation-client.{pageExt}` file via the
+/// `private-next-instrumentation-client-user` alias.
 async fn insert_instrumentation_client_alias(
     import_map: &mut ImportMap,
     project_path: FileSystemPath,
+    next_config: Vc<NextConfig>,
 ) -> Result<()> {
+    let user_file_alternatives = vec![
+        request_to_import_mapping(project_path.clone(), rcstr!("./src/instrumentation-client")),
+        request_to_import_mapping(
+            project_path.clone(),
+            rcstr!("./src/instrumentation-client.ts"),
+        ),
+        request_to_import_mapping(project_path.clone(), rcstr!("./instrumentation-client")),
+        request_to_import_mapping(project_path.clone(), rcstr!("./instrumentation-client.ts")),
+        ImportMapping::Ignore.resolved_cell(),
+    ];
+
+    let injects = next_config.instrumentation_client_inject().await?;
+
+    if injects.is_empty() {
+        insert_alias_to_alternatives(
+            import_map,
+            rcstr!("private-next-instrumentation-client"),
+            user_file_alternatives,
+        );
+        return Ok(());
+    }
+
+    // The user file is reached through a separate alias so the existing
+    // alternative resolution stays unchanged.
     insert_alias_to_alternatives(
         import_map,
+        rcstr!("private-next-instrumentation-client-user"),
+        user_file_alternatives,
+    );
+
+    let injects = injects
+        .iter()
+        .map(|s| s.as_str())
+        .chain(std::iter::once("private-next-instrumentation-client-user"));
+
+    let mut body = String::new();
+    for (i, spec) in injects.clone().enumerate() {
+        body.push_str(&format!(
+            "var mod_{i} = require({});\n",
+            serde_json::to_string(spec)?
+        ));
+    }
+    body.push_str("module.exports = { onRouterTransitionStart(url, type) {\n");
+    for (i, _) in injects.enumerate() {
+        body.push_str(&format!(
+            "    mod_{i}?.onRouterTransitionStart?.(url, type);\n"
+        ));
+    }
+    body.push_str("}};\n");
+
+    let virtual_source = VirtualSource::new(
+        // Use cjs here in case the user has type:module in the package.json. We do intentionally
+        // place this file in the user's folder, so that the `require`s inserted above resolve
+        // as expected.
+        project_path.join("__next_instrumentation_client.cjs")?,
+        AssetContent::file(FileContent::Content(body.into()).cell()),
+    )
+    .to_resolved()
+    .await?;
+
+    import_map.insert_exact_alias(
         rcstr!("private-next-instrumentation-client"),
-        vec![
-            request_to_import_mapping(project_path.clone(), rcstr!("./src/instrumentation-client")),
-            request_to_import_mapping(
-                project_path.clone(),
-                rcstr!("./src/instrumentation-client.ts"),
-            ),
-            request_to_import_mapping(project_path.clone(), rcstr!("./instrumentation-client")),
-            request_to_import_mapping(project_path.clone(), rcstr!("./instrumentation-client.ts")),
-            ImportMapping::Ignore.resolved_cell(),
-        ],
+        ImportMapping::Direct(
+            ResolveResult::source(ResolvedVc::upcast(virtual_source)).resolved_cell(),
+        )
+        .resolved_cell(),
     );
 
     Ok(())

@@ -43,8 +43,12 @@ export function CallStack({
 
 export const CALL_STACK_STYLES = css`
   [data-nextjs-call-stack-container] {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
     position: relative;
-    margin-top: 8px;
+    margin: 0;
+    padding: 20px 0 0;
   }
 
   [data-nextjs-call-stack-header] {
@@ -52,7 +56,7 @@ export const CALL_STACK_STYLES = css`
     justify-content: space-between;
     align-items: center;
     min-height: var(--size-28);
-    padding: 8px 8px 12px 4px;
+    padding: 0;
     width: 100%;
   }
 
@@ -74,8 +78,9 @@ export const CALL_STACK_STYLES = css`
     justify-content: center;
     align-items: center;
 
-    width: var(--size-20);
+    padding: 0 6px;
     height: var(--size-20);
+    min-width: var(--size-20);
     gap: 4px;
 
     color: var(--color-gray-1000);
@@ -85,7 +90,7 @@ export const CALL_STACK_STYLES = css`
     line-height: var(--size-16);
 
     border-radius: var(--rounded-full);
-    background: var(--color-gray-300);
+    background: var(--color-gray-200);
   }
 
   [data-nextjs-call-stack-ignored-list-toggle-button] {
@@ -96,11 +101,9 @@ export const CALL_STACK_STYLES = css`
     color: var(--color-gray-900);
     font-size: var(--size-14);
     line-height: var(--size-20);
-    border-radius: 6px;
+    border-radius: var(--rounded-md-2);
     padding: 4px 6px;
     margin-right: -6px;
-    transition: background 150ms ease;
-
     &:hover {
       background: var(--color-gray-100);
     }

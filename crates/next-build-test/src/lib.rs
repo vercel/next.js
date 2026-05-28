@@ -305,14 +305,16 @@ async fn hmr(
         .await?;
 
     let start = Instant::now();
-    for ident in idents {
+    for ident in &idents {
         if !ident.ends_with(".js") {
             continue;
         }
         let session = session.clone();
         let start = Instant::now();
+        let ident_for_task = ident.clone();
         let task = tt.spawn_root_task(move || {
             let session = session.clone();
+            let ident = ident_for_task.clone();
             async move {
                 let project = project.project();
                 let state = project.hmr_version_state(ident.clone(), HmrTarget::Client, session);

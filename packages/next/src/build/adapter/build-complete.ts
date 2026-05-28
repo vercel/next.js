@@ -43,6 +43,7 @@ import {
 } from '../../lib/constants'
 
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
+import { getStaticMetadataPrerenderPathname } from '../../lib/metadata/get-metadata-route'
 import { isStaticMetadataFile } from '../../lib/metadata/is-metadata-route'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
@@ -379,6 +380,10 @@ export interface NextAdapter {
        * nextVersion is the current version of Next.js being used
        */
       nextVersion: string
+      /**
+       * projectDir is the absolute directory the Next.js application is in
+       */
+      projectDir: string
     }
   ) => Promise<NextConfigComplete> | NextConfigComplete
   onBuildComplete?: (ctx: {
@@ -669,6 +674,7 @@ export async function handleBuildComplete({
           wasmAssets: {},
           config: {
             env: page.env,
+            preferredRegion: page.regions,
           },
         }
 
@@ -984,19 +990,17 @@ export async function handleBuildComplete({
           // Dynamic metadata routes (e.g. robots/sitemap using connection())
           // should remain app routes in adapter outputs.
           const isStaticMetadataRoute = isStaticMetadataFile(normalizedPage)
+          const staticMetadataPrerenderPathname =
+            getStaticMetadataPrerenderPathname(normalizedPage) ?? normalizedPage
           const isPrerenderedMetadataRoute =
-            prerenderManifest.routes[normalizedPage] ||
-            prerenderManifest.dynamicRoutes[normalizedPage] ||
+            prerenderManifest.routes[staticMetadataPrerenderPathname] ||
             config.i18n?.locales?.some((locale) => {
               const localePathname = path.posix.join(
                 '/',
                 locale,
-                normalizedPage.slice(1)
+                staticMetadataPrerenderPathname.slice(1)
               )
-              return (
-                prerenderManifest.routes[localePathname] ||
-                prerenderManifest.dynamicRoutes[localePathname]
-              )
+              return prerenderManifest.routes[localePathname]
             })
 
           if (isStaticMetadataRoute && isPrerenderedMetadataRoute) {
@@ -1518,6 +1522,10 @@ export async function handleBuildComplete({
       }
 
       for (const dynamicRoute in prerenderManifest.dynamicRoutes) {
+        if (isStaticMetadataFile(dynamicRoute)) {
+          continue
+        }
+
         const {
           fallback,
           fallbackExpire,

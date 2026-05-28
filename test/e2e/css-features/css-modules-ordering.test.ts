@@ -1,8 +1,12 @@
 /* eslint-disable jest/no-standalone-expect */
 /* eslint-disable jest/no-identical-title */
 import cheerio from 'cheerio'
-import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
-import type { Playwright } from 'next-webdriver'
+import {
+  isNextDev,
+  isNextStart,
+  nextTestSetup,
+  type Playwright,
+} from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import path from 'path'
 

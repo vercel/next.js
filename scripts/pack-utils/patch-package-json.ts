@@ -36,11 +36,7 @@ export default async function patchPackageJson(
   paths: DependencyPaths
 ): Promise<string> {
   try {
-    const root = await findWorkspaceRoot(targetProjectPath)
-    const packageJsonPath = root
-      ? path.join(root, 'package.json')
-      : path.join(targetProjectPath, 'package.json')
-
+    const packageJsonPath = await findPackageJsonPath(targetProjectPath)
     const packageJsonValue = await readJsonValue(packageJsonPath)
     await patchWorkspacePackageJsonMap(paths, packageJsonValue)
     await writeJsonValue(packageJsonPath, packageJsonValue)
@@ -49,6 +45,15 @@ export default async function patchPackageJson(
   } catch (error) {
     throw new Error('Error patching package.json', { cause: error })
   }
+}
+
+export async function findPackageJsonPath(
+  targetProjectPath: string
+): Promise<string> {
+  const root = await findWorkspaceRoot(targetProjectPath)
+  return root
+    ? path.join(root, 'package.json')
+    : path.join(targetProjectPath, 'package.json')
 }
 
 async function readJsonValue(filePath: string): Promise<PackageJson> {

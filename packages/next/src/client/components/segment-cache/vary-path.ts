@@ -269,6 +269,13 @@ export function getSegmentVaryPathForRequest(
   // params that can be treated as Fallback. (Or perhaps the inverse.)
   const originalVaryPath = tree.varyPath
 
+  if (fetchStrategy === FetchStrategy.RuntimeShell) {
+    // The Shell phase issues a runtime render with params omitted. The
+    // resulting entry is reusable across all concrete param values, so we
+    // key it at the shell vary path (every param substituted with Fallback).
+    return getShellSegmentVaryPath(originalVaryPath)
+  }
+
   // Only page segments (and the special "metadata" segment, which is treated
   // like a page segment for the purposes of caching) may contain search
   // params. There's no reason to include them in the vary path otherwise.
@@ -359,6 +366,31 @@ export function getFulfilledSegmentVaryPath(
       original.parent === null
         ? null
         : getFulfilledSegmentVaryPath(original.parent, varyParams),
+  }
+  return clone as SegmentVaryPath
+}
+
+function getShellSegmentVaryPath(original: VaryPath): SegmentVaryPath {
+  // Re-keys a segment's vary path to identify the "App Shell" entry for this
+  // segment position — a reusable, param-free loading state that can be served
+  // for any concrete navigation to this segment. Every param node (path
+  // params, search params) is replaced with Fallback; only structural nodes
+  // (request keys, etc.) keep their concrete value.
+  //
+  // NOTE: For now, we treat root params the same as non-root params and
+  // forbid them from the shell. Root params change less frequently than
+  // other params, though, so caching the shell across root param values is
+  // a potential future optimization. One way to model that would be to
+  // evict the entire client cache whenever a root param change is detected.
+  // Then we would no longer need to include them in the cache key, which
+  // would be consistent with how we treat session-based data like cookies.
+  const clone: VaryPath = {
+    id: original.id,
+    value: original.id === null ? original.value : Fallback,
+    parent:
+      original.parent === null
+        ? null
+        : getShellSegmentVaryPath(original.parent),
   }
   return clone as SegmentVaryPath
 }

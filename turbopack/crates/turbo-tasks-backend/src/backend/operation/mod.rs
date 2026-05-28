@@ -19,7 +19,7 @@ use tracing::info_span;
 use tracing::trace_span;
 use turbo_tasks::{
     CellId, DynTaskInputs, FxIndexMap, RawVc, SharedReference, TaskExecutionReason, TaskId,
-    TaskPriority, TurboTasksBackendApi, TurboTasksCallApi, backend::CachedTaskType,
+    TaskPriority, TurboTasksBackendApi, TurboTasksCallApi, backend::CachedTaskTypeArc,
     macro_helpers::NativeFunction,
 };
 
@@ -103,7 +103,8 @@ pub trait ExecuteContext<'e>: Sized {
     /// Uses hash-based lookup which may return multiple candidates due to hash collisions,
     /// then verifies each candidate by comparing the stored `persistent_task_type`.
     /// Returns `Some((task_id, task_type))` if a matching task is found, where `task_type` is
-    /// the existing `Arc<CachedTaskType>` from storage (avoiding a duplicate allocation).
+    /// the existing `CachedTaskTypeArc` from storage (avoiding a duplicate
+    /// allocation).
     ///
     /// Accepts exploded components so the caller does not need to box the argument before calling.
     fn task_by_type(
@@ -111,7 +112,7 @@ pub trait ExecuteContext<'e>: Sized {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
-    ) -> Option<(TaskId, Arc<CachedTaskType>)>;
+    ) -> Option<(TaskId, CachedTaskTypeArc)>;
     fn debug_get_task_description(&self, task_id: TaskId) -> String;
 }
 
@@ -606,7 +607,7 @@ struct TaskRestoreEntry {
     /// Another thread claimed the meta restore; we must wait in Phase 3.
     wait_meta: bool,
     /// Task type discovered during Phase 1c data restore (used to update task cache in Phase 2).
-    task_type: Option<Arc<CachedTaskType>>,
+    task_type: Option<CachedTaskTypeArc>,
     /// This thread performed the restore for at least one category (set in Phase 1c).
     self_restored: bool,
 }
@@ -985,7 +986,7 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
-    ) -> Option<(TaskId, Arc<CachedTaskType>)> {
+    ) -> Option<(TaskId, CachedTaskTypeArc)> {
         if !self.backend.should_restore() {
             return None;
         }
@@ -1032,14 +1033,14 @@ impl<'e, B: BackingStorage> ChildExecuteContext<'e> for ChildExecuteContextImpl<
 }
 
 pub enum TaskTypeRef<'l> {
-    Cached(&'l Arc<CachedTaskType>),
+    Cached(&'l CachedTaskTypeArc),
     Transient(&'l Arc<TransientTask>),
 }
 
 impl TaskTypeRef<'_> {
     pub fn to_owned(&self) -> TaskType {
         match self {
-            TaskTypeRef::Cached(ty) => TaskType::Cached(Arc::clone(ty)),
+            TaskTypeRef::Cached(ty) => TaskType::Cached((*ty).clone()),
             TaskTypeRef::Transient(ty) => TaskType::Transient(Arc::clone(ty)),
         }
     }
@@ -1056,7 +1057,7 @@ impl Display for TaskTypeRef<'_> {
 
 #[derive(Debug)]
 pub enum TaskType {
-    Cached(Arc<CachedTaskType>),
+    Cached(CachedTaskTypeArc),
     Transient(Arc<TransientTask>),
 }
 
@@ -1398,7 +1399,7 @@ impl TaskGuard for TaskGuardImpl<'_> {
             .map(|target| (target, TaskDataCategory::Meta))
             .chain(
                 self.iter_cell_dependencies()
-                    .map(|(target, _key)| (target.task, TaskDataCategory::All)),
+                    .map(|dep| (dep.cell_ref().task, TaskDataCategory::All)),
             )
             .chain(
                 self.iter_collectibles_dependencies()

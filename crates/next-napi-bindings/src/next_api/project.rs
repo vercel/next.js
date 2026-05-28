@@ -1690,12 +1690,13 @@ async fn output_assets_operation(
     }
 
     let whole_app_module_graphs = project.whole_app_module_graphs();
+    // This makes the trace file nicer to look at
+    whole_app_module_graphs.as_side_effect().await?;
+
     let nft = next_server_nft_assets(project).await?;
     let routes_hashes_manifest = routes_hashes_manifest_asset_if_enabled(project).await?;
     let immutable_hashes_manifest_asset =
         immutable_hashes_manifest_asset_if_enabled(project).await?;
-
-    whole_app_module_graphs.as_side_effect().await?;
 
     Ok(Vc::cell(
         output_assets
@@ -1821,6 +1822,10 @@ async fn hmr_update_with_issues_operation(
     target: HmrTarget,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     let update_op = project_hmr_update_operation(project, chunk_name, target, state);
+    // NOTE: we do not use `strongly_consistent_catch_collectables` here. The JS HMR
+    // consumers in `hot-reloader-turbopack.ts` (`subscribeToServerHmr` and
+    // `subscribeToClientHmrEvents`) rely on this read *throwing* on build-graph
+    // failures to trigger their recovery paths
     let update = update_op.read_strongly_consistent().await?;
     let filter = project.issue_filter();
     let issues = get_issues(update_op, filter).await?;
@@ -1957,6 +1962,12 @@ async fn get_hmr_chunk_names_with_issues_operation(
     target: HmrTarget,
 ) -> Result<Vc<HmrChunkNamesWithIssues>> {
     let hmr_chunk_names_op = project_hmr_chunk_names_operation(container, target);
+    // Do NOT switch this to `strongly_consistent_catch_collectables`. The JS HMR
+    // chunk-names consumer in `hot-reloader-turbopack.ts` relies on this read
+    // *throwing* on build-graph failures so its outer `try` block exits the
+    // subscription loop. Swallowing the error and emitting an empty chunk-name
+    // list keeps the loop running but with stale state, and obscures the real
+    // failure from the dev server log.
     let hmr_chunk_names = hmr_chunk_names_op.read_strongly_consistent().await?;
     let filter = issue_filter_from_container(container);
     let issues = get_issues(hmr_chunk_names_op, filter).await?;
