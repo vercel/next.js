@@ -3,7 +3,7 @@ import { retry } from 'next-test-utils'
 import path from 'path'
 
 describe('Instrumentation Client Hook', () => {
-  const testCases = [
+  describe.each([
     {
       name: 'With src folder',
       appDir: 'app-with-src',
@@ -19,9 +19,7 @@ describe('Instrumentation Client Hook', () => {
       appDir: 'pages-router',
       shouldLog: false,
     },
-  ]
-
-  testCases.forEach(({ name, appDir, shouldLog }) => {
+  ])('$name', ({ name, appDir, shouldLog }) => {
     describe(name, () => {
       const { next, isNextDev } = nextTestSetup({
         files: path.join(__dirname, appDir),
@@ -102,9 +100,19 @@ describe('Instrumentation Client Hook', () => {
     })
   })
 
-  describe('instrumentationClientInject', () => {
+  describe.each([
+    {
+      name: 'default',
+      packageJson: {},
+    },
+    {
+      name: 'with type:module',
+      packageJson: { type: 'module' },
+    },
+  ])('instrumentationClientInject $name', ({ packageJson }) => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, 'inject'),
+      packageJson,
     })
 
     it('runs each injected entry before the user instrumentation-client and before hydration, in array order', async () => {
