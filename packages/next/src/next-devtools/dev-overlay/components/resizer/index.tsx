@@ -32,9 +32,10 @@ export const Resizer = forwardRef(function Resizer(
       // [x] Responds to content growth
       style={{
         height: measuring ? 'auto' : height,
-        transition: skipTransition
-          ? 'none'
-          : 'height 250ms var(--timing-swift)',
+        transition:
+          skipTransition || measuring
+            ? 'none'
+            : 'height 250ms var(--timing-swift)',
       }}
     >
       <div ref={setElement}>{children}</div>
