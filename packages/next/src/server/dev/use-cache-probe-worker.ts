@@ -159,7 +159,7 @@ export async function probeUseCache(msg: ProbeMessage): Promise<boolean> {
       url: { pathname: msg.request.urlPathname, search: msg.request.urlSearch },
       rootParams: msg.request.rootParams,
       implicitTags: { tags: [], expirationsByCacheKind: new Map() },
-      renderResumeDataCache: null,
+      resumeDataCache: null,
       previewProps: undefined,
       isHmrRefresh: msg.request.isHmrRefresh,
       serverComponentsHmrCache: undefined,

@@ -1285,5 +1285,6 @@
   "1284": "Cache Components error recovery expected an original prerender resume data cache",
   "1285": "Cache Components error recovery expected an original prerender store",
   "1286": "Cache Components error recovery unexpectedly produced a dynamic HTML hole",
-  "1287": "Expected stream state to be initialized before reading"
+  "1287": "Expected stream state to be initialized before reading",
+  "1288": "Cache Components error recovery expected an original resume data cache"
 }

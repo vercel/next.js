@@ -21,7 +21,7 @@ import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
 import type { ServerComponentsHmrCache } from '../response-cache'
-import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
@@ -102,7 +102,7 @@ export type RequestStoreInputs = {
   url: { pathname: string; search?: string }
   rootParams: Params
   implicitTags: ImplicitTags
-  renderResumeDataCache: RenderResumeDataCache | null
+  resumeDataCache: ResumeDataCache | null
   previewProps: WrapperRenderOpts['previewProps']
   isHmrRefresh: boolean | undefined
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined
@@ -152,7 +152,7 @@ export function createRequestStoreForRender(
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],
-  renderResumeDataCache: RenderResumeDataCache | null,
+  resumeDataCache: ResumeDataCache | null,
   fallbackParams: OpaqueFallbackRouteParams | null
 ): RequestStore {
   return createRequestStore({
@@ -169,7 +169,7 @@ export function createRequestStoreForRender(
     url,
     rootParams,
     implicitTags,
-    renderResumeDataCache,
+    resumeDataCache,
     previewProps,
     isHmrRefresh,
     serverComponentsHmrCache,
@@ -192,7 +192,7 @@ export function createRequestStoreForAPI(
     url,
     rootParams: {},
     implicitTags,
-    renderResumeDataCache: null,
+    resumeDataCache: null,
     previewProps,
     isHmrRefresh: false,
     serverComponentsHmrCache: undefined,
@@ -215,7 +215,7 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
     url,
     rootParams,
     implicitTags,
-    renderResumeDataCache,
+    resumeDataCache,
     previewProps,
     isHmrRefresh,
     serverComponentsHmrCache,
@@ -296,7 +296,7 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
 
       return cache.draftMode
     },
-    renderResumeDataCache: renderResumeDataCache ?? null,
+    resumeDataCache: resumeDataCache ?? null,
     isHmrRefresh,
     serverComponentsHmrCache:
       serverComponentsHmrCache ||

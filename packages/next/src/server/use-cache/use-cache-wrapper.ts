@@ -28,8 +28,7 @@ import type {
 } from '../app-render/work-unit-async-storage.external'
 import {
   getHmrRefreshHash,
-  getRenderResumeDataCache,
-  getPrerenderResumeDataCache,
+  getResumeDataCache,
   workUnitAsyncStorage,
   getDraftModeProviderForCacheScope,
   getCacheSignal,
@@ -74,7 +73,7 @@ import {
   type SearchParams,
 } from '../request/search-params'
 import type { Params } from '../request/params'
-import type { PrerenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import type { ResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import { createLazyResult, isResolvedLazyResult } from '../lib/lazy-result'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 import type { CacheLife } from './cache-life'
@@ -333,11 +332,11 @@ function computeRootParamsCacheKeySuffix(
 }
 
 function saveToResumeDataCache(
-  prerenderResumeDataCache: PrerenderResumeDataCache | null,
+  resumeDataCache: ResumeDataCache | null,
   serializedCacheKey: string,
   pendingCacheResult: Promise<CollectedCacheResult>
 ): Promise<CollectedCacheResult> {
-  if (!prerenderResumeDataCache) {
+  if (!resumeDataCache?.mutable) {
     return pendingCacheResult
   }
 
@@ -348,7 +347,7 @@ function saveToResumeDataCache(
   // The RDC is per-page and root params are fixed within a page, so we always
   // use the coarse key (without root param suffix). Unlike the cache handler,
   // the RDC doesn't need root-param-specific keys for isolation.
-  prerenderResumeDataCache.cache.set(serializedCacheKey, rdcResult)
+  resumeDataCache.cache.set(serializedCacheKey, rdcResult)
   debug?.('Resume Data Cache entry saved', serializedCacheKey)
 
   return savedCacheResult
@@ -373,11 +372,11 @@ function saveToResumeDataCache(
 function saveSharedCacheEntryToResumeDataCache(
   serializedCacheKey: string,
   sharedCacheEntry: SharedCacheEntry,
-  prerenderResumeDataCache: PrerenderResumeDataCache | null
+  resumeDataCache: ResumeDataCache | null
 ): void {
   if (
-    !prerenderResumeDataCache ||
-    prerenderResumeDataCache.cache.has(serializedCacheKey)
+    !resumeDataCache?.mutable ||
+    resumeDataCache.cache.has(serializedCacheKey)
   ) {
     return
   }
@@ -398,7 +397,7 @@ function saveSharedCacheEntryToResumeDataCache(
       dynamicNestedCacheError: metadata.dynamicNestedCacheError,
     }))
 
-  prerenderResumeDataCache.cache.set(serializedCacheKey, rdcResult)
+  resumeDataCache.cache.set(serializedCacheKey, rdcResult)
   debug?.('Resume Data Cache entry saved by joiner', serializedCacheKey)
 }
 
@@ -1982,18 +1981,16 @@ export async function cache(
 
   let stream: undefined | ReadableStream = undefined
 
-  // Get an immutable and mutable versions of the resume data cache.
-  const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
-  const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
+  const resumeDataCache = getResumeDataCache(workUnitStore)
 
   const implicitTags = workUnitStore.implicitTags?.tags ?? []
 
-  if (renderResumeDataCache) {
+  if (resumeDataCache) {
     // If this cache key was already determined to be dynamic during the
     // prospective prerender (e.g. because it accessed fallback params), we
     // return a hanging promise early to avoid trying to regenerate the entry,
     // which would be aborted anyway.
-    if (renderResumeDataCache.dynamicCacheKeys?.has(serializedCacheKey)) {
+    if (resumeDataCache.dynamicCacheKeys?.has(serializedCacheKey)) {
       switch (workUnitStore.type) {
         case 'prerender':
         case 'prerender-runtime':
@@ -2020,7 +2017,7 @@ export async function cache(
     if (cacheSignal) {
       cacheSignal.beginRead()
     }
-    const rdcEntry = renderResumeDataCache.cache.get(serializedCacheKey)
+    const rdcEntry = resumeDataCache.cache.get(serializedCacheKey)
     if (rdcEntry !== undefined) {
       let rdcResult: CollectedCacheResult | undefined = await rdcEntry
 
@@ -2209,10 +2206,6 @@ export async function cache(
       if (rdcResult !== undefined) {
         debug?.('Resume Data Cache entry found', serializedCacheKey)
 
-        if (prerenderResumeDataCache) {
-          prerenderResumeDataCache.cache.set(serializedCacheKey, rdcEntry)
-        }
-
         if (
           rdcResult.readRootParamNames &&
           rdcResult.readRootParamNames.size > 0
@@ -2277,8 +2270,8 @@ export async function cache(
           // an async function, before being passed into the "use cache"
           // function, which escapes the instrumentation.
           if (workUnitStore.allowEmptyStaticShell) {
-            if (prerenderResumeDataCache) {
-              prerenderResumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
+            if (resumeDataCache?.mutable) {
+              resumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
             }
             return makeHangingPromise(
               workUnitStore.renderSignal,
@@ -2360,7 +2353,7 @@ export async function cache(
       saveSharedCacheEntryToResumeDataCache(
         serializedCacheKey,
         sharedCacheResult.entry,
-        prerenderResumeDataCache
+        resumeDataCache
       )
 
       // End the cache signal read when the result is fully collected, not when
@@ -2465,7 +2458,7 @@ export async function cache(
             saveSharedCacheEntryToResumeDataCache(
               serializedCacheKey,
               sharedCacheResult.entry,
-              prerenderResumeDataCache
+              resumeDataCache
             )
 
             // Resolve for intra-request joiners in this request. They get
@@ -2500,8 +2493,8 @@ export async function cache(
               'cross-request invocation is prerender-dynamic',
               cacheHandlerKey
             )
-            if (prerenderResumeDataCache) {
-              prerenderResumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
+            if (resumeDataCache?.mutable) {
+              resumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
             }
             cacheSignal?.endRead()
             resolvableSharedCacheResult.resolve(sharedCacheResult)
@@ -2723,8 +2716,8 @@ export async function cache(
               'leader resolved as prerender-dynamic (generation)',
               cacheHandlerKey
             )
-            if (prerenderResumeDataCache) {
-              prerenderResumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
+            if (resumeDataCache?.mutable) {
+              resumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
             }
             resolvableSharedCacheResult.resolve(result)
             return result.hangingPromise
@@ -2735,7 +2728,7 @@ export async function cache(
           // When draft mode is enabled, we must not save the cache entry.
           if (!workStore.isDraftMode) {
             const savedCacheResult = saveToResumeDataCache(
-              prerenderResumeDataCache,
+              resumeDataCache,
               serializedCacheKey,
               pendingCacheResult
             )
@@ -2809,9 +2802,9 @@ export async function cache(
           // We want to return this stream, even if it's stale.
           stream = entry.value
 
-          // If we have a resume data cache, we need to clone the entry and add
-          // it to the resume data cache.
-          if (prerenderResumeDataCache) {
+          // If we have a mutable resume data cache, we need to clone the entry
+          // and add it to the resume data cache.
+          if (resumeDataCache?.mutable) {
             const [entryLeft, entryRight] = cloneCacheEntry(entry)
             if (cacheSignal) {
               stream = createTrackedReadableStream(entryLeft.value, cacheSignal)
@@ -2821,7 +2814,7 @@ export async function cache(
 
             // The RDC is per-page and root params are fixed within a page, so
             // we always use the coarse key (without root param suffix).
-            prerenderResumeDataCache.cache.set(
+            resumeDataCache.cache.set(
               serializedCacheKey,
               Promise.resolve({
                 entry: entryRight,
@@ -2875,7 +2868,7 @@ export async function cache(
                   const { stream: ignoredStream, pendingCacheResult } = result
 
                   const savedCacheResult = saveToResumeDataCache(
-                    prerenderResumeDataCache,
+                    resumeDataCache,
                     serializedCacheKey,
                     pendingCacheResult
                   )
