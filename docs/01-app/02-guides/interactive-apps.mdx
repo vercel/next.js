@@ -460,7 +460,7 @@ The standalone `startTransition` is used here instead of `useTransition` because
 
 If you drag a card from "Todo" to "In Progress" now, the card lands in the target column the moment you release.
 
-### Step 6: Manage form lifecycle with useActionState
+### Step 6: Manage form lifecycle
 
 The board has a "New Task" button that opens a create dialog. The form action creates the task on the server and then refreshes the board.
 
@@ -660,7 +660,7 @@ The button is the only component that knows when deletion is pending. Passing `i
 
 ### Step 8: Make repeat navigation instant
 
-Every pattern so far smooths a single interaction. Across navigations, the same reads still rerun and the same fallbacks still paint. Caching reusable reads — and prefetching them with the real request — closes that gap without moving the data model into the browser.
+Every pattern so far smooths a single interaction. Across navigations, the same reads still rerun and the same fallbacks still paint. [Caching](/docs/app/getting-started/caching) reusable reads — and [prefetching](/docs/app/guides/prefetching) them with the real request — closes that gap without moving the data model into the browser.
 
 This step uses [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) APIs. Steps 1–7 work without it. If you are not using Cache Components, see [Caching without Cache Components](/docs/app/guides/caching-without-cache-components).
 
@@ -681,7 +681,7 @@ export const getTask = cache(async (id: string) => {
 })
 ```
 
-The per-id tag `task-${id}` gives a single task its own handle. The broader `tasks` tag covers the list. See the [`'use cache'` reference](/docs/app/api-reference/directives/use-cache) for cache scoping (`'use cache: private'`, `'use cache: remote'`) and tag patterns.
+The per-id tag `task-${id}` gives a single task its own handle. The broader `tasks` tag covers the list. See the [Caching guide](/docs/app/getting-started/caching) for cache scoping (`'use cache: private'`, `'use cache: remote'`) and tag patterns.
 
 #### Invalidate from mutations
 
@@ -699,7 +699,7 @@ export async function updateStatus(taskId: string, newStatus: Status) {
 }
 ```
 
-Every Server Function follows the same shape: run the write, then call `updateTag` for the cached reads that changed.
+Every Server Function follows the same shape: run the write, then call `updateTag` for the cached reads that changed. See the [Revalidating guide](/docs/app/getting-started/revalidating) for tag patterns, time-based revalidation, and on-demand invalidation from route handlers.
 
 #### Prefetch the destination with the real request
 
@@ -713,7 +713,7 @@ export default function TaskPage({ params }) {
 }
 ```
 
-Prefetch only sticks if the destination reads are cached. The tags from the previous subsections give the prefetched output a stable slot in the [Client Cache](/docs/app/glossary#client-cache). When a card scrolls into view, the detail page prefetches; by the time the user clicks, the destination paints instantly.
+Prefetch only sticks if the destination reads are cached. The tags from the previous subsections give the prefetched output a stable slot in the [Client Cache](/docs/app/glossary#client-cache). When a card scrolls into view, the detail page prefetches; by the time the user clicks, the destination paints instantly. See the [Prefetching guide](/docs/app/guides/prefetching) for prefetch modes, and the [Instant Navigation guide](/docs/app/guides/instant-navigation) for validating that navigations stay instant in production.
 
 ## Next steps
 
