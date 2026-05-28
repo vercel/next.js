@@ -785,7 +785,7 @@ impl PageEndpoint {
                 .collect();
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
                 AssetIdent::from_path(this.page.await?.base_path.clone()).into_vc(),
-                ChunkGroup::Entry(evaluatable_assets),
+                ChunkGroup::Entry(evaluatable_assets).cell(),
                 module_graph,
                 AvailabilityInfo::root(),
             );
@@ -1003,7 +1003,12 @@ impl PageEndpoint {
                 async {
                     let chunk_group = chunking_context.chunk_group(
                         layout.ident(),
-                        ChunkGroup::Shared(layout),
+                        // Layout segment optimization relies on
+                        // `chunking_context.chunk_group()` being the same task
+                        // for a given layout across pages. So use
+                        // `ChunkGroup::shared_interned` instead of
+                        // `ChunkGroup::Shared().cell()` here.
+                        ChunkGroup::shared_interned(*layout),
                         ssr_module_graph,
                         current_chunk_group.await?.availability_info,
                     );
@@ -1023,7 +1028,7 @@ impl PageEndpoint {
             if is_edge {
                 let chunk_assets = edge_chunking_context.evaluated_chunk_group_assets(
                     ssr_module.ident(),
-                    ChunkGroup::Entry(vec![ssr_module]),
+                    ChunkGroup::Entry(vec![ssr_module]).cell(),
                     ssr_module_graph,
                     current_chunk_group.await?.availability_info,
                 );
@@ -1051,7 +1056,7 @@ impl PageEndpoint {
                 let ssr_entry_chunk = node_chunking_context
                     .entry_chunk_group_asset(
                         ssr_entry_chunk_path,
-                        ChunkGroup::Entry(vec![ssr_module]),
+                        ChunkGroup::Entry(vec![ssr_module]).cell(),
                         ssr_module_graph,
                         current_chunk_group.primary_assets(),
                         current_chunk_group.referenced_assets(),

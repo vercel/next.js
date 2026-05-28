@@ -70,7 +70,7 @@ impl WorkerLoaderModule {
                     .into_vc();
                 chunking_context.evaluated_chunk_group_assets(
                     ident,
-                    ChunkGroup::Isolated(ResolvedVc::upcast(this.inner)),
+                    ChunkGroup::Isolated(ResolvedVc::upcast(this.inner)).cell(),
                     module_graph,
                     AvailabilityInfo::root(),
                 )
@@ -97,7 +97,7 @@ impl WorkerLoaderModule {
                 let entry_result = chunking_context
                     .root_entry_chunk_group(
                         worker_path,
-                        ChunkGroup::Isolated(ResolvedVc::upcast(evaluatable)),
+                        ChunkGroup::Isolated(ResolvedVc::upcast(evaluatable)).cell(),
                         module_graph,
                         OutputAssets::empty(),
                         OutputAssets::empty(),

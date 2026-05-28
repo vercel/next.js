@@ -767,7 +767,7 @@ impl EvaluateContext for WebpackLoaderContext {
 
                 let bootstrap = self.chunking_context.root_entry_chunk_group_asset(
                     entry_path.clone(),
-                    ChunkGroup::Entry(vec![ResolvedVc::upcast(evaluatable)]),
+                    ChunkGroup::Entry(vec![ResolvedVc::upcast(evaluatable)]).cell(),
                     *import_module_graph,
                     OutputAssets::empty(),
                     OutputAssets::empty(),

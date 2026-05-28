@@ -1787,14 +1787,14 @@ impl AppEndpoint {
             NextRuntime::Edge => {
                 let chunk_group1 = chunking_context.chunk_group(
                     server_action_manifest_loader.ident(),
-                    ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
+                    ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)).cell(),
                     module_graph,
                     AvailabilityInfo::root(),
                 );
 
                 let chunk_group2_assets = chunking_context.evaluated_chunk_group_assets(
                     app_entry.rsc_entry.ident(),
-                    ChunkGroup::Entry(vec![app_entry.rsc_entry]),
+                    ChunkGroup::Entry(vec![app_entry.rsc_entry]).cell(),
                     module_graph,
                     chunk_group1.await?.availability_info,
                 );
@@ -1838,7 +1838,8 @@ impl AppEndpoint {
                                     merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
                                     entries: server_utils,
                                     parent: parent_chunk_group,
-                                },
+                                }
+                                .cell(),
                                 module_graph,
                                 AvailabilityInfo::root(),
                             )
@@ -1869,7 +1870,12 @@ impl AppEndpoint {
                         async {
                             let chunk_group = chunking_context.chunk_group(
                                 server_component.ident(),
-                                ChunkGroup::Shared(ResolvedVc::upcast(server_component)),
+                                // Layout segment optimization relies on
+                                // `chunking_context.chunk_group()` being the same task
+                                // for a given layout across pages. So use
+                                // `ChunkGroup::shared_interned` instead of
+                                // `ChunkGroup::Shared().cell()` here.
+                                ChunkGroup::shared_interned(*ResolvedVc::upcast(server_component)),
                                 module_graph,
                                 current_chunk_group.await?.availability_info,
                             );
@@ -1888,7 +1894,8 @@ impl AppEndpoint {
                     {
                         let chunk_group = chunking_context.chunk_group(
                             server_action_manifest_loader.ident(),
-                            ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader)),
+                            ChunkGroup::Shared(ResolvedVc::upcast(server_action_manifest_loader))
+                                .cell(),
                             module_graph,
                             current_chunk_group.await?.availability_info,
                         );
@@ -1913,7 +1920,7 @@ impl AppEndpoint {
                                             "app{original_name}.js",
                                             original_name = app_entry.original_name
                                         ))?,
-                                        entry_chunk_group,
+                                        entry_chunk_group.cell(),
                                         module_graph,
                                         *current_chunks,
                                         current_referenced_assets,

@@ -161,9 +161,8 @@ impl ChunkGroupEntry {
     }
 }
 
-#[derive(
-    Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, Encode, Decode, NonLocalValue,
-)]
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Hash, TaskInput)]
 pub enum ChunkGroup {
     /// The entry chunk group of the compilation, e.g. src/index.js for a SPA, or app/foo/page.js
     /// for Next.js.
@@ -192,6 +191,19 @@ pub enum ChunkGroup {
         merge_tag: RcStr,
         entries: Vec<ResolvedVc<Box<dyn Module>>>,
     },
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkGroup {
+    #[turbo_tasks::function]
+    pub async fn async_interned(entry: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::Async(entry).cell()
+    }
+
+    #[turbo_tasks::function]
+    pub async fn shared_interned(entry: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::Shared(entry).cell()
+    }
 }
 
 impl ChunkGroup {

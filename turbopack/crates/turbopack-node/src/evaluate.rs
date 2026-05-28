@@ -162,7 +162,7 @@ async fn emit_evaluate_pool_assets_operation(
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
         entrypoint.clone(),
-        ChunkGroup::Entry(entries.iter().cloned().map(ResolvedVc::upcast).collect()),
+        ChunkGroup::Entry(entries.iter().cloned().map(ResolvedVc::upcast).collect()).cell(),
         *module_graph,
         OutputAssets::empty(),
         OutputAssets::empty(),

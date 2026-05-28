@@ -85,7 +85,9 @@ impl AsyncLoaderModule {
         }
         Ok(self.chunking_context.chunk_group_assets(
             self.inner.ident(),
-            ChunkGroup::Async(ResolvedVc::upcast(self.inner)),
+            // Interned, so that the chunks are deduplicated when using
+            // nested_async_availability=false
+            ChunkGroup::async_interned(*ResolvedVc::upcast(self.inner)),
             module_graph,
             self.availability_info,
         ))
