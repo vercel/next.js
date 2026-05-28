@@ -3,22 +3,11 @@ use std::sync::{Arc, LazyLock};
 use anyhow::Result;
 use arbitrary::Arbitrary;
 use bincode::{Decode, Encode};
-use turbo_tasks::{self, NonLocalValue, State, TaskInput, TurboTasks, Vc, trace::TraceRawVcs};
+use turbo_tasks::{self, State, TurboTasks, Vc, trace::TraceRawVcs};
 use turbo_tasks_malloc::TurboMalloc;
 
-#[derive(
-    Arbitrary,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Hash,
-    NonLocalValue,
-    TraceRawVcs,
-    TaskInput,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Arbitrary, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct TaskReferenceSpec {
     task: u16,
     chain: u8,
@@ -26,19 +15,8 @@ pub struct TaskReferenceSpec {
     read_strongly_consistent: bool,
 }
 
-#[derive(
-    Arbitrary,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Hash,
-    NonLocalValue,
-    TraceRawVcs,
-    TaskInput,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Arbitrary, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct TaskSpec {
     references: Vec<TaskReferenceSpec>,
     children: u8,
