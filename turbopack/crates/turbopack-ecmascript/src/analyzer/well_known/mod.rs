@@ -1,6 +1,7 @@
 use std::mem::take;
 
 pub mod kinds;
+pub mod require_context;
 
 use anyhow::Result;
 use turbo_rcstr::rcstr;
