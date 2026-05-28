@@ -83,10 +83,10 @@ const runtimeCards: FixCard[] = [
       'Wrap the component that reads cookies(), headers(), params, or searchParams in <Suspense>. The fallback prop must render synchronous, deterministic JSX (no fetch, no awaiting, no Math.random or Date.now) that approximates the final layout (skeleton, spinner, or stable placeholder text). Import Suspense from "react". Do not change the data access call. Place the Suspense boundary as close to the access as possible so the cached content above remains in the static shell. If the access is deep in a tree and used for a small piece of UI, prefer to push the access down to the leaf component that needs it instead of awaiting it at the top and forwarding the value.',
   },
   {
-    id: 'prerender-known-params',
+    id: 'for-known-params-prerender',
     title: 'For known params, prerender',
     group: 'cache',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#prerender-known-params',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender',
     snippets: [
       {
         text: 'function generateStaticParams() {',
