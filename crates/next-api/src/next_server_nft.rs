@@ -13,6 +13,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, File, FileContent, FileSystemPath, glob::Glob,
 };
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack::externals_tracing_module_context;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -40,6 +41,12 @@ enum ServerNftType {
 
 #[turbo_tasks::function]
 pub async fn next_server_nft_assets(project: Vc<Project>) -> Result<Vc<OutputAssets>> {
+    if *project.next_config().is_using_adapter().await? {
+        // When using an adapter, we don't need to generate any server NFTs as build-complete
+        // doesn't use them at all.
+        return Ok(Vc::cell(vec![]));
+    }
+
     let has_next_support = *project.ci_has_next_support().await?;
     let is_standalone = *project.next_config().is_standalone().await?;
 
@@ -111,9 +118,12 @@ impl Asset for ServerNftJsonAsset {
                 .await?
                 .iter()
                 .map(async |m| {
-                    base_dir
-                        .get_relative_path_to(&*m.path().await?)
-                        .context("failed to compute relative path for server NFT JSON")
+                    Ok((
+                        base_dir
+                            .get_relative_path_to(&*m.path().await?)
+                            .context("failed to compute relative path for server NFT JSON")?,
+                        m.content().hash(HashAlgorithm::Xxh3Hash128Hex).await?,
+                    ))
                 })
                 .try_join()
                 .await?;
@@ -122,11 +132,15 @@ impl Asset for ServerNftJsonAsset {
         for ty in ["app-page", "pages"] {
             let dir = next_dir.join(&format!("dist/server/route-modules/{ty}"))?;
             let module_path = dir.join("module.compiled.js")?;
-            server_output_assets.push(
+            server_output_assets.push((
                 base_dir
                     .get_relative_path_to(&module_path)
                     .context("failed to compute relative path for server NFT JSON")?,
-            );
+                module_path
+                    .read()
+                    .hash(HashAlgorithm::Xxh3Hash128Hex)
+                    .await?,
+            ));
 
             let contexts_dir = dir.join("vendored/contexts")?;
             let DirectoryContent::Entries(contexts_files) = &*contexts_dir.read_dir().await? else {
@@ -140,24 +154,27 @@ impl Asset for ServerNftJsonAsset {
                     continue;
                 };
                 if file.extension() == Some("js") {
-                    server_output_assets.push(
+                    server_output_assets.push((
                         base_dir
                             .get_relative_path_to(file)
                             .context("failed to compute relative path for server NFT JSON")?,
-                    )
+                        file.read().hash(HashAlgorithm::Xxh3Hash128Hex).await?,
+                    ))
                 }
             }
         }
 
-        server_output_assets.sort();
+        server_output_assets.sort_unstable();
         // Dedupe as some entries may be duplicates: a file might be referenced multiple times,
         // e.g. as a RawModule (from an FS operation) and as an EcmascriptModuleAsset because it
         // was required.
         server_output_assets.dedup();
 
+        let (files, file_hashes): (Vec<_>, Vec<_>) = server_output_assets.into_iter().unzip();
         let json = json!({
-          "version": 1,
-          "files": server_output_assets
+            "version": 1,
+            "files": files,
+            "fileHashes": file_hashes
         });
 
         Ok(AssetContent::file(
@@ -198,7 +215,7 @@ impl ServerNftJsonAsset {
         // These are used by packages/next/src/server/require-hook.ts
         let shared_entries = ["styled-jsx", "styled-jsx/style", "styled-jsx/style.js"];
 
-        let cache_handler_entries = cache_handler.into_iter().chain(cache_handlers).map(|f| {
+        let cache_handler_entries = cache_handler.iter().chain(cache_handlers.iter()).map(|f| {
             asset_context
                 .process(
                     Vc::upcast(FileSource::new(f.clone())),

@@ -51,7 +51,36 @@ function wasServedFromCache(): boolean {
     // There is exactly one PerformanceNavigationTiming entry per page load.
     const entry = performance.getEntriesByType('navigation')[0]
 
-    return entry?.transferSize === 0
+    if (!entry) {
+      return false
+    }
+
+    // HTTP cache restore detection isn't uniform across browsers, so we combine
+    // two signals:
+    //
+    //   1. type === 'back_forward' — set on browser-history navigations
+    //      (back/forward) in all three browsers, and on tab duplication in
+    //      Chrome and Firefox. This only matters when scripts actually
+    //      re-execute; a bfcache restore preserves the entire JS context and
+    //      never reaches this code. The HMR WebSocket disqualifies bfcache in
+    //      Chrome and Firefox, so back/forward falls back to an HTTP cache
+    //      restore and we land here with this type set. Safari is more lenient
+    //      and often still uses bfcache for back/forward despite the WebSocket,
+    //      in which case this function isn't called and no recovery is needed.
+    //   2. responseStart === 0 && responseEnd > 0 — Safari uses type='navigate'
+    //      on tab duplication. It sets responseStart to 0 when no
+    //      first-body-byte arrived over the network; fresh loads always have
+    //      responseStart > 0.
+    //
+    // Neither fires on Firefox's fresh streaming load, where transferSize is
+    // transiently 0. That case has type='navigate' with a non-zero
+    // responseStart, so it correctly returns false and avoids a
+    // location.reload() loop that earlier (transferSize-only) versions of this
+    // check triggered.
+    return (
+      entry.type === 'back_forward' ||
+      (entry.responseStart === 0 && entry.responseEnd > 0)
+    )
   } catch {
     return false
   }

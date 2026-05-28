@@ -483,6 +483,17 @@ export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+/**
+ * Returns the build-feature-usage telemetry summary for this project — the set of
+ * `(featureName, invocationCount)` pairs reported to the Next.js telemetry service.
+ *
+ * Intended to be called once at the end of a build, after `writeAllEntrypointsToDisk`. The
+ * summary is computed by walking the whole-app module graph and is cached by turbo-tasks, so the
+ * call is cheap when the graph is already materialized.
+ */
+export declare function projectFeatureUsage(project: {
+  __napiType: 'Project'
+}): Promise<Array<NapiUsedFeature>>
 export declare function projectGetAllCompilationIssues(project: {
   __napiType: 'Project'
 }): Promise<TurbopackResult>
@@ -564,10 +575,10 @@ export interface NapiSourcePos {
   line: number
   column: number
 }
-export interface NapiDiagnostic {
-  category: RcStr
-  name: RcStr
-  payload: Record<string, string>
+export interface NapiUsedFeature {
+  featureName: RcStr
+  /** How many times it was used, typically this means how often it was imported. */
+  invocationCount: number
 }
 export declare function expandNextJsTemplate(
   content: Buffer,
@@ -659,6 +670,16 @@ export interface TraceSpanInfo {
   avgCorrectedDuration?: number
   /** Raw span ID for aggregated groups (the index of the first span). */
   firstSpanId?: string
+  /**
+   * TurboMalloc memory-usage samples recorded while this span
+   * (or its example span, for aggregated groups) was live.
+   *
+   * Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure]`,
+   * where `pressure` is the memory-pressure byte (0 = no pressure, higher
+   * = more pressure). `100 ticks = 1 µs`. The offset is always `>= 0` and
+   * `<= span_duration`. Capped and downsampled by the store.
+   */
+  memorySamples: Array<Array<number>>
 }
 /** The result of a `query_trace_spans` call. */
 export interface TraceQueryResult {

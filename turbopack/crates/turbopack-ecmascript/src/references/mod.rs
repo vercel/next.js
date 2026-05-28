@@ -1490,7 +1490,6 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         url_rewrite_behavior,
         collect_affecting_sources,
         tracing_only,
-        allow_project_root_tracing: _,
         ..
     } = state;
 
@@ -1973,11 +1972,20 @@ where
                     } else {
                         ResolveErrorMode::Error
                     };
+                    // WorkerThreads resolve URLs relative to import.meta.url
+                    // and string paths relative to the process root
+                    let context_dir = if matches!(
+                        args.first(),
+                        Some(JsValue::Url(_, JsValueUrlKind::Relative))
+                    ) {
+                        origin.origin_path().await?.parent()
+                    } else {
+                        get_traced_project_dir().await?
+                    };
                     analysis.add_reference_code_gen(
                         WorkerAssetReference::new_node_worker_thread(
                             origin,
-                            // WorkerThreads resolve filepaths relative to the process root
-                            get_traced_project_dir().await?,
+                            context_dir,
                             Pattern::new(pat).to_resolved().await?,
                             collect_affecting_sources,
                             get_issue_source(),

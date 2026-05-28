@@ -380,6 +380,7 @@ export function getDefineEnv({
       config.experimental.gestureTransition ?? false,
     'process.env.__NEXT_OPTIMISTIC_ROUTING':
       config.experimental.optimisticRouting ?? false,
+    'process.env.__NEXT_APP_SHELLS': config.experimental.appShells ?? false,
     'process.env.__NEXT_VARY_PARAMS': config.experimental.varyParams ?? false,
     'process.env.__NEXT_EXPOSE_TESTING_API':
       dev || config.experimental.exposeTestingApiInProductionBuild === true,

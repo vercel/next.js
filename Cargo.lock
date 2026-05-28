@@ -4744,7 +4744,6 @@ dependencies = [
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
- "turbo-tasks-malloc",
  "turbo-unix-path",
  "turbopack",
  "turbopack-analyze",
@@ -9889,6 +9888,7 @@ dependencies = [
  "thread_local",
  "tokio",
  "tracing",
+ "triomphe 0.1.12",
  "turbo-bincode",
  "turbo-persistence",
  "turbo-rcstr",
@@ -10080,6 +10080,7 @@ dependencies = [
  "smallvec",
  "tokio",
  "turbo-tasks",
+ "turbo-tasks-backend",
 ]
 
 [[package]]
@@ -10604,6 +10605,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode 2.0.1",
+ "either",
  "indoc",
  "serde",
  "serde_json",

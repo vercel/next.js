@@ -28,7 +28,8 @@ use turbo_tasks::{
 };
 
 pub use crate::run::{
-    Registration, run, run_once, run_once_without_cache_check, run_with_tt, run_without_cache_check,
+    Registration, TestInstance, run, run_once, run_once_without_cache_check, run_with_tt,
+    run_without_cache_check, test_instance,
 };
 
 enum Task {
@@ -290,10 +291,6 @@ impl TurboTasksApi for VcStorage {
     }
 
     fn mark_own_task_as_finished(&self, _task: TaskId) {
-        // no-op
-    }
-
-    fn mark_own_task_as_session_dependent(&self, _task: TaskId) {
         // no-op
     }
 

@@ -1,6 +1,5 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use phf::phf_map;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
@@ -8,37 +7,17 @@ use turbo_tasks_fs::{
     glob::{Glob, GlobOptions},
 };
 use turbopack_core::{
-    diagnostics::DiagnosticExt,
     file_source::FileSource,
     issue::{Issue, IssueSeverity, IssueStage, StyledString},
     reference_type::ReferenceType,
     resolve::{
         ExternalTraced, ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
         parse::Request,
-        pattern::Pattern,
-        plugin::{
-            AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
-            BeforeResolvePluginCondition,
-        },
+        plugin::{AfterResolvePlugin, AfterResolvePluginCondition},
     },
 };
 
-use crate::{next_server::ServerContextType, next_telemetry::ModuleFeatureTelemetry};
-
-// Set of the features we want to track, following existing references in
-// webpack/plugins/telemetry-plugin.
-static FEATURE_MODULES: phf::Map<&'static str, &'static [&'static str]> = phf_map! {
-    "next" => &[
-        "/image",
-        "/future/image",
-        "/legacy/image",
-        "/script",
-        "/dynamic",
-        "/font/google",
-        "/font/local",
-    ],
-    "@next/font" => &["/google", "/local"],
-};
+use crate::next_server::ServerContextType;
 
 #[turbo_tasks::value(shared)]
 pub struct InvalidImportModuleIssue {
@@ -225,68 +204,6 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
             ))
             .resolved_cell(),
         )))
-    }
-}
-
-/// A resolver plugin tracks the usage of certain import paths, emit
-/// telemetry events if there is a match.
-#[turbo_tasks::value]
-pub(crate) struct ModuleFeatureReportResolvePlugin {
-    condition: ResolvedVc<BeforeResolvePluginCondition>,
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleFeatureReportResolvePlugin {
-    #[turbo_tasks::function]
-    pub async fn new(_root: FileSystemPath) -> Result<Vc<Self>> {
-        let condition = BeforeResolvePluginCondition::from_modules(Vc::cell(
-            FEATURE_MODULES
-                .keys()
-                .map(|k| (*k).into())
-                .collect::<Vec<RcStr>>(),
-        ))
-        .to_resolved()
-        .await?;
-        Ok(ModuleFeatureReportResolvePlugin { condition }.cell())
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
-    fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition> {
-        *self.condition
-    }
-
-    #[turbo_tasks::function]
-    async fn before_resolve(
-        self: Vc<Self>,
-        _lookup_path: FileSystemPath,
-        _reference_type: ReferenceType,
-        request: Vc<Request>,
-    ) -> Result<Vc<ResolveResultOption>> {
-        if let Request::Module {
-            module: Pattern::Constant(module),
-            path,
-            query: _,
-            fragment: _,
-        } = &*request.await?
-        {
-            let feature_module = FEATURE_MODULES.get(module.as_str());
-            if let Some(feature_module) = feature_module {
-                let sub_path = feature_module
-                    .iter()
-                    .find(|sub_path| path.is_match(sub_path));
-
-                if let Some(sub_path) = sub_path {
-                    // This is not accurate. we only emit one diagnostic per request not per import
-                    ModuleFeatureTelemetry::new(format!("{module}{sub_path}").into(), 1)
-                        .resolved_cell()
-                        .emit();
-                }
-            }
-        }
-
-        Ok(ResolveResultOption::none())
     }
 }
 
