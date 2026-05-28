@@ -1278,9 +1278,11 @@ browserContextPrototype.R = resolvePathFromModule;
 browserContextPrototype.P = resolveAbsolutePath;
 /**
  * Returns a placeholder `file://` URL for the given module path. The browser
- * runtime intentionally does not expose the real filesystem path.
+ * runtime intentionally does not expose the real filesystem path. Path
+ * segments are percent-encoded so the result is always a valid file URI.
  */ function resolveFileUrl(modulePath) {
-    return `file:///ROOT/${modulePath !== null && modulePath !== void 0 ? modulePath : ''}`;
+    if (!modulePath) return 'file:///ROOT/';
+    return `file:///ROOT/${modulePath.split('/').map(encodeURIComponent).join('/')}`;
 }
 browserContextPrototype.F = resolveFileUrl;
 /**
