@@ -1,6 +1,6 @@
 ---
 name: next-feedback
-description: Files Next.js framework feedback as a prefilled report the user reviews and submits. Invoke with /next-feedback, optionally with a focus.
+description: Files Next.js framework feedback. Reach for it whenever Next.js surprised you during a task — or invoke directly to file specific feedback.
 ---
 
 # next-feedback
