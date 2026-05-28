@@ -2255,24 +2255,18 @@ export async function cache(
 
       switch (workUnitStore.type) {
         case 'prerender':
-          // If `allowEmptyStaticShell` is true, and thus a prefilled resume
-          // data cache was provided, then a cache miss means that params were
-          // part of the cache key. In this case, we can make this cache
-          // function a dynamic hole in the shell (or produce an empty shell if
-          // there's no parent suspense boundary). Currently, this also includes
-          // layouts and pages that don't read params, which will be improved
-          // when we implement NAR-136. Otherwise, we assume that if params are
-          // passed explicitly into a "use cache" function, that the params are
-          // also accessed. This allows us to abort early, and treat the
-          // function as dynamic, instead of waiting for the timeout to be
-          // reached. Compared to the instrumentation-based params bailout we do
-          // here, this also covers the case where params are transformed with
-          // an async function, before being passed into the "use cache"
-          // function, which escapes the instrumentation.
-          if (workUnitStore.allowEmptyStaticShell) {
-            if (resumeDataCache?.mutable) {
-              resumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
-            }
+          if (resumeDataCache?.mutable === false) {
+            // We're prerendering a fallback shell whose Resume Data Cache is
+            // the prefilled, read-only seed from a phase-1 prerender of a more-
+            // specific sibling route. A miss here means the cache key depends
+            // on a fallback param. We short-circuit to a dynamic hole (which
+            // may produce an empty shell if there's no parent Suspense
+            // boundary). Currently this also catches layouts and pages that
+            // don't read params, which will be improved when we implement
+            // NAR-136. Compared to the instrumentation-based params bailout we
+            // also do here, this covers the case where params are transformed
+            // with an async function before being passed into the "use cache"
+            // function, which escapes the instrumentation.
             return makeHangingPromise(
               workUnitStore.renderSignal,
               workStore.route,

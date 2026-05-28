@@ -284,14 +284,6 @@ interface StaticPrerenderStoreCommon {
    * a dynamic access.
    */
   readonly fallbackRouteParams: OpaqueFallbackRouteParams | null
-
-  /**
-   * When true, the page is prerendered as a fallback shell, while allowing any
-   * dynamic accesses to result in an empty shell. This is the case when there
-   * are also routes prerendered with a more complete set of params.
-   * Prerendering those routes would catch any invalid dynamic accesses.
-   */
-  readonly allowEmptyStaticShell: boolean
 }
 
 export interface PrerenderStorePPR
