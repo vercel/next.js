@@ -29,7 +29,7 @@ const url = `https://nextjs.org/agent-feedback?report=${b64}`
 ```
 
 ```bash
-agent-browser open "$URL" --headed --session-name next-feedback
+agent-browser open "$url" --headed --session-name next-feedback
 ```
 
 Never auto-click submit.
