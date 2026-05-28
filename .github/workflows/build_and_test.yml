@@ -146,12 +146,15 @@ jobs:
     runs-on: ubuntu-latest
     needs: ['changes']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    env:
+      NEXT_SKIP_NATIVE_POSTINSTALL: 1
     steps:
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
+          package-manager-cache: false
 
       - name: Setup pnpm
         run: |
@@ -225,9 +228,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 20
+          package-manager-cache: false
       - name: Setup corepack
         run: |
           npm i -g corepack@0.31
@@ -802,11 +806,11 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      # Should this be using turbopack? a variation?
       afterBuild: |
         export NEXT_TEST_MODE=dev
-        export IS_WEBPACK_TEST=1
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_DEV=1
 
         node run-tests.js \
           test/e2e/app-dir/app/index.test.ts \
@@ -828,8 +832,10 @@ jobs:
       nodeVersion: 20.9.0
       afterBuild: |
         export NEXT_TEST_MODE=start
-        export IS_WEBPACK_TEST=1
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_BUILD=1
+
         node run-tests.js --type production \
           --concurrency 4 \
           test/production/pages-dir/production/test/index.test.ts \
@@ -851,8 +857,9 @@ jobs:
     with:
       afterBuild: |
         export NEXT_TEST_MODE=start
-        export IS_WEBPACK_TEST=1
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_BUILD=1
 
         node run-tests.js --type production \
           test/e2e/app-dir/app/index.test.ts \
@@ -916,10 +923,12 @@ jobs:
           test/production/chunk-load-failure/chunk-load-failure.test.ts
 
         TURBOPACK_DEV=1 NEXT_TEST_MODE=dev BROWSER_NAME=firefox node run-tests.js \
-          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts
+          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts \
+          test/e2e/app-dir/bfcache-regression/bfcache-regression.test.ts
 
         TURBOPACK_DEV=1 NEXT_TEST_MODE=dev BROWSER_NAME=safari node run-tests.js \
-          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts
+          test/e2e/app-dir/scss/hmr-module/hmr-module.test.ts \
+          test/e2e/app-dir/bfcache-regression/bfcache-regression.test.ts
 
         TURBOPACK_BUILD=1 NEXT_TEST_MODE=start BROWSER_NAME=safari node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
@@ -956,7 +965,8 @@ jobs:
         export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=dev
-        export IS_WEBPACK_TEST=1
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_DEV=1
 
         node run-tests.js \
           --timings \
@@ -991,7 +1001,8 @@ jobs:
         export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=start
-        export IS_WEBPACK_TEST=1
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_BUILD=1
 
         node run-tests.js \
           --timings \
@@ -1027,7 +1038,8 @@ jobs:
         export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=dev
-        export IS_WEBPACK_TEST=1
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_DEV=1
 
         node run-tests.js \
           --timings \
@@ -1063,7 +1075,8 @@ jobs:
         export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
         export NEXT_TEST_MODE=start
-        export IS_WEBPACK_TEST=1
+        export IS_TURBOPACK_TEST=1
+        export TURBOPACK_BUILD=1
 
         node run-tests.js \
           --timings \

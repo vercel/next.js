@@ -28,6 +28,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
+          package-manager-cache: false
 
       # Checkout from the default branch (canary) -- workflow_run always uses
       # the default branch's version of the workflow file and this checkout

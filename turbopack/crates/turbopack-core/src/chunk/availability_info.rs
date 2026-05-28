@@ -2,7 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use bitfield::bitfield;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, OperationVc, ResolvedVc, TaskInput, trace::TraceRawVcs};
 
 use crate::chunk::available_modules::{AvailableModules, AvailableModulesSet};
 
@@ -34,7 +34,7 @@ impl AvailabilityInfo {
         self.available_modules
     }
 
-    pub async fn with_modules(self, modules: Vc<AvailableModulesSet>) -> Result<Self> {
+    pub async fn with_modules(self, modules: OperationVc<AvailableModulesSet>) -> Result<Self> {
         Ok(if let Some(available_modules) = self.available_modules {
             Self {
                 flags: self.flags,

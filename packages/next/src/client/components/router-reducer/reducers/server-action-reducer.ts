@@ -485,6 +485,7 @@ export function serverActionReducer(
           discoverKnownRoute(
             now,
             redirectUrl.pathname,
+            redirectUrl.search as NormalizedSearch,
             nextUrl,
             null, // No pending entry
             redirectSeed.routeTree,
