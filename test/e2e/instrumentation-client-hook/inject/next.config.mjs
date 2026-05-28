@@ -1,4 +1,4 @@
 /** @type {import('next').NextConfig} */
-module.exports = {
+export default {
   instrumentationClientInject: ['./inject-a.js', './inject-b.js'],
 }

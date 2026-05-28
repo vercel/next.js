@@ -1452,7 +1452,10 @@ async fn insert_instrumentation_client_alias(
     body.push_str("}};\n");
 
     let virtual_source = VirtualSource::new(
-        project_path.join("__next_instrumentation_client.js")?,
+        // Use cjs here in case the user has type:module in the package.json. We do intentionally
+        // place this file in the user's folder, so that the `require`s inserted above resolve
+        // as expected.
+        project_path.join("__next_instrumentation_client.cjs")?,
         AssetContent::file(FileContent::Content(body.into()).cell()),
     )
     .to_resolved()
