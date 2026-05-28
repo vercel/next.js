@@ -2315,45 +2315,31 @@ impl JsValue {
                     break;
                 }
                 JsValue::Member(_, obj, prop) => {
-                    if let Some(prop) = prop.as_str() {
-                        segments.push(DefinableNameSegmentRef::Name(prop));
-                    } else {
-                        return None;
-                    }
+                    segments.push(DefinableNameSegmentRef::Name(prop.as_str()?));
                     current = obj;
                 }
                 JsValue::WellKnownObject(obj) => {
-                    if let Some(name) = obj.as_define_name() {
-                        segments.extend(
-                            name.iter()
-                                .rev()
-                                .copied()
-                                .map(DefinableNameSegmentRef::Name),
-                        );
-                        break;
-                    } else {
-                        return None;
-                    }
+                    segments.extend(
+                        obj.as_define_name()?
+                            .iter()
+                            .rev()
+                            .copied()
+                            .map(DefinableNameSegmentRef::Name),
+                    );
+                    break;
                 }
                 JsValue::WellKnownFunction(func) => {
-                    if let Some(name) = func.as_define_name() {
-                        segments.extend(
-                            name.iter()
-                                .rev()
-                                .copied()
-                                .map(DefinableNameSegmentRef::Name),
-                        );
-                        break;
-                    } else {
-                        return None;
-                    }
+                    segments.extend(
+                        func.as_define_name()?
+                            .iter()
+                            .rev()
+                            .copied()
+                            .map(DefinableNameSegmentRef::Name),
+                    );
+                    break;
                 }
                 JsValue::MemberCall(_, call) if call.args().is_empty() => {
-                    if let Some(prop) = call.prop().as_str() {
-                        segments.push(DefinableNameSegmentRef::Call(prop));
-                    } else {
-                        return None;
-                    }
+                    segments.push(DefinableNameSegmentRef::Call(call.prop().as_str()?));
                     current = call.obj();
                 }
                 JsValue::TypeOf(_, arg) => {
@@ -2540,10 +2526,10 @@ impl JsValue {
             },
             JsValue::Logical(_, op, list) => match op {
                 LogicalOperator::And => {
-                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_nullish)
+                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_nullish)
                 }
                 LogicalOperator::Or => {
-                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_nullish)
+                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_nullish)
                 }
                 LogicalOperator::NullishCoalescing => all_if_known(list, JsValue::is_nullish),
             },
@@ -2572,10 +2558,10 @@ impl JsValue {
             } => merge_if_known(values, JsValue::is_empty_string),
             JsValue::Logical(_, op, list) => match op {
                 LogicalOperator::And => {
-                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_empty_string)
+                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_empty_string)
                 }
                 LogicalOperator::Or => {
-                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_empty_string)
+                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_empty_string)
                 }
                 LogicalOperator::NullishCoalescing => {
                     shortcircuit_if_known(list, JsValue::is_not_nullish, JsValue::is_empty_string)
@@ -2633,10 +2619,10 @@ impl JsValue {
             JsValue::Add(_, list) => any_if_known(list, JsValue::is_string),
             JsValue::Logical(_, op, list) => match op {
                 LogicalOperator::And => {
-                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_string)
+                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_string)
                 }
                 LogicalOperator::Or => {
-                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_string)
+                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_string)
                 }
                 LogicalOperator::NullishCoalescing => {
                     shortcircuit_if_known(list, JsValue::is_not_nullish, JsValue::is_string)
@@ -3700,7 +3686,7 @@ pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> 
         // https://webpack.js.org/api/module-methods/#requirecontext
         // > optional, default /^\.\/.*$/, any file
         static DEFAULT_REGEX: LazyLock<EsRegex> =
-            LazyLock::new(|| EsRegex::new(r"^\\./.*$", "").unwrap());
+            LazyLock::new(|| EsRegex::new(r"^\./.*$", "").unwrap());
 
         DEFAULT_REGEX.clone()
     };
@@ -4010,6 +3996,7 @@ mod tests {
     use std::{mem::take, path::PathBuf, time::Instant};
 
     use parking_lot::Mutex;
+    use rstest::rstest;
     use rustc_hash::FxHashMap;
     use swc_core::{
         common::{Mark, comments::SingleThreadedComments},
@@ -4504,5 +4491,199 @@ mod tests {
     #[cfg(target_pointer_width = "64")]
     fn jsvalue_size() {
         assert_eq!(32, size_of::<JsValue>());
+    }
+
+    #[test]
+    fn is_string_constant() {
+        let value = EvalContext::eval_single_expr_lit(&rcstr!("'hello'")).unwrap();
+        assert_eq!(value.is_string(), Some(true));
+    }
+
+    #[rstest]
+    #[case("1 && 'hello'")]
+    #[case("'hello' || 'bye' || 2")]
+    fn is_string_short_circuiting_positive(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_string(),
+            Some(true),
+            "expected '{}' to be a string",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("'hello' && 2")]
+    #[case("2 || 1 || 'hello' || 'bye'")]
+    fn is_string_short_circuiting_negative(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_string(),
+            Some(false),
+            "expected '{}' not to be a string",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("x && 2")]
+    #[case("1 && x")]
+    #[case("1 && 'a' && x")]
+    #[case("x || 'bye'")]
+    #[case("false || x")]
+    fn is_string_short_circuiting_unknown(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_string(),
+            None,
+            "expected to be unable to determine whether '{}' is a string",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("'' && 'string'")]
+    #[case("false || ''")]
+    #[case("1 && 'a' && ''")]
+    fn is_empty_string_short_circuiting_positive(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_empty_string(),
+            Some(true),
+            "expected '{}' to be an empty string",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("false && ''")]
+    #[case("'' || 'string'")]
+    #[case("'' || 0 || 'string'")]
+    fn is_empty_string_short_circuiting_negative(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_empty_string(),
+            Some(false),
+            "expected '{}' not to be an empty string",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("x && ''")]
+    #[case("1 && x")]
+    #[case("x || ''")]
+    #[case("'' || x")]
+    #[case("false || 0 || x")]
+    fn is_empty_string_short_circuiting_unknown(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_empty_string(),
+            None,
+            "expected to be unable to determine whether '{}' is an empty string",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("null && ''")]
+    #[case("'' || null")]
+    #[case("1 && 2 && null")]
+    fn is_nullish_short_circuiting_positive(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_nullish(),
+            Some(true),
+            "expected '{}' to be nullish",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("'' && null")]
+    #[case("null || ''")]
+    #[case("null || '' || 'a'")]
+    fn is_nullish_short_circuiting_negative(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_nullish(),
+            Some(false),
+            "expected '{}' not to be nullish",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("x && null")]
+    #[case("1 && x")]
+    #[case("x || null")]
+    #[case("null || x")]
+    #[case("false || x")]
+    #[case("1 && x && null")]
+    fn is_nullish_short_circuiting_unknown(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_nullish(),
+            None,
+            "expected to be unable to determine whether '{}' is nullish",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("'' && null")]
+    #[case("null || ''")]
+    #[case("null || 0 || 'a'")]
+    fn is_not_nullish_short_circuiting_positive(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_not_nullish(),
+            Some(true),
+            "expected '{}' to be not-nullish",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("null && ''")]
+    #[case("'' || null")]
+    #[case("'' || 0 || null")]
+    fn is_not_nullish_short_circuiting_negative(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_not_nullish(),
+            Some(false),
+            "expected '{}' not to be not-nullish",
+            input
+        );
+    }
+
+    #[rstest]
+    #[case("x && null")]
+    #[case("1 && x")]
+    #[case("x || null")]
+    #[case("null || x")]
+    #[case("false || x")]
+    #[case("false || x || ''")]
+    fn is_not_nullish_short_circuiting_unknown(#[case] input: &str) {
+        assert_eq!(
+            EvalContext::eval_single_expr_lit(&input.into())
+                .unwrap()
+                .is_not_nullish(),
+            None,
+            "expected to be unable to determine whether '{}' is not-nullish",
+            input
+        );
     }
 }

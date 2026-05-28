@@ -222,7 +222,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 } = font_file_options_from_query_map(query)?;
 
                 let (filename, ext) = split_extension(&path);
-                let ext = ext.with_context(|| format!("font {} needs an extension", &path))?;
+                let ext = ext.with_context(|| format!("font {} needs an extension", path))?;
 
                 // remove dashes and dots as they might be used for the markers below.
                 let mut name = filename.replace(['-', '.'], "_");

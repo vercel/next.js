@@ -36,9 +36,10 @@ export const enum FetchStrategy {
   // and determine if one segment is "more specific" than another
   // (i.e. if it's likely that it contains more data)
   LoadingBoundary = 0,
-  PPR = 1,
-  PPRRuntime = 2,
-  Full = 3,
+  RuntimeShell = 1,
+  PPR = 2,
+  PPRRuntime = 3,
+  Full = 4,
 }
 
 /**

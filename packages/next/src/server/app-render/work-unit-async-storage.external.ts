@@ -193,6 +193,14 @@ export interface PrerenderStoreModernRuntime
   readonly headers: RequestStore['headers']
   readonly cookies: RequestStore['cookies']
   readonly draftMode: RequestStore['draftMode']
+
+  /**
+   * When true, `await params` and `await searchParams` both return hanging
+   * promises — segments that depend on either suspend, producing the App
+   * Shell of the route. Set by an App Shell prefetch request
+   * (NEXT_ROUTER_PREFETCH_HEADER === '3').
+   */
+  readonly forceOmitParams: boolean
 }
 
 export interface RevalidateStore {

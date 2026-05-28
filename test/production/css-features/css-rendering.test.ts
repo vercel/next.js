@@ -1,5 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
-import type { Playwright } from 'next-webdriver'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { join } from 'path'
 

@@ -40,6 +40,7 @@ class TestProfile {
     'NEXT_E2E_TEST_TIMEOUT',
     'NEXT_TURBOPACK_IO_CONCURRENCY',
     'NEXT_TEST_PASSED_FILE',
+    'TURBO_TASKS_AVAILABLE_PARALLELISM',
   ])
 
   // All key=value pairs identifying this test profile, sorted by key.
