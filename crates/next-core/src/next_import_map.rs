@@ -1111,21 +1111,23 @@ async fn insert_next_shared_aliases(
         rcstr!("private-next-rsc-server-reference"),
         request_to_import_mapping(
             project_path.clone(),
-            rcstr!("next/dist/build/webpack/loaders/next-flight-loader/server-reference"),
+            rcstr!("next/dist/webpack/build/webpack/loaders/next-flight-loader/server-reference"),
         ),
     );
     import_map.insert_exact_alias(
         rcstr!("private-next-rsc-action-client-wrapper"),
         request_to_import_mapping(
             project_path.clone(),
-            rcstr!("next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper"),
+            rcstr!(
+                "next/dist/webpack/build/webpack/loaders/next-flight-loader/action-client-wrapper"
+            ),
         ),
     );
     import_map.insert_exact_alias(
         rcstr!("private-next-rsc-action-validate"),
         request_to_import_mapping(
             project_path.clone(),
-            rcstr!("next/dist/build/webpack/loaders/next-flight-loader/action-validate"),
+            rcstr!("next/dist/webpack/build/webpack/loaders/next-flight-loader/action-validate"),
         ),
     );
     import_map.insert_exact_alias(
@@ -1139,14 +1141,16 @@ async fn insert_next_shared_aliases(
         rcstr!("private-next-rsc-cache-wrapper"),
         request_to_import_mapping(
             project_path.clone(),
-            rcstr!("next/dist/build/webpack/loaders/next-flight-loader/cache-wrapper"),
+            rcstr!("next/dist/webpack/build/webpack/loaders/next-flight-loader/cache-wrapper"),
         ),
     );
     import_map.insert_exact_alias(
         rcstr!("private-next-rsc-track-dynamic-import"),
         request_to_import_mapping(
             project_path.clone(),
-            rcstr!("next/dist/build/webpack/loaders/next-flight-loader/track-dynamic-import"),
+            rcstr!(
+                "next/dist/webpack/build/webpack/loaders/next-flight-loader/track-dynamic-import"
+            ),
         ),
     );
 

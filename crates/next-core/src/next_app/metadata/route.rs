@@ -219,14 +219,14 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
 
     let content_type = get_content_type(path.clone()).await?;
 
-    // refer https://github.com/vercel/next.js/blob/7b2b9823432fb1fa28ae0ac3878801d638d93311/packages/next/src/build/webpack/loaders/next-metadata-route-loader.ts#L84
+    // refer https://github.com/vercel/next.js/blob/7b2b9823432fb1fa28ae0ac3878801d638d93311/packages/next/src/webpack/build/webpack/loaders/next-metadata-route-loader.ts#L84
     // for the original template.
     let code = formatdoc! {
         r#"
             import {{ NextResponse }} from 'next/server'
             import handler from {resource_path}
             import {{ resolveRouteData }} from
-'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+'next/dist/webpack/build/webpack/loaders/metadata/resolve-route-data'
 
             const contentType = {content_type}
             const cacheControl = {cache_control}
@@ -276,7 +276,7 @@ async fn dynamic_sitemap_route_with_generate_source(
         r#"
             import {{ NextResponse }} from 'next/server'
             import {{ default as handler, generateSitemaps }} from {resource_path}
-            import {{ resolveRouteData }} from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+            import {{ resolveRouteData }} from 'next/dist/webpack/build/webpack/loaders/metadata/resolve-route-data'
 
             const contentType = {content_type}
             const cache_control = {cache_control}
@@ -365,7 +365,7 @@ async fn dynamic_sitemap_route_without_generate_source(
         r#"
             import {{ NextResponse }} from 'next/server'
             import {{ default as handler }} from {resource_path}
-            import {{ resolveRouteData }} from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+            import {{ resolveRouteData }} from 'next/dist/webpack/build/webpack/loaders/metadata/resolve-route-data'
 
             const contentType = {content_type}
             const cacheControl = {cache_control}
