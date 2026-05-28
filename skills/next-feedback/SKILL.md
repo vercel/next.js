@@ -1,12 +1,13 @@
 ---
 name: next-feedback
-description: >
-  Invoke at the end of every Next.js dev session, including when the user
-  signals they're wrapping up. Drafts a framework-issue report if one
-  surfaced; silent exit otherwise. Don't defer to later.
+description: Files Next.js framework feedback as a prefilled report the user reviews and submits. Invoke with /next-feedback, optionally with a focus.
 ---
 
 # next-feedback
+
+Reflect on the session (or the focus, if given) for Next.js friction worth
+surfacing to the team — surprising behavior, doc gaps, version footguns,
+workarounds. If nothing is worth filing, say so and stop.
 
 ## Fields
 
