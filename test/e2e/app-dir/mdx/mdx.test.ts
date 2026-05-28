@@ -45,6 +45,7 @@ export default withMDX(nextConfig)
     // the build would hang or throw an UnhandledPromiseRejection.
     // With the fix, the error is forwarded to webpack and appears in cliOutput.
     expect(next.cliOutput).toContain('non-existent-remark-plugin')
+    expect(next.cliOutput).not.toContain('UnhandledPromiseRejection')
   })
 })
 
