@@ -2448,9 +2448,7 @@ impl JsValue {
                 LogicalOperator::And => all_if_known(list, JsValue::is_truthy),
                 LogicalOperator::Or => any_if_known(list, JsValue::is_truthy),
                 LogicalOperator::NullishCoalescing => {
-                    eval_shortcircuit(list, JsValue::is_not_nullish)
-                        .map(JsValue::is_truthy)
-                        .flatten()
+                    eval_shortcircuit(list, JsValue::is_not_nullish)?.is_truthy()
                 }
             },
             JsValue::Binary(_, box a, op, box b) => {
@@ -2527,12 +2525,8 @@ impl JsValue {
                 _ => merge_if_known(values, JsValue::is_nullish),
             },
             JsValue::Logical(_, op, list) => match op {
-                LogicalOperator::And => eval_shortcircuit(list, JsValue::is_truthy)
-                    .map(JsValue::is_nullish)
-                    .flatten(),
-                LogicalOperator::Or => eval_shortcircuit(list, JsValue::is_falsy)
-                    .map(JsValue::is_nullish)
-                    .flatten(),
+                LogicalOperator::And => eval_shortcircuit(list, JsValue::is_truthy)?.is_nullish(),
+                LogicalOperator::Or => eval_shortcircuit(list, JsValue::is_falsy)?.is_nullish(),
                 LogicalOperator::NullishCoalescing => all_if_known(list, JsValue::is_nullish),
             },
             _ => None,
@@ -2559,16 +2553,14 @@ impl JsValue {
                 logical_property: _,
             } => merge_if_known(values, JsValue::is_empty_string),
             JsValue::Logical(_, op, list) => match op {
-                LogicalOperator::And => eval_shortcircuit(list, JsValue::is_truthy)
-                    .map(JsValue::is_empty_string)
-                    .flatten(),
-                LogicalOperator::Or => eval_shortcircuit(list, JsValue::is_falsy)
-                    .map(JsValue::is_empty_string)
-                    .flatten(),
+                LogicalOperator::And => {
+                    eval_shortcircuit(list, JsValue::is_truthy)?.is_empty_string()
+                }
+                LogicalOperator::Or => {
+                    eval_shortcircuit(list, JsValue::is_falsy)?.is_empty_string()
+                }
                 LogicalOperator::NullishCoalescing => {
-                    eval_shortcircuit(list, JsValue::is_not_nullish)
-                        .map(JsValue::is_empty_string)
-                        .flatten()
+                    eval_shortcircuit(list, JsValue::is_not_nullish)?.is_empty_string()
                 }
             },
             // Booleans are not empty strings
@@ -2622,16 +2614,10 @@ impl JsValue {
 
             JsValue::Add(_, list) => any_if_known(list, JsValue::is_string),
             JsValue::Logical(_, op, list) => match op {
-                LogicalOperator::And => eval_shortcircuit(list, JsValue::is_truthy)
-                    .map(JsValue::is_string)
-                    .flatten(),
-                LogicalOperator::Or => eval_shortcircuit(list, JsValue::is_falsy)
-                    .map(JsValue::is_string)
-                    .flatten(),
+                LogicalOperator::And => eval_shortcircuit(list, JsValue::is_truthy)?.is_string(),
+                LogicalOperator::Or => eval_shortcircuit(list, JsValue::is_falsy)?.is_string(),
                 LogicalOperator::NullishCoalescing => {
-                    eval_shortcircuit(list, JsValue::is_not_nullish)
-                        .map(JsValue::is_string)
-                        .flatten()
+                    eval_shortcircuit(list, JsValue::is_not_nullish)?.is_string()
                 }
             },
 
