@@ -967,7 +967,7 @@ describe('instant validation', () => {
            - Render the value on the client with \`"use client"\`
            - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-         Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
+         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at a (app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx:28:20)
            26 |   const cookiePromise = cookies().then((c) => c.get('testCookie')?.value ?? '')
            27 |   await cachedFn(cookiePromise)
@@ -2409,7 +2409,7 @@ describe('instant validation', () => {
              - Use a static viewport export instead of \`generateViewport()\`
              - Set \`export const instant = false\` to allow a blocking route
 
-           Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-runtime-viewport-in-static".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -2468,7 +2468,7 @@ describe('instant validation', () => {
              - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
              - Set \`export const instant = false\` to allow a blocking route
 
-           Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -2565,7 +2565,7 @@ describe('instant validation', () => {
              - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
              - Set \`export const instant = false\` to allow a blocking route
 
-           Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -3462,7 +3462,7 @@ describe('instant validation', () => {
              - Render the dropped segment
              - Set \`export const instant = false\` on the dropped segment to skip validation
 
-           Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
+           Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/static/multi-depth-deferred-fallback/inner".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -3520,7 +3520,7 @@ describe('instant validation', () => {
              - Render the dropped segment
              - Set \`export const instant = false\` on the dropped segment to skip validation
 
-           Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
+           Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/static/test-firstmod/inter/inner".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
@@ -3578,7 +3578,7 @@ describe('instant validation', () => {
              - Render the dropped segment
              - Set \`export const instant = false\` on the dropped segment to skip validation
 
-           Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
+           Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/static/test-multi-unrendered".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:

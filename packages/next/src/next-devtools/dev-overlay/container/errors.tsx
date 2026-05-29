@@ -332,7 +332,7 @@ const SYNC_IO_APIS = [
 ]
 
 const SYNC_IO_DOCS_PATTERN =
-  /https:\/\/nextjs\.org\/docs\/messages\/next-prerender-(?:runtime-)?(random|current-time|crypto)(-client)?/
+  /https:\/\/nextjs\.org\/docs\/messages\/blocking-prerender-(random|current-time|crypto)(-client)?/
 
 // Discriminate sync IO errors via the docs URL embedded in the user-facing
 // message by `createSyncIOError`, `createSyncIORuntimeError`, and
@@ -376,9 +376,9 @@ export function getBlockingRouteErrorDetails(
     }
   }
 
-  const isDynamicMetadataError = message.includes(
-    '/next-prerender-dynamic-metadata'
-  )
+  const isDynamicMetadataError =
+    message.includes('/blocking-prerender-metadata-dynamic') ||
+    message.includes('/blocking-prerender-metadata-runtime')
   if (isDynamicMetadataError) {
     return {
       type: 'dynamic-metadata',
@@ -386,9 +386,9 @@ export function getBlockingRouteErrorDetails(
     }
   }
 
-  const isBlockingViewportError = message.includes(
-    '/next-prerender-dynamic-viewport'
-  )
+  const isBlockingViewportError =
+    message.includes('/blocking-prerender-viewport-dynamic') ||
+    message.includes('/blocking-prerender-viewport-runtime')
   if (isBlockingViewportError) {
     return {
       type: 'dynamic-viewport',

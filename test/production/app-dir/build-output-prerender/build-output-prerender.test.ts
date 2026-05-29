@@ -80,7 +80,7 @@ describe('build-output-prerender', () => {
              - Move the read into a \`useEffect\` or event handler
              - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-           Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                at <unknown> (app/client/page.tsx:4:28)
              2 |
              3 | export default function Page() {
@@ -105,7 +105,7 @@ describe('build-output-prerender', () => {
              - Move the read into a \`useEffect\` or event handler
              - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-           Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                at x (<next-dist-dir>)
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
@@ -221,7 +221,7 @@ describe('build-output-prerender', () => {
              - Move the read into a \`useEffect\` or event handler
              - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-           Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                at Page (app/client/page.tsx:4:28)
              2 |
              3 | export default function Page() {
@@ -240,7 +240,7 @@ describe('build-output-prerender', () => {
              - Prerender and cache the value with \`"use cache"\`
              - Render the value on the client with \`"use client"\`
 
-           Learn more: https://nextjs.org/docs/messages/next-prerender-random
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                at Page (app/server/page.tsx:13:27)
                at Page (<anonymous>)
              11 |   await cachedDelay()
@@ -268,7 +268,7 @@ describe('build-output-prerender', () => {
              - Move the read into a \`useEffect\` or event handler
              - If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-           Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                at Page (webpack:///app/client/page.tsx:4:28)
                at ClientPageRoot (webpack:///src/client/components/client-page.tsx:61:12)
              2 |
@@ -288,7 +288,7 @@ describe('build-output-prerender', () => {
              - Prerender and cache the value with \`"use cache"\`
              - Render the value on the client with \`"use client"\`
 
-           Learn more: https://nextjs.org/docs/messages/next-prerender-random
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                at Page (webpack:///app/server/page.tsx:13:27)
                at Page (<anonymous>)
              11 |   await cachedDelay()
