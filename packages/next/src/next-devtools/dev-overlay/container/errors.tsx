@@ -647,7 +647,9 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
         <ErrorTabBar
           activeTab={effectiveActiveTab}
           onTabChange={(tab) => {
-            setActiveTab(tab)
+            startTransition(() => {
+              setActiveTab(tab)
+            })
           }}
           errorCount={normalErrors.length}
           instantCount={instantErrors.length}
@@ -803,7 +805,6 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
-          dialogResizerResetKey={effectiveActiveTab}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -849,7 +850,6 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
-          dialogResizerResetKey={effectiveActiveTab}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -896,7 +896,6 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
-          dialogResizerResetKey={effectiveActiveTab}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -941,7 +940,6 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
-          dialogResizerResetKey={effectiveActiveTab}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -987,7 +985,6 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
-          dialogResizerResetKey={effectiveActiveTab}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -1028,7 +1025,6 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
       dialogResizerRef={dialogResizerRef}
-      dialogResizerResetKey={effectiveActiveTab}
       generateErrorInfo={generateErrorInfo}
       {...props}
     >

@@ -54,7 +54,6 @@ export interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   activeIdx?: number
   setActiveIndex?: (index: number) => void
   dialogResizerRef?: React.RefObject<HTMLDivElement | null>
-  dialogResizerResetKey?: string | number
   generateErrorInfo: () => Promise<string>
 }
 
@@ -79,7 +78,6 @@ export function ErrorOverlayLayout({
   activeIdx,
   setActiveIndex,
   dialogResizerRef,
-  dialogResizerResetKey,
   generateErrorInfo,
   // This prop is used to animate the dialog, it comes from a parent component (<ErrorOverlay>)
   // If it's not being passed, we should just render the component as it is being
@@ -138,7 +136,6 @@ export function ErrorOverlayLayout({
           <Resizer
             ref={dialogResizerRef}
             measure={!animating}
-            resetKey={dialogResizerResetKey}
             data-nextjs-dialog-sizer
           >
             <DialogContent>
