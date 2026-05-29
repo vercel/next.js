@@ -339,9 +339,9 @@ describe('isInstantNavigationError', () => {
   })
 
   it('returns true for unrendered-segment errors', () => {
-    expect(
-      isInstantNavigationError(createUnrenderedSegmentError(ROUTE))
-    ).toBe(true)
+    expect(isInstantNavigationError(createUnrenderedSegmentError(ROUTE))).toBe(
+      true
+    )
   })
 
   it('returns false for prerender-phase blocking-route errors', () => {
