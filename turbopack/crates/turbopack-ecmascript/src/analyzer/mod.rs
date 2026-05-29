@@ -4060,13 +4060,6 @@ mod tests {
         let resolved_effects_snapshot_path = input.with_file_name("resolved-effects.snapshot");
         let large_marker = input.with_file_name("large");
 
-        // The SWC parser, mark allocator, and AST visitors require a `Globals`
-        // thread-local to be set. The production code in
-        // `analyze_ecmascript_module_internal` handles this by owning an
-        // `Arc<Globals>` and calling `GLOBALS.set` around each synchronous
-        // SWC section, with `.await` points happening outside the scope. We
-        // follow the same pattern here so that the test can drive turbo-tasks on a
-        // multi-thread runtime where thread-locals don't follow the future across awaits.
         let cm: Arc<SourceMap> = Arc::new(SourceMap::new(FilePathMapping::empty()));
         let globals = Arc::new(Globals::new());
 

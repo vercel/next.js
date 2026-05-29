@@ -120,9 +120,6 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
     let var_graph = input.var_graph.clone();
 
     b.to_async(rt).iter_custom(move |iters| {
-        // Mirror turbo-tasks-backend/benches/overhead.rs: build the TurboTasks
-        // instance once per measurement so the cache is not shared across
-        // sample iterations, and exclude construction from the timed region.
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
                 storage_mode: None,
