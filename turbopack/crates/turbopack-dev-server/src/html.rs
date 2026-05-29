@@ -15,7 +15,7 @@ use turbopack_core::{
     },
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
-    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     version::{Version, VersionedContent},
 };
 
@@ -163,6 +163,7 @@ impl DevHtmlAsset {
                                     .collect(),
                             ),
                             *module_graph,
+                            OutputAssets::empty(),
                             AvailabilityInfo::root(),
                         )
                         .await?

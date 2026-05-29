@@ -416,12 +416,16 @@ export class TurbopackManifestLoader {
       polyfillFiles: [],
       lowPriorityFiles,
       rootMainFiles: [],
+      rootMainFilesTree: {},
     }
     for (const m of manifests) {
       Object.assign(manifest.pages, m.pages)
       if (m.rootMainFiles.length) manifest.rootMainFiles = m.rootMainFiles
       // polyfillFiles should always be the same, so we can overwrite instead of actually merging
       if (m.polyfillFiles.length) manifest.polyfillFiles = m.polyfillFiles
+      if (m.rootMainFilesTree) {
+        Object.assign(manifest.rootMainFilesTree!, m.rootMainFilesTree)
+      }
     }
     manifest.pages = sortObjectByKey(manifest.pages) as BuildManifest['pages']
     return manifest

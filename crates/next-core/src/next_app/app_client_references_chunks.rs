@@ -2,13 +2,13 @@ use anyhow::Result;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToStringRef, Vc,
+    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToStringRef, Vc,
 };
 use turbopack_core::{
     chunk::{ChunkGroupResult, ChunkingContext, availability_info::AvailabilityInfo},
     module::Module,
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
-    output::OutputAssetsWithReferenced,
+    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
 };
 
 use crate::{
@@ -336,4 +336,38 @@ pub async fn get_app_client_references_chunks(
     }
     .instrument(tracing::info_span!("process client references"))
     .await
+}
+
+/// Flattens all client-side output assets from `client_references_chunks` so the
+/// page's HMR chunk list can subscribe to updates for chunks built outside the
+/// entry's own module graph (each `chunk_group(IsolatedMerged)` call for a
+/// client component group generates chunks separately).
+#[turbo_tasks::function]
+pub async fn get_client_references_chunks_for_hmr(
+    client_references_chunks: Vc<ClientReferencesChunks>,
+) -> Result<Vc<OutputAssets>> {
+    let client_references_chunks_ref = client_references_chunks.await?;
+    let mut extras: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> = client_references_chunks_ref
+        .layout_segment_client_chunks
+        .values()
+        .map(|&assets| async move {
+            let primary = assets.primary_assets().await?;
+            Ok(primary.iter().copied().collect::<Vec<_>>())
+        })
+        .try_flat_join()
+        .await?
+        .into_iter()
+        .collect();
+    for &chunk_group in client_references_chunks_ref
+        .client_component_client_chunks
+        .values()
+    {
+        // Use all_assets() (not primary_assets()) to also follow async loader references
+        // transitively. This ensures that dynamic imports within 'use client' pages are
+        // covered by the page's HMR subscription, not just the page module itself.
+        extras.extend(chunk_group.all_assets().await?.iter().copied());
+    }
+    // client_component_ssr_chunks are intentionally excluded: they run on the server
+    // (Node.js/Edge), not in the browser, so they don't belong in the client HMR chunk list.
+    Ok(Vc::cell(extras.into_iter().collect()))
 }

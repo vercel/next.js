@@ -141,6 +141,7 @@ function extractModulesFromTurbopackMessage(
     }
 
     for (const mergedUpdate of update.instruction.merged) {
+      if (!mergedUpdate.entries) continue
       for (const name of Object.keys(mergedUpdate.entries)) {
         const res = /(.*)\s+[([].*/.exec(name)
         if (res === null) {

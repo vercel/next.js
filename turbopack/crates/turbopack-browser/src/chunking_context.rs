@@ -1,7 +1,9 @@
 use anyhow::{Context, Result, bail};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexMap, FxIndexSet, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
@@ -23,7 +25,7 @@ use turbopack_core::{
         binding_usage_info::{BindingUsageInfo, ModuleExportUsage},
         chunk_group_info::ChunkGroup,
     },
-    output::{OutputAsset, OutputAssets},
+    output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
@@ -755,7 +757,6 @@ impl ChunkingContext for BrowserChunkingContext {
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
         async move {
-            let this = self.await?;
             let input_availability_info = availability_info;
             let MakeChunkGroupResult {
                 chunks,
@@ -771,36 +772,11 @@ impl ChunkingContext for BrowserChunkingContext {
 
             let chunks = chunks.await?;
 
-            let mut assets = chunks
+            let assets = chunks
                 .iter()
                 .map(|chunk| self.generate_chunk(*chunk))
                 .try_join()
                 .await?;
-
-            if this.enable_hot_module_replacement {
-                let ident = if let Some(input_availability_info_ident) =
-                    input_availability_info.ident().await?
-                {
-                    ident
-                        .owned()
-                        .await?
-                        .with_modifier(input_availability_info_ident)
-                        .into_vc()
-                } else {
-                    ident
-                };
-                let other_assets = Vc::cell(assets.clone());
-                assets.push(
-                    self.generate_chunk_list_register_chunk(
-                        ident,
-                        EvaluatableAssets::empty(),
-                        other_assets,
-                        EcmascriptDevChunkListSource::Dynamic,
-                    )
-                    .to_resolved()
-                    .await?,
-                );
-            }
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
@@ -820,6 +796,9 @@ impl ChunkingContext for BrowserChunkingContext {
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
         module_graph: ResolvedVc<ModuleGraph>,
+        // Extra chunks to include in the HMR chunk list beyond what is reachable from this chunk
+        // group. Used to cover RSC client reference chunks that are built separately.
+        extra_chunks: Vc<OutputAssets>,
         input_availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!(
@@ -849,6 +828,10 @@ impl ChunkingContext for BrowserChunkingContext {
                 .try_join()
                 .await?;
 
+            // The evaluate chunk loads `other_assets` as `SourceType.Runtime` (without script
+            // tags), so it must contain only the directly-generated chunks for this chunk group.
+            // `extra_chunks` are loaded separately (already in the HTML), so excluding them here
+            // prevents the runtime from blocking on a load that will never happen.
             let other_assets = Vc::cell(assets.clone());
 
             let entries = Vc::cell(
@@ -862,6 +845,29 @@ impl ChunkingContext for BrowserChunkingContext {
             );
 
             if this.enable_hot_module_replacement {
+                // Follow references (async loaders) to get actual dynamic component chunks, so
+                // the single HMR chunk list covers all lazily-loaded modules.
+                // inner=false: we only follow Reference inputs transitively, not Asset inputs,
+                // to avoid pulling in source maps and other asset-adjacent files that can't be
+                // reloaded by the DOM backend (which only handles CSS chunks via reloadChunk).
+                let all_dynamic_chunks = expand_output_assets(
+                    references
+                        .iter()
+                        .copied()
+                        .map(ExpandOutputAssetsInput::Reference)
+                        .chain(assets.iter().copied().map(ExpandOutputAssetsInput::Asset)),
+                    false,
+                )
+                .await?;
+
+                // Combine direct chunks, transitively-reachable dynamic chunks, and any caller-
+                // provided extras (e.g. RSC client reference chunks built outside this graph).
+                let extra_chunks_ref = extra_chunks.await?;
+                let mut hmr_chunks: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> =
+                    all_dynamic_chunks.into_iter().collect();
+                hmr_chunks.extend(extra_chunks_ref.iter().copied());
+                let hmr_other_assets = Vc::cell(hmr_chunks.into_iter().collect());
+
                 let ident = if let Some(input_availability_info_ident) =
                     input_availability_info.ident().await?
                 {
@@ -877,7 +883,7 @@ impl ChunkingContext for BrowserChunkingContext {
                     self.generate_chunk_list_register_chunk(
                         ident,
                         entries,
-                        other_assets,
+                        hmr_other_assets,
                         EcmascriptDevChunkListSource::Entry,
                     )
                     .to_resolved()
@@ -901,6 +907,31 @@ impl ChunkingContext for BrowserChunkingContext {
         }
         .instrument(span)
         .await
+    }
+
+    #[turbo_tasks::function]
+    async fn hmr_chunk_list(
+        self: Vc<Self>,
+        ident: Vc<AssetIdent>,
+        chunks: Vc<OutputAssets>,
+    ) -> Result<Vc<OutputAssets>> {
+        let this = self.await?;
+        if !this.enable_hot_module_replacement {
+            unreachable!("hmr_chunk_list called with enable_hot_module_replacement disabled");
+        }
+        if chunks.await?.is_empty() {
+            return Ok(OutputAssets::empty());
+        }
+        Ok(Vc::cell(vec![
+            self.generate_chunk_list_register_chunk(
+                ident,
+                EvaluatableAssets::empty(),
+                chunks,
+                EcmascriptDevChunkListSource::Entry,
+            )
+            .to_resolved()
+            .await?,
+        ]))
     }
 
     #[turbo_tasks::function]

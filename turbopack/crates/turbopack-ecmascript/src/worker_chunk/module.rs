@@ -72,6 +72,7 @@ impl WorkerLoaderModule {
                     ident,
                     ChunkGroup::Isolated(ResolvedVc::upcast(this.inner)),
                     module_graph,
+                    OutputAssets::empty(),
                     AvailabilityInfo::root(),
                 )
             }
