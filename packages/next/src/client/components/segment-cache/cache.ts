@@ -2300,6 +2300,12 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
       navigationSeed,
       spawnedEntries
     )
+    // TODO(app-shells): use shell for runtime prefetches
+    if (serverData.a) {
+      serverData.a.then((shellByteLength) => {
+        console.log('shell data (runtime) length:', shellByteLength)
+      })
+    }
 
     // For buffered responses, update LRU sizes now that we know which
     // entries were fulfilled.
@@ -3072,8 +3078,10 @@ export async function processRuntimePrefetchStream(
   headVaryParams: VaryParams | null
   staleAt: number
 } | null> {
-  const { stream, isPartial } = await stripIsPartialByte(runtimePrefetchStream)
-
+  const { stream: originalStream, isPartial } = await stripIsPartialByte(
+    runtimePrefetchStream
+  )
+  const [stream, streamClone] = originalStream.tee()
   const serverData =
     await createFromNextReadableStream<NavigationFlightResponse>(
       stream,
@@ -3100,6 +3108,14 @@ export async function processRuntimePrefetchStream(
     renderedSearch,
     UnknownDynamicStaleTime
   )
+  // TODO(app-shells): use recovered shell data if available
+  if (serverData.a) {
+    const shellByteLength = await serverData.a
+    // DEBUG
+    void debugRuntimeShell(shellByteLength, streamClone)
+  } else {
+    streamClone.cancel()
+  }
 
   return {
     flightDatas,
@@ -3109,6 +3125,46 @@ export async function processRuntimePrefetchStream(
     headVaryParams,
     staleAt,
   }
+}
+
+async function debugRuntimeShell(
+  shellByteLength: number | null,
+  streamClone: ReadableStream<Uint8Array>
+) {
+  const reader = streamClone.getReader()
+
+  const chunks: Uint8Array[] = []
+  while (true) {
+    const it = await reader.read()
+    if (it.done) break
+    chunks.push(it.value)
+  }
+
+  function concatUint8Arrays(arrays: Uint8Array[]): Uint8Array {
+    // Get the total length of all arrays.
+    let length = 0
+    for (const arr of arrays) {
+      length += arr.length
+    }
+
+    let result = new Uint8Array(length)
+
+    let offset = 0
+    for (const arr of arrays) {
+      result.set(arr, offset)
+      offset += arr.length
+    }
+    return result
+  }
+
+  const data = concatUint8Arrays(chunks)
+
+  const actualLength = shellByteLength === null ? data.length : shellByteLength
+  const shellResult = new TextDecoder().decode(data.subarray(0, actualLength))
+  let runtimeResult = new TextDecoder().decode(data.subarray(actualLength))
+
+  console.log('shell data (runtime) length:', shellByteLength)
+  console.log(shellResult + '\n-----------------------------\n' + runtimeResult)
 }
 
 /**
