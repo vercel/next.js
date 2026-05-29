@@ -522,18 +522,12 @@ program
         .nextTypegen(options, directory)
         .then(() => process.exit(0))
         .catch((err: unknown) => {
-          // Surface failures loudly with an actionable message and a non-zero
-          // exit code. Without this, a failed typegen (e.g. `next.config`
-          // throwing) is swallowed as an unhandled rejection that exits 0 and
-          // writes no types, leaving the user to chase cryptic
-          // `Cannot find name 'PageProps'/'LayoutProps'` errors from a later
-          // `tsc` run.
+          // Without this, a failed typegen (e.g. `next.config` throwing) is
+          // swallowed as an unhandled rejection that exits 0; surface it with a
+          // non-zero exit so `next typegen && tsc` halts instead of running
+          // against missing route types.
           console.error(
-            '\n> Failed to generate route types. The global `PageProps` and ' +
-              '`LayoutProps` helpers and other generated route types were not ' +
-              "written, which can surface as `Cannot find name 'PageProps'` " +
-              'errors during type checking. This is often caused by ' +
-              '`next.config` failing to load. Original error:\n'
+            '\n> Unexpected error while generating route types. Original error:\n'
           )
           console.error(err)
           process.exit(1)
