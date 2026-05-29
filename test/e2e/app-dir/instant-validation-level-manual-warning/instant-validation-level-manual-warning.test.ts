@@ -199,7 +199,7 @@ describe('instant validation - level manual-warning', () => {
            Ways to fix this:
              - [cache] Cache the data access with \`"use cache"\`
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - Set \`export const unstable_instant = false\` to allow a blocking route
+             - [block] Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at a (<anonymous>)
@@ -338,7 +338,7 @@ describe('instant validation - level manual-warning', () => {
              - [cache] Cache the data access with \`"use cache"\`
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const unstable_instant = false\` to allow a blocking route
+             - [block] Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at body (<anonymous>)
@@ -364,7 +364,7 @@ describe('instant validation - level manual-warning', () => {
              - [cache] Cache the data access with \`"use cache"\`
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const unstable_instant = false\` to allow a blocking route
+             - [block] Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at body (<anonymous>)
@@ -392,7 +392,7 @@ describe('instant validation - level manual-warning', () => {
              - [cache] Cache the data access with \`"use cache"\`
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const unstable_instant = false\` to allow a blocking route
+             - [block] Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at body (<anonymous>)
@@ -424,7 +424,7 @@ describe('instant validation - level manual-warning', () => {
              - [cache] Cache the data access with \`"use cache"\`
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const unstable_instant = false\` to allow a blocking route
+             - [block] Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at body (<anonymous>)
