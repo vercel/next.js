@@ -3,8 +3,8 @@ use std::hash::Hash;
 use crate::analyzer::{CallList, JsValue, MemberCallList, ModuleValue, ObjectPart};
 
 // Like equality, but with depth limit
-impl JsValue {
-    pub(super) fn all_similar(a: &[JsValue], b: &[JsValue], depth: usize) -> bool {
+impl<'a> JsValue<'a> {
+    pub(super) fn all_similar(a: &[JsValue<'a>], b: &[JsValue<'a>], depth: usize) -> bool {
         if a.len() != b.len() {
             return false;
         }
@@ -12,12 +12,12 @@ impl JsValue {
     }
     /// Check if the values are equal up to the given depth. Might return false
     /// even if the values are equal when hitting the depth limit.
-    fn similar(&self, other: &JsValue, depth: usize) -> bool {
+    fn similar(&self, other: &JsValue<'a>, depth: usize) -> bool {
         if depth == 0 {
             return false;
         }
 
-        fn all_parts_similar(a: &[ObjectPart], b: &[ObjectPart], depth: usize) -> bool {
+        fn all_parts_similar<'b>(a: &[ObjectPart<'b>], b: &[ObjectPart<'b>], depth: usize) -> bool {
             if a.len() != b.len() {
                 return false;
             }
@@ -134,14 +134,18 @@ impl JsValue {
             return;
         }
 
-        fn all_similar_hash<H: std::hash::Hasher>(slice: &[JsValue], state: &mut H, depth: usize) {
+        fn all_similar_hash<H: std::hash::Hasher>(
+            slice: &[JsValue<'_>],
+            state: &mut H,
+            depth: usize,
+        ) {
             for item in slice {
                 item.similar_hash(state, depth);
             }
         }
 
         fn all_parts_similar_hash<H: std::hash::Hasher>(
-            slice: &[ObjectPart],
+            slice: &[ObjectPart<'_>],
             state: &mut H,
             depth: usize,
         ) {
@@ -178,12 +182,12 @@ impl JsValue {
             | JsValue::Logical(_, _, v) => all_similar_hash(v, state, depth - 1),
             JsValue::Not(_, v) => v.similar_hash(state, depth - 1),
             JsValue::New(_, call) => {
-                call.for_each_children(&mut |child: &JsValue| {
+                call.for_each_children(&mut |child: &JsValue<'_>| {
                     child.similar_hash(state, depth - 1);
                 });
             }
             JsValue::Call(_, call) => {
-                call.for_each_children(&mut |child: &JsValue| {
+                call.for_each_children(&mut |child: &JsValue<'_>| {
                     child.similar_hash(state, depth - 1);
                 });
             }
@@ -191,7 +195,7 @@ impl JsValue {
                 all_similar_hash(args, state, depth - 1);
             }
             JsValue::MemberCall(_, call) => {
-                call.for_each_children(&mut |child: &JsValue| {
+                call.for_each_children(&mut |child: &JsValue<'_>| {
                     child.similar_hash(state, depth - 1);
                 });
             }
@@ -249,17 +253,17 @@ const SIMILAR_HASH_DEPTH: usize = 2;
 /// A wrapper around `JsValue` that implements `PartialEq` and `Hash` by
 /// comparing the values with a depth of [SIMILAR_EQ_DEPTH] and hashing values
 /// with a depth of [SIMILAR_HASH_DEPTH].
-pub(super) struct SimilarJsValue(pub(super) JsValue);
+pub(super) struct SimilarJsValue<'a>(pub(super) JsValue<'a>);
 
-impl PartialEq for SimilarJsValue {
+impl PartialEq for SimilarJsValue<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.0.similar(&other.0, SIMILAR_EQ_DEPTH)
     }
 }
 
-impl Eq for SimilarJsValue {}
+impl Eq for SimilarJsValue<'_> {}
 
-impl Hash for SimilarJsValue {
+impl Hash for SimilarJsValue<'_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.0.similar_hash(state, SIMILAR_HASH_DEPTH)
     }

@@ -3,12 +3,15 @@ use std::mem::take;
 use turbo_rcstr::rcstr;
 
 use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty, ObjectPart};
-use crate::analyzer::JsValueUrlKind;
+use crate::analyzer::{
+    JsValueUrlKind,
+    arena::{Arena, BumpVec},
+};
 
 /// Replaces some builtin values with their resulting values. Called early
 /// without lazy nested values. This allows to skip a lot of work to process the
 /// arguments.
-pub fn early_replace_builtin(value: &mut JsValue) -> bool {
+pub fn early_replace_builtin(value: &mut JsValue<'_>) -> bool {
     match value {
         // matching calls like `callee(arg1, arg2, ...)`
         JsValue::Call(_, call) => {
@@ -77,16 +80,14 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
         }
         // matching property access like `obj.prop` when we don't know what the obj is.
         // We can early return here
-        &mut JsValue::Member(
-            _,
-            box JsValue::Unknown {
-                original_value: _,
-                reason: _,
-                has_side_effects,
-            },
-            box ref mut prop,
-        ) => {
-            let side_effects = has_side_effects || prop.has_side_effects();
+        JsValue::Member(_, obj, prop) if matches!(&**obj, JsValue::Unknown { .. }) => {
+            let JsValue::Unknown {
+                has_side_effects, ..
+            } = &**obj
+            else {
+                unreachable!()
+            };
+            let side_effects = *has_side_effects || prop.has_side_effects();
             value.make_unknown(side_effects, rcstr!("unknown object"));
             true
         }
@@ -97,7 +98,7 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
 /// Replaces some builtin functions and values with their resulting values. In
 /// contrast to early_replace_builtin this has all inner values already
 /// processed.
-pub fn replace_builtin(value: &mut JsValue) -> bool {
+pub fn replace_builtin<'a>(arena: &'a Arena, value: &mut JsValue<'a>) -> bool {
     match value {
         JsValue::Add(_, list) => {
             // numeric addition
@@ -114,7 +115,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
 
         // matching property access like `obj.prop`
         // Accessing a property on something can be handled in some cases
-        JsValue::Member(_, box obj, prop) => match obj {
+        JsValue::Member(_, obj, prop) => match &mut **obj {
             // matching property access when obj is a bunch of alternatives
             // like `(obj1 | obj2 | obj3).prop`
             // We expand these to `obj1.prop | obj2.prop | obj3.prop`
@@ -123,27 +124,33 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 values,
                 logical_property: _,
             } => {
-                *value = JsValue::alternatives(
-                    take(values)
-                        .into_iter()
-                        .map(|alt| JsValue::member(Box::new(alt), prop.clone()))
-                        .collect(),
-                );
+                *value = JsValue::alternatives(arena.vec_from_iter(
+                    values
+                        .drain(..)
+                        .map(|alt| JsValue::member(arena, alt, prop.clone_in(arena))),
+                ));
                 true
             }
             // matching property access on an array like `[1,2,3].prop` or `[1,2,3][1]`
-            &mut JsValue::Array {
-                ref mut items,
+            JsValue::Array {
+                items,
                 mutable,
                 ..
             } => {
-                fn items_to_alternatives(items: &mut Vec<JsValue>, prop: &mut JsValue) -> JsValue {
-                    items.push(JsValue::unknown(
-                        JsValue::member(Box::new(JsValue::array(Vec::new())), Box::new(take(prop))),
+                let mutable = *mutable;
+                fn items_to_alternatives<'a>(
+                    arena: &'a Arena,
+                    items: &mut BumpVec<'a, JsValue<'a>>,
+                    prop: &mut JsValue<'a>,
+                ) -> JsValue<'a> {
+                    items.push(
+                        arena,
+                        JsValue::unknown(
+                            JsValue::member(arena, JsValue::array(arena.vec()), take(prop)),
                         false,
                         rcstr!("unknown array prototype methods or values"),
                     ));
-                    JsValue::alternatives(take(items))
+                    JsValue::alternatives(arena.vec_from_iter(items.drain(..)))
                 }
                 match &mut **prop {
                     // accessing a numeric property on an array like `[1,2,3][1]`
@@ -153,12 +160,12 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             if index < items.len() {
                                 *value = items.swap_remove(index);
                                 if mutable {
-                                    value.add_unknown_mutations(true);
+                                    value.add_unknown_mutations(arena, true);
                                 }
                                 true
                             } else {
                                 *value = JsValue::unknown(
-                                    JsValue::member(Box::new(take(obj)), Box::new(take(prop))),
+                                    JsValue::member(arena, take(&mut **obj), take(&mut **prop)),
                                     false,
                                     rcstr!("invalid index"),
                                 );
@@ -182,33 +189,34 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         values,
                         logical_property: _,
                     } => {
-                        *value = JsValue::alternatives(
-                            take(values)
-                                .into_iter()
-                                .map(|alt| JsValue::member(Box::new(obj.clone()), Box::new(alt)))
-                                .collect(),
-                        );
+                        let alts: Vec<JsValue<'a>> = values.drain(..).collect();
+                        *value = JsValue::alternatives(arena.vec_from_iter(
+                            alts.into_iter()
+                                .map(|alt| JsValue::member(arena, obj.clone_in(arena), alt)),
+                        ));
                         true
                     }
                     // otherwise we can say that this might gives an item of the array
                     // but we also add an unknown value to the alternatives for other properties
                     _ => {
-                        *value = items_to_alternatives(items, prop);
+                        *value = items_to_alternatives(arena, items, prop);
                         true
                     }
                 }
             }
             // matching property access on an object like `{a: 1, b: 2}.a`
-            &mut JsValue::Object {
-                ref mut parts,
+            JsValue::Object {
+                parts,
                 mutable,
                 ..
             } => {
-                fn parts_to_alternatives(
-                    parts: &mut Vec<ObjectPart>,
-                    prop: &mut Box<JsValue>,
+                let mutable = *mutable;
+                fn parts_to_alternatives<'a>(
+                    arena: &'a Arena,
+                    parts: &mut [ObjectPart<'a>],
+                    prop: &mut JsValue<'a>,
                     include_unknown: bool,
-                ) -> JsValue {
+                ) -> JsValue<'a> {
                     let mut values = Vec::new();
                     for part in parts {
                         match part {
@@ -218,8 +226,9 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             ObjectPart::Spread(_) => {
                                 values.push(JsValue::unknown(
                                     JsValue::member(
-                                        Box::new(JsValue::object(vec![take(part)])),
-                                        prop.clone(),
+                                        arena,
+                                        JsValue::object(arena.vec_from_iter([take(part)])),
+                                        prop.clone_in(arena),
                                     ),
                                     true,
                                     rcstr!("spread object"),
@@ -230,29 +239,31 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     if include_unknown {
                         values.push(JsValue::unknown(
                             JsValue::member(
-                                Box::new(JsValue::object(Vec::new())),
-                                Box::new(take(prop)),
+                                arena,
+                                JsValue::object(arena.vec()),
+                                take(prop),
                             ),
                             true,
                             rcstr!("unknown object prototype methods or values"),
                         ));
                     }
-                    JsValue::alternatives(values)
+                    JsValue::alternatives(arena.vec_from_iter(values))
                 }
 
                 /// Convert a list of potential values into
                 /// JsValue::Alternatives Optionally add a
                 /// unknown value to the alternatives for object prototype
                 /// methods
-                fn potential_values_to_alternatives(
+                fn potential_values_to_alternatives<'a>(
+                    arena: &'a Arena,
                     mut potential_values: Vec<usize>,
-                    parts: &mut Vec<ObjectPart>,
-                    prop: &mut Box<JsValue>,
+                    parts: &mut BumpVec<'a, ObjectPart<'a>>,
+                    prop: &mut JsValue<'a>,
                     include_unknown: bool,
-                ) -> JsValue {
+                ) -> JsValue<'a> {
                     // Note: potential_values are already in reverse order
-                    let mut potential_values = take(parts)
-                        .into_iter()
+                    let mut potential_values: Vec<ObjectPart<'a>> = parts
+                        .drain(..)
                         .enumerate()
                         .filter(|(i, _)| {
                             if potential_values.last() == Some(i) {
@@ -264,7 +275,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         })
                         .map(|(_, part)| part)
                         .collect();
-                    parts_to_alternatives(&mut potential_values, prop, include_unknown)
+                    parts_to_alternatives(arena, &mut potential_values, prop, include_unknown)
                 }
 
                 match &mut **prop {
@@ -283,6 +294,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                             } else {
                                                 potential_values.push(i);
                                                 *value = potential_values_to_alternatives(
+                                                    arena,
                                                     potential_values,
                                                     parts,
                                                     prop,
@@ -290,7 +302,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                                 );
                                             }
                                             if mutable {
-                                                value.add_unknown_mutations(true);
+                                                value.add_unknown_mutations(arena, true);
                                             }
                                             return true;
                                         }
@@ -308,6 +320,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             *value = JsValue::Constant(ConstantValue::Undefined);
                         } else {
                             *value = potential_values_to_alternatives(
+                                arena,
                                 potential_values,
                                 parts,
                                 prop,
@@ -315,7 +328,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             );
                         }
                         if mutable {
-                            value.add_unknown_mutations(true);
+                            value.add_unknown_mutations(arena, true);
                         }
                         true
                     }
@@ -326,16 +339,15 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         values,
                         logical_property: _,
                     } => {
-                        *value = JsValue::alternatives(
-                            take(values)
-                                .into_iter()
-                                .map(|alt| JsValue::member(Box::new(obj.clone()), Box::new(alt)))
-                                .collect(),
-                        );
+                        let alts: Vec<JsValue<'a>> = values.drain(..).collect();
+                        *value = JsValue::alternatives(arena.vec_from_iter(
+                            alts.into_iter()
+                                .map(|alt| JsValue::member(arena, obj.clone_in(arena), alt)),
+                        ));
                         true
                     }
                     _ => {
-                        *value = parts_to_alternatives(parts, prop, true);
+                        *value = parts_to_alternatives(arena, parts, prop, true);
                         true
                     }
                 }
@@ -343,10 +355,15 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             _ => false,
         },
 
-        JsValue::MemberCall(_, call) => {
+        JsValue::MemberCall(_, _) => {
             // `into_parts` pops obj + prop off the tail of the underlying `Vec`, and the
-            // remaining `Vec` (owned, not reallocated) becomes `args`.
-            let (mut obj, prop, args) = take(call).into_parts();
+            // remaining `Vec` (owned, not reallocated) becomes `args`. We take the whole
+            // value (which has a `Default`) to move the `MemberCallList` out, as the list
+            // itself has no `Default`.
+            let JsValue::MemberCall(_, call) = take(value) else {
+                unreachable!()
+            };
+            let (mut obj, prop, args) = call.into_parts();
             match &mut obj {
                 // matching calls on an array like `[1,2,3].concat([4,5,6])`
                 JsValue::Array { items, mutable, .. } => {
@@ -375,7 +392,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                                 mutable: inner_mutable,
                                                 ..
                                             } => {
-                                                items.extend(inner);
+                                                items.extend_in(arena, inner);
                                                 *mutable |= inner_mutable;
                                             }
                                             other @ (JsValue::Constant(_)
@@ -385,7 +402,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                             | JsValue::WellKnownObject(_)
                                             | JsValue::WellKnownFunction(_)
                                             | JsValue::Function(..)) => {
-                                                items.push(other);
+                                                items.push(arena, other);
                                             }
                                             _ => {
                                                 unreachable!();
@@ -399,23 +416,24 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             // The Array.prototype.map method
                             "map" => {
                                 if let Some(func) = args.first() {
-                                    *value = JsValue::array(
-                                        take(items)
-                                            .into_iter()
-                                            .enumerate()
-                                            .map(|(i, item)| {
-                                                JsValue::call_from_iter(
-                                                    func.clone(),
-                                                    [
-                                                        item,
-                                                        JsValue::Constant(ConstantValue::Num(
-                                                            (i as f64).into(),
-                                                        )),
-                                                    ],
-                                                )
-                                            })
-                                            .collect(),
-                                    );
+                                    let func = func.clone_in(arena);
+                                    let mapped: Vec<JsValue<'a>> = items
+                                        .drain(..)
+                                        .enumerate()
+                                        .map(|(i, item)| {
+                                            JsValue::call_from_iter(
+                                                arena,
+                                                func.clone_in(arena),
+                                                [
+                                                    item,
+                                                    JsValue::Constant(ConstantValue::Num(
+                                                        (i as f64).into(),
+                                                    )),
+                                                ],
+                                            )
+                                        })
+                                        .collect();
+                                    *value = JsValue::array(arena.vec_from_iter(mapped));
                                     return true;
                                 }
                             }
@@ -430,18 +448,17 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     values,
                     logical_property: _,
                 } => {
-                    *value = JsValue::alternatives(
-                        take(values)
-                            .into_iter()
-                            .map(|alt| {
-                                JsValue::member_call_from_iter(
-                                    alt,
-                                    prop.clone(),
-                                    args.iter().cloned(),
-                                )
-                            })
-                            .collect(),
-                    );
+                    let alts: Vec<JsValue<'a>> = values.drain(..).collect();
+                    *value = JsValue::alternatives(arena.vec_from_iter(alts.into_iter().map(
+                        |alt| {
+                            JsValue::member_call_from_iter(
+                                arena,
+                                alt,
+                                prop.clone_in(arena),
+                                args.iter().map(|a| a.clone_in(arena)),
+                            )
+                        },
+                    )));
                     return true;
                 }
                 _ => {}
@@ -453,8 +470,9 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             {
                 // The String.prototype.concat method
                 if str == "concat" {
-                    let mut values = vec![obj];
-                    values.extend(args);
+                    let mut values = arena.vec_with_capacity(1 + args.len());
+                    values.push(arena, obj);
+                    values.extend_in(arena, args);
 
                     *value = JsValue::concat(values);
                     return true;
@@ -469,10 +487,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             // into a `JsValue::Call` only needs `+1` slot, which fits in the existing slack —
             // no realloc. This is the original motivation for the `[args..., prop, obj]`
             // tail layout.
-            *value = JsValue::call_from_parts(
-                JsValue::member(Box::new(obj), Box::new(prop)),
-                args,
-            );
+            *value = JsValue::call_from_parts(arena, JsValue::member(arena, obj, prop), args);
             true
         }
         // match calls when the callee are multiple alternative functions like `(func1 |
@@ -481,16 +496,20 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             if matches!(call.callee(), JsValue::Alternatives { .. }) =>
         {
             // Take ownership so we can move the alternatives `values` out of the callee.
-            let (callee, args) = take(call).into_parts();
+            // We take the whole value (which has a `Default`) to move the `CallList` out, as
+            // the list itself has no `Default`.
+            let JsValue::Call(_, call) = take(value) else {
+                unreachable!()
+            };
+            let (callee, args) = call.into_parts();
             let JsValue::Alternatives { values, .. } = callee else {
                 unreachable!()
             };
-            *value = JsValue::alternatives(
+            *value = JsValue::alternatives(arena.vec_from_iter(
                 values
                     .into_iter()
-                    .map(|alt| JsValue::call_from_iter(alt, args.iter().cloned()))
-                    .collect(),
-            );
+                    .map(|alt| JsValue::call_from_iter(arena, alt, args.iter().map(|a| a.clone_in(arena)))),
+            ));
             true
         }
         // match object literals
@@ -500,7 +519,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 .iter()
                 .any(|part| matches!(part, ObjectPart::Spread(JsValue::Object { .. })))
             => {
-                let old_parts = take(parts);
+                let old_parts: Vec<ObjectPart<'a>> = parts.drain(..).collect();
                 for part in old_parts {
                     if let ObjectPart::Spread(JsValue::Object {
                         parts: inner_parts,
@@ -508,10 +527,10 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                         ..
                     }) = part
                     {
-                        parts.extend(inner_parts);
+                        parts.extend_in(arena, inner_parts);
                         *mutable |= inner_mutable;
                     } else {
-                        parts.push(part);
+                        parts.push(arena, part);
                     }
                 }
                 value.update_total_nodes();
@@ -519,17 +538,21 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             }
         // match logical expressions like `a && b` or `a || b || c` or `a ?? b`
         // Reduce logical expressions to their final value(s)
-        JsValue::Logical(_, op, parts) => {
-            let len = parts.len();
-            let input_parts: Vec<JsValue> = take(parts);
-            *parts = Vec::with_capacity(len);
+        JsValue::Logical(..) => {
+            // Take the whole value (which has a `Default`) to move the operator and the
+            // `BumpVec` of parts out, as the `BumpVec` itself has no `Default`.
+            let JsValue::Logical(_, op, input_parts) = take(value) else {
+                unreachable!()
+            };
+            let len = input_parts.len();
+            let mut parts = arena.vec_with_capacity::<JsValue<'a>>(len);
             let mut part_properties = Vec::with_capacity(len);
             for (i, part) in input_parts.into_iter().enumerate() {
                 // The last part is never skipped.
                 if i == len - 1 {
                     // We intentionally omit the part_properties for the last part.
                     // This isn't always needed so we only compute it when actually needed.
-                    parts.push(part);
+                    parts.push(arena, part);
                     break;
                 }
                 let property = match op {
@@ -546,13 +569,13 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     Some(false) => {
                         // We known this part is the final value, so we can remove the rest.
                         part_properties.push(property);
-                        parts.push(part);
+                        parts.push(arena, part);
                         break;
                     }
                     None => {
                         // We don't know if this part is skipped or the final value, so we keep it.
                         part_properties.push(property);
-                        parts.push(part);
+                        parts.push(arena, part);
                         continue;
                     }
                 }
@@ -608,20 +631,20 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     }
                 };
                 if let Some(property) = property {
-                    *value = JsValue::alternatives_with_additional_property(take(parts), property);
+                    *value = JsValue::alternatives_with_additional_property(parts, property);
                     true
                 } else {
-                    *value = JsValue::alternatives(take(parts));
+                    *value = JsValue::alternatives(parts);
                     true
                 }
             }
         }
         JsValue::Tenary(_, test, cons, alt) => {
             if test.is_truthy() == Some(true) {
-                *value = take(cons);
+                *value = take(&mut **cons);
                 true
             } else if test.is_falsy() == Some(true) {
-                *value = take(alt);
+                *value = take(&mut **alt);
                 true
             } else {
                 false
@@ -657,9 +680,9 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
 
         JsValue::Iterated(_, iterable) => {
             if let JsValue::Array { items, mutable, .. } = &mut **iterable {
-                let mut new_value = JsValue::alternatives(take(items));
+                let mut new_value = JsValue::alternatives(arena.vec_from_iter(items.drain(..)));
                 if *mutable {
-                    new_value.add_unknown_mutations(true);
+                    new_value.add_unknown_mutations(arena, true);
                 }
                 *value = new_value;
                 true
@@ -670,10 +693,10 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
 
         JsValue::Awaited(_, operand) => {
             if let JsValue::Promise(_, inner) = &mut **operand {
-                *value = take(inner);
+                *value = take(&mut **inner);
                 true
             } else {
-                *value = take(operand);
+                *value = take(&mut **operand);
                 true
             }
         }

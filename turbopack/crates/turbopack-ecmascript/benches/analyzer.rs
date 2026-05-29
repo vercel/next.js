@@ -1,9 +1,4 @@
-use std::{
-    fs,
-    path::PathBuf,
-    sync::Arc,
-    time::{Duration, Instant},
-};
+use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 
 use criterion::{Bencher, BenchmarkId, Criterion, criterion_group, criterion_main};
 use swc_core::{
@@ -15,8 +10,8 @@ use swc_core::{
         visit::VisitMutWith,
     },
 };
-use turbo_tasks::{ResolvedVc, TurboTasks};
-use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+use turbo_tasks::ResolvedVc;
+use turbo_tasks_testing::VcStorage;
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
@@ -25,6 +20,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     AnalyzeMode,
     analyzer::{
+        Arena,
         graph::{EvalContext, VarGraph, create_graph},
         imports::ImportAttributes,
         linker::link,
@@ -41,7 +37,7 @@ pub fn benchmark(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("analyzer");
     group.warm_up_time(Duration::from_secs(1));
-    group.measurement_time(Duration::from_secs(3));
+    group.measurement_time(Duration::from_secs(60));
 
     for result in results {
         let entry = result.unwrap();
@@ -72,17 +68,22 @@ pub fn benchmark(c: &mut Criterion) {
                     Default::default(),
                     None,
                 );
-                let var_graph = Arc::new(create_graph(
+                // Leak a per-benchmark arena so the stored `VarGraph` can be `'static` (benches are
+                // short-lived processes, so the leak is inconsequential).
+                let arena: &'static Arena = Box::leak(Box::new(Arena::new()));
+                let var_graph = create_graph(
+                    arena,
                     &program,
                     &eval_context,
                     AnalyzeMode::CodeGenerationAndTracing,
                     true,
-                ));
+                );
 
                 let input = BenchInput {
                     program,
                     eval_context,
                     var_graph,
+                    arena,
                 };
 
                 group.bench_with_input(
@@ -99,17 +100,21 @@ pub fn benchmark(c: &mut Criterion) {
 struct BenchInput {
     program: Program,
     eval_context: EvalContext,
-    var_graph: Arc<VarGraph>,
+    var_graph: VarGraph<'static>,
+    arena: &'static Arena,
 }
 
 fn bench_create_graph(b: &mut Bencher, input: &BenchInput) {
     b.iter(|| {
-        create_graph(
+        // Fresh arena per iteration so the produced graph is freed each time.
+        let arena = Arena::new();
+        criterion::black_box(create_graph(
+            &arena,
             &input.program,
             &input.eval_context,
             AnalyzeMode::CodeGenerationAndTracing,
             true,
-        )
+        ));
     });
 }
 
@@ -117,20 +122,11 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
     let rt = tokio::runtime::Builder::new_current_thread()
         .build()
         .unwrap();
-    let var_graph = input.var_graph.clone();
 
-    b.to_async(rt).iter_custom(move |iters| {
-        let tt = TurboTasks::new(TurboTasksBackend::new(
-            BackendOptions {
-                storage_mode: None,
-                dependency_tracking: false,
-                ..Default::default()
-            },
-            noop_backing_storage(),
-        ));
-        let var_graph = var_graph.clone();
-        async move {
-            tt.run_once(async move {
+    b.to_async(rt).iter(|| async {
+        let var_cache = Default::default();
+        for value in input.var_graph.values.values() {
+            VcStorage::with(async {
                 let compile_time_info = CompileTimeInfo::builder(
                     Environment::new(ExecutionEnvironment::NodeJsLambda(
                         NodeJsEnvironment {
@@ -145,25 +141,26 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
                 )
                 .cell()
                 .await?;
-                let start = Instant::now();
-                for _ in 0..iters {
-                    let var_cache = Default::default();
-                    for value in var_graph.values.values() {
-                        link(
-                            &var_graph,
-                            value.clone(),
-                            &early_visitor,
-                            &(|val| visitor(val, compile_time_info, ImportAttributes::empty_ref())),
-                            &Default::default(),
-                            &var_cache,
+                link(
+                    input.arena,
+                    &input.var_graph,
+                    value.clone_in(input.arena),
+                    &(|val| early_visitor(input.arena, val)),
+                    &(|val| {
+                        visitor(
+                            input.arena,
+                            val,
+                            compile_time_info,
+                            ImportAttributes::empty_ref(),
                         )
-                        .await?;
-                    }
-                }
-                anyhow::Ok(start.elapsed())
+                    }),
+                    &Default::default(),
+                    &var_cache,
+                )
+                .await
             })
             .await
-            .unwrap()
+            .unwrap();
         }
     });
 }

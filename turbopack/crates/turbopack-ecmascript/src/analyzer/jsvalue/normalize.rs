@@ -3,14 +3,18 @@ use std::{hash::BuildHasherDefault, mem::take};
 use rustc_hash::FxHasher;
 use turbo_tasks::FxIndexSet;
 
-use crate::analyzer::{JsValue, jsvalue::similar::SimilarJsValue};
+use crate::analyzer::{
+    JsValue,
+    arena::{Arena, BumpVec},
+    jsvalue::similar::SimilarJsValue,
+};
 
 // Alternatives management
-impl JsValue {
+impl<'a> JsValue<'a> {
     /// Add an alternative to the current value. Might be a no-op if the value
     /// already contains this alternative. Potentially expensive operation
     /// as it has to compare the value with all existing alternatives.
-    pub(crate) fn add_alt(&mut self, v: Self) {
+    pub(crate) fn add_alt(&mut self, arena: &'a Arena, v: Self) {
         if self == &v {
             return;
         }
@@ -23,13 +27,13 @@ impl JsValue {
         {
             if !values.contains(&v) {
                 *c += v.total_nodes();
-                values.push(v);
+                values.push(arena, v);
             }
         } else {
             let l = take(self);
             *self = JsValue::Alternatives {
                 total_nodes: 1 + l.total_nodes() + v.total_nodes(),
-                values: vec![l, v],
+                values: arena.vec_from_iter([l, v]),
                 logical_property: None,
             };
         }
@@ -37,10 +41,10 @@ impl JsValue {
 }
 
 // Normalization
-impl JsValue {
+impl<'a> JsValue<'a> {
     /// Normalizes only the current node. Nested alternatives, concatenations,
     /// or operations are collapsed.
-    pub fn normalize_shallow(&mut self) {
+    pub fn normalize_shallow(&mut self, arena: &'a Arena) {
         match self {
             JsValue::Alternatives {
                 total_nodes: _,
@@ -54,7 +58,10 @@ impl JsValue {
                         values.len(),
                         BuildHasherDefault::<FxHasher>::default(),
                     );
-                    for v in take(values) {
+                    // Detach the children, leaving an empty (allocation-free) arena vec behind so
+                    // we can rebuild `values` in place without a temporary system `Vec`.
+                    let taken = std::mem::replace(values, arena.vec());
+                    for v in taken {
                         match v {
                             JsValue::Alternatives {
                                 total_nodes: _,
@@ -73,71 +80,73 @@ impl JsValue {
                     if set.len() == 1 {
                         *self = set.into_iter().next().unwrap().0;
                     } else {
-                        *values = set.into_iter().map(|v| v.0).collect();
+                        values.extend_in(arena, set.into_iter().map(|v| v.0));
                         self.update_total_nodes();
                     }
                 }
             }
             JsValue::Concat(_, v) => {
-                // Remove empty strings
-                v.retain(|v| v.as_str() != Some(""));
-
                 // TODO(kdy1): Remove duplicate
-                let mut new: Vec<JsValue> = vec![];
-                for v in take(v) {
-                    if let Some(str) = v.as_str() {
+                // Detach the children (allocation-free) and rebuild, merging adjacent string
+                // literals and dropping empty strings (the latter used to be a separate `retain`).
+                let taken = std::mem::replace(v, arena.vec());
+                let mut new: BumpVec<'a, JsValue<'a>> = arena.vec();
+                for value in taken {
+                    if value.as_str() == Some("") {
+                        continue;
+                    }
+                    if let Some(str) = value.as_str() {
                         if let Some(last) = new.last_mut() {
                             if let Some(last_str) = last.as_str() {
                                 *last = [last_str, str].concat().into();
                             } else {
-                                new.push(v);
+                                new.push(arena, value);
                             }
                         } else {
-                            new.push(v);
+                            new.push(arena, value);
                         }
-                    } else if let JsValue::Concat(_, v) = v {
-                        new.extend(v);
+                    } else if let JsValue::Concat(_, inner) = value {
+                        new.extend_in(arena, inner);
                     } else {
-                        new.push(v);
+                        new.push(arena, value);
                     }
                 }
                 if new.len() == 1 {
                     *self = new.into_iter().next().unwrap();
                 } else {
-                    *v = new;
+                    v.extend_in(arena, new);
                     self.update_total_nodes();
                 }
             }
             JsValue::Add(_, v) => {
-                let mut added: Vec<JsValue> = Vec::new();
-                let mut iter = take(v).into_iter();
+                let taken = std::mem::replace(v, arena.vec());
+                let mut added: BumpVec<'a, JsValue<'a>> = arena.vec();
+                let mut iter = taken.into_iter();
                 while let Some(item) = iter.next() {
                     if item.is_string() == Some(true) {
-                        let mut concat = match added.len() {
-                            0 => Vec::new(),
-                            1 => vec![added.into_iter().next().unwrap()],
-                            _ => vec![JsValue::Add(
-                                1 + added.iter().map(|v| v.total_nodes()).sum::<u32>(),
-                                added,
-                            )],
+                        let mut concat: BumpVec<'a, JsValue<'a>> = match added.len() {
+                            0 => arena.vec(),
+                            1 => arena.vec_from_iter([added.into_iter().next().unwrap()]),
+                            _ => {
+                                let nodes = 1 + added.iter().map(|v| v.total_nodes()).sum::<u32>();
+                                arena.vec_from_iter([JsValue::Add(nodes, added)])
+                            }
                         };
-                        concat.push(item);
+                        concat.push(arena, item);
                         for item in iter.by_ref() {
-                            concat.push(item);
+                            concat.push(arena, item);
                         }
-                        *self = JsValue::Concat(
-                            1 + concat.iter().map(|v| v.total_nodes()).sum::<u32>(),
-                            concat,
-                        );
+                        let nodes = 1 + concat.iter().map(|v| v.total_nodes()).sum::<u32>();
+                        *self = JsValue::Concat(nodes, concat);
                         return;
                     } else {
-                        added.push(item);
+                        added.push(arena, item);
                     }
                 }
                 if added.len() == 1 {
                     *self = added.into_iter().next().unwrap();
                 } else {
-                    *v = added;
+                    v.extend_in(arena, added);
                     self.update_total_nodes();
                 }
             }
@@ -151,16 +160,18 @@ impl JsValue {
                         false
                     }
                 }) => {
-                    // Taking the old list and constructing a new merged list
-                    for mut v in take(list).into_iter() {
+                    // Taking the old list (allocation-free) and constructing a new merged list
+                    let taken = std::mem::replace(list, arena.vec());
+                    for mut v in taken {
                         if let JsValue::Logical(_, inner_op, inner_list) = &mut v {
                             if inner_op == op {
-                                list.append(inner_list);
+                                let inner = std::mem::replace(inner_list, arena.vec());
+                                list.extend_in(arena, inner);
                             } else {
-                                list.push(v);
+                                list.push(arena, v);
                             }
                         } else {
-                            list.push(v);
+                            list.push(arena, v);
                         }
                     }
                     self.update_total_nodes();
@@ -170,12 +181,12 @@ impl JsValue {
     }
 
     /// Normalizes the current node and all nested nodes.
-    pub fn normalize(&mut self) {
+    pub fn normalize(&mut self, arena: &'a Arena) {
         self.for_each_children_mut(&mut |child| {
-            child.normalize();
+            child.normalize(arena);
             true
         });
-        self.normalize_shallow();
+        self.normalize_shallow(arena);
     }
 }
 

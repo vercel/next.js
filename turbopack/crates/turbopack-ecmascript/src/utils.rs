@@ -29,7 +29,7 @@ pub fn unparen(expr: &Expr) -> &Expr {
 }
 
 /// Converts a js-value into a Pattern for matching resources.
-pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
+pub fn js_value_to_pattern(value: &JsValue<'_>) -> Pattern {
     match value {
         JsValue::Constant(v) => Pattern::Constant(match v {
             ConstantValue::Str(str) => {
@@ -198,7 +198,7 @@ pub enum AstPathRange {
 
 /// Converts a module value (ie an import) to a well known object,
 /// which we specifically handle.
-pub fn module_value_to_well_known_object(module_value: &ModuleValue) -> Option<JsValue> {
+pub fn module_value_to_well_known_object<'a>(module_value: &ModuleValue) -> Option<JsValue<'a>> {
     Some(match module_value.module.as_bytes() {
         b"node:path" | b"path" => JsValue::WellKnownObject(WellKnownObjectKind::PathModule),
         b"node:fs/promises" | b"fs/promises" => {
@@ -300,12 +300,13 @@ mod tests {
     use turbopack_core::resolve::pattern::Pattern;
 
     use crate::{
-        analyzer::{ConstantString, ConstantValue, JsValue},
+        analyzer::{ConstantString, ConstantValue, JsValue, arena::Arena},
         utils::js_value_to_pattern,
     };
 
     #[test]
     fn test_path_normalization_in_pattern() {
+        let arena = Arena::new();
         assert_eq!(
             Pattern::Constant(rcstr!("hello/world")),
             js_value_to_pattern(&JsValue::Constant(ConstantValue::Str(
@@ -317,11 +318,11 @@ mod tests {
             Pattern::Constant(rcstr!("hello/world")),
             js_value_to_pattern(&JsValue::Concat(
                 1,
-                vec![
+                arena.vec_from_iter([
                     rcstr!("hello").into(),
                     rcstr!("\\").into(),
                     rcstr!("world").into()
-                ]
+                ])
             ))
         );
     }

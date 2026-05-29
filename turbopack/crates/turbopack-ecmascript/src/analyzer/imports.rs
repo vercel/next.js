@@ -28,6 +28,7 @@ use crate::{
     SpecifiedModuleType,
     analyzer::{
         ConstantValue, ObjectPart,
+        arena::Arena,
         graph::{AssignmentScope, AssignmentScopes, EvalContext},
         is_unresolved,
     },
@@ -160,7 +161,7 @@ impl ImportAnnotations {
         }
     }
 
-    pub fn parse_dynamic(with: &JsValue) -> Option<ImportAnnotations> {
+    pub fn parse_dynamic(with: &JsValue<'_>) -> Option<ImportAnnotations> {
         let mut map = BTreeMap::new();
 
         let JsValue::Object { parts, .. } = with else {
@@ -524,15 +525,16 @@ impl ImportMap {
         }
     }
 
-    pub fn get_import(&self, id: &Id) -> Option<JsValue> {
+    pub fn get_import<'a>(&self, arena: &'a Arena, id: &Id) -> Option<JsValue<'a>> {
         if let Some((i, i_sym)) = self.imports.get(id) {
             let r = &self.references[*i];
             return Some(JsValue::member(
-                Box::new(JsValue::Module(ModuleValue {
+                arena,
+                JsValue::Module(ModuleValue {
                     module: r.module_path.clone(),
                     annotations: r.annotations.clone(),
-                })),
-                Box::new(i_sym.clone().into()),
+                }),
+                i_sym.clone().into(),
             ));
         }
         if let Some(i) = self.namespace_imports.get(id) {

@@ -10388,6 +10388,7 @@ dependencies = [
  "async-trait",
  "auto-hash-map",
  "bincode 2.0.1",
+ "bumpalo",
  "bytes-str",
  "codspeed-criterion-compat",
  "dashmap 6.1.0",

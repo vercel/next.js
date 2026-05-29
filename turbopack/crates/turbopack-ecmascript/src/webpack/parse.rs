@@ -19,7 +19,7 @@ use turbopack_core::{compile_time_info::CompileTimeInfo, source::Source};
 
 use crate::{
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
-    analyzer::{JsValue, graph::EvalContext},
+    analyzer::{JsValue, arena::Arena, graph::EvalContext},
     parse::{ParseResult, parse},
     utils::unparen,
 };
@@ -28,10 +28,11 @@ use crate::{
 #[derive(Debug)]
 pub enum WebpackRuntime {
     Webpack5 {
-        /// There is a [JsValue]::FreeVar("chunkId") that need to be replaced
-        /// before converting to string
-        #[turbo_tasks(trace_ignore)]
-        chunk_request_expr: JsValue,
+        // NOTE: previously this also carried a `chunk_request_expr: JsValue` (a
+        // `JsValue::FreeVar("chunkId")` expression to render into the chunk filename), but
+        // `JsValue` is now allocated in a per-analysis bump arena and so cannot be stored
+        // in this cached (`'static`) turbo-tasks value. The field was never actually read
+        // (a `// TODO` in `webpack/mod.rs`), so it has been removed.
         context_path: FileSystemPath,
     },
     None,
@@ -143,13 +144,17 @@ fn get_fn_body(expr: &Expr) -> Option<&Vec<Stmt>> {
     None
 }
 
-fn get_javascript_chunk_filename(stmts: &Vec<Stmt>, eval_context: &EvalContext) -> Option<JsValue> {
+fn get_javascript_chunk_filename<'a>(
+    arena: &'a Arena,
+    stmts: &Vec<Stmt>,
+    eval_context: &EvalContext,
+) -> Option<JsValue<'a>> {
     if let Some(expr) = get_assignment(stmts, "__webpack_require__.u")
         && let Some(stmts) = get_fn_body(expr)
         && let Some(ret) = stmts.iter().find_map(|stmt| stmt.as_return_stmt())
         && let Some(expr) = &ret.arg
     {
-        return Some(eval_context.eval(expr));
+        return Some(eval_context.eval(arena, expr));
     }
     None
 }
@@ -218,21 +223,18 @@ pub async fn webpack_runtime(
             if let Some(stmts) = program_iife(program)
                 && stmts.iter().any(is_webpack_require_decl)
             {
+                // A short-lived arena for the `JsValue`s evaluated purely to detect a Webpack 5
+                // runtime. Nothing built here escapes this function.
+                let arena = Arena::new();
                 // extract webpack/runtime/get javascript chunk filename
                 let chunk_filename = GLOBALS.set(globals, || {
-                    get_javascript_chunk_filename(stmts, eval_context)
+                    get_javascript_chunk_filename(&arena, stmts, eval_context)
                 });
 
                 let prefix_path = get_require_prefix(stmts);
 
-                if let (Some(chunk_filename), Some(prefix_path)) = (chunk_filename, prefix_path) {
-                    let value = JsValue::concat(vec![
-                        JsValue::Constant(prefix_path.into()),
-                        chunk_filename,
-                    ]);
-
+                if let (Some(_chunk_filename), Some(_prefix_path)) = (chunk_filename, prefix_path) {
                     return Ok(WebpackRuntime::Webpack5 {
-                        chunk_request_expr: value,
                         context_path: source.ident().await?.path.parent(),
                     }
                     .cell());

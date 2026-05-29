@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use swc_core::ecma::atoms::Atom;
 
 use crate::analyzer::{ConstantString, JsValue, RequireContextValue};
@@ -152,7 +154,7 @@ impl WellKnownObjectKind {
 
 /// A list of well-known functions that have special meaning in the analysis.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub enum WellKnownFunctionKind {
+pub enum WellKnownFunctionKind<'a> {
     ArrayFilter,
     ArrayForEach,
     ArrayMap,
@@ -160,7 +162,7 @@ pub enum WellKnownFunctionKind {
     PathJoin,
     PathDirname,
     /// `0` is the current working directory.
-    PathResolve(Box<JsValue>),
+    PathResolve(Arc<JsValue<'a>>),
     Import,
     Require,
     /// `0` is the path to resolve from (relative to the current module).
@@ -205,7 +207,7 @@ pub enum WellKnownFunctionKind {
     ImportMetaGlob,
 }
 
-impl WellKnownFunctionKind {
+impl WellKnownFunctionKind<'_> {
     pub fn as_define_name(&self) -> Option<&[&str]> {
         match self {
             Self::Import { .. } => Some(&["import"]),
