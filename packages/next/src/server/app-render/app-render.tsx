@@ -2187,6 +2187,8 @@ async function getRSCPayload(
   const isPossiblyPartialHead =
     workStore.isStaticGeneration &&
     ctx.renderOpts.experimental.isRoutePPREnabled === true
+  const missingSlotsForPayload =
+    missingSlots && missingSlots.size > 0 ? Array.from(missingSlots) : undefined
 
   return maybeAppendBuildIdToRSCPayload(ctx, {
     // See the comment above the `Preloads` component (below) for why this is part of the payload
@@ -2204,7 +2206,7 @@ async function getRSCPayload(
         isPossiblyPartialHead,
       ] as FlightDataPath,
     ],
-    m: missingSlots,
+    m: missingSlotsForPayload,
     G: [GlobalError, globalErrorStyles],
     // Tells the client whether this route supports per-segment prefetching.
     // With Cache Components, all routes support it. Without it, only fully

@@ -293,13 +293,16 @@ function ServerRoot({
     />
   )
 
-  if (process.env.NODE_ENV === 'development' && initialRSCPayload.m) {
+  const missingSlots =
+    process.env.NODE_ENV === 'development' && initialRSCPayload.m
+      ? new Set(initialRSCPayload.m)
+      : undefined
+
+  if (missingSlots) {
     // We provide missing slot information in a context provider only during development
     // as we log some additional information about the missing slots in the console.
     return (
-      <MissingSlotContext value={initialRSCPayload.m}>
-        {router}
-      </MissingSlotContext>
+      <MissingSlotContext value={missingSlots}>{router}</MissingSlotContext>
     )
   }
 

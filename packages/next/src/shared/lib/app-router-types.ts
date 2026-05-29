@@ -337,7 +337,7 @@ export type InitialRSCPayload = {
   /** initialFlightData */
   f: FlightDataPath[]
   /** missingSlots */
-  m: Set<string> | undefined
+  m: string[] | undefined
   /** GlobalError */
   G: [React.ComponentType<any>, React.ReactNode | undefined]
   /** supportsPerSegmentPrefetching */

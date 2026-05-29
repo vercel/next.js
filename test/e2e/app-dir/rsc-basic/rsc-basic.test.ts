@@ -176,6 +176,7 @@ describe('app dir - rsc basics', () => {
     expect(next.cliOutput).not.toContain(
       'Each child in a list should have a unique "key" prop'
     )
+    expect(next.cliOutput).not.toContain('Set objects are not supported')
   })
 
   it('should reuse the inline flight response without sending extra requests', async () => {
