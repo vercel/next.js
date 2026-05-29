@@ -13,7 +13,7 @@ describe('Invalid Prerender Catchall Params', () => {
       const out = await next.build()
       expect(out.cliOutput).toMatch(`Build error occurred`)
       expect(out.cliOutput).toMatch(
-        'A required parameter (slug) was not provided as an array received string in getStaticPaths for /[...slug]'
+        'A required parameter (slug) was not provided as an array, received `string` in `getStaticPaths` for `/[...slug]`'
       )
     })
   })

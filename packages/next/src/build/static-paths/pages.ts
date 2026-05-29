@@ -46,7 +46,7 @@ export async function buildPagesStaticPaths({
     Array.isArray(staticPathsResult)
   ) {
     throw new Error(
-      `Invalid value returned from getStaticPaths in ${page}. Received ${typeof staticPathsResult} ${expectedReturnVal}`
+      `Invalid value returned from \`getStaticPaths\` for \`${page}\`. Received ${typeof staticPathsResult}. ${expectedReturnVal}`
     )
   }
 
@@ -56,9 +56,9 @@ export async function buildPagesStaticPaths({
 
   if (invalidStaticPathKeys.length > 0) {
     throw new Error(
-      `Extra keys returned from getStaticPaths in ${page} (${invalidStaticPathKeys.join(
+      `Extra keys returned from \`getStaticPaths\` for \`${page}\` (${invalidStaticPathKeys.join(
         ', '
-      )}) ${expectedReturnVal}`
+      )}). ${expectedReturnVal}`
     )
   }
 
@@ -69,7 +69,7 @@ export async function buildPagesStaticPaths({
     )
   ) {
     throw new Error(
-      `The \`fallback\` key must be returned from getStaticPaths in ${page}.\n` +
+      `The \`fallback\` key must be returned from \`getStaticPaths\` for \`${page}\`.\n` +
         expectedReturnVal
     )
   }
@@ -78,7 +78,7 @@ export async function buildPagesStaticPaths({
 
   if (!Array.isArray(toPrerender)) {
     throw new Error(
-      `Invalid \`paths\` value returned from getStaticPaths in ${page}.\n` +
+      `Invalid \`paths\` value returned from \`getStaticPaths\` for \`${page}\`.\n` +
         `\`paths\` must be an array of strings or objects of shape { params: [key: string]: string }`
     )
   }
@@ -136,7 +136,7 @@ export async function buildPagesStaticPaths({
 
       if (invalidKeys.length) {
         throw new Error(
-          `Additional keys were returned from \`getStaticPaths\` in page "${page}". ` +
+          `Additional keys were returned from \`getStaticPaths\` for \`${page}\`. ` +
             `URL Parameters intended for this dynamic route must be nested under the \`params\` key, i.e.:` +
             `\n\n\treturn { params: { ${routeParameterKeys
               .map((k) => `${k}: ...`)
@@ -170,7 +170,7 @@ export async function buildPagesStaticPaths({
           throw new Error(
             `A required parameter (${validParamKey}) was not provided as ${
               repeat ? 'an array' : 'a string'
-            } received ${typeof paramValue} in getStaticPaths for ${page}`
+            }, received \`${typeof paramValue}\` in \`getStaticPaths\` for \`${page}\``
           )
         }
 
@@ -196,7 +196,7 @@ export async function buildPagesStaticPaths({
 
       if (entry.locale && !locales?.includes(entry.locale)) {
         throw new Error(
-          `Invalid locale returned from getStaticPaths for ${page}, the locale ${entry.locale} is not specified in ${configFileName}`
+          `Invalid locale returned from \`getStaticPaths\` for \`${page}\`, the locale \`${entry.locale}\` is not specified in \`${configFileName}\``
         )
       }
       const curLocale = entry.locale || defaultLocale || ''
