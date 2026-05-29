@@ -510,7 +510,7 @@ export const instantMetadataUncachedErrors: ReadyRuntimeError[] = [
       new Error(
         'Route "/13-fetch-in-metadata": Next.js encountered uncached data in `generateMetadata()`.\n\nThis route\'s metadata is blocked, but the rest of its content can be prerendered. `fetch(...)` or `connection()` accessed in `generateMetadata()` cause it to run dynamically.\n\nWays to fix this:\n  - [cache] Cache the metadata with `"use cache"` in `generateMetadata()`\n  - [dynamic] Render a marker component that calls `await connection()` inside `<Suspense>` on the page\n\nLearn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata'
       ),
-      { __NEXT_ERROR_CODE: 'E1231' }
+      { __NEXT_ERROR_CODE: 'E1308' }
     ),
     frames: createStoryFrames({
       reason:

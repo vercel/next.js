@@ -86,7 +86,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1231",
+             "code": "E1308",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -158,7 +158,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1265",
+             "code": "E1314",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -325,7 +325,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1231",
+             "code": "E1308",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -397,7 +397,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1231",
+             "code": "E1308",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -469,7 +469,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1231",
+             "code": "E1308",
              "description": "Next.js encountered uncached data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -566,7 +566,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1255",
+             "code": "E1316",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -676,7 +676,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1255",
+             "code": "E1316",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -768,7 +768,7 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
-               "code": "E1265",
+               "code": "E1314",
                "description": "Next.js encountered uncached data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -782,7 +782,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "code": "E1265",
+               "code": "E1314",
                "description": "Next.js encountered uncached data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -1089,7 +1089,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value Math.random() while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -1237,7 +1237,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value Math.random() while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -2177,7 +2177,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1266",
+               "code": "E1296",
                "description": "Next.js encountered the unstable value new Date() in a Client Component.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -2325,7 +2325,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1272",
+               "code": "E1310",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -2463,7 +2463,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1266",
+               "code": "E1296",
                "description": "Next.js encountered the unstable value new Date() in a Client Component.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -3041,7 +3041,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1272",
+                 "code": "E1310",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -3163,7 +3163,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1272",
+                 "code": "E1310",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -3444,7 +3444,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1272",
+                 "code": "E1310",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -3566,7 +3566,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1272",
+                 "code": "E1310",
                  "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
@@ -3848,7 +3848,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1272",
+               "code": "E1310",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -4749,7 +4749,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1272",
+               "code": "E1310",
                "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -4952,7 +4952,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1261",
+             "code": "E1305",
              "description": "Next.js encountered the unstable value Date() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -5097,7 +5097,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1261",
+             "code": "E1305",
              "description": "Next.js encountered the unstable value Date.now() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -5242,7 +5242,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1261",
+             "code": "E1305",
              "description": "Next.js encountered the unstable value new Date() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -5387,7 +5387,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1261",
+             "code": "E1305",
              "description": "Next.js encountered the unstable value Math.random() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -5528,7 +5528,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1261",
+             "code": "E1305",
              "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -5672,7 +5672,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1261",
+             "code": "E1305",
              "description": "Next.js encountered the unstable value crypto.randomUUID() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -5814,7 +5814,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value require('node:crypto').generateKeyPairSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -5830,7 +5830,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value require('node:crypto').generateKeyPairSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -5976,7 +5976,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value require('node:crypto').generateKeySync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -5992,7 +5992,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value require('node:crypto').generateKeySync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -6138,7 +6138,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value require('node:crypto').generatePrimeSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -6154,7 +6154,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value require('node:crypto').generatePrimeSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -6300,7 +6300,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -6316,7 +6316,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value crypto.getRandomValues() while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -6462,7 +6462,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value require('node:crypto').randomBytes(size) while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -6478,7 +6478,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value require('node:crypto').randomBytes(size) while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -6624,7 +6624,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value require('node:crypto').randomFillSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -6640,7 +6640,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value require('node:crypto').randomFillSync(...) while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -6786,7 +6786,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -6802,7 +6802,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -6948,7 +6948,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -6964,7 +6964,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value require('node:crypto').randomInt(min, max) while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -7110,7 +7110,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value require('node:crypto').randomUUID() while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -7126,7 +7126,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1261",
+               "code": "E1305",
                "description": "Next.js encountered the unstable value require('node:crypto').randomUUID() while prerendering.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
@@ -7271,7 +7271,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1265",
+             "code": "E1314",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
