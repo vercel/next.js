@@ -1,24 +1,22 @@
 use std::{
     fmt::{self},
-    hash::{BuildHasherDefault, Hash},
+    hash::Hash,
     mem::take,
     sync::Arc,
 };
 
 use anyhow::Result;
 use num_bigint::BigInt;
-use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 use swc_core::ecma::{ast::Id, atoms::Atom};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::FxIndexSet;
 use turbopack_core::compile_time_info::{
     CompileTimeDefineValue, DefinableNameSegmentRef, DefinableNameSegmentRefs, FreeVarReference,
 };
 
 use crate::analyzer::{
-    WellKnownFunctionKind, WellKnownObjectKind, 
-    graph::{EvalContext, VarGraph}
+    WellKnownFunctionKind, WellKnownObjectKind,
+    graph::{EvalContext, VarGraph},
 };
 
 mod constants;
