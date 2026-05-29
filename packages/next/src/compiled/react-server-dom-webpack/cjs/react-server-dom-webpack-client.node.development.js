@@ -1373,7 +1373,9 @@
             "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects." ===
             value
               ? "\u2026"
-              : JSON.stringify(value);
+              : JSON.stringify(
+                  1024 <= value.length ? value.slice(0, 1023) + "\u2026" : value
+                );
           break;
         case "undefined":
           value = "undefined";
