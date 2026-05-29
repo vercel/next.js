@@ -21,10 +21,11 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
-    trace::TraceRawVcs,
+    FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
+use turbo_tasks_hash::{HashAlgorithm, deterministic_hash, hash_xxh3_hash128};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -34,14 +35,17 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
-    module_graph::{ModuleGraph, ModuleGraphLayer, async_module_info::AsyncModulesInfo},
+    module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
     output::{OutputAsset, OutputAssetsReference},
+    raw_module::RawModule,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
-    EcmascriptParsable, chunk::EcmascriptChunkPlaceable, parse::ParseResult,
+    EcmascriptParsable,
+    chunk::{EcmascriptChunkItem, EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
+    parse::ParseResult,
     tree_shake::part::module::EcmascriptModulePartAsset,
 };
 
@@ -83,7 +87,8 @@ pub(crate) async fn create_server_actions_manifest(
             runtime,
             actions,
             chunk_item,
-            module_graph.async_module_info(),
+            module_graph,
+            chunking_context,
         )
         .to_resolved()
         .await?,
@@ -162,7 +167,8 @@ struct ServerActionManifestAsset {
     runtime: NextRuntime,
     actions: ResolvedVc<AllActions>,
     chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
-    async_module_info: ResolvedVc<AsyncModulesInfo>,
+    module_graph: ResolvedVc<ModuleGraph>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -174,7 +180,8 @@ impl ServerActionManifestAsset {
         runtime: NextRuntime,
         actions: ResolvedVc<AllActions>,
         chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
-        async_module_info: ResolvedVc<AsyncModulesInfo>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Self> {
         Self {
             node_root,
@@ -182,7 +189,8 @@ impl ServerActionManifestAsset {
             runtime,
             actions,
             chunk_item,
-            async_module_info,
+            module_graph,
+            chunking_context,
         }
         .cell()
     }
@@ -212,6 +220,7 @@ impl Asset for ServerActionManifestAsset {
         let key = format!("app{}", self.page_name);
 
         let actions_value = self.actions.await?;
+        let async_module_info = self.module_graph.async_module_info();
         let loader_id = self.chunk_item.id().await?;
         let loader_id = match &loader_id {
             ModuleId::Number(id) => ActionManifestModuleId::Number(*id),
@@ -225,6 +234,7 @@ impl Asset for ServerActionManifestAsset {
         struct ActionMetadata<'a> {
             exported_name: &'a str,
             filename: Cow<'a, str>,
+            code_hash: Option<ReadRef<RcStr>>,
         }
 
         let action_metadata: Vec<(&str, ActionMetadata<'_>)> = actions_value
@@ -244,6 +254,15 @@ impl Asset for ServerActionManifestAsset {
                     ActionMetadata {
                         exported_name: &meta.name,
                         filename,
+                        // TODO only do this for "use cache" functions, not all server actions
+                        code_hash: Some(
+                            compute_subtree_content_hash(
+                                *self.module_graph,
+                                **module,
+                                *self.chunking_context,
+                            )
+                            .await?,
+                        ),
                     },
                 ))
             })
@@ -256,6 +275,7 @@ impl Asset for ServerActionManifestAsset {
             ActionMetadata {
                 exported_name,
                 filename,
+                code_hash,
             },
         ) in &action_metadata
         {
@@ -264,10 +284,10 @@ impl Asset for ServerActionManifestAsset {
                 &key,
                 ActionManifestWorkerEntry {
                     module_id: loader_id.clone(),
-                    is_async: self
-                        .async_module_info
+                    is_async: async_module_info
                         .is_async(self.chunk_item.module().to_resolved().await?)
                         .await?,
+                    code_hash: code_hash.as_ref().map(|h| h.as_str()),
                 },
             );
 
@@ -312,6 +332,81 @@ pub async fn to_rsc_context(
         .to_resolved()
         .await?;
     Ok(module)
+}
+
+#[turbo_tasks::function]
+async fn compute_subtree_content_hash(
+    module_graph: ResolvedVc<ModuleGraph>,
+    entry: ResolvedVc<Box<dyn Module>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+) -> Result<Vc<RcStr>> {
+    let module_graph_value = module_graph.await?;
+    let async_module_info = module_graph.async_module_info();
+
+    let mut modules = FxIndexSet::default();
+    module_graph_value.traverse_edges_dfs(
+        std::iter::once(entry),
+        &mut (),
+        |_, target, _| {
+            modules.insert(target);
+            Ok(GraphTraversalAction::Continue)
+        },
+        |_, _, _| Ok(()),
+        true,
+    )?;
+
+    println!(
+        "Modules in subtree for {}: {:#?}",
+        entry.ident().await?.path,
+        modules.iter().map(|m| m.ident_string()).try_join().await?
+    );
+
+    let hashes = modules
+        .into_iter()
+        .map(async |m| {
+            let ident = m.ident().to_string().await?;
+            Ok(
+                if let Some(m) = ResolvedVc::try_downcast_type::<RawModule>(m) {
+                    let content_hash = m
+                        .source()
+                        .await?
+                        .with_context(|| format!("failed to get source for traced module {ident}"))?
+                        .content()
+                        .hash(HashAlgorithm::Xxh3Hash128Hex)
+                        .await?;
+                    // Traced module
+                    hash_xxh3_hash128((ident, content_hash))
+                } else if let Some(placeable_module) =
+                    ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(m)
+                {
+                    let chunk_item = placeable_module
+                        .as_chunk_item(*module_graph, chunking_context)
+                        .to_resolved()
+                        .await?;
+                    let chunk_item =
+                        ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item)
+                            .unwrap();
+                    let async_info = if async_module_info.is_async(m).await? {
+                        Some(module_graph.referenced_async_modules(*m))
+                    } else {
+                        None
+                    };
+                    let code = chunk_item.code(async_info).await?;
+                    hash_xxh3_hash128((ident, code.source_code()))
+                } else {
+                    bail!(
+                        "Failed to compute hash for module {ident}: not a RawModule or \
+                         ChunkableModule"
+                    );
+                },
+            )
+        })
+        .try_join()
+        .await?;
+
+    Ok(Vc::cell(
+        deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into(),
+    ))
 }
 
 /// Server action info for JSON parsing

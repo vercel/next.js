@@ -448,6 +448,8 @@ pub struct ActionManifestWorkerEntry<'a> {
     pub module_id: ActionManifestModuleId<'a>,
     #[serde(rename = "async")]
     pub is_async: bool,
+    #[serde(rename = "codeHash")]
+    pub code_hash: Option<&'a str>,
 }
 
 #[derive(Serialize, Debug, Clone)]
