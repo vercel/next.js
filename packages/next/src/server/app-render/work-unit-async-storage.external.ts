@@ -624,8 +624,8 @@ export function getCacheSignal(
  * render is torn down — for example, once all caches are filled during the
  * prospective prerender, or when the final prerender is aborted. It can be used
  * to deterministically release I/O that would otherwise be retained until the
- * next garbage collection, such as un-consumed `cloneResponse` tee branches
- * buffered in the fetch dedupe / fetch cache.
+ * next garbage collection, such as the retained, un-read `cloneResponse` branch
+ * held in the fetch dedupe cache.
  *
  * @see https://github.com/vercel/next.js/issues/92287
  */
