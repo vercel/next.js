@@ -267,7 +267,18 @@ impl Asset for NftJsonAsset {
             result.sort_unstable();
             result.dedup();
 
-            let (files, file_hashes): (Vec<_>, Vec<_>) = result.into_iter().unzip();
+            let (files, file_hashes): (Vec<_>, Vec<_>) = result
+                .iter()
+                .map(|(name, hash)| {
+                    (
+                        name,
+                        match hash {
+                            Either::Left(v) => &**v,
+                            Either::Right(v) => &**v,
+                        },
+                    )
+                })
+                .unzip();
             // We can't just add this into "files" because Next.js sometimes decides to delete
             // output files such as `.next/server/pages/index.js` if that page was prerendered and
             // is fully static. An alternative would be to postprocess the nft file so that
