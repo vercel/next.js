@@ -2,7 +2,7 @@
  * Based on https://github.com/facebook/react/blob/d4e78c42a94be027b4dc7ed2659a5fddfbf9bd4e/packages/react/src/ReactFetch.js
  */
 import * as React from 'react'
-import { cloneResponse } from './clone-response'
+import { cloneResponse, cancelUnconsumedBodyOnAbort } from './clone-response'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   getRenderAbortSignal,
@@ -115,8 +115,11 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
           // a bug in the undici library around response cloning. See the
           // following pull request for more details:
           // https://github.com/vercel/next.js/pull/73274
-          const [cloned1, cloned2] = cloneResponse(response, renderAbortSignal)
+          const [cloned1, cloned2] = cloneResponse(response)
           cacheEntries[i][2] = cloned2
+          // cloned2 is retained here un-read for a later duplicate; release it
+          // if the render is torn down instead of waiting for GC.
+          cancelUnconsumedBodyOnAbort(renderAbortSignal, cloned2.body)
           return cloned1
         })
       }
@@ -133,8 +136,11 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
       // a bug in the undici library around response cloning. See the
       // following pull request for more details:
       // https://github.com/vercel/next.js/pull/73274
-      const [cloned1, cloned2] = cloneResponse(response, renderAbortSignal)
+      const [cloned1, cloned2] = cloneResponse(response)
       entry[2] = cloned2
+      // cloned2 is retained here un-read for a later duplicate; release it
+      // if the render is torn down instead of waiting for GC.
+      cancelUnconsumedBodyOnAbort(renderAbortSignal, cloned2.body)
       return cloned1
     })
   }

@@ -16,17 +16,18 @@ jest.mock('react', () => ({
   },
 }))
 
-// Mock the clone-response module. Use a jest.fn so tests can assert the
-// render abort signal is threaded through as the second argument.
+// Mock the clone-response module. `cancelUnconsumedBodyOnAbort` is a jest.fn so
+// tests can assert the render abort signal is threaded through to it.
 jest.mock('./clone-response', () => ({
   cloneResponse: jest.fn((response: Response) => [
     response.clone(),
     response.clone(),
   ]),
+  cancelUnconsumedBodyOnAbort: jest.fn(),
 }))
 
 import { createDedupeFetch } from './dedupe-fetch'
-import { cloneResponse } from './clone-response'
+import { cancelUnconsumedBodyOnAbort } from './clone-response'
 import {
   workUnitAsyncStorage,
   type WorkUnitStore,
@@ -702,12 +703,12 @@ describe('dedupe-fetch', () => {
   })
 
   // Regression coverage for https://github.com/vercel/next.js/issues/92287:
-  // the retained dedupe clone must be passed the render abort signal so it can
-  // be cancelled deterministically when the render is torn down.
+  // the retained dedupe clone must be registered for cancellation against the
+  // render abort signal so it is released when the render is torn down.
   describe('render abort signal threading', () => {
-    const mockClone = cloneResponse as jest.Mock
+    const mockCancel = cancelUnconsumedBodyOnAbort as jest.Mock
 
-    it('threads the render abort signal into cloneResponse inside a render store', async () => {
+    it('registers the retained clone against the render abort signal in a render store', async () => {
       originalFetch.mockResolvedValue(new Response('x', { status: 200 }))
       const controller = new AbortController()
       const store = {
@@ -719,16 +720,16 @@ describe('dedupe-fetch', () => {
         dedupeFetch('https://example.com/api')
       )
 
-      expect(mockClone).toHaveBeenCalledWith(
-        expect.any(Response),
-        controller.signal
+      expect(mockCancel).toHaveBeenCalledWith(
+        controller.signal,
+        expect.anything()
       )
     })
 
-    it('passes null when there is no work unit store', async () => {
+    it('passes a null signal when there is no work unit store', async () => {
       originalFetch.mockResolvedValue(new Response('x', { status: 200 }))
       await dedupeFetch('https://example.com/api')
-      expect(mockClone).toHaveBeenCalledWith(expect.any(Response), null)
+      expect(mockCancel).toHaveBeenCalledWith(null, expect.anything())
     })
   })
 })

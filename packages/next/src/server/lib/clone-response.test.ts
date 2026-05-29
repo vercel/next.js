@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { cloneResponse } from './clone-response'
+import { cloneResponse, cancelUnconsumedBodyOnAbort } from './clone-response'
 
 // Flush enough microtasks/macrotasks for ReadableStream cancellation to settle.
 async function flush() {
@@ -23,6 +23,15 @@ function streamedResponse(text: string) {
   )
 }
 
+// A cancelled stream yields `{ done: true }` with no data on the first read.
+async function firstReadDone(body: ReadableStream | null) {
+  if (!body) return true
+  const reader = body.getReader()
+  const { done } = await reader.read()
+  reader.releaseLock()
+  return done
+}
+
 describe('cloneResponse', () => {
   it('returns the same response twice when there is no body', () => {
     const original = new Response(null, { status: 204 })
@@ -38,103 +47,111 @@ describe('cloneResponse', () => {
   })
 
   it('preserves status, statusText and headers on both clones', () => {
-    const original = new Response('x', {
-      status: 201,
-      statusText: 'Created',
-      headers: { 'x-test': 'yes' },
-    })
-    const [cloned1, cloned2] = cloneResponse(original)
+    const [cloned1, cloned2] = cloneResponse(
+      new Response('x', {
+        status: 201,
+        statusText: 'Created',
+        headers: { 'x-test': 'yes' },
+      })
+    )
     for (const clone of [cloned1, cloned2]) {
       expect(clone.status).toBe(201)
       expect(clone.statusText).toBe('Created')
       expect(clone.headers.get('x-test')).toBe('yes')
     }
   })
+})
 
-  it('does not cancel anything when no signal is provided', async () => {
-    const [cloned1, cloned2] = cloneResponse(streamedResponse('keep'))
-    await flush()
-    expect(await cloned1.text()).toBe('keep')
-    expect(await cloned2.text()).toBe('keep')
-  })
-
-  // Regression test for https://github.com/vercel/next.js/issues/92287:
-  // an un-consumed `cloned2` retained past the render must be released
-  // deterministically when the render's abort signal fires, instead of being
-  // held (off-heap) until the FinalizationRegistry happens to run.
-  it('cancels the retained clone (cloned2) when the signal aborts', async () => {
+describe('cancelUnconsumedBodyOnAbort', () => {
+  // Regression test for https://github.com/vercel/next.js/issues/92287: a
+  // retained, un-read clone must be released when the render aborts, instead of
+  // being held off-heap until the FinalizationRegistry happens to run.
+  it('cancels a retained, un-read body when the signal aborts', async () => {
     const controller = new AbortController()
-    const [, cloned2] = cloneResponse(
-      streamedResponse('leak'),
-      controller.signal
-    )
+    const [, retained] = cloneResponse(streamedResponse('leak'))
+    cancelUnconsumedBodyOnAbort(controller.signal, retained.body)
 
     controller.abort()
     await flush()
 
-    // cloned2 was cancelled; its buffered body is gone.
-    await expect(cloned2.text()).rejects.toThrow()
+    expect(await firstReadDone(retained.body)).toBe(true)
   })
 
-  // Models the real leak ordering: the cache side drains cloned1 (which fills
-  // cloned2's tee buffer with the whole body), cloned2 is retained un-read, and
-  // the render then aborts — cloned2 must be released.
-  it('releases a retained cloned2 whose sibling was already drained', async () => {
+  // Models the real leak ordering: the cache side drains the sibling clone
+  // (which fills the retained clone's tee buffer), then the render aborts.
+  it('releases a retained body whose sibling was already drained', async () => {
     const controller = new AbortController()
-    const [cloned1, cloned2] = cloneResponse(
-      streamedResponse('leak-body'),
-      controller.signal
-    )
+    const [consumed, retained] = cloneResponse(streamedResponse('leak-body'))
+    cancelUnconsumedBodyOnAbort(controller.signal, retained.body)
 
-    expect(await cloned1.text()).toBe('leak-body')
-    expect(cloned2.body!.locked).toBe(false)
+    expect(await consumed.text()).toBe('leak-body')
+    expect(retained.body!.locked).toBe(false)
 
     controller.abort()
     await flush()
 
-    await expect(cloned2.text()).rejects.toThrow()
+    expect(await firstReadDone(retained.body)).toBe(true)
   })
 
-  // Guards against the regression where cancelling on abort would tear down the
-  // clone the framework still needs to read (the body drained into the cache /
-  // returned to the patched fetcher), which surfaced as
-  // "TypeError: Body is unusable".
-  it('never cancels cloned1, even when the signal aborts first', async () => {
+  it('does nothing without a signal', async () => {
+    const [, retained] = cloneResponse(streamedResponse('keep'))
+    cancelUnconsumedBodyOnAbort(null, retained.body)
+    cancelUnconsumedBodyOnAbort(undefined, retained.body)
+    await flush()
+    expect(await retained.text()).toBe('keep')
+  })
+
+  it('does nothing for a null body', () => {
     const controller = new AbortController()
-    const [cloned1] = cloneResponse(
-      streamedResponse('cache-me'),
-      controller.signal
-    )
+    expect(() =>
+      cancelUnconsumedBodyOnAbort(controller.signal, null)
+    ).not.toThrow()
+    controller.abort()
+  })
+
+  it('does not interrupt a body that is being read (locked)', async () => {
+    const controller = new AbortController()
+    const [, retained] = cloneResponse(streamedResponse('reading'))
+    const reader = retained.body!.getReader()
+    cancelUnconsumedBodyOnAbort(controller.signal, retained.body)
 
     controller.abort()
     await flush()
 
-    // cloned1 is the framework-consumed branch and must remain fully readable.
-    expect(await cloned1.text()).toBe('cache-me')
+    // Locked -> not cancelled; the in-flight read still yields the data.
+    const { value } = await reader.read()
+    expect(new TextDecoder().decode(value)).toBe('reading')
+    reader.releaseLock()
   })
 
-  it('leaves cloned1 readable when given an already-aborted signal and read later', async () => {
-    const [cloned1] = cloneResponse(
-      streamedResponse('still-here'),
-      AbortSignal.abort()
-    )
-    // Consume in a later microtask, mimicking the dedupe -> patched-fetcher gap.
-    await Promise.resolve()
-    await Promise.resolve()
-    expect(await cloned1.text()).toBe('still-here')
+  it('cancels on a later microtask when the signal is already aborted', async () => {
+    const [, retained] = cloneResponse(streamedResponse('gone'))
+    cancelUnconsumedBodyOnAbort(AbortSignal.abort(), retained.body)
+    await flush()
+    expect(await firstReadDone(retained.body)).toBe(true)
   })
 
-  it('does not interrupt cloned2 while it is actively being read', async () => {
+  it('attaches a single abort listener per signal across many registrations', async () => {
     const controller = new AbortController()
-    const [, cloned2] = cloneResponse(
-      streamedResponse('reading'),
-      controller.signal
-    )
+    let abortListeners = 0
+    const original = controller.signal.addEventListener.bind(controller.signal)
+    controller.signal.addEventListener = ((type: string, ...rest: any[]) => {
+      if (type === 'abort') abortListeners++
+      return (original as (...args: any[]) => void)(type, ...rest)
+    }) as typeof controller.signal.addEventListener
 
-    // Start reading cloned2 (locks the body), then abort mid-flight.
-    const pending = cloned2.text()
+    const bodies: Array<ReadableStream | null> = []
+    for (let i = 0; i < 10; i++) {
+      const [, retained] = cloneResponse(streamedResponse('x'))
+      bodies.push(retained.body)
+      cancelUnconsumedBodyOnAbort(controller.signal, retained.body)
+    }
+    expect(abortListeners).toBe(1)
+
     controller.abort()
-
-    expect(await pending).toBe('reading')
+    await flush()
+    for (const body of bodies) {
+      expect(await firstReadDone(body)).toBe(true)
+    }
   })
 })
