@@ -261,7 +261,8 @@ pub async fn tracing_exclude_glob(
     project_path: FileSystemPath,
     next_config: ResolvedVc<NextConfig>,
 ) -> Result<Vc<OptionGlob>> {
-    Ok(if let Some(route) = &page_name {
+    Ok(if let Some(page_name) = &page_name {
+        let route = format!("/{page_name}");
         let output_file_tracing_excludes = next_config.output_file_tracing_excludes().await?;
         if let Some(excludes_config) = &*output_file_tracing_excludes {
             let mut combined_excludes = BTreeSet::new();
@@ -274,7 +275,7 @@ pub async fn tracing_exclude_glob(
                         GlobOptions { contains: true },
                     )
                     .await?;
-                    if glob.matches(route)
+                    if glob.matches(&route)
                         && let Some(patterns) = exclude_patterns.as_array()
                     {
                         for pattern in patterns {

@@ -60,7 +60,7 @@ impl NftJsonAsset {
             chunk,
             project,
             additional_assets,
-            page_name: page_name.map(|page_name| format!("/{page_name}").into()),
+            page_name,
             traced_files,
         }
         .cell()
