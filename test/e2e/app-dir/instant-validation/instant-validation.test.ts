@@ -205,7 +205,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-           - Set \`export const instant = false\` to allow a blocking route
+           - Set \`export const unstable_instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
@@ -265,7 +265,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [cache] Cache the data access with \`"use cache"\`
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - Set \`export const instant = false\` to allow a blocking route
+           - Set \`export const unstable_instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
@@ -326,7 +326,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [cache] Cache the data access with \`"use cache"\`
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - Set \`export const instant = false\` to allow a blocking route
+           - Set \`export const unstable_instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
@@ -388,7 +388,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-           - Set \`export const instant = false\` to allow a blocking route
+           - Set \`export const unstable_instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
@@ -448,7 +448,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [cache] Cache the data access with \`"use cache"\`
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - Set \`export const instant = false\` to allow a blocking route
+           - Set \`export const unstable_instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
@@ -559,7 +559,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-           - Set \`export const instant = false\` to allow a blocking route
+           - Set \`export const unstable_instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
@@ -654,7 +654,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-           - Set \`export const instant = false\` to allow a blocking route
+           - Set \`export const unstable_instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at a (<anonymous>)
@@ -718,7 +718,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [cache] Cache the data access with \`"use cache"\`
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - Set \`export const instant = false\` to allow a blocking route
+           - Set \`export const unstable_instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
@@ -1278,7 +1278,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [cache] Cache the data access with \`"use cache"\`
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - Set \`export const instant = false\` to allow a blocking route
+           - Set \`export const unstable_instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
@@ -1342,7 +1342,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [cache] Cache the data access with \`"use cache"\`
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - Set \`export const instant = false\` to allow a blocking route
+           - Set \`export const unstable_instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
@@ -1418,7 +1418,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at body (<anonymous>)
@@ -1506,7 +1506,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
@@ -1567,7 +1567,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [cache] Cache the data access with \`"use cache"\`
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
@@ -1631,7 +1631,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
@@ -1693,7 +1693,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
@@ -1755,7 +1755,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
@@ -2407,7 +2407,7 @@ describe('instant validation', () => {
 
            Ways to fix this:
              - [static] Use a static viewport export instead of \`generateViewport()\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic
                at ignore-listed frames
@@ -2466,7 +2466,7 @@ describe('instant validation', () => {
 
            Ways to fix this:
              - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic
                at ignore-listed frames
@@ -2563,7 +2563,7 @@ describe('instant validation', () => {
 
            Ways to fix this:
              - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic
                at ignore-listed frames
@@ -2623,7 +2623,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
@@ -2684,7 +2684,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
@@ -2746,7 +2746,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
@@ -2808,7 +2808,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
@@ -2870,7 +2870,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
@@ -2939,7 +2939,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at a (<anonymous>)
@@ -3015,7 +3015,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
@@ -3085,7 +3085,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
@@ -3156,7 +3156,7 @@ describe('instant validation', () => {
          Ways to fix this:
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-           - Set \`export const instant = false\` to allow a blocking route
+           - Set \`export const unstable_instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
@@ -3275,7 +3275,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
@@ -3339,7 +3339,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
@@ -3460,7 +3460,7 @@ describe('instant validation', () => {
 
            Ways to fix this:
              - [render] Render the dropped segment
-             - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation
+             - [ignore] Set \`export const unstable_instant = false\` on the dropped segment to skip validation
 
            Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
                at ignore-listed frames
@@ -3518,7 +3518,7 @@ describe('instant validation', () => {
 
            Ways to fix this:
              - [render] Render the dropped segment
-             - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation
+             - [ignore] Set \`export const unstable_instant = false\` on the dropped segment to skip validation
 
            Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
                at ignore-listed frames
@@ -3576,7 +3576,7 @@ describe('instant validation', () => {
 
            Ways to fix this:
              - [render] Render the dropped segment
-             - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation
+             - [ignore] Set \`export const unstable_instant = false\` on the dropped segment to skip validation
 
            Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
                at ignore-listed frames
@@ -3653,7 +3653,7 @@ describe('instant validation', () => {
            Ways to fix this:
              - [cache] Cache the data access with \`"use cache"\`
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const unstable_instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at body (<anonymous>)

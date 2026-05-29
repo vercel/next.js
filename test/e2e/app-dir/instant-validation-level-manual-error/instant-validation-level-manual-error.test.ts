@@ -187,7 +187,7 @@ describe('instant validation - level manual-error', () => {
          Ways to fix this:
            - [cache] Cache the data access with \`"use cache"\`
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - Set \`export const instant = false\` to allow a blocking route
+           - Set \`export const unstable_instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at a (<anonymous>)
@@ -213,7 +213,7 @@ describe('instant validation - level manual-error', () => {
          Ways to fix this:
            - [cache] Cache the data access with \`"use cache"\`
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - Set \`export const instant = false\` to allow a blocking route
+           - Set \`export const unstable_instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at a (<anonymous>)

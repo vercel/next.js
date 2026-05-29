@@ -197,7 +197,7 @@ describe('Cache Components Errors', () => {
                  - [cache] Cache the data access with \`"use cache"\`
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Dynamic (app/dynamic-metadata-error-route/page.tsx:20:16)
@@ -225,7 +225,7 @@ describe('Cache Components Errors', () => {
                  - [cache] Cache the data access with \`"use cache"\`
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at main (<anonymous>)
@@ -249,7 +249,7 @@ describe('Cache Components Errors', () => {
                  - [cache] Cache the data access with \`"use cache"\`
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Dynamic (webpack:///app/dynamic-metadata-error-route/page.tsx:20:16)
@@ -277,7 +277,7 @@ describe('Cache Components Errors', () => {
                  - [cache] Cache the data access with \`"use cache"\`
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at a (<next-dist-dir>)
@@ -601,7 +601,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static viewport export instead of \`generateViewport()\`
                - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
-               - Set \`export const instant = false\` to allow a blocking route
+               - Set \`export const unstable_instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic
              Error occurred prerendering page "/dynamic-viewport-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
@@ -618,7 +618,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - [static] Use a static viewport export instead of \`generateViewport()\`
                  - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic
                Error occurred prerendering page "/dynamic-viewport-static-route". Read more: https://nextjs.org/docs/messages/prerender-error
@@ -711,7 +711,7 @@ describe('Cache Components Errors', () => {
              Ways to fix this:
                - [static] Use a static viewport export instead of \`generateViewport()\`
                - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
-               - Set \`export const instant = false\` to allow a blocking route
+               - Set \`export const unstable_instant = false\` to allow a blocking route
 
              Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic
              Error occurred prerendering page "/dynamic-viewport-dynamic-route". Read more: https://nextjs.org/docs/messages/prerender-error
@@ -728,7 +728,7 @@ describe('Cache Components Errors', () => {
                Ways to fix this:
                  - [static] Use a static viewport export instead of \`generateViewport()\`
                  - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic
                Error occurred prerendering page "/dynamic-viewport-dynamic-route". Read more: https://nextjs.org/docs/messages/prerender-error
@@ -822,7 +822,7 @@ describe('Cache Components Errors', () => {
                  - [cache] Cache the data access with \`"use cache"\`
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at fetchRandom (app/dynamic-root/page.tsx:62:16)
@@ -844,7 +844,7 @@ describe('Cache Components Errors', () => {
                  - [cache] Cache the data access with \`"use cache"\`
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at fetchRandom (app/dynamic-root/page.tsx:62:16)
@@ -873,7 +873,7 @@ describe('Cache Components Errors', () => {
                  - [cache] Cache the data access with \`"use cache"\`
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at <unknown> (app/dynamic-root/indirection.tsx:7:34)
@@ -898,7 +898,7 @@ describe('Cache Components Errors', () => {
                  - [cache] Cache the data access with \`"use cache"\`
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at main (<anonymous>)
@@ -922,7 +922,7 @@ describe('Cache Components Errors', () => {
                  - [cache] Cache the data access with \`"use cache"\`
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
@@ -944,7 +944,7 @@ describe('Cache Components Errors', () => {
                  - [cache] Cache the data access with \`"use cache"\`
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
@@ -973,7 +973,7 @@ describe('Cache Components Errors', () => {
                  - [cache] Cache the data access with \`"use cache"\`
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at a (<next-dist-dir>)
@@ -1012,7 +1012,7 @@ describe('Cache Components Errors', () => {
                  - [cache] Cache the data access with \`"use cache"\`
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at w (<next-dist-dir>)
@@ -2363,7 +2363,7 @@ describe('Cache Components Errors', () => {
                    - [cache] Cache the data access with \`"use cache"\`
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   - Set \`export const instant = false\` to allow a blocking route
+                   - Set \`export const unstable_instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at RequestData (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
@@ -2391,7 +2391,7 @@ describe('Cache Components Errors', () => {
                    - [cache] Cache the data access with \`"use cache"\`
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   - Set \`export const instant = false\` to allow a blocking route
+                   - Set \`export const unstable_instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at a (<anonymous>)
@@ -2417,7 +2417,7 @@ describe('Cache Components Errors', () => {
                    - [cache] Cache the data access with \`"use cache"\`
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   - Set \`export const instant = false\` to allow a blocking route
+                   - Set \`export const unstable_instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at RequestData (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
@@ -3078,7 +3078,7 @@ describe('Cache Components Errors', () => {
                      - [cache] Cache the data access with \`"use cache"\`
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                     - Set \`export const instant = false\` to allow a blocking route
+                     - Set \`export const unstable_instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at Page (app/use-cache-low-expire/fast/page.tsx:3:16)
@@ -3105,7 +3105,7 @@ describe('Cache Components Errors', () => {
                      - [cache] Cache the data access with \`"use cache"\`
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                     - Set \`export const instant = false\` to allow a blocking route
+                     - Set \`export const unstable_instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at main (<anonymous>)
@@ -3132,7 +3132,7 @@ Ways to fix this:
   - [cache] Cache the data access with \`"use cache"\`
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
+  - Set \`export const unstable_instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
@@ -3146,7 +3146,7 @@ Ways to fix this:
   - [cache] Cache the data access with \`"use cache"\`
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
+  - Set \`export const unstable_instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
@@ -3200,7 +3200,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - [cache] Cache the data access with \`"use cache"\`
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                     - Set \`export const instant = false\` to allow a blocking route
+                     - Set \`export const unstable_instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at Page (app/use-cache-low-expire/slow/page.tsx:3:16)
@@ -3227,7 +3227,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - [cache] Cache the data access with \`"use cache"\`
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                     - Set \`export const instant = false\` to allow a blocking route
+                     - Set \`export const unstable_instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at main (<anonymous>)
@@ -3254,7 +3254,7 @@ Ways to fix this:
   - [cache] Cache the data access with \`"use cache"\`
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
+  - Set \`export const unstable_instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
@@ -3268,7 +3268,7 @@ Ways to fix this:
   - [cache] Cache the data access with \`"use cache"\`
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
+  - Set \`export const unstable_instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
@@ -3481,7 +3481,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - [cache] Cache the data access with \`"use cache"\`
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                     - Set \`export const instant = false\` to allow a blocking route
+                     - Set \`export const unstable_instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at Page (app/use-cache-revalidate-0/fast/page.tsx:3:16)
@@ -3508,7 +3508,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - [cache] Cache the data access with \`"use cache"\`
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                     - Set \`export const instant = false\` to allow a blocking route
+                     - Set \`export const unstable_instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at main (<anonymous>)
@@ -3535,7 +3535,7 @@ Ways to fix this:
   - [cache] Cache the data access with \`"use cache"\`
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
+  - Set \`export const unstable_instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
@@ -3549,7 +3549,7 @@ Ways to fix this:
   - [cache] Cache the data access with \`"use cache"\`
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
+  - Set \`export const unstable_instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
@@ -3603,7 +3603,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - [cache] Cache the data access with \`"use cache"\`
                      - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                      - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                     - Set \`export const instant = false\` to allow a blocking route
+                     - Set \`export const unstable_instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at Page (app/use-cache-revalidate-0/slow/page.tsx:3:16)
@@ -3630,7 +3630,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                       - [cache] Cache the data access with \`"use cache"\`
                       - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                       - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                      - Set \`export const instant = false\` to allow a blocking route
+                      - Set \`export const unstable_instant = false\` to allow a blocking route
 
                     Learn more: https://nextjs.org/docs/messages/blocking-route
                         at main (<anonymous>)
@@ -3657,7 +3657,7 @@ Ways to fix this:
   - [cache] Cache the data access with \`"use cache"\`
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
+  - Set \`export const unstable_instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
@@ -3671,7 +3671,7 @@ Ways to fix this:
   - [cache] Cache the data access with \`"use cache"\`
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
+  - Set \`export const unstable_instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
@@ -3883,7 +3883,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    - [cache] Cache the data access with \`"use cache"\`
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   - Set \`export const instant = false\` to allow a blocking route
+                   - Set \`export const unstable_instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at Page (app/use-cache-params/[slug]/page.tsx:1:16)
@@ -3908,7 +3908,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    - [cache] Cache the data access with \`"use cache"\`
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   - Set \`export const instant = false\` to allow a blocking route
+                   - Set \`export const unstable_instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at main (<anonymous>)
@@ -4787,7 +4787,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    - [cache] Cache the data access with \`"use cache"\`
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   - Set \`export const instant = false\` to allow a blocking route
+                   - Set \`export const unstable_instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at Private (app/use-cache-private-without-suspense/page.tsx:15:1)
@@ -4815,7 +4815,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    - [cache] Cache the data access with \`"use cache"\`
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   - Set \`export const instant = false\` to allow a blocking route
+                   - Set \`export const unstable_instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at main (<anonymous>)
@@ -4842,7 +4842,7 @@ Ways to fix this:
   - [cache] Cache the data access with \`"use cache"\`
   - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
   - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-  - Set \`export const instant = false\` to allow a blocking route
+  - Set \`export const unstable_instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                 )
@@ -4856,7 +4856,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                    - [cache] Cache the data access with \`"use cache"\`
                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                    - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   - Set \`export const instant = false\` to allow a blocking route
+                   - Set \`export const unstable_instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at a (<next-dist-dir>)
@@ -7309,7 +7309,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - [cache] Cache the data access with \`"use cache"\`
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Client (app/client-awaited-io/client.tsx:6:19)
@@ -7337,7 +7337,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - [cache] Cache the data access with \`"use cache"\`
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at <unknown> (app/client-awaited-io/client.tsx:5:26)
@@ -7368,7 +7368,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - [cache] Cache the data access with \`"use cache"\`
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Client (webpack:///app/client-awaited-io/client.tsx:6:19)
@@ -7396,7 +7396,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  - [cache] Cache the data access with \`"use cache"\`
                  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
                  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 - Set \`export const instant = false\` to allow a blocking route
+                 - Set \`export const unstable_instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at a (<next-dist-dir>)
