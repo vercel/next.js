@@ -2461,25 +2461,6 @@ impl JsValue {
                         JsValue::Constant(b),
                     ) if a.is_value_type() => Some(a == b),
                     (
-                        PositiveBinaryOperator::StrictEqual,
-                        JsValue::Constant(a),
-                        JsValue::Constant(b),
-                    ) if a.is_value_type() => {
-                        let same_type = {
-                            use ConstantValue::*;
-                            matches!(
-                                (a, b),
-                                (Num(_), Num(_))
-                                    | (Str(_), Str(_))
-                                    | (BigInt(_), BigInt(_))
-                                    | (True | False, True | False)
-                                    | (Undefined, Undefined)
-                                    | (Null, Null)
-                            )
-                        };
-                        if same_type { Some(a == b) } else { None }
-                    }
-                    (
                         PositiveBinaryOperator::Equal,
                         JsValue::Constant(ConstantValue::Str(a)),
                         JsValue::Constant(ConstantValue::Str(b)),
