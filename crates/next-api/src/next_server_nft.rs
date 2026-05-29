@@ -16,12 +16,10 @@ use turbo_tasks_hash::HashAlgorithm;
 use turbopack::externals_tracing_module_context;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    context::AssetContext,
-    file_source::FileSource,
     module::{Module, Modules},
     module_graph::{ModuleGraph, SingleModuleGraph, chunk_group_info::ChunkGroupEntry},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
-    reference_type::{CommonJsReferenceSubType, ReferenceType},
+    reference_type::CommonJsReferenceSubType,
     resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request},
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
@@ -123,9 +121,9 @@ impl Asset for ServerNftJsonAsset {
 
         let mut server_output_assets = traced_modules_for_entries(
             module_graph,
+            Modules::empty(),
             self.entries(),
             Some(self.ignores()),
-            true,
             None,
         )
         .await?
@@ -219,34 +217,8 @@ impl ServerNftJsonAsset {
             get_next_package(project_path.clone()).await?.join("_")?,
         ));
 
-        let cache_handler = self
-            .project
-            .next_config()
-            .cache_handler(project_path.clone())
-            .await?;
-        let cache_handlers = self
-            .project
-            .next_config()
-            .cache_handlers(project_path.clone())
-            .await?;
-
         // These are used by packages/next/src/server/require-hook.ts
         let shared_entries = ["styled-jsx", "styled-jsx/style", "styled-jsx/style.js"];
-
-        let cache_handler_entries = cache_handler
-            .iter()
-            .chain(cache_handlers.iter())
-            .map(|f| {
-                asset_context
-                    .process(
-                        Vc::upcast(FileSource::new(f.clone())),
-                        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-                    )
-                    .module()
-            })
-            .map(|m| m.to_resolved())
-            .try_join()
-            .await?;
 
         let entries = match self.ty {
             ServerNftType::Full => Either::Left(
@@ -270,29 +242,24 @@ impl ServerNftJsonAsset {
         };
 
         Ok(Vc::cell(
-            cache_handler_entries
+            shared_entries
                 .into_iter()
-                .chain(
-                    shared_entries
-                        .into_iter()
-                        .chain(entries)
-                        .map(async |path| {
-                            Ok(cjs_resolve(
-                                next_resolve_origin,
-                                Request::parse_string(path.into()),
-                                CommonJsReferenceSubType::Undefined,
-                                None,
-                                ResolveErrorMode::Error,
-                            )
-                            .await?
-                            .primary_modules()
-                            .await?
-                            .into_iter())
-                        })
-                        .try_flat_join()
-                        .await?,
-                )
-                .collect(),
+                .chain(entries)
+                .map(async |path| {
+                    Ok(cjs_resolve(
+                        next_resolve_origin,
+                        Request::parse_string(path.into()),
+                        CommonJsReferenceSubType::Undefined,
+                        None,
+                        ResolveErrorMode::Error,
+                    )
+                    .await?
+                    .primary_modules()
+                    .await?
+                    .into_iter())
+                })
+                .try_flat_join()
+                .await?,
         ))
     }
 
