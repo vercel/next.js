@@ -46,6 +46,8 @@ function onlyReactElement(
   return list.concat(child)
 }
 
+const VALID_HEAD_TAGS = ['title', 'meta', 'base', 'link', 'style', 'script', 'noscript']
+
 const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']
 
 /*
@@ -128,6 +130,14 @@ function reduceComponents(
     .map((c: React.ReactElement<any>, i: number) => {
       const key = c.key || i
       if (process.env.NODE_ENV === 'development') {
+        if (
+          typeof c.type === 'string' &&
+          !VALID_HEAD_TAGS.includes(c.type)
+        ) {
+          warnOnce(
+            `<${c.type}> is not allowed in next/head. The only valid head elements are: ${VALID_HEAD_TAGS.join(', ')}. \nSee more info here: https://nextjs.org/docs/messages/no-document-head-tags`
+          )
+        }
         // omit JSON-LD structured data snippets from the warning
         if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
           const srcMessage = c.props['src']
