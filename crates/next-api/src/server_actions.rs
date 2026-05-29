@@ -355,12 +355,6 @@ async fn compute_subtree_content_hash(
         true,
     )?;
 
-    println!(
-        "Modules in subtree for {}: {:#?}",
-        entry.ident().await?.path,
-        modules.iter().map(|m| m.ident_string()).try_join().await?
-    );
-
     let hashes = modules
         .into_iter()
         .map(async |m| {
