@@ -136,7 +136,9 @@ Runtime APIs require information that is only available when a user makes a requ
 - [`cookies`](/docs/app/api-reference/functions/cookies) - User's cookie data
 - [`headers`](/docs/app/api-reference/functions/headers) - Request headers
 - [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) - URL query parameters
-- [`params`](/docs/app/api-reference/file-conventions/page#params-optional) - Dynamic route parameters (unless covered by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params); each param accessed at prerender time must be statically known).
+- [`params`](/docs/app/api-reference/file-conventions/page#params-optional) - Dynamic route parameters. Use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to prerender specific values at build time, or [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) to serve a fallback shell while unknown params resolve in the background.
+
+> **Good to know:** `generateMetadata` and `generateViewport` track runtime data access separately from the page. See [Metadata with Cache Components](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [Viewport with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for how to handle this.
 
 Components that access runtime APIs should be wrapped in `<Suspense>`:
 
@@ -273,11 +275,7 @@ async function UserPreferences() {
 }
 ```
 
-During prerendering, the header (static) and blog posts (cached with `use cache`) become part of the static shell, along with the fallback UI for user preferences. The UI preferenced stored in cookies streams in at request time.
-
-{/* this makes no sense here though? - it should be somewhere */}
-
-> **Good to know:** `generateMetadata` and `generateViewport` track runtime data access separately from the page. See [Metadata with Cache Components](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [Viewport with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for how to handle this.
+During prerendering, the header (static) and blog posts (cached with `use cache`) become part of the static shell, along with the fallback UI for user preferences. The UI preferences stored in cookies stream in at request time.
 
 ## Random values and timestamps
 
@@ -433,8 +431,7 @@ The same principle applies to `cookies()`, `headers()`, `searchParams`, and data
 
 Every route producing a static shell makes direct navigations instant.
 
-{/* weirdly phrased, as in, it is no tonly Suspense, it could be that you needed a use cache, but it is one way... in general it is like, your use cache and Suspense usage might not lead to an instant transition... it appears blocking until the server is done... */}
-In a client-side transition, only the components below the shared layout re-render. A `<Suspense>` boundary higher up might not cover the transition, blocking the navigation.
+In a client-side transition, only the components below the shared layout re-render. To keep that transition instant, data accessed in the re-rendered subtree needs either a `use cache` lifetime or a local `<Suspense>` boundary. A boundary higher up covers the page load but not the transition.
 
 To validate every navigation is instant, the framework provides:
 
@@ -447,9 +444,13 @@ See the [Instant navigation guide](/docs/app/guides/instant-navigation) for the 
 
 ### Runtime prefetching
 
-{/* feels like here we can make a contrast or similar list to the How rendering works intro... generalizaing the shell generation */}
+With [`unstable_prefetch = 'force-runtime'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) on a route, Next.js renders that route's component tree again at prefetch time, this time with the user's cookies, headers, and full URL available. The same rules apply, but more of the tree resolves now that runtime data is in scope:
 
-The static shell is built without any request-specific data. During a client transition, the browser already has the user's cookies, headers, and the full URL, and the framework can use that data to render more of the page before the user clicks. The result is a **runtime shell**: a prerender that incorporates request-specific content past the static shell.
+- [`use cache`](#usage) called with values extracted from runtime APIs (passed as arguments) joins the runtime shell
+- [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) reads runtime data directly and caches the result in the browser, joining the runtime shell
+- [`<Suspense>`](#streaming-uncached-data) fallbacks stay in the runtime shell while uncached content streams at request time
+
+This generates a **runtime shell**: a prerender that extends past the static shell with content the user's request unlocks. Because it happens during the prefetch, the navigation has nothing to wait on. The cost is a server invocation per prefetchable link.
 
 For example, take a dashboard that reads the user's session cookie and opts into runtime prefetching:
 
@@ -481,8 +482,6 @@ async function getStats(session: string) {
 }
 ```
 
-On a direct visit, `<Stats>` streams in behind the fallback. When a user navigates to `/dashboard` from another route, the framework prefetches with their session cookie. The `use cache` directive on `getStats` gives the result a lifetime, the same property that lets data join the [static shell](#prerendering). Here, that lifetime lets the result join the runtime shell instead, prerendered with the user's session before the click.
-
-Because the prerender happens during the prefetch, the navigation itself has nothing to wait on, even when the route reads cookies, headers, or the URL. The cost is a server invocation per prefetchable link.
+On a direct visit, `<Stats>` streams in behind the fallback. When a user navigates to `/dashboard` from another route, the framework prefetches with their session cookie. `getStats` is cached, so its result joins the runtime shell before the click.
 
 See the [Runtime prefetching guide](/docs/app/guides/runtime-prefetching) for full patterns and the [`unstable_prefetch` reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for all modes.

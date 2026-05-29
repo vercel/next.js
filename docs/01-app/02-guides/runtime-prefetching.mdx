@@ -107,6 +107,42 @@ Skip it when:
 - The dependent content has to be fresh on every request. There's nothing to cache, so prefetching costs without speeding anything up.
 - The route is rarely navigated to. Prefetch cost is paid per visible link, regardless of click-through.
 
+## App Shells
+
+A per-link runtime prefetch only helps the navigations where it fires before the click and completes before the click. On a slow connection, on a feed of many links, or on a direct visit, the per-link prefetch may not yet exist when the user navigates. Without something to fall back on, the navigation blocks until the server responds.
+
+The **App Shell** closes that gap. It's a per-route prerender, reusable across every navigation into the route, generated and prefetched once per route rather than once per visible link. While a per-link runtime prefetch resolves the specific request, the App Shell is the route's reusable floor: it renders instantly whenever a more complete prerender isn't ready in time.
+
+Enable App Shells in your config:
+
+```ts filename="next.config.ts" highlight={5-7}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  experimental: {
+    appShells: true,
+  },
+}
+
+export default nextConfig
+```
+
+When enabled, the framework prefetches each route's App Shell as links to it become visible. On click, the App Shell is the **loading state of last resort**: if a more complete per-link prerender is already cached, it's served and the App Shell is bypassed. If not, the App Shell renders immediately and the per-link content streams in.
+
+Compared with per-link runtime prefetching:
+
+|         | App Shell                                 | Per-link runtime prefetch (`force-runtime`) |
+| ------- | ----------------------------------------- | ------------------------------------------- |
+| Scope   | One per route                             | One per visible link                        |
+| Content | Route shell, reusable across param values | Concrete request prerender, param-specific  |
+| Cost    | Bounded by route count                    | Bounded by visible-link count               |
+| Role    | Floor: always something instant           | Upgrade: more rendered before click         |
+
+The two compose. With `experimental.appShells` on, every Cache Components route has an instant floor; opting a route into runtime prefetching upgrades that floor for the navigations that matter most.
+
+> **Good to know:** The default prefetching behavior may shift in a future release: App Shells could become the default, with per-link prefetching becoming an explicit opt-in. The App Shell's caching scope may also extend beyond the session toward persistent and offline use.
+
 ## Pairing with `unstable_instant`
 
 Runtime prefetching and instant validation are independent features. You can opt into either or both:
