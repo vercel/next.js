@@ -76,9 +76,9 @@ describe('build-output-prerender', () => {
            This value would be evaluated during the prerender, instead of recomputed on each visit.
 
            Ways to fix this:
-             - Wrap the Client Component in \`<Suspense fallback={...}>\`
-             - Move the read into a \`useEffect\` or event handler
-             - If the value is for telemetry, use a timing API such as \`performance.now()\`
+             - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+             - [defer] Move the read into a \`useEffect\` or event handler
+             - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                at <unknown> (app/client/page.tsx:4:28)
@@ -101,9 +101,9 @@ describe('build-output-prerender', () => {
            This value would be evaluated during the prerender, instead of recomputed on each visit.
 
            Ways to fix this:
-             - Wrap the Client Component in \`<Suspense fallback={...}>\`
-             - Move the read into a \`useEffect\` or event handler
-             - If the value is for telemetry, use a timing API such as \`performance.now()\`
+             - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+             - [defer] Move the read into a \`useEffect\` or event handler
+             - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                at x (<next-dist-dir>)
@@ -217,9 +217,9 @@ describe('build-output-prerender', () => {
            This value would be evaluated during the prerender, instead of recomputed on each visit.
 
            Ways to fix this:
-             - Wrap the Client Component in \`<Suspense fallback={...}>\`
-             - Move the read into a \`useEffect\` or event handler
-             - If the value is for telemetry, use a timing API such as \`performance.now()\`
+             - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+             - [defer] Move the read into a \`useEffect\` or event handler
+             - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                at Page (app/client/page.tsx:4:28)
@@ -236,9 +236,9 @@ describe('build-output-prerender', () => {
            This value can change between renders, so it must be either prerendered or computed later.
 
            Ways to fix this:
-             - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-             - Prerender and cache the value with \`"use cache"\`
-             - Render the value on the client with \`"use client"\`
+             - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+             - [cache] Prerender and cache the value with \`"use cache"\`
+             - [client] Render the value on the client with \`"use client"\`
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                at Page (app/server/page.tsx:13:27)
@@ -264,9 +264,9 @@ describe('build-output-prerender', () => {
            This value would be evaluated during the prerender, instead of recomputed on each visit.
 
            Ways to fix this:
-             - Wrap the Client Component in \`<Suspense fallback={...}>\`
-             - Move the read into a \`useEffect\` or event handler
-             - If the value is for telemetry, use a timing API such as \`performance.now()\`
+             - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+             - [defer] Move the read into a \`useEffect\` or event handler
+             - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
                at Page (webpack:///app/client/page.tsx:4:28)
@@ -284,9 +284,9 @@ describe('build-output-prerender', () => {
            This value can change between renders, so it must be either prerendered or computed later.
 
            Ways to fix this:
-             - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-             - Prerender and cache the value with \`"use cache"\`
-             - Render the value on the client with \`"use client"\`
+             - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+             - [cache] Prerender and cache the value with \`"use cache"\`
+             - [client] Render the value on the client with \`"use client"\`
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                at Page (webpack:///app/server/page.tsx:13:27)

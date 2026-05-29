@@ -203,8 +203,8 @@ describe('instant validation', () => {
          \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -263,8 +263,8 @@ describe('instant validation', () => {
          \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Cache the data access with \`"use cache"\`
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\`
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -324,8 +324,8 @@ describe('instant validation', () => {
          \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Cache the data access with \`"use cache"\`
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\`
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -386,8 +386,8 @@ describe('instant validation', () => {
          \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -446,8 +446,8 @@ describe('instant validation', () => {
          \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Cache the data access with \`"use cache"\`
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\`
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -557,8 +557,8 @@ describe('instant validation', () => {
          \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -652,8 +652,8 @@ describe('instant validation', () => {
          \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -716,8 +716,8 @@ describe('instant validation', () => {
          \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Cache the data access with \`"use cache"\`
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\`
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -768,10 +768,10 @@ describe('instant validation', () => {
          This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
-           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-           - Prerender and cache the value with \`"use cache"\`
-           - Render the value on the client with \`"use client"\`
-           - If the value is for telemetry, use a timing API such as \`performance.now()\`
+           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - [cache] Prerender and cache the value with \`"use cache"\`
+           - [client] Render the value on the client with \`"use client"\`
+           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at a (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:8:20)
@@ -787,10 +787,10 @@ describe('instant validation', () => {
          This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
-           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-           - Prerender and cache the value with \`"use cache"\`
-           - Render the value on the client with \`"use client"\`
-           - If the value is for telemetry, use a timing API such as \`performance.now()\`
+           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - [cache] Prerender and cache the value with \`"use cache"\`
+           - [client] Render the value on the client with \`"use client"\`
+           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at b (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:8:20)
@@ -846,10 +846,10 @@ describe('instant validation', () => {
          This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
-           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-           - Prerender and cache the value with \`"use cache"\`
-           - Render the value on the client with \`"use client"\`
-           - If the value is for telemetry, use a timing API such as \`performance.now()\`
+           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - [cache] Prerender and cache the value with \`"use cache"\`
+           - [client] Render the value on the client with \`"use client"\`
+           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at a (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
@@ -865,10 +865,10 @@ describe('instant validation', () => {
          This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
-           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-           - Prerender and cache the value with \`"use cache"\`
-           - Render the value on the client with \`"use client"\`
-           - If the value is for telemetry, use a timing API such as \`performance.now()\`
+           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - [cache] Prerender and cache the value with \`"use cache"\`
+           - [client] Render the value on the client with \`"use client"\`
+           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at b (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
@@ -884,10 +884,10 @@ describe('instant validation', () => {
          This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
-           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-           - Prerender and cache the value with \`"use cache"\`
-           - Render the value on the client with \`"use client"\`
-           - If the value is for telemetry, use a timing API such as \`performance.now()\`
+           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - [cache] Prerender and cache the value with \`"use cache"\`
+           - [client] Render the value on the client with \`"use client"\`
+           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at c (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
@@ -962,10 +962,10 @@ describe('instant validation', () => {
          This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
-           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-           - Prerender and cache the value with \`"use cache"\`
-           - Render the value on the client with \`"use client"\`
-           - If the value is for telemetry, use a timing API such as \`performance.now()\`
+           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - [cache] Prerender and cache the value with \`"use cache"\`
+           - [client] Render the value on the client with \`"use client"\`
+           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at a (app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx:28:20)
@@ -1038,10 +1038,10 @@ describe('instant validation', () => {
          This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
-           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-           - Prerender and cache the value with \`"use cache"\`
-           - Render the value on the client with \`"use client"\`
-           - If the value is for telemetry, use a timing API such as \`performance.now()\`
+           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - [cache] Prerender and cache the value with \`"use cache"\`
+           - [client] Render the value on the client with \`"use client"\`
+           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:9:20)
@@ -1057,10 +1057,10 @@ describe('instant validation', () => {
          This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
-           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-           - Prerender and cache the value with \`"use cache"\`
-           - Render the value on the client with \`"use client"\`
-           - If the value is for telemetry, use a timing API such as \`performance.now()\`
+           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - [cache] Prerender and cache the value with \`"use cache"\`
+           - [client] Render the value on the client with \`"use client"\`
+           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:9:20)
@@ -1134,10 +1134,10 @@ describe('instant validation', () => {
          This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
-           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-           - Prerender and cache the value with \`"use cache"\`
-           - Render the value on the client with \`"use client"\`
-           - If the value is for telemetry, use a timing API such as \`performance.now()\`
+           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - [cache] Prerender and cache the value with \`"use cache"\`
+           - [client] Render the value on the client with \`"use client"\`
+           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
@@ -1153,10 +1153,10 @@ describe('instant validation', () => {
          This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
-           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-           - Prerender and cache the value with \`"use cache"\`
-           - Render the value on the client with \`"use client"\`
-           - If the value is for telemetry, use a timing API such as \`performance.now()\`
+           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - [cache] Prerender and cache the value with \`"use cache"\`
+           - [client] Render the value on the client with \`"use client"\`
+           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
@@ -1172,10 +1172,10 @@ describe('instant validation', () => {
          This value can change between renders, so it must be either prerendered or computed later.
 
          Ways to fix this:
-           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
-           - Prerender and cache the value with \`"use cache"\`
-           - Render the value on the client with \`"use client"\`
-           - If the value is for telemetry, use a timing API such as \`performance.now()\`
+           - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - [cache] Prerender and cache the value with \`"use cache"\`
+           - [client] Render the value on the client with \`"use client"\`
+           - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
          Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
@@ -1276,8 +1276,8 @@ describe('instant validation', () => {
          \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Cache the data access with \`"use cache"\`
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\`
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1340,8 +1340,8 @@ describe('instant validation', () => {
          \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Cache the data access with \`"use cache"\`
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] Cache the data access with \`"use cache"\`
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1416,8 +1416,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1504,8 +1504,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1565,8 +1565,8 @@ describe('instant validation', () => {
            \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Cache the data access with \`"use cache"\`
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] Cache the data access with \`"use cache"\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1629,8 +1629,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1691,8 +1691,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1753,8 +1753,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2406,7 +2406,7 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
 
            Ways to fix this:
-             - Use a static viewport export instead of \`generateViewport()\`
+             - [static] Use a static viewport export instead of \`generateViewport()\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic
@@ -2465,7 +2465,7 @@ describe('instant validation', () => {
            \`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
 
            Ways to fix this:
-             - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
+             - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic
@@ -2562,7 +2562,7 @@ describe('instant validation', () => {
            \`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
 
            Ways to fix this:
-             - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
+             - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic
@@ -2621,8 +2621,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2682,8 +2682,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2744,8 +2744,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2806,8 +2806,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2868,8 +2868,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2937,8 +2937,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3013,8 +3013,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3083,8 +3083,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3154,8 +3154,8 @@ describe('instant validation', () => {
          \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3273,8 +3273,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3337,8 +3337,8 @@ describe('instant validation', () => {
            \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3459,8 +3459,8 @@ describe('instant validation', () => {
              app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
 
            Ways to fix this:
-             - Render the dropped segment
-             - Set \`export const instant = false\` on the dropped segment to skip validation
+             - [render] Render the dropped segment
+             - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation
 
            Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
                at ignore-listed frames
@@ -3517,8 +3517,8 @@ describe('instant validation', () => {
              app/suspense-in-root/static/test-firstmod/inter/layout.tsx
 
            Ways to fix this:
-             - Render the dropped segment
-             - Set \`export const instant = false\` on the dropped segment to skip validation
+             - [render] Render the dropped segment
+             - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation
 
            Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
                at ignore-listed frames
@@ -3575,8 +3575,8 @@ describe('instant validation', () => {
              app/suspense-in-root/static/test-multi-unrendered/page.tsx
 
            Ways to fix this:
-             - Render the dropped segment
-             - Set \`export const instant = false\` on the dropped segment to skip validation
+             - [render] Render the dropped segment
+             - [ignore] Set \`export const instant = false\` on the dropped segment to skip validation
 
            Learn more: https://nextjs.org/docs/messages/instant-unrendered-segment
                at ignore-listed frames
@@ -3651,8 +3651,8 @@ describe('instant validation', () => {
            \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Cache the data access with \`"use cache"\`
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] Cache the data access with \`"use cache"\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route

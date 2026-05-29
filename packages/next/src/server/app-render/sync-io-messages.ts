@@ -20,7 +20,7 @@ const SYNC_IO_RUNTIME_DOCS: Record<SyncIOApiType, string> = {
 
 function elapsedTimeBullet(type: SyncIOApiType): string {
   return type === 'time'
-    ? `  - If the value is for telemetry, use a timing API such as \`performance.now()\`\n`
+    ? `  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`\n`
     : ''
 }
 
@@ -34,9 +34,9 @@ function createSyncIOErrorImpl(
     `Route "${route}": Next.js encountered the unstable value ${expression} while prerendering.\n\n` +
       `This value can change between renders, so it must be either prerendered or computed later.\n\n` +
       `Ways to fix this:\n` +
-      `  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call\n` +
-      `  - Prerender and cache the value with \`"use cache"\`\n` +
-      `  - Render the value on the client with \`"use client"\`\n` +
+      `  - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call\n` +
+      `  - [cache] Prerender and cache the value with \`"use cache"\`\n` +
+      `  - [client] Render the value on the client with \`"use client"\`\n` +
       elapsedTimeBullet(type) +
       `\n` +
       `Learn more: ${docsUrl}`
@@ -73,8 +73,8 @@ export function createSyncIOClientError(
     `Route "${route}": Next.js encountered the unstable value ${expression} in a Client Component.\n\n` +
       `This value would be evaluated during the prerender, instead of recomputed on each visit.\n\n` +
       `Ways to fix this:\n` +
-      `  - Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
-      `  - Move the read into a \`useEffect\` or event handler\n` +
+      `  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
+      `  - [defer] Move the read into a \`useEffect\` or event handler\n` +
       elapsedTimeBullet(type) +
       `\n` +
       `Learn more: ${SYNC_IO_CLIENT_DOCS[type]}`

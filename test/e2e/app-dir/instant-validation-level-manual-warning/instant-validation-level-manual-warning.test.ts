@@ -197,8 +197,8 @@ describe('instant validation - level manual-warning', () => {
            \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
            Ways to fix this:
-             - Cache the data access with \`"use cache"\`
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] Cache the data access with \`"use cache"\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -335,9 +335,9 @@ describe('instant validation - level manual-warning', () => {
            \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
            Ways to fix this:
-             - Cache the data access with \`"use cache"\`
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [cache] Cache the data access with \`"use cache"\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -361,9 +361,9 @@ describe('instant validation - level manual-warning', () => {
            \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
            Ways to fix this:
-             - Cache the data access with \`"use cache"\`
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [cache] Cache the data access with \`"use cache"\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -389,9 +389,9 @@ describe('instant validation - level manual-warning', () => {
            \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
            Ways to fix this:
-             - Cache the data access with \`"use cache"\`
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [cache] Cache the data access with \`"use cache"\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -421,9 +421,9 @@ describe('instant validation - level manual-warning', () => {
            \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
            Ways to fix this:
-             - Cache the data access with \`"use cache"\`
-             - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-             - If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
+             - [cache] Cache the data access with \`"use cache"\`
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
