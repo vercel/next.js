@@ -113,21 +113,6 @@ async fn get_analyze_data_operation(
             } else {
                 endpoint_group.traced_files()
             };
-            // println!(
-            //     "Generating analyze.data for route group {key} with {:#?} and {:#?}",
-            //     output_assets
-            //         .await?
-            //         .iter()
-            //         .map(|m| m.path().to_string())
-            //         .try_join()
-            //         .await?,
-            //     traced_files
-            //         .await?
-            //         .iter()
-            //         .map(|m| m.to_string_ref())
-            //         .try_join()
-            //         .await?,
-            // );
             let analyze_data = AnalyzeDataOutputAsset::new(
                 analyze_output_root
                     .join(&key.to_string())?

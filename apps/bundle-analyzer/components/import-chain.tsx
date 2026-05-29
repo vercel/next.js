@@ -424,7 +424,7 @@ export function ImportChain({
               {currentItemInfo?.isAsync && <div className="h-8" />}
               <div className="flex items-center gap-2">
                 <div className="flex flex-col gap-1 items-center">
-                  <LayerIcon layer={level.layer || ''} />
+                  <LayerIcon layer={level.layer} />
                 </div>
 
                 <div className="flex-1 border border-border rounded px-2 py-1 bg-background">
@@ -543,7 +543,7 @@ export function ImportChain({
   )
 }
 
-function LayerIcon({ layer }: { layer: string }) {
+function LayerIcon({ layer }: { layer: string | undefined }) {
   if (!layer || layer === 'external') {
     return (
       <div title="Unknown">
