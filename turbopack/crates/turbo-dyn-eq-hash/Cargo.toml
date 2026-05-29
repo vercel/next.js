@@ -1,0 +1,14 @@
+[package]
+name = "turbo-dyn-eq-hash"
+version = "0.0.1"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]

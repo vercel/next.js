@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+
+    "allowJs": true,
+    "checkJs": true,
+
+    "lib": ["ESNext", "DOM"],
+    "skipLibCheck": true,
+
+    "strict": true,
+    "jsx": "react-jsx",
+
+    "target": "ESNext",
+    "esModuleInterop": true,
+    "module": "Preserve",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force"
+  },
+  "files": ["./index.ts"], // loads ambient declarations for modules used in tests
+  "include": ["./**/*/input.js", "./**/*/output.js"]
+}

@@ -1,0 +1,131 @@
+name: Turbopack Benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - canary
+  pull_request:
+    types: ['opened', 'reopened', 'synchronize', 'labeled']
+    paths:
+      - '**/crates/**'
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+
+concurrency:
+  # Limit concurrent runs to 1 per PR, but allow concurrent runs on canary branch
+  group: ${{ github.event_name == 'pull_request' && format('{0}-{1}', github.workflow, github.event.pull_request.number) || format('{0}-{1}-{2}', github.workflow, github.ref_name, github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CI: 1
+  RUST_LOG: 'off'
+  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  # Prefer shared remote cache across runs, but keep local cache enabled so jobs
+  # degrade gracefully if the remote cache or token is unavailable.
+  TURBO_CACHE: 'local:rw,remote:rw'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  benchmark-small-apps:
+    name: Benchmark Rust Crates (small apps)
+    runs-on: ubuntu-latest-16-core-oss
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Install cargo-codspeed
+        run: cargo binstall --no-confirm cargo-codspeed@3.0.5
+
+      - name: Start sccache
+        uses: ./.github/actions/sccache
+        with:
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
+
+      - name: Install pnpm dependencies
+        working-directory: turbopack/benchmark-apps
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+          pnpm install --loglevel error
+
+      - name: Build app build benchmarks
+        env:
+          CODSPEED_RUNNER_MODE: instrumentation
+        run: cargo codspeed build -p turbopack-cli small_apps
+
+      - name: Run the benchmarks
+        uses: CodSpeedHQ/action@1c8ae4843586d3ba879736b7f6b7b0c990757fab # v4.12.1
+        with:
+          mode: instrumentation
+          run: cargo codspeed run -p turbopack-cli small_apps
+
+  benchmark-analyzer:
+    name: Benchmark Rust Crates (analyzer)
+    runs-on: ubuntu-latest-16-core-oss
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Install cargo-codspeed
+        run: cargo binstall --no-confirm cargo-codspeed@3.0.5
+
+      - name: Start sccache
+        uses: ./.github/actions/sccache
+        with:
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
+
+      - name: Install pnpm dependencies
+        working-directory: turbopack/benchmark-apps
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+          pnpm install --loglevel error
+
+      - name: Build app build benchmarks
+        env:
+          CODSPEED_RUNNER_MODE: instrumentation
+        run: cargo codspeed build -p turbopack-ecmascript references
+
+      - name: Run the benchmarks
+        uses: CodSpeedHQ/action@1c8ae4843586d3ba879736b7f6b7b0c990757fab # v4.12.1
+        with:
+          mode: instrumentation
+          run: cargo codspeed run -p turbopack-ecmascript references
+
+  benchmark-large:
+    name: Benchmark Rust Crates (large)
+    if: ${{ github.event.label.name == 'benchmark' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest-16-core-oss
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Install cargo-codspeed
+        run: cargo binstall --no-confirm cargo-codspeed@3.0.5
+
+      - name: Start sccache
+        uses: ./.github/actions/sccache
+        with:
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
+
+      - name: Build the benchmark target(s)
+        env:
+          CODSPEED_RUNNER_MODE: instrumentation
+        run: cargo codspeed build -p turbopack -p turbopack-bench
+
+      - name: Run the benchmarks
+        uses: CodSpeedHQ/action@1c8ae4843586d3ba879736b7f6b7b0c990757fab # v4.12.1
+        with:
+          mode: instrumentation
+          run: cargo codspeed run

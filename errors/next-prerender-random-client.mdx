@@ -1,0 +1,144 @@
+---
+title: Cannot access `Math.random()` from a Client Component without a fallback UI defined
+---
+
+## Why This Error Occurred
+
+A Client Component is calling `Math.random()`.
+
+Client Components primarily run in the browser however on an initial page visit, Next.js will serve an HTML page produced by simulating the client environment on the server. This process is called Server Side Rendering or SSR. Next.js will attempt to prerender this HTML ahead of time however if a Client Component accesses a random source during this prerender, it cannot include this component in the prerendered HTML, otherwise the value will be fixed on each user request and not random like expected. Next.js will use the nearest Suspense boundary around this component to prerender a fallback instead however in this instance there was no Suspense boundary.
+
+There are a number of ways you might fix this issue depending on the specifics of your use case.
+
+## Possible Ways to Fix It
+
+### Provide Fallback UI
+
+Typically it is not possible to use `Math.random()` in a Client Component that is Server Rendered without introducing a hydration error. However if you find yourself with a component that calls `Math.random()` during rendering, and you already handle the tricky case of hydrating this value consistently, then you can add a Suspense boundary around the component that calls `Math.random()` to allow Next.js to prerender a fallback UI and fill in an actual random value when the user requests the page.
+
+Before:
+
+```jsx filename="app/user-avatar.js"
+'use client'
+
+export function UserAvatar({ avatar }) {
+  let backgroundColor = avatar.preferredBackground
+  if (!backgroundColor) {
+    const randomColor = `#${Math.random().toString(16).slice(2, 8)}`
+    // imagine safelyGetRandomColor is a function that handles synchronizing
+    // the random color chosen between SSR and hydration to avoid hydration errors
+    backgroundColor = safelyGetRandomColor(randomColor)
+  }
+  return <Avatar background={backgroundColor} src={avatar.src} />
+}
+```
+
+After:
+
+```jsx filename="app/user-avatar.js"
+"use client"
+
+export function UserAvatar({ avatar }) {
+  return (
+    <Suspense fallback={<AvatarSkeleton />}>
+      <DynamicUserAvatar avatar={avatar} />
+    </Suspense>
+  )
+}
+
+function AvatarSkeleton() {
+  ...
+}
+
+function DynamicUserAvatar({ avatar }) {
+  let backgroundColor = avatar.preferredBackground
+  if (!backgroundColor) {
+    const randomColor = `#${Math.random().toString(16).slice(2, 8)}`
+    // imagine safelyGetRandomColor is a function that handles synchronizing
+    // the random color chosen between SSR and hydration to avoid hydration errors
+    backgroundColor = safelyGetRandomColor(randomColor)
+  }
+  return <Avatar background={backgroundColor} src={avatar.src} />
+}
+```
+
+### Only access `Math.random` in the browser
+
+If your random value is only intended for use in the browser you can move the call into an effect or event handler. React does not run effects during server rendering and there are no events during server rendering so neither option will require the prerender to exclude this component.
+
+Before:
+
+```jsx filename="app/workflow.js"
+'use client'
+
+export default function Workflow({ currentStep, onNext, onPrev }) {
+  const [id] = useState(() => Math.random().toString(36).slice(2))
+
+  const next = onNext
+    ? () => {
+        trackEvent(id, 'forward')
+        onNext()
+      }
+    : null
+
+  const previous = onPrev
+    ? () => {
+        trackEvent(id, 'previous')
+        onPrev()
+      }
+    : null
+
+  return (
+    <>
+      {currentStep}
+      {next ? <button onClick={next}>Next</button> : null}
+      {previous ? <button onClick={previous}>Previous</button> : null}
+    </>
+  )
+}
+```
+
+After:
+
+```jsx filename="app/workflow.js"
+'use client'
+
+import { useRef } from 'react'
+
+function getOrCreateId(ref) {
+  if (!ref.current) {
+    ref.current = Math.random().toString(36).slice(2)
+  }
+  return ref.current
+}
+
+export default function Workflow({ currentStep, onNext, onPrev }) {
+  const idRef = useRef(null)
+
+  const next = onNext
+    ? () => {
+        trackEvent(getOrCreateId(idRef), 'forward')
+        onNext()
+      }
+    : null
+
+  const previous = onPrev
+    ? () => {
+        trackEvent(getOrCreateId(idRef), 'previous')
+        onPrev()
+      }
+    : null
+
+  return (
+    <>
+      {currentStep}
+      {next ? <button onClick={next}>Next</button> : null}
+      {previous ? <button onClick={previous}>Previous</button> : null}
+    </>
+  )
+}
+```
+
+## Useful Links
+
+- [`Suspense` React API](https://react.dev/reference/react/Suspense)

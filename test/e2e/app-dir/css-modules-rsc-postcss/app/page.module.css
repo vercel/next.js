@@ -1,0 +1,5 @@
+:not(html) {
+  .main {
+    color: red;
+  }
+}

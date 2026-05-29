@@ -1,0 +1,18 @@
+---
+title: Invalid Project Directory Casing
+---
+
+## Why This Error Occurred
+
+When starting Next.js, the current directory is a different casing than the actual directory on your filesystem. This can cause files to resolve inconsistently.
+
+This can occur when using a case-insensitive filesystem. For example, opening PowerShell on Windows navigating to `cd path/to/myproject` instead of `cd path/to/MyProject`.
+
+## Possible Ways to Fix It
+
+Ensure the casing for the current working directory matches the actual case of the real directory. Use a terminal that enforces case-sensitivity.
+
+## Useful Links
+
+- [Next.js CLI documentation](/docs/pages/api-reference/cli/next)
+- [Case sensitivity in filesystems](https://en.wikipedia.org/wiki/Case_sensitivity#In_filesystems)

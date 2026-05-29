@@ -1,0 +1,11 @@
+{
+  "name": "geo-ip-usage",
+  "scripts": {
+    "dev": "next dev --turbo"
+  },
+  "dependencies": {
+    "next": "15.0.0-canary.152",
+    "react": "19.0.0-rc-94e652d5-20240912",
+    "react-dom": "19.0.0-rc-94e652d5-20240912"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "babel": {
+    "presets": [
+      "next/babel"
+    ],
+    "plugins": [
+      "@babel/plugin-transform-object-rest-spread"
+    ]
+  }
+}

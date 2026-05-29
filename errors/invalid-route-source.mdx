@@ -1,0 +1,56 @@
+---
+title: 'Invalid Custom Route `source`'
+---
+
+## Why This Error Occurred
+
+A pattern could not be parsed when defining custom routes or a proxy `matcher`.
+
+This could have been due to trying to use normal `RegExp` syntax like negative lookaheads (`?!exclude`) without following [`path-to-regexp`](https://github.com/pillarjs/path-to-regexp)'s syntax.
+
+## Possible Ways to Fix It
+
+Wrap the `RegExp` part of your `source` as an un-named parameter.
+
+### Custom Routes
+
+**Before**
+
+```js
+{
+  source: '/feedback/(?!general)',
+  destination: '/feedback/general'
+}
+```
+
+**After**
+
+```js
+{
+  source: '/feedback/((?!general).*)',
+  destination: '/feedback/general'
+}
+```
+
+### Proxy
+
+**Before**
+
+```ts filename="proxy.ts"
+const config = {
+  matcher: '/feedback/(?!general)',
+}
+```
+
+**After**
+
+```ts filename="proxy.ts"
+const config = {
+  matcher: '/feedback/((?!general).*)',
+}
+```
+
+## Useful Links
+
+- [path-to-regexp](https://github.com/pillarjs/path-to-regexp)
+- [un-named parameters](https://github.com/pillarjs/path-to-regexp#unnamed-parameters)

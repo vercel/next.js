@@ -1,0 +1,5 @@
+.header {
+  font-size: 25px;
+  composes: colorRed from 'common.module.css';
+  color: #111;
+}

@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^9.5.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "swr": "^2.0.0",
+    "unsplash-js": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^14.0.27",
+    "@types/react": "^16.9.46",
+    "@types/request": "^2.48.5",
+    "@types/unsplash-js": "^6.0.1",
+    "request": "^2.88.2",
+    "typescript": "^3.9.7"
+  }
+}

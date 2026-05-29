@@ -1,0 +1,34 @@
+@use "../.../../../../css/queries.scss" as *;
+
+$spacer-h: calc(var(--block-padding) / 2);
+
+.callToAction {
+  padding-left: $spacer-h;
+  padding-right: $spacer-h;
+}
+
+.background--white {
+  background-color: var(--color-base-1000);
+  color: var(--color-base-0);
+}
+
+.richText {
+  :last-child {
+    margin-bottom: 0;
+  }
+}
+
+.linkGroup {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+
+  :last-child {
+    margin-bottom: 0;
+  }
+
+  @include mid-break {
+    margin-top: 20px;
+  }
+}

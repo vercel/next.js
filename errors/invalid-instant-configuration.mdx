@@ -1,0 +1,31 @@
+---
+title: Invalid Instant Configuration
+---
+
+## Why This Message Occurred
+
+You provided an invalid configuration for `export const unstable_instant` in a Layout or Page file.
+
+### Example of Correct Usage
+
+#### Indicating instant UI
+
+```tsx filename="app/[slug]/page.tsx"
+export const unstable_instant = true
+```
+
+#### Customizing the validation level
+
+```tsx filename="app/[slug]/page.tsx"
+export const unstable_instant = {
+  level: 'warning',
+}
+```
+
+#### Indicating that there is no instant UI
+
+This does not disable prefetching.
+
+```tsx filename="app/[slug]/page.tsx"
+export const unstable_instant = false
+```

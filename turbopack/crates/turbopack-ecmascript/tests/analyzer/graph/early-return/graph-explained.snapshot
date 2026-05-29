@@ -1,0 +1,23 @@
+a (const after eval) = (...) => undefined
+
+b (const after eval) = (...) => undefined
+
+c (const after eval) = (...) => undefined
+
+d (const after eval) = (...) => undefined
+
+e (const after eval) = (...) => undefined
+
+f (const after eval) = (...) => undefined
+
+g (const after eval) = (...) => undefined
+
+h (const after eval) = (...) => undefined
+
+i (const after eval) = (...) => (FreeVar(i1)() | FreeVar(i2)())
+
+j#2 (const after eval) = (...) => (FreeVar(i1)() | FreeVar(i2)())
+
+j#25 = arguments[0]
+
+j#26 = arguments[0]

@@ -1,0 +1,343 @@
+.instant-nav-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.instant-nav-content {
+  flex: 1;
+  padding: 16px 20px;
+}
+
+/* Waiting state: preference-style sections */
+.instant-nav-section {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--color-gray-400);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.instant-nav-section:last-child {
+  border-bottom: none;
+}
+
+.instant-nav-section-header {
+  flex: 1;
+}
+
+.instant-nav-section-header label {
+  font-size: var(--size-14);
+  font-weight: 500;
+  color: var(--color-gray-1000);
+  margin: 0;
+}
+
+.instant-nav-section-description {
+  color: var(--color-gray-900);
+  font-size: var(--size-14);
+  margin: 0;
+}
+
+.instant-nav-section-control {
+  flex-shrink: 0;
+}
+
+.instant-nav-section-control .action-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-background-100);
+  border: 1px solid var(--color-gray-400);
+  border-radius: var(--rounded-lg);
+  font-weight: 400;
+  font-size: var(--size-14);
+  color: var(--color-gray-1000);
+  padding: 6px 8px;
+  cursor: pointer;
+  transition: border-color 150ms var(--timing-swift);
+}
+
+.instant-nav-section-control .action-button:hover {
+  border-color: var(--color-gray-500);
+}
+
+.instant-nav-section-control .action-button svg {
+  width: 14px;
+  height: 14px;
+  overflow: visible;
+}
+
+.instant-nav-helper-text {
+  font-size: var(--size-14);
+  color: var(--color-gray-900);
+  font-style: italic;
+  white-space: nowrap;
+}
+
+/* Result states (client-nav, initial-load) */
+.instant-nav-status-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-gray-900);
+}
+
+.instant-nav-urls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.instant-nav-url-row {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.instant-nav-url-label {
+  color: var(--color-gray-700);
+  flex-shrink: 0;
+}
+
+.instant-nav-url-value {
+  color: var(--color-gray-900);
+  word-break: break-all;
+  font-family: var(--font-mono);
+}
+
+.instant-nav-actions {
+  margin-top: 8px;
+  display: flex;
+}
+
+.instant-nav-share-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--color-gray-alpha-400);
+  background: var(--color-background-200);
+  color: var(--color-gray-900);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.instant-nav-share-button:hover {
+  background: var(--color-gray-alpha-200);
+}
+
+.instant-nav-helper-description {
+  color: var(--color-gray-900);
+  font-size: var(--size-14);
+  margin: 8px 0 0;
+}
+
+/* Initial pending (capture) state */
+.instant-nav-content-container {
+  position: relative;
+  height: 83px;
+  /* overflow: hidden; */
+  margin-bottom: 24px;
+  transition: height var(--instant-nav-transition-duration, 200ms)
+    var(--instant-nav-transition-timing, var(--timing-swift));
+}
+
+.instant-nav-content-container.is-expanded {
+  height: 140px;
+}
+
+.instant-nav-transition-layer {
+  position: absolute;
+  inset: 0;
+  opacity: var(--instant-nav-layer-opacity, 0);
+  pointer-events: none;
+  transition: opacity var(--instant-nav-layer-transition-duration, 100ms)
+    cubic-bezier(0.25, 0.8, 0.5, 1)
+    var(--instant-nav-layer-transition-delay, 0ms);
+}
+
+.instant-nav-transition-layer.is-visible {
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.instant-nav-transition-layer--no-enter {
+  transition: none;
+}
+
+.instant-nav-intro-description {
+  margin: 0;
+  color: var(--color-gray-1000);
+  font-size: var(--size-14);
+  line-height: 1.5;
+}
+
+.instant-nav-divider {
+  border: 0;
+  border-top: 1px solid var(--color-gray-400);
+  margin: 16px 0;
+}
+
+.instant-nav-capture-controls {
+  display: flex;
+  gap: 12px;
+}
+
+.instant-nav-capture-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 1;
+  padding: 8px 24px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-gray-600);
+  background: var(--color-background-100);
+  color: var(--color-gray-1000);
+  font-size: var(--size-14);
+  font-weight: 400;
+  cursor: pointer;
+  transition:
+    background-color 150ms var(--timing-swift),
+    border-color 150ms var(--timing-swift);
+}
+
+.instant-nav-capture-button svg {
+  position: absolute;
+  left: 8px;
+}
+
+.instant-nav-capture-button--inline-icon {
+  /* gap: 8px; */
+}
+
+.instant-nav-capture-button--inline-icon svg {
+  position: static;
+  margin-right: 4px;
+}
+
+.instant-nav-capture-button:hover:not(:disabled) {
+  background: var(--color-gray-200);
+}
+
+.instant-nav-capture-button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.instant-nav-capture-button:disabled {
+  border-color: var(--color-gray-400);
+  color: var(--color-gray-700);
+  cursor: not-allowed;
+}
+
+.instant-nav-capture-button--active {
+  background: var(--color-red-200);
+  border-color: var(--color-red-700);
+  color: var(--color-red-900);
+}
+
+.instant-nav-capture-button--active:hover:not(:disabled) {
+  background: var(--color-red-300);
+}
+
+.instant-nav-state-card {
+  padding: 16px;
+  border-radius: var(--rounded-lg);
+  background: var(--color-background-200);
+  border: 1px solid var(--color-gray-500);
+  display: flex;
+  flex-direction: column;
+  height: 140px;
+  box-sizing: border-box;
+}
+
+.instant-nav-state-title {
+  margin: 0;
+  font-size: var(--size-18);
+  font-weight: 600;
+  color: var(--color-gray-1000);
+}
+
+.instant-nav-state-description {
+  margin: 4px 0 0;
+  font-size: var(--size-14);
+  color: var(--color-gray-1000);
+}
+
+.instant-nav-state-card--awaiting .instant-nav-state-description {
+  margin-top: auto;
+  color: var(--color-gray-900);
+}
+
+.instant-nav-state-source-url {
+  margin: auto 0 0;
+  font-size: var(--size-14);
+  color: var(--color-gray-900);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Footer (pinned to bottom, matching segment-explorer-footer) */
+.instant-nav-footer {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  border-top: 1px solid var(--color-gray-400);
+  user-select: none;
+}
+
+.instant-nav-footer-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 8px;
+  padding: 6px;
+  background: var(--color-background-100);
+  border: 1px solid var(--color-gray-400);
+  border-radius: 6px;
+  color: var(--color-gray-1000);
+  font-size: var(--size-14);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.instant-nav-footer-button:hover {
+  background: var(--color-gray-200);
+}
+
+/* Shimmer skeleton for pending "to" route */
+@keyframes instant-nav-shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.instant-nav-skeleton {
+  display: inline-block;
+  width: 120px;
+  height: 1em;
+  vertical-align: middle;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--color-gray-300) 25%,
+    var(--color-blue-300) 50%,
+    var(--color-gray-300) 75%
+  );
+  background-size: 800px 100%;
+  animation: instant-nav-shimmer 1.5s ease-in-out infinite;
+}

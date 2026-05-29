@@ -1,0 +1,385 @@
+a#14 = arguments[1]
+
+a#15 = arguments[0]
+
+a#16 = arguments[0]
+
+a#17 = arguments[0]
+
+a#18 = arguments[0]
+
+a#7 = (
+  | 1732584193
+  | md5ff(a, b, c, d, x[i], 7, ???*0*)
+  | md5ff(a, b, c, d, x[(i + 4)], 7, ???*1*)
+  | md5ff(a, b, c, d, x[(i + 8)], 7, 1770035416)
+  | md5ff(a, b, c, d, x[(i + 12)], 7, 1804603682)
+  | md5gg(a, b, c, d, x[(i + 1)], 5, ???*2*)
+  | md5gg(a, b, c, d, x[(i + 5)], 5, ???*3*)
+  | md5gg(a, b, c, d, x[(i + 9)], 5, 568446438)
+  | md5gg(a, b, c, d, x[(i + 13)], 5, ???*4*)
+  | md5hh(a, b, c, d, x[(i + 5)], 4, ???*5*)
+  | md5hh(a, b, c, d, x[(i + 1)], 4, ???*6*)
+  | md5hh(a, b, c, d, x[(i + 13)], 4, 681279174)
+  | md5hh(a, b, c, d, x[(i + 9)], 4, ???*7*)
+  | md5ii(a, b, c, d, x[i], 6, ???*8*)
+  | md5ii(a, b, c, d, x[(i + 12)], 6, 1700485571)
+  | md5ii(a, b, c, d, x[(i + 8)], 6, 1873313359)
+  | md5ii(a, b, c, d, x[(i + 4)], 6, ???*9*)
+  | safeAdd(a, olda)
+)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+- *3* unsupported expression
+  ⚠️  This value might have side effects
+- *4* unsupported expression
+  ⚠️  This value might have side effects
+- *5* unsupported expression
+  ⚠️  This value might have side effects
+- *6* unsupported expression
+  ⚠️  This value might have side effects
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* unsupported expression
+  ⚠️  This value might have side effects
+- *9* unsupported expression
+  ⚠️  This value might have side effects
+
+b#14 = arguments[2]
+
+b#15 = arguments[1]
+
+b#16 = arguments[1]
+
+b#17 = arguments[1]
+
+b#18 = arguments[1]
+
+b#7 = (
+  | ???*0*
+  | md5ff(b, c, d, a, x[(i + 3)], 22, ???*1*)
+  | md5ff(b, c, d, a, x[(i + 7)], 22, ???*2*)
+  | md5ff(b, c, d, a, x[(i + 11)], 22, ???*3*)
+  | md5ff(b, c, d, a, x[(i + 15)], 22, 1236535329)
+  | md5gg(b, c, d, a, x[i], 20, ???*4*)
+  | md5gg(b, c, d, a, x[(i + 4)], 20, ???*5*)
+  | md5gg(b, c, d, a, x[(i + 8)], 20, 1163531501)
+  | md5gg(b, c, d, a, x[(i + 12)], 20, ???*6*)
+  | md5hh(b, c, d, a, x[(i + 14)], 23, ???*7*)
+  | md5hh(b, c, d, a, x[(i + 10)], 23, ???*8*)
+  | md5hh(b, c, d, a, x[(i + 6)], 23, 76029189)
+  | md5hh(b, c, d, a, x[(i + 2)], 23, ???*9*)
+  | md5ii(b, c, d, a, x[(i + 5)], 21, ???*10*)
+  | md5ii(b, c, d, a, x[(i + 1)], 21, ???*11*)
+  | md5ii(b, c, d, a, x[(i + 13)], 21, 1309151649)
+  | md5ii(b, c, d, a, x[(i + 9)], 21, ???*12*)
+  | safeAdd(b, oldb)
+)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+- *3* unsupported expression
+  ⚠️  This value might have side effects
+- *4* unsupported expression
+  ⚠️  This value might have side effects
+- *5* unsupported expression
+  ⚠️  This value might have side effects
+- *6* unsupported expression
+  ⚠️  This value might have side effects
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* unsupported expression
+  ⚠️  This value might have side effects
+- *9* unsupported expression
+  ⚠️  This value might have side effects
+- *10* unsupported expression
+  ⚠️  This value might have side effects
+- *11* unsupported expression
+  ⚠️  This value might have side effects
+- *12* unsupported expression
+  ⚠️  This value might have side effects
+
+bitRotateLeft (const after eval) = (...) => ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+bytes = (arguments[0] | new FreeVar(Array)(msg["length"]))
+
+bytesToWords (const after eval) = (...) => output
+
+c#15 = arguments[2]
+
+c#16 = arguments[2]
+
+c#17 = arguments[2]
+
+c#18 = arguments[2]
+
+c#7 = (
+  | ???*0*
+  | md5ff(c, d, a, b, x[(i + 2)], 17, 606105819)
+  | md5ff(c, d, a, b, x[(i + 6)], 17, ???*1*)
+  | md5ff(c, d, a, b, x[(i + 10)], 17, ???*2*)
+  | md5ff(c, d, a, b, x[(i + 14)], 17, ???*3*)
+  | md5gg(c, d, a, b, x[(i + 11)], 14, 643717713)
+  | md5gg(c, d, a, b, x[(i + 15)], 14, ???*4*)
+  | md5gg(c, d, a, b, x[(i + 3)], 14, ???*5*)
+  | md5gg(c, d, a, b, x[(i + 7)], 14, 1735328473)
+  | md5hh(c, d, a, b, x[(i + 11)], 16, 1839030562)
+  | md5hh(c, d, a, b, x[(i + 7)], 16, ???*6*)
+  | md5hh(c, d, a, b, x[(i + 3)], 16, ???*7*)
+  | md5hh(c, d, a, b, x[(i + 15)], 16, 530742520)
+  | md5ii(c, d, a, b, x[(i + 14)], 15, ???*8*)
+  | md5ii(c, d, a, b, x[(i + 10)], 15, ???*9*)
+  | md5ii(c, d, a, b, x[(i + 6)], 15, ???*10*)
+  | md5ii(c, d, a, b, x[(i + 2)], 15, 718787259)
+  | safeAdd(c, oldc)
+)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+- *3* unsupported expression
+  ⚠️  This value might have side effects
+- *4* unsupported expression
+  ⚠️  This value might have side effects
+- *5* unsupported expression
+  ⚠️  This value might have side effects
+- *6* unsupported expression
+  ⚠️  This value might have side effects
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* unsupported expression
+  ⚠️  This value might have side effects
+- *9* unsupported expression
+  ⚠️  This value might have side effects
+- *10* unsupported expression
+  ⚠️  This value might have side effects
+
+cnt = arguments[1]
+
+d#15 = arguments[3]
+
+d#16 = arguments[3]
+
+d#17 = arguments[3]
+
+d#18 = arguments[3]
+
+d#7 = (
+  | 271733878
+  | md5ff(d, a, b, c, x[(i + 1)], 12, ???*0*)
+  | md5ff(d, a, b, c, x[(i + 5)], 12, 1200080426)
+  | md5ff(d, a, b, c, x[(i + 9)], 12, ???*1*)
+  | md5ff(d, a, b, c, x[(i + 13)], 12, ???*2*)
+  | md5gg(d, a, b, c, x[(i + 6)], 9, ???*3*)
+  | md5gg(d, a, b, c, x[(i + 10)], 9, 38016083)
+  | md5gg(d, a, b, c, x[(i + 14)], 9, ???*4*)
+  | md5gg(d, a, b, c, x[(i + 2)], 9, ???*5*)
+  | md5hh(d, a, b, c, x[(i + 8)], 11, ???*6*)
+  | md5hh(d, a, b, c, x[(i + 4)], 11, 1272893353)
+  | md5hh(d, a, b, c, x[i], 11, ???*7*)
+  | md5hh(d, a, b, c, x[(i + 12)], 11, ???*8*)
+  | md5ii(d, a, b, c, x[(i + 7)], 10, 1126891415)
+  | md5ii(d, a, b, c, x[(i + 3)], 10, ???*9*)
+  | md5ii(d, a, b, c, x[(i + 15)], 10, ???*10*)
+  | md5ii(d, a, b, c, x[(i + 11)], 10, ???*11*)
+  | safeAdd(d, oldd)
+)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+- *3* unsupported expression
+  ⚠️  This value might have side effects
+- *4* unsupported expression
+  ⚠️  This value might have side effects
+- *5* unsupported expression
+  ⚠️  This value might have side effects
+- *6* unsupported expression
+  ⚠️  This value might have side effects
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* unsupported expression
+  ⚠️  This value might have side effects
+- *9* unsupported expression
+  ⚠️  This value might have side effects
+- *10* unsupported expression
+  ⚠️  This value might have side effects
+- *11* unsupported expression
+  ⚠️  This value might have side effects
+
+hex = (
+  | ???*0*
+  | FreeVar(parseInt)(
+        (hexTab["charAt"](???*1*) + hexTab["charAt"](???*2*)),
+        16
+    )
+)
+- *0* hex
+  ⚠️  pattern without value
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+
+hexTab = "0123456789abcdef"
+
+i#3 = (0 | undefined | ???*0*)
+- *0* updated with update expression
+  ⚠️  This value might have side effects
+
+i#5 = (???*0* | 0 | (i + 8))
+- *0* i
+  ⚠️  pattern without value
+
+i#7 = (???*0* | 0 | (i + 16))
+- *0* i
+  ⚠️  pattern without value
+
+i#9 = (???*0* | 0 | (i + 1) | (i + 8))
+- *0* i
+  ⚠️  pattern without value
+
+input#5 = arguments[0]
+
+input#9 = arguments[0]
+
+len = arguments[1]
+
+length32 = ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+length8 = ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+lsw = (???*0* + ???*1*)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+
+md5 (const after eval) = (...) => md5ToHexEncodedArray(wordsToMd5(bytesToWords(bytes), ???*0*))
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+md5ToHexEncodedArray (const after eval) = (...) => output
+
+md5cmn (const after eval) = (...) => safeAdd(
+    bitRotateLeft(safeAdd(safeAdd(a, q), safeAdd(x, t)), s),
+    b
+)
+
+md5ff (const after eval) = (...) => md5cmn(???*0*, a, b, x, s, t)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+md5gg (const after eval) = (...) => md5cmn(???*0*, a, b, x, s, t)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+md5hh (const after eval) = (...) => md5cmn(???*0*, a, b, x, s, t)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+md5ii (const after eval) = (...) => md5cmn(???*0*, a, b, x, s, t)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+msg = (
+  | FreeVar(unescape)(FreeVar(encodeURIComponent)(bytes))
+  | undefined
+)
+
+msw = (???*0* + ???*1* + ???*2*)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+- *2* unsupported expression
+  ⚠️  This value might have side effects
+
+num = arguments[0]
+
+olda = (???*0* | a)
+- *0* olda
+  ⚠️  pattern without value
+
+oldb = (???*0* | b)
+- *0* oldb
+  ⚠️  pattern without value
+
+oldc = (???*0* | c)
+- *0* oldc
+  ⚠️  pattern without value
+
+oldd = (???*0* | d)
+- *0* oldd
+  ⚠️  pattern without value
+
+output#5 = []
+
+output#9 = []
+
+q = arguments[0]
+
+s#14 = arguments[4]
+
+s#15 = arguments[5]
+
+s#16 = arguments[5]
+
+s#17 = arguments[5]
+
+s#18 = arguments[5]
+
+safeAdd (const after eval) = (...) => ???*0*
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+
+t#14 = arguments[5]
+
+t#15 = arguments[6]
+
+t#16 = arguments[6]
+
+t#17 = arguments[6]
+
+t#18 = arguments[6]
+
+wordsToMd5 (const after eval) = (...) => [a, b, c, d]
+
+x#12 = arguments[0]
+
+x#14 = arguments[3]
+
+x#15 = arguments[4]
+
+x#16 = arguments[4]
+
+x#17 = arguments[4]
+
+x#18 = arguments[4]
+
+x#5 = (???*0* | ???*1*)
+- *0* x
+  ⚠️  pattern without value
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+
+x#7 = arguments[0]
+
+y = arguments[1]

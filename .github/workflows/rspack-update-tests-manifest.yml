@@ -1,0 +1,130 @@
+# A recurring workflow which updates the passing/failing/skipped integration tests for Turbopack.
+name: Update Rspack test manifest
+
+on:
+  schedule:
+    # Every day at 7AM https://crontab.guru/#0_7_*_*_*
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+jobs:
+  update_dev_manifest:
+    name: Update and upload Rspack development test manifest
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub App token
+        id: release-app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: next.js
+          permission-contents: write
+
+      - name: Get GitHub App user ID
+        id: release-app-user
+        run: |
+          user_id="$(gh api "/users/${{ steps.release-app-token.outputs.app-slug }}[bot]" --jq .id)"
+          echo "user-id=$user_id" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # Commits made with the default `GITHUB_TOKEN` won't trigger workflows.
+          # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
+          token: ${{ steps.release-app-token.outputs.token }}
+
+      - name: Setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+          package-manager-cache: false
+
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: pnpm i
+
+      - name: Create Pull Request
+        shell: bash
+        run: node scripts/automated-update-workflow.js
+        env:
+          RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
+          RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
+          RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
+          PR_GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
+          BRANCH_NAME: rspack-manifest
+          # We need to use `--override` for rspack (but not for turbopack).
+          # We don't currently have any CI running on every PR, so it's quite
+          # possible for us to regress on tests. We need to skip the
+          # only-promote-to-passing merge logic.
+          SCRIPT: test/update-bundler-manifest.js --bundler rspack --test-suite dev --override
+          PR_TITLE: Update Rspack development test manifest
+          PR_BODY: This auto-generated PR updates the development integration test manifest used when testing Rspack.
+  update_build_manifest:
+    name: Update and upload Rspack production test manifest
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub App token
+        id: release-app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: next.js
+          permission-contents: write
+
+      - name: Get GitHub App user ID
+        id: release-app-user
+        run: |
+          user_id="$(gh api "/users/${{ steps.release-app-token.outputs.app-slug }}[bot]" --jq .id)"
+          echo "user-id=$user_id" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # Commits made with the default `GITHUB_TOKEN` won't trigger workflows.
+          # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
+          token: ${{ steps.release-app-token.outputs.token }}
+
+      - name: Setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+          package-manager-cache: false
+
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: pnpm i
+
+      - name: Create Pull Request
+        shell: bash
+        run: node scripts/automated-update-workflow.js
+        env:
+          RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
+          RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
+          RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
+          PR_GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
+          BRANCH_NAME: rspack-manifest
+          SCRIPT: test/update-bundler-manifest.js --bundler rspack --test-suite build --override
+          PR_TITLE: Update Rspack production test manifest
+          PR_BODY: This auto-generated PR updates the production integration test manifest used when testing Rspack.

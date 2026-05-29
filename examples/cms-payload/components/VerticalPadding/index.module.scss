@@ -1,0 +1,15 @@
+.top-large {
+  padding-top: var(--block-padding);
+}
+
+.top-medium {
+  padding-top: calc(var(--block-padding) / 2);
+}
+
+.bottom-large {
+  padding-bottom: var(--block-padding);
+}
+
+.bottom-medium {
+  padding-bottom: calc(var(--block-padding) / 2);
+}

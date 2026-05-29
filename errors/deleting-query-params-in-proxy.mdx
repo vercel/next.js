@@ -1,0 +1,37 @@
+---
+title: Deleting Query Parameters In Proxies
+---
+
+## Why This Error Occurred
+
+In previous versions of Next.js, we were merging query parameters with the incoming request for rewrites happening in proxies, to match the behavior of static rewrites declared in the config. This forced Next.js users to use empty query parameters values to delete keys.
+
+We are changing this behavior to allow extra flexibility and a more streamlined experience for users. So from now on, query parameters will not be merged and thus the warning.
+
+```ts filename="proxy.ts"
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+
+export default function proxy(request: NextRequest) {
+  const nextUrl = request.nextUrl
+  nextUrl.searchParams.delete('key') // <-- this is now possible!
+  return NextResponse.rewrite(nextUrl)
+}
+```
+
+## Possible Ways to Fix It
+
+If you are relying on the old behavior, please add the query parameters manually to the rewritten URL. Using `request.nextUrl` would do that automatically for you.
+
+```ts filename="proxy.ts"
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+
+export default function proxy(request: NextRequest) {
+  const nextUrl = request.nextUrl
+  nextUrl.pathname = '/dest'
+  return NextResponse.rewrite(nextUrl)
+}
+```
+
+This warning will be removed in the next version of Next.js.

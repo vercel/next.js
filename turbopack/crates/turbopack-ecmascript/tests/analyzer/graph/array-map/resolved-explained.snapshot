@@ -1,0 +1,31 @@
+*anonymous function 170* = (...) => [file]
+
+*anonymous function 254* = (...) => FreeVar(require)["resolve"](file)
+
+*anonymous function 88* = (...) => file
+
+a = ["../lib/a.js", "../lib/b.js"]
+
+b = ["../lib/a.js", "../lib/b.js"]
+
+c = [["../lib/a.js"], ["../lib/b.js"]]
+
+d = ["\"../lib/a.js\"/resolved/lib/index.js", "\"../lib/b.js\"/resolved/lib/index.js"]
+
+file#3 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+file#4 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+file#5 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+file#6 = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+func = (...) => FreeVar(require)["resolve"](file)

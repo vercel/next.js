@@ -1,0 +1,41 @@
+id: no-context-turbofmt
+snapshots:
+  foo.bar().context(turbofmt!("{} failed", name)):
+    fixed: foo.bar().with_context(|| turbofmt!("{} failed", name))
+    labels:
+    - source: foo.bar().context(turbofmt!("{} failed", name))
+      style: primary
+      start: 0
+      end: 47
+  foo.bar().context(turbofmt!("{} failed", name).await?):
+    labels:
+    - source: foo.bar().context(turbofmt!("{} failed", name).await?)
+      style: primary
+      start: 0
+      end: 54
+  'foo.context(turbofmt!("error: {}", msg))':
+    fixed: 'foo.with_context(|| turbofmt!("error: {}", msg))'
+    labels:
+    - source: 'foo.context(turbofmt!("error: {}", msg))'
+      style: primary
+      start: 0
+      end: 40
+  'foo.context(turbofmt!("error: {}", msg).await?)':
+    labels:
+    - source: 'foo.context(turbofmt!("error: {}", msg).await?)'
+      style: primary
+      start: 0
+      end: 47
+  foo.context(turbofmt!("simple message")):
+    fixed: foo.with_context(|| turbofmt!("simple message"))
+    labels:
+    - source: foo.context(turbofmt!("simple message"))
+      style: primary
+      start: 0
+      end: 40
+  foo.context(turbofmt!("simple message").await?):
+    labels:
+    - source: foo.context(turbofmt!("simple message").await?)
+      style: primary
+      start: 0
+      end: 47

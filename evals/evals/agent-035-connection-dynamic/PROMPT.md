@@ -1,0 +1,1 @@
+Create a server component that displays the current server timestamp on each request. The timestamp should be different on every page load (not prerendered at build time). Use Next.js's recommended approach for opting out of static prerendering when you need dynamic data without using cookies/headers.

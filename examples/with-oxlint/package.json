@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "oxlint --type-aware && next build",
+    "start": "next start",
+    "lint": "oxlint --type-aware"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "oxlint": "1.15.0",
+    "oxlint-tsgolint": "0.2.0",
+    "typescript": "^5"
+  }
+}

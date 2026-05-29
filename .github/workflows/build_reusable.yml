@@ -1,0 +1,541 @@
+name: Build Reusable
+
+on:
+  workflow_call:
+    inputs:
+      afterBuild:
+        required: false
+        description: 'additional steps to run'
+        type: string
+      skipInstallBuild:
+        required: false
+        description: 'whether to skip pnpm install && pnpm build'
+        type: string
+      skipNativeBuild:
+        required: false
+        description: 'whether to skip building native modules'
+        type: string
+      skipNativeInstall:
+        required: false
+        description: 'whether to skip native postinstall script'
+        type: string
+        default: 'yes'
+      uploadAnalyzerArtifacts:
+        required: false
+        description: 'whether to upload analyzer artifacts'
+        type: string
+      nodeVersion:
+        required: false
+        description: 'version of Node.js to use'
+        type: string
+      needsRust:
+        required: false
+        description: 'if rust is needed'
+        type: string
+      needsNextest:
+        required: false
+        description: 'if nextest rust dep is needed'
+        type: string
+      rustBuildProfile:
+        required: false
+        description: 'The profile to use for the build, default is `release-with-assertions`, also supports `` for debug and `release` for normal release'
+        type: string
+        default: 'release-with-assertions'
+      uploadSwcArtifact:
+        required: false
+        description: 'if swc artifact needs uploading'
+        type: string
+      rustCacheKey:
+        required: false
+        description: 'rustCacheKey to cache shared target assets'
+        type: string
+      stepName:
+        required: true
+        description: 'name of the step, to be used for the upload artifact unique key '
+        type: string
+      timeout_minutes:
+        description: 'Timeout in minutes'
+        required: false
+        type: number
+        default: 30
+      runs_on_labels:
+        description: 'List of runner labels'
+        required: false
+        type: string
+        default: '["ubuntu-latest-16-core-oss"]'
+      buildNativeTarget:
+        description: 'Target for build-native step'
+        required: false
+        type: string
+        default: 'x86_64-unknown-linux-gnu'
+      overrideProxyAddress:
+        description: Override the proxy address to use for the test
+        required: false
+        type: string
+        default: ''
+
+      testTimingsArtifact:
+        description: 'Name of an uploaded artifact containing test-timings.json. When set, download it instead of fetching via turbo.'
+        required: false
+        type: string
+        default: ''
+      testReportsArtifactPrefix:
+        description: 'Artifact name prefix for uploading test `*.results.json` files. Empty string disables upload.'
+        required: false
+        type: string
+        default: ''
+
+      uploadNativeArtifact:
+        description: 'Artifact name to upload native .node files to after building. When set, this job is the native binary producer.'
+        required: false
+        type: string
+        default: ''
+
+      browser:
+        description: 'Browser to use for tests'
+        required: false
+        type: string
+        default: 'chromium'
+      needsPlaywright:
+        description: 'whether Playwright browser installation is needed'
+        required: false
+        type: string
+        default: 'yes'
+      playwrightDockerImage:
+        description: >
+          Docker image to use on Linux runners that need Playwright. Pinned to
+          the same version as the `playwright` dependency in `package.json`;
+          the image ships Chromium/Firefox/WebKit and all system deps
+          preinstalled, so the per-job install step is skipped on Linux.
+          Use the `-noble` (Ubuntu 24.04) variant so its glibc (>=2.39)
+          matches the `ubuntu-latest` host runners that build the
+          `next-swc.linux-x64-gnu.node` native binary; an older base (e.g.
+          `-jammy`) fails to dlopen the native binary at runtime with
+          `GLIBC_2.39 not found`.
+        required: false
+        type: string
+        default: 'mcr.microsoft.com/playwright:v1.58.2-noble'
+      usePlaywrightContainer:
+        description: >
+          When 'no', run the job directly on the Linux runner and install
+          Playwright at runtime instead of wrapping the job in
+          `playwrightDockerImage`. Use this for jobs that need tooling not
+          shipped in the container image (e.g. `rustup` for the wasm tests).
+        required: false
+        type: string
+        default: 'yes'
+env:
+  NAPI_CLI_VERSION: 2.18.4
+  TURBO_VERSION: 2.9.4
+  TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 300 --log-order stream'
+  NODE_LTS_VERSION: 20.9.0
+  # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
+  # argument is provided
+  TEST_CONCURRENCY: 12
+  # overrides `turbo_tasks::parallel::available_parallelism`. Smaller values are more CPU and memory
+  # efficient, but won't fully utilize all available CPU cores. A small value here makes sense since
+  # we're running many tests in parallel.
+  TURBO_TASKS_AVAILABLE_PARALLELISM: 4
+  # disable backtrace for test snapshots
+  RUST_BACKTRACE: 0
+
+  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  # Prefer shared remote cache across runs, but keep local cache enabled so jobs
+  # degrade gracefully if the remote cache or token is unavailable.
+  TURBO_CACHE: 'local:rw,remote:rw'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+
+  NEXT_TELEMETRY_DISABLED: 1
+  # allow not skipping install-native postinstall script if we don't have a binary available already
+  NEXT_SKIP_NATIVE_POSTINSTALL: ${{ inputs.skipNativeInstall == 'yes' && '1' || '' }}
+  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+  NEXT_JUNIT_TEST_REPORT: 'true'
+  DD_ENV: 'ci'
+  # Vercel KV Store for test timings
+  KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+  KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+  NEXT_TEST_JOB: 1
+  # Per-job memoization of passed test files.
+  NEXT_TEST_PASSED_FILE: .next-test-passed.txt
+  VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
+  VERCEL_TEST_TEAM: vtest314-next-e2e-tests
+  VERCEL_ADAPTER_TEST_TOKEN: ${{ secrets.VERCEL_ADAPTER_TEST_TOKEN }}
+  VERCEL_ADAPTER_TEST_TEAM: vtest314-next-adapter-e2e-tests
+  VERCEL_TURBOPACK_TEST_TOKEN: ${{ secrets.VERCEL_TURBOPACK_TEST_TOKEN }}
+  VERCEL_TURBOPACK_TEST_TEAM: vtest314-next-turbo-e2e-tests
+  NEXT_TEST_PREFER_OFFLINE: 1
+  NEXT_CI_RUNNER: ${{ inputs.runs_on_labels }}
+  NEXT_TEST_PROXY_ADDRESS: ${{ inputs.overrideProxyAddress || '' }}
+
+  # defaults to 256, but we run a lot of tests in parallel, so the limit should be lower
+  NEXT_TURBOPACK_IO_CONCURRENCY: 64
+
+  # Disable warnings from baseline-browser-mapping
+  # https://github.com/web-platform-dx/baseline-browser-mapping/blob/ec8136ae9e034b332fab991d63a340d2e13b8afc/README.md?plain=1#L34
+  BASELINE_BROWSER_MAPPING_IGNORE_OLD_DATA: 1
+
+jobs:
+  build:
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    runs-on: ${{ fromJson(inputs.runs_on_labels) }}
+
+    # Run inside Microsoft's prebuilt Playwright image on Linux when the job
+    # actually needs browsers, so the per-job "Install Playwright browsers"
+    # step (download + apt-based `--with-deps`) disappears entirely. When the
+    # expression evaluates to '', GitHub Actions runs the job directly on the
+    # runner (Windows jobs, build-only jobs, and any job that opts out via
+    # `needsPlaywright: 'no'` or `skipInstallBuild: 'yes'`).
+    container:
+      image: ${{ (inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows')) && inputs.playwrightDockerImage || '' }}
+      # --ipc=host avoids Chromium running out of memory in /dev/shm.
+      # --init reaps zombie browser processes properly.
+      options: --ipc=host --init
+      env:
+        # The Next.js standalone server template binds to
+        # `process.env.HOSTNAME || '0.0.0.0'` (see
+        # `packages/next/src/build/utils.ts`). Docker auto-sets `HOSTNAME`
+        # to the container ID, which `bash -l` then preserves, so the
+        # standalone server ends up listening on the container hostname
+        # (e.g. `3363ea41c9fa`) instead of `0.0.0.0`. That breaks tests
+        # like `test/production/standalone-mode/**` that fetch
+        # `http://localhost:<port>` and now get `ECONNREFUSED`. Force the
+        # standalone default here so the bound address matches what tests
+        # expect.
+        HOSTNAME: 0.0.0.0
+        # Opt out of Next.js's Docker auto-detection so build artifacts use
+        # the persistent on-disk cache. Without this, `cache-dir.ts`
+        # short-circuits to ephemeral storage on every build and breaks
+        # tests asserting determinism between consecutive builds in the
+        # same workspace (e.g. `test/production/deterministic-build`).
+        NEXT_IGNORE_IS_DOCKER: '1'
+
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+
+    outputs:
+      input_step_key: ${{ steps.var.outputs.input_step_key }}
+
+    steps:
+      # enforce consistent line endings for git on windows
+      - name: Configure git to use LF endings
+        if: ${{ runner.os == 'Windows' }}
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+        shell: bash
+
+      - name: Check if fnm is installed
+        id: check-fnm
+        run: |
+          if [ -x "$(command -v fnm)" ]; then
+            echo "fnm found."
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "fnm not found."
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+
+      # The Microsoft Playwright image is browser-focused and does not ship
+      # `jq`/`unzip` (required by the fnm install + `fnm env --json` parse
+      # below) or `build-essential` (required by `node-gyp` when test
+      # fixtures install native modules like `node-pty`). Install them
+      # unconditionally inside the container.
+      - name: Install container build dependencies (Linux container)
+        if: ${{ runner.os == 'Linux' && inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows') }}
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends jq unzip build-essential
+
+      # GitHub Actions sets `HOME=/github/home` for every step in a
+      # container job and overrides anything set via `container.env`.
+      # Playwright's GitHub Actions example runs the container as a
+      # non-root user, but this reusable workflow needs root so it can
+      # install jq/unzip/build-essential from the upstream image before
+      # bootstrapping. Firefox still requires $HOME to be owned by the
+      # current user, so re-own GitHub's mounted home directory in the
+      # Playwright container before tests run.
+      - name: Take ownership of /github/home (Linux container)
+        if: ${{ runner.os == 'Linux' && inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows') }}
+        run: |
+          if [ "$(id -u)" = "0" ] && [ -d /github/home ]; then
+            chown -R root:root /github/home
+          fi
+
+      - name: Install fnm
+        if: steps.check-fnm.outputs.found != 'true'
+        run: |
+          export FNM_DIR="${HOME}/.local/share/fnm"
+          curl -fsSL https://fnm.vercel.app/install | bash
+          export PATH="$FNM_DIR:$PATH"
+          echo "$FNM_DIR" >> $GITHUB_PATH
+          fnm env --json | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs -I {} echo "{}" >> $GITHUB_ENV
+
+      - name: Normalize input step names into path key
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        id: var
+        with:
+          script: |
+            core.setOutput('input_step_key', '${{ inputs.stepName }}'.toLowerCase().replaceAll(/[/.]/g, '-').trim('-'));
+
+      - name: Use Node.js ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }} for default shell
+        run: |
+          node --version || true
+          which node || true
+          # TODO: May be sufficient to just set `$FNM_MULTISHELL_PATH/bin` from `fnm env --json` into GITHUB_PATH
+          fnm_env=$(fnm env)
+          # Debug what we're about to eval
+          echo "$fnm_env"
+          eval "$fnm_env"
+          fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+          fnm default ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+          node --version
+          which node
+          NODE_SHELL_PATH=$(dirname "$(which node)")
+          echo "Adding '$NODE_SHELL_PATH' to GITHUB_PATH"
+          echo "$NODE_SHELL_PATH" >> "$GITHUB_PATH"
+      # Debug used Node.js version in a separate step to ensure
+      # the Node.js version is set for the entire job
+      - name: Verify Node.js version
+        run: |
+          which node
+          node --version
+      - name: Prepare corepack
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          npm i -g corepack@0.31
+      - run: corepack enable
+      - run: pwd
+
+      - name: Kill stale sccache processes
+        if: ${{ runner.os == 'Windows' }}
+        shell: powershell
+        run: Get-Process sccache -ErrorAction SilentlyContinue | Stop-Process -Force
+
+      - run: rm -rf .git
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 25
+
+      - name: Mark workspace as safe for Git (Linux container)
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          if [ "$(id -u)" = "0" ]; then
+            git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          fi
+
+      # Cache pnpm store on GitHub-hosted runners (self-hosted runners have
+      # their own persistent storage). Also fire inside the Playwright
+      # container since the container filesystem is always ephemeral, even
+      # when the host runner is persistent.
+      - name: Get pnpm store directory
+        if: ${{ runner.environment == 'github-hosted' || (inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows')) }}
+        id: get-store-path
+        run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
+
+      # local action -> needs to run after checkout
+      - name: Install Rust
+        uses: ./.github/actions/setup-rust
+        if: ${{ (inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+
+      - name: Install nextest
+        if: ${{ inputs.needsNextest == 'yes' }}
+        run: cargo binstall --no-confirm cargo-nextest@0.9.133
+
+      - run: rustc --version
+        if: ${{ (inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+
+      - run: corepack prepare --activate yarn@1.22.19 && npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+
+      # clean up any previous artifacts to avoid hitting disk space limits
+      - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
+
+      # Configure a git user so that Create Next App can initialize git repos during integration tests.
+      - name: Set CI git user
+        run: |
+          git config --global user.name "vercel-ci-bot"
+          git config --global user.email "infra+ci@vercel.com"
+
+      # normalize versions before build-native for better cache hits
+      - run: node scripts/normalize-version-bump.js
+        name: normalize versions
+
+      - name: Start sccache
+        uses: ./.github/actions/sccache
+        if: ${{ runner.os != 'Windows' && ((inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes') }}
+        with:
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
+
+      - name: Download pre-built native binary
+        if: ${{ inputs.skipNativeBuild != 'yes' && inputs.uploadNativeArtifact == '' }}
+        id: native-download
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ runner.os == 'Windows' && 'next-swc-windows' || 'next-swc-linux' }}
+          path: packages/next-swc/native/
+
+      - run: pnpm dlx turbo@${TURBO_VERSION} run build-native-${{ inputs.rustBuildProfile }} ${TURBO_ARGS} --summarize -- --target ${{ inputs.buildNativeTarget }}
+        if: ${{ inputs.skipNativeBuild != 'yes' && (inputs.uploadNativeArtifact != '' || steps.native-download.outcome != 'success') }}
+
+      - name: Upload native artifact
+        if: ${{ inputs.uploadNativeArtifact != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.uploadNativeArtifact }}
+          path: packages/next-swc/native/next-swc.*.node
+          retention-days: 1
+
+      - name: Upload next-swc artifact
+        if: ${{ inputs.uploadSwcArtifact == 'yes' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: next-swc-binary
+          path: packages/next-swc/native/next-swc.linux-x64-gnu.node
+
+      # undo normalize version changes for install/build
+      - run: git checkout .
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - name: Cache pnpm store
+        # conditions must be subset of runs executing pnpm install, otherwise we
+        # risk caching an incomplete store
+        # If keep conditions in sync breaks, we can split into restore and save
+        # steps where saving runs based on the outcome of the install step
+        if: ${{ (runner.environment == 'github-hosted' || (inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows'))) && (inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes') }}
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        timeout-minutes: 5
+        id: cache-pnpm-store
+        with:
+          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
+          key: pnpm-store-root-v1-${{ hashFiles('pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
+      - run: pnpm install
+        # condititions must be superset of cache step, otherwise we risk running install without a cache and then caching the incomplete store.
+        if: ${{ inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes' }}
+
+      - name: Install node-file-trace test dependencies
+        if: ${{ inputs.needsNextest == 'yes' }}
+        working-directory: turbopack/crates/turbopack-tracing/tests/node-file-trace
+        run: pnpm install -r --side-effects-cache false
+
+      - run: ANALYZE=1 pnpm build
+        if: ${{ inputs.skipInstallBuild != 'yes' }}
+
+      - name: Install Playwright browsers
+        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.needsPlaywright != 'no' && (runner.os == 'Windows' || inputs.usePlaywrightContainer == 'no') }}
+        run: pnpm playwright install --with-deps ${{ inputs.browser }}
+
+      - name: Download pre-built test timings
+        if: ${{ inputs.testTimingsArtifact != '' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.testTimingsArtifact }}
+
+      - name: Verify test timings
+        if: ${{ inputs.testTimingsArtifact != '' }}
+        run: |
+          if [ ! -f test-timings.json ]; then
+            echo "::error::test-timings.json not found"
+            exit 1
+          fi
+          echo "Test timings loaded ($(wc -c < test-timings.json) bytes)"
+
+      - name: Fetch test timings via turbo
+        if: ${{ inputs.testTimingsArtifact == '' }}
+        run: pnpm dlx turbo@${TURBO_VERSION} run get-test-timings -- --build ${{ github.sha }}
+
+      # Restore the list of tests that already passed in an earlier
+      # attempt of this same workflow run.
+      - name: Restore passed-tests cache
+        if: ${{ inputs.afterBuild && runner.environment == 'github-hosted' }}
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.NEXT_TEST_PASSED_FILE }}
+          key: next-test-passed-${{ steps.var.outputs.input_step_key }}-${{ github.run_id }}-attempt${{ github.run_attempt }}
+          restore-keys: |
+            next-test-passed-${{ steps.var.outputs.input_step_key }}-${{ github.run_id }}-
+
+      - run: ${{ inputs.afterBuild }}
+        # defaults.run.shell sets a stronger options (`-leo pipefail`)
+        # Set this back to github action's weaker defaults:
+        # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
+        #
+        # We must use a login shell: fnm installation may modify the `.profile`
+        shell: bash -le {0}
+        timeout-minutes: ${{ inputs.timeout_minutes }}
+
+      # Save the passed-tests file so the next attempt (if any) can skip
+      # them. `always()` makes this run on success, failure, or cancellation.
+      - name: Save passed-tests cache
+        if: ${{ always() && inputs.afterBuild && runner.environment == 'github-hosted' }}
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ env.NEXT_TEST_PASSED_FILE }}
+          key: next-test-passed-${{ steps.var.outputs.input_step_key }}-${{ github.run_id }}-attempt${{ github.run_attempt }}
+
+      - name: Upload test result artifacts
+        if: ${{ inputs.testReportsArtifactPrefix != '' && inputs.afterBuild && always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.testReportsArtifactPrefix }}-${{ steps.var.outputs.input_step_key }}
+          path: test/**/*.results.json
+          if-no-files-found: ignore
+          retention-days: 1
+
+      # This file messes up the tests because it influences the build root autodetection.
+      # Jest has a global cache, so PRs that poison the cache can bring down CI
+      - name: Clean up stray files
+        if: ${{ always() }}
+        run: rm -f /tmp/package-lock.json
+
+      - name: Upload Turborepo summary
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: turbo-run-summary-${{ steps.var.outputs.input_step_key }}
+          path: .turbo/runs
+          if-no-files-found: ignore
+
+      - name: Upload bundle analyzer artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ inputs.uploadAnalyzerArtifacts == 'yes' }}
+        with:
+          name: webpack bundle analysis stats-${{ steps.var.outputs.input_step_key }}
+          path: packages/next/dist/compiled/next-server/report.*.html
+
+      - name: Install datadog-ci
+        if: ${{ inputs.afterBuild && always() && !github.event.pull_request.head.repo.fork && env.DATADOG_API_KEY != '' }}
+        uses: ./.github/actions/setup-datadog-ci
+
+      - name: Upload test report to datadog
+        if: ${{ inputs.afterBuild && always() && !github.event.pull_request.head.repo.fork && env.DATADOG_API_KEY != '' }}
+        run: |
+          # Add a `test.type` tag to distinguish between turbopack and next.js runs
+          # Add a `nextjs.test_session.name` tag to help identify the job
+          if [ -d ./test/test-junit-report ]; then
+            "$DATADOG_CI_PATH" junit upload \
+              --service nextjs \
+              --tags test.type:nextjs \
+              --tags test_session.name:"${{ inputs.stepName }}" \
+              --tags runner.name:"${{ runner.name }}" \
+              ./test/test-junit-report
+          fi
+          if [ -d ./test/turbopack-test-junit-report ]; then
+            "$DATADOG_CI_PATH" junit upload \
+              --service nextjs \
+              --tags test.type:turbopack \
+              --tags test_session.name:"${{ inputs.stepName }}" \
+              --tags runner.name:"${{ runner.name }}" \
+              ./test/turbopack-test-junit-report
+          fi
+
+      - name: Upload Playwright Snapshots
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ inputs.afterBuild && always() }}
+        with:
+          name: test-playwright-snapshots-${{ steps.var.outputs.input_step_key }}
+          path: |
+            test/traces
+          if-no-files-found: ignore

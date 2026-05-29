@@ -1,0 +1,1 @@
+require('./another.js')

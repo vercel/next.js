@@ -1,0 +1,158 @@
+name: Sync Canary After Backport Release
+
+on:
+  workflow_run:
+    workflows:
+      - build-and-deploy
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      workflowRunId:
+        description: Completed build-and-deploy workflow run ID to evaluate
+        required: true
+        type: string
+      headSha:
+        description: Release commit SHA from that workflow run
+        required: true
+        type: string
+      dispatch:
+        description: Dispatch trigger_release after evaluation
+        default: false
+        required: false
+        type: boolean
+
+concurrency:
+  group: sync-backport-canary-release
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    if: ${{ github.repository_owner == 'vercel' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch != 'canary')) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      should_dispatch: ${{ steps.evaluate.outputs.should_dispatch }}
+      reason: ${{ steps.evaluate.outputs.reason }}
+      current_canary_version: ${{ steps.evaluate.outputs.current_canary_version }}
+      released_version: ${{ steps.evaluate.outputs.released_version }}
+    steps:
+      - name: Check whether head commit is a stable release
+        id: precheck
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        with:
+          script: |
+            if (context.eventName === 'workflow_dispatch') {
+              core.setOutput('should_evaluate', 'true')
+              return
+            }
+
+            const headCommitMessage =
+              context.payload.workflow_run.head_commit?.message?.trim() || ''
+            const stableReleaseCommitRegex = /^v\d+\.\d+\.\d+$/
+
+            if (stableReleaseCommitRegex.test(headCommitMessage)) {
+              core.setOutput('should_evaluate', 'true')
+              return
+            }
+
+            core.setOutput('should_evaluate', 'false')
+            core.setOutput('should_dispatch', 'false')
+            core.setOutput('reason', 'Head commit is not a stable release commit')
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: steps.precheck.outputs.should_evaluate == 'true'
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || 'canary' }}
+          fetch-depth: 1
+
+      - name: Setup node
+        if: steps.precheck.outputs.should_evaluate == 'true'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 20
+          check-latest: true
+          package-manager-cache: false
+
+      - name: Setup corepack
+        if: steps.precheck.outputs.should_evaluate == 'true'
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - name: Install dependencies
+        if: steps.precheck.outputs.should_evaluate == 'true'
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Create GitHub App token
+        id: release-app-token
+        if: steps.precheck.outputs.should_evaluate == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: next.js
+          permission-actions: read
+          permission-contents: read
+
+      - name: Evaluate backport release
+        id: evaluate
+        if: steps.precheck.outputs.should_evaluate == 'true'
+        env:
+          RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
+          WORKFLOW_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.workflowRunId || github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.headSha || github.event.workflow_run.head_sha }}
+          HEAD_COMMIT_MESSAGE: ${{ github.event_name == 'workflow_dispatch' && '' || github.event.workflow_run.head_commit.message }}
+        run: node ./scripts/check-backport-canary-release.js --workflow-run-id "$WORKFLOW_RUN_ID" --head-sha "$HEAD_SHA"
+
+      - name: Print evaluation
+        run: |
+          echo "should_dispatch=${{ steps.evaluate.outputs.should_dispatch || steps.precheck.outputs.should_dispatch }}"
+          echo "reason=${{ steps.evaluate.outputs.reason || steps.precheck.outputs.reason }}"
+          echo "released_version=${{ steps.evaluate.outputs.released_version }}"
+          echo "current_canary_version=${{ steps.evaluate.outputs.current_canary_version }}"
+          echo "dispatch_input=${{ github.event_name == 'workflow_dispatch' && inputs.dispatch || false }}"
+          echo "auto_dispatch_enabled=${{ vars.ENABLE_BACKPORT_CANARY_SYNC || 'false' }}"
+
+  dispatch:
+    needs: evaluate
+    if: ${{ needs.evaluate.outputs.should_dispatch == 'true' && ((github.event_name == 'workflow_dispatch' && inputs.dispatch) || (github.event_name == 'workflow_run' && vars.ENABLE_BACKPORT_CANARY_SYNC == 'true')) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub App token
+        id: release-app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: next.js
+          permission-actions: write
+
+      - uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        with:
+          github-token: ${{ steps.release-app-token.outputs.token }}
+          script: |
+            await github.request(
+              "POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches",
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: "trigger_release.yml",
+                ref: "canary",
+                inputs: {
+                  releaseType: "canary",
+                  semverType: "minor",
+                  force: "true",
+                },
+              }
+            )
+
+            console.info(
+              `Triggered canary release after backport ${process.env.RELEASED_VERSION}; current canary was ${process.env.CURRENT_CANARY_VERSION}`
+            )
+        env:
+          RELEASED_VERSION: ${{ needs.evaluate.outputs.released_version }}
+          CURRENT_CANARY_VERSION: ${{ needs.evaluate.outputs.current_canary_version }}

@@ -1,0 +1,21 @@
+warning - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/dynamic/input/index.js:10:13  Module not found: Can't resolve ('cannot-resolve' | <dynamic>)
+  
+       6 | 
+       7 | let result
+       8 | for (let name of names) {
+       9 |   try {
+         +              v-----------v
+      10 +     result = require(name).Iconv
+         +              ^-----------^
+      11 |     return
+      12 |   } catch {}
+      13 | }
+      14 | 
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module "'cannot-resolve'" or dynamic
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/dynamic/input/index.js
+  | Type of request: commonjs request
+  |

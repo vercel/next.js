@@ -1,0 +1,174 @@
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    branches:
+      - canary
+
+name: Generate Stats
+
+concurrency:
+  # Keep cancel-on-update behavior for PRs, but allow canary pushes to run independently.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NAPI_CLI_VERSION: 2.18.4
+  TURBO_VERSION: 2.9.4
+  NODE_LTS_VERSION: 20
+  TEST_CONCURRENCY: 6
+
+  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  # Prefer shared remote cache across runs, but keep local cache enabled so jobs
+  # degrade gracefully if the remote cache or token is unavailable.
+  TURBO_CACHE: 'local:rw,remote:rw'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  NEXT_TELEMETRY_DISABLED: 1
+  # we build a dev binary for use in CI so skip downloading
+  # canary next-swc binaries in the monorepo
+  NEXT_SKIP_NATIVE_POSTINSTALL: 1
+  # Vercel KV Store for test timings
+  KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+  KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+  NEXT_TEST_JOB: 1
+  NEXT_DISABLE_SWC_WASM: 1
+
+jobs:
+  pr-ci-metadata:
+    name: Upload PR CI metadata
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Write PR metadata
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_IS_FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          mkdir -p pr-ci-metadata
+          node <<'NODE'
+          const fs = require('fs')
+
+          fs.writeFileSync(
+            'pr-ci-metadata/pr.json',
+            JSON.stringify(
+              {
+                number: Number(process.env.PR_NUMBER),
+                headSha: process.env.PR_HEAD_SHA,
+                headRef: process.env.PR_HEAD_REF,
+                headRepo: process.env.PR_HEAD_REPO,
+                baseRef: process.env.PR_BASE_REF,
+                isFork: process.env.PR_IS_FORK === 'true',
+              },
+              null,
+              2
+            )
+          )
+          NODE
+
+      - name: Upload PR metadata
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-ci-metadata
+          path: pr-ci-metadata/pr.json
+          retention-days: 1
+
+  build:
+    uses: ./.github/workflows/build_reusable.yml
+    secrets: inherit
+    with:
+      stepName: 'generate-pull-request-stats'
+      uploadSwcArtifact: 'yes'
+      uploadAnalyzerArtifacts: 'yes'
+
+  stats:
+    name: Stats (${{ matrix.bundler }})
+    needs: build
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        bundler: [webpack, turbopack]
+    runs-on: ubuntu-latest-16-core-oss
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 25
+
+      - name: Check non-docs only change
+        run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.mjs --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
+        id: docs-change
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+        with:
+          name: next-swc-binary
+          path: packages/next-swc/native
+
+      - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+
+      - uses: ./.github/actions/next-stats-action
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+        with:
+          bundler: ${{ matrix.bundler }}
+        env:
+          TURBO_TEAM: ${{ env.TURBO_TEAM }}
+          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+          TURBO_CACHE: ${{ env.TURBO_CACHE }}
+          PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}
+
+      - name: Upload stats results
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-stats-${{ matrix.bundler }}
+          path: pr-stats-${{ matrix.bundler }}.json
+          retention-days: 1
+
+  stats-aggregate:
+    name: Aggregate Stats
+    needs: stats
+    if: always() && needs.stats.result != 'cancelled'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 25
+
+      - name: Check non-docs only change
+        run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.mjs --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
+        id: docs-change
+
+      - name: Download all stats artifacts
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: pr-stats-*
+          path: stats-results
+          merge-multiple: true
+
+      - name: Setup Node.js
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          package-manager-cache: false
+
+      - name: Install dependencies
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+        working-directory: .github/actions/next-stats-action
+        run: npm install
+
+      - name: Aggregate and post results
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
+        working-directory: .github/actions/next-stats-action
+        run: node src/aggregate-results.js ${{ github.workspace }}/stats-results
+        env:
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}

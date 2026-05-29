@@ -1,0 +1,10 @@
+;[
+  'package.json',
+  'test/unit/browser-remappings/input.js',
+  'test/unit/browser-remappings/node_modules/pkg/index.js',
+  'test/unit/browser-remappings/node_modules/pkg/package.json',
+  'test/unit/browser-remappings/node_modules/pkg/require-main.cjs',
+  'test/unit/browser-remappings/node_modules/pkg/subdir/import-main-browser.js',
+  'test/unit/browser-remappings/node_modules/pkg/subdir/import-main.js',
+  'test/unit/browser-remappings/node_modules/pkg/subdir/package.json',
+]

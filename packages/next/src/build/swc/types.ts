@@ -1,0 +1,531 @@
+import type { NextConfigComplete } from '../../server/config-shared'
+import type { __ApiPreviewProps } from '../../server/api-utils'
+import type {
+  ExternalObject,
+  RefCell,
+  NapiTurboEngineOptions,
+  NapiSourceDiagnostic,
+  NapiProjectOptions,
+  NapiPartialProjectOptions,
+  NapiCodeFrameOptions,
+  NapiCodeFrameLocation,
+  TraceServerHandle,
+  TraceQueryOptions,
+  TraceQueryResult,
+} from './generated-native'
+
+export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
+
+export type { NapiTurboEngineOptions as TurboEngineOptions }
+
+export type Lockfile = { __napiType: 'Lockfile' }
+
+export interface TurbopackProjectCallbacks {
+  onBeforeDeferredEntries?: () => Promise<void>
+}
+
+export interface Binding {
+  isWasm: boolean
+  turbo: {
+    createProject(
+      options: ProjectOptions,
+      turboEngineOptions?: NapiTurboEngineOptions,
+      callbacks?: TurbopackProjectCallbacks
+    ): Promise<Project>
+    startTurbopackTraceServerHandle(
+      traceFilePath: string,
+      port: number | undefined
+    ): TraceServerHandle
+    queryTraceSpans(
+      handle: TraceServerHandle,
+      options: TraceQueryOptions
+    ): TraceQueryResult
+    databaseCompact(path: string, nextVersion: string): Promise<void>
+
+    nextBuild?: any
+  }
+  mdx: {
+    compile(src: string, options: any): any
+    compileSync(src: string, options: any): any
+  }
+  minify(src: string, options: any): Promise<any>
+  minifySync(src: string, options: any): any
+  transform(src: string, options: any): Promise<any>
+  transformSync(src: string, options: any): any
+  parse(src: string, options: any): Promise<string>
+
+  getTargetTriple(): string | undefined
+
+  initCustomTraceSubscriber?(traceOutFilePath?: string): ExternalObject<RefCell>
+  teardownTraceSubscriber?(guardExternal: ExternalObject<RefCell>): void
+  css: {
+    lightning: {
+      transform(transformOptions: any): Promise<any>
+      transformStyleAttr(transformAttrOptions: any): Promise<any>
+      featureNamesToMask(names: string[]): number
+    }
+  }
+
+  reactCompiler: {
+    isReactCompilerRequired(filename: string): Promise<boolean>
+  }
+
+  rspack: {
+    getModuleNamedExports(resourcePath: string): Promise<string[]>
+    warnForEdgeRuntime(
+      source: string,
+      isProduction: boolean
+    ): Promise<NapiSourceDiagnostic[]>
+  }
+  expandNextJsTemplate(
+    content: Buffer,
+    templatePath: string,
+    nextPackageDirPath: string,
+    replacements: Record<`VAR_${string}`, string>,
+    injections: Record<string, string>,
+    imports: Record<string, string | null>
+  ): string
+
+  lockfileTryAcquire(
+    path: string,
+    content?: string | null
+  ): Promise<Lockfile | null>
+  lockfileTryAcquireSync(path: string, content?: string | null): Lockfile | null
+  lockfileUnlock(lockfile: Lockfile): Promise<void>
+  lockfileUnlockSync(lockfile: Lockfile): void
+  codeFrameColumns(
+    source: string,
+    location: NapiCodeFrameLocation,
+    options?: NapiCodeFrameOptions
+  ): string | undefined
+}
+
+export type StyledString =
+  | {
+      type: 'text'
+      value: string
+    }
+  | {
+      type: 'code'
+      value: string
+    }
+  | {
+      type: 'strong'
+      value: string
+    }
+  | {
+      type: 'stack'
+      value: StyledString[]
+    }
+  | {
+      type: 'line'
+      value: StyledString[]
+    }
+
+/** 0-indexed line and column position within a source file. */
+export interface SourcePosition {
+  line: number
+  column: number
+}
+
+export interface IssueSource {
+  source: {
+    ident: string
+    filePath: string
+  }
+  range?: {
+    start: SourcePosition
+    end: SourcePosition
+  }
+}
+
+export interface AdditionalIssueSource {
+  description: string
+  source: IssueSource
+  /** Pre-rendered code frame from the Rust NAPI layer */
+  codeFrame?: string
+}
+
+export interface Issue {
+  severity: string
+  stage: string
+  filePath: string
+  title: StyledString
+  description?: StyledString
+  detail?: StyledString
+  source?: IssueSource
+  additionalSources?: AdditionalIssueSource[]
+  documentationLink: string
+  importTraces?: PlainTraceItem[][]
+  /** Pre-rendered code frame from the Rust NAPI layer */
+  codeFrame?: string
+}
+export interface PlainTraceItem {
+  fsName: string
+  path: string
+  rootPath: string
+  layer?: string
+}
+
+export interface BuildFeatureUsage {
+  featureName: string
+  invocationCount: number
+}
+
+export type TurbopackResult<T = {}> = T & {
+  issues: Issue[]
+}
+
+export interface Middleware {
+  endpoint: Endpoint
+  isProxy: boolean
+}
+
+export interface Instrumentation {
+  nodeJs: Endpoint
+  edge: Endpoint
+}
+
+export interface RawEntrypoints {
+  routes: Map<string, Route>
+  middleware?: Middleware
+  instrumentation?: Instrumentation
+  pagesDocumentEndpoint: Endpoint
+  pagesAppEndpoint: Endpoint
+  pagesErrorEndpoint: Endpoint
+}
+
+interface BaseUpdate {
+  resource: {
+    headers: unknown
+    path: string
+  }
+  diagnostics: unknown[]
+  issues: Issue[]
+}
+
+interface IssuesUpdate extends BaseUpdate {
+  type: 'issues'
+}
+
+interface EcmascriptMergedUpdate {
+  type: 'EcmascriptMergedUpdate'
+  chunks: { [moduleName: string]: { type: 'partial' } }
+  entries: { [moduleName: string]: { code: string; map: string; url: string } }
+}
+
+interface PartialUpdate extends BaseUpdate {
+  type: 'partial'
+  instruction: {
+    type: 'ChunkListUpdate'
+    merged: EcmascriptMergedUpdate[] | undefined
+  }
+}
+
+export type Update = IssuesUpdate | PartialUpdate
+
+/**
+ * IMPORTANT: This type is duplicated in:
+ * turbopack/crates/turbopack-ecmascript-runtime/js/src/nodejs/hmr-types.d.ts
+ *
+ * The runtime file cannot import from this ES module without triggering module semantics,
+ * so we maintain a copy there. Please keep both definitions in sync.
+ */
+export interface NodeJsPartialHmrUpdate extends BaseUpdate {
+  type: 'partial'
+  instruction: {
+    type: 'EcmascriptMergedUpdate'
+    entries: Record<
+      string,
+      { code: string; url: string; map?: string | undefined }
+    >
+    chunks?: Record<string, { type: 'partial' }>
+  }
+}
+
+export interface NodeJsRestartHmrUpdate {
+  type: 'restart'
+}
+
+export type NodeJsHmrUpdate =
+  | IssuesUpdate
+  | NodeJsPartialHmrUpdate
+  | NodeJsRestartHmrUpdate
+
+export interface HmrChunkNames {
+  /** Relative paths to output chunks that can receive HMR updates (e.g., "server/chunks/ssr/..._.js") */
+  chunkNames: string[]
+}
+
+/** @see https://github.com/vercel/next.js/blob/415cd74b9a220b6f50da64da68c13043e9b02995/crates/next-napi-bindings/src/next_api/project.rs#L824-L833 */
+export interface TurbopackStackFrame {
+  isServer: boolean
+  isIgnored?: boolean
+  file: string
+  originalFile?: string
+  /** 1-indexed, unlike source map tokens */
+  line?: number
+  /** 1-indexed, unlike source map tokens */
+  column?: number
+  methodName?: string
+}
+
+export type UpdateMessage =
+  | {
+      updateType: 'start'
+    }
+  | {
+      updateType: 'end'
+      value: UpdateInfo
+    }
+
+export type CompilationEvent = {
+  typeName: string
+  message: string
+  severity: string
+  eventJson: string
+  eventData: any
+}
+
+export interface UpdateInfo {
+  duration: number
+  tasks: number
+}
+
+export interface Project {
+  update(options: Partial<ProjectOptions>): Promise<void>
+
+  writeAnalyzeData(appDirOnly: boolean): Promise<TurbopackResult<void>>
+
+  getAllCompilationIssues(): Promise<TurbopackResult<void>>
+
+  writeAllEntrypointsToDisk(
+    appDirOnly: boolean
+  ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
+
+  /**
+   * Returns the build-feature-usage telemetry summary — `(featureName,
+   * invocationCount)` pairs reported to the Next.js telemetry service.
+   *
+   * **Must only be called in a `next build` (production) context**, once at the
+   * end of the build, after `writeAllEntrypointsToDisk`. The Rust implementation
+   * walks the whole-app module graph and will error if invoked from a
+   * development project, because dev builds do not produce a complete graph.
+   */
+  featureUsage(): Promise<BuildFeatureUsage[]>
+
+  entrypointsSubscribe(): AsyncIterableIterator<
+    TurbopackResult<RawEntrypoints | {}>
+  >
+
+  hmrEvents(
+    identifier: string,
+    target: import('./index').HmrTarget.Client
+  ): AsyncIterableIterator<TurbopackResult<Update>>
+  hmrEvents(
+    identifier: string,
+    target: import('./index').HmrTarget.Server
+  ): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>>
+
+  hmrChunkNamesSubscribe(
+    target: import('./index').HmrTarget
+  ): AsyncIterableIterator<TurbopackResult<HmrChunkNames>>
+
+  getSourceForAsset(filePath: string): Promise<string | null>
+
+  getSourceMap(filePath: string): Promise<string | null>
+  getSourceMapSync(filePath: string): string | null
+
+  traceSource(
+    stackFrame: TurbopackStackFrame,
+    currentDirectoryFileUrl: string
+  ): Promise<TurbopackStackFrame | null>
+
+  updateInfoSubscribe(
+    aggregationMs: number
+  ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
+
+  compilationEventsSubscribe(
+    eventTypes?: string[]
+  ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
+
+  invalidateFileSystemCache(): Promise<void>
+
+  shutdown(): Promise<void>
+
+  onExit(): Promise<void>
+}
+
+export type Route =
+  | {
+      type: 'conflict'
+    }
+  | {
+      type: 'app-page'
+      pages: {
+        originalName: string
+        htmlEndpoint: Endpoint
+        rscEndpoint: Endpoint
+      }[]
+    }
+  | {
+      type: 'app-route'
+      originalName: string
+      endpoint: Endpoint
+    }
+  | {
+      type: 'page'
+      htmlEndpoint: Endpoint
+      dataEndpoint: Endpoint
+    }
+  | {
+      type: 'page-api'
+      endpoint: Endpoint
+    }
+
+export interface Endpoint {
+  /** Write files for the endpoint to disk. */
+  writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
+
+  /**
+   * Listen to client-side changes to the endpoint.
+   * After clientChanged() has been awaited it will listen to changes.
+   * The async iterator will yield for each change.
+   */
+  clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>>
+
+  /**
+   * Listen to server-side changes to the endpoint.
+   * After serverChanged() has been awaited it will listen to changes.
+   * The async iterator will yield for each change.
+   */
+  serverChanged(
+    includeIssues: boolean
+  ): Promise<AsyncIterableIterator<TurbopackResult>>
+}
+
+interface EndpointConfig {
+  dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
+  dynamicParams?: boolean
+  revalidate?: 'never' | 'force-cache' | number
+  fetchCache?:
+    | 'auto'
+    | 'default-cache'
+    | 'only-cache'
+    | 'force-cache'
+    | 'default-no-store'
+    | 'only-no-store'
+    | 'force-no-store'
+  runtime?: 'nodejs' | 'edge'
+  preferredRegion?: string
+}
+
+export type ServerPath = {
+  path: string
+  contentHash: string
+}
+
+export type WrittenEndpoint =
+  | {
+      type: 'nodejs'
+      /** The entry path for the endpoint. */
+      entryPath: string
+      /** All client paths that have been written for the endpoint. */
+      clientPaths: string[]
+      /** All server paths that have been written for the endpoint. */
+      serverPaths: ServerPath[]
+      config: EndpointConfig
+    }
+  | {
+      type: 'edge'
+      /** All client paths that have been written for the endpoint. */
+      clientPaths: string[]
+      /** All server paths that have been written for the endpoint. */
+      serverPaths: ServerPath[]
+      config: EndpointConfig
+    }
+  | {
+      type: 'none'
+      clientPaths: []
+      serverPaths: []
+      config: EndpointConfig
+    }
+
+export interface ProjectOptions
+  extends Omit<NapiProjectOptions, 'nextConfig' | 'env'> {
+  /**
+   * The next.config.js contents.
+   */
+  nextConfig: NextConfigComplete
+
+  /**
+   * A map of environment variables to use when compiling code.
+   */
+  env: Record<string, string>
+}
+
+export interface PartialProjectOptions
+  extends Omit<NapiPartialProjectOptions, 'nextConfig' | 'env'> {
+  rootPath: NapiProjectOptions['rootPath']
+  projectPath: NapiProjectOptions['projectPath']
+  /**
+   * The next.config.js contents.
+   */
+  nextConfig?: NextConfigComplete
+
+  /**
+   * A map of environment variables to use when compiling code.
+   */
+  env?: Record<string, string>
+}
+
+export interface DefineEnv {
+  client: RustifiedOptionalEnv
+  edge: RustifiedOptionalEnv
+  nodejs: RustifiedOptionalEnv
+}
+
+export type RustifiedEnv = { name: string; value: string }[]
+export type RustifiedOptionalEnv = { name: string; value: string | undefined }[]
+
+export interface GlobalEntrypoints {
+  app: Endpoint | undefined
+  document: Endpoint | undefined
+  error: Endpoint | undefined
+  middleware: Middleware | undefined
+  instrumentation: Instrumentation | undefined
+}
+
+export type PageRoute =
+  | {
+      type: 'page'
+      htmlEndpoint: Endpoint
+      dataEndpoint: Endpoint
+    }
+  | {
+      type: 'page-api'
+      endpoint: Endpoint
+    }
+
+export type AppRoute =
+  | {
+      type: 'app-page'
+      htmlEndpoint: Endpoint
+      rscEndpoint: Endpoint
+    }
+  | {
+      type: 'app-route'
+      endpoint: Endpoint
+    }
+
+// pathname -> route
+export type PageEntrypoints = Map<string, PageRoute>
+
+// originalName / page -> route
+export type AppEntrypoints = Map<string, AppRoute>
+
+export type Entrypoints = {
+  global: GlobalEntrypoints
+  page: PageEntrypoints
+  app: AppEntrypoints
+}

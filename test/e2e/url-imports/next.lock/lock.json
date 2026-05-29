@@ -1,0 +1,24 @@
+{
+  "http://localhost:12345/value1.js": {
+    "integrity": "sha512-S1eh3STyIGuRSfoAVU0jhxVY2MoRXSC/JduKMKuATb91ArhG0G2rvRNsGvD2kZo/jENlbrMtWNkzK2dGLgaUfg==",
+    "contentType": "application/javascript; charset=UTF-8"
+  },
+  "http://localhost:12345/value2.js": {
+    "integrity": "sha512-R4XoB/ZTbRL9FGcM5d3hkxtxmMUXaKNKCqRKZPDy1v7Hh61HPLidPQHga1XMurakZPoJnCC5a5jRdOAagn3LRA==",
+    "contentType": "application/javascript; charset=UTF-8"
+  },
+  "http://localhost:12345/value3.js": {
+    "integrity": "sha512-xtYaDPwejlXaMwQOdnYldln3wA5UYqIaJXMuCdBmyjgRX3zSKKd/AbGYobURfITmpzkz7U7E5GEK2Ju17qCZkw==",
+    "contentType": "application/javascript; charset=UTF-8"
+  },
+  "http://localhost:12345/value4.js": {
+    "integrity": "sha512-orh6tVnh1jjxWNNLduiv0pUcW0guzwTmy52JQGdz4D2LL2IgIlJaC0w4+YBtIBXa2kKGho839WgGAK0sC0Folw==",
+    "contentType": "application/javascript; charset=UTF-8"
+  },
+  "https://github.com/vercel/next.js/raw/canary/test/e2e/url-imports/public/vercel.png": "no-cache",
+  "https://github.com/vercel/next.js/raw/canary/test/e2e/url-imports/public/vercel.png?_=image": "no-cache",
+  "https://github.com/vercel/next.js/raw/canary/test/e2e/url-imports/public/vercel.png?_=ssg": "no-cache",
+  "https://github.com/vercel/next.js/raw/canary/test/e2e/url-imports/public/vercel.png?_=ssr": "no-cache",
+  "https://github.com/vercel/next.js/raw/canary/test/e2e/url-imports/public/vercel.png?_=static": "no-cache",
+  "version": 1
+}
