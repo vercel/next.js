@@ -7,6 +7,18 @@ describe('instant-nav-panel', () => {
   })
 
   const targetPage = '/target-page/my-post?search=foo'
+  let cleanupBrowser: Playwright | undefined
+
+  async function openBrowser(pathname: string) {
+    const browser = await next.browser(pathname)
+    cleanupBrowser = browser
+    return browser
+  }
+
+  afterEach(async () => {
+    await cleanupBrowser?.deleteCookies()
+    cleanupBrowser = undefined
+  })
 
   async function waitForPanelRouterTransition() {
     // Run all the necessary CSS transitions
@@ -240,7 +252,7 @@ describe('instant-nav-panel', () => {
 
   async function openHomeWithTargetPageWarmup() {
     const [browser] = await Promise.all([
-      next.browser('/'),
+      openBrowser('/'),
       isNextDev && !isTurbopack
         ? // warmup target page compilation before clicking Start, to avoid extra flakiness.
           next.render(targetPage).catch(() => {})
@@ -254,7 +266,7 @@ describe('instant-nav-panel', () => {
 
   describe('idle state', () => {
     it('should open panel in the idle state', async () => {
-      const browser = await next.browser('/')
+      const browser = await openBrowser('/')
       await clearInstantModeCookie(browser)
       await browser.waitForElementByCss('[data-testid="home-title"]')
 
@@ -277,7 +289,7 @@ describe('instant-nav-panel', () => {
     })
 
     it('should not set cookie when closing panel from idle state', async () => {
-      const browser = await next.browser('/')
+      const browser = await openBrowser('/')
       await clearInstantModeCookie(browser)
       await browser.waitForElementByCss('[data-testid="home-title"]')
 
@@ -300,7 +312,7 @@ describe('instant-nav-panel', () => {
 
   describe('awaiting navigation state', () => {
     it('should reset the panel and app when pressing the close button from awaiting navigation', async () => {
-      const browser = await next.browser('/')
+      const browser = await openBrowser('/')
       await clearInstantModeCookie(browser)
       await browser.waitForElementByCss('[data-testid="home-title"]')
 
@@ -321,7 +333,7 @@ describe('instant-nav-panel', () => {
 
   describe('MPA captures', () => {
     it('should show page load state after clicking Start and refreshing', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await openBrowser(targetPage)
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
@@ -334,7 +346,7 @@ describe('instant-nav-panel', () => {
     })
 
     it('should auto-open panel on page load when cookie is already set', async () => {
-      const browser = await next.browser('/')
+      const browser = await openBrowser('/')
       await clearInstantModeCookie(browser)
       await browser.waitForElementByCss('[data-testid="home-title"]')
 
@@ -357,7 +369,7 @@ describe('instant-nav-panel', () => {
     })
 
     it('should reset the panel and app when pressing the close button from captured MPA state', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await openBrowser(targetPage)
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
@@ -377,7 +389,7 @@ describe('instant-nav-panel', () => {
     })
 
     it('should keep params and searchParams RSC content suspended for a captured MPA page load', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await openBrowser(targetPage)
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
@@ -390,7 +402,7 @@ describe('instant-nav-panel', () => {
     })
 
     it('should show MPA state after clicking a link that crosses root layouts', async () => {
-      const browser = await next.browser('/')
+      const browser = await openBrowser('/')
       await clearInstantModeCookie(browser)
       await browser.waitForElementByCss('[data-testid="home-title"]')
       await waitForAppHydration(browser)
@@ -416,7 +428,7 @@ describe('instant-nav-panel', () => {
     })
 
     it('should re-arm capture and return to awaiting navigation after Continue Rendering from MPA state', async () => {
-      const browser = await next.browser(targetPage)
+      const browser = await openBrowser(targetPage)
       await clearInstantModeCookie(browser)
 
       await openInstantNavPanel(browser)
