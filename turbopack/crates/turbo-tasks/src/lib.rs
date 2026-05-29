@@ -53,6 +53,8 @@ pub mod small_duration;
 mod spawn;
 mod state;
 pub mod task;
+#[cfg(feature = "task_dirty_cause")]
+mod task_dirty_cause;
 mod task_execution_reason;
 pub mod task_statistics;
 mod tiny_vec;
@@ -72,6 +74,8 @@ use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
 pub use turbo_tasks_macros::{DeterministicHash, turbobail, turbofmt};
 
+#[cfg(feature = "task_dirty_cause")]
+pub use crate::task_dirty_cause::TaskDirtyCause;
 pub use crate::{
     capture_future::TurboTasksPanic,
     collectibles::CollectiblesSource,
@@ -82,7 +86,9 @@ pub use crate::{
     },
     effect::{Effect, EffectError, EffectStateStorage, Effects, emit_effect, take_effects},
     error::PrettyPrintError,
-    id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
+    id::{
+        ExecutionId, FunctionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId,
+    },
     invalidation::{
         InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
         get_invalidator,

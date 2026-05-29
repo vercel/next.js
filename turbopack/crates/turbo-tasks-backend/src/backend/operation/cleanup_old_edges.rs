@@ -156,7 +156,7 @@ impl CleanupOldEdgesOperation {
                                     queue.push(
                                         AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                                             task_ids,
-                                            #[cfg(feature = "trace_task_dirty")]
+                                            #[cfg(feature = "task_dirty_cause")]
                                             collectible_type: ty,
                                         },
                                     );
