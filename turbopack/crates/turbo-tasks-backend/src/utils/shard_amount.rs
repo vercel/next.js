@@ -1,4 +1,4 @@
-use std::thread::available_parallelism;
+use turbo_tasks::parallel::available_parallelism;
 
 /// Compute a good number of shards to use for sharded data structures.
 /// The number of shards is computed based on the number of worker threads

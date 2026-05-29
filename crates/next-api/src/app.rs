@@ -902,7 +902,7 @@ impl AppProject {
                     let client_shared_entries = client_shared_entries
                         .await?
                         .into_iter()
-                        .map(|m| ResolvedVc::upcast(*m))
+                        .map(ResolvedVc::upcast)
                         .collect();
 
                     // SEGMENT: client_shared_entries and server utils shared by the layout segments
@@ -1471,7 +1471,7 @@ impl AppEndpoint {
             )
             .to_resolved()
             .await?;
-        server_assets.extend(app_entry_chunks.all_assets().await?.into_iter().copied());
+        server_assets.extend(app_entry_chunks.all_assets().await?);
         let app_entry_chunk_group_ref = app_entry_chunks.await?;
         let app_entry_chunks = app_entry_chunk_group_ref.assets;
         let app_entry_chunks_ref = app_entry_chunks.await?;
@@ -1553,20 +1553,26 @@ impl AppEndpoint {
 
                 let node_root_value = node_root.clone();
 
-                file_paths_from_root
-                    .extend(get_js_paths_from_root(&node_root_value, &middleware_assets).await?);
-                file_paths_from_root
-                    .extend(get_js_paths_from_root(&node_root_value, &app_entry_chunks_ref).await?);
+                file_paths_from_root.extend(
+                    get_js_paths_from_root(&node_root_value, middleware_assets.iter().copied())
+                        .await?,
+                );
+                file_paths_from_root.extend(
+                    get_js_paths_from_root(&node_root_value, app_entry_chunks_ref.iter().copied())
+                        .await?,
+                );
 
                 let all_output_assets = all_assets_from_entries(*app_entry_chunks).await?;
 
                 wasm_paths_from_root
-                    .extend(get_wasm_paths_from_root(&node_root_value, &middleware_assets).await?);
-                wasm_paths_from_root
-                    .extend(get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?);
+                    .extend(get_wasm_paths_from_root(&node_root_value, middleware_assets).await?);
+                wasm_paths_from_root.extend(
+                    get_wasm_paths_from_root(&node_root_value, all_output_assets.iter().copied())
+                        .await?,
+                );
 
                 let all_assets =
-                    get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
+                    get_asset_paths_from_root(&node_root_value, all_output_assets).await?;
 
                 let entry_file = rcstr!("app-edge-has-no-entrypoint");
 
@@ -1587,7 +1593,7 @@ impl AppEndpoint {
                         client_relative_path.clone(),
                         node_root.join(&format!(
                             "server/app{}/react-loadable-manifest",
-                            &app_entry.original_name
+                            app_entry.original_name
                         ))?,
                         NextRuntime::Edge,
                     )
@@ -1595,7 +1601,7 @@ impl AppEndpoint {
 
                     server_assets.extend(loadable_manifest_output.iter().copied());
                     file_paths_from_root.extend(
-                        get_js_paths_from_root(&node_root_value, &loadable_manifest_output).await?,
+                        get_js_paths_from_root(&node_root_value, loadable_manifest_output).await?,
                     );
                 }
                 if emit_manifests != EmitManifests::None {
@@ -1711,7 +1717,7 @@ impl AppEndpoint {
                         client_relative_path.clone(),
                         node_root.join(&format!(
                             "server/app{}/react-loadable-manifest",
-                            &app_entry.original_name
+                            app_entry.original_name
                         ))?,
                         NextRuntime::NodeJs,
                     )
@@ -1741,6 +1747,8 @@ impl AppEndpoint {
                                 .chain(loadable_manifest_output.iter().flat_map(|m| &**m).copied())
                                 .map(|m| *m)
                                 .collect(),
+                            *module_graphs.full,
+                            vec![*rsc_entry],
                         )
                         .to_resolved()
                         .await?,

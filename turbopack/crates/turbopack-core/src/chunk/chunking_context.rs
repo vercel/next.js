@@ -197,13 +197,11 @@ impl ChunkGroupResult {
                     .await?
                     .into_iter()
                     .chain(self.referenced_assets.await?)
-                    .copied()
                     .map(ExpandOutputAssetsInput::Asset)
                     .chain(
                         self.references
                             .await?
                             .into_iter()
-                            .copied()
                             .map(ExpandOutputAssetsInput::Reference),
                     ),
                 false,
@@ -226,13 +224,11 @@ impl ChunkGroupResult {
                 self.referenced_assets
                     .await?
                     .into_iter()
-                    .copied()
                     .map(ExpandOutputAssetsInput::Asset)
                     .chain(
                         self.references
                             .await?
                             .into_iter()
-                            .copied()
                             .map(ExpandOutputAssetsInput::Reference),
                     ),
                 false,
@@ -383,13 +379,6 @@ pub trait ChunkingContext {
         BatchingConfig::new(BatchingConfig {
             ..Default::default()
         })
-    }
-
-    /// Whether `ChunkingType::Traced` are used to create corresponding output assets for each
-    /// traced module.
-    #[turbo_tasks::function]
-    fn is_tracing_enabled(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(false)
     }
 
     /// Whether async modules should create an new availability boundary and therefore nested async

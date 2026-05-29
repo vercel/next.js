@@ -69,11 +69,6 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn tracing(mut self, enable_tracing: bool) -> Self {
-        self.chunking_context.enable_tracing = enable_tracing;
-        self
-    }
-
     pub fn nested_async_availability(mut self, enable_nested_async_availability: bool) -> Self {
         self.chunking_context.enable_nested_async_availability = enable_nested_async_availability;
         self
@@ -297,8 +292,6 @@ pub struct BrowserChunkingContext {
     default_url_behavior: Option<UrlBehavior>,
     /// Enable HMR for this chunking
     enable_hot_module_replacement: bool,
-    /// Enable tracing for this chunking
-    enable_tracing: bool,
     /// Enable nested async availability for this chunking
     enable_nested_async_availability: bool,
     /// Enable module merging
@@ -375,7 +368,6 @@ impl BrowserChunkingContext {
                 url_behaviors: Default::default(),
                 default_url_behavior: None,
                 enable_hot_module_replacement: false,
-                enable_tracing: false,
                 enable_nested_async_availability: false,
                 enable_module_merging: false,
                 enable_dynamic_chunk_content_loading: false,
@@ -729,11 +721,6 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn is_tracing_enabled(&self) -> Vc<bool> {
-        Vc::cell(self.enable_tracing)
-    }
-
-    #[turbo_tasks::function]
     fn is_nested_async_availability_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_nested_async_availability)
     }
@@ -763,21 +750,19 @@ impl ChunkingContext for BrowserChunkingContext {
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", name = display(ident.to_string().await?));
         async move {
             let this = self.await?;
-            let entries = chunk_group.entries();
             let input_availability_info = availability_info;
             let MakeChunkGroupResult {
                 chunks,
-                referenced_output_assets,
                 references,
                 availability_info,
             } = make_chunk_group(
-                entries,
+                chunk_group,
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -819,7 +804,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
-                referenced_assets: ResolvedVc::cell(referenced_output_assets),
+                referenced_assets: OutputAssets::empty_resolved(),
                 references: ResolvedVc::cell(references),
                 availability_info,
             }
@@ -834,7 +819,7 @@ impl ChunkingContext for BrowserChunkingContext {
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
-        module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         input_availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!(
@@ -844,14 +829,12 @@ impl ChunkingContext for BrowserChunkingContext {
         );
         async move {
             let this = self.await?;
-            let entries = chunk_group.entries();
             let MakeChunkGroupResult {
                 chunks,
-                referenced_output_assets,
                 references,
                 availability_info,
             } = make_chunk_group(
-                entries,
+                chunk_group.clone(),
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -903,14 +886,14 @@ impl ChunkingContext for BrowserChunkingContext {
             }
 
             assets.push(
-                self.generate_evaluate_chunk(ident, other_assets, entries, module_graph)
+                self.generate_evaluate_chunk(ident, other_assets, entries, *module_graph)
                     .to_resolved()
                     .await?,
             );
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
-                referenced_assets: ResolvedVc::cell(referenced_output_assets),
+                referenced_assets: OutputAssets::empty_resolved(),
                 references: ResolvedVc::cell(references),
                 availability_info,
             }

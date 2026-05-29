@@ -7,6 +7,8 @@ use tracing::Span;
 use turbo_bincode::{AnyDecodeFn, AnyEncodeFn, new_hash_encoder};
 use turbo_tasks_hash::DeterministicHasher;
 
+#[cfg(feature = "task_dirty_cause")]
+use crate::TaskDirtyCause;
 use crate::{
     RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
     dyn_task_inputs::{
@@ -285,18 +287,33 @@ impl NativeFunction {
         persistence: TaskPersistence,
         reason: TaskExecutionReason,
         priority: TaskPriority,
+        #[cfg(feature = "task_dirty_cause")] cause: Option<&TaskDirtyCause>,
     ) -> Span {
         let flags = match persistence {
             TaskPersistence::Persistent => "",
             TaskPersistence::Transient => "transient",
         };
-        tracing::trace_span!(
-            "turbo_tasks::function",
-            name = self.ty.name,
-            priority = %priority,
-            flags = flags,
-            reason = reason.as_str()
-        )
+        #[cfg(feature = "task_dirty_cause")]
+        {
+            tracing::trace_span!(
+                "turbo_tasks::function",
+                name = self.ty.name,
+                priority = %priority,
+                flags = flags,
+                reason = reason.as_str(),
+                cause = cause.map(tracing::field::display),
+            )
+        }
+        #[cfg(not(feature = "task_dirty_cause"))]
+        {
+            tracing::trace_span!(
+                "turbo_tasks::function",
+                name = self.ty.name,
+                priority = %priority,
+                flags = flags,
+                reason = reason.as_str(),
+            )
+        }
     }
 
     pub fn resolve_span(&'static self, priority: TaskPriority) -> Span {

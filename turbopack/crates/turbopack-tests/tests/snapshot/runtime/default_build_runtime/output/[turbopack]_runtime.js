@@ -640,6 +640,16 @@ const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
     return ABSOLUTE_ROOT;
 }
 Context.prototype.P = resolveAbsolutePath;
+/**
+ * Returns an absolute `file://` URL for the given module path.
+ *
+ * Uses `url.pathToFileURL` so that the resulting URL is a valid file URI on
+ * all platforms (forward slashes on Windows, drive letters handled
+ * correctly, path segments URL-encoded).
+ */ function resolveFileUrl(modulePath) {
+    return require('url').pathToFileURL(resolveAbsolutePath(modulePath)).href;
+}
+Context.prototype.F = resolveFileUrl;
 /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime/runtime-utils.ts" />
 function readWebAssemblyAsResponse(path) {
     const { createReadStream } = require('fs');

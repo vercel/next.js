@@ -20,6 +20,7 @@ import {
 import {
   getBlockingRouteErrorDetails,
   getUnrenderedSegmentErrorDetails,
+  isInstantNavigationError,
   isRuntimeVariant,
   isSyncIOClientError,
   isSyncIOError,
@@ -318,5 +319,51 @@ describe('getUnrenderedSegmentErrorDetails', () => {
         )
       )
     ).toBe(null)
+  })
+})
+
+describe('isInstantNavigationError', () => {
+  function createUnrenderedSegmentError(route: string): Error {
+    return new Error(
+      `Route "${route}": Could not validate that a segment in your UI has instant navigation.\n\nDropped segment:\n  app/example/page.tsx`
+    )
+  }
+
+  it('returns true for navigation-phase blocking-route errors', () => {
+    expect(
+      isInstantNavigationError(createRuntimeBodyErrorInNavigation(ROUTE))
+    ).toBe(true)
+    expect(
+      isInstantNavigationError(createDynamicBodyErrorInNavigation(ROUTE))
+    ).toBe(true)
+  })
+
+  it('returns true for unrendered-segment errors', () => {
+    expect(
+      isInstantNavigationError(createUnrenderedSegmentError(ROUTE))
+    ).toBe(true)
+  })
+
+  it('returns false for prerender-phase blocking-route errors', () => {
+    expect(isInstantNavigationError(createRuntimeBodyError(ROUTE))).toBe(false)
+    expect(isInstantNavigationError(createDynamicBodyError(ROUTE))).toBe(false)
+  })
+
+  it('returns false for metadata/viewport/sync-io errors', () => {
+    expect(isInstantNavigationError(createDynamicMetadataError(ROUTE))).toBe(
+      false
+    )
+    expect(isInstantNavigationError(createRuntimeViewportError(ROUTE))).toBe(
+      false
+    )
+    expect(
+      isInstantNavigationError(
+        createSyncIOError(ROUTE, 'Math.random()', 'random')
+      )
+    ).toBe(false)
+  })
+
+  it('returns false for unrelated errors', () => {
+    expect(isInstantNavigationError(new Error('regular bug'))).toBe(false)
   })
 })

@@ -161,7 +161,9 @@ impl ChunkGroupEntry {
     }
 }
 
-#[derive(Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+#[derive(
+    Debug, Clone, Hash, TaskInput, PartialEq, Eq, TraceRawVcs, Encode, Decode, NonLocalValue,
+)]
 pub enum ChunkGroup {
     /// The entry chunk group of the compilation, e.g. src/index.js for a SPA, or app/foo/page.js
     /// for Next.js.
@@ -598,7 +600,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                 chunk_groups,
                             )))
                         }
-                        ChunkingType::Traced => {
+                        ChunkingType::Traced { .. } => {
                             // Traced modules are not placed in chunk groups
                             return Ok(GraphTraversalAction::Skip);
                         }

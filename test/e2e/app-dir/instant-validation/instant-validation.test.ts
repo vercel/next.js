@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import {
   expectNoBuildValidationErrors,
   expectBuildValidationSkipped,
@@ -16,7 +16,7 @@ import {
   ErrorSnapshot,
   RedboxSnapshot,
 } from '../../../lib/add-redbox-matchers'
-import { Playwright } from '../../../lib/next-webdriver'
+import { getDeterministicOutput } from '../cache-components-errors/utils'
 
 describe('instant validation', () => {
   const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
@@ -747,7 +747,7 @@ describe('instant validation', () => {
            "code": "E1261",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/invalid-sync-io/page.tsx (8:20) @ Page
          >  8 |   const now = Date.now()
               |                    ^",
@@ -825,7 +825,7 @@ describe('instant validation', () => {
            "code": "E1261",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx (12:20) @ Page
          > 12 |   const now = Date.now()
               |                    ^",
@@ -928,7 +928,7 @@ describe('instant validation', () => {
            "code": "E1261",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx (28:20) @ Page
          > 28 |   const now = Date.now()
               |                    ^",
@@ -942,24 +942,45 @@ describe('instant validation', () => {
         const result = await prerender(
           '/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input'
         )
-        expect(extractBuildValidationError(result.cliOutput))
-          .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input" accessed cookie "testCookie" which is not defined in the \`unstable_samples\` of \`unstable_instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "testCookie", value: null }\` if it should be absent.
-             at <unknown> (app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx:26:49)
-           24 |
-           25 | export default async function Page() {
-         > 26 |   const cookiePromise = cookies().then((c) => c.get('testCookie')?.value ?? '')
-              |                                                 ^
+        // TODO: This currently fails with the static-prerender sync-IO error on
+        // Date.now(), not the instant-validation sync-IO error described above.
+        // The cookies() promise hangs during the static shell, but the cache
+        // body doesn't read it, so the cache resolves with 'cached result'
+        // regardless and Date.now() runs before instant validation gets a
+        // chance. When we add staged rendering to static prerendering too,
+        // cookies should resolve at the runtime stage and the cache call should
+        // defer until its args serialize, so the cache function (and the
+        // Date.now() that follows) lands in the runtime stage.
+        expect(
+          getDeterministicOutput(result.cliOutput, {
+            isMinified: true,
+            startingLineMatch: 'Collecting page data',
+          })
+        ).toMatchInlineSnapshot(`
+         "Error: Route "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input": Next.js encountered the unstable value \`Date.now()\` while prerendering.
+
+         This value can change between renders, so it must be either prerendered or computed later.
+
+         Ways to fix this:
+           - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+           - Prerender and cache the value with \`"use cache"\`
+           - Render the value on the client with \`"use client"\`
+           - If the value is for telemetry, use a timing API such as \`performance.now()\`
+
+         Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
+             at a (app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx:28:20)
+           26 |   const cookiePromise = cookies().then((c) => c.get('testCookie')?.value ?? '')
            27 |   await cachedFn(cookiePromise)
-           28 |   const now = Date.now()
-           29 |   return ( {
-           digest: 'INSTANT_VALIDATION_ERROR'
-         }
-         Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input".
+         > 28 |   const now = Date.now()
+              |                    ^
+           29 |   return (
+           30 |     <main>
+           31 |       <p>Runtime page with sync IO after cache with cookie input: {now}</p>
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input" in your browser to investigate the error.
            - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-         Stopping prerender due to instant validation errors."
+         Error occurred prerendering page "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input". Read more: https://nextjs.org/docs/messages/prerender-error
+         Export encountered an error on /suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page: /suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input, exiting the build."
         `)
         expect(result.exitCode).toBe(1)
       }
@@ -996,7 +1017,7 @@ describe('instant validation', () => {
            "code": "E1261",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx (9:20) @ Module.generateMetadata
          >  9 |   const now = Date.now()
               |                    ^",
@@ -1092,7 +1113,7 @@ describe('instant validation', () => {
            "code": "E1261",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx (11:20) @ Module.generateMetadata
          > 11 |   const now = Date.now()
               |                    ^",
@@ -2365,7 +2386,7 @@ describe('instant validation', () => {
              "code": "E1252",
              "description": "Next.js encountered runtime data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (11:16) @ Module.generateViewport
            > 11 |   await cookies()
                 |                ^",
@@ -2424,7 +2445,7 @@ describe('instant validation', () => {
              "code": "E1255",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (11:19) @ Module.generateViewport
            > 11 |   await connection()
                 |                   ^",
@@ -2521,7 +2542,7 @@ describe('instant validation', () => {
              "code": "E1255",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/page.tsx (6:23) @ Module.generateViewport
            > 6 | export async function generateViewport(): Promise<Viewport> {
                |                       ^",
