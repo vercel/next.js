@@ -4,16 +4,22 @@ use swc_core::{
     ecma::{ast::*, visit::VisitWithAstPath},
 };
 
-use crate::{AnalyzeMode, analyzer::JsValue, code_gen::CodeGen};
+use crate::{
+    AnalyzeMode, 
+    analyzer::{
+        JsValue, 
+        graph::{
+            visitor::Analyzer
+        }, 
+    }, code_gen::CodeGen
+};
+
+pub use effects::{EffectsBlock, Effect, EffectArg, AssignmentScope, AssignmentScopes, ConditionalKind};
+pub use eval_context::EvalContext;
 
 mod effects;
 mod eval_context;
 mod visitor;
-
-pub use effects::*;
-pub use eval_context::*;
-use visitor::Analyzer;
-pub use visitor::*;
 
 #[derive(Debug)]
 pub struct VarGraph {
