@@ -52,11 +52,8 @@ pub fn as_parent_path_skip(
     ast_path: &AstNodePath<AstParentNodeRef<'_>>,
     skip: usize,
 ) -> Vec<AstParentKind> {
-    ast_path
-        .iter()
-        .take(ast_path.len() - skip)
-        .map(|n| n.kind())
-        .collect()
+    let kinds = ast_path.kinds();
+    kinds[..kinds.len() - skip].to_vec()
 }
 
 pub(super) struct Analyzer<'a> {
@@ -466,7 +463,7 @@ mod analyzer_state {
 }
 
 pub fn as_parent_path(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> Vec<AstParentKind> {
-    ast_path.iter().map(|n| n.kind()).collect()
+    ast_path.kinds().to_vec()
 }
 
 /// Extracts export names from usage patterns on a dynamic import.
@@ -601,11 +598,11 @@ pub fn as_parent_path_with(
     ast_path: &AstNodePath<AstParentNodeRef<'_>>,
     additional: AstParentKind,
 ) -> Vec<AstParentKind> {
-    ast_path
-        .iter()
-        .map(|n| n.kind())
-        .chain([additional])
-        .collect()
+    let kinds = ast_path.kinds();
+    let mut path = Vec::with_capacity(kinds.len() + 1);
+    path.extend_from_slice(kinds);
+    path.push(additional);
+    path
 }
 
 enum CallOrNewExpr<'ast> {
