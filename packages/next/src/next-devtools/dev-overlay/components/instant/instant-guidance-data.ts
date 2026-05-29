@@ -176,6 +176,8 @@ const metadataRuntimeCards: FixCard[] = [
       { text: '  title: "My Page"' },
       { text: '}' },
     ],
+    prompt:
+      'Replace the generateMetadata() function with a static metadata export. Convert all dynamic values to static strings. If the metadata depends on params, use generateStaticParams instead to prerender each variant. Do not introduce new imports.',
   },
   {
     id: 'render-page-at-request-time',
@@ -186,6 +188,8 @@ const metadataRuntimeCards: FixCard[] = [
       { text: '// page.tsx or layout.tsx' },
       { text: 'await connection()', highlight: true },
     ],
+    prompt:
+      'Add "await connection()" from "next/server" inside a component rendered by the page, wrapped in <Suspense>. This tells Next.js the page has genuine dynamic content, so the dynamic metadata is allowed. The component can render null. Confirm with the user that a fully dynamic route is the intent before applying this change.',
   },
 ]
 
@@ -200,6 +204,8 @@ const metadataDynamicCards: FixCard[] = [
       { text: '  "use cache"', highlight: true },
       { text: '  return await cms.getMeta(…)' },
     ],
+    prompt:
+      'Add "use cache" as the first statement inside generateMetadata(). This caches the metadata so it can be included in the prerender. If the metadata depends on input that changes between routes, accept it as a parameter so it becomes part of the cache key. Optionally call cacheTag(tag) to allow invalidation via revalidateTag(tag), and cacheLife(profile) to set automatic expiration. Do not introduce new imports beyond "next/cache".',
   },
   {
     id: 'render-page-at-request-time',
@@ -210,6 +216,8 @@ const metadataDynamicCards: FixCard[] = [
       { text: '// page.tsx or layout.tsx' },
       { text: 'await connection()', highlight: true },
     ],
+    prompt:
+      'Add "await connection()" from "next/server" inside a component rendered by the page, wrapped in <Suspense>. This tells Next.js the page has genuine dynamic content, so the dynamic metadata is allowed. The component can render null. Confirm with the user that a fully dynamic route is the intent before applying this change.',
   },
 ]
 
@@ -226,6 +234,8 @@ const viewportRuntimeCards: FixCard[] = [
       { text: '  themeColor: "#000"' },
       { text: '}' },
     ],
+    prompt:
+      'Replace the generateViewport() function with a static viewport export. Convert all dynamic values to static ones. Do not introduce new imports.',
   },
   {
     id: 'allow-blocking-route',
@@ -236,6 +246,8 @@ const viewportRuntimeCards: FixCard[] = [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
     ],
+    prompt:
+      'Add "export const unstable_instant = false" as a top-level export in the page or layout file. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request. If the user wants to keep the navigation instant, choose "Use static viewport" instead.',
   },
 ]
 
@@ -250,6 +262,8 @@ const viewportDynamicCards: FixCard[] = [
       { text: '  "use cache"', highlight: true },
       { text: '  return await db.getViewport(…)' },
     ],
+    prompt:
+      'Add "use cache" as the first statement inside generateViewport(). This caches the viewport so Next.js can include it in the prerender. Optionally call cacheLife(profile) to set automatic expiration. Do not introduce new imports beyond "next/cache".',
   },
   {
     id: 'allow-blocking-route',
@@ -260,6 +274,8 @@ const viewportDynamicCards: FixCard[] = [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
     ],
+    prompt:
+      'Add "export const unstable_instant = false" as a top-level export in the page or layout file. Confirm with the user that the route is intentionally fully dynamic before applying this change: the export exempts the segment from instant-navigation validation, and the route renders on every request. If the user wants to keep the navigation instant, choose "Cache the viewport data" instead.',
   },
 ]
 
@@ -276,6 +292,8 @@ const syncMathCards: FixCard[] = [
       { text: 'const id = Math.random()' },
       { text: 'return <Item id={id} />' },
     ],
+    prompt:
+      'Add "await connection()" from "next/server" immediately before the Math.random() call. This marks the component as request-time, so Next.js excludes it from the prerendered HTML and streams it in from the nearest <Suspense> boundary on each request. Do not change the call site of Math.random() itself. Only change the call site once you\'ve confirmed with the user that a fresh value on every request is the intent.',
   },
   {
     id: 'cache-the-random-value',
@@ -287,6 +305,8 @@ const syncMathCards: FixCard[] = [
       { text: '  "use cache"', highlight: true },
       { text: '  return String(Math.random())' },
     ],
+    prompt:
+      'Move the Math.random() call into its own function or component and add "use cache" as the first statement of the body. Optionally call cacheLife(profile) to control how long the same random value is reused before regeneration. Do not introduce new imports beyond "next/cache".',
   },
   {
     id: 'render-on-the-client',
@@ -298,6 +318,8 @@ const syncMathCards: FixCard[] = [
       { text: '// runs in the browser' },
       { text: 'const id = Math.random()' },
     ],
+    prompt:
+      'Move the component that calls Math.random() into a Client Component by adding "use client" at the top of the file. The browser produces a fresh value on each visit. If the value needs to be hydration-stable, compute it inside a useEffect or event handler instead of inline during render.',
   },
 ]
 
@@ -312,6 +334,8 @@ const syncDateCards: FixCard[] = [
       { text: 'const t = Date.now()' },
       { text: 'return <Banner time={t} />' },
     ],
+    prompt:
+      'Add "await connection()" from "next/server" immediately before the Date.now() call. This marks the component as request-time, so Next.js excludes it from the prerendered HTML and streams it in from the nearest <Suspense> boundary on each request. Do not change the call site of Date.now() itself. Only change the call site once you\'ve confirmed with the user that a fresh value on every request is the intent.',
   },
   {
     id: 'cache-the-timestamp',
@@ -323,6 +347,8 @@ const syncDateCards: FixCard[] = [
       { text: '  "use cache"', highlight: true },
       { text: '  return <time>{Date.now()}</time>' },
     ],
+    prompt:
+      'Move the Date.now() call into its own function and add "use cache" as the first statement. Optionally call cacheLife(profile) to control how often the timestamp is regenerated. Do not introduce new imports beyond "next/cache".',
   },
   {
     id: 'render-on-the-client',
@@ -334,6 +360,8 @@ const syncDateCards: FixCard[] = [
       { text: '// runs in the browser' },
       { text: 'const t = Date.now()' },
     ],
+    prompt:
+      'Move the component that calls Date.now() into a Client Component by adding "use client" at the top of the file. If the value needs to be hydration-stable, compute it inside useEffect instead of inline during render.',
   },
   {
     id: 'measure-elapsed-time',
@@ -345,6 +373,8 @@ const syncDateCards: FixCard[] = [
       { text: 'doWork()' },
       { text: 'const ms = performance.now() - start' },
     ],
+    prompt:
+      'Replace Date.now() with performance.now() if the value is used for elapsed-time measurement, instrumentation, or telemetry. performance.now() returns a high-resolution monotonic timestamp and does not interfere with prerendering. Do not change the call if the value is rendered into the UI.',
   },
 ]
 
@@ -359,6 +389,8 @@ const syncCryptoCards: FixCard[] = [
       { text: 'const id = crypto.randomUUID()' },
       { text: 'return <Token id={id} />' },
     ],
+    prompt:
+      'Add "await connection()" from "next/server" immediately before the crypto call. This marks the component as request-time, so Next.js excludes it from the prerendered HTML and streams it in from the nearest <Suspense> boundary on each request. Do not change the crypto call itself. Only change the call site once you\'ve confirmed with the user that a fresh value on every request is the intent.',
   },
   {
     id: 'cache-the-generated-value',
@@ -370,6 +402,8 @@ const syncCryptoCards: FixCard[] = [
       { text: '  "use cache"', highlight: true },
       { text: '  return crypto.randomUUID()' },
     ],
+    prompt:
+      'Move the crypto call into its own function and add "use cache" as the first statement. Useful when the same generated value is reused as a key for another cached operation (talking to a database, signing a payload). Do not introduce new imports beyond "next/cache".',
   },
   {
     id: 'render-on-the-client',
@@ -381,6 +415,8 @@ const syncCryptoCards: FixCard[] = [
       { text: '// runs in the browser' },
       { text: 'const id = crypto.randomUUID()' },
     ],
+    prompt:
+      'Move the component that calls the crypto API into a Client Component by adding "use client" at the top of the file. The browser produces the value, so the server never has to. If the value needs to be hydration-stable, compute it inside useEffect instead of inline during render.',
   },
 ]
 
@@ -397,6 +433,8 @@ const syncClientDateCards: FixCard[] = [
       { text: '  <DateDisplay />' },
       { text: '</Suspense>', highlight: true },
     ],
+    prompt:
+      'Wrap the Client Component that calls Date.now() in <Suspense> in its parent. The fallback prop must render synchronous, deterministic JSX (no Date.now or Math.random) that approximates the final layout. Import Suspense from "react". Do not change the Date.now() call.',
   },
   {
     id: 'move-into-effect-or-event-handler',
@@ -408,6 +446,8 @@ const syncClientDateCards: FixCard[] = [
       { text: '  setT(Date.now())' },
       { text: '}} />' },
     ],
+    prompt:
+      'Move the Date.now() call out of the inline render path and into useEffect (for mount-time values) or an event handler (for interaction values). Initialize state to a deterministic value so SSR and the first hydrated render agree. Do not introduce new imports beyond "react".',
   },
   {
     id: 'measure-elapsed-time',
@@ -419,6 +459,8 @@ const syncClientDateCards: FixCard[] = [
       { text: 'doWork()' },
       { text: 'const ms = performance.now() - start' },
     ],
+    prompt:
+      'Replace Date.now() with performance.now() if the value is used for elapsed-time measurement, instrumentation, or telemetry. performance.now() returns a high-resolution monotonic timestamp and does not interfere with prerendering. Do not change the call if the value is rendered into the UI.',
   },
 ]
 
@@ -433,6 +475,8 @@ const syncClientMathCards: FixCard[] = [
       { text: '  <RandomId />' },
       { text: '</Suspense>', highlight: true },
     ],
+    prompt:
+      'Wrap the Client Component that calls Math.random() in <Suspense> in its parent. The fallback prop must render synchronous, deterministic JSX (no Math.random or Date.now) that approximates the final layout (skeleton, spinner, or stable placeholder text). Import Suspense from "react". Do not change the Math.random() call.',
   },
   {
     id: 'move-into-effect-or-event-handler',
@@ -444,6 +488,8 @@ const syncClientMathCards: FixCard[] = [
       { text: '  setId(Math.random())' },
       { text: '}} />' },
     ],
+    prompt:
+      'Move the Math.random() call out of the inline render path and into useEffect (for mount-time values) or an event handler (for interaction values). Initialize state to a deterministic value so SSR and the first hydrated render agree. Do not introduce new imports beyond "react".',
   },
 ]
 
@@ -458,6 +504,8 @@ const syncClientCryptoCards: FixCard[] = [
       { text: '  <TokenId />' },
       { text: '</Suspense>', highlight: true },
     ],
+    prompt:
+      'Wrap the Client Component that calls the crypto API in <Suspense> in its parent. The fallback prop must render synchronous, deterministic JSX that approximates the final layout. Import Suspense from "react". Do not change the crypto call.',
   },
   {
     id: 'move-into-effect-or-event-handler',
@@ -469,6 +517,8 @@ const syncClientCryptoCards: FixCard[] = [
       { text: '  setId(crypto.randomUUID())' },
       { text: '}} />' },
     ],
+    prompt:
+      'Move the crypto call out of the inline render path and into useEffect (for mount-time values) or an event handler (for interaction values). Initialize state to a deterministic value so SSR and the first hydrated render agree. Do not introduce new imports beyond "react".',
   },
 ]
 
