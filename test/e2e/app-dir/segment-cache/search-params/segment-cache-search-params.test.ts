@@ -45,7 +45,7 @@ describe('segment cache (search params)', () => {
         await revealC.click()
       },
       // This should not issue a new request for the page segment, because
-      // search params are not included in the the PPR shell. So we can reuse
+      // search params are not included in the PPR shell. So we can reuse
       // the shell we fetched for `searchParam=a`.
       { includes: 'target-page-with-search-param', block: 'reject' }
     )
