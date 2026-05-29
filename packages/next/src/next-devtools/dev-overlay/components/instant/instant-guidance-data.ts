@@ -195,6 +195,8 @@ const unrenderedSegmentCards: FixCard[] = [
       },
       { text: '}' },
     ],
+    prompt:
+      'Ensure the layout renders {children} so the dropped segment is included in the render tree. If the layout conditionally omits {children} (e.g. showing a login page instead), restructure so both branches render {children} and use a Suspense boundary or conditional content inside the child segment instead. If the segment is a parallel route slot, ensure the layout renders the slot prop.',
   },
   {
     id: 'skip-validation-on-the-segment',
@@ -206,6 +208,8 @@ const unrenderedSegmentCards: FixCard[] = [
       { text: '' },
       { text: 'export const instant = false', highlight: true },
     ],
+    prompt:
+      'Add "export const unstable_instant = false" as a top-level export in the dropped segment\'s page or layout file. This tells Next.js the segment does not need instant-navigation validation. Confirm with the user that skipping validation is intentional before applying this change.',
   },
 ]
 
