@@ -28,7 +28,7 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
-    nft_json::{relativize_glob, traced_modules_for_entries},
+    nft::{relativize_glob, traced_modules_for_entries},
     project::Project,
 };
 
