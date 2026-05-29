@@ -79,6 +79,7 @@ impl JsValue {
             JsValue::Url(..)
             | JsValue::Array { .. }
             | JsValue::Object { .. }
+            | JsValue::Promise(..)
             | JsValue::WellKnownObject(..)
             | JsValue::WellKnownFunction(..)
             | JsValue::Function(..) => Some(true),
@@ -141,6 +142,9 @@ impl JsValue {
                 }
                 .map(|x| x ^ negate)
             }
+            JsValue::Tenary(_, _, cons, alt) => {
+                merge_if_known([&**cons, &**alt], JsValue::is_truthy)
+            }
             _ => None,
         }
     }
@@ -164,6 +168,7 @@ impl JsValue {
             | JsValue::WellKnownFunction(..)
             | JsValue::Not(..)
             | JsValue::Binary(..)
+            | JsValue::Promise(..)
             | JsValue::Function(..) => Some(false),
             JsValue::Alternatives {
                 total_nodes: _,
@@ -182,6 +187,9 @@ impl JsValue {
                 }
                 LogicalOperator::NullishCoalescing => all_if_known(list, JsValue::is_nullish),
             },
+            JsValue::Tenary(_, _, cons, alt) => {
+                merge_if_known([&**cons, &**alt], JsValue::is_nullish)
+            }
             _ => None,
         }
     }
@@ -205,6 +213,9 @@ impl JsValue {
                 values,
                 logical_property: _,
             } => merge_if_known(values, JsValue::is_empty_string),
+            JsValue::Tenary(_, _, cons, alt) => {
+                merge_if_known([&**cons, &**alt], JsValue::is_empty_string)
+            }
             JsValue::Logical(_, op, list) => match op {
                 LogicalOperator::And => {
                     shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_empty_string)
@@ -284,6 +295,10 @@ impl JsValue {
                 logical_property: _,
             } => merge_if_known(values, JsValue::is_string),
 
+            JsValue::Tenary(_, _, cons, alt) => {
+                merge_if_known([&**cons, &**alt], JsValue::is_string)
+            }
+
             JsValue::Call(_, call)
                 if matches!(
                     call.callee(),
@@ -315,7 +330,6 @@ impl JsValue {
             | JsValue::Call(..)
             | JsValue::MemberCall(..)
             | JsValue::Member(..)
-            | JsValue::Tenary(..)
             | JsValue::SuperCall(..)
             | JsValue::Iterated(..) => None,
         }
@@ -464,7 +478,105 @@ mod tests {
     use rstest::rstest;
     use turbo_rcstr::rcstr;
 
-    use crate::analyzer::graph::EvalContext;
+    use crate::analyzer::{ConstantValue, JsValue, graph::EvalContext};
+
+    // `construct_test_ternary(cons, alt)` builds a ternary with an unknown test condition.
+    fn construct_test_ternary(cons: JsValue, alt: JsValue) -> JsValue {
+        JsValue::tenary(
+            Box::new(JsValue::unknown_empty(false, rcstr!("test"))),
+            Box::new(cons),
+            Box::new(alt),
+        )
+    }
+
+    #[rstest]
+    #[case(JsValue::from(1.0))]
+    #[case(JsValue::from("hi"))]
+    #[case(ConstantValue::True.into())]
+    #[case(JsValue::promise(ConstantValue::Null.into()))]
+    #[case(construct_test_ternary(JsValue::from(1.0), JsValue::from("hi")))]
+    fn is_truthy_positive(#[case] v: JsValue) {
+        assert_eq!(v.is_truthy(), Some(true), "expected '{v}' to be truthy");
+    }
+
+    #[rstest]
+    #[case(JsValue::from(0.0))]
+    #[case(JsValue::from(""))]
+    #[case(ConstantValue::False.into())]
+    #[case(ConstantValue::Null.into())]
+    #[case(ConstantValue::Undefined.into())]
+    #[case(construct_test_ternary(JsValue::from(0.0), JsValue::from("")))]
+    fn is_truthy_negative(#[case] v: JsValue) {
+        assert_eq!(v.is_truthy(), Some(false), "expected '{v}' to be falsy");
+    }
+
+    #[rstest]
+    #[case(ConstantValue::Null.into())]
+    #[case(ConstantValue::Undefined.into())]
+    #[case(construct_test_ternary(ConstantValue::Null.into(), ConstantValue::Undefined.into()))]
+    fn is_nullish_positive(#[case] v: JsValue) {
+        assert_eq!(v.is_nullish(), Some(true), "expected '{v}' to be nullish");
+    }
+
+    #[rstest]
+    #[case(JsValue::from(0.0))]
+    #[case(JsValue::from(""))]
+    #[case(JsValue::from("hi"))]
+    #[case(ConstantValue::True.into())]
+    #[case(JsValue::promise(ConstantValue::Null.into()))]
+    #[case(construct_test_ternary(JsValue::from(0.0), JsValue::from("hi")))]
+    fn is_nullish_negative(#[case] v: JsValue) {
+        assert_eq!(
+            v.is_nullish(),
+            Some(false),
+            "expected '{v}' not to be nullish"
+        );
+    }
+
+    #[rstest]
+    #[case(JsValue::from("hi"))]
+    #[case(JsValue::from(""))]
+    #[case(construct_test_ternary(JsValue::from("a"), JsValue::from("b")))]
+    fn is_string_positive(#[case] v: JsValue) {
+        assert_eq!(v.is_string(), Some(true), "expected '{v}' to be a string");
+    }
+
+    #[rstest]
+    #[case(JsValue::from(1.0))]
+    #[case(ConstantValue::True.into())]
+    #[case(ConstantValue::Null.into())]
+    #[case(construct_test_ternary(JsValue::from(1.0), JsValue::from(2.0)))]
+    fn is_string_negative(#[case] v: JsValue) {
+        assert_eq!(
+            v.is_string(),
+            Some(false),
+            "expected '{v}' not to be a string"
+        );
+    }
+
+    #[rstest]
+    #[case(JsValue::from(""))]
+    #[case(construct_test_ternary(JsValue::from(""), JsValue::from("")))]
+    fn is_empty_string_positive(#[case] v: JsValue) {
+        assert_eq!(
+            v.is_empty_string(),
+            Some(true),
+            "expected '{v}' to be an empty string"
+        );
+    }
+
+    #[rstest]
+    #[case(JsValue::from("hi"))]
+    #[case(JsValue::from(1.0))]
+    #[case(ConstantValue::True.into())]
+    #[case(construct_test_ternary(JsValue::from("a"), JsValue::from("b")))]
+    fn is_empty_string_negative(#[case] v: JsValue) {
+        assert_eq!(
+            v.is_empty_string(),
+            Some(false),
+            "expected '{v}' not to be an empty string"
+        );
+    }
 
     #[test]
     fn is_string_constant() {
