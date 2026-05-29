@@ -1,39 +1,25 @@
-#![allow(clippy::redundant_closure_call)]
-
 use std::{
-    borrow::Cow,
-    fmt::{self, Display, Formatter, Write},
-    hash::{BuildHasherDefault, Hash, Hasher},
+    fmt::{self},
+    hash::{BuildHasherDefault, Hash},
     mem::take,
     sync::Arc,
 };
 
 use anyhow::Result;
-use either::Either;
 use num_bigint::BigInt;
-use num_traits::identities::Zero;
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
-use swc_core::{
-    atoms::Wtf8Atom,
-    ecma::{
-        ast::{Id, Lit},
-        atoms::Atom,
-    },
-};
+use swc_core::ecma::{ast::Id, atoms::Atom};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::FxIndexSet;
 use turbopack_core::compile_time_info::{
     CompileTimeDefineValue, DefinableNameSegmentRef, DefinableNameSegmentRefs, FreeVarReference,
-    TotalOrderF64,
 };
 
-use super::{
-    WellKnownFunctionKind, WellKnownObjectKind,
-    graph::{EvalContext, VarGraph},
-    imports::ImportAnnotations,
+use crate::analyzer::{
+    WellKnownFunctionKind, WellKnownObjectKind, 
+    graph::{EvalContext, VarGraph}
 };
-use crate::utils::StringifyJs;
 
 mod constants;
 mod display;

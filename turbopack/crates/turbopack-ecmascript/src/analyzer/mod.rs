@@ -1,5 +1,3 @@
-#![allow(clippy::redundant_closure_call)]
-
 use std::{
     hash::{Hash, Hasher},
     sync::LazyLock,

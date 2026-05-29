@@ -1,6 +1,7 @@
-#![allow(clippy::redundant_closure_call)]
-
-use super::*;
+use crate::analyzer::{
+    ConstantValue, JsValue, LogicalOperator, LogicalProperty, ObjectPart, PositiveBinaryOperator,
+    WellKnownFunctionKind,
+};
 
 // Compile-time information gathering
 impl JsValue {

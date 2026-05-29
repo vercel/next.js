@@ -1,6 +1,8 @@
-#![allow(clippy::redundant_closure_call)]
+use std::fmt::Display;
 
-use super::*;
+use either::Either;
+
+use crate::analyzer::{JsValue, ModuleValue, ObjectPart};
 
 impl Display for ObjectPart {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

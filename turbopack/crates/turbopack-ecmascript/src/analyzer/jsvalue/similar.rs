@@ -1,6 +1,6 @@
-#![allow(clippy::redundant_closure_call)]
+use std::hash::Hash;
 
-use super::*;
+use crate::analyzer::{CallList, JsValue, MemberCallList, ModuleValue, ObjectPart};
 
 // Like equality, but with depth limit
 impl JsValue {

@@ -1,6 +1,4 @@
-#![allow(clippy::redundant_closure_call)]
-
-use super::*;
+use crate::analyzer::{JsValue, ObjectPart};
 
 // Visiting
 impl JsValue {

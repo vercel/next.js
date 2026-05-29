@@ -1,6 +1,23 @@
-#![allow(clippy::redundant_closure_call)]
+use std::{
+    borrow::Cow,
+    fmt::{Display, Formatter},
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
 
-use super::*;
+use num_bigint::BigInt;
+use num_traits::Zero;
+use swc_core::{
+    atoms::Wtf8Atom,
+    ecma::{ast::Lit, atoms::Atom},
+};
+use turbo_rcstr::RcStr;
+use turbopack_core::compile_time_info::TotalOrderF64;
+
+use crate::{
+    analyzer::{JsValue, imports::ImportAnnotations},
+    utils::StringifyJs,
+};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum ObjectPart {

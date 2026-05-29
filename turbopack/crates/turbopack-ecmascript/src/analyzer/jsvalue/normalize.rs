@@ -1,6 +1,9 @@
-#![allow(clippy::redundant_closure_call)]
+use std::{hash::BuildHasherDefault, mem::take};
 
-use super::{similar::SimilarJsValue, *};
+use rustc_hash::FxHasher;
+use turbo_tasks::FxIndexSet;
+
+use crate::analyzer::{JsValue, jsvalue::similar::SimilarJsValue};
 
 // Alternatives management
 impl JsValue {

@@ -1,6 +1,11 @@
-#![allow(clippy::redundant_closure_call)]
+use std::fmt::Write;
 
-use super::*;
+use either::Either;
+
+use crate::analyzer::{
+    JsValue, ModuleValue, ObjectPart, WellKnownFunctionKind, WellKnownObjectKind,
+    jsvalue::pretty_join,
+};
 
 // Methods for explaining a value
 impl JsValue {
