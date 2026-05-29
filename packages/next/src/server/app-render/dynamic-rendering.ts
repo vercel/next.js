@@ -1481,7 +1481,7 @@ export function getNavigationDisallowedDynamicReasons(
           `\n\nWays to fix this:` +
           `\n  - Render the dropped segment` +
           `\n  - Set \`export const instant = false\` on the dropped segment to skip validation` +
-          `\n\nLearn more: https://nextjs.org/docs/messages/unrendered-instant-segment`
+          `\n\nLearn more: https://nextjs.org/docs/messages/instant-unrendered-segment`
       }
       const error = new Error(message)
       return error

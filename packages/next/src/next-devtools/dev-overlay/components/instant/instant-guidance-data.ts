@@ -175,7 +175,7 @@ const unrenderedSegmentCards: FixCard[] = [
     id: 'render-the-dropped-segment',
     title: 'Render the dropped segment',
     group: 'render',
-    link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#render-the-dropped-segment',
+    link: 'https://nextjs.org/docs/messages/instant-unrendered-segment#render-the-dropped-segment',
     snippets: [
       {
         text: 'function Layout({ children }) {',
@@ -202,7 +202,7 @@ const unrenderedSegmentCards: FixCard[] = [
     id: 'skip-validation-on-the-segment',
     title: 'Skip validation on the segment',
     group: 'ignore',
-    link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#skip-validation-on-the-segment',
+    link: 'https://nextjs.org/docs/messages/instant-unrendered-segment#skip-validation-on-the-segment',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: '' },
@@ -593,7 +593,7 @@ export const DOCS_URLS: Record<GuidanceKind, string> = {
   'sync-io': '',
   'sync-io-client': '',
   'unrendered-segment':
-    'https://nextjs.org/docs/messages/unrendered-instant-segment',
+    'https://nextjs.org/docs/messages/instant-unrendered-segment',
 }
 
 export const SYNC_IO_DOCS: Record<string, string> = {
