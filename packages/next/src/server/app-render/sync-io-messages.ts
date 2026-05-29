@@ -1,15 +1,15 @@
 export type SyncIOApiType = 'time' | 'random' | 'crypto'
 
 const SYNC_IO_DOCS: Record<SyncIOApiType, string> = {
-  time: 'https://nextjs.org/docs/messages/next-prerender-current-time',
-  random: 'https://nextjs.org/docs/messages/next-prerender-random',
-  crypto: 'https://nextjs.org/docs/messages/next-prerender-crypto',
+  time: 'https://nextjs.org/docs/messages/blocking-prerender-current-time',
+  random: 'https://nextjs.org/docs/messages/blocking-prerender-random',
+  crypto: 'https://nextjs.org/docs/messages/blocking-prerender-crypto',
 }
 
 const SYNC_IO_CLIENT_DOCS: Record<SyncIOApiType, string> = {
-  time: 'https://nextjs.org/docs/messages/next-prerender-current-time-client',
-  random: 'https://nextjs.org/docs/messages/next-prerender-random-client',
-  crypto: 'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+  time: 'https://nextjs.org/docs/messages/blocking-prerender-current-time-client',
+  random: 'https://nextjs.org/docs/messages/blocking-prerender-random-client',
+  crypto: 'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
 }
 
 const SYNC_IO_RUNTIME_DOCS: Record<SyncIOApiType, string> = {

@@ -71,7 +71,7 @@ export function createRuntimeMetadataError(route: string): Error {
       `Ways to fix this:\n` +
       `  - Use a static metadata export instead of \`generateMetadata()\`\n` +
       `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
+      `Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime`
   )
 }
 
@@ -82,7 +82,7 @@ export function createDynamicMetadataError(route: string): Error {
       `Ways to fix this:\n` +
       `  - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`\n` +
       `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
+      `Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic`
   )
 }
 
@@ -93,7 +93,7 @@ export function createRuntimeViewportError(route: string): Error {
       `Ways to fix this:\n` +
       `  - Use a static viewport export instead of \`generateViewport()\`\n` +
       `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
+      `Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime`
   )
 }
 
@@ -104,7 +104,7 @@ export function createDynamicViewportError(route: string): Error {
       `Ways to fix this:\n` +
       `  - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`\n` +
       `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
+      `Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic`
   )
 }
 
@@ -121,7 +121,7 @@ export function createDynamicOrRuntimeViewportError(route: string): Error {
       `  - Use a static viewport export instead of \`generateViewport()\`\n` +
       `  - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`\n` +
       `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
+      `Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic`
   )
 }
 
@@ -138,7 +138,7 @@ export function createDynamicOrRuntimeMetadataError(route: string): Error {
       `  - Use a static metadata export instead of \`generateMetadata()\`\n` +
       `  - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`\n` +
       `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
+      `Learn more: https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic`
   )
 }
 

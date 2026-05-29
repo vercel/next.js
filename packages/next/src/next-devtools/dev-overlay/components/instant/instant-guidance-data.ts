@@ -170,7 +170,7 @@ const metadataRuntimeCards: FixCard[] = [
     id: 'use-static-metadata',
     title: 'Use static metadata',
     group: 'static',
-    link: 'https://nextjs.org/docs/messages/next-prerender-runtime-metadata#use-static-metadata',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata',
     snippets: [
       { text: 'export const metadata = {', highlight: true },
       { text: '  title: "My Page"' },
@@ -181,7 +181,7 @@ const metadataRuntimeCards: FixCard[] = [
     id: 'render-page-at-request-time',
     title: 'Mark the route as dynamic',
     group: 'dynamic',
-    link: 'https://nextjs.org/docs/messages/next-prerender-runtime-metadata#mark-the-route-as-dynamic',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#mark-the-route-as-dynamic',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'await connection()', highlight: true },
@@ -194,7 +194,7 @@ const metadataDynamicCards: FixCard[] = [
     id: 'cache-the-metadata',
     title: 'Cache the metadata',
     group: 'cache',
-    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#cache-the-metadata',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#cache-the-metadata',
     snippets: [
       { text: 'async function generateMetadata() {' },
       { text: '  "use cache"', highlight: true },
@@ -205,7 +205,7 @@ const metadataDynamicCards: FixCard[] = [
     id: 'render-page-at-request-time',
     title: 'Mark the route as dynamic',
     group: 'dynamic',
-    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#mark-the-route-as-dynamic',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic#mark-the-route-as-dynamic',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'await connection()', highlight: true },
@@ -220,7 +220,7 @@ const viewportRuntimeCards: FixCard[] = [
     id: 'use-static-viewport',
     title: 'Use static viewport',
     group: 'static',
-    link: 'https://nextjs.org/docs/messages/next-prerender-runtime-viewport#use-static-viewport',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport',
     snippets: [
       { text: 'export const viewport = {', highlight: true },
       { text: '  themeColor: "#000"' },
@@ -231,7 +231,7 @@ const viewportRuntimeCards: FixCard[] = [
     id: 'allow-blocking-route',
     title: 'Allow blocking route',
     group: 'block',
-    link: 'https://nextjs.org/docs/messages/next-prerender-runtime-viewport#allow-blocking-route',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
@@ -244,7 +244,7 @@ const viewportDynamicCards: FixCard[] = [
     id: 'cache-viewport-data',
     title: 'Cache the viewport data',
     group: 'cache',
-    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#cache-the-viewport-data',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#cache-the-viewport-data',
     snippets: [
       { text: 'async function generateViewport() {' },
       { text: '  "use cache"', highlight: true },
@@ -255,7 +255,7 @@ const viewportDynamicCards: FixCard[] = [
     id: 'allow-blocking-route',
     title: 'Allow blocking route',
     group: 'block',
-    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#allow-blocking-route',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
@@ -270,7 +270,7 @@ const syncMathCards: FixCard[] = [
     id: 'render-at-request-time',
     title: 'Generate on every request',
     group: 'dynamic',
-    link: 'https://nextjs.org/docs/messages/next-prerender-random#generate-on-every-request',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request',
     snippets: [
       { text: 'await connection()', highlight: true },
       { text: 'const id = Math.random()' },
@@ -281,7 +281,7 @@ const syncMathCards: FixCard[] = [
     id: 'cache-the-random-value',
     title: 'Cache the random value',
     group: 'cache',
-    link: 'https://nextjs.org/docs/messages/next-prerender-random#cache-the-random-value',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value',
     snippets: [
       { text: 'function RandomId() {' },
       { text: '  "use cache"', highlight: true },
@@ -292,7 +292,7 @@ const syncMathCards: FixCard[] = [
     id: 'render-on-the-client',
     title: 'Render on the client',
     group: 'client',
-    link: 'https://nextjs.org/docs/messages/next-prerender-random#render-on-the-client',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
       { text: '// runs in the browser' },
@@ -306,7 +306,7 @@ const syncDateCards: FixCard[] = [
     id: 'render-at-request-time',
     title: 'Generate on every request',
     group: 'dynamic',
-    link: 'https://nextjs.org/docs/messages/next-prerender-current-time#generate-on-every-request',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time#generate-on-every-request',
     snippets: [
       { text: 'await connection()', highlight: true },
       { text: 'const t = Date.now()' },
@@ -317,7 +317,7 @@ const syncDateCards: FixCard[] = [
     id: 'cache-the-timestamp',
     title: 'Cache the timestamp',
     group: 'cache',
-    link: 'https://nextjs.org/docs/messages/next-prerender-current-time#cache-the-timestamp',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time#cache-the-timestamp',
     snippets: [
       { text: 'function Timestamp() {' },
       { text: '  "use cache"', highlight: true },
@@ -328,7 +328,7 @@ const syncDateCards: FixCard[] = [
     id: 'render-on-the-client',
     title: 'Render on the client',
     group: 'client',
-    link: 'https://nextjs.org/docs/messages/next-prerender-current-time#render-on-the-client',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
       { text: '// runs in the browser' },
@@ -339,7 +339,7 @@ const syncDateCards: FixCard[] = [
     id: 'measure-elapsed-time',
     title: 'For telemetry, use a timing API',
     group: 'measure',
-    link: 'https://nextjs.org/docs/messages/next-prerender-current-time#for-telemetry-use-a-timing-api',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time#for-telemetry-use-a-timing-api',
     snippets: [
       { text: 'const start = performance.now()', highlight: true },
       { text: 'doWork()' },
@@ -353,7 +353,7 @@ const syncCryptoCards: FixCard[] = [
     id: 'render-at-request-time',
     title: 'Generate on every request',
     group: 'dynamic',
-    link: 'https://nextjs.org/docs/messages/next-prerender-crypto#generate-on-every-request',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto#generate-on-every-request',
     snippets: [
       { text: 'await connection()', highlight: true },
       { text: 'const id = crypto.randomUUID()' },
@@ -364,7 +364,7 @@ const syncCryptoCards: FixCard[] = [
     id: 'cache-the-generated-value',
     title: 'Cache the generated value',
     group: 'cache',
-    link: 'https://nextjs.org/docs/messages/next-prerender-crypto#cache-the-generated-value',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto#cache-the-generated-value',
     snippets: [
       { text: 'function TokenId() {' },
       { text: '  "use cache"', highlight: true },
@@ -375,7 +375,7 @@ const syncCryptoCards: FixCard[] = [
     id: 'render-on-the-client',
     title: 'Render on the client',
     group: 'client',
-    link: 'https://nextjs.org/docs/messages/next-prerender-crypto#render-on-the-client',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
       { text: '// runs in the browser' },
@@ -391,7 +391,7 @@ const syncClientDateCards: FixCard[] = [
     id: 'wrap-in-or-move-into-suspense',
     title: 'Wrap in or move into Suspense',
     group: 'stream',
-    link: 'https://nextjs.org/docs/messages/next-prerender-current-time-client#wrap-in-or-move-into-suspense',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <DateDisplay />' },
@@ -402,7 +402,7 @@ const syncClientDateCards: FixCard[] = [
     id: 'move-into-effect-or-event-handler',
     title: 'Move into effect or event handler',
     group: 'defer',
-    link: 'https://nextjs.org/docs/messages/next-prerender-current-time-client#move-into-effect-or-event-handler',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler',
     snippets: [
       { text: '<button onClick={() => {', highlight: true },
       { text: '  setT(Date.now())' },
@@ -413,7 +413,7 @@ const syncClientDateCards: FixCard[] = [
     id: 'measure-elapsed-time',
     title: 'For telemetry, use a timing API',
     group: 'measure',
-    link: 'https://nextjs.org/docs/messages/next-prerender-current-time-client#for-telemetry-use-a-timing-api',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api',
     snippets: [
       { text: 'const start = performance.now()', highlight: true },
       { text: 'doWork()' },
@@ -427,7 +427,7 @@ const syncClientMathCards: FixCard[] = [
     id: 'wrap-in-or-move-into-suspense',
     title: 'Wrap in or move into Suspense',
     group: 'stream',
-    link: 'https://nextjs.org/docs/messages/next-prerender-random-client#wrap-in-or-move-into-suspense',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-random-client#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <RandomId />' },
@@ -438,7 +438,7 @@ const syncClientMathCards: FixCard[] = [
     id: 'move-into-effect-or-event-handler',
     title: 'Move into effect or event handler',
     group: 'defer',
-    link: 'https://nextjs.org/docs/messages/next-prerender-random-client#move-into-effect-or-event-handler',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-random-client#move-into-effect-or-event-handler',
     snippets: [
       { text: '<button onClick={() => {', highlight: true },
       { text: '  setId(Math.random())' },
@@ -452,7 +452,7 @@ const syncClientCryptoCards: FixCard[] = [
     id: 'wrap-in-or-move-into-suspense',
     title: 'Wrap in or move into Suspense',
     group: 'stream',
-    link: 'https://nextjs.org/docs/messages/next-prerender-crypto-client#wrap-in-or-move-into-suspense',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto-client#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <TokenId />' },
@@ -463,7 +463,7 @@ const syncClientCryptoCards: FixCard[] = [
     id: 'move-into-effect-or-event-handler',
     title: 'Move into effect or event handler',
     group: 'defer',
-    link: 'https://nextjs.org/docs/messages/next-prerender-crypto-client#move-into-effect-or-event-handler',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto-client#move-into-effect-or-event-handler',
     snippets: [
       { text: '<button onClick={() => {', highlight: true },
       { text: '  setId(crypto.randomUUID())' },
@@ -485,64 +485,68 @@ export type GuidanceVariant = 'runtime' | 'dynamic'
 
 export const DOCS_URLS: Record<GuidanceKind, string> = {
   'blocking-route': 'https://nextjs.org/docs/messages/blocking-route',
-  metadata: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata',
-  viewport: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport',
+  metadata:
+    'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic',
+  viewport:
+    'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic',
   'sync-io': '',
   'sync-io-client': '',
 }
 
 export const SYNC_IO_DOCS: Record<string, string> = {
-  'Math.random()': 'https://nextjs.org/docs/messages/next-prerender-random',
-  'Date.now()': 'https://nextjs.org/docs/messages/next-prerender-current-time',
-  'Date()': 'https://nextjs.org/docs/messages/next-prerender-current-time',
-  'new Date()': 'https://nextjs.org/docs/messages/next-prerender-current-time',
+  'Math.random()': 'https://nextjs.org/docs/messages/blocking-prerender-random',
+  'Date.now()':
+    'https://nextjs.org/docs/messages/blocking-prerender-current-time',
+  'Date()': 'https://nextjs.org/docs/messages/blocking-prerender-current-time',
+  'new Date()':
+    'https://nextjs.org/docs/messages/blocking-prerender-current-time',
   'crypto.randomUUID()':
-    'https://nextjs.org/docs/messages/next-prerender-crypto',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
   'crypto.getRandomValues()':
-    'https://nextjs.org/docs/messages/next-prerender-crypto',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
   "require('node:crypto').randomUUID()":
-    'https://nextjs.org/docs/messages/next-prerender-crypto',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
   "require('node:crypto').randomBytes(size)":
-    'https://nextjs.org/docs/messages/next-prerender-crypto',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
   "require('node:crypto').randomFillSync(...)":
-    'https://nextjs.org/docs/messages/next-prerender-crypto',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
   "require('node:crypto').randomInt(min, max)":
-    'https://nextjs.org/docs/messages/next-prerender-crypto',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
   "require('node:crypto').generatePrimeSync(...)":
-    'https://nextjs.org/docs/messages/next-prerender-crypto',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
   "require('node:crypto').generateKeyPairSync(...)":
-    'https://nextjs.org/docs/messages/next-prerender-crypto',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
   "require('node:crypto').generateKeySync(...)":
-    'https://nextjs.org/docs/messages/next-prerender-crypto',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto',
 }
 
 export const SYNC_IO_CLIENT_DOCS: Record<string, string> = {
   'Math.random()':
-    'https://nextjs.org/docs/messages/next-prerender-random-client',
+    'https://nextjs.org/docs/messages/blocking-prerender-random-client',
   'Date.now()':
-    'https://nextjs.org/docs/messages/next-prerender-current-time-client',
+    'https://nextjs.org/docs/messages/blocking-prerender-current-time-client',
   'Date()':
-    'https://nextjs.org/docs/messages/next-prerender-current-time-client',
+    'https://nextjs.org/docs/messages/blocking-prerender-current-time-client',
   'new Date()':
-    'https://nextjs.org/docs/messages/next-prerender-current-time-client',
+    'https://nextjs.org/docs/messages/blocking-prerender-current-time-client',
   'crypto.randomUUID()':
-    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
   'crypto.getRandomValues()':
-    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
   "require('node:crypto').randomUUID()":
-    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
   "require('node:crypto').randomBytes(size)":
-    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
   "require('node:crypto').randomFillSync(...)":
-    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
   "require('node:crypto').randomInt(min, max)":
-    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
   "require('node:crypto').generatePrimeSync(...)":
-    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
   "require('node:crypto').generateKeyPairSync(...)":
-    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
   "require('node:crypto').generateKeySync(...)":
-    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+    'https://nextjs.org/docs/messages/blocking-prerender-crypto-client',
 }
 
 export const EXPLANATIONS: Record<GuidanceKind, string> = {
