@@ -648,3 +648,58 @@ export const instantClientMathRandomErrors: ReadyRuntimeError[] = [
     type: 'runtime',
   },
 ]
+
+export const mixedIssueAndInsightErrors: ReadyRuntimeError[] = [
+  runtimeErrors[0],
+  runtimeErrors[1],
+  {
+    id: 120,
+    runtime: true,
+    error: Object.assign(
+      new Error(
+        'Route "/nav-cookies-under-suspense": Next.js encountered runtime data during the initial render or a navigation.\n\n`cookies()`, `headers()`, `params`, or `searchParams` accessed under `<Suspense>` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.\n\nWays to fix this:\n  - Use `generateStaticParams` to make route params static\n  - Provide a placeholder with `<Suspense fallback={...}>` around the data access\n  - Set `export const instant = false` to allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-route'
+      ),
+      { __NEXT_ERROR_CODE: 'E1247' }
+    ),
+    frames: createStoryFrames({
+      reason:
+        'Route "/nav-cookies-under-suspense": Next.js encountered runtime data during the initial render or a navigation.',
+      file: 'app/nav-cookies-under-suspense/page.tsx',
+      methodName: 'Page',
+      line: 5,
+      column: 15,
+      codeFrame: instantCodeFrame({
+        beforeLine: "import { cookies } from 'next/headers'",
+        line: 'const c = await cookies()',
+        markerLine: 5,
+        pointerColumn: 11,
+      }),
+    }),
+    type: 'runtime',
+  },
+  {
+    id: 121,
+    runtime: true,
+    error: Object.assign(
+      new Error(
+        'Route "/nav-fetch-under-suspense": Next.js encountered uncached data during the initial render or a navigation.\n\n`fetch(...)` or `connection()` accessed under `<Suspense>` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.\n\nWays to fix this:\n  - Cache the data access with `"use cache"`\n  - Provide a placeholder with `<Suspense fallback={...}>` around the data access\n  - Set `export const instant = false` to allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-route'
+      ),
+      { __NEXT_ERROR_CODE: 'E1246' }
+    ),
+    frames: createStoryFrames({
+      reason:
+        'Route "/nav-fetch-under-suspense": Next.js encountered uncached data during the initial render or a navigation.',
+      file: 'app/nav-fetch-under-suspense/page.tsx',
+      methodName: 'Page',
+      line: 6,
+      column: 21,
+      codeFrame: instantCodeFrame({
+        beforeLine: 'export default async function Page() {',
+        line: 'const res = await fetch("http://example.com", { cache: "no-store" })',
+        markerLine: 6,
+        pointerColumn: 21,
+      }),
+    }),
+    type: 'runtime',
+  },
+]

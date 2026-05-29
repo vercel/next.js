@@ -1,7 +1,10 @@
 import type { DebugInfo } from '../../../../shared/types'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 
-import { ErrorOverlayPagination } from '../error-overlay-pagination/error-overlay-pagination'
+import {
+  ErrorOverlayPagination,
+  type ErrorOverlayTabBarRenderer,
+} from '../error-overlay-pagination/error-overlay-pagination'
 import { ErrorOverlayToolbar } from '../error-overlay-toolbar/error-overlay-toolbar'
 import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 
@@ -9,20 +12,30 @@ type ErrorOverlayNavProps = {
   runtimeErrors?: ReadyRuntimeError[]
   activeIdx?: number
   setActiveIndex?: (index: number) => void
+  canGoPrevious?: boolean
+  canGoNext?: boolean
+  onPrevious?: () => void
+  onNext?: () => void
   versionInfo?: VersionInfo
   error: ReadyRuntimeError['error']
   debugInfo?: DebugInfo
   generateErrorInfo: () => Promise<string>
+  renderTabBar?: ErrorOverlayTabBarRenderer
 }
 
 export function ErrorOverlayNav({
   runtimeErrors,
   activeIdx,
   setActiveIndex,
+  canGoPrevious,
+  canGoNext,
+  onPrevious,
+  onNext,
   versionInfo,
   error,
   debugInfo,
   generateErrorInfo,
+  renderTabBar,
 }: ErrorOverlayNavProps) {
   const bundlerName = (process.env.__NEXT_BUNDLER || 'Turbopack') as
     | 'Turbopack'
@@ -36,6 +49,11 @@ export function ErrorOverlayNav({
           runtimeErrors={runtimeErrors ?? []}
           activeIdx={activeIdx ?? 0}
           onActiveIndexChange={setActiveIndex ?? (() => {})}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onPrevious={onPrevious}
+          onNext={onNext}
+          renderTabBar={renderTabBar}
         />
       </NavItem>
       <NavItem side="right">
@@ -58,6 +76,7 @@ export const styles = `
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
     flex-shrink: 0;
 
     width: 100%;
@@ -80,6 +99,19 @@ export const styles = `
 
       &[data-side='right'] {
         padding-left: 0;
+      }
+    }
+  }
+
+  @media (max-width: 767px) {
+    [data-nextjs-error-overlay-nav] {
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+
+      &::-webkit-scrollbar {
+        display: none;
       }
     }
   }

@@ -747,7 +747,7 @@ describe('instant validation', () => {
            "code": "E1261",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/invalid-sync-io/page.tsx (8:20) @ Page
          >  8 |   const now = Date.now()
               |                    ^",
@@ -825,7 +825,7 @@ describe('instant validation', () => {
            "code": "E1261",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx (12:20) @ Page
          > 12 |   const now = Date.now()
               |                    ^",
@@ -928,7 +928,7 @@ describe('instant validation', () => {
            "code": "E1261",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx (28:20) @ Page
          > 28 |   const now = Date.now()
               |                    ^",
@@ -1017,7 +1017,7 @@ describe('instant validation', () => {
            "code": "E1261",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx (9:20) @ Module.generateMetadata
          >  9 |   const now = Date.now()
               |                    ^",
@@ -1113,7 +1113,7 @@ describe('instant validation', () => {
            "code": "E1261",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx (11:20) @ Module.generateMetadata
          > 11 |   const now = Date.now()
               |                    ^",
@@ -2386,7 +2386,7 @@ describe('instant validation', () => {
              "code": "E1252",
              "description": "Next.js encountered runtime data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (11:16) @ Module.generateViewport
            > 11 |   await cookies()
                 |                ^",
@@ -2445,7 +2445,7 @@ describe('instant validation', () => {
              "code": "E1255",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (11:19) @ Module.generateViewport
            > 11 |   await connection()
                 |                   ^",
@@ -2542,7 +2542,7 @@ describe('instant validation', () => {
              "code": "E1255",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/page.tsx (6:23) @ Module.generateViewport
            > 6 | export async function generateViewport(): Promise<Viewport> {
                |                       ^",

@@ -19,6 +19,7 @@ import {
 } from '../../../server/app-render/sync-io-messages'
 import {
   getBlockingRouteErrorDetails,
+  isInstantNavigationError,
   isRuntimeVariant,
   isSyncIOClientError,
   isSyncIOError,
@@ -251,5 +252,39 @@ describe('getBlockingRouteErrorDetails', () => {
 
   it('returns null for an unrelated error', () => {
     expect(getBlockingRouteErrorDetails(new Error('regular bug'))).toBe(null)
+  })
+})
+
+describe('isInstantNavigationError', () => {
+  it('returns true for navigation-phase blocking-route errors', () => {
+    expect(
+      isInstantNavigationError(createRuntimeBodyErrorInNavigation(ROUTE))
+    ).toBe(true)
+    expect(
+      isInstantNavigationError(createDynamicBodyErrorInNavigation(ROUTE))
+    ).toBe(true)
+  })
+
+  it('returns false for prerender-phase blocking-route errors', () => {
+    expect(isInstantNavigationError(createRuntimeBodyError(ROUTE))).toBe(false)
+    expect(isInstantNavigationError(createDynamicBodyError(ROUTE))).toBe(false)
+  })
+
+  it('returns false for metadata/viewport/sync-io errors', () => {
+    expect(isInstantNavigationError(createDynamicMetadataError(ROUTE))).toBe(
+      false
+    )
+    expect(isInstantNavigationError(createRuntimeViewportError(ROUTE))).toBe(
+      false
+    )
+    expect(
+      isInstantNavigationError(
+        createSyncIOError(ROUTE, 'Math.random()', 'random')
+      )
+    ).toBe(false)
+  })
+
+  it('returns false for unrelated errors', () => {
+    expect(isInstantNavigationError(new Error('regular bug'))).toBe(false)
   })
 })

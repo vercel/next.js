@@ -14,6 +14,7 @@ import {
   instantUncachedDataErrors,
   instantViewportErrors,
   instantViewportUncachedErrors,
+  mixedIssueAndInsightErrors,
   runtimeErrors,
 } from '../../../../.storybook/fixtures/errors'
 
@@ -59,6 +60,13 @@ export const VeryLongErrorMessage: Story = {
         error: Object.assign(new Error(lorem)),
       },
     ],
+  },
+}
+
+export const MixedIssuesAndInsights: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: mixedIssueAndInsightErrors,
   },
 }
 

@@ -24,7 +24,7 @@ describe('Cache Components Dev Errors', () => {
        "code": "E1261",
        "description": "Next.js encountered the unstable value Math.random() while prerendering.",
        "environmentLabel": "Server",
-       "label": "Instant",
+       "label": "Blocking Route",
        "source": "app/error/page.tsx (2:23) @ Page
      > 2 |   const random = Math.random()
          |                       ^",
@@ -54,7 +54,7 @@ describe('Cache Components Dev Errors', () => {
        "code": "E1261",
        "description": "Next.js encountered the unstable value Math.random() while prerendering.",
        "environmentLabel": "Server",
-       "label": "Instant",
+       "label": "Blocking Route",
        "source": "app/error/page.tsx (2:23) @ Page
      > 2 |   const random = Math.random()
          |                       ^",
@@ -101,7 +101,7 @@ describe('Cache Components Dev Errors', () => {
        "code": "E1265",
        "description": "Next.js encountered uncached data during prerendering.",
        "environmentLabel": "Server",
-       "label": "Instant",
+       "label": "Blocking Route",
        "source": "app/no-accessed-data/page.js (2:9) @ Page
      > 2 |   await new Promise((r) => setTimeout(r, 200))
          |         ^",
