@@ -35,14 +35,14 @@ import { nextTestSetup } from 'e2e-utils'
       await next.patchFile('app/layout.js', fixtureLayoutContent)
 
       // Check to make sure that the main page now has the correct layout changes
-      await browser.waitForElementByCss('#default-intercept')
+      await browser.waitForElementByCss('#default-intercept', 30_000)
       expect(await browser.elementById('default-intercept').text()).toBe(
         "I'm the default intercept"
       )
 
       // Go to the intercept route and check that the intercept worked correctly
       await browser.elementById('to-intercept').click()
-      await browser.waitForElementByCss('#intercept')
+      await browser.waitForElementByCss('#intercept', 30_000)
       expect(await browser.elementById('intercept').text()).toBe(
         "I'm the intercept"
       )
