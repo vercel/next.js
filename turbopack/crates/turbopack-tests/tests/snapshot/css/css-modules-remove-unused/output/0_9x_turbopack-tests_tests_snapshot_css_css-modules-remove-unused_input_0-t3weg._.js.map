@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-modules-remove-unused/input/style.module.css [test] (css module)"],"sourcesContent":["__turbopack_context__.v({\n  \"green\": \"style-module__o6j6Ba__green\",\n});\n"],"names":[],"mappings":"AAAA;AACA;AACA"}},
+    {"offset": {"line": 9, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-modules-remove-unused/input/default.module.css [test] (css module)"],"sourcesContent":["__turbopack_context__.v({\n  \"default\": \"default-module__3W_8-a__default\",\n  \"used\": \"default-module__3W_8-a__used\",\n});\n"],"names":[],"mappings":"AAAA;AACA;AACA;AACA"}},
+    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-modules-remove-unused/input/index.js"],"sourcesContent":["import * as styles from './style.module.css'\nimport styles2 from './default.module.css'\n\nconsole.log(styles.green)\nconsole.log(styles2.used)\n"],"names":["console","log","used"],"mappings":"AAAA;AACA;;;AAEAA,QAAQC,GAAG,CAAC,4OAAY;AACxBD,QAAQC,GAAG,CAAC,gPAAO,CAACC,IAAI"}}]
+}

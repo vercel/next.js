@@ -28,6 +28,7 @@ use turbopack_ecmascript::{
 };
 
 use crate::{
+    CssModule, normalize_module_export_usage_for_css_module,
     process::{CssWithPlaceholderResult, ProcessCss},
     references::{compose::CssModuleComposeReference, internal::InternalCssAssetReference},
 };
@@ -86,6 +87,7 @@ impl Module for EcmascriptCssModule {
         // 1. @import or composes references are loaded first
         // 2. The local CSS is loaded last
 
+        let self_resolved = self.to_resolved().await?;
         let references = self
             .module_references()
             .await?
@@ -97,12 +99,28 @@ impl Module for EcmascriptCssModule {
                     .try_into_module()
                     .await?
                 {
-                    Some(inner) => Some(
-                        InternalCssAssetReference::new(*inner)
-                            .to_resolved()
-                            .await
-                            .map(ResolvedVc::upcast)?,
-                    ),
+                    Some(inner) => {
+                        // Give the inner CssModule a back-reference to this EcmascriptCssModule
+                        // so that its CSS chunk item can query export usage for tree shaking.
+                        let inner = if let Some(css_module) =
+                            ResolvedVc::try_downcast_type::<CssModule>(inner)
+                        {
+                            ResolvedVc::upcast(
+                                css_module
+                                    .with_ecmascript_module(*ResolvedVc::upcast(self_resolved))
+                                    .to_resolved()
+                                    .await?,
+                            )
+                        } else {
+                            inner
+                        };
+                        Some(
+                            InternalCssAssetReference::new(*inner)
+                                .to_resolved()
+                                .await
+                                .map(ResolvedVc::upcast)?,
+                        )
+                    }
                     None => None,
                 },
             )
@@ -162,7 +180,7 @@ enum ModuleCssClass {
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 struct ModuleCssClasses(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, Vec<ModuleCssClass>>,
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, Vec<ModuleCssClass>>,
 );
 
 #[turbo_tasks::value_impl]
@@ -219,7 +237,7 @@ impl EcmascriptCssModule {
                     })
                 }
 
-                classes.insert(class_name.to_string(), export);
+                classes.insert(RcStr::from(&**class_name), export);
             }
         }
 
@@ -274,9 +292,19 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let classes = self.classes().await?;
 
+        let export_usage = chunking_context
+            .module_export_usage(Vc::upcast(self))
+            .await?;
+        let export_usage_info = export_usage.export_usage.await?;
+        let export_usage_info = normalize_module_export_usage_for_css_module(&export_usage_info);
+
         let mut code = format!("{TURBOPACK_EXPORT_VALUE}({{\n");
         for (export_name, class_names) in &*classes {
             let mut exported_class_names = Vec::with_capacity(class_names.len());
+
+            if !export_usage_info.is_export_used(export_name) {
+                continue;
+            }
 
             for class_name in class_names {
                 match class_name {

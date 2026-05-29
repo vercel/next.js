@@ -1,4 +1,7 @@
-use std::sync::{Arc, RwLock};
+use std::{
+    collections::HashSet,
+    sync::{Arc, RwLock},
+};
 
 use anyhow::{Result, bail};
 use async_trait::async_trait;
@@ -27,6 +30,8 @@ use turbopack_core::{
         AdditionalIssueSource, Issue, IssueExt, IssueSeverity, IssueSource, IssueStage,
         StyledString,
     },
+    module::Module,
+    module_graph::binding_usage_info::ModuleExportUsageInfo,
     reference::ModuleReferences,
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
@@ -38,6 +43,7 @@ use turbopack_core::{
 use crate::{
     CssModuleType, LightningCssFeatureFlags,
     lifetime_util::stylesheet_into_static,
+    normalize_module_export_usage_for_css_module,
     references::{
         analyze_references,
         url::{UrlAssetReference, replace_url_references, resolve_url_reference},
@@ -266,12 +272,14 @@ pub async fn finalize_css(
     origin_source_map: Vc<FileContent>,
     environment: Option<ResolvedVc<Environment>>,
     feature_flags: LightningCssFeatureFlags,
+    ecmascript_module: Option<ResolvedVc<Box<dyn Module>>>,
 ) -> Result<Vc<FinalCssResult>> {
     let result = result.await?;
     match &*result {
         CssWithPlaceholderResult::Ok {
             parse_result,
             url_references,
+            exports,
             ..
         } => {
             let (mut stylesheet, code) = match &*parse_result.await? {
@@ -297,6 +305,55 @@ pub async fn finalize_css(
             }
 
             replace_url_references(&mut stylesheet, &url_map);
+
+            // CSS tree shaking: remove rules for unused CSS classes.
+            //
+            // We query the binding usage info for the owning EcmascriptCssModule to determine
+            // which JS export names (= CSS class original names) are actually referenced. Any
+            // class whose original name is not used gets its hashed CSS name added to the
+            // `unused_symbols` set passed to lightningcss, which then removes the corresponding
+            // CSS rules.
+            if let Some(exports) = exports
+                && let Some(ecmascript_module) = ecmascript_module
+            {
+                let export_usage = chunking_context
+                    .module_export_usage(*ecmascript_module)
+                    .await?;
+                let export_usage_info = export_usage.export_usage.await?;
+                let export_usage_info =
+                    normalize_module_export_usage_for_css_module(&export_usage_info);
+
+                let unused_symbols: HashSet<String> = match &*export_usage_info {
+                    // All exports used — keep every class.
+                    ModuleExportUsageInfo::All => Default::default(),
+                    // Some or no exports used — collect hashed names of unused classes.
+                    ModuleExportUsageInfo::Evaluation | ModuleExportUsageInfo::Exports(_) => {
+                        exports
+                            .iter()
+                            .filter(|(orig_name, export)| {
+                                !export_usage_info.is_export_used(&RcStr::from(orig_name.as_str()))
+                                    && !export.is_referenced
+                                // TODO we can't differente `is_referenced because of used class`
+                                // and `is_referenced because of unused class` at this pint
+                            })
+                            .map(|(orig_name, _)| orig_name.clone())
+                            .collect()
+                    }
+                };
+
+                if !unused_symbols.is_empty() {
+                    let targets = *get_lightningcss_browser_targets(
+                        environment.as_deref().copied(),
+                        true,
+                        feature_flags,
+                    )
+                    .await?;
+                    stylesheet.minify(MinifyOptions {
+                        targets,
+                        unused_symbols,
+                    })?;
+                }
+            }
 
             let code = code.await?;
             let code = match &*code {
@@ -356,6 +413,7 @@ pub trait ProcessCss: ParseCss {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         minify_type: MinifyType,
+        ecmascript_module: Option<Vc<Box<dyn Module>>>,
     ) -> Result<Vc<FinalCssResult>>;
 }
 

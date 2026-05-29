@@ -70,6 +70,7 @@
   // Enable file nesting for unit test files.
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.patterns": {
+    "*.css": "$(capture).css.map",
     "*.ts": "$(capture).test.ts, $(capture).test.tsx, $(capture).stories.tsx",
     "*.tsx": "$(capture).test.ts, $(capture).test.tsx, $(capture).stories.tsx"
   },
