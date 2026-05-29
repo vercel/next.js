@@ -2242,7 +2242,8 @@ async function getErrorRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
   ssrError: unknown,
-  errorType: MetadataErrorType | 'redirect' | undefined
+  errorType: MetadataErrorType | 'redirect' | undefined,
+  shouldRenderMetadataAndViewport: boolean
 ) {
   const {
     getDynamicParamFromSegment,
@@ -2252,19 +2253,25 @@ async function getErrorRSCPayload(
     workStore,
   } = ctx
 
-  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
-  const metadataIsRuntimePrefetchable =
-    await anySegmentHasRuntimePrefetchEnabled(tree)
-  const { Viewport, Metadata } = createMetadataComponents({
-    tree,
-    parsedQuery: query,
-    pathname: url.pathname,
-    metadataContext: createMetadataContext(ctx.renderOpts),
-    errorType,
-    interpolatedParams: ctx.interpolatedParams,
-    serveStreamingMetadata: serveStreamingMetadata,
-    isRuntimePrefetchable: metadataIsRuntimePrefetchable,
-  })
+  let Viewport: ComponentType | null = null
+  let Metadata: ComponentType | null = null
+  if (shouldRenderMetadataAndViewport) {
+    const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
+    const metadataIsRuntimePrefetchable =
+      await anySegmentHasRuntimePrefetchEnabled(tree)
+    const metadataComponents = createMetadataComponents({
+      tree,
+      parsedQuery: query,
+      pathname: url.pathname,
+      metadataContext: createMetadataContext(ctx.renderOpts),
+      errorType,
+      interpolatedParams: ctx.interpolatedParams,
+      serveStreamingMetadata: serveStreamingMetadata,
+      isRuntimePrefetchable: metadataIsRuntimePrefetchable,
+    })
+    Viewport = metadataComponents.Viewport
+    Metadata = metadataComponents.Metadata
+  }
 
   const initialHead = createElement(
     Fragment,
@@ -2277,13 +2284,13 @@ async function getErrorRSCPayload(
       statusCode: ctx.res.statusCode,
       isPossibleServerAction: ctx.isPossibleServerAction,
     }),
-    createElement(Viewport, null),
+    Viewport ? createElement(Viewport, null) : null,
     process.env.__NEXT_DEV_SERVER &&
       createElement('meta', {
         name: 'next-error',
         content: 'not-found',
       }),
-    createElement(Metadata, null)
+    Metadata ? createElement(Metadata, null) : null
   )
 
   const errorHints = ctx.renderOpts.prefetchHints?.[ctx.pagePath] ?? null
@@ -4385,7 +4392,9 @@ async function renderToStream(
             tree,
             ctx,
             reactServerErrorsByDigest.has((err as any).digest) ? null : err,
-            errorType
+            errorType,
+            // Normal error rendering should include the error payload head.
+            true
           )
 
           errorServerStream = workUnitAsyncStorage.run(
@@ -4482,7 +4491,9 @@ async function renderToStream(
             tree,
             ctx,
             reactServerErrorsByDigest.has((err as any).digest) ? null : err,
-            errorType
+            errorType,
+            // Normal error rendering should include the error payload head.
+            true
           )
 
           errorServerStream = workUnitAsyncStorage.run(
@@ -8555,7 +8566,10 @@ async function prerenderToStream(
         tree,
         ctx,
         reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
-        errorType
+        errorType,
+        // The recovery shell only bootstraps the original Flight data. Avoid
+        // blocking that shell on error-page metadata or viewport.
+        false
       )
 
       const errorServerResult = await createReactServerPrerenderResult(
@@ -8845,7 +8859,9 @@ async function prerenderToStream(
       tree,
       ctx,
       reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
-      errorType
+      errorType,
+      // Legacy prerender recovery should include the error payload head.
+      true
     )
 
     const errorServerStream = workUnitAsyncStorage.run(
