@@ -36,6 +36,7 @@ import {
   type GuidanceVariant,
 } from '../components/instant/instant-guidance'
 import { BLOCKING_ROUTE_NAVIGATION_EXPLANATION } from '../components/instant/instant-guidance-data'
+import { UnrenderedSegmentInfo } from '../components/instant/unrendered-segment-info'
 import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
 import { ErrorCause } from './runtime-error/error-cause'
@@ -107,6 +108,9 @@ export function getErrorTypeLabel(
   if (errorDetails.type === 'sync-io-client') {
     return `Blocking Route`
   }
+  if (errorDetails.type === 'unrendered-segment') {
+    return `Instant`
+  }
   if (type === 'recoverable') {
     return `Recoverable ${error.name}`
   }
@@ -124,6 +128,7 @@ type ErrorDetails =
   | DynamicViewportErrorDetails
   | SyncIOErrorDetails
   | SyncIOClientErrorDetails
+  | UnrenderedSegmentErrorDetails
 
 type NoErrorDetails = {
   type: 'empty'
@@ -162,6 +167,12 @@ type SyncIOClientErrorDetails = {
   cause: string
 }
 
+type UnrenderedSegmentErrorDetails = {
+  type: 'unrendered-segment'
+  route: string
+  files: string[]
+}
+
 const noErrorDetails: ErrorDetails = {
   type: 'empty',
 }
@@ -186,6 +197,11 @@ export function useErrorDetails(
     const blockingRouteErrorDetails = getBlockingRouteErrorDetails(error)
     if (blockingRouteErrorDetails) {
       return blockingRouteErrorDetails
+    }
+
+    const unrenderedSegmentDetails = getUnrenderedSegmentErrorDetails(error)
+    if (unrenderedSegmentDetails) {
+      return unrenderedSegmentDetails
     }
 
     return noErrorDetails
@@ -339,7 +355,9 @@ export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
     message.includes('Could not validate `unstable_instant`') ||
-    message.includes('Could not validate instant UI')
+    message.includes(
+      'Could not validate that a segment in your UI has instant navigation'
+    )
   )
 }
 
@@ -393,7 +411,45 @@ export function getBlockingRouteErrorDetails(
   return null
 }
 
+export function getUnrenderedSegmentErrorDetails(
+  error: Error
+): UnrenderedSegmentErrorDetails | null {
+  const message = error.message
+  if (typeof message !== 'string') return null
+  if (
+    !message.includes(
+      'Could not validate that a segment in your UI has instant navigation'
+    )
+  ) {
+    return null
+  }
+  const routeMatch = /^Route "([^"]+)":/.exec(message)
+  if (!routeMatch) return null
+  const route = routeMatch[1]
+
+  // The body lists `Dropped segment:` or `Dropped segments:` followed
+  // by indented file paths on subsequent lines until the next blank line.
+  const files: string[] = []
+  const filesBlockMatch = /\nDropped segments?:\n([^]*?)(?:\n\n|$)/.exec(
+    message
+  )
+  if (filesBlockMatch) {
+    for (const rawLine of filesBlockMatch[1].split('\n')) {
+      const trimmed = rawLine.replace(/^\s+/, '')
+      if (trimmed) files.push(trimmed)
+    }
+  }
+
+  return {
+    type: 'unrendered-segment',
+    route,
+    files,
+  }
+}
+
 export function isInstantNavigationError(error: Error): boolean {
+  // Unrendered-segment errors are always instant-only
+  if (getUnrenderedSegmentErrorDetails(error)) return true
   const details = getBlockingRouteErrorDetails(error)
   return details?.type === 'blocking-route' && details.inNavigation
 }
@@ -999,6 +1055,37 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>
+        </ErrorOverlayLayout>
+      )
+    case 'unrendered-segment':
+      return (
+        <ErrorOverlayLayout
+          errorCode={errorCode}
+          errorType={errorType}
+          errorMessage="Next.js could not validate that a segment in your UI has instant navigation."
+          headerChildren={
+            <InstantHeaderExplanation kind="unrendered-segment" />
+          }
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={runtimeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          renderTabBar={renderTabBar}
+          {...props}
+        >
+          <UnrenderedSegmentInfo
+            route={errorDetails.route}
+            files={errorDetails.files}
+          />
+          <InstantGuidance
+            kind="unrendered-segment"
+            variant="dynamic"
+            showExplanation={false}
+          />
         </ErrorOverlayLayout>
       )
     case 'empty':

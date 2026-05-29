@@ -27,7 +27,7 @@ describe('getInstantErrorRoute', () => {
 
   it('returns the route for the unrendered-segment wrapper', () => {
     const error = new Error(
-      `Route "${STATIC_ROUTE}": Could not validate instant UI because an expected segment was not rendered.\n\nUnrendered segment:\n  app/example/page.tsx`
+      `Route "${STATIC_ROUTE}": Could not validate that a segment in your UI has instant navigation.\n\nThis segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.\n\nDropped segment:\n  app/example/page.tsx`
     )
     expect(getInstantErrorRoute(error)).toBe(STATIC_ROUTE)
   })

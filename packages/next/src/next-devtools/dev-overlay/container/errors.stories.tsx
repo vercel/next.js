@@ -10,6 +10,7 @@ import {
   instantMetadataErrors,
   instantMetadataUncachedErrors,
   instantMathRandomErrors,
+  instantUnrenderedSegmentErrors,
   instantRuntimeDataErrors,
   instantUncachedDataErrors,
   instantViewportErrors,
@@ -184,5 +185,12 @@ export const InstantClientMathRandom: Story = {
   args: {
     ...Default.args,
     runtimeErrors: instantClientMathRandomErrors,
+  },
+}
+
+export const InstantUnrenderedSegment: Story = {
+  args: {
+    ...Default.args,
+    runtimeErrors: instantUnrenderedSegmentErrors,
   },
 }

@@ -19,6 +19,7 @@ import {
 } from '../../../server/app-render/sync-io-messages'
 import {
   getBlockingRouteErrorDetails,
+  getUnrenderedSegmentErrorDetails,
   isInstantNavigationError,
   isRuntimeVariant,
   isSyncIOClientError,
@@ -255,7 +256,79 @@ describe('getBlockingRouteErrorDetails', () => {
   })
 })
 
+describe('getUnrenderedSegmentErrorDetails', () => {
+  function createUnrenderedSegmentError(
+    route: string,
+    files: string[] = []
+  ): Error {
+    let message = `Route "${route}": Could not validate that a segment in your UI has instant navigation.`
+    if (files.length > 0) {
+      const label = files.length === 1 ? 'Dropped segment' : 'Dropped segments'
+      message +=
+        `\n\nThis segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.` +
+        `\n\n${label}:\n${files.map((p) => `  ${p}`).join('\n')}` +
+        `\n\nWays to fix this:` +
+        `\n  - Render the dropped segment` +
+        `\n  - Set \`export const instant = false\` on the dropped segment to skip validation` +
+        `\n\nLearn more: https://nextjs.org/docs/messages/unrendered-instant-segment`
+    }
+    return new Error(message)
+  }
+
+  it('parses route and a single unrendered segment file', () => {
+    const error = createUnrenderedSegmentError(ROUTE, ['app/example/page.tsx'])
+    expect(getUnrenderedSegmentErrorDetails(error)).toEqual({
+      type: 'unrendered-segment',
+      route: ROUTE,
+      files: ['app/example/page.tsx'],
+    })
+  })
+
+  it('parses route and multiple unrendered segment files', () => {
+    const error = createUnrenderedSegmentError(ROUTE, [
+      'app/example/@sidebar/page.tsx',
+      'app/example/page.tsx',
+    ])
+    expect(getUnrenderedSegmentErrorDetails(error)).toEqual({
+      type: 'unrendered-segment',
+      route: ROUTE,
+      files: ['app/example/@sidebar/page.tsx', 'app/example/page.tsx'],
+    })
+  })
+
+  it('parses route with no segment list (defensive — framework currently always emits one)', () => {
+    const error = createUnrenderedSegmentError(ROUTE, [])
+    expect(getUnrenderedSegmentErrorDetails(error)).toEqual({
+      type: 'unrendered-segment',
+      route: ROUTE,
+      files: [],
+    })
+  })
+
+  it('returns null when the headline substring is absent', () => {
+    expect(getUnrenderedSegmentErrorDetails(new Error('regular bug'))).toBe(
+      null
+    )
+  })
+
+  it('returns null when the headline matches but the route prefix is missing', () => {
+    expect(
+      getUnrenderedSegmentErrorDetails(
+        new Error(
+          'Could not validate that a segment in your UI has instant navigation.'
+        )
+      )
+    ).toBe(null)
+  })
+})
+
 describe('isInstantNavigationError', () => {
+  function createUnrenderedSegmentError(route: string): Error {
+    return new Error(
+      `Route "${route}": Could not validate that a segment in your UI has instant navigation.\n\nDropped segment:\n  app/example/page.tsx`
+    )
+  }
+
   it('returns true for navigation-phase blocking-route errors', () => {
     expect(
       isInstantNavigationError(createRuntimeBodyErrorInNavigation(ROUTE))
@@ -263,6 +336,12 @@ describe('isInstantNavigationError', () => {
     expect(
       isInstantNavigationError(createDynamicBodyErrorInNavigation(ROUTE))
     ).toBe(true)
+  })
+
+  it('returns true for unrendered-segment errors', () => {
+    expect(isInstantNavigationError(createUnrenderedSegmentError(ROUTE))).toBe(
+      true
+    )
   })
 
   it('returns false for prerender-phase blocking-route errors', () => {

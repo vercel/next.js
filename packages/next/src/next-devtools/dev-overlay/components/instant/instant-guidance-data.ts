@@ -10,6 +10,8 @@ export type FixCardGroup =
   | 'client'
   | 'defer'
   | 'measure'
+  | 'ignore'
+  | 'render'
 
 export type FixCardIcon =
   | 'align-left'
@@ -18,6 +20,7 @@ export type FixCardIcon =
   | 'layout'
   | 'loading'
   | 'pointer-click'
+  | 'minus-circle'
   | 'server-stack'
   | 'timer'
   | 'zap'
@@ -35,6 +38,8 @@ export const FIX_CARD_GROUPS: Record<
   client: { label: 'Client', color: 'amber', icon: 'layout' },
   defer: { label: 'Defer', color: 'amber', icon: 'pointer-click' },
   measure: { label: 'Measure', color: 'gray', icon: 'timer' },
+  ignore: { label: 'Ignore', color: 'red', icon: 'minus-circle' },
+  render: { label: 'Render', color: 'gray', icon: 'layout' },
 }
 
 export type FixCard = {
@@ -141,6 +146,47 @@ const dynamicCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/blocking-route#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ],
+  },
+]
+
+// ── Unrendered-segment cards ──────────────────────
+
+const unrenderedSegmentCards: FixCard[] = [
+  {
+    id: 'render-the-dropped-segment',
+    title: 'Render the dropped segment',
+    group: 'render',
+    link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#render-the-dropped-segment',
+    snippets: [
+      {
+        text: 'function Layout({ children }) {',
+        parts: [
+          { text: 'function Layout({ ' },
+          { text: 'children', highlight: true },
+          { text: ' }) {' },
+        ],
+      },
+      {
+        text: '  return <><Nav />{children}</>',
+        parts: [
+          { text: '  return <><Nav />{' },
+          { text: 'children', highlight: true },
+          { text: '}</>' },
+        ],
+      },
+      { text: '}' },
+    ],
+  },
+  {
+    id: 'skip-validation-on-the-segment',
+    title: 'Skip validation on the segment',
+    group: 'ignore',
+    link: 'https://nextjs.org/docs/messages/unrendered-instant-segment#skip-validation-on-the-segment',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: '' },
       { text: 'export const instant = false', highlight: true },
     ],
   },
@@ -463,6 +509,7 @@ export type GuidanceKind =
   | 'viewport'
   | 'sync-io'
   | 'sync-io-client'
+  | 'unrendered-segment'
 
 export type GuidanceVariant = 'runtime' | 'dynamic'
 
@@ -472,6 +519,8 @@ export const DOCS_URLS: Record<GuidanceKind, string> = {
   viewport: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport',
   'sync-io': '',
   'sync-io-client': '',
+  'unrendered-segment':
+    'https://nextjs.org/docs/messages/unrendered-instant-segment',
 }
 
 export const SYNC_IO_DOCS: Record<string, string> = {
@@ -538,6 +587,8 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'sync-io': '',
   'sync-io-client':
     'This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.',
+  'unrendered-segment':
+    'This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.',
 }
 
 export const BLOCKING_ROUTE_NAVIGATION_EXPLANATION =
@@ -591,6 +642,8 @@ export function getCards(
       return (cause && syncCardsByCause[cause]) || []
     case 'sync-io-client':
       return (cause && syncClientCardsByCause[cause]) || []
+    case 'unrendered-segment':
+      return unrenderedSegmentCards
     default:
       return kind satisfies never
   }
