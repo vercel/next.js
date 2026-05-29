@@ -81,6 +81,7 @@
       "test/development/app-dir/dynamic-error-trace/index.test.ts",
       "test/development/app-dir/cache-components-*/**/*",
       "test/development/app-dir/edge-errors-hmr/index.test.ts",
+      "test/development/app-dir/hmr-intercept-routes/hmr-intercept-routes.test.ts",
       "test/development/app-dir/next-after-app-invalid-usage/index.test.ts",
       "test/development/app-dir/owner-stack-react-missing-key-prop/owner-stack-react-missing-key-prop.test.ts",
       "test/development/app-dir/react-performance-track/react-performance-track.test.ts",
