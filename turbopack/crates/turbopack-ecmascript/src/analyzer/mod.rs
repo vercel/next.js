@@ -2449,7 +2449,7 @@ impl JsValue {
                 LogicalOperator::And => all_if_known(list, JsValue::is_truthy),
                 LogicalOperator::Or => any_if_known(list, JsValue::is_truthy),
                 LogicalOperator::NullishCoalescing => {
-                    shortcircuit_if_known(list, JsValue::is_not_nullish, JsValue::is_truthy)
+                    eval_shortcircuit(list, JsValue::is_not_nullish)?.is_truthy()
                 }
             },
             JsValue::Binary(_, box a, op, box b) => {
@@ -2527,12 +2527,8 @@ impl JsValue {
                 _ => merge_if_known(values, JsValue::is_nullish),
             },
             JsValue::Logical(_, op, list) => match op {
-                LogicalOperator::And => {
-                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_nullish)
-                }
-                LogicalOperator::Or => {
-                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_nullish)
-                }
+                LogicalOperator::And => eval_shortcircuit(list, JsValue::is_falsy)?.is_nullish(),
+                LogicalOperator::Or => eval_shortcircuit(list, JsValue::is_truthy)?.is_nullish(),
                 LogicalOperator::NullishCoalescing => all_if_known(list, JsValue::is_nullish),
             },
             _ => None,
@@ -2560,13 +2556,13 @@ impl JsValue {
             } => merge_if_known(values, JsValue::is_empty_string),
             JsValue::Logical(_, op, list) => match op {
                 LogicalOperator::And => {
-                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_empty_string)
+                    eval_shortcircuit(list, JsValue::is_falsy)?.is_empty_string()
                 }
                 LogicalOperator::Or => {
-                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_empty_string)
+                    eval_shortcircuit(list, JsValue::is_truthy)?.is_empty_string()
                 }
                 LogicalOperator::NullishCoalescing => {
-                    shortcircuit_if_known(list, JsValue::is_not_nullish, JsValue::is_empty_string)
+                    eval_shortcircuit(list, JsValue::is_not_nullish)?.is_empty_string()
                 }
             },
             // Booleans are not empty strings
@@ -2620,14 +2616,10 @@ impl JsValue {
 
             JsValue::Add(_, list) => any_if_known(list, JsValue::is_string),
             JsValue::Logical(_, op, list) => match op {
-                LogicalOperator::And => {
-                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_string)
-                }
-                LogicalOperator::Or => {
-                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_string)
-                }
+                LogicalOperator::And => eval_shortcircuit(list, JsValue::is_falsy)?.is_string(),
+                LogicalOperator::Or => eval_shortcircuit(list, JsValue::is_truthy)?.is_string(),
                 LogicalOperator::NullishCoalescing => {
-                    shortcircuit_if_known(list, JsValue::is_not_nullish, JsValue::is_string)
+                    eval_shortcircuit(list, JsValue::is_not_nullish)?.is_string()
                 }
             },
 
@@ -2790,26 +2782,25 @@ fn any_if_known<T: Copy>(
     all_if_known(list, |x| func(x).map(|x| !x)).map(|x| !x)
 }
 
-/// Selects the first element of the list where `use_item` is compile-time true.
-/// For this element returns the result of `item_value`. Otherwise returns None.
-fn shortcircuit_if_known<T: Copy>(
+/// Selects the first element of the list where `matches` is compile-time true.
+/// Returns this element; if no elements match, it returns the last item.
+fn eval_shortcircuit<T: Copy>(
     list: impl IntoIterator<Item = T>,
-    use_item: impl Fn(T) -> Option<bool>,
-    item_value: impl FnOnce(T) -> Option<bool>,
-) -> Option<bool> {
+    matches: impl Fn(T) -> Option<bool>,
+) -> Option<T> {
     let mut it = list.into_iter().peekable();
     while let Some(item) = it.next() {
         if it.peek().is_none() {
-            return item_value(item);
+            return Some(item);
         } else {
-            match use_item(item) {
-                Some(true) => return item_value(item),
+            match matches(item) {
+                Some(true) => return Some(item),
                 None => return None,
                 _ => {}
             }
         }
     }
-    None
+    unreachable!("Binary operators should always have operands.")
 }
 
 // Visiting
