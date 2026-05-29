@@ -13,9 +13,9 @@ const SYNC_IO_CLIENT_DOCS: Record<SyncIOApiType, string> = {
 }
 
 const SYNC_IO_RUNTIME_DOCS: Record<SyncIOApiType, string> = {
-  time: 'https://nextjs.org/docs/messages/next-prerender-runtime-current-time',
-  random: 'https://nextjs.org/docs/messages/next-prerender-runtime-random',
-  crypto: 'https://nextjs.org/docs/messages/next-prerender-runtime-crypto',
+  time: 'https://nextjs.org/docs/messages/blocking-prerender-current-time',
+  random: 'https://nextjs.org/docs/messages/blocking-prerender-random',
+  crypto: 'https://nextjs.org/docs/messages/blocking-prerender-crypto',
 }
 
 function elapsedTimeBullet(type: SyncIOApiType): string {

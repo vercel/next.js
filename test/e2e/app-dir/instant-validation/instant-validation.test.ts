@@ -773,7 +773,7 @@ describe('instant validation', () => {
            - [client] Render the value on the client with \`"use client"\`
            - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              at a (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:8:20)
             6 | export default async function Page() {
             7 |   await cookies()
@@ -792,7 +792,7 @@ describe('instant validation', () => {
            - [client] Render the value on the client with \`"use client"\`
            - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              at b (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:8:20)
             6 | export default async function Page() {
             7 |   await cookies()
@@ -851,7 +851,7 @@ describe('instant validation', () => {
            - [client] Render the value on the client with \`"use client"\`
            - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              at a (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
            10 | export default async function Page() {
            11 |   await cookies()
@@ -870,7 +870,7 @@ describe('instant validation', () => {
            - [client] Render the value on the client with \`"use client"\`
            - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              at b (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
            10 | export default async function Page() {
            11 |   await cookies()
@@ -889,7 +889,7 @@ describe('instant validation', () => {
            - [client] Render the value on the client with \`"use client"\`
            - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              at c (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
            10 | export default async function Page() {
            11 |   await cookies()
@@ -967,7 +967,7 @@ describe('instant validation', () => {
            - [client] Render the value on the client with \`"use client"\`
            - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              at a (app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx:28:20)
            26 |   const cookiePromise = cookies().then((c) => c.get('testCookie')?.value ?? '')
            27 |   await cachedFn(cookiePromise)
@@ -1043,7 +1043,7 @@ describe('instant validation', () => {
            - [client] Render the value on the client with \`"use client"\`
            - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:9:20)
             7 | export async function generateMetadata() {
             8 |   await cookies()
@@ -1062,7 +1062,7 @@ describe('instant validation', () => {
            - [client] Render the value on the client with \`"use client"\`
            - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:9:20)
             7 | export async function generateMetadata() {
             8 |   await cookies()
@@ -1139,7 +1139,7 @@ describe('instant validation', () => {
            - [client] Render the value on the client with \`"use client"\`
            - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
             9 | export async function generateMetadata() {
            10 |   await cookies()
@@ -1158,7 +1158,7 @@ describe('instant validation', () => {
            - [client] Render the value on the client with \`"use client"\`
            - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
             9 | export async function generateMetadata() {
            10 |   await cookies()
@@ -1177,7 +1177,7 @@ describe('instant validation', () => {
            - [client] Render the value on the client with \`"use client"\`
            - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
-         Learn more: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
+         Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
              at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
             9 | export async function generateMetadata() {
            10 |   await cookies()
