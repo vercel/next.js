@@ -31,7 +31,7 @@ jobs:
         if: inputs.os == 'windows'
 
       - name: Checkout
-        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust

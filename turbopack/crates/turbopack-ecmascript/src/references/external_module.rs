@@ -10,7 +10,7 @@ use turbo_tasks_fs::{FileSystem, FileSystemPath, LinkType, VirtualFileSystem, ro
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, TracedMode},
     ident::{AssetIdent, Layer},
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -334,22 +334,13 @@ impl Module for CachedExternalModule {
                             rcstr!("affecting source"),
                         ))
                     })
-                    .chain(
-                        external_result
-                            .primary_modules_raw_iter()
-                            // These modules aren't bundled but still need to be part of the module
-                            // graph for chunking. `compute_async_module_info` computes
-                            // `is_self_async` for every module, but at least for traced modules,
-                            // that value is never used as `ChunkingType::Traced.is_inherit_async()
-                            // == false`. Optimize this case by using
-                            // `SideEffectfulModuleWithoutSelfAsync` to
-                            // short circuit that computation and thus defer parsing traced modules
-                            // to emitting to not block all of chunking on this.
-                            .map(|m| Vc::upcast(SideEffectfulModuleWithoutSelfAsync::new(*m))),
-                    )
+                    .chain(external_result.primary_modules_raw_iter().map(|m| *m))
                     .map(|s| {
-                        Vc::upcast::<Box<dyn ModuleReference>>(TracedModuleReference::new(s))
-                            .to_resolved()
+                        Vc::upcast::<Box<dyn ModuleReference>>(TracedModuleReference::new(
+                            s,
+                            TracedMode::Entry,
+                        ))
+                        .to_resolved()
                     })
                     .try_join()
                     .await?;
@@ -456,45 +447,6 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
         }
         .cell())
     }
-}
-
-/// A wrapper "passthrough" module type that always returns `false` for `is_self_async` and
-/// `SideEffects` for `side_effects`.Be careful when using it, as it may hide async dependencies.
-#[turbo_tasks::value]
-struct SideEffectfulModuleWithoutSelfAsync {
-    module: ResolvedVc<Box<dyn Module>>,
-}
-
-#[turbo_tasks::value_impl]
-impl SideEffectfulModuleWithoutSelfAsync {
-    #[turbo_tasks::function]
-    fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
-        Self::cell(SideEffectfulModuleWithoutSelfAsync { module })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Module for SideEffectfulModuleWithoutSelfAsync {
-    #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
-        self.module.source()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
-    }
-
-    #[turbo_tasks::function]
-    fn side_effects(&self) -> Vc<ModuleSideEffects> {
-        ModuleSideEffects::SideEffectful.cell()
-    }
-    // Don't override and use default is_self_async that always returns false
 }
 
 #[derive(Debug)]

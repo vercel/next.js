@@ -381,13 +381,6 @@ pub trait ChunkingContext {
         })
     }
 
-    /// Whether `ChunkingType::Traced` are used to create corresponding output assets for each
-    /// traced module.
-    #[turbo_tasks::function]
-    fn is_tracing_enabled(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(false)
-    }
-
     /// Whether async modules should create an new availability boundary and therefore nested async
     /// modules include less modules. Enabling this will lead to better optimized async chunks,
     /// but it will require to compute all possible paths in the application, which might lead to

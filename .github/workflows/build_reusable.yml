@@ -272,7 +272,7 @@ jobs:
           fnm env --json | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs -I {} echo "{}" >> $GITHUB_ENV
 
       - name: Normalize input step names into path key
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
         id: var
         with:
           script: |
@@ -314,7 +314,7 @@ jobs:
 
       - run: rm -rf .git
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 25
 
@@ -404,7 +404,7 @@ jobs:
         # If keep conditions in sync breaks, we can split into restore and save
         # steps where saving runs based on the outcome of the install step
         if: ${{ (runner.environment == 'github-hosted' || (inputs.needsPlaywright != 'no' && inputs.skipInstallBuild != 'yes' && inputs.usePlaywrightContainer != 'no' && !contains(inputs.runs_on_labels, 'windows'))) && (inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes') }}
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         timeout-minutes: 5
         id: cache-pnpm-store
         with:
@@ -450,7 +450,7 @@ jobs:
       # attempt of this same workflow run.
       - name: Restore passed-tests cache
         if: ${{ inputs.afterBuild && runner.environment == 'github-hosted' }}
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ env.NEXT_TEST_PASSED_FILE }}
           key: next-test-passed-${{ steps.var.outputs.input_step_key }}-${{ github.run_id }}-attempt${{ github.run_attempt }}
@@ -470,7 +470,7 @@ jobs:
       # them. `always()` makes this run on success, failure, or cancellation.
       - name: Save passed-tests cache
         if: ${{ always() && inputs.afterBuild && runner.environment == 'github-hosted' }}
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ env.NEXT_TEST_PASSED_FILE }}
           key: next-test-passed-${{ steps.var.outputs.input_step_key }}-${{ github.run_id }}-attempt${{ github.run_attempt }}

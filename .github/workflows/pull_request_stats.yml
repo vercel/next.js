@@ -96,7 +96,7 @@ jobs:
         bundler: [webpack, turbopack]
     runs-on: ubuntu-latest-16-core-oss
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 25
 
@@ -137,7 +137,7 @@ jobs:
     if: always() && needs.stats.result != 'cancelled'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 25
 
