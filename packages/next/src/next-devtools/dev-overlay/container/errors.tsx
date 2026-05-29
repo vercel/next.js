@@ -1074,6 +1074,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           setActiveIndex={setActiveIndex}
           dialogResizerRef={dialogResizerRef}
           generateErrorInfo={generateErrorInfo}
+          renderTabBar={renderTabBar}
           {...props}
         >
           <UnrenderedSegmentInfo
