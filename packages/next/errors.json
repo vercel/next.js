@@ -1277,15 +1277,12 @@
   "1276": "Compilation failed but no issues were recorded",
   "1277": "no route matched for path \"%s\"",
   "1278": "compileRoute: either routeSpecifier or path is required",
-  "1279": "Route \"%s\": Could not validate that a segment in your UI has instant navigation.",
-  "1280": "\\`experimental.appShells\\` requires the following to also be enabled: %s. Please update your %s accordingly.",
-  "1281": "Invariant: expected static metadata route to have a prerender pathname (%s)",
-  "1282": "Cache Components HTTP fallback recovery unexpectedly produced a DynamicServerError",
+  "1279": "\\`experimental.appShells\\` requires the following to also be enabled: %s. Please update your %s accordingly.",
+  "1280": "Invariant: expected static metadata route to have a prerender pathname (%s)",
+  "1281": "Expected stream state to be initialized before reading",
+  "1282": "Cache Components error recovery expected to know whether the original Flight prerender result was dynamic",
   "1283": "Cache Components error recovery expected an original Flight prerender result",
-  "1284": "Cache Components error recovery expected to know whether the original Flight prerender result was dynamic",
-  "1285": "Cache Components error recovery expected an original prerender resume data cache",
-  "1286": "Cache Components error recovery expected an original prerender store",
-  "1287": "Cache Components error recovery unexpectedly produced a dynamic HTML hole",
-  "1288": "Expected stream state to be initialized before reading",
-  "1289": "Cache Components error recovery expected an original resume data cache"
+  "1284": "Cache Components error recovery expected an original prerender store",
+  "1285": "Cache Components error recovery expected an original resume data cache",
+  "1286": "Route \"%s\": Could not validate that a segment in your UI has instant navigation."
 }

@@ -583,7 +583,7 @@ describe('instant validation - parallel slot configs', () => {
           const browser = await navigateTo(href)
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1279",
+             "code": "E1286",
              "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
