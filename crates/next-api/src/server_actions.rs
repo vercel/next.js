@@ -49,6 +49,8 @@ use turbopack_ecmascript::{
     tree_shake::part::module::EcmascriptModulePartAsset,
 };
 
+use crate::project::Project;
+
 #[turbo_tasks::value]
 pub(crate) struct ServerActionsManifest {
     pub loader: ResolvedVc<Box<dyn EvaluatableAsset>>,
@@ -65,7 +67,7 @@ pub(crate) struct ServerActionsManifest {
 #[turbo_tasks::function]
 pub(crate) async fn create_server_actions_manifest(
     actions: Vc<AllActions>,
-    project_path: FileSystemPath,
+    project: Vc<Project>,
     node_root: FileSystemPath,
     page_name: RcStr,
     runtime: NextRuntime,
@@ -73,6 +75,7 @@ pub(crate) async fn create_server_actions_manifest(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ServerActionsManifest>> {
+    let project_path = project.project_path().owned().await?;
     let loader =
         build_server_actions_loader(project_path, page_name.clone(), actions, rsc_asset_context);
     let evaluable =
@@ -89,6 +92,7 @@ pub(crate) async fn create_server_actions_manifest(
             chunk_item,
             module_graph,
             chunking_context,
+            project,
         )
         .to_resolved()
         .await?,
@@ -169,6 +173,7 @@ struct ServerActionManifestAsset {
     chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    project: ResolvedVc<Project>,
 }
 
 #[turbo_tasks::value_impl]
@@ -182,6 +187,7 @@ impl ServerActionManifestAsset {
         chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        project: ResolvedVc<Project>,
     ) -> Vc<Self> {
         Self {
             node_root,
@@ -191,6 +197,7 @@ impl ServerActionManifestAsset {
             chunk_item,
             module_graph,
             chunking_context,
+            project,
         }
         .cell()
     }
@@ -221,6 +228,12 @@ impl Asset for ServerActionManifestAsset {
 
         let actions_value = self.actions.await?;
         let async_module_info = self.module_graph.async_module_info();
+        let durable_use_cache_entries = *self
+            .project
+            .next_config()
+            .enable_durable_use_cache_entries(self.project.next_mode())
+            .await?;
+
         let loader_id = self.chunk_item.id().await?;
         let loader_id = match &loader_id {
             ModuleId::Number(id) => ActionManifestModuleId::Number(*id),
@@ -255,14 +268,18 @@ impl Asset for ServerActionManifestAsset {
                         exported_name: &meta.name,
                         filename,
                         // TODO only do this for "use cache" functions, not all server actions
-                        code_hash: Some(
-                            compute_subtree_content_hash(
-                                *self.module_graph,
-                                **module,
-                                *self.chunking_context,
+                        code_hash: if durable_use_cache_entries {
+                            Some(
+                                compute_subtree_content_hash(
+                                    *self.module_graph,
+                                    **module,
+                                    *self.chunking_context,
+                                )
+                                .await?,
                             )
-                            .await?,
-                        ),
+                        } else {
+                            None
+                        },
                     },
                 ))
             })
