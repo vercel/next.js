@@ -9853,7 +9853,6 @@ dependencies = [
  "codspeed-criterion-compat",
  "crossbeam-utils",
  "dashmap 6.1.0",
- "either",
  "futures",
  "hashbrown 0.14.5",
  "indexmap 2.13.0",
