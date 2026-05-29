@@ -1,7 +1,6 @@
 use std::{cmp::max, sync::Arc};
 
 use anyhow::Result;
-use either::Either;
 use smallvec::SmallVec;
 use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{
@@ -158,81 +157,5 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
     /// compaction failed and the rollback also failed, permanently disabling further writes.
     fn has_unrecoverable_write_error(&self) -> bool {
         false
-    }
-}
-
-impl<L, R> BackingStorage for Either<L, R>
-where
-    L: BackingStorage,
-    R: BackingStorage,
-{
-    fn invalidate(&self, reason_code: &str) -> Result<()> {
-        either::for_both!(self, this => this.invalidate(reason_code))
-    }
-}
-
-impl<L, R> BackingStorageSealed for Either<L, R>
-where
-    L: BackingStorageSealed,
-    R: BackingStorageSealed,
-{
-    fn next_free_task_id(&self) -> Result<TaskId> {
-        either::for_both!(self, this => this.next_free_task_id())
-    }
-
-    fn uncompleted_operations(&self) -> Result<Vec<AnyOperation>> {
-        either::for_both!(self, this => this.uncompleted_operations())
-    }
-
-    fn save_snapshot<I>(
-        &self,
-        operations: Vec<Arc<AnyOperation>>,
-        snapshots: Vec<I>,
-    ) -> Result<SnapshotMeta>
-    where
-        I: IntoIterator<Item = SnapshotItem> + Send + Sync,
-    {
-        either::for_both!(self, this => this.save_snapshot(
-            operations,
-            snapshots,
-        ))
-    }
-
-    fn lookup_task_candidates(
-        &self,
-        native_fn: &'static NativeFunction,
-        this: Option<RawVc>,
-        arg: &dyn DynTaskInputs,
-    ) -> Result<SmallVec<[TaskId; 1]>> {
-        either::for_both!(self, this_impl => this_impl.lookup_task_candidates(native_fn, this, arg))
-    }
-
-    fn lookup_data(
-        &self,
-        task_id: TaskId,
-        category: SpecificTaskDataCategory,
-        storage: &mut TaskStorage,
-    ) -> Result<()> {
-        either::for_both!(self, this => this.lookup_data(task_id, category, storage))
-    }
-
-    fn batch_lookup_data(
-        &self,
-        task_ids: &[TaskId],
-        category: SpecificTaskDataCategory,
-    ) -> Result<Vec<TaskStorage>> {
-        either::for_both!(self, this => this.batch_lookup_data(task_ids, category))
-    }
-
-    fn compact(&self) -> Result<bool> {
-        either::for_both!(self, this => this.compact())
-    }
-
-    fn shutdown(&self) -> Result<()> {
-        either::for_both!(self, this => this.shutdown())
-    }
-
-    fn has_unrecoverable_write_error(&self) -> bool {
-        either::for_both!(self, this => this.has_unrecoverable_write_error())
     }
 }
