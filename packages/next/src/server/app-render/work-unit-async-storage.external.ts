@@ -616,3 +616,40 @@ export function getCacheSignal(
       return workUnitStore satisfies never
   }
 }
+
+/**
+ * Returns the render's abort signal, when one exists for the current work unit.
+ *
+ * This is the signal that aborts when the prerender that owns the current
+ * render is torn down — for example, once all caches are filled during the
+ * prospective prerender, or when the final prerender is aborted. It can be used
+ * to deterministically release I/O that would otherwise be retained until the
+ * next garbage collection, such as un-consumed `cloneResponse` tee branches
+ * buffered in the fetch dedupe / fetch cache.
+ *
+ * @see https://github.com/vercel/next.js/issues/92287
+ */
+export function getRenderAbortSignal(
+  workUnitStore: WorkUnitStore
+): AbortSignal | null {
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'prerender-runtime':
+      return workUnitStore.renderSignal
+    case 'request':
+      // Present during build-time instant-validation, where the request store
+      // mirrors the prerender controller/renderSignal.
+      return workUnitStore.renderSignal ?? null
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'cache':
+    case 'private-cache':
+    case 'unstable-cache':
+    case 'generate-static-params':
+      return null
+    default:
+      return workUnitStore satisfies never
+  }
+}

@@ -16,17 +16,21 @@ jest.mock('react', () => ({
   },
 }))
 
-// Mock the clone-response module
+// Mock the clone-response module. Use a jest.fn so tests can assert the
+// render abort signal is threaded through as the second argument.
 jest.mock('./clone-response', () => ({
-  cloneResponse: (response: Response) => {
-    // Create two independent clones of the response
-    const clone1 = response.clone()
-    const clone2 = response.clone()
-    return [clone1, clone2]
-  },
+  cloneResponse: jest.fn((response: Response) => [
+    response.clone(),
+    response.clone(),
+  ]),
 }))
 
 import { createDedupeFetch } from './dedupe-fetch'
+import { cloneResponse } from './clone-response'
+import {
+  workUnitAsyncStorage,
+  type WorkUnitStore,
+} from '../app-render/work-unit-async-storage.external'
 
 describe('dedupe-fetch', () => {
   let originalFetch: jest.MockedFunction<typeof fetch>
@@ -694,6 +698,37 @@ describe('dedupe-fetch', () => {
 
       // Should only call original fetch once
       expect(originalFetch).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  // Regression coverage for https://github.com/vercel/next.js/issues/92287:
+  // the retained dedupe clone must be passed the render abort signal so it can
+  // be cancelled deterministically when the render is torn down.
+  describe('render abort signal threading', () => {
+    const mockClone = cloneResponse as jest.Mock
+
+    it('threads the render abort signal into cloneResponse inside a render store', async () => {
+      originalFetch.mockResolvedValue(new Response('x', { status: 200 }))
+      const controller = new AbortController()
+      const store = {
+        type: 'prerender-runtime',
+        renderSignal: controller.signal,
+      } as unknown as WorkUnitStore
+
+      await workUnitAsyncStorage.run(store, () =>
+        dedupeFetch('https://example.com/api')
+      )
+
+      expect(mockClone).toHaveBeenCalledWith(
+        expect.any(Response),
+        controller.signal
+      )
+    })
+
+    it('passes null when there is no work unit store', async () => {
+      originalFetch.mockResolvedValue(new Response('x', { status: 200 }))
+      await dedupeFetch('https://example.com/api')
+      expect(mockClone).toHaveBeenCalledWith(expect.any(Response), null)
     })
   })
 })

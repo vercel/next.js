@@ -4,6 +4,10 @@
 import * as React from 'react'
 import { cloneResponse } from './clone-response'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import {
+  getRenderAbortSignal,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 
 const simpleCacheKey = '["GET",[],null,"follow",null,null,null,null]' // generateCacheKey(new Request('https://blank'));
 
@@ -91,6 +95,14 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
       url = request.url
     }
 
+    // Capture the render's abort signal so the clone we retain below (entry[2])
+    // is cancelled when the render is torn down, instead of lingering off-heap
+    // until GC. See https://github.com/vercel/next.js/issues/92287
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    const renderAbortSignal = workUnitStore
+      ? getRenderAbortSignal(workUnitStore)
+      : null
+
     const cacheEntries = getCacheEntries(url)
     for (let i = 0, j = cacheEntries.length; i < j; i += 1) {
       const [key, promise] = cacheEntries[i]
@@ -103,7 +115,7 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
           // a bug in the undici library around response cloning. See the
           // following pull request for more details:
           // https://github.com/vercel/next.js/pull/73274
-          const [cloned1, cloned2] = cloneResponse(response)
+          const [cloned1, cloned2] = cloneResponse(response, renderAbortSignal)
           cacheEntries[i][2] = cloned2
           return cloned1
         })
@@ -121,7 +133,7 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
       // a bug in the undici library around response cloning. See the
       // following pull request for more details:
       // https://github.com/vercel/next.js/pull/73274
-      const [cloned1, cloned2] = cloneResponse(response)
+      const [cloned1, cloned2] = cloneResponse(response, renderAbortSignal)
       entry[2] = cloned2
       return cloned1
     })
