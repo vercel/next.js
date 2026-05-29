@@ -179,6 +179,16 @@ export function InstantGuidance({
       variant === 'runtime'
         ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
         : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
+  } else if (kind === 'metadata') {
+    docsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/next-prerender-runtime-metadata'
+        : 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata'
+  } else if (kind === 'viewport') {
+    docsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/next-prerender-runtime-viewport'
+        : 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport'
   } else {
     docsUrl = DOCS_URLS[kind]
   }

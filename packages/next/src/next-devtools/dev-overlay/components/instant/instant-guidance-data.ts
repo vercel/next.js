@@ -170,7 +170,7 @@ const metadataRuntimeCards: FixCard[] = [
     id: 'use-static-metadata',
     title: 'Use static metadata',
     group: 'static',
-    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#use-static-metadata',
+    link: 'https://nextjs.org/docs/messages/next-prerender-runtime-metadata#use-static-metadata',
     snippets: [
       { text: 'export const metadata = {', highlight: true },
       { text: '  title: "My Page"' },
@@ -181,7 +181,7 @@ const metadataRuntimeCards: FixCard[] = [
     id: 'render-page-at-request-time',
     title: 'Mark the route as dynamic',
     group: 'dynamic',
-    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#mark-the-route-as-dynamic',
+    link: 'https://nextjs.org/docs/messages/next-prerender-runtime-metadata#mark-the-route-as-dynamic',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'await connection()', highlight: true },
@@ -220,7 +220,7 @@ const viewportRuntimeCards: FixCard[] = [
     id: 'use-static-viewport',
     title: 'Use static viewport',
     group: 'static',
-    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#use-static-viewport',
+    link: 'https://nextjs.org/docs/messages/next-prerender-runtime-viewport#use-static-viewport',
     snippets: [
       { text: 'export const viewport = {', highlight: true },
       { text: '  themeColor: "#000"' },
@@ -231,7 +231,7 @@ const viewportRuntimeCards: FixCard[] = [
     id: 'allow-blocking-route',
     title: 'Allow blocking route',
     group: 'block',
-    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#allow-blocking-route',
+    link: 'https://nextjs.org/docs/messages/next-prerender-runtime-viewport#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
