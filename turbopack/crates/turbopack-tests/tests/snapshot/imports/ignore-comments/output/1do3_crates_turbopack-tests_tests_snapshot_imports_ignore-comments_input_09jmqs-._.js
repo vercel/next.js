@@ -24,7 +24,7 @@ __turbopack_context__.s([
 ]);
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
-        return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js")}`;
+        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js");
     }
 };
 __turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.mjs [test] (ecmascript, async loader)").then(console.log);

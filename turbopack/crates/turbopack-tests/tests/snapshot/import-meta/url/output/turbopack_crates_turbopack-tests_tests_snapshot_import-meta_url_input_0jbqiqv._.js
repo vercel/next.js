@@ -8,7 +8,7 @@ __turbopack_context__.q("/static/asset.1z1abqqd69ldl.txt");}),
 __turbopack_context__.s([]);
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
-        return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/mod.mjs")}`;
+        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/mod.mjs");
     }
 };
 const assetUrl = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/asset.txt (static in ecmascript)"));
