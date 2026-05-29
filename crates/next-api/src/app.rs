@@ -1747,6 +1747,8 @@ impl AppEndpoint {
                                 .chain(loadable_manifest_output.iter().flat_map(|m| &**m).copied())
                                 .map(|m| *m)
                                 .collect(),
+                            *module_graphs.full,
+                            vec![*rsc_entry],
                         )
                         .to_resolved()
                         .await?,

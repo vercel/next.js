@@ -16,7 +16,7 @@ use crate::{
     code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
     references::AstPath,
-    runtime_functions::{TURBOPACK_MODULE, TURBOPACK_RESOLVE_ABSOLUTE_PATH},
+    runtime_functions::{TURBOPACK_MODULE, TURBOPACK_RESOLVE_FILE_URL},
 };
 
 /// Responsible for initializing the `import.meta` object binding, so that it
@@ -55,10 +55,13 @@ impl ImportMetaBinding {
                 )
             },
             |path| {
+                // `encode_path` only escapes characters that would break the JS string literal
+                // we embed `formatted` into. The runtime helper (`TURBOPACK_RESOLVE_FILE_URL`)
+                // is responsible for producing the final, properly URL-encoded `file://` URI.
                 let formatted = encode_path(path.trim_start_matches("./")).to_string();
                 quote!(
-                    "`file://${$turbopack_resolve_absolute_path($formatted)}`" as Expr,
-                    turbopack_resolve_absolute_path: Expr = TURBOPACK_RESOLVE_ABSOLUTE_PATH.into(),
+                    "$turbopack_resolve_file_url($formatted)" as Expr,
+                    turbopack_resolve_file_url: Expr = TURBOPACK_RESOLVE_FILE_URL.into(),
                     formatted: Expr = formatted.into()
                 )
             },

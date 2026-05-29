@@ -600,7 +600,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                 chunk_groups,
                             )))
                         }
-                        ChunkingType::Traced => {
+                        ChunkingType::Traced { .. } => {
                             // Traced modules are not placed in chunk groups
                             return Ok(GraphTraversalAction::Skip);
                         }

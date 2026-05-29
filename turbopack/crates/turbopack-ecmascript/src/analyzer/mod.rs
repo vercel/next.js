@@ -2430,6 +2430,7 @@ impl JsValue {
             JsValue::Url(..)
             | JsValue::Array { .. }
             | JsValue::Object { .. }
+            | JsValue::Promise(..)
             | JsValue::WellKnownObject(..)
             | JsValue::WellKnownFunction(..)
             | JsValue::Function(..) => Some(true),
@@ -2448,7 +2449,7 @@ impl JsValue {
                 LogicalOperator::And => all_if_known(list, JsValue::is_truthy),
                 LogicalOperator::Or => any_if_known(list, JsValue::is_truthy),
                 LogicalOperator::NullishCoalescing => {
-                    shortcircuit_if_known(list, JsValue::is_not_nullish, JsValue::is_truthy)
+                    eval_shortcircuit(list, JsValue::is_not_nullish)?.is_truthy()
                 }
             },
             JsValue::Binary(_, box a, op, box b) => {
@@ -2459,25 +2460,6 @@ impl JsValue {
                         JsValue::Constant(a),
                         JsValue::Constant(b),
                     ) if a.is_value_type() => Some(a == b),
-                    (
-                        PositiveBinaryOperator::StrictEqual,
-                        JsValue::Constant(a),
-                        JsValue::Constant(b),
-                    ) if a.is_value_type() => {
-                        let same_type = {
-                            use ConstantValue::*;
-                            matches!(
-                                (a, b),
-                                (Num(_), Num(_))
-                                    | (Str(_), Str(_))
-                                    | (BigInt(_), BigInt(_))
-                                    | (True | False, True | False)
-                                    | (Undefined, Undefined)
-                                    | (Null, Null)
-                            )
-                        };
-                        if same_type { Some(a == b) } else { None }
-                    }
                     (
                         PositiveBinaryOperator::Equal,
                         JsValue::Constant(ConstantValue::Str(a)),
@@ -2515,6 +2497,7 @@ impl JsValue {
             | JsValue::WellKnownFunction(..)
             | JsValue::Not(..)
             | JsValue::Binary(..)
+            | JsValue::Promise(..)
             | JsValue::Function(..) => Some(false),
             JsValue::Alternatives {
                 total_nodes: _,
@@ -2525,12 +2508,8 @@ impl JsValue {
                 _ => merge_if_known(values, JsValue::is_nullish),
             },
             JsValue::Logical(_, op, list) => match op {
-                LogicalOperator::And => {
-                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_nullish)
-                }
-                LogicalOperator::Or => {
-                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_nullish)
-                }
+                LogicalOperator::And => eval_shortcircuit(list, JsValue::is_falsy)?.is_nullish(),
+                LogicalOperator::Or => eval_shortcircuit(list, JsValue::is_truthy)?.is_nullish(),
                 LogicalOperator::NullishCoalescing => all_if_known(list, JsValue::is_nullish),
             },
             _ => None,
@@ -2558,13 +2537,13 @@ impl JsValue {
             } => merge_if_known(values, JsValue::is_empty_string),
             JsValue::Logical(_, op, list) => match op {
                 LogicalOperator::And => {
-                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_empty_string)
+                    eval_shortcircuit(list, JsValue::is_falsy)?.is_empty_string()
                 }
                 LogicalOperator::Or => {
-                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_empty_string)
+                    eval_shortcircuit(list, JsValue::is_truthy)?.is_empty_string()
                 }
                 LogicalOperator::NullishCoalescing => {
-                    shortcircuit_if_known(list, JsValue::is_not_nullish, JsValue::is_empty_string)
+                    eval_shortcircuit(list, JsValue::is_not_nullish)?.is_empty_string()
                 }
             },
             // Booleans are not empty strings
@@ -2618,14 +2597,10 @@ impl JsValue {
 
             JsValue::Add(_, list) => any_if_known(list, JsValue::is_string),
             JsValue::Logical(_, op, list) => match op {
-                LogicalOperator::And => {
-                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_string)
-                }
-                LogicalOperator::Or => {
-                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_string)
-                }
+                LogicalOperator::And => eval_shortcircuit(list, JsValue::is_falsy)?.is_string(),
+                LogicalOperator::Or => eval_shortcircuit(list, JsValue::is_truthy)?.is_string(),
                 LogicalOperator::NullishCoalescing => {
-                    shortcircuit_if_known(list, JsValue::is_not_nullish, JsValue::is_string)
+                    eval_shortcircuit(list, JsValue::is_not_nullish)?.is_string()
                 }
             },
 
@@ -2788,26 +2763,25 @@ fn any_if_known<T: Copy>(
     all_if_known(list, |x| func(x).map(|x| !x)).map(|x| !x)
 }
 
-/// Selects the first element of the list where `use_item` is compile-time true.
-/// For this element returns the result of `item_value`. Otherwise returns None.
-fn shortcircuit_if_known<T: Copy>(
+/// Selects the first element of the list where `matches` is compile-time true.
+/// Returns this element; if no elements match, it returns the last item.
+fn eval_shortcircuit<T: Copy>(
     list: impl IntoIterator<Item = T>,
-    use_item: impl Fn(T) -> Option<bool>,
-    item_value: impl FnOnce(T) -> Option<bool>,
-) -> Option<bool> {
+    matches: impl Fn(T) -> Option<bool>,
+) -> Option<T> {
     let mut it = list.into_iter().peekable();
     while let Some(item) = it.next() {
         if it.peek().is_none() {
-            return item_value(item);
+            return Some(item);
         } else {
-            match use_item(item) {
-                Some(true) => return item_value(item),
+            match matches(item) {
+                Some(true) => return Some(item),
                 None => return None,
                 _ => {}
             }
         }
     }
-    None
+    unreachable!("Binary operators should always have operands.")
 }
 
 // Visiting
@@ -3993,23 +3967,26 @@ pub mod test_utils {
 
 #[cfg(test)]
 mod tests {
-    use std::{mem::take, path::PathBuf, time::Instant};
+    use std::{mem::take, path::PathBuf, sync::Arc, time::Instant};
 
     use parking_lot::Mutex;
     use rstest::rstest;
     use rustc_hash::FxHashMap;
     use swc_core::{
-        common::{Mark, comments::SingleThreadedComments},
+        common::{
+            FilePathMapping, GLOBALS, Globals, Mark, SourceMap, comments::SingleThreadedComments,
+        },
         ecma::{
             ast::{EsVersion, Id},
             parser::parse_file_as_program,
             transforms::base::resolver,
             visit::VisitMutWith,
         },
-        testing::{NormalizedOutput, fixture, run_test},
+        testing::{NormalizedOutput, fixture},
     };
-    use turbo_rcstr::rcstr;
-    use turbo_tasks::{ResolvedVc, util::FormatDuration};
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::{ResolvedVc, TurboTasks, util::FormatDuration};
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
     use turbopack_core::{
         compile_time_info::CompileTimeInfo,
         environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
@@ -4017,7 +3994,7 @@ mod tests {
     };
 
     use super::{
-        JsValue,
+        ConstantValue, JsValue,
         graph::{ConditionalKind, Effect, EffectArg, EvalContext, VarGraph, create_graph},
         linker::link,
     };
@@ -4028,6 +4005,29 @@ mod tests {
 
     #[fixture("tests/analyzer/graph/**/input.js")]
     fn fixture(input: PathBuf) {
+        let input = RcStr::from(input.to_str().unwrap());
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()
+            .unwrap();
+        rt.block_on(async move {
+            let tt = TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tt.run_once(async move {
+                fixture_op(input).read_strongly_consistent().await?;
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+        });
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn fixture_op(input: RcStr) -> anyhow::Result<()> {
+        let input = PathBuf::from(input.as_str());
         let graph_snapshot_path = input.with_file_name("graph.snapshot");
         let graph_explained_snapshot_path = input.with_file_name("graph-explained.snapshot");
         let graph_effects_snapshot_path = input.with_file_name("graph-effects.snapshot");
@@ -4035,409 +4035,361 @@ mod tests {
         let resolved_effects_snapshot_path = input.with_file_name("resolved-effects.snapshot");
         let large_marker = input.with_file_name("large");
 
-        run_test(false, |cm, handler| {
-            let r = tokio::runtime::Builder::new_current_thread()
-                .build()
-                .unwrap();
-            r.block_on(async move {
-                let fm = cm.load_file(&input).unwrap();
+        let cm: Arc<SourceMap> = Arc::new(SourceMap::new(FilePathMapping::empty()));
+        let globals = Arc::new(Globals::new());
 
-                let comments = SingleThreadedComments::default();
-                let mut m = parse_file_as_program(
-                    &fm,
-                    Default::default(),
-                    EsVersion::latest(),
-                    Some(&comments),
-                    &mut vec![],
-                )
-                .map_err(|err| err.into_diagnostic(handler).emit())?;
+        // Keep all non-`Send` SWC types (`SingleThreadedComments`, `Lrc<SourceFile>`)
+        // confined to this synchronous block so they don't have to cross an `.await`
+        // and break the `Send` bound on `tt.run_once`'s future.
+        let (eval_context, mut var_graph) = GLOBALS.set(&globals, || {
+            let fm = cm.load_file(&input).unwrap();
+            let comments = SingleThreadedComments::default();
+            let mut m = parse_file_as_program(
+                &fm,
+                Default::default(),
+                EsVersion::latest(),
+                Some(&comments),
+                &mut vec![],
+            )
+            .map_err(|err| anyhow::anyhow!("parse error: {err:?}"))?;
 
-                let unresolved_mark = Mark::new();
-                let top_level_mark = Mark::new();
-                m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
+            let unresolved_mark = Mark::new();
+            let top_level_mark = Mark::new();
+            m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
-                let eval_context = EvalContext::new(
-                    Some(&m),
-                    unresolved_mark,
-                    top_level_mark,
-                    Default::default(),
-                    Some(&comments),
-                );
+            let eval_context = EvalContext::new(
+                Some(&m),
+                unresolved_mark,
+                top_level_mark,
+                Default::default(),
+                Some(&comments),
+            );
 
-                let mut var_graph = create_graph(
-                    &m,
-                    &eval_context,
-                    AnalyzeMode::CodeGenerationAndTracing,
-                    true,
-                );
-                let var_cache = Default::default();
+            let var_graph = create_graph(
+                &m,
+                &eval_context,
+                AnalyzeMode::CodeGenerationAndTracing,
+                true,
+            );
+            anyhow::Ok((eval_context, var_graph))
+        })?;
+        let var_cache = Default::default();
 
-                let mut named_values = var_graph
-                    .values
-                    .clone()
-                    .into_iter()
-                    .map(|((id, ctx), value)| {
-                        let unique = var_graph.values.keys().filter(|(i, _)| &id == i).count() == 1;
-                        if unique {
-                            (id.to_string(), ((id, ctx), value))
-                        } else {
-                            (format!("{id}{ctx:?}"), ((id, ctx), value))
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                named_values.sort_by(|a, b| a.0.cmp(&b.0));
+        let mut named_values = var_graph
+            .values
+            .clone()
+            .into_iter()
+            .map(|((id, ctx), value)| {
+                let unique = var_graph.values.keys().filter(|(i, _)| &id == i).count() == 1;
+                if unique {
+                    (id.to_string(), ((id, ctx), value))
+                } else {
+                    (format!("{id}{ctx:?}"), ((id, ctx), value))
+                }
+            })
+            .collect::<Vec<_>>();
+        named_values.sort_by(|a, b| a.0.cmp(&b.0));
 
-                fn explain_all<'a>(
-                    values: impl IntoIterator<
-                        Item = (&'a String, &'a JsValue, Option<AssignmentScopes>),
-                    >,
-                ) -> String {
-                    values
-                        .into_iter()
-                        .map(|(id, value, assignment_scopes)| {
-                            let non_root_assignments = match assignment_scopes {
-                                Some(AssignmentScopes::AllInModuleEvalScope) => {
-                                    " (const after eval)"
-                                }
-                                _ => "",
-                            };
-                            let (explainer, hints) = value.explain(10, 5);
-                            format!("{id}{non_root_assignments} = {explainer}{hints}")
-                        })
+        fn explain_all<'a>(
+            values: impl IntoIterator<Item = (&'a String, &'a JsValue, Option<AssignmentScopes>)>,
+        ) -> String {
+            values
+                .into_iter()
+                .map(|(id, value, assignment_scopes)| {
+                    let non_root_assignments = match assignment_scopes {
+                        Some(AssignmentScopes::AllInModuleEvalScope) => " (const after eval)",
+                        _ => "",
+                    };
+                    let (explainer, hints) = value.explain(10, 5);
+                    format!("{id}{non_root_assignments} = {explainer}{hints}")
+                })
+                .collect::<Vec<_>>()
+                .join("\n\n")
+        }
+
+        {
+            // Dump snapshot of graph
+
+            let large = large_marker.exists();
+
+            if !large {
+                NormalizedOutput::from(format!(
+                    "{:#?}",
+                    named_values
+                        .iter()
+                        .map(|(name, (_, value))| (name, value))
                         .collect::<Vec<_>>()
-                        .join("\n\n")
-                }
-
-                {
-                    // Dump snapshot of graph
-
-                    let large = large_marker.exists();
-
-                    if !large {
-                        NormalizedOutput::from(format!(
-                            "{:#?}",
-                            named_values
-                                .iter()
-                                .map(|(name, (_, value))| (name, value))
-                                .collect::<Vec<_>>()
-                        ))
-                        .compare_to_file(&graph_snapshot_path)
-                        .unwrap();
-                    }
-                    NormalizedOutput::from(explain_all(named_values.iter().map(
-                        |(name, (id, value))| {
-                            (
-                                name,
-                                value,
-                                eval_context.imports.assignment_scopes.get(id).copied(),
-                            )
-                        },
-                    )))
-                    .compare_to_file(&graph_explained_snapshot_path)
+                ))
+                .compare_to_file(&graph_snapshot_path)
+                .unwrap();
+            }
+            NormalizedOutput::from(explain_all(named_values.iter().map(
+                |(name, (id, value))| {
+                    (
+                        name,
+                        value,
+                        eval_context.imports.assignment_scopes.get(id).copied(),
+                    )
+                },
+            )))
+            .compare_to_file(&graph_explained_snapshot_path)
+            .unwrap();
+            if !large {
+                NormalizedOutput::from(format!("{:#?}", var_graph.effects))
+                    .compare_to_file(&graph_effects_snapshot_path)
                     .unwrap();
-                    if !large {
-                        NormalizedOutput::from(format!("{:#?}", var_graph.effects))
-                            .compare_to_file(&graph_effects_snapshot_path)
-                            .unwrap();
-                    }
+            }
+        }
+
+        {
+            // Dump snapshot of resolved
+
+            let start = Instant::now();
+            let mut resolved = Vec::new();
+            for (name, (id, _)) in named_values.iter().cloned() {
+                let start = Instant::now();
+                // Ideally this would use eval_context.imports.get_attributes(span), but the
+                // span isn't available here
+                let (res, steps) = resolve(
+                    &var_graph,
+                    JsValue::Variable(id),
+                    ImportAttributes::empty_ref(),
+                    &var_cache,
+                )
+                .await;
+                let time = start.elapsed();
+                if time.as_millis() > 1 {
+                    println!(
+                        "linking {} {name} took {} in {} steps",
+                        input.display(),
+                        FormatDuration(time),
+                        steps
+                    );
                 }
 
-                {
-                    // Dump snapshot of resolved
+                resolved.push((name, res));
+            }
+            let time = start.elapsed();
+            if time.as_millis() > 1 {
+                println!("linking {} took {}", input.display(), FormatDuration(time));
+            }
 
-                    let start = Instant::now();
-                    let mut resolved = Vec::new();
-                    for (name, (id, _)) in named_values.iter().cloned() {
-                        let start = Instant::now();
-                        // Ideally this would use eval_context.imports.get_attributes(span), but the
-                        // span isn't available here
-                        let (res, steps) = resolve(
+            let start = Instant::now();
+            let explainer = explain_all(resolved.iter().map(|(name, value)| (name, value, None)));
+            let time = start.elapsed();
+            if time.as_millis() > 1 {
+                println!(
+                    "explaining {} took {}",
+                    input.display(),
+                    FormatDuration(time)
+                );
+            }
+
+            NormalizedOutput::from(explainer)
+                .compare_to_file(&resolved_explained_snapshot_path)
+                .unwrap();
+        }
+
+        {
+            // Dump snapshot of resolved effects
+
+            let start = Instant::now();
+            let mut resolved = Vec::new();
+            let mut queue = take(&mut var_graph.effects)
+                .into_iter()
+                .map(|effect| (0, effect))
+                .rev()
+                .collect::<Vec<_>>();
+            let mut i = 0;
+            while let Some((parent, effect)) = queue.pop() {
+                i += 1;
+                let start = Instant::now();
+                async fn handle_args(
+                    args: Vec<EffectArg>,
+                    queue: &mut Vec<(usize, Effect)>,
+                    var_graph: &VarGraph,
+                    var_cache: &Mutex<FxHashMap<Id, JsValue>>,
+                    i: usize,
+                ) -> Vec<JsValue> {
+                    let mut new_args = Vec::with_capacity(args.len());
+                    for arg in args {
+                        match arg {
+                            EffectArg::Value(v) => {
+                                new_args.push(
+                                    resolve(var_graph, v, ImportAttributes::empty_ref(), var_cache)
+                                        .await
+                                        .0,
+                                );
+                            }
+                            EffectArg::Closure(v, effects) => {
+                                new_args.push(
+                                    resolve(var_graph, v, ImportAttributes::empty_ref(), var_cache)
+                                        .await
+                                        .0,
+                                );
+                                queue.extend(effects.effects.into_iter().rev().map(|e| (i, e)));
+                            }
+                            EffectArg::Spread => {
+                                new_args.push(JsValue::unknown_empty(true, rcstr!("spread")));
+                            }
+                        }
+                    }
+                    new_args
+                }
+                let steps = match effect {
+                    Effect::Conditional {
+                        condition, kind, ..
+                    } => {
+                        let (condition, steps) = resolve(
                             &var_graph,
-                            JsValue::Variable(id),
+                            *condition,
                             ImportAttributes::empty_ref(),
                             &var_cache,
                         )
                         .await;
-                        let time = start.elapsed();
-                        if time.as_millis() > 1 {
-                            println!(
-                                "linking {} {name} took {} in {} steps",
-                                input.display(),
-                                FormatDuration(time),
-                                steps
-                            );
-                        }
-
-                        resolved.push((name, res));
-                    }
-                    let time = start.elapsed();
-                    if time.as_millis() > 1 {
-                        println!("linking {} took {}", input.display(), FormatDuration(time));
-                    }
-
-                    let start = Instant::now();
-                    let explainer =
-                        explain_all(resolved.iter().map(|(name, value)| (name, value, None)));
-                    let time = start.elapsed();
-                    if time.as_millis() > 1 {
-                        println!(
-                            "explaining {} took {}",
-                            input.display(),
-                            FormatDuration(time)
-                        );
-                    }
-
-                    NormalizedOutput::from(explainer)
-                        .compare_to_file(&resolved_explained_snapshot_path)
-                        .unwrap();
-                }
-
-                {
-                    // Dump snapshot of resolved effects
-
-                    let start = Instant::now();
-                    let mut resolved = Vec::new();
-                    let mut queue = take(&mut var_graph.effects)
-                        .into_iter()
-                        .map(|effect| (0, effect))
-                        .rev()
-                        .collect::<Vec<_>>();
-                    let mut i = 0;
-                    while let Some((parent, effect)) = queue.pop() {
-                        i += 1;
-                        let start = Instant::now();
-                        async fn handle_args(
-                            args: Vec<EffectArg>,
-                            queue: &mut Vec<(usize, Effect)>,
-                            var_graph: &VarGraph,
-                            var_cache: &Mutex<FxHashMap<Id, JsValue>>,
-                            i: usize,
-                        ) -> Vec<JsValue> {
-                            let mut new_args = Vec::with_capacity(args.len());
-                            for arg in args {
-                                match arg {
-                                    EffectArg::Value(v) => {
-                                        new_args.push(
-                                            resolve(
-                                                var_graph,
-                                                v,
-                                                ImportAttributes::empty_ref(),
-                                                var_cache,
-                                            )
-                                            .await
-                                            .0,
-                                        );
-                                    }
-                                    EffectArg::Closure(v, effects) => {
-                                        new_args.push(
-                                            resolve(
-                                                var_graph,
-                                                v,
-                                                ImportAttributes::empty_ref(),
-                                                var_cache,
-                                            )
-                                            .await
-                                            .0,
-                                        );
-                                        queue.extend(
-                                            effects.effects.into_iter().rev().map(|e| (i, e)),
-                                        );
-                                    }
-                                    EffectArg::Spread => {
-                                        new_args
-                                            .push(JsValue::unknown_empty(true, rcstr!("spread")));
-                                    }
+                        resolved.push((format!("{parent} -> {i} conditional"), condition));
+                        match *kind {
+                            ConditionalKind::If { then } => {
+                                queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                            }
+                            ConditionalKind::Else { r#else } => {
+                                queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
+                            }
+                            ConditionalKind::IfElse { then, r#else }
+                            | ConditionalKind::Ternary { then, r#else } => {
+                                queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                            }
+                            ConditionalKind::IfElseMultiple { then, r#else } => {
+                                for then in then {
+                                    queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                }
+                                for r#else in r#else {
+                                    queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
                                 }
                             }
-                            new_args
-                        }
-                        let steps = match effect {
-                            Effect::Conditional {
-                                condition, kind, ..
-                            } => {
-                                let (condition, steps) = resolve(
-                                    &var_graph,
-                                    *condition,
-                                    ImportAttributes::empty_ref(),
-                                    &var_cache,
-                                )
-                                .await;
-                                resolved.push((format!("{parent} -> {i} conditional"), condition));
-                                match *kind {
-                                    ConditionalKind::If { then } => {
-                                        queue
-                                            .extend(then.effects.into_iter().rev().map(|e| (i, e)));
-                                    }
-                                    ConditionalKind::Else { r#else } => {
-                                        queue.extend(
-                                            r#else.effects.into_iter().rev().map(|e| (i, e)),
-                                        );
-                                    }
-                                    ConditionalKind::IfElse { then, r#else }
-                                    | ConditionalKind::Ternary { then, r#else } => {
-                                        queue.extend(
-                                            r#else.effects.into_iter().rev().map(|e| (i, e)),
-                                        );
-                                        queue
-                                            .extend(then.effects.into_iter().rev().map(|e| (i, e)));
-                                    }
-                                    ConditionalKind::IfElseMultiple { then, r#else } => {
-                                        for then in then {
-                                            queue.extend(
-                                                then.effects.into_iter().rev().map(|e| (i, e)),
-                                            );
-                                        }
-                                        for r#else in r#else {
-                                            queue.extend(
-                                                r#else.effects.into_iter().rev().map(|e| (i, e)),
-                                            );
-                                        }
-                                    }
-                                    ConditionalKind::And { expr }
-                                    | ConditionalKind::Or { expr }
-                                    | ConditionalKind::NullishCoalescing { expr }
-                                    | ConditionalKind::Labeled { body: expr } => {
-                                        queue
-                                            .extend(expr.effects.into_iter().rev().map(|e| (i, e)));
-                                    }
-                                };
-                                steps
+                            ConditionalKind::And { expr }
+                            | ConditionalKind::Or { expr }
+                            | ConditionalKind::NullishCoalescing { expr }
+                            | ConditionalKind::Labeled { body: expr } => {
+                                queue.extend(expr.effects.into_iter().rev().map(|e| (i, e)));
                             }
-                            Effect::Call {
-                                func,
-                                args,
-                                new,
-                                span,
-                                ..
-                            } => {
-                                let (func, steps) = resolve(
-                                    &var_graph,
-                                    *func,
-                                    eval_context.imports.get_attributes(span),
-                                    &var_cache,
-                                )
-                                .await;
-                                let new_args =
-                                    handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
-                                resolved.push((
-                                    format!("{parent} -> {i} call"),
-                                    if new {
-                                        JsValue::new_from_iter(func, new_args)
-                                    } else {
-                                        JsValue::call_from_iter(func, new_args)
-                                    },
-                                ));
-                                steps
-                            }
-                            Effect::FreeVar { var, .. } => {
-                                resolved.push((
-                                    format!("{parent} -> {i} free var"),
-                                    JsValue::FreeVar(var),
-                                ));
-                                0
-                            }
-                            Effect::TypeOf { arg, .. } => {
-                                let (arg, steps) = resolve(
-                                    &var_graph,
-                                    *arg,
-                                    ImportAttributes::empty_ref(),
-                                    &var_cache,
-                                )
-                                .await;
-                                resolved.push((
-                                    format!("{parent} -> {i} typeof"),
-                                    JsValue::type_of(Box::new(arg)),
-                                ));
-                                steps
-                            }
-                            Effect::MemberCall {
-                                obj, prop, args, ..
-                            } => {
-                                let (obj, obj_steps) = resolve(
-                                    &var_graph,
-                                    *obj,
-                                    ImportAttributes::empty_ref(),
-                                    &var_cache,
-                                )
-                                .await;
-                                let (prop, prop_steps) = resolve(
-                                    &var_graph,
-                                    *prop,
-                                    ImportAttributes::empty_ref(),
-                                    &var_cache,
-                                )
-                                .await;
-                                let new_args =
-                                    handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
-                                resolved.push((
-                                    format!("{parent} -> {i} member call"),
-                                    JsValue::member_call_from_iter(obj, prop, new_args),
-                                ));
-                                obj_steps + prop_steps
-                            }
-                            Effect::DynamicImport { args, .. } => {
-                                let new_args =
-                                    handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
-                                resolved.push((
-                                    format!("{parent} -> {i} dynamic import"),
-                                    JsValue::call_from_iter(
-                                        JsValue::FreeVar("import".into()),
-                                        new_args,
-                                    ),
-                                ));
-                                0
-                            }
-                            Effect::Unreachable { .. } => {
-                                resolved.push((
-                                    format!("{parent} -> {i} unreachable"),
-                                    JsValue::unknown_empty(true, rcstr!("unreachable")),
-                                ));
-                                0
-                            }
-                            Effect::ImportMeta { .. }
-                            | Effect::ImportedBinding { .. }
-                            | Effect::Member { .. } => 0,
                         };
-                        let time = start.elapsed();
-                        if time.as_millis() > 1 {
-                            println!(
-                                "linking effect {} took {} in {} steps",
-                                input.display(),
-                                FormatDuration(time),
-                                steps
-                            );
-                        }
+                        steps
                     }
-                    let time = start.elapsed();
-                    if time.as_millis() > 1 {
-                        println!(
-                            "linking effects {} took {}",
-                            input.display(),
-                            FormatDuration(time)
-                        );
+                    Effect::Call {
+                        func,
+                        args,
+                        new,
+                        span,
+                        ..
+                    } => {
+                        let (func, steps) = resolve(
+                            &var_graph,
+                            *func,
+                            eval_context.imports.get_attributes(span),
+                            &var_cache,
+                        )
+                        .await;
+                        let new_args =
+                            handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
+                        resolved.push((
+                            format!("{parent} -> {i} call"),
+                            if new {
+                                JsValue::new_from_iter(func, new_args)
+                            } else {
+                                JsValue::call_from_iter(func, new_args)
+                            },
+                        ));
+                        steps
                     }
-
-                    let start = Instant::now();
-                    let explainer =
-                        explain_all(resolved.iter().map(|(name, value)| (name, value, None)));
-                    let time = start.elapsed();
-                    if time.as_millis() > 1 {
-                        println!(
-                            "explaining effects {} took {}",
-                            input.display(),
-                            FormatDuration(time)
-                        );
+                    Effect::FreeVar { var, .. } => {
+                        resolved.push((format!("{parent} -> {i} free var"), JsValue::FreeVar(var)));
+                        0
                     }
-
-                    NormalizedOutput::from(explainer)
-                        .compare_to_file(&resolved_effects_snapshot_path)
-                        .unwrap();
+                    Effect::TypeOf { arg, .. } => {
+                        let (arg, steps) =
+                            resolve(&var_graph, *arg, ImportAttributes::empty_ref(), &var_cache)
+                                .await;
+                        resolved.push((
+                            format!("{parent} -> {i} typeof"),
+                            JsValue::type_of(Box::new(arg)),
+                        ));
+                        steps
+                    }
+                    Effect::MemberCall {
+                        obj, prop, args, ..
+                    } => {
+                        let (obj, obj_steps) =
+                            resolve(&var_graph, *obj, ImportAttributes::empty_ref(), &var_cache)
+                                .await;
+                        let (prop, prop_steps) =
+                            resolve(&var_graph, *prop, ImportAttributes::empty_ref(), &var_cache)
+                                .await;
+                        let new_args =
+                            handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
+                        resolved.push((
+                            format!("{parent} -> {i} member call"),
+                            JsValue::member_call_from_iter(obj, prop, new_args),
+                        ));
+                        obj_steps + prop_steps
+                    }
+                    Effect::DynamicImport { args, .. } => {
+                        let new_args =
+                            handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
+                        resolved.push((
+                            format!("{parent} -> {i} dynamic import"),
+                            JsValue::call_from_iter(JsValue::FreeVar("import".into()), new_args),
+                        ));
+                        0
+                    }
+                    Effect::Unreachable { .. } => {
+                        resolved.push((
+                            format!("{parent} -> {i} unreachable"),
+                            JsValue::unknown_empty(true, rcstr!("unreachable")),
+                        ));
+                        0
+                    }
+                    Effect::ImportMeta { .. }
+                    | Effect::ImportedBinding { .. }
+                    | Effect::Member { .. } => 0,
+                };
+                let time = start.elapsed();
+                if time.as_millis() > 1 {
+                    println!(
+                        "linking effect {} took {} in {} steps",
+                        input.display(),
+                        FormatDuration(time),
+                        steps
+                    );
                 }
+            }
+            let time = start.elapsed();
+            if time.as_millis() > 1 {
+                println!(
+                    "linking effects {} took {}",
+                    input.display(),
+                    FormatDuration(time)
+                );
+            }
 
-                Ok(())
-            })
-        })
-        .unwrap();
+            let start = Instant::now();
+            let explainer = explain_all(resolved.iter().map(|(name, value)| (name, value, None)));
+            let time = start.elapsed();
+            if time.as_millis() > 1 {
+                println!(
+                    "explaining effects {} took {}",
+                    input.display(),
+                    FormatDuration(time)
+                );
+            }
+
+            NormalizedOutput::from(explainer)
+                .compare_to_file(&resolved_effects_snapshot_path)
+                .unwrap();
+        }
+
+        Ok(())
     }
 
     async fn resolve(
@@ -4446,7 +4398,9 @@ mod tests {
         attributes: &ImportAttributes,
         var_cache: &Mutex<FxHashMap<Id, JsValue>>,
     ) -> (JsValue, u32) {
-        turbo_tasks_testing::VcStorage::with(async {
+        // The caller (`fixture`) runs us inside `tt.run_once`, so a real
+        // turbo-tasks task context is already established here.
+        async {
             let compile_time_info = CompileTimeInfo::builder(
                 Environment::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment {
@@ -4482,7 +4436,7 @@ mod tests {
                 var_cache,
             )
             .await
-        })
+        }
         .await
         .unwrap()
     }
@@ -4684,6 +4638,46 @@ mod tests {
             None,
             "expected to be unable to determine whether '{}' is not-nullish",
             input
+        );
+    }
+
+    #[rstest]
+    #[case(JsValue::from(1.0))]
+    #[case(JsValue::from("hi"))]
+    #[case(ConstantValue::True.into())]
+    #[case(JsValue::promise(ConstantValue::Null.into()))]
+    fn is_truthy_positive(#[case] v: JsValue) {
+        assert_eq!(v.is_truthy(), Some(true), "expected '{v}' to be truthy");
+    }
+
+    #[rstest]
+    #[case(JsValue::from(0.0))]
+    #[case(JsValue::from(""))]
+    #[case(ConstantValue::False.into())]
+    #[case(ConstantValue::Null.into())]
+    #[case(ConstantValue::Undefined.into())]
+    fn is_truthy_negative(#[case] v: JsValue) {
+        assert_eq!(v.is_truthy(), Some(false), "expected '{v}' to be falsy");
+    }
+
+    #[rstest]
+    #[case(ConstantValue::Null.into())]
+    #[case(ConstantValue::Undefined.into())]
+    fn is_nullish_positive(#[case] v: JsValue) {
+        assert_eq!(v.is_nullish(), Some(true), "expected '{v}' to be nullish");
+    }
+
+    #[rstest]
+    #[case(JsValue::from(0.0))]
+    #[case(JsValue::from(""))]
+    #[case(JsValue::from("hi"))]
+    #[case(ConstantValue::True.into())]
+    #[case(JsValue::promise(ConstantValue::Null.into()))]
+    fn is_nullish_negative(#[case] v: JsValue) {
+        assert_eq!(
+            v.is_nullish(),
+            Some(false),
+            "expected '{v}' not to be nullish"
         );
     }
 }

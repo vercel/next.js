@@ -48,13 +48,13 @@ use turbo_tasks::{
     trace::TraceRawVcs,
     util::{IdFactoryWithReuse, good_chunk_size, into_chunks},
 };
+#[cfg(feature = "task_dirty_cause")]
+use turbo_tasks::{FunctionId, TaskDirtyCause};
 
 pub use self::{
     operation::AnyOperation,
     storage::{EvictionCounts, SpecificTaskDataCategory, TaskDataCategory},
 };
-#[cfg(feature = "trace_task_dirty")]
-use crate::backend::operation::TaskDirtyCause;
 use crate::{
     backend::{
         operation::{
@@ -424,6 +424,8 @@ struct TaskExecutionCompletePrepareResult {
     pub is_now_immutable: bool,
     #[cfg(feature = "verify_determinism")]
     pub no_output_set: bool,
+    #[cfg(feature = "task_dirty_cause")]
+    pub function_id: Option<FunctionId>,
     pub new_output: Option<OutputValue>,
     pub output_dependent_tasks: SmallVec<[TaskId; 4]>,
     pub is_recomputation: bool,
@@ -1700,7 +1702,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
         operation::InvalidateOperation::run(
             smallvec![task_id],
-            #[cfg(feature = "trace_task_dirty")]
+            #[cfg(feature = "task_dirty_cause")]
             TaskDirtyCause::Invalidator,
             self.execute_context(turbo_tasks),
         );
@@ -1716,7 +1718,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
         operation::InvalidateOperation::run(
             tasks.iter().copied().collect(),
-            #[cfg(feature = "trace_task_dirty")]
+            #[cfg(feature = "task_dirty_cause")]
             TaskDirtyCause::Unknown,
             self.execute_context(turbo_tasks),
         );
@@ -1732,7 +1734,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
         operation::InvalidateOperation::run(
             tasks.iter().copied().collect(),
-            #[cfg(feature = "trace_task_dirty")]
+            #[cfg(feature = "task_dirty_cause")]
             TaskDirtyCause::Unknown,
             self.execute_context(turbo_tasks),
         );
@@ -1841,6 +1843,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) -> Option<TaskExecutionSpec<'_>> {
         let execution_reason;
         let task_type;
+        #[cfg(feature = "task_dirty_cause")]
+        let cause;
         {
             let mut ctx = self.execute_context(turbo_tasks);
             let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -1858,6 +1862,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 return None;
             };
             execution_reason = reason;
+            #[cfg(feature = "task_dirty_cause")]
+            {
+                cause = match task.get_dirty() {
+                    Some(Dirtyness::Dirty { cause, .. }) => Some(cause.clone()),
+                    _ => None,
+                };
+            }
             let old = task.set_in_progress(InProgressState::InProgress(Box::new(
                 InProgressStateInner {
                     stale: false,
@@ -1916,7 +1927,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     arg,
                 } = &*task_type;
                 (
-                    native_fn.span(task_id.persistence(), execution_reason, priority),
+                    native_fn.span(
+                        task_id.persistence(),
+                        execution_reason,
+                        priority,
+                        #[cfg(feature = "task_dirty_cause")]
+                        cause.as_ref(),
+                    ),
                     native_fn.execute(*this, &**arg),
                 )
             }
@@ -1991,6 +2008,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             #[cfg(feature = "verify_determinism")]
             no_output_set,
             new_output,
+            #[cfg(feature = "task_dirty_cause")]
+            function_id,
             output_dependent_tasks,
             is_recomputation,
             is_session_dependent,
@@ -2027,6 +2046,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             self.task_execution_completed_invalidate_output_dependent(
                 &mut ctx,
                 task_id,
+                #[cfg(feature = "task_dirty_cause")]
+                function_id,
                 output_dependent_tasks,
             );
         }
@@ -2104,6 +2125,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 is_now_immutable: false,
                 #[cfg(feature = "verify_determinism")]
                 no_output_set: false,
+                #[cfg(feature = "task_dirty_cause")]
+                function_id: None,
                 new_output: None,
                 output_dependent_tasks: Default::default(),
                 is_recomputation,
@@ -2157,6 +2180,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // take the children from the task to process them
         let mut new_children = take(new_children);
+
+        // get the function id for the dirty cause
+        #[cfg(feature = "task_dirty_cause")]
+        let function_id = match task.get_task_type() {
+            TaskTypeRef::Cached(task_type) => {
+                Some(turbo_tasks::registry::get_function_id(task_type.native_fn))
+            }
+            TaskTypeRef::Transient(_) => None,
+        };
 
         // handle stateful (only tracked when verify_determinism is enabled)
         #[cfg(feature = "verify_determinism")]
@@ -2353,6 +2385,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             is_now_immutable,
             #[cfg(feature = "verify_determinism")]
             no_output_set,
+            #[cfg(feature = "task_dirty_cause")]
+            function_id,
             new_output,
             output_dependent_tasks,
             is_recomputation,
@@ -2364,12 +2398,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         ctx: &mut impl ExecuteContext<'_>,
         task_id: TaskId,
+        #[cfg(feature = "task_dirty_cause")] function_id: Option<FunctionId>,
         output_dependent_tasks: SmallVec<[TaskId; 4]>,
     ) {
         debug_assert!(!output_dependent_tasks.is_empty());
 
-        #[cfg(feature = "trace_task_dirty")]
-        let task_description = self.debug_get_task_description(task_id);
+        #[cfg(feature = "task_dirty_cause")]
+        let cause = match function_id {
+            Some(function) => TaskDirtyCause::OutputChange { function },
+            None => TaskDirtyCause::RootOutputChange,
+        };
 
         if output_dependent_tasks.len() > 1 {
             ctx.prepare_tasks(
@@ -2383,7 +2421,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         fn process_output_dependents(
             ctx: &mut impl ExecuteContext<'_>,
             task_id: TaskId,
-            #[cfg(feature = "trace_task_dirty")] task_description: &str,
+            #[cfg(feature = "task_dirty_cause")] cause: &TaskDirtyCause,
             dependent_task_id: TaskId,
             queue: &mut AggregationUpdateQueue,
         ) {
@@ -2423,10 +2461,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 dependent,
                 dependent_task_id,
                 make_stale,
-                #[cfg(feature = "trace_task_dirty")]
-                TaskDirtyCause::OutputChange {
-                    task_description: task_description.to_string(),
-                },
+                #[cfg(feature = "task_dirty_cause")]
+                cause.clone(),
                 queue,
                 ctx,
             );
@@ -2440,8 +2476,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let _ = scope_and_block(chunks.len(), |scope| {
                 for chunk in chunks {
                     let child_ctx = ctx.child_context();
-                    #[cfg(feature = "trace_task_dirty")]
-                    let task_description = &task_description;
+                    #[cfg(feature = "task_dirty_cause")]
+                    let cause = &cause;
                     scope.spawn(move || {
                         let mut ctx = child_ctx.create();
                         let mut queue = AggregationUpdateQueue::new();
@@ -2449,8 +2485,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             process_output_dependents(
                                 &mut ctx,
                                 task_id,
-                                #[cfg(feature = "trace_task_dirty")]
-                                task_description,
+                                #[cfg(feature = "task_dirty_cause")]
+                                cause,
                                 dependent_task_id,
                                 &mut queue,
                             )
@@ -2465,8 +2501,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 process_output_dependents(
                     ctx,
                     task_id,
-                    #[cfg(feature = "trace_task_dirty")]
-                    &task_description,
+                    #[cfg(feature = "task_dirty_cause")]
+                    &cause,
                     dependent_task_id,
                     &mut queue,
                 );
@@ -2493,7 +2529,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         child_task,
                         child_id,
                         false,
-                        #[cfg(feature = "trace_task_dirty")]
+                        #[cfg(feature = "task_dirty_cause")]
                         TaskDirtyCause::InitialDirty,
                         &mut queue,
                         ctx,

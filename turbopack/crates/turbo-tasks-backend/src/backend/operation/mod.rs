@@ -1124,7 +1124,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
 
     fn is_dirty(&self) -> Option<TaskPriority> {
         self.get_dirty().and_then(|dirtyness| match dirtyness {
-            Dirtyness::Dirty(priority) => Some(*priority),
+            Dirtyness::Dirty {
+                parent_priority, ..
+            } => Some(*parent_priority),
             Dirtyness::SessionDependent => {
                 if !self.current_session_clean() {
                     Some(TaskPriority::leaf())
@@ -1135,8 +1137,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         })
     }
     fn dirtyness_and_session(&self) -> Option<(Dirtyness, bool)> {
-        match self.get_dirty()? {
-            Dirtyness::Dirty(priority) => Some((Dirtyness::Dirty(*priority), false)),
+        let dirtyness = self.get_dirty()?;
+        match dirtyness {
+            Dirtyness::Dirty { .. } => Some((dirtyness.clone(), false)),
             Dirtyness::SessionDependent => {
                 Some((Dirtyness::SessionDependent, self.current_session_clean()))
             }
@@ -1146,7 +1149,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     fn dirty_state(&self) -> (bool, bool) {
         match self.get_dirty() {
             None => (false, false),
-            Some(Dirtyness::Dirty(_)) => (true, false),
+            Some(Dirtyness::Dirty { .. }) => (true, false),
             Some(Dirtyness::SessionDependent) => (true, self.current_session_clean()),
         }
     }
@@ -1168,7 +1171,7 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         let (old_self_dirty, old_current_session_self_clean) = self.dirty_state();
         let (new_self_dirty, new_current_session_self_clean) = match new_dirtyness {
             None => (false, false),
-            Some(Dirtyness::Dirty(_)) => (true, false),
+            Some(Dirtyness::Dirty { .. }) => (true, false),
             Some(Dirtyness::SessionDependent) => (true, true),
         };
         if old_dirtyness != new_dirtyness {
@@ -1509,8 +1512,6 @@ impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 impl_operation!(LeafDistanceUpdate leaf_distance_update::LeafDistanceUpdateQueue);
 
-#[cfg(feature = "trace_task_dirty")]
-pub use self::invalidate::TaskDirtyCause;
 pub use self::{
     aggregation_update::{
         AggregatedDataUpdate, AggregationUpdateJob, get_aggregation_number, get_uppers,
