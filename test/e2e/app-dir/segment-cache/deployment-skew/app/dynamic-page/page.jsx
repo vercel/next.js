@@ -1,7 +1,6 @@
-import { connection } from 'next/server'
+export const dynamic = 'force-dynamic'
 
-export default async function TargetPage() {
-  await connection()
+export default function TargetPage() {
   return (
     <div id="build-id">
       Build ID:{' '}
