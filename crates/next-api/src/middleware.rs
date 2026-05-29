@@ -226,10 +226,18 @@ impl MiddlewareEndpoint {
             let chunk = self.node_chunk().to_resolved().await?;
             let mut output_assets = vec![chunk];
             if this.project.next_mode().await?.is_production() {
+                let userland_module = self.entry_module();
                 output_assets.push(ResolvedVc::upcast(
-                    NftJsonAsset::new(*this.project, None, *chunk, vec![])
-                        .to_resolved()
-                        .await?,
+                    NftJsonAsset::new(
+                        *this.project,
+                        None,
+                        *chunk,
+                        vec![],
+                        this.project.module_graph(userland_module),
+                        vec![userland_module],
+                    )
+                    .to_resolved()
+                    .await?,
                 ));
             }
             let middleware_manifest_v2 = MiddlewaresManifestV2 {
