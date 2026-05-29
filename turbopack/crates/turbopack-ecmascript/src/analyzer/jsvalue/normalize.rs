@@ -3,11 +3,7 @@ use std::{hash::BuildHasherDefault, mem::take};
 use rustc_hash::FxHasher;
 use turbo_tasks::FxIndexSet;
 
-use crate::analyzer::{
-    JsValue,
-    arena::{Arena, BumpVec},
-    jsvalue::similar::SimilarJsValue,
-};
+use crate::analyzer::{JsValue, arena::Arena, jsvalue::similar::SimilarJsValue};
 
 // Alternatives management
 impl<'a> JsValue<'a> {
@@ -27,7 +23,7 @@ impl<'a> JsValue<'a> {
         {
             if !values.contains(&v) {
                 *c += v.total_nodes();
-                values.push(arena, v);
+                values.push(v);
             }
         } else {
             let l = take(self);
@@ -58,9 +54,9 @@ impl<'a> JsValue<'a> {
                         values.len(),
                         BuildHasherDefault::<FxHasher>::default(),
                     );
-                    // Detach the children, leaving an empty (allocation-free) arena vec behind so
-                    // we can rebuild `values` in place without a temporary system `Vec`.
-                    let taken = std::mem::replace(values, arena.vec());
+                    // Detach the children into an owned buffer so we can rebuild `values` in
+                    // place (the arena-backed `BumpVec` has no `Default`, so it can't be `take`n).
+                    let taken: Vec<JsValue> = values.drain(..).collect();
                     for v in taken {
                         match v {
                             JsValue::Alternatives {
@@ -80,73 +76,73 @@ impl<'a> JsValue<'a> {
                     if set.len() == 1 {
                         *self = set.into_iter().next().unwrap().0;
                     } else {
-                        values.extend_in(arena, set.into_iter().map(|v| v.0));
+                        values.extend(set.into_iter().map(|v| v.0));
                         self.update_total_nodes();
                     }
                 }
             }
             JsValue::Concat(_, v) => {
+                // Remove empty strings
+                v.retain(|v| v.as_str() != Some(""));
+
                 // TODO(kdy1): Remove duplicate
-                // Detach the children (allocation-free) and rebuild, merging adjacent string
-                // literals and dropping empty strings (the latter used to be a separate `retain`).
-                let taken = std::mem::replace(v, arena.vec());
-                let mut new: BumpVec<'a, JsValue<'a>> = arena.vec();
-                for value in taken {
-                    if value.as_str() == Some("") {
-                        continue;
-                    }
-                    if let Some(str) = value.as_str() {
+                let mut new: Vec<JsValue> = vec![];
+                let taken: Vec<JsValue> = v.drain(..).collect();
+                for v in taken {
+                    if let Some(str) = v.as_str() {
                         if let Some(last) = new.last_mut() {
                             if let Some(last_str) = last.as_str() {
                                 *last = [last_str, str].concat().into();
                             } else {
-                                new.push(arena, value);
+                                new.push(v);
                             }
                         } else {
-                            new.push(arena, value);
+                            new.push(v);
                         }
-                    } else if let JsValue::Concat(_, inner) = value {
-                        new.extend_in(arena, inner);
+                    } else if let JsValue::Concat(_, v) = v {
+                        new.extend(v);
                     } else {
-                        new.push(arena, value);
+                        new.push(v);
                     }
                 }
                 if new.len() == 1 {
                     *self = new.into_iter().next().unwrap();
                 } else {
-                    v.extend_in(arena, new);
+                    v.extend(new);
                     self.update_total_nodes();
                 }
             }
             JsValue::Add(_, v) => {
-                let taken = std::mem::replace(v, arena.vec());
-                let mut added: BumpVec<'a, JsValue<'a>> = arena.vec();
+                let mut added: Vec<JsValue> = Vec::new();
+                let taken: Vec<JsValue> = v.drain(..).collect();
                 let mut iter = taken.into_iter();
                 while let Some(item) = iter.next() {
                     if item.is_string() == Some(true) {
-                        let mut concat: BumpVec<'a, JsValue<'a>> = match added.len() {
-                            0 => arena.vec(),
-                            1 => arena.vec_from_iter([added.into_iter().next().unwrap()]),
-                            _ => {
-                                let nodes = 1 + added.iter().map(|v| v.total_nodes()).sum::<u32>();
-                                arena.vec_from_iter([JsValue::Add(nodes, added)])
-                            }
+                        let mut concat: Vec<JsValue> = match added.len() {
+                            0 => Vec::new(),
+                            1 => vec![added.into_iter().next().unwrap()],
+                            _ => vec![JsValue::Add(
+                                1 + added.iter().map(|v| v.total_nodes()).sum::<u32>(),
+                                arena.vec_from_iter(added),
+                            )],
                         };
-                        concat.push(arena, item);
+                        concat.push(item);
                         for item in iter.by_ref() {
-                            concat.push(arena, item);
+                            concat.push(item);
                         }
-                        let nodes = 1 + concat.iter().map(|v| v.total_nodes()).sum::<u32>();
-                        *self = JsValue::Concat(nodes, concat);
+                        *self = JsValue::Concat(
+                            1 + concat.iter().map(|v| v.total_nodes()).sum::<u32>(),
+                            arena.vec_from_iter(concat),
+                        );
                         return;
                     } else {
-                        added.push(arena, item);
+                        added.push(item);
                     }
                 }
                 if added.len() == 1 {
                     *self = added.into_iter().next().unwrap();
                 } else {
-                    v.extend_in(arena, added);
+                    v.extend(added);
                     self.update_total_nodes();
                 }
             }
@@ -160,18 +156,17 @@ impl<'a> JsValue<'a> {
                         false
                     }
                 }) => {
-                    // Taking the old list (allocation-free) and constructing a new merged list
-                    let taken = std::mem::replace(list, arena.vec());
+                    // Taking the old list and constructing a new merged list
+                    let taken: Vec<JsValue> = list.drain(..).collect();
                     for mut v in taken {
                         if let JsValue::Logical(_, inner_op, inner_list) = &mut v {
                             if inner_op == op {
-                                let inner = std::mem::replace(inner_list, arena.vec());
-                                list.extend_in(arena, inner);
+                                list.extend(inner_list.drain(..));
                             } else {
-                                list.push(arena, v);
+                                list.push(v);
                             }
                         } else {
-                            list.push(arena, v);
+                            list.push(v);
                         }
                     }
                     self.update_total_nodes();

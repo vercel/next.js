@@ -143,10 +143,8 @@ pub fn replace_builtin<'a>(arena: &'a Arena, value: &mut JsValue<'a>) -> bool {
                     items: &mut BumpVec<'a, JsValue<'a>>,
                     prop: &mut JsValue<'a>,
                 ) -> JsValue<'a> {
-                    items.push(
-                        arena,
-                        JsValue::unknown(
-                            JsValue::member(arena, JsValue::array(arena.vec()), take(prop)),
+                    items.push(JsValue::unknown(
+                        JsValue::member(arena, JsValue::array(arena.vec()), take(prop)),
                         false,
                         rcstr!("unknown array prototype methods or values"),
                     ));
@@ -392,7 +390,7 @@ pub fn replace_builtin<'a>(arena: &'a Arena, value: &mut JsValue<'a>) -> bool {
                                                 mutable: inner_mutable,
                                                 ..
                                             } => {
-                                                items.extend_in(arena, inner);
+                                                items.extend(inner);
                                                 *mutable |= inner_mutable;
                                             }
                                             other @ (JsValue::Constant(_)
@@ -402,7 +400,7 @@ pub fn replace_builtin<'a>(arena: &'a Arena, value: &mut JsValue<'a>) -> bool {
                                             | JsValue::WellKnownObject(_)
                                             | JsValue::WellKnownFunction(_)
                                             | JsValue::Function(..)) => {
-                                                items.push(arena, other);
+                                                items.push(other);
                                             }
                                             _ => {
                                                 unreachable!();
@@ -471,8 +469,8 @@ pub fn replace_builtin<'a>(arena: &'a Arena, value: &mut JsValue<'a>) -> bool {
                 // The String.prototype.concat method
                 if str == "concat" {
                     let mut values = arena.vec_with_capacity(1 + args.len());
-                    values.push(arena, obj);
-                    values.extend_in(arena, args);
+                    values.push(obj);
+                    values.extend(args);
 
                     *value = JsValue::concat(values);
                     return true;
@@ -487,7 +485,7 @@ pub fn replace_builtin<'a>(arena: &'a Arena, value: &mut JsValue<'a>) -> bool {
             // into a `JsValue::Call` only needs `+1` slot, which fits in the existing slack —
             // no realloc. This is the original motivation for the `[args..., prop, obj]`
             // tail layout.
-            *value = JsValue::call_from_parts(arena, JsValue::member(arena, obj, prop), args);
+            *value = JsValue::call_from_parts(JsValue::member(arena, obj, prop), args);
             true
         }
         // match calls when the callee are multiple alternative functions like `(func1 |
@@ -527,10 +525,10 @@ pub fn replace_builtin<'a>(arena: &'a Arena, value: &mut JsValue<'a>) -> bool {
                         ..
                     }) = part
                     {
-                        parts.extend_in(arena, inner_parts);
+                        parts.extend(inner_parts);
                         *mutable |= inner_mutable;
                     } else {
-                        parts.push(arena, part);
+                        parts.push(part);
                     }
                 }
                 value.update_total_nodes();
@@ -552,7 +550,7 @@ pub fn replace_builtin<'a>(arena: &'a Arena, value: &mut JsValue<'a>) -> bool {
                 if i == len - 1 {
                     // We intentionally omit the part_properties for the last part.
                     // This isn't always needed so we only compute it when actually needed.
-                    parts.push(arena, part);
+                    parts.push(part);
                     break;
                 }
                 let property = match op {
@@ -569,13 +567,13 @@ pub fn replace_builtin<'a>(arena: &'a Arena, value: &mut JsValue<'a>) -> bool {
                     Some(false) => {
                         // We known this part is the final value, so we can remove the rest.
                         part_properties.push(property);
-                        parts.push(arena, part);
+                        parts.push(part);
                         break;
                     }
                     None => {
                         // We don't know if this part is skipped or the final value, so we keep it.
                         part_properties.push(property);
-                        parts.push(arena, part);
+                        parts.push(part);
                         continue;
                     }
                 }

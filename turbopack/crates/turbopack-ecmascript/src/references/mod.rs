@@ -2378,7 +2378,6 @@ where
             let linked_func_call = state
                 .link_value(
                     JsValue::call_from_parts(
-                        state.arena,
                         JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(
                             std::sync::Arc::new(parent_path.path.as_str().into()),
                         )),
@@ -2430,7 +2429,6 @@ where
             let linked_func_call = state
                 .link_value(
                     JsValue::call_from_parts(
-                        state.arena,
                         JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
                         state
                             .arena
@@ -3684,7 +3682,6 @@ async fn require_resolve_visitor<'a>(
         match values.len() {
             0 => JsValue::unknown(
                 JsValue::call_from_parts(
-                    arena,
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
                     args,
                 ),
@@ -3697,7 +3694,6 @@ async fn require_resolve_visitor<'a>(
     } else {
         JsValue::unknown(
             JsValue::call_from_parts(
-                arena,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
                 args,
             ),
@@ -3708,7 +3704,7 @@ async fn require_resolve_visitor<'a>(
 }
 
 async fn require_context_visitor<'a>(
-    arena: &'a Arena,
+    _arena: &'a Arena,
     origin: Vc<Box<dyn ResolveOrigin>>,
     args: BumpVec<'a, JsValue<'a>>,
 ) -> Result<JsValue<'a>> {
@@ -3717,7 +3713,6 @@ async fn require_context_visitor<'a>(
         Err(err) => {
             return Ok(JsValue::unknown(
                 JsValue::call_from_parts(
-                    arena,
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
                     args,
                 ),

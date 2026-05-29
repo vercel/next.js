@@ -200,7 +200,7 @@ impl EvalContext {
                 match (l, r) {
                     (JsValue::Add(c, mut l), r) => {
                         let total = c + r.total_nodes();
-                        l.push(arena, r);
+                        l.push(r);
                         JsValue::Add(total, l)
                     }
                     (l, r) => JsValue::add(arena.vec_from_iter([l, r])),

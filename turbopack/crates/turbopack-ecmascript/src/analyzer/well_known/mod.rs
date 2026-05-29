@@ -110,22 +110,22 @@ pub async fn well_known_function_call<'a>(
     Ok(match kind {
         WellKnownFunctionKind::ObjectAssign => object_assign(arena, args),
         WellKnownFunctionKind::PathJoin => path_join(arena, args),
-        WellKnownFunctionKind::PathDirname => path_dirname(arena, args),
+        WellKnownFunctionKind::PathDirname => path_dirname(args),
         WellKnownFunctionKind::PathResolve(cwd) => {
             path_resolve(arena, cwd.as_ref().clone_in(arena), args)
         }
         WellKnownFunctionKind::Import => import(arena, args),
-        WellKnownFunctionKind::Require => require(arena, args),
+        WellKnownFunctionKind::Require => require(args),
         WellKnownFunctionKind::RequireContextRequire(value) => {
-            require_context_require(arena, value, args)?
+            require_context_require(value, args)?
         }
         WellKnownFunctionKind::RequireContextRequireKeys(value) => {
             require_context_require_keys(arena, value, args)?
         }
         WellKnownFunctionKind::RequireContextRequireResolve(value) => {
-            require_context_require_resolve(arena, value, args)?
+            require_context_require_resolve(value, args)?
         }
-        WellKnownFunctionKind::PathToFileUrl => path_to_file_url(arena, args),
+        WellKnownFunctionKind::PathToFileUrl => path_to_file_url(args),
         WellKnownFunctionKind::OsArch => compile_time_info
             .environment()
             .compile_target()
@@ -147,7 +147,7 @@ pub async fn well_known_function_call<'a>(
                 format!("/ROOT/{}", cwd.path).into()
             } else {
                 JsValue::unknown(
-                    JsValue::call_from_parts(arena, JsValue::WellKnownFunction(kind), args),
+                    JsValue::call_from_parts(JsValue::WellKnownFunction(kind), args),
                     true,
                     rcstr!("process.cwd is not specified in the environment"),
                 )
@@ -169,7 +169,7 @@ pub async fn well_known_function_call<'a>(
         }
 
         _ => JsValue::unknown(
-            JsValue::call_from_parts(arena, JsValue::WellKnownFunction(kind), args),
+            JsValue::call_from_parts(JsValue::WellKnownFunction(kind), args),
             true,
             rcstr!("unsupported function"),
         ),
@@ -186,7 +186,7 @@ fn object_assign<'a>(arena: &'a Arena, args: BumpVec<'a, JsValue<'a>>) -> JsValu
                     ..
                 } = &cur
             {
-                parts.extend_in(arena, next_parts.iter().map(|p| p.clone_in(arena)));
+                parts.extend(next_parts.iter().map(|p| p.clone_in(arena)));
                 *mutable |= *next_mutable;
             }
             acc
@@ -207,7 +207,6 @@ fn object_assign<'a>(arena: &'a Arena, args: BumpVec<'a, JsValue<'a>>) -> JsValu
     } else {
         JsValue::unknown(
             JsValue::call_from_parts(
-                arena,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::ObjectAssign),
                 args,
             ),
@@ -350,7 +349,7 @@ fn path_resolve<'a>(
     JsValue::concat(arena.vec_from_iter(results))
 }
 
-fn path_dirname<'a>(arena: &'a Arena, mut args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> {
+fn path_dirname<'a>(mut args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> {
     if let Some(arg) = args.iter_mut().next() {
         if let Some(str) = arg.as_str() {
             if let Some(i) = str.rfind('/') {
@@ -369,7 +368,6 @@ fn path_dirname<'a>(arena: &'a Arena, mut args: BumpVec<'a, JsValue<'a>>) -> JsV
     }
     JsValue::unknown(
         JsValue::call_from_parts(
-            arena,
             JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
             args,
         ),
@@ -391,7 +389,6 @@ pub fn import<'a>(arena: &'a Arena, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'
         ),
         _ => JsValue::unknown(
             JsValue::call_from_parts(
-                arena,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
                 args,
             ),
@@ -403,7 +400,7 @@ pub fn import<'a>(arena: &'a Arena, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'
 
 /// Resolve the contents of a require call, throwing errors
 /// if we come across any unsupported syntax.
-fn require<'a>(arena: &'a Arena, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> {
+fn require<'a>(args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> {
     if args.len() == 1 {
         if let Some(s) = args[0].as_str() {
             JsValue::Module(ModuleValue {
@@ -413,7 +410,6 @@ fn require<'a>(arena: &'a Arena, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> 
         } else {
             JsValue::unknown(
                 JsValue::call_from_parts(
-                    arena,
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                     args,
                 ),
@@ -424,7 +420,6 @@ fn require<'a>(arena: &'a Arena, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> 
     } else {
         JsValue::unknown(
             JsValue::call_from_parts(
-                arena,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                 args,
             ),
@@ -436,14 +431,12 @@ fn require<'a>(arena: &'a Arena, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> 
 
 /// (try to) statically evaluate `require.context(...)()`
 fn require_context_require<'a>(
-    arena: &'a Arena,
     val: Box<RequireContextValue>,
     args: BumpVec<'a, JsValue<'a>>,
 ) -> Result<JsValue<'a>> {
     if args.is_empty() {
         return Ok(JsValue::unknown(
             JsValue::call_from_parts(
-                arena,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(val)),
                 args,
             ),
@@ -457,7 +450,6 @@ fn require_context_require<'a>(
     let Some(s) = args[0].as_str() else {
         return Ok(JsValue::unknown(
             JsValue::call_from_parts(
-                arena,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(val)),
                 args,
             ),
@@ -471,7 +463,6 @@ fn require_context_require<'a>(
     let Some(m) = val.0.get(s) else {
         return Ok(JsValue::unknown(
             JsValue::call_from_parts(
-                arena,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(val)),
                 args,
             ),
@@ -500,7 +491,6 @@ fn require_context_require_keys<'a>(
     } else {
         JsValue::unknown(
             JsValue::call_from_parts(
-                arena,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequireKeys(val)),
                 args,
             ),
@@ -512,14 +502,12 @@ fn require_context_require_keys<'a>(
 
 /// (try to) statically evaluate `require.context(...).resolve()`
 fn require_context_require_resolve<'a>(
-    arena: &'a Arena,
     val: Box<RequireContextValue>,
     args: BumpVec<'a, JsValue<'a>>,
 ) -> Result<JsValue<'a>> {
     if args.len() != 1 {
         return Ok(JsValue::unknown(
             JsValue::call_from_parts(
-                arena,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequireResolve(
                     val,
                 )),
@@ -535,7 +523,6 @@ fn require_context_require_resolve<'a>(
     let Some(s) = args[0].as_str() else {
         return Ok(JsValue::unknown(
             JsValue::call_from_parts(
-                arena,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequireResolve(
                     val,
                 )),
@@ -551,7 +538,6 @@ fn require_context_require_resolve<'a>(
     let Some(m) = val.0.get(s) else {
         return Ok(JsValue::unknown(
             JsValue::call_from_parts(
-                arena,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequireResolve(
                     val,
                 )),
@@ -568,7 +554,7 @@ fn require_context_require_resolve<'a>(
     Ok(m.as_str().into())
 }
 
-fn path_to_file_url<'a>(arena: &'a Arena, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> {
+fn path_to_file_url<'a>(args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> {
     if args.len() == 1 {
         if let Some(path) = args[0].as_str() {
             Url::from_file_path(path)
@@ -576,7 +562,6 @@ fn path_to_file_url<'a>(arena: &'a Arena, args: BumpVec<'a, JsValue<'a>>) -> JsV
                 .unwrap_or_else(|_| {
                     JsValue::unknown(
                         JsValue::call_from_parts(
-                            arena,
                             JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
                             args,
                         ),
@@ -587,7 +572,6 @@ fn path_to_file_url<'a>(arena: &'a Arena, args: BumpVec<'a, JsValue<'a>>) -> JsV
         } else {
             JsValue::unknown(
                 JsValue::call_from_parts(
-                    arena,
                     JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
                     args,
                 ),
@@ -598,7 +582,6 @@ fn path_to_file_url<'a>(arena: &'a Arena, args: BumpVec<'a, JsValue<'a>>) -> JsV
     } else {
         JsValue::unknown(
             JsValue::call_from_parts(
-                arena,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::PathToFileUrl),
                 args,
             ),

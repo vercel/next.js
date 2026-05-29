@@ -249,16 +249,11 @@ impl fmt::Debug for MemberCallList<'_> {
 }
 
 impl<'a> MemberCallList<'a> {
-    fn from_parts(
-        arena: &'a Arena,
-        obj: JsValue<'a>,
-        prop: JsValue<'a>,
-        args: BumpVec<'a, JsValue<'a>>,
-    ) -> Self {
+    fn from_parts(obj: JsValue<'a>, prop: JsValue<'a>, args: BumpVec<'a, JsValue<'a>>) -> Self {
         let mut list = args;
-        list.reserve_exact(arena, 2);
-        list.push(arena, prop);
-        list.push(arena, obj);
+        list.reserve_exact(2);
+        list.push(prop);
+        list.push(obj);
         Self(list)
     }
 
@@ -269,9 +264,9 @@ impl<'a> MemberCallList<'a> {
     {
         let args = args.into_iter();
         let mut list = arena.vec_with_capacity(args.len() + 2);
-        list.extend_in(arena, args);
-        list.push(arena, prop);
-        list.push(arena, obj);
+        list.extend(args);
+        list.push(prop);
+        list.push(obj);
         Self(list)
     }
 
@@ -382,10 +377,10 @@ impl fmt::Debug for CallList<'_> {
 }
 
 impl<'a> CallList<'a> {
-    fn from_parts(arena: &'a Arena, callee: JsValue<'a>, args: BumpVec<'a, JsValue<'a>>) -> Self {
+    fn from_parts(callee: JsValue<'a>, args: BumpVec<'a, JsValue<'a>>) -> Self {
         let mut list = args;
-        list.reserve_exact(arena, 1);
-        list.push(arena, callee);
+        list.reserve_exact(1);
+        list.push(callee);
         Self(list)
     }
 
@@ -396,8 +391,8 @@ impl<'a> CallList<'a> {
     {
         let args = args.into_iter();
         let mut list = arena.vec_with_capacity(args.len() + 1);
-        list.extend_in(arena, args);
-        list.push(arena, callee);
+        list.extend(args);
+        list.push(callee);
         Self(list)
     }
 
@@ -542,7 +537,7 @@ impl<'a> JsValue<'a> {
             CompileTimeDefineValue::Array(a) => {
                 let mut items = arena.vec_with_capacity(a.len());
                 for i in a {
-                    items.push(arena, JsValue::from_compile_time_define_value_in(arena, i)?);
+                    items.push(JsValue::from_compile_time_define_value_in(arena, i)?);
                 }
                 let mut js_value = JsValue::Array {
                     total_nodes: a.len() as u32,
@@ -555,13 +550,10 @@ impl<'a> JsValue<'a> {
             CompileTimeDefineValue::Object(m) => {
                 let mut parts = arena.vec_with_capacity(m.len());
                 for (k, v) in m {
-                    parts.push(
-                        arena,
-                        ObjectPart::KeyValue(
-                            k.clone().into(),
-                            JsValue::from_compile_time_define_value_in(arena, v)?,
-                        ),
-                    );
+                    parts.push(ObjectPart::KeyValue(
+                        k.clone().into(),
+                        JsValue::from_compile_time_define_value_in(arena, v)?,
+                    ));
                 }
                 let mut js_value = JsValue::Object {
                     total_nodes: m.len() as u32,
@@ -867,13 +859,9 @@ impl<'a> JsValue<'a> {
     /// slot (e.g. an `args` Vec returned from [`CallList::into_parts`] or
     /// [`MemberCallList::into_parts`]). For from-scratch construction use
     /// [`JsValue::new_from_iter`], which pre-sizes the underlying allocation exactly.
-    pub fn new_from_parts(
-        arena: &'a Arena,
-        f: JsValue<'a>,
-        args: BumpVec<'a, JsValue<'a>>,
-    ) -> Self {
+    pub fn new_from_parts(f: JsValue<'a>, args: BumpVec<'a, JsValue<'a>>) -> Self {
         let total = 1 + f.total_nodes() + total_nodes(&args);
-        Self::New(total, CallList::from_parts(arena, f, args))
+        Self::New(total, CallList::from_parts(f, args))
     }
 
     /// Build a `JsValue::New` from a callee and an args iterator with a known length.
@@ -896,13 +884,9 @@ impl<'a> JsValue<'a> {
     /// caller already has a `Vec` that is likely to be correctly sized (typically one
     /// obtained from [`CallList::into_parts`] / [`MemberCallList::into_parts`]). For
     /// from-scratch construction use [`JsValue::call_from_iter`].
-    pub fn call_from_parts(
-        arena: &'a Arena,
-        f: JsValue<'a>,
-        args: BumpVec<'a, JsValue<'a>>,
-    ) -> Self {
+    pub fn call_from_parts(f: JsValue<'a>, args: BumpVec<'a, JsValue<'a>>) -> Self {
         let total = 1 + f.total_nodes() + total_nodes(&args);
-        Self::Call(total, CallList::from_parts(arena, f, args))
+        Self::Call(total, CallList::from_parts(f, args))
     }
 
     /// Build a `JsValue::Call` from a callee and an args iterator with a known length.
@@ -930,13 +914,12 @@ impl<'a> JsValue<'a> {
     /// obtained from [`MemberCallList::into_parts`]). For from-scratch construction use
     /// [`JsValue::member_call_from_iter`].
     pub fn member_call_from_parts(
-        arena: &'a Arena,
         o: JsValue<'a>,
         p: JsValue<'a>,
         args: BumpVec<'a, JsValue<'a>>,
     ) -> Self {
         let total = 1 + o.total_nodes() + p.total_nodes() + total_nodes(&args);
-        Self::MemberCall(total, MemberCallList::from_parts(arena, o, p, args))
+        Self::MemberCall(total, MemberCallList::from_parts(o, p, args))
     }
 
     /// Build a `JsValue::MemberCall` from `obj`, `prop`, and an args iterator with a known
@@ -1383,10 +1366,8 @@ mod tests {
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn jsvalue_size() {
-        // The arena-backed children keep `JsValue` at the same 32 bytes as the original
-        // `Box`/`Vec`-based design: scalar children use a thin `BumpBox` (one pointer) and list
-        // children use `ArenaVec`, whose `{ptr, cap, len}` layout matches `std::Vec` (no embedded
-        // `&Bump`, unlike `bumpalo::collections::Vec`).
-        assert_eq!(32, size_of::<JsValue>());
+        // `JsValue` grew from 32 bytes when its `Box`/`Vec` children moved into a bump arena:
+        // `bumpalo::collections::Vec` embeds an `&Bump`, making it one word wider than `std::Vec`.
+        assert_eq!(40, size_of::<JsValue>());
     }
 }
