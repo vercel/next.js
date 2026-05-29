@@ -131,17 +131,18 @@ export function TaskCard({ id, priority }) {
 
 If you click the dot, the Server Function runs, but the button keeps rendering the old `priority` prop until the next server render arrives.
 
-Replace the direct call with [`useOptimistic`](https://react.dev/reference/react/useOptimistic) and [`startTransition`](https://react.dev/reference/react/startTransition). `useOptimistic` provides a value to render in place of the stale prop. `startTransition` runs the Server Function as part of a transition. The optimistic value applies for as long as that transition is pending:
+Replace the direct call with [`useOptimistic`](https://react.dev/reference/react/useOptimistic) and [`useTransition`](https://react.dev/reference/react/useTransition). `useOptimistic` provides a value to render in place of the stale prop. `startTransition` runs the Server Function as part of a transition. The optimistic value applies for as long as that transition is pending:
 
 ```tsx filename="components/task-card.tsx"
 'use client'
 
-import { startTransition, useOptimistic } from 'react'
+import { useOptimistic, useTransition } from 'react'
 import { cyclePriority } from '@/data/actions/task'
 import { PRIORITY_CYCLE } from '@/lib/data'
 
 export function TaskCard({ id, priority }) {
   const [optimisticPriority, setOptimisticPriority] = useOptimistic(priority)
+  const [, startTransition] = useTransition()
 
   function handlePriority() {
     startTransition(async () => {
@@ -163,7 +164,7 @@ export function TaskCard({ id, priority }) {
 
 The `setOptimisticPriority` call updates the UI on the current frame with the next value in the cycle. Reading from `optimisticPriority` (not the prop) means rapid double-clicks cycle correctly instead of reading a stale closure value.
 
-If the transition ends without revalidating to new data, the optimistic value reverts. The standalone `startTransition` import does not bubble errors to error boundaries. If you need errors to reach an error boundary, use [`useTransition`](https://react.dev/reference/react/useTransition) instead (shown in Step 3).
+If the transition ends without revalidating to new data, the optimistic value reverts. `useTransition` catches errors thrown inside the async callback and bubbles them to the nearest [error boundary](/docs/app/api-reference/file-conventions/error), so a failed Server Function surfaces automatically without manual `try`/`catch`.
 
 If you click the priority dot now, the color changes the moment the mouse lifts. Clicking again cycles to the next value without waiting for the first mutation to finish.
 
@@ -293,28 +294,37 @@ The task detail page has a comment section.
 
 Submitting a comment writes new data on the server. The persisted comment list is rendered by a server component, so it cannot include the new comment until the next server render arrives.
 
-Consider a form that calls the Server Function as a form action:
+Here a comment form uses controlled state to manage the input and calls the Server Function directly:
 
 ```tsx filename="app/task/[id]/_components/comment-form.tsx"
 'use client'
 
+import { useState } from 'react'
 import { addComment } from '@/data/actions/comment'
 
 export function CommentForm({ taskId }) {
+  const [content, setContent] = useState('')
+
+  async function handleSubmit() {
+    if (!content.trim()) return
+    await addComment(taskId, content)
+    setContent('')
+  }
+
   return (
-    <form
-      action={async (formData) => {
-        await addComment(taskId, formData.get('content'))
-      }}
-    >
-      <input name="content" placeholder="Write a comment..." required />
-      <button type="submit">Send</button>
-    </form>
+    <div>
+      <input
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder="Write a comment..."
+      />
+      <button onClick={handleSubmit}>Send</button>
+    </div>
   )
 }
 ```
 
-If you type a comment and press Send, the form action runs, but the input stays filled and the list does not change until the server responds.
+If you type a comment and press Send, the Server Function runs, but the input stays filled and the list does not change until the server responds.
 
 Split the comment list into two parts. A server component renders the persisted comments. A client component tracks only **pending** comments using `useOptimistic([])` with an empty initial array. When the transition completes and a new render arrives with fresh data, the pending list resets to empty and the real comment appears in the server-rendered list:
 
@@ -400,12 +410,15 @@ Dropping a card starts a Server Function that writes the new status. The `tasks`
 
 Here the Server Function is called on drop:
 
-```tsx filename="components/board-client.tsx"
+```tsx filename="components/board.tsx"
 'use client'
 
+import { use } from 'react'
 import { updateStatus } from '@/data/actions/task'
 
-export function BoardClient({ tasks }) {
+export function Board({ tasksPromise }) {
+  const tasks = use(tasksPromise)
+
   function handleDrop(targetStatus, taskId) {
     updateStatus(taskId, targetStatus)
   }
@@ -414,17 +427,18 @@ export function BoardClient({ tasks }) {
 }
 ```
 
-If you drag a card from "Todo" to "In Progress", the card stays in the old column while the server processes the update, then jumps to the new column after the response arrives.
+The component receives a promise from the parent server component (see Step 1's `<Suspense>` boundary) and unwraps it with [`use`](https://react.dev/reference/react/use). If you drag a card from "Todo" to "In Progress", the card stays in the old column while the server processes the update, then jumps to the new column after the response arrives.
 
 Add `useOptimistic` with a reducer to remap the card's status on the current frame. The reducer receives the full task list and an action describing which card moved where:
 
-```tsx filename="components/board-client.tsx"
+```tsx filename="components/board.tsx"
 'use client'
 
-import { startTransition, useOptimistic } from 'react'
+import { startTransition, use, useOptimistic } from 'react'
 import { updateStatus } from '@/data/actions/task'
 
-export function BoardClient({ tasks }) {
+export function Board({ tasksPromise }) {
+  const tasks = use(tasksPromise)
   const [optimisticTasks, moveTask] = useOptimistic(
     tasks,
     (currentTasks, action: { taskId: string; status: Status }) =>
@@ -466,7 +480,7 @@ The board has a "New Task" button that opens a create dialog. The form action cr
 
 The dialog has three pieces of client state to coordinate while the action is pending: the submit button, the field values, and whether the dialog is open. [`useActionState`](https://react.dev/reference/react/useActionState) coordinates all three.
 
-Consider a form that calls the Server Function as a form action:
+Here a form manages submission state manually and calls the Server Function in an `onSubmit` handler:
 
 ```tsx filename="components/create-task-modal.tsx"
 'use client'
@@ -476,24 +490,34 @@ import { createTask } from '@/data/actions/task'
 
 export function CreateTaskModal() {
   const [isOpen, setIsOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    const title = formData.get('title')
+    if (!title.trim()) return
+
+    setIsSubmitting(true)
+    await createTask({ title /* ... */ })
+    setIsSubmitting(false)
+    setIsOpen(false)
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <form
-        action={async (formData) => {
-          await createTask({ title: formData.get('title') /* ... */ })
-          setIsOpen(false)
-        }}
-      >
+      <form onSubmit={handleSubmit}>
         <input name="title" placeholder="Task title..." required />
-        <button type="submit">Create Task</button>
+        <button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Creating...' : 'Create Task'}
+        </button>
       </form>
     </Dialog>
   )
 }
 ```
 
-If you fill out the form and click "Create Task", the button stays enabled with no progress text. The form fields keep their values. The dialog closes before the board shows the new task, because state updates after the `await` are not automatically part of the surrounding transition.
+If you fill out the form and click "Create Task", the submit handler runs, but the pending state is managed with two separate `useState` calls. The dialog closes _before_ the board shows the new task, because `setIsOpen(false)` fires outside of a transition. The form fields keep their values across submissions unless you track a reset key yourself.
 
 `useActionState` handles all three: `isPending` for the button, key-based reset for the fields, and a wrap around the dialog close:
 
@@ -721,7 +745,7 @@ The patterns in this guide combine a handful of primitives:
 
 - [`<Suspense>`](https://react.dev/reference/react/Suspense) reveals streamed UI when data arrives.
 - [`useOptimistic`](https://react.dev/reference/react/useOptimistic) renders a temporary value while the server works.
-- [`useTransition`](https://react.dev/reference/react/useTransition) and [`startTransition`](https://react.dev/reference/react/startTransition) mark async updates as transitions and expose `isPending`.
+- [`useTransition`](https://react.dev/reference/react/useTransition) and [`startTransition`](https://react.dev/reference/react/startTransition) mark async updates as transitions and expose `isPending`. `useTransition` catches errors thrown inside the async callback and bubbles them to the nearest error boundary.
 - [`useActionState`](https://react.dev/reference/react/useActionState) wraps a form action with pending state, reset behavior, and result handling.
 - [`'use cache'`](/docs/app/api-reference/directives/use-cache) with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) and [`updateTag`](/docs/app/api-reference/functions/updateTag) keeps reusable reads warm across navigations. [Runtime prefetching](/docs/app/guides/prefetching) fills the next destination before the click.
 
