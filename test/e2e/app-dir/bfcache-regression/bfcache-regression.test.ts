@@ -151,4 +151,105 @@ describe('bfcache-regression', () => {
       await assertNoConsoleErrors(browser)
     })
   }
+
+  if (isNextDev && global.browserName !== 'safari') {
+    // Persistence only exists in dev. Excludes Safari: the WebKit build
+    // Playwright drives here re-fetches the document from the server on
+    // back-navigation instead of restoring it from the HTTP cache like Chrome
+    // and Firefox, so each back-navigation gets a fresh request ID that was
+    // never persisted, the request-id-keyed restore always misses, and every
+    // page reloads — the pruned-vs-cached distinction this test relies on never
+    // appears. Real Safari serves back-navigations from cache without a server
+    // request, so this is a limitation of the test's WebKit rather than of the
+    // feature.
+    it('should reload to recover when a debug channel entry was pruned by newer page loads', async () => {
+      // The debug channel for the initial document is buffered and persisted to
+      // IndexedDB so it can be restored when the browser serves the page from
+      // the HTTP cache (back-forward navigation). Persistence is bounded to a
+      // maximum number of entries, pruning the oldest on each write. This
+      // verifies that an entry pushed out by newer page loads is no longer
+      // restorable, so going back to it recovers via a full reload instead.
+
+      // One past the persistence cap (MAX_ENTRIES = 10): loading the whole
+      // chain writes 11 entries, pruning exactly the first page's entry and
+      // leaving /purge/2..11 cached.
+      const PAGES = 11
+
+      // Snapshot the server output so we can count requests made during this
+      // test. Recovery is observed through server requests rather than client
+      // load events: a still-cached page is restored client-side from the HTTP
+      // cache with no server request, while the pruned page misses and recovers
+      // with a full reload, which is a fresh server request. Load-event counts
+      // would be browser-dependent here, since some browsers fire the reload
+      // before the back-navigation's own load event and some after.
+      const outputIndex = next.cliOutput.length
+      const browser = await next.browser('/purge/1')
+
+      // Wait until the just-loaded page's debug channel has been durably
+      // committed to IndexedDB before navigating away. Persistence is deferred
+      // to an idle callback and its IndexedDB write is async; navigating before
+      // it commits would abort the transaction and drop the entry. The page
+      // sets a flag once the commit completes (test mode only), which resets
+      // naturally on each navigation since every document gets a fresh window.
+      const waitForPersisted = () =>
+        retry(async () => {
+          expect(
+            await browser.eval(
+              () => (self as any).__NEXT_DEBUG_CHANNEL_PERSISTED
+            )
+          ).toBe(true)
+        })
+
+      // Hard-navigate through the chain. Each load persists its own entry, so
+      // after more than MAX_ENTRIES loads the earliest pages are pruned.
+      for (let n = 1; n <= PAGES; n++) {
+        await retry(async () => {
+          expect(await browser.elementById(`purge-${n}`).text()).toBe(
+            `Purge ${n}`
+          )
+        })
+        await waitForPersisted()
+        if (n < PAGES) {
+          await browser.elementById('next').click()
+        }
+      }
+
+      // Back-navigate the whole way to the first page. Each step restores the
+      // page's HTML from the HTTP cache and re-runs the debug channel restore.
+      for (let n = PAGES; n > 1; n--) {
+        await browser.back()
+        await retry(async () => {
+          expect(await browser.elementById(`purge-${n - 1}`).text()).toBe(
+            `Purge ${n - 1}`
+          )
+        })
+      }
+
+      // Each page is requested once on the forward pass. On the way back the
+      // cached pages are restored from the HTTP cache without hitting the
+      // server, so they stay at one request, while /purge/1 was pruned and its
+      // restore misses, recovering with a reload that is a second server
+      // request.
+      await retry(async () => {
+        const getCounts: Record<string, number> = {}
+        const output = next.cliOutput.slice(outputIndex)
+        for (const [, path] of output.matchAll(/GET (\/purge\/\d+) /g)) {
+          getCounts[path] = (getCounts[path] ?? 0) + 1
+        }
+        expect(getCounts).toEqual({
+          '/purge/1': 2,
+          '/purge/2': 1,
+          '/purge/3': 1,
+          '/purge/4': 1,
+          '/purge/5': 1,
+          '/purge/6': 1,
+          '/purge/7': 1,
+          '/purge/8': 1,
+          '/purge/9': 1,
+          '/purge/10': 1,
+          '/purge/11': 1,
+        })
+      })
+    })
+  }
 })
