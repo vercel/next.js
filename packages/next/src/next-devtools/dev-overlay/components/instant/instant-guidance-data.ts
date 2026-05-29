@@ -181,7 +181,7 @@ const metadataRuntimeCards: FixCard[] = [
     id: 'render-page-at-request-time',
     title: 'Mark the route as dynamic',
     group: 'dynamic',
-    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#render-page-at-request-time',
+    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#mark-the-route-as-dynamic',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'await connection()', highlight: true },
@@ -205,7 +205,7 @@ const metadataDynamicCards: FixCard[] = [
     id: 'render-page-at-request-time',
     title: 'Mark the route as dynamic',
     group: 'dynamic',
-    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#render-page-at-request-time',
+    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata#mark-the-route-as-dynamic',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'await connection()', highlight: true },
@@ -244,7 +244,7 @@ const viewportDynamicCards: FixCard[] = [
     id: 'cache-viewport-data',
     title: 'Cache the viewport data',
     group: 'cache',
-    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#cache-viewport-data',
+    link: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport#cache-the-viewport-data',
     snippets: [
       { text: 'async function generateViewport() {' },
       { text: '  "use cache"', highlight: true },
