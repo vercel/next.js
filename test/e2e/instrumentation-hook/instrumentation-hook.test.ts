@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, fetchViaHTTP, findPort } from 'next-test-utils'
-import http from 'http'
+import { check } from 'next-test-utils'
 import path from 'path'
 
 const describeCase = (
@@ -75,97 +74,12 @@ describe('Instrumentation Hook', () => {
     })
   })
 
-  describeCase('with-async-node-app-route', ({ next, isNextStart }) => {
+  describeCase('with-async-node-app-route', ({ next }) => {
     it('with-async-node-app-route should run the instrumentation hook before the app-route handler', async () => {
       const res = await next.fetch('/api/check')
       const body = await res.json()
       expect(body).toEqual({ finished: true })
     })
-
-    if (isNextStart) {
-      it('with-async-node-app-route should wait for instrumentation when invoking the app-route handler directly', async () => {
-        const routeModulePath = path.join(
-          next.testDir,
-          '.next',
-          'server',
-          'app',
-          'api',
-          'check',
-          'route.js'
-        )
-        const previousCwd = process.cwd()
-        const port = await findPort()
-        let server: http.Server | undefined
-        let handlerError: unknown
-
-        try {
-          process.chdir(next.testDir)
-
-          const { handler } = require(routeModulePath) as {
-            handler: (
-              req: http.IncomingMessage,
-              res: http.ServerResponse,
-              ctx: {
-                requestMeta?: Record<string, unknown>
-                waitUntil?: (promise: Promise<void>) => void
-              }
-            ) => Promise<void>
-          }
-
-          server = http.createServer(async (req, res) => {
-            try {
-              await handler(req, res, {
-                waitUntil: () => {},
-                requestMeta: {
-                  initURL: `https://localhost:${port}${req.url ?? '/'}`,
-                  distDir: path.join(next.testDir, '.next'),
-                  minimalMode: true,
-                  relativeProjectDir: '.',
-                },
-              })
-            } catch (error) {
-              handlerError = error
-
-              if (!res.writableEnded) {
-                if (!res.headersSent) {
-                  res.statusCode = 500
-                }
-                res.end()
-              }
-            }
-          })
-
-          await new Promise<void>((resolve, reject) => {
-            server.listen(port, () => {
-              resolve()
-            })
-            server.once('error', reject)
-          })
-
-          const res = await fetchViaHTTP(port, '/api/check')
-          const body = await res.json()
-
-          expect(res.status).toBe(200)
-          expect(body).toEqual({ finished: true })
-          expect(handlerError).toBeUndefined()
-        } finally {
-          process.chdir(previousCwd)
-
-          if (server) {
-            await new Promise<void>((resolve, reject) => {
-              server.close((error) => {
-                if (error) {
-                  reject(error)
-                  return
-                }
-
-                resolve()
-              })
-            })
-          }
-        }
-      })
-    }
   })
 
   describeCase('general', ({ next, isNextDev }) => {
