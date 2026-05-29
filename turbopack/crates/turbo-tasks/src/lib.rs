@@ -43,7 +43,6 @@ pub mod panic_hooks;
 pub mod parallel;
 pub mod primitives;
 mod priority_runner;
-mod raw_vc;
 mod read_options;
 mod read_ref;
 pub mod registry;
@@ -104,7 +103,6 @@ pub use crate::{
     },
     mapped_read_ref::MappedReadRef,
     output::OutputContent,
-    raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveRawVcFuture},
     read_options::{ReadCellOptions, ReadOutputOptions},
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,
@@ -120,11 +118,12 @@ pub use crate::{
     value::{TransientInstance, TransientValue},
     value_type::{Evictability, TraitMethod, TraitType, ValueType, ValueTypePersistence},
     vc::{
-        Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture,
-        ResolveOperationVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast,
-        UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellHashedCompareMode,
-        VcCellKeyedCompareMode, VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead,
-        VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
+        CellId, Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, RawVc,
+        ReadRawVcFuture, ReadVcFuture, ResolveOperationVcFuture, ResolveRawVcFuture,
+        ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast, UpcastStrict, ValueDefault, Vc,
+        VcCast, VcCellCompareMode, VcCellHashedCompareMode, VcCellKeyedCompareMode, VcCellNewMode,
+        VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType,
+        VcValueTypeCast,
     },
 };
 
