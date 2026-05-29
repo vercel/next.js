@@ -10,7 +10,6 @@ use swc_core::{
     },
     quote,
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
@@ -41,7 +40,8 @@ use crate::{
 /// `import.meta.hot.accept(dep, callback)`. Ensures the accepted dependency is included
 /// in the chunk graph so it can be hot-replaced at runtime.
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
+#[value_to_string("module.hot.accept/decline {request}")]
 pub struct ModuleHotReferenceAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
@@ -67,17 +67,6 @@ impl ModuleHotReferenceAssetReference {
             error_mode,
             is_esm,
         })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for ModuleHotReferenceAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let request_str = self.request.to_string().await?;
-        Ok(Vc::cell(
-            format!("module.hot.accept/decline {}", request_str).into(),
-        ))
     }
 }
 
