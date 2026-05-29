@@ -66,6 +66,19 @@ For catch-all routes (`[...slug]`), the returned segment contains all matched pa
 | -------------------- | ------------- | ---------------- |
 | `app/blog/layout.js` | `/blog/a/b/c` | `'a/b/c'`        |
 
+## Behavior
+
+### Cache Components
+
+When [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, the selected segment can only be resolved on the server when every dynamic param in the route is known at build time:
+
+- **Static routes and routes with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)**: the segment is known during prerendering, so `useSelectedLayoutSegment` resolves on the server and no `Suspense` boundary is required.
+- **Routes with dynamic params not covered by `generateStaticParams`**: the param is a [fallback param](/docs/app/api-reference/functions/generate-static-params#all-paths-at-build-time) that isn't known until request time. `useSelectedLayoutSegment` suspends during prerendering, so the closest [`Suspense`](https://react.dev/reference/react/Suspense) boundary renders its fallback. Wrap the component (or a parent) in `Suspense`, otherwise the build fails.
+
+This applies even when the segment you care about is static. For example, a tab bar in a layout suspends on any child page that has an unknown dynamic param, because the hook cannot return a value until all params below it are known.
+
+> **Good to know**: This hook returns [Route Groups](/docs/app/api-reference/file-conventions/route-groups) such as `(marketing)` as segments. If a route group sits directly below the layout, the returned value is the group name, not the visible path segment. Account for this when matching against link paths.
+
 ## Examples
 
 ### Creating an active link component

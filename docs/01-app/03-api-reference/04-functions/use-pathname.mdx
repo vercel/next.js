@@ -5,8 +5,6 @@ description: API Reference for the usePathname hook.
 
 `usePathname` is a **Client Component** hook that lets you read the current URL's **pathname**.
 
-> **Good to know**: When [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled `usePathname` may require a `Suspense` boundary around it if your route has a dynamic param. If you use `generateStaticParams` the `Suspense` boundary is optional
-
 ```tsx filename="app/example-client-component.tsx" switcher
 'use client'
 
@@ -66,6 +64,17 @@ const pathname = usePathname()
 | `/dashboard`        | `'/dashboard'`        |
 | `/dashboard?v=2`    | `'/dashboard'`        |
 | `/blog/hello-world` | `'/blog/hello-world'` |
+
+## Behavior
+
+### Cache Components
+
+When [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, the pathname can only be resolved on the server when every dynamic param in the route is known at build time. This affects whether `usePathname` needs a [`Suspense`](https://react.dev/reference/react/Suspense) boundary:
+
+- **Static routes and routes with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)**: the pathname is known during prerendering, so `usePathname` resolves on the server and no `Suspense` boundary is required.
+- **Routes with dynamic params not covered by `generateStaticParams`**: the param is a [fallback param](/docs/app/api-reference/functions/generate-static-params#all-paths-at-build-time) that isn't known until request time. `usePathname` suspends during prerendering, so the closest `Suspense` boundary renders its fallback. Wrap the component (or a parent) in `Suspense`, otherwise the build fails.
+
+This applies even when the component that calls `usePathname` is itself static. For example, a sidebar with active links rendered in a layout suspends on any page below it that has an unknown dynamic param. To keep the rest of the layout prerendered, wrap the component that calls `usePathname` (or a parent) in a `Suspense` boundary with a fallback. See [Linking and Navigating](/docs/app/getting-started/linking-and-navigating#dynamic-segments-without-generatestaticparams) for guidance on dynamic segments and prerendering.
 
 ## Examples
 
