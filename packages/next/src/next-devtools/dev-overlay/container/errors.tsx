@@ -614,7 +614,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               </>
             )
           }
-          headerChildren={<InstantHeaderExplanation kind="metadata" />}
+          headerChildren={
+            <InstantHeaderExplanation
+              kind="metadata"
+              variant={errorDetails.variant}
+            />
+          }
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}
@@ -655,7 +660,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               </>
             )
           }
-          headerChildren={<InstantHeaderExplanation kind="viewport" />}
+          headerChildren={
+            <InstantHeaderExplanation
+              kind="viewport"
+              variant={errorDetails.variant}
+            />
+          }
           onClose={isServerError ? undefined : onClose}
           debugInfo={debugInfo}
           error={error}

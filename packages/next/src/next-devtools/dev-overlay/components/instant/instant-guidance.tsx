@@ -237,6 +237,16 @@ export function InstantHeaderExplanation({
       variant === 'runtime'
         ? 'https://nextjs.org/docs/messages/blocking-prerender-runtime'
         : 'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
+  } else if (!resolvedDocsUrl && kind === 'metadata') {
+    resolvedDocsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime'
+        : 'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic'
+  } else if (!resolvedDocsUrl && kind === 'viewport') {
+    resolvedDocsUrl =
+      variant === 'runtime'
+        ? 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime'
+        : 'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic'
   } else if (!resolvedDocsUrl && kind) {
     resolvedDocsUrl = DOCS_URLS[kind]
   }
