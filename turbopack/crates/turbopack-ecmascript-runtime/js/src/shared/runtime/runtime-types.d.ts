@@ -97,6 +97,7 @@ type AsyncModule = (
 ) => void
 
 type ResolveAbsolutePath = (modulePath?: string) => string
+type ResolveFileUrl = (modulePath?: string) => string
 type GetWorkerURL = (
   entrypoint: ChunkPath,
   moduleChunks: ChunkPath[],
@@ -148,6 +149,7 @@ interface TurbopackBaseContext<M> {
   w: LoadWebAssembly
   u: LoadWebAssemblyModule
   P: ResolveAbsolutePath
+  F: ResolveFileUrl
   U: RelativeURL
   b: GetWorkerURL
   x: ExternalRequire

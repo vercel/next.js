@@ -1859,36 +1859,12 @@ pub fn turbo_tasks_future_scope<T>(
     TURBO_TASKS.scope(tt, f)
 }
 
-pub fn with_turbo_tasks_for_testing<T>(
-    tt: Arc<dyn TurboTasksApi>,
-    current_task: TaskId,
-    execution_id: ExecutionId,
-    f: impl Future<Output = T>,
-) -> impl Future<Output = T> {
-    TURBO_TASKS.scope(
-        tt,
-        CURRENT_TASK_STATE.scope(
-            Arc::new(RwLock::new(CurrentTaskState::new(
-                current_task,
-                execution_id,
-                TaskPriority::initial(),
-                false, // in_top_level_task
-            ))),
-            f,
-        ),
-    )
-}
-
 /// Spawns the given future within the context of the current task.
 ///
 /// Beware: this method is not safe to use in production code. It is only
 /// intended for use in tests and for debugging purposes.
 pub fn spawn_detached_for_testing(f: impl Future<Output = ()> + Send + 'static) {
     turbo_tasks().spawn_detached_for_testing(Box::pin(f));
-}
-
-pub fn current_task_for_testing() -> Option<TaskId> {
-    CURRENT_TASK_STATE.with(|ts| ts.read().unwrap().task_id)
 }
 
 /// Marks the current task as finished. This excludes it from waiting for

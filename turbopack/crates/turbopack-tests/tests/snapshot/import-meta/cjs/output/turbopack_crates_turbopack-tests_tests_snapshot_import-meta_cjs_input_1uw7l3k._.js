@@ -3,7 +3,7 @@
 
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
-        return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/cjs/input/mod.cjs")}`;
+        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/cjs/input/mod.cjs");
     }
 };
 console.log(__TURBOPACK__import$2e$meta__.url);
