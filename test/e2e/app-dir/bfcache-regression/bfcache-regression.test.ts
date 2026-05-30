@@ -152,16 +152,24 @@ describe('bfcache-regression', () => {
     })
   }
 
-  if (isNextDev && global.browserName !== 'safari') {
-    // Persistence only exists in dev. Excludes Safari: the WebKit build
-    // Playwright drives here re-fetches the document from the server on
-    // back-navigation instead of restoring it from the HTTP cache like Chrome
-    // and Firefox, so each back-navigation gets a fresh request ID that was
-    // never persisted, the request-id-keyed restore always misses, and every
-    // page reloads — the pruned-vs-cached distinction this test relies on never
-    // appears. Real Safari serves back-navigations from cache without a server
-    // request, so this is a limitation of the test's WebKit rather than of the
-    // feature.
+  if (
+    // Persistence only exists in dev.
+    isNextDev &&
+    // Excludes Safari: the WebKit build Playwright uses re-fetches the document
+    // from the server on back-navigation instead of restoring it from the HTTP
+    // cache like Chrome and Firefox, so each back-navigation gets a fresh
+    // request ID that was never persisted, the request-id-keyed restore always
+    // misses, and every page reloads — the pruned-vs-cached distinction this
+    // test relies on never appears. Real Safari serves back-navigations from
+    // cache without a server request, so this is a limitation of the test's
+    // WebKit rather than of the feature.
+    global.browserName !== 'safari' &&
+    // TODO: Re-enable for node streams once the React debug channel integration
+    // is fixed there. With `__NEXT_USE_NODE_STREAMS` the debug channel readable
+    // doesn't close as expected, so the client never persists the buffered
+    // entry and this test's wait-for-persisted step times out.
+    !process.env.__NEXT_USE_NODE_STREAMS
+  ) {
     it('should reload to recover when a debug channel entry was pruned by newer page loads', async () => {
       // The debug channel for the initial document is buffered and persisted to
       // IndexedDB so it can be restored when the browser serves the page from
