@@ -464,7 +464,7 @@ impl From<Box<BigInt>> for JsValue {
 
 impl From<f64> for JsValue {
     fn from(v: f64) -> Self {
-        ConstantValue::Num(ConstantNumber(v.into())).into()
+        ConstantValue::Num(ConstantNumber(v)).into()
     }
 }
 

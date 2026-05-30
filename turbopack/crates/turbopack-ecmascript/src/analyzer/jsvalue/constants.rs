@@ -48,7 +48,7 @@ impl Hash for ConstantNumber {
 
 impl From<f64> for ConstantNumber {
     fn from(value: f64) -> Self {
-        ConstantNumber(value.into())
+        ConstantNumber(value)
     }
 }
 
@@ -221,7 +221,7 @@ impl From<Lit> for ConstantValue {
                 }
             }
             Lit::Null(_) => ConstantValue::Null,
-            Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value.into())),
+            Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value)),
             Lit::BigInt(v) => ConstantValue::BigInt(v.value),
             Lit::Regex(v) => ConstantValue::Regex(Box::new((v.exp, v.flags))),
             Lit::JSXText(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
