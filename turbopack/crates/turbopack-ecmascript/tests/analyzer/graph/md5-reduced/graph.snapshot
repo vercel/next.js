@@ -70,11 +70,15 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    TotalOrderF64(
+                                        -680876936.0,
+                                    ),
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -148,11 +152,15 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    TotalOrderF64(
+                                        -176418897.0,
+                                    ),
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -342,11 +350,15 @@
         Alternatives {
             total_nodes: 54,
             values: [
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -271733879.0,
+                            ),
+                        ),
+                    ),
+                ),
                 Call(
                     13,
                     Variable(
@@ -418,11 +430,15 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    TotalOrderF64(
+                                        -1044525330.0,
+                                    ),
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -496,11 +512,15 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    TotalOrderF64(
+                                        -45705983.0,
+                                    ),
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -574,11 +594,15 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    TotalOrderF64(
+                                        -1990404162.0,
+                                    ),
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -686,11 +710,15 @@
         Alternatives {
             total_nodes: 54,
             values: [
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1732584194.0,
+                            ),
+                        ),
+                    ),
+                ),
                 Call(
                     13,
                     Variable(
@@ -844,11 +872,15 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    TotalOrderF64(
+                                        -1473231341.0,
+                                    ),
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -922,11 +954,15 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    TotalOrderF64(
+                                        -42063.0,
+                                    ),
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -1000,11 +1036,15 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    TotalOrderF64(
+                                        -1502002290.0,
+                                    ),
+                                ),
+                            ),
+                        ),
                     ],
                 ),
             ],
@@ -1103,11 +1143,15 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    TotalOrderF64(
+                                        -389564586.0,
+                                    ),
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -1263,11 +1307,15 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    TotalOrderF64(
+                                        -1958414417.0,
+                                    ),
+                                ),
+                            ),
+                        ),
                     ],
                 ),
                 Call(
@@ -1341,11 +1389,15 @@
                                 ),
                             ),
                         ),
-                        Unknown {
-                            original_value: None,
-                            reason: "unsupported expression",
-                            has_side_effects: true,
-                        },
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    TotalOrderF64(
+                                        -40341101.0,
+                                    ),
+                                ),
+                            ),
+                        ),
                     ],
                 ),
             ],

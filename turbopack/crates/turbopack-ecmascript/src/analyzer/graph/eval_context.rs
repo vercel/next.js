@@ -11,7 +11,10 @@ use turbo_rcstr::{RcStr, rcstr};
 
 use crate::{
     SpecifiedModuleType,
-    analyzer::{ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownObjectKind, is_unresolved},
+    analyzer::{
+        ConstantNumber, ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownObjectKind,
+        is_unresolved,
+    },
     references::constant_value::parse_single_expr_lit,
     utils::unparen,
 };
@@ -152,6 +155,12 @@ impl EvalContext {
                 arg: box Expr::Lit(_),
                 ..
             }) => JsValue::Constant(ConstantValue::Undefined),
+
+            Expr::Unary(UnaryExpr {
+                op: op!(unary, "-"),
+                arg: box Expr::Lit(Lit::Num(n)),
+                ..
+            }) => JsValue::Constant(ConstantValue::Num(ConstantNumber((-n.value).into()))),
 
             Expr::Unary(UnaryExpr {
                 op: op!("!"), arg, ..
