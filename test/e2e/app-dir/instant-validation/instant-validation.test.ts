@@ -2409,7 +2409,7 @@ describe('instant validation', () => {
              - [static] Use a static viewport export instead of \`generateViewport()\`
              - [block] Set \`export const unstable_instant = false\` to allow a blocking route
 
-           Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic
+           Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-runtime-viewport-in-static".
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
