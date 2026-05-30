@@ -6347,11 +6347,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -680876936.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -6685,11 +6689,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -389564586.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -7365,11 +7373,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1044525330.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -7703,11 +7715,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -176418897.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -8383,11 +8399,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1473231341.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -8721,11 +8741,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -45705983.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -9401,11 +9425,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1958414417.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -9739,11 +9767,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -42063.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -10077,11 +10109,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1990404162.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -10757,11 +10793,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -40341101.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -11095,11 +11135,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1502002290.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -11775,11 +11819,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -165796510.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -12113,11 +12161,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1069501632.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -12793,11 +12845,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -373897302.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -13131,11 +13187,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -701558691.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -13811,11 +13871,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -660478335.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -14149,11 +14213,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -405537848.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -14829,11 +14897,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1019803690.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -15167,11 +15239,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -187363961.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -15847,11 +15923,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1444681467.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -16185,11 +16265,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -51403784.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -16865,11 +16949,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1926607734.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -17203,11 +17291,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -378558.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -17541,11 +17633,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -2022574463.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -18221,11 +18317,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -35309556.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -18559,11 +18659,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1530992060.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -19239,11 +19343,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -155497632.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -19577,11 +19685,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1094730640.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -20257,11 +20369,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -358537222.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -20595,11 +20711,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -722521979.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -21275,11 +21395,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -640364487.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -21613,11 +21737,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -421815835.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -22293,11 +22421,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -995338651.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -22631,11 +22763,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -198630844.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -23311,11 +23447,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1416354905.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -23649,11 +23789,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -57434055.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -24329,11 +24473,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1894986606.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -24667,11 +24815,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1051523.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -25005,11 +25157,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -2054922799.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -25685,11 +25841,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -30611744.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -26023,11 +26183,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1560198380.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -26703,11 +26867,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -145523070.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -27041,11 +27209,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -1120210379.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
@@ -27721,11 +27893,15 @@
                 ),
             ),
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                -343485551.0,
+                            ),
+                        ),
+                    ),
+                ),
             ),
         ],
         ast_path: [
