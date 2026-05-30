@@ -4,18 +4,17 @@ use swc_core::{
     ecma::{ast::*, visit::VisitWithAstPath},
 };
 
-use crate::{
-    AnalyzeMode, 
-    analyzer::{
-        JsValue, 
-        graph::{
-            visitor::Analyzer
-        }, 
-    }, code_gen::CodeGen
+pub use crate::analyzer::graph::{
+    effects::{
+        AssignmentScope, AssignmentScopes, ConditionalKind, Effect, EffectArg, EffectsBlock,
+    },
+    eval_context::EvalContext,
 };
-
-pub use effects::{EffectsBlock, Effect, EffectArg, AssignmentScope, AssignmentScopes, ConditionalKind};
-pub use eval_context::EvalContext;
+use crate::{
+    AnalyzeMode,
+    analyzer::{JsValue, graph::visitor::Analyzer},
+    code_gen::CodeGen,
+};
 
 mod effects;
 mod eval_context;
