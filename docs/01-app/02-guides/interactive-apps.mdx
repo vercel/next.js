@@ -64,7 +64,7 @@ export default async function TaskPage({ params }) {
 
 If you navigate to a task, nothing renders until `getTask` resolves, and the comments fetch starts only after that.
 
-Split the reads into separate components, pass each one a promise, and wrap them in [`<Suspense>`](https://react.dev/reference/react/Suspense). The page becomes synchronous — it returns the shell immediately, and the server streams each section in as its data resolves:
+Split the reads into separate components, pass each one a promise, and wrap them in [`<Suspense>`](https://react.dev/reference/react/Suspense). The page becomes synchronous. It returns the shell immediately, and the server streams each section in as its data resolves:
 
 ```tsx filename="app/task/[id]/page.tsx"
 import { Suspense } from 'react'
@@ -284,7 +284,7 @@ export function ChipGroup({ items, value, changeAction }) {
 }
 ```
 
-The consumer passes a callback (`changeAction`). The design component handles the transition and optimistic state. By convention, props named `action` or suffixed with `Action` signal that the component may call them inside a transition.
+The consumer passes a callback (`changeAction`). The design component handles the transition and optimistic state. By convention, props named `action` or suffixed with `Action` signal that the component may call them inside a transition. See [Exposing `action` props from components](https://react.dev/reference/react/useTransition#exposing-action-props-from-components) in the React docs for this pattern.
 
 If you click the "Frontend" chip now, it highlights on the current frame. The board dims while the filtered data loads, then updates with the filtered tasks.
 
@@ -583,7 +583,7 @@ startTransition(() => setIsOpen(false))
 toast.success('Task created')
 ```
 
-Side effects that don't affect rendered state — analytics, toasts, focus changes — run after the `await` resolves. They don't need a transition because they don't update React state.
+Side effects that don't affect rendered state, such as analytics, toasts, and focus changes, run after the `await` resolves. They don't need a transition because they don't update React state.
 
 If you fill out the form and click "Create Task", the button text changes to "Creating..." and dims. When the server responds, the fields clear, the dialog closes, the new task appears on the board, and a toast confirms the action.
 
@@ -593,7 +593,7 @@ If you fill out the form and click "Create Task", the button text changes to "Cr
 
 Each comment card has a delete button. Clicking it removes the comment on the server. After the next render, the comment disappears from the list.
 
-Between the click and the next render, the card still renders the old data. The list itself can't show the pending removal — that has to come from the button.
+Between the click and the next render, the card still renders the old data. The list itself can't show the pending removal. That has to come from the button.
 
 This step reuses the `data-pending` CSS hook from Step 3, but drives it from `useOptimistic(false)` instead of `useTransition`'s `isPending`.
 
@@ -654,7 +654,7 @@ export function DeleteButton({
 }
 ```
 
-The parent comment card uses Tailwind's `has-data-pending:` variant to fade itself when any descendant has the `data-pending` attribute set:
+The parent comment card uses Tailwind's `has-data-pending:` variant to fade itself when any descendant has the `data-pending` attribute set. The button is the only component that knows when deletion is pending, so exposing it as a CSS attribute lets any ancestor dim itself without lifting state or threading callbacks:
 
 ```tsx filename="app/task/[id]/_components/comment-card.tsx"
 <div className="rounded-lg px-3 transition-all has-data-pending:opacity-30">
@@ -678,13 +678,9 @@ The Server Function is bound to the comment ID by the parent server component, w
 
 If you click delete now, the card fades to 30% opacity the moment the click registers. When the server confirms and the next render arrives, the card unmounts from the list.
 
-#### Why a CSS attribute instead of a prop
-
-The button is the only component that knows when deletion is pending. Passing `isPending` up to the card would require lifting state or threading callbacks. A `data-pending` attribute lets the parent react via CSS without coordination — any ancestor that wants to dim itself can opt in with `has-data-pending:`.
-
 ### Step 8: Make repeat navigation instant
 
-Every pattern so far smooths a single interaction. Across navigations, the same reads still rerun and the same fallbacks still paint. [Caching](/docs/app/getting-started/caching) reusable reads — and [prefetching](/docs/app/guides/prefetching) them with the real request — closes that gap without moving the data model into the browser.
+Every pattern so far smooths a single interaction. Across navigations, the same reads still rerun and the same fallbacks still paint. [Caching](/docs/app/getting-started/caching) reusable reads, and [prefetching](/docs/app/guides/prefetching) them with the real request, closes that gap without moving the data model into the browser.
 
 This step uses [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) APIs. Steps 1–7 work without it. If you are not using Cache Components, see [Caching without Cache Components](/docs/app/guides/caching-without-cache-components).
 
