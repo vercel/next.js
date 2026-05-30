@@ -52,14 +52,15 @@ export default function ExampleClientComponent() {
 ## Parameters
 
 ```tsx
-const segments = useSelectedLayoutSegments(parallelRoutesKey?: string)
+const segments = useSelectedLayoutSegments(parallelRoutesKey?: string, options?: { ssr?: boolean })
 ```
 
-`useSelectedLayoutSegments` _optionally_ accepts a [`parallelRoutesKey`](/docs/app/api-reference/file-conventions/parallel-routes#with-useselectedlayoutsegments), which allows you to read the active route segment within that slot.
+- `parallelRoutesKey` (optional): a [`parallelRoutesKey`](/docs/app/api-reference/file-conventions/parallel-routes#with-useselectedlayoutsegments) that lets you read the active route segment within that slot.
+- `options.ssr` (optional): when `false`, returns `null` during server rendering and the initial client render, then resolves after mount. Also removes the `Suspense` requirement under [Cache Components](#cache-components). Defaults to `true`.
 
 ## Returns
 
-`useSelectedLayoutSegments` returns an array of strings containing the active segments one level down from the layout the hook was called from. Or an empty array if none exist.
+`useSelectedLayoutSegments` returns an array of strings containing the active segments one level down from the layout the hook was called from, or an empty array if none exist. When called with `{ ssr: false }`, it returns `null` until the component mounts.
 
 For example, given the Layouts and URLs below, the returned segments would be:
 
@@ -87,8 +88,11 @@ When [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComp
 - **Static routes and routes with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)**: the segments are known during prerendering, so `useSelectedLayoutSegments` resolves on the server and no `Suspense` boundary is required.
 - **Routes with dynamic params not covered by `generateStaticParams`**: the param is a [fallback param](/docs/app/api-reference/functions/generate-static-params#all-paths-at-build-time) that isn't known until request time. `useSelectedLayoutSegments` suspends during prerendering, so the closest [`Suspense`](https://react.dev/reference/react/Suspense) boundary renders its fallback. Wrap the component (or a parent) in `Suspense`, otherwise the build fails.
 
+> **Good to know**: If your app uses [rewrites](/docs/app/api-reference/config/next-config-js/rewrites) or a [Proxy](/docs/app/api-reference/file-conventions/proxy), pass `{ ssr: false }` to avoid hydration mismatches and remove the `Suspense` requirement. See the [`usePathname` rewrite example](/docs/app/api-reference/functions/use-pathname#avoid-hydration-mismatch-with-rewrites) and the [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) guide.
+
 ## Version History
 
 | Version   | Changes                                 |
 | --------- | --------------------------------------- |
+| `v16.3.0` | `{ ssr: false }` option added.          |
 | `v13.0.0` | `useSelectedLayoutSegments` introduced. |

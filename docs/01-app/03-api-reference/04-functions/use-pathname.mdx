@@ -34,7 +34,7 @@ For example, a Client Component with `usePathname` will be rendered into HTML on
 > **Good to know**:
 >
 > - Reading the current URL from a [Server Component](/docs/app/getting-started/server-and-client-components) is not supported. This design is intentional to support layout state being preserved across page navigations.
-> - If your page is being statically prerendered and your app has [rewrites](/docs/app/api-reference/config/next-config-js/rewrites) in `next.config` or a [Proxy](/docs/app/api-reference/file-conventions/proxy) file, reading the pathname with `usePathname()` can result in hydration mismatch errors—because the initial value comes from the server and may not match the actual browser pathname after routing. See our [example](#avoid-hydration-mismatch-with-rewrites) for a way to mitigate this issue.
+> - If your page is being statically prerendered and your app has [rewrites](/docs/app/api-reference/config/next-config-js/rewrites) in `next.config` or a [Proxy](/docs/app/api-reference/file-conventions/proxy) file, reading the pathname with `usePathname()` can result in hydration mismatch errors, because the initial value comes from the server and may not match the actual browser pathname after routing. See our [example](#avoid-hydration-mismatch-with-rewrites) for a way to mitigate this issue.
 
 <details>
 
@@ -49,10 +49,14 @@ To enhance compatibility between routing systems, if your project contains both 
 ## Parameters
 
 ```tsx
-const pathname = usePathname()
+const pathname = usePathname(options?)
 ```
 
-`usePathname` does not take any parameters.
+`usePathname` optionally accepts an `options` object:
+
+| Option | Type      | Description                                                                                                                                                                                                                          |
+| ------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ssr`  | `boolean` | When `false`, returns `null` during server rendering and the initial client render, then resolves the pathname after mount. Also removes the `Suspense` requirement under [Cache Components](#cache-components). Defaults to `true`. |
 
 ## Returns
 
@@ -65,6 +69,8 @@ const pathname = usePathname()
 | `/dashboard?v=2`    | `'/dashboard'`        |
 | `/blog/hello-world` | `'/blog/hello-world'` |
 
+When called with `{ ssr: false }`, `usePathname` returns `null` during server rendering and the initial client render, then returns the pathname string after the component mounts.
+
 ## Behavior
 
 ### Cache Components
@@ -75,6 +81,8 @@ When [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComp
 - **Routes with dynamic params not covered by `generateStaticParams`**: the param is a [fallback param](/docs/app/api-reference/functions/generate-static-params#all-paths-at-build-time) that isn't known until request time. `usePathname` suspends during prerendering, so the closest `Suspense` boundary renders its fallback. Wrap the component (or a parent) in `Suspense`, otherwise the build fails.
 
 This applies even when the component that calls `usePathname` is itself static. For example, a sidebar with active links rendered in a layout suspends on any page below it that has an unknown dynamic param. To keep the rest of the layout prerendered, wrap the component that calls `usePathname` (or a parent) in a `Suspense` boundary with a fallback. See [Linking and Navigating](/docs/app/getting-started/linking-and-navigating#dynamic-segments-without-generatestaticparams) for guidance on dynamic segments and prerendering.
+
+> **Good to know**: If your app uses [rewrites](/docs/app/api-reference/config/next-config-js/rewrites) or a [Proxy](/docs/app/api-reference/file-conventions/proxy), pass `{ ssr: false }` to avoid hydration mismatches and remove the `Suspense` requirement. See the [rewrite example](#avoid-hydration-mismatch-with-rewrites) and the [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) guide for eliminating any visible flicker.
 
 ## Examples
 
@@ -114,7 +122,47 @@ function ExampleClientComponent() {
 
 When a page is prerendered, the HTML is generated for the source pathname. If the page is then reached through a rewrite using `next.config` or `Proxy`, the browser URL may differ, and `usePathname()` will read the rewritten pathname on the client.
 
-To avoid hydration mismatches, design the UI so that only a small, isolated part depends on the client pathname. Render a stable fallback on the server and update that part after mount.
+There are two ways to defer the pathname read until after mount. Both avoid the hydration mismatch. Passing `{ ssr: false }` also removes the [`Suspense`](#cache-components) requirement under Cache Components, since the hook no longer runs during prerendering. The `useEffect` approach still requires a `Suspense` boundary.
+
+**Option 1: `{ ssr: false }`**
+
+Pass `{ ssr: false }` to return `null` during server rendering and resolve the pathname after mount:
+
+```tsx filename="app/example-client-component.tsx" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+
+export default function PathnameBadge() {
+  const pathname = usePathname({ ssr: false })
+
+  return (
+    <p>
+      Current pathname: <span>{pathname ?? ''}</span>
+    </p>
+  )
+}
+```
+
+```jsx filename="app/example-client-component.js" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+
+export default function PathnameBadge() {
+  const pathname = usePathname({ ssr: false })
+
+  return (
+    <p>
+      Current pathname: <span>{pathname ?? ''}</span>
+    </p>
+  )
+}
+```
+
+**Option 2: `useEffect`**
+
+If you need the return type to always be `string`, you can manage the deferred read manually with `useState` and `useEffect`:
 
 ```tsx filename="app/example-client-component.tsx" switcher
 'use client'
@@ -160,6 +208,7 @@ export default function PathnameBadge() {
 }
 ```
 
-| Version   | Changes                   |
-| --------- | ------------------------- |
-| `v13.0.0` | `usePathname` introduced. |
+| Version   | Changes                        |
+| --------- | ------------------------------ |
+| `v16.3.0` | `{ ssr: false }` option added. |
+| `v13.0.0` | `usePathname` introduced.      |

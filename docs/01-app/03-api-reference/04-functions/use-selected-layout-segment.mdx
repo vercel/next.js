@@ -40,14 +40,15 @@ export default function ExampleClientComponent() {
 ## Parameters
 
 ```tsx
-const segment = useSelectedLayoutSegment(parallelRoutesKey?: string)
+const segment = useSelectedLayoutSegment(parallelRoutesKey?: string, options?: { ssr?: boolean })
 ```
 
-`useSelectedLayoutSegment` _optionally_ accepts a [`parallelRoutesKey`](/docs/app/api-reference/file-conventions/parallel-routes#with-useselectedlayoutsegments), which allows you to read the active route segment within that slot.
+- `parallelRoutesKey` (optional): a [`parallelRoutesKey`](/docs/app/api-reference/file-conventions/parallel-routes#with-useselectedlayoutsegments) that lets you read the active route segment within that slot.
+- `options.ssr` (optional): when `false`, returns `null` during server rendering and the initial client render, then resolves after mount. Also removes the `Suspense` requirement under [Cache Components](#cache-components). Defaults to `true`.
 
 ## Returns
 
-`useSelectedLayoutSegment` returns a string of the active segment or `null` if one doesn't exist.
+`useSelectedLayoutSegment` returns a string of the active segment or `null` if one doesn't exist. When called with `{ ssr: false }`, it returns `null` until the component mounts.
 
 For example, given the Layouts and URLs below, the returned segment would be:
 
@@ -78,6 +79,8 @@ When [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComp
 This applies even when the segment you care about is static. For example, a tab bar in a layout suspends on any child page that has an unknown dynamic param, because the hook cannot return a value until all params below it are known.
 
 > **Good to know**: This hook returns [Route Groups](/docs/app/api-reference/file-conventions/route-groups) such as `(marketing)` as segments. If a route group sits directly below the layout, the returned value is the group name, not the visible path segment. Account for this when matching against link paths.
+
+> **Good to know**: If your app uses [rewrites](/docs/app/api-reference/config/next-config-js/rewrites) or a [Proxy](/docs/app/api-reference/file-conventions/proxy), pass `{ ssr: false }` to avoid hydration mismatches and remove the `Suspense` requirement. See the [`usePathname` rewrite example](/docs/app/api-reference/functions/use-pathname#avoid-hydration-mismatch-with-rewrites) and the [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) guide.
 
 ## Examples
 
@@ -189,4 +192,5 @@ export default async function Layout({ children }) {
 
 | Version   | Changes                                |
 | --------- | -------------------------------------- |
+| `v16.3.0` | `{ ssr: false }` option added.         |
 | `v13.0.0` | `useSelectedLayoutSegment` introduced. |
