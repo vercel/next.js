@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import fs from 'fs/promises'
+import os from 'os'
 import path from 'path'
 
 /**
@@ -47,6 +48,71 @@ describeMaybe('concurrent-install', () => {
     await fs.rename(stash, original)
   }
 
+  async function moveNextToExternalSymlink(): Promise<{
+    original: string
+    externalRoot: string
+    externalNext: string
+    originalLinkTarget?: string
+  }> {
+    const original = await getNextPath()
+    const externalRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'next-external-symlink-')
+    )
+    const externalNext = path.join(externalRoot, 'next')
+    const originalStat = await fs.lstat(original)
+
+    if (originalStat.isSymbolicLink()) {
+      const originalLinkTarget = await fs.readlink(original)
+      const originalRealPath = await fs.realpath(original)
+      await fs.cp(originalRealPath, externalNext, { recursive: true })
+      await fs.rm(original, { recursive: true, force: true })
+      await fs.symlink(
+        externalNext,
+        original,
+        process.platform === 'win32' ? 'junction' : 'dir'
+      )
+      return {
+        original,
+        externalRoot,
+        externalNext,
+        originalLinkTarget,
+      }
+    }
+
+    await fs.rename(original, externalNext)
+    await fs.symlink(
+      externalNext,
+      original,
+      process.platform === 'win32' ? 'junction' : 'dir'
+    )
+
+    return { original, externalRoot, externalNext }
+  }
+
+  async function restoreNextFromExternalSymlink({
+    original,
+    externalRoot,
+    externalNext,
+    originalLinkTarget,
+  }: {
+    original: string
+    externalRoot: string
+    externalNext: string
+    originalLinkTarget?: string
+  }): Promise<void> {
+    await fs.rm(original, { recursive: true, force: true })
+    if (originalLinkTarget) {
+      await fs.symlink(
+        originalLinkTarget,
+        original,
+        process.platform === 'win32' ? 'junction' : 'dir'
+      )
+    } else {
+      await fs.rename(externalNext, original)
+    }
+    await fs.rm(externalRoot, { recursive: true, force: true })
+  }
+
   itTurbopack(
     'does not crash when node_modules/next is moved mid-session',
     async () => {
@@ -86,6 +152,64 @@ describeMaybe('concurrent-install', () => {
         'FATAL: An unexpected Turbopack error occurred'
       )
       expect(getOutput()).not.toContain('TurbopackInternalError')
+    }
+  )
+
+  itTurbopack(
+    'explains when node_modules/next points outside the turbopack root',
+    async () => {
+      const getOutput = next.getCliOutputFromHere()
+      const externalInfo = await moveNextToExternalSymlink()
+      try {
+        await next.patchFile(
+          'app/page.tsx',
+          `export default function Page() {
+  return <p>hello world (external-next)</p>
+}
+`
+        )
+
+        await next.fetch('/late-route').catch(() => {
+          // The request itself may fail (500) while next points outside the
+          // Turbopack root. We only care that the issue is specific.
+        })
+
+        await retry(
+          async () => {
+            expect(getOutput()).toContain(
+              'node_modules/next resolves outside the Turbopack root'
+            )
+          },
+          10000,
+          500
+        )
+
+        expect(getOutput()).toContain('turbopack.root')
+        expect(getOutput()).not.toContain(
+          'FATAL: An unexpected Turbopack error occurred'
+        )
+        expect(getOutput()).not.toContain('TurbopackInternalError')
+      } finally {
+        await restoreNextFromExternalSymlink(externalInfo)
+      }
+
+      await next.patchFile(
+        'app/page.tsx',
+        `export default function Page() {
+  return <p>hello world (external-next-restored)</p>
+}
+`
+      )
+
+      await retry(
+        async () => {
+          const res = await next.fetch('/')
+          expect(res.status).toBe(200)
+          expect(await res.text()).toContain('external-next-restored')
+        },
+        15000,
+        500
+      )
     }
   )
 
