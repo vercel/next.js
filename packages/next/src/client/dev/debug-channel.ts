@@ -53,19 +53,11 @@ function openDebugChannelDB(): Promise<IDBDatabase> {
 /**
  * Resolves on the next idle period via `requestIdleCallback`, falling back to a
  * `setTimeout` where `requestIdleCallback` is unavailable.
- *
- * In test mode we pass a `timeout` so the callback reliably fires under
- * Playwright, where a timeout-less `requestIdleCallback` may otherwise never
- * run. Production stays timeout-less so persistence never forces a blocking
- * write during a busy period — it fires at genuine idle or is skipped.
  */
 function whenIdle(): Promise<void> {
   return new Promise((resolve) => {
     if (typeof requestIdleCallback === 'function') {
-      requestIdleCallback(
-        () => resolve(),
-        process.env.__NEXT_TEST_MODE ? { timeout: 100 } : undefined
-      )
+      requestIdleCallback(() => resolve())
     } else {
       setTimeout(resolve, 0)
     }
