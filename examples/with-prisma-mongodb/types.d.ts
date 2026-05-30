@@ -1,17 +1,9 @@
-import { 
-    User as UserDB,
-    Post as PostDB
-} from "./generated/prisma";
-
-
-
-
+import { User as UserDB, Post as PostDB } from "./generated/prisma";
 
 export type User = UserDB & {
-    posts?: Post
-}
-
+  posts?: Post[];
+};
 
 export type Post = PostDB & {
-    user?: User | null
-}
+  user?: User | null;
+};
