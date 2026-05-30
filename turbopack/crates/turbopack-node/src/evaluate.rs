@@ -168,7 +168,6 @@ async fn emit_evaluate_pool_assets_operation(
         OutputAssets::empty(),
     );
 
-    // TODO
     let output_root = chunking_context.output_root().owned().await?;
     emit_package_json(output_root.clone())?
         .as_side_effect()
