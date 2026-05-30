@@ -25,6 +25,11 @@ const useDynamicRouteParams =
       ).useDynamicRouteParams
     : undefined
 
+// Alias without the `use` prefix so the React Compiler does not treat it as a
+// hook. This lets us skip the call when `ssr: false` without triggering the
+// conditional-hook lint rule.
+const trackDynamicRouteParams = useDynamicRouteParams
+
 const useDynamicSearchParams =
   typeof window === 'undefined'
     ? (
@@ -137,7 +142,9 @@ export function useSearchParams(): ReadonlyURLSearchParams {
 export function usePathname(options: { ssr: false }): string | null
 export function usePathname(): string
 export function usePathname(options?: { ssr?: boolean }): string | null {
-  useDynamicRouteParams?.('usePathname()')
+  if (options?.ssr !== false) {
+    trackDynamicRouteParams?.('usePathname()')
+  }
 
   // In the case where this is `null`, the compat types added in `next-env.d.ts`
   // will add a new overload that changes the return type to include `null`.
@@ -306,13 +313,25 @@ export function useParams<T extends Params = Params>(): T {
  */
 // Client components API
 export function useSelectedLayoutSegments(
-  parallelRouteKey: string = 'children'
-): string[] {
-  useDynamicRouteParams?.('useSelectedLayoutSegments()')
+  parallelRouteKey?: string,
+  options?: { ssr?: boolean }
+): string[] | null {
+  if (options?.ssr !== false) {
+    trackDynamicRouteParams?.('useSelectedLayoutSegments()')
+  }
 
+  const deferToClient = options?.ssr === false
+  const [mounted, setMounted] = useState(!deferToClient)
+  useEffect(() => {
+    if (deferToClient) setMounted(true)
+  }, [deferToClient])
+
+  const key = parallelRouteKey ?? 'children'
   const context = useContext(LayoutRouterContext)
-  // @ts-expect-error This only happens in `pages`. Type is overwritten in navigation.d.ts
+
+  // This only happens in `pages`. Type is overwritten in navigation.d.ts
   if (!context) return null
+  if (!mounted) return null
 
   // During build-time instant validation, error if fallback params exist
   // because useSelectedLayoutSegments() can't return a sensible value without all params.
@@ -329,7 +348,7 @@ export function useSelectedLayoutSegments(
     const navigationPromises = use(NavigationPromisesContext)
     if (navigationPromises) {
       const promise =
-        navigationPromises.selectedLayoutSegmentsPromises?.get(parallelRouteKey)
+        navigationPromises.selectedLayoutSegmentsPromises?.get(key)
       if (promise) {
         // We should always have a promise here, but if we don't, it's not worth erroring over.
         // We just won't be able to instrument it, but can still provide the value.
@@ -338,7 +357,7 @@ export function useSelectedLayoutSegments(
     }
   }
 
-  return getSelectedLayoutSegmentPath(context.parentTree, parallelRouteKey)
+  return getSelectedLayoutSegmentPath(context.parentTree, key)
 }
 
 /**
@@ -361,11 +380,14 @@ export function useSelectedLayoutSegments(
  */
 // Client components API
 export function useSelectedLayoutSegment(
-  parallelRouteKey: string = 'children'
+  parallelRouteKey?: string,
+  options?: { ssr?: boolean }
 ): string | null {
-  useDynamicRouteParams?.('useSelectedLayoutSegment()')
+  const key = parallelRouteKey ?? 'children'
   const navigationPromises = useContext(NavigationPromisesContext)
-  const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
+  const selectedLayoutSegments = useSelectedLayoutSegments(key, options)
+
+  if (selectedLayoutSegments === null) return null
 
   // During build-time instant validation, error if fallback params exist
   // because useSelectedLayoutSegment() can't return a sensible value without all params.
@@ -379,8 +401,7 @@ export function useSelectedLayoutSegment(
     navigationPromises &&
     'use' in React
   ) {
-    const promise =
-      navigationPromises.selectedLayoutSegmentPromises?.get(parallelRouteKey)
+    const promise = navigationPromises.selectedLayoutSegmentPromises?.get(key)
     if (promise) {
       // We should always have a promise here, but if we don't, it's not worth erroring over.
       // We just won't be able to instrument it, but can still provide the value.
@@ -388,7 +409,7 @@ export function useSelectedLayoutSegment(
     }
   }
 
-  return computeSelectedLayoutSegment(selectedLayoutSegments, parallelRouteKey)
+  return computeSelectedLayoutSegment(selectedLayoutSegments, key)
 }
 
 export { unstable_isUnrecognizedActionError } from './unrecognized-action-error'
