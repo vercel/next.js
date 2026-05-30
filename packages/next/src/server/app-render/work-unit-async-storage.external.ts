@@ -63,6 +63,15 @@ export interface RequestStore extends CommonWorkUnitStore {
   readonly isHmrRefresh?: boolean
   readonly serverComponentsHmrCache?: ServerComponentsHmrCache
 
+  /**
+   * An `AbortSignal` that is aborted when the client disconnects (e.g. when a
+   * Server Action call is cancelled via `AbortController`). This lets
+   * long-running Server Actions observe cancellation and free resources. It is
+   * wired up by `handleAction` and exposed to userland via
+   * `unstable_requestSignal()`.
+   */
+  signal?: AbortSignal
+
   readonly rootParams: Params
 
   /**

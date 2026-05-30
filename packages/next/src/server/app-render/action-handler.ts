@@ -57,7 +57,12 @@ import {
   getServerActionsManifest,
   getServerModuleMap,
 } from './manifests-singleton'
-import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
+import {
+  isNodeNextRequest,
+  isNodeNextResponse,
+  isWebNextRequest,
+} from '../base-http/helpers'
+import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { normalizeFilePath } from './segment-explorer-path'
 import { extractInfoFromServerReferenceId } from '../../shared/lib/server-reference-info'
 import type { ServerActionLogInfo } from '../dev/server-action-logger'
@@ -712,6 +717,21 @@ export async function handleAction({
     'Cache-Control',
     'no-cache, no-store, max-age=0, must-revalidate'
   )
+
+  // Expose an abort signal tied to the client connection so that Server Actions
+  // can observe cancellation (e.g. when the client aborts the request via an
+  // `AbortController`) and stop long-running work. Userland reads this via
+  // `unstable_requestSignal()`. The same `requestStore` instance is used to run
+  // the action below, so setting it here makes it visible to the action.
+  if (
+    process.env.NEXT_RUNTIME !== 'edge' &&
+    isNodeNextRequest(req) &&
+    isNodeNextResponse(res)
+  ) {
+    requestStore.signal = signalFromNodeResponse(res.originalResponse)
+  } else if (process.env.NEXT_RUNTIME === 'edge' && isWebNextRequest(req)) {
+    requestStore.signal = req.request.signal
+  }
 
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
 
