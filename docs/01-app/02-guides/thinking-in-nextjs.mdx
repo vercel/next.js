@@ -163,7 +163,7 @@ export async function ProjectHeader({ id }: { id: string }) {
 }
 ```
 
-Co-locating the read with the JSX that uses it is the same instinct as `useEffect` or a query library, except a Server Component can `await` the read directly, with no client state to manage.
+Co-locating the read with the JSX that uses it is the same instinct as [`useEffect`](https://react.dev/reference/react/useEffect) or a query library, except a Server Component can `await` the read directly, with no client state to manage.
 
 The page awaits `params` and passes each component the identifier it needs:
 
@@ -227,7 +227,7 @@ Source: [`steps/03-fetch-data`](https://github.com/vercel-labs/thinking-in-nextj
 
 Why should the rest of the page wait for the slowest read? Each async component already fetches independently. Can the page _render_ each one independently too, so the layout paints right away and the sections fill in as their data resolves?
 
-React's [`<Suspense>`](https://react.dev/reference/react/Suspense) is what makes that possible. Wrap each async component in a boundary, give it a fallback, and the page sends the surrounding layout immediately while each section streams in as its data resolves.
+React's [`<Suspense>`](https://react.dev/reference/react/Suspense) is what makes that possible. Wrap each async component in a boundary, give it a fallback, and the page sends the surrounding layout immediately while each section streams in as its data resolves. See [Streaming](/docs/app/guides/streaming) for the full pattern.
 
 On the project detail page, that looks like this:
 
@@ -309,7 +309,7 @@ Reads are covered. How does a click that creates a deployment or pins a project 
 
 An HTML form is the natural shape. The browser already knows how to submit one over the network, and the write can run on the server with no extra wiring. A [Route Handler](/docs/app/glossary#route-handler) would work too, but the route ends up with a separate endpoint for one button.
 
-We can keep the write next to the component that triggers it by adding a colocated React [Server Function](/docs/app/glossary#server-function), marked with `'use server'`:
+We can keep the write next to the component that triggers it by adding a colocated React [Server Function](/docs/app/glossary#server-function), marked with [`'use server'`](/docs/app/api-reference/directives/use-server):
 
 ```tsx filename="features/deployments/deployments-actions.ts" highlight={1,7}
 'use server'
@@ -354,7 +354,7 @@ Source: [`steps/05-mutations`](https://github.com/vercel-labs/thinking-in-nextjs
 
 Every click still waits for a full server round trip. The pin doesn't flip until the server confirms, the deploy button sits unresponsive, and search submits the whole form.
 
-Where should the client boundary go? The instinct from client-first React is to put `'use client'` at the page level, but that pulls the entire subtree into the browser. The boundary can go on the leaf instead.
+Where should the client boundary go? The instinct from client-first React is to put [`'use client'`](/docs/app/api-reference/directives/use-client) at the page level, but that pulls the entire subtree into the browser. The boundary can go on the leaf instead. The [Server and Client Components](/docs/app/getting-started/server-and-client-components) guide covers the model in depth.
 
 | Control         | Updates on        | Needs client |
 | --------------- | ----------------- | ------------ |
@@ -424,7 +424,7 @@ function ProjectPin({ projectId, pinnedIdsPromise }) {
 }
 ```
 
-Search keeps the same server read from `searchParams`. The client input pushes the next URL as the user types:
+Search keeps the same server read from `searchParams`. The client input pushes the next URL as the user types via [`useRouter`](/docs/app/api-reference/functions/use-router) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params):
 
 ```tsx filename="features/projects/components/SearchBar.tsx" highlight={9,18}
 'use client'
@@ -519,7 +519,7 @@ Client Components fixed input feedback. Why does the route still flash skeletons
 
 ### Enable Cache Components
 
-[`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) enables caching at the component and function level:
+[`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) enables caching at the component and function level. In a real app you'd turn this on from the start. The full story is in [Caching](/docs/app/getting-started/caching), which is worth reading once before reaching for the directives below.
 
 ```ts filename="next.config.ts" highlight={4}
 import type { NextConfig } from 'next'
@@ -539,7 +539,7 @@ With it on, data fetching stays **dynamic by default**. If a read blocks the sta
 
 For route params specifically, [`generateStaticParams`](/docs/app/api-reference/functions/generateStaticParams) is a fourth option: prerender each page at build time so the param values are baked in.
 
-Because each component already fetches its own data and pages already place deliberate `<Suspense>` boundaries, only a few spots need fixing. On the detail pages, `await params` at the top blocks the shell. The page can switch to `.then()` instead, keeping the page function synchronous and moving the params resolution inside a `<Suspense>` boundary:
+Because each component already fetches its own data and pages already place deliberate `<Suspense>` boundaries, only a few spots need fixing. The dev overlay flags `await params` at the top of the detail pages: it blocks the whole route from [Partial Prerendering](/docs/app/glossary#partial-prerendering-ppr) because nothing above it can be served until the request arrives. The page can switch to `.then()` instead, keeping the page function synchronous and moving the params resolution inside a `<Suspense>` boundary:
 
 ```tsx filename="app/projects/[id]/page.tsx" highlight={4}
 export default function ProjectDetailPage({
@@ -671,7 +671,7 @@ The cache is set up, but the visible paint hasn't changed for sections waiting o
 
 ### Prefetch runtime data
 
-Prefetching is what fills cache entries before the click. By default, [`<Link>`](/docs/app/api-reference/components/link) prefetches its destinations against build-time inputs only when they enter the viewport, which covers the static shell and any cached read keyed on build-time inputs.
+Prefetching is what fills cache entries before the click. By default, [`<Link>`](/docs/app/api-reference/components/link) prefetches its destinations against build-time inputs only when they enter the viewport, which covers the static shell and any cached read keyed on build-time inputs. See [Prefetching](/docs/app/guides/prefetching) for the default behavior.
 
 [Runtime prefetch](/docs/app/guides/runtime-prefetching) does the render with the real cookies, headers, and `searchParams` the navigation would carry, then stores the result in the [Client Cache](/docs/app/glossary#client-cache). It's the same skip-recomputation goal as the server cache, only filled before the click instead of during it.
 
