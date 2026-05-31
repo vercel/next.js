@@ -733,7 +733,7 @@ export default function TaskPage({ params }) {
 }
 ```
 
-Prefetch only sticks if the destination reads are cached. The tags from the previous subsections give the prefetched output a stable slot in the [Client Cache](/docs/app/glossary#client-cache). When a card scrolls into view, the detail page prefetches; by the time the user clicks, the destination paints instantly. See the [Prefetching guide](/docs/app/guides/prefetching) for prefetch modes, and the [Instant Navigation guide](/docs/app/guides/instant-navigation) for validating that navigations stay instant in production.
+Prefetch only sticks if the destination reads are cached. The tags from the previous subsections give the prefetched output a stable slot in the [Client Cache](/docs/app/glossary#client-cache). In the companion app, each task card is a [`<Link>`](/docs/app/api-reference/components/link) that navigates to the task detail page. The same element is also `draggable`, and the browser distinguishes a click from a drag natively. Because cards are links, the detail page prefetches as they scroll into view. By the time the user clicks, the destination paints instantly. See the [Prefetching guide](/docs/app/guides/prefetching) for prefetch modes, and the [Instant Navigation guide](/docs/app/guides/instant-navigation) for validating that navigations stay instant in production.
 
 ## Next steps
 
