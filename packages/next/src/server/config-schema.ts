@@ -353,6 +353,7 @@ export const experimentalSchema = {
   turbopackImportTypeText: z.boolean().optional(),
   turbopackUseBuiltinBabel: z.boolean().optional(),
   turbopackUseBuiltinSass: z.boolean().optional(),
+  turbopackLocalPostcssConfig: z.boolean().optional(),
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
   turbopackInferModuleSideEffects: z.boolean().optional(),
   turbopackServerFastRefresh: z.boolean().optional(),
