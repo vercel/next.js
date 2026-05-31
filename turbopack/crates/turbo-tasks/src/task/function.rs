@@ -134,7 +134,7 @@ where
 
 #[doc(hidden)]
 pub trait TaskFnInputFunction<Mode: TaskFnMode, Inputs: TaskInputs>:
-    Send + Sync + Clone + 'static
+    Send + Sync + Copy + 'static
 {
     fn functor(&self, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture>;
 }
@@ -144,7 +144,7 @@ pub trait TaskFnInputFunctionWithThis<
     Mode: TaskFnMode,
     This: Sync + Send + 'static,
     Inputs: TaskInputs,
->: Send + Sync + Clone + 'static
+>: Send + Sync + Copy + 'static
 {
     fn functor(&self, this: RawVc, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture>;
 }
@@ -202,12 +202,12 @@ macro_rules! task_fn_impl {
         impl<F, Output, $($arg,)*> TaskFnInputFunction<FunctionMode, ($($arg,)*)> for F
         where
             $($arg: TaskInput + 'static,)*
-            F: Fn($($arg,)*) -> Output + Send + Sync + Clone + 'static,
+            F: Fn($($arg,)*) -> Output + Send + Sync + Copy + 'static,
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
             fn functor(&self, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
-                let task_fn = self.clone();
+                let task_fn = *self;
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
                     (task_fn)($($arg,)*).try_into_raw_vc()
@@ -218,13 +218,13 @@ macro_rules! task_fn_impl {
         impl<F, Output, FutureOutput, $($arg,)*> TaskFnInputFunction<AsyncFunctionMode, ($($arg,)*)> for F
         where
             $($arg: TaskInput + 'static,)*
-            F: Fn($($arg,)*) -> FutureOutput + Send + Sync + Clone + 'static,
+            F: Fn($($arg,)*) -> FutureOutput + Send + Sync + Copy + 'static,
             FutureOutput: Future<Output = Output> + Send + 'static,
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
             fn functor(&self, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
-                let task_fn = self.clone();
+                let task_fn = *self;
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
                     (task_fn)($($arg,)*).await.try_into_raw_vc()
@@ -236,12 +236,12 @@ macro_rules! task_fn_impl {
         where
             Recv: VcValueType,
             $($arg: TaskInput + 'static,)*
-            F: Fn(&Recv, $($arg,)*) -> Output + Send + Sync + Clone + 'static,
+            F: Fn(&Recv, $($arg,)*) -> Output + Send + Sync + Copy + 'static,
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
             fn functor(&self, this: RawVc, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
-                let task_fn = self.clone();
+                let task_fn = *self;
                 let recv = Vc::<Recv>::from(this);
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
@@ -256,12 +256,12 @@ macro_rules! task_fn_impl {
         where
             Recv: Sync + Send + 'static,
             $($arg: TaskInput + 'static,)*
-            F: Fn(Vc<Recv>, $($arg,)*) -> Output + Send + Sync + Clone + 'static,
+            F: Fn(Vc<Recv>, $($arg,)*) -> Output + Send + Sync + Copy + 'static,
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
             fn functor(&self, this: RawVc, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
-                let task_fn = self.clone();
+                let task_fn = *self;
                 let recv = Vc::<Recv>::from(this);
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
@@ -289,11 +289,11 @@ macro_rules! task_fn_impl {
         where
             Recv: VcValueType,
             $($arg: TaskInput + 'static,)*
-            F: for<'a> $async_fn_trait<&'a Recv, $($arg,)*> + Clone + Send + Sync + 'static,
+            F: for<'a> $async_fn_trait<&'a Recv, $($arg,)*> + Copy + Send + Sync + 'static,
         {
             #[allow(non_snake_case)]
             fn functor(&self, this: RawVc, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
-                let task_fn = self.clone();
+                let task_fn = *self;
                 let recv = Vc::<Recv>::from(this);
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
@@ -308,11 +308,11 @@ macro_rules! task_fn_impl {
         where
             Recv: Sync + Send + 'static,
             $($arg: TaskInput + 'static,)*
-            F: $async_fn_trait<Vc<Recv>, $($arg,)*> + Clone + Send + Sync + 'static,
+            F: $async_fn_trait<Vc<Recv>, $($arg,)*> + Copy + Send + Sync + 'static,
         {
             #[allow(non_snake_case)]
             fn functor(&self, this: RawVc, arg: &dyn DynTaskInputs) -> Result<NativeTaskFuture> {
-                let task_fn = self.clone();
+                let task_fn = *self;
                 let recv = Vc::<Recv>::from(this);
                 let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
