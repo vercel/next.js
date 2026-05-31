@@ -174,8 +174,6 @@ The board has label filter chips (Design, Frontend, Backend). Clicking a chip na
 
 The selected filter comes from the URL. Calling `router.push()` starts a client navigation, and the server re-renders the board with the new search params. Until that navigation completes, the current page keeps rendering the old URL state.
 
-The filter also separates into two components. `LabelFilter` owns the query string update. `ChipGroup` owns the selected visual state. Passing the navigation callback to `ChipGroup` lets it manage its own optimistic state while `LabelFilter` decides how the app navigates.
-
 Here `router.push()` is called directly:
 
 ```tsx filename="components/label-filter.tsx"
@@ -200,13 +198,12 @@ export function LabelFilter() {
 
 If you click a chip, `router.push()` starts the navigation, but there is no local pending state. The chip keeps rendering the old URL value, and the board gives no indication that a new server render is loading.
 
-Wrap `router.push()` in [`useTransition`](https://react.dev/reference/react/useTransition) and set a `data-pending` attribute while the transition runs:
+Separate the filter into two components. `LabelFilter` owns the query string update and passes the navigation callback to a reusable `ChipGroup`, which handles all the pending feedback:
 
 ```tsx filename="components/label-filter.tsx"
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useTransition } from 'react'
 import { ChipGroup } from './design/chip-group'
 
 const labels = [
@@ -218,7 +215,6 @@ const labels = [
 export function LabelFilter() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [isPending, startTransition] = useTransition()
   const current = searchParams.get('label') ?? null
 
   function filterAction(value: string | null) {
@@ -228,28 +224,20 @@ export function LabelFilter() {
     } else {
       params.delete('label')
     }
-    startTransition(() => {
-      router.push(`/?${params.toString()}`)
-    })
+    router.push(`/?${params.toString()}`)
   }
 
   return (
-    <div data-pending={isPending ? '' : undefined}>
-      <ChipGroup items={labels} value={current} changeAction={filterAction} />
-    </div>
+    <ChipGroup items={labels} value={current} changeAction={filterAction} />
   )
 }
 ```
 
-The `data-pending` attribute on the wrapper lets parent components react via CSS. The board on the home page uses `group-has-data-pending:opacity-50` to dim while the transition runs, without replacing the board with a skeleton.
+`LabelFilter` decides _where_ the app navigates. It holds no pending state of its own.
 
-If you click a chip now, the board dims while the filtered data loads. The `data-pending` attribute stays on the wrapper until the navigation completes, then the board updates with the filtered tasks.
+#### Handling pending feedback internally
 
-But the chip itself still doesn't highlight until the navigation completes. The `isPending` boolean tells us the navigation is in flight, but it doesn't help the chip show a selected state before the new data arrives.
-
-#### Compose reusable controls with a callback prop
-
-`ChipGroup` solves the selected-state problem by accepting a `changeAction` prop. It calls the callback inside its own `startTransition` and manages `useOptimistic` internally:
+`ChipGroup` accepts a `changeAction` prop and calls it inside its own `startTransition`. It uses two `useOptimistic` hooks: one for the selected chip and one for the `data-pending` attribute that ancestor components can style against:
 
 ```tsx filename="components/design/chip-group.tsx"
 'use client'
@@ -258,16 +246,18 @@ import { startTransition, useOptimistic } from 'react'
 
 export function ChipGroup({ items, value, changeAction }) {
   const [optimisticValue, setOptimisticValue] = useOptimistic(value)
+  const [isPending, setIsPending] = useOptimistic(false)
 
   function handleClick(newValue) {
     startTransition(async () => {
       setOptimisticValue(newValue)
+      setIsPending(true)
       await changeAction(newValue)
     })
   }
 
   return (
-    <div className="flex gap-1.5">
+    <div className="flex gap-1.5" data-pending={isPending ? '' : undefined}>
       {items.map((item) => (
         <button
           key={item.value}
@@ -284,7 +274,9 @@ export function ChipGroup({ items, value, changeAction }) {
 }
 ```
 
-The consumer passes a callback (`changeAction`). The design component handles the transition and optimistic state. By convention, props named `action` or suffixed with `Action` signal that the component may call them inside a transition. See [Exposing `action` props from components](https://react.dev/reference/react/useTransition#exposing-action-props-from-components) in the React docs for this pattern.
+The consumer passes a callback (`changeAction`), and the design component runs it inside a transition. By convention, props named `action` or suffixed with `Action` signal this. See [Exposing `action` props from components](https://react.dev/reference/react/useTransition#exposing-action-props-from-components) in the React docs for this pattern.
+
+The `data-pending` attribute on `ChipGroup`'s root element lets ancestor components react via CSS without any coordination. The board on the home page uses `group-has-data-pending:opacity-50` to dim while the transition runs, without replacing the board with a skeleton. Since `ChipGroup` renders inside the `group` element, the attribute is accessible to any ancestor for styling.
 
 If you click the "Frontend" chip now, it highlights on the current frame. The board dims while the filtered data loads, then updates with the filtered tasks.
 
