@@ -2,6 +2,7 @@ import type { CacheNode, ScrollRef } from '../../../shared/lib/app-router-types'
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 import type { NavigationSeed } from '../segment-cache/navigation'
 import type { FetchServerResponseResult } from './fetch-server-response'
+import type { FetchServerActionResult } from './reducers/server-action-reducer'
 
 export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
@@ -53,6 +54,30 @@ export interface ServerActionAction {
   resolve: (value: any) => void
   reject: (reason?: any) => void
   didRevalidate?: boolean
+  /**
+   * NOTE: This is passed when `experimental.parallelServerFunctions` is enabled.
+   *
+   * The result of a Server Function call that the parallel `callServer` path
+   * already fetched without dispatching into the action queue. Normally the
+   * reducer performs the fetch itself, inside the queue. When this is set, the
+   * round-trip has already happened. So the reducer skips its own fetch and
+   * commits this result directly, in queue order. `null` on the legacy path,
+   * where the reducer still performs the fetch.
+   */
+  fetchResult: FetchServerActionResult | null
+  /**
+   * NOTE: This is passed when `experimental.parallelServerFunctions` is enabled.
+   *
+   * The router tree at the time the parallel path issued its off-queue fetch.
+   * The server computes `fetchResult`'s flight data as a patch against this
+   * tree. Because the fetch runs off-queue, another commit (a navigation, a
+   * refresh, or another Server Function) can change the tree before this action
+   * commits, so the reducer compares `expectedTree` to the live tree and drops
+   * the now-stale patch instead of applying it. `null` on the legacy path, which
+   * fetches in-queue against the same `state` it commits against, so it is never
+   * stale.
+   */
+  expectedTree: FlightRouterState | null
 }
 
 /**

@@ -467,6 +467,17 @@ export interface ExperimentalConfig {
    */
   clientParamParsingOrigins?: string[]
   cachedNavigations?: boolean
+  /**
+   * When enabled, Server Functions and Cache Functions (i.e. `'use cache'` variants)
+   * invoked from the client run in parallel instead of being sequenced through
+   * the client action queue.
+   *
+   * Sequential Server Action behavior remains available
+   * via [`useActionState`](https://react.dev/reference/react/useActionState).
+   *
+   * **WARNING:** This is a breaking change and should be enabled with caution.
+   */
+  parallelServerFunctions?: boolean
   dynamicOnHover?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
@@ -1977,6 +1988,7 @@ export const defaultConfig = Object.freeze({
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
     cachedNavigations: false,
+    parallelServerFunctions: false,
     dynamicOnHover: false,
     useOffline: false,
     varyParams: true,

@@ -2201,6 +2201,25 @@ function enforceExperimentalFeatures(
     config.experimental.cachedNavigations = true
   }
 
+  // TODO: Remove this once parallelServerFunctions is the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_PARALLEL_SERVER_FUNCTIONS === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.parallelServerFunctions === undefined ||
+      (isDefaultConfig && !config.experimental.parallelServerFunctions))
+  ) {
+    config.experimental.parallelServerFunctions = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'parallelServerFunctions',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_PARALLEL_SERVER_FUNCTIONS`'
+      )
+    }
+  }
+
   // TODO: Remove this once appNewScrollHandler is the default.
   if (
     process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true' &&
