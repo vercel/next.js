@@ -5,7 +5,7 @@ export function createRuntimeBodyError(route: string): Error {
       `Ways to fix this:\n` +
       `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
       `  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`\n` +
-      `  - [block] Set \`export const unstable_instant = false\` to allow a blocking route\n\n` +
+      `  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-route`
   )
 }
@@ -17,7 +17,7 @@ export function createDynamicBodyError(route: string): Error {
       `Ways to fix this:\n` +
       `  - [cache] Cache the data access with \`"use cache"\`\n` +
       `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
-      `  - [block] Set \`export const unstable_instant = false\` to allow a blocking route\n\n` +
+      `  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-route`
   )
 }
@@ -29,7 +29,7 @@ export function createRuntimeBodyErrorInNavigation(route: string): Error {
       `Ways to fix this:\n` +
       `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
       `  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`\n` +
-      `  - [block] Set \`export const unstable_instant = false\` to allow a blocking route\n\n` +
+      `  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-route`
   )
 }
@@ -41,7 +41,7 @@ export function createDynamicBodyErrorInNavigation(route: string): Error {
       `Ways to fix this:\n` +
       `  - [cache] Cache the data access with \`"use cache"\`\n` +
       `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
-      `  - [block] Set \`export const unstable_instant = false\` to allow a blocking route\n\n` +
+      `  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-route`
   )
 }
@@ -59,7 +59,7 @@ export function createDynamicOrRuntimeBodyError(route: string): Error {
       `  - [cache] Cache the data access with \`"use cache"\`\n` +
       `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
       `  - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`\n` +
-      `  - [block] Set \`export const unstable_instant = false\` to allow a blocking route\n\n` +
+      `  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-route`
   )
 }
@@ -92,7 +92,7 @@ export function createRuntimeViewportError(route: string): Error {
       `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
-      `  - [block] Set \`export const unstable_instant = false\` to allow a blocking route\n\n` +
+      `  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime`
   )
 }
@@ -103,7 +103,7 @@ export function createDynamicViewportError(route: string): Error {
       `\`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`\n` +
-      `  - [block] Set \`export const unstable_instant = false\` to allow a blocking route\n\n` +
+      `  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic`
   )
 }
@@ -120,7 +120,7 @@ export function createDynamicOrRuntimeViewportError(route: string): Error {
       `Ways to fix this:\n` +
       `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
       `  - [cache] Cache the viewport data with \`"use cache"\` in \`generateViewport()\`\n` +
-      `  - [block] Set \`export const unstable_instant = false\` to allow a blocking route\n\n` +
+      `  - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic`
   )
 }

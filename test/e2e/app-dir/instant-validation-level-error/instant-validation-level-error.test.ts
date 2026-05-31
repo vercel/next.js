@@ -204,7 +204,7 @@ describe('instant validation - level error', () => {
          Ways to fix this:
            - [cache] Cache the data access with \`"use cache"\`
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - [block] Set \`export const unstable_instant = false\` to allow a blocking route
+           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at a (<anonymous>)
@@ -230,7 +230,7 @@ describe('instant validation - level error', () => {
          Ways to fix this:
            - [cache] Cache the data access with \`"use cache"\`
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - [block] Set \`export const unstable_instant = false\` to allow a blocking route
+           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at a (<anonymous>)
@@ -256,7 +256,7 @@ describe('instant validation - level error', () => {
          Ways to fix this:
            - [cache] Cache the data access with \`"use cache"\`
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - [block] Set \`export const unstable_instant = false\` to allow a blocking route
+           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at a (<anonymous>)
@@ -295,7 +295,7 @@ describe('instant validation - level error', () => {
          Ways to fix this:
            - [cache] Cache the data access with \`"use cache"\`
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - [block] Set \`export const unstable_instant = false\` to allow a blocking route
+           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at a (<anonymous>)
