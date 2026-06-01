@@ -414,24 +414,84 @@ impl ModuleOptions {
             ));
         }
 
+        // PostCSS and webpack-loader transforms are evaluated in one shared
+        // Node.js worker pool via a single `transforms/dispatch.ts` entry. For
+        // that entry to be identical (and therefore share a pool) regardless of
+        // which transform triggers its construction, both transforms must use
+        // the *same* evaluate context — same import map, layer, and options. So
+        // build one combined import map (with both the `loader-runner` and
+        // `postcss` aliases the dispatcher's imports require) and one shared
+        // context here, used by both transforms below.
+        let shared_transform_context =
+            if enable_webpack_loaders.is_some() || enable_postcss_transform.is_some() {
+                let execution_context = execution_context
+                    .context("execution_context is required for node transforms")?;
+
+                let mut import_map = ImportMap::empty();
+
+                // The dispatcher statically imports the webpack-loaders transform,
+                // which requires `@vercel/turbopack/loader-runner`, so the alias must
+                // always be present even when only PostCSS is enabled.
+                let loader_runner_package = match enable_webpack_loaders {
+                    Some(options) => options.await?.loader_runner_package,
+                    None => None,
+                };
+                let loader_runner_map = if let Some(loader_runner_package) = loader_runner_package {
+                    package_import_map_from_import_mapping(
+                        rcstr!("loader-runner"),
+                        *loader_runner_package,
+                    )
+                } else {
+                    package_import_map_from_context(
+                        rcstr!("loader-runner"),
+                        path.clone()
+                            .context("need_path in ModuleOptions::new is incorrect")?,
+                    )
+                };
+                import_map.extend_ref(&*loader_runner_map.await?);
+
+                // Likewise the dispatcher imports the PostCSS transform, which
+                // requires `@vercel/turbopack/postcss`.
+                let postcss_package = match enable_postcss_transform {
+                    Some(options) => options.await?.postcss_package,
+                    None => None,
+                };
+                let postcss_map = if let Some(postcss_package) = postcss_package {
+                    package_import_map_from_import_mapping(rcstr!("postcss"), *postcss_package)
+                } else {
+                    package_import_map_from_context(
+                        rcstr!("postcss"),
+                        path.clone()
+                            .context("need_path in ModuleOptions::new is incorrect")?,
+                    )
+                };
+                import_map.extend_ref(&*postcss_map.await?);
+
+                Some(
+                    node_evaluate_asset_context(
+                        *execution_context,
+                        Some(import_map.cell()),
+                        None,
+                        Layer::new(rcstr!("node_transforms")),
+                        // Webpack loaders rely on dynamic requires, so do not ignore
+                        // dynamic requests (PostCSS previously used `true`, but its
+                        // config is now a separately-emitted bundle, not part of this
+                        // entry, so it no longer needs request-ignoring here).
+                        false,
+                    )
+                    .to_resolved()
+                    .await?,
+                )
+            } else {
+                None
+            };
+
         if let Some(webpack_loaders_options) = enable_webpack_loaders {
             let webpack_loaders_options = webpack_loaders_options.await?;
             let execution_context =
                 execution_context.context("execution_context is required for webpack_loaders")?;
-            let import_map = if let Some(loader_runner_package) =
-                webpack_loaders_options.loader_runner_package
-            {
-                package_import_map_from_import_mapping(
-                    rcstr!("loader-runner"),
-                    *loader_runner_package,
-                )
-            } else {
-                package_import_map_from_context(
-                    rcstr!("loader-runner"),
-                    path.clone()
-                        .context("need_path in ModuleOptions::new is incorrect")?,
-                )
-            };
+            let evaluate_context = shared_transform_context
+                .context("shared transform context must exist when webpack loaders are enabled")?;
             let builtin_conditions = webpack_loaders_options
                 .builtin_conditions
                 .into_trait_ref()
@@ -469,13 +529,7 @@ impl ModuleOptions {
                         effects.push(ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                             ResolvedVc::upcast(
                                 WebpackLoaders::new(
-                                    node_evaluate_asset_context(
-                                        *execution_context,
-                                        Some(import_map),
-                                        None,
-                                        Layer::new(rcstr!("webpack_loaders")),
-                                        false,
-                                    ),
+                                    *evaluate_context,
                                     *execution_context,
                                     *rule.loaders,
                                     rule.rename_as.clone(),
@@ -847,16 +901,9 @@ impl ModuleOptions {
                 let options = options.await?;
                 let execution_context = execution_context
                     .context("execution_context is required for the postcss_transform")?;
-
-                let import_map = if let Some(postcss_package) = options.postcss_package {
-                    package_import_map_from_import_mapping(rcstr!("postcss"), *postcss_package)
-                } else {
-                    package_import_map_from_context(
-                        rcstr!("postcss"),
-                        path.clone()
-                            .context("need_path in ModuleOptions::new is incorrect")?,
-                    )
-                };
+                let evaluate_context = shared_transform_context.context(
+                    "shared transform context must exist when the postcss transform is enabled",
+                )?;
 
                 rules.push(ModuleRule::new(
                     RuleCondition::All(vec![
@@ -871,13 +918,7 @@ impl ModuleOptions {
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         ResolvedVc::upcast(
                             PostCssTransform::new(
-                                node_evaluate_asset_context(
-                                    *execution_context,
-                                    Some(import_map),
-                                    None,
-                                    Layer::new(rcstr!("postcss")),
-                                    true,
-                                ),
+                                *evaluate_context,
                                 config_tracing_module_context(*execution_context),
                                 *execution_context,
                                 options.config_location,
