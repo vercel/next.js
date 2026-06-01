@@ -100,31 +100,17 @@ pub async fn trace_endpoint(
                 #[cfg(debug_assertions)]
                 {
                     // Verify that we there are no entries where a file is created inside of a
-                    // symlink, as this can result in invalid ZIP files and
-                    // deployment failures. For example
-                    // node_modules/.pnpm/node_modules/@libsql/client/package.json
+                    // symlink, as this can result in invalid ZIP files and deployment failures. For
+                    // example
+                    // node_modules/.pnpm/node_modules/@libsql/client/src/index.json
                     // where
                     // node_modules/.pnpm/node_modules/@libsql/client is a symlink
-                    let mut current_path = referenced_chunk_path.parent();
-                    loop {
-                        use turbo_tasks_fs::FileSystemEntryType;
-
-                        if current_path.is_root() {
-                            break;
-                        }
-
-                        if matches!(
-                            &*current_path.get_type().await?,
-                            FileSystemEntryType::Symlink
-                        ) {
-                            turbo_tasks::turbobail!(
-                                "Encountered file inside of symlink in NFT list: {current_path} \
-                                 is a symlink, but {referenced_chunk_path} was created inside of \
-                                 it"
-                            );
-                        }
-
-                        current_path = current_path.parent();
+                    let parent_path = referenced_chunk_path.parent();
+                    if parent_path.realpath().await? != parent_path {
+                        turbo_tasks::turbobail!(
+                            "Encountered file inside of symlink in NFT list: {parent_path} is a \
+                             symlink, but {referenced_chunk_path} was created inside of it"
+                        );
                     }
                 }
 
