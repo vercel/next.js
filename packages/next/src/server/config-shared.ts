@@ -1634,11 +1634,11 @@ export interface NextConfig {
   enablePrerenderSourceMaps?: boolean
 
   /**
-   * When enabled, Next.js treats all routes as dynamic by default, rendering every
-   * request with the latest available data. You can mark data and parts of your UI
-   * as cacheable using the `use cache` directive, which includes them in the
-   * pre-render pass alongside static parts of the page. Also enables `cacheLife`
-   * and `cacheTag` APIs, and includes Partial Prerendering support.
+   * When enabled, routes can combine a prerendered shell with dynamic content
+   * streamed into it, rather than being either fully static or fully dynamic. You can mark data and parts of your UI as cacheable using the
+   * `use cache` directive, which includes them in the pre-render pass alongside
+   * static parts of the page. Also enables `cacheLife` and `cacheTag` APIs, and
+   * includes Partial Prerendering support.
    *
    * @see [Cache Components documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents)
    */
