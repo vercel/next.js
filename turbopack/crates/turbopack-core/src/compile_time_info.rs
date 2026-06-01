@@ -110,7 +110,7 @@ pub enum CompileTimeDefineValue {
     Null,
     Bool(bool),
     Number(
-        #[bincode(with_serde)]
+        #[bincode(with = "turbo_bincode::serde_self_describing")]
         #[turbo_tasks(trace_ignore)]
         serde_json::Number,
     ),
