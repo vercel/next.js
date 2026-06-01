@@ -35,6 +35,36 @@ describe('Next Lint', () => {
       const folder = join(os.tmpdir(), Math.random().toString(36).substring(2))
       await fs.mkdirp(folder)
       await fs.copy(join(dirNoConfig, isApp ? 'app' : ''), folder)
+      // Pin eslint-config-next to the locally-built tarball (same approach
+      // create-next-app tests use for `next`). Force `eslint-visitor-keys`
+      // to ^4 via both `overrides` (npm/pnpm) and `resolutions` (yarn)
+      // because `@typescript-eslint/visitor-keys@8.60.0` (pulled transitively
+      // by eslint-config-next's broad `^5 || ^6 || ^7 || ^8` range) bumped
+      // its inner `eslint-visitor-keys` dep to ^5, which requires Node 20+
+      // and breaks the Node 18.18.2 jobs. That's its only breaking change
+      // so we can safely work around it by forcing eslint-visitor-keys to ^4.
+      const pkgPaths = new Map(JSON.parse(process.env.NEXT_TEST_PKG_PATHS))
+      await fs.writeFile(
+        join(folder, 'package.json'),
+        JSON.stringify(
+          {
+            name: 'no-config',
+            version: '0.0.0',
+            private: true,
+            devDependencies: {
+              'eslint-config-next': pkgPaths.get('eslint-config-next'),
+            },
+            overrides: {
+              'eslint-visitor-keys': '^4',
+            },
+            resolutions: {
+              'eslint-visitor-keys': '^4',
+            },
+          },
+          null,
+          2
+        )
+      )
       await setupCallback?.(folder)
 
       try {
