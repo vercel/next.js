@@ -71,7 +71,8 @@ async function persistDebugChannelToIndexedDB(
   let db: IDBDatabase
   try {
     db = await openDebugChannelDB()
-  } catch {
+  } catch (error) {
+    console.debug('Failed to open debug channel IndexedDB for write', error)
     return
   }
 
@@ -116,10 +117,11 @@ async function persistDebugChannelToIndexedDB(
       tx.onerror = () => reject(tx.error)
       tx.onabort = () => reject(tx.error)
     })
-  } catch {
+  } catch (error) {
     // Best-effort: if persistence fails (quota, transaction abort, etc.), an
     // HTTP cache restore will fall back to location.reload() since no entry
     // will be found.
+    console.debug('Failed to write debug channel entry to IndexedDB', error)
   } finally {
     db.close()
   }
@@ -145,8 +147,12 @@ function restoreDebugChannelFromIndexedDB(
         } finally {
           db.close()
         }
-      } catch {
+      } catch (error) {
         // Treat any IDB failure as "no entry" and fall through to reload.
+        console.debug(
+          'Failed to read debug channel entry from IndexedDB',
+          error
+        )
       }
 
       if (!entry) {
@@ -341,8 +347,9 @@ export function getOrCreateDebugChannelReadableWriterPair(
         await whenIdle()
         await persistDebugChannelToIndexedDB(requestId, chunks)
       })
-      .catch(() => {
+      .catch((error) => {
         // writer.closed rejected (e.g., stream aborted) — nothing to persist.
+        console.debug('Debug channel writer closed with error', error)
       })
       .finally(() => {
         pairs.delete(requestId)
