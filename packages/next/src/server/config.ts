@@ -1627,11 +1627,19 @@ function finalizeConfig(config: NextConfigComplete): NextConfigComplete {
 function syncUseNodeStreamsEnv(config: NextConfig): void {
   // This must use resolved config: user configs are inspected before defaults
   // are merged, while runtime bundles must select the default implementation.
-  if (config.experimental?.useNodeStreams) {
-    process.env.__NEXT_USE_NODE_STREAMS = 'true'
+  const useNodeStreams = config.experimental?.useNodeStreams
+    ? 'true'
+    : undefined
+
+  if (useNodeStreams) {
+    process.env.__NEXT_USE_NODE_STREAMS = useNodeStreams
   } else {
     delete process.env.__NEXT_USE_NODE_STREAMS
   }
+
+  // Dev env reloads restore process.env from this snapshot. Preserve the
+  // resolved runtime selection so a reload cannot mix stream implementations.
+  updateInitialEnv({ __NEXT_USE_NODE_STREAMS: useNodeStreams })
 }
 
 async function applyModifyConfig(
