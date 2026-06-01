@@ -148,7 +148,6 @@ describe('Middleware can set the matcher in its config', () => {
          "middleware": {
            "/": {
              "assets": [],
-             "entrypoint": "<entrypoint>",
              "env": {
                "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY": "<redacted>",
                "__NEXT_BUILD_ID": "<redacted>",
