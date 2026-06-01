@@ -1,17 +1,12 @@
-use std::{
-    collections::{BTreeSet, VecDeque},
-    ops::Deref,
-};
+use std::collections::{BTreeSet, VecDeque};
 
 use anyhow::{Context, Result};
-use bincode::{Decode, Encode};
 use next_core::{app_structure::FileSystemPathVec, next_config::NextConfig};
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
-    Vc, trace::TraceRawVcs,
+    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::{
     DirectoryEntry, FileSystemPath,
@@ -168,7 +163,7 @@ pub async fn trace_endpoint(
                 .try_join()
                 .await?;
 
-            includes.into_iter().flatten().map(|path| path.0).collect()
+            includes.into_iter().flatten().collect()
         } else {
             Default::default()
         };
@@ -184,40 +179,18 @@ pub async fn trace_endpoint(
     .await
 }
 
-/// SAFETY: only use this if you can guarantee that all the filepath are on the same filesystem.
-/// The ord implementation only takes the `.path` into account, not the `.fs`
-#[derive(Debug, Clone, PartialEq, Eq, Encode, Decode, NonLocalValue, TraceRawVcs)]
-struct SortableFileSystemPath(FileSystemPath);
-impl Deref for SortableFileSystemPath {
-    type Target = FileSystemPath;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl Ord for SortableFileSystemPath {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.path.cmp(&other.0.path)
-    }
-}
-impl PartialOrd for SortableFileSystemPath {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
 /// Apply outputFileTracingIncludes patterns to find additional files
 async fn get_glob_includes(
     project_root_path: FileSystemPath,
     glob: Vc<Glob>,
-) -> Result<BTreeSet<SortableFileSystemPath>> {
+) -> Result<Vec<FileSystemPath>> {
     // Read files matching the glob pattern from the project root
-    // This result itself has random order, but the BTreeSet will ensure a deterministic ordering.
+    // DETERMINISM: the sort_by call below ensures determinism.
     let glob_result = project_root_path.read_glob(glob).await?;
 
     // Walk the full glob_result using an explicit stack to avoid async recursion overheads.
     // Use a BTreeSet to get determinstic order (return value of `read_glob` has random order).
-    let mut result = BTreeSet::new();
+    let mut result = vec![];
     let mut stack = VecDeque::new();
     stack.push_back(glob_result);
     while let Some(glob_result) = stack.pop_back() {
@@ -228,7 +201,7 @@ async fn get_glob_includes(
                 continue;
             };
 
-            result.insert(SortableFileSystemPath(file_path.clone()));
+            result.push(file_path.clone());
         }
 
         for nested_result in glob_result.inner.values() {
@@ -236,6 +209,11 @@ async fn get_glob_includes(
             stack.push_back(nested_result_ref);
         }
     }
+
+    // All paths were matched from project_root_path, so they must all have the same `fs`. So it's
+    // enough to sort by path.
+    result.sort_by(|a, b| a.path.cmp(&b.path));
+
     Ok(result)
 }
 
