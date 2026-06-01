@@ -163,7 +163,7 @@ pub async fn trace_endpoint(
                         format!("{{{}}}", globs.join(",")).into(),
                         GlobOptions { contains: true },
                     );
-                    apply_includes(root, glob)
+                    get_glob_includes(root, glob)
                 })
                 .try_join()
                 .await?;
@@ -207,7 +207,7 @@ impl PartialOrd for SortableFileSystemPath {
 }
 
 /// Apply outputFileTracingIncludes patterns to find additional files
-async fn apply_includes(
+async fn get_glob_includes(
     project_root_path: FileSystemPath,
     glob: Vc<Glob>,
 ) -> Result<BTreeSet<SortableFileSystemPath>> {
