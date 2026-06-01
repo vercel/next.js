@@ -136,7 +136,7 @@ Runtime APIs require information that is only available when a user makes a requ
 - [`cookies`](/docs/app/api-reference/functions/cookies) - User's cookie data
 - [`headers`](/docs/app/api-reference/functions/headers) - Request headers
 - [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) - URL query parameters
-- [`params`](/docs/app/api-reference/file-conventions/page#params-optional) - Dynamic route parameters. Use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to prerender specific values at build time, or [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) to serve a fallback shell while unknown params resolve in the background.
+- [`params`](/docs/app/api-reference/file-conventions/page#params-optional) - Dynamic route parameters. Use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to prerender specific values at build time, or [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) to serve an App Shell while unknown params resolve in the background.
 
 > **Good to know:** `generateMetadata` and `generateViewport` track runtime data access separately from the page. See [Metadata with Cache Components](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [Viewport with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for how to handle this.
 
