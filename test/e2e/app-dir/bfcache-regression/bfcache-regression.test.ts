@@ -155,15 +155,6 @@ describe('bfcache-regression', () => {
   if (
     // Persistence only exists in dev.
     isNextDev &&
-    // Excludes Safari: the WebKit build Playwright uses re-fetches the document
-    // from the server on back-navigation instead of restoring it from the HTTP
-    // cache like Chrome and Firefox, so each back-navigation gets a fresh
-    // request ID that was never persisted, the request-id-keyed restore always
-    // misses, and every page reloads — the pruned-vs-cached distinction this
-    // test relies on never appears. Real Safari serves back-navigations from
-    // cache without a server request, so this is a limitation of the test's
-    // WebKit rather than of the feature.
-    global.browserName !== 'safari' &&
     // TODO: Re-enable for node streams once the React debug channel integration
     // is fixed there. With `__NEXT_USE_NODE_STREAMS` the debug channel readable
     // doesn't close as expected, so the client never persists the buffered
@@ -233,11 +224,29 @@ describe('bfcache-regression', () => {
         })
       }
 
-      // Each page is requested once on the forward pass. On the way back the
-      // cached pages are restored from the HTTP cache without hitting the
-      // server, so they stay at one request, while /purge/1 was pruned and its
-      // restore misses, recovering with a reload that is a second server
-      // request.
+      // Per-page server request counts after the forward + back traversal.
+      // /purge/1 reaches 2 requests in every browser but via different paths:
+      //
+      // Chrome and Firefox restore each back-navigation from the HTTP cache
+      // (the HMR WebSocket disqualifies bfcache, so the browser falls back to
+      // HTTP cache restore with no server request). /purge/2..10 stay at one
+      // request because their IDB entries are still around and the restore
+      // replays them silently. /purge/1's IDB entry was pruned by the time we
+      // get back to it (MAX_ENTRIES=10), so its restore misses and recovers
+      // via a single location.reload() — that's the second server request.
+      //
+      // Playwright's WebKit is encoded as a separate expectation because it
+      // doesn't match real Safari behavior. Real Safari keeps recent pages in
+      // bfcache and falls back to HTTP cache restore for evicted ones, so it
+      // would behave like Chrome/Firefox here. Playwright's WebKit instead
+      // re-fetches every back-navigation target from the server, which adds
+      // one extra server request per back-step (including /purge/1 — the same
+      // re-fetch behavior already accounts for its second request, so the
+      // pruned IDB entry never triggers a reload there). The fresh re-fetch
+      // is correctly classified as a non-cache-restore by debug-channel.ts
+      // (the deferred-pageshow branch routes it to the live WebSocket-backed
+      // channel), so no spurious reload follows.
+      const isSafari = global.browserName === 'safari'
       await retry(async () => {
         const getCounts: Record<string, number> = {}
         const output = next.cliOutput.slice(outputIndex)
@@ -246,15 +255,17 @@ describe('bfcache-regression', () => {
         }
         expect(getCounts).toEqual({
           '/purge/1': 2,
-          '/purge/2': 1,
-          '/purge/3': 1,
-          '/purge/4': 1,
-          '/purge/5': 1,
-          '/purge/6': 1,
-          '/purge/7': 1,
-          '/purge/8': 1,
-          '/purge/9': 1,
-          '/purge/10': 1,
+          // Chrome/Firefox: 1 forward only (HTTP cache restore on back).
+          // Safari (Playwright/WebKit): 1 forward + 1 back re-fetch = 2.
+          '/purge/2': isSafari ? 2 : 1,
+          '/purge/3': isSafari ? 2 : 1,
+          '/purge/4': isSafari ? 2 : 1,
+          '/purge/5': isSafari ? 2 : 1,
+          '/purge/6': isSafari ? 2 : 1,
+          '/purge/7': isSafari ? 2 : 1,
+          '/purge/8': isSafari ? 2 : 1,
+          '/purge/9': isSafari ? 2 : 1,
+          '/purge/10': isSafari ? 2 : 1,
           '/purge/11': 1,
         })
       })
