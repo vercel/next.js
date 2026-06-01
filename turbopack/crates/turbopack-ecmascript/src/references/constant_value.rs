@@ -67,7 +67,10 @@ fn value_to_expr(value: &CompileTimeDefineValue) -> Expr {
             quote!("(\"TURBOPACK compile-time value\", false)" as Expr)
         }
         CompileTimeDefineValue::Number(n) => {
-            quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = (**n).into())
+            quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = n
+                .as_f64()
+                .expect("unreachable: serde-json has arbitrary_precision disabled")
+                .into())
         }
         CompileTimeDefineValue::String(s) => {
             quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = s.as_str().into())
