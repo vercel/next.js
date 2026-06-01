@@ -6,6 +6,7 @@ import { Span } from 'next/dist/trace'
 import stripAnsi from 'strip-ansi'
 import { quote as shellQuote } from 'shell-quote'
 import { shouldUseTurbopack } from 'next-test-utils'
+import { ChildProcess } from 'child_process'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
@@ -64,7 +65,9 @@ export class NextStartInstance extends NextInstance {
     options: { skipBuild?: boolean; env?: Record<string, string> } = {}
   ) {
     if (this.childProcess) {
-      throw new Error('next already started')
+      throw new Error(
+        `next already started.\nexisting process: ${childProcessDebug(this.childProcess)}`
+      )
     }
 
     this._cliOutput = ''
@@ -253,7 +256,7 @@ export class NextStartInstance extends NextInstance {
   ) {
     if (this.childProcess) {
       throw new Error(
-        `can not run export while server is running, use next.stop() first`
+        `can not run export while server is running, use next.stop() first\nexisting process: ${childProcessDebug(this.childProcess)}`
       )
     }
 
@@ -333,4 +336,16 @@ export class NextStartInstance extends NextInstance {
       })
     }
   }
+}
+
+function childProcessDebug(childProcess: ChildProcess): string {
+  const { inspect } = require('util') as typeof import('util')
+  return inspect({
+    pid: childProcess.pid,
+    spawnfile: childProcess.spawnfile,
+    spawnopts: childProcess.spawnargs,
+    exitCode: childProcess.exitCode,
+    signalCode: childProcess.signalCode,
+    killed: childProcess.killed,
+  })
 }
