@@ -84,22 +84,19 @@ Validation runs automatically on every page load using the real request from you
 
 The Next.js DevTools let you see what users see on page loads and client navigations before dynamic data streams in. Use it to verify your loading states look right, check that the right content appears immediately, and iterate on where to place `<Suspense>` boundaries.
 
-Enable the toggle in your Next.js config:
+The Navigation Inspector is available when Cache Components is enabled:
 
-```ts filename="next.config.ts" highlight={5-7}
+```ts filename="next.config.ts" highlight={4}
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
-  experimental: {
-    instantNavigationDevToolsToggle: true,
-  },
 }
 
 export default nextConfig
 ```
 
-Open the Next.js DevTools and select **Instant Navs**. Two options are available:
+Open the Next.js DevTools and select **Navigation Inspector**. Two options are available:
 
 - **Page load**: click **Reload** to refresh the page and freeze it at the initial static UI generated for this route, before any dynamic data streams in.
 - **Client navigation**: once enabled, clicking any link in your app shows the prefetched UI for that page instead of the full result.
