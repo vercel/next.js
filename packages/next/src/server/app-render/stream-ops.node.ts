@@ -26,7 +26,6 @@ import {
   streamToString as webStreamToString,
   createDocumentClosingStream as webCreateDocumentClosingStream,
   createRuntimePrefetchTransformStream,
-  CLOSE_TAG,
 } from '../stream-utils/node-web-streams-helper'
 import { indexOfUint8Array } from '../stream-utils/uint8array-helpers'
 import { ENCODED_TAGS } from '../stream-utils/encoded-tags'
@@ -213,9 +212,7 @@ function createFlightDataInjectionTransform(
   const nodeTransform = new Transform({
     transform(chunk, _encoding, callback) {
       this.push(chunk)
-      if (delayDataUntilFirstHtmlChunk) {
-        startOrContinuePulling(this)
-      }
+      startOrContinuePulling(this)
       callback()
     },
     flush(callback) {
@@ -266,7 +263,7 @@ function createHeadInsertionTransform(
           if (index !== -1) {
             if (insertion) {
               const encodedInsertion = Buffer.from(insertion)
-              const merged = Buffer.allocUnsafe(
+              const merged = Buffer.alloc(
                 chunk.length + encodedInsertion.length
               )
               merged.set(chunk.slice(0, index))
@@ -339,6 +336,8 @@ function createMetadataTransform(
         }
 
         iconMarkLength = ENCODED_TAGS.META.ICON_MARK.length
+        // 47 is `/` – handle self-closing `<nxt-icon/>` (length +2 for `/>`)
+        // vs non-self-closing `<nxt-icon>` (length +1 for `>`)
         if (chunk[iconMarkIndex + iconMarkLength] === 47) {
           iconMarkLength += 2
         } else {
@@ -348,7 +347,7 @@ function createMetadataTransform(
         if (chunkIndex === 0) {
           closedHeadIndex = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.HEAD)
           if (iconMarkIndex < closedHeadIndex) {
-            const replaced = Buffer.allocUnsafe(chunk.length - iconMarkLength)
+            const replaced = Buffer.alloc(chunk.length - iconMarkLength)
             replaced.set(chunk.subarray(0, iconMarkIndex))
             replaced.set(
               chunk.subarray(iconMarkIndex + iconMarkLength),
@@ -359,7 +358,7 @@ function createMetadataTransform(
             const insertion = await insert()
             const encodedInsertion = Buffer.from(insertion)
             const insertionLength = encodedInsertion.length
-            const replaced = Buffer.allocUnsafe(
+            const replaced = Buffer.alloc(
               chunk.length - iconMarkLength + insertionLength
             )
             replaced.set(chunk.subarray(0, iconMarkIndex))
@@ -375,7 +374,7 @@ function createMetadataTransform(
           const insertion = await insert()
           const encodedInsertion = Buffer.from(insertion)
           const insertionLength = encodedInsertion.length
-          const replaced = Buffer.allocUnsafe(
+          const replaced = Buffer.alloc(
             chunk.length - iconMarkLength + insertionLength
           )
           replaced.set(chunk.subarray(0, iconMarkIndex))
@@ -392,36 +391,6 @@ function createMetadataTransform(
       } catch (err) {
         callback(err as Error)
       }
-    },
-  })
-}
-
-// ---------------------------------------------------------------------------
-// Deferred suffix – Node.js Transform that appends a suffix string after the
-// first HTML chunk, deferring via queueMicrotask so the chunk flushes first.
-// ---------------------------------------------------------------------------
-
-function createDeferredSuffixTransform(suffix: string): Transform {
-  let flushed = false
-  const encodedSuffix = Buffer.from(suffix)
-
-  return new Transform({
-    transform(chunk, _encoding, callback) {
-      this.push(chunk)
-
-      if (!flushed) {
-        flushed = true
-        queueMicrotask(() => {
-          this.push(encodedSuffix)
-        })
-      }
-      callback()
-    },
-    flush(callback) {
-      if (!flushed) {
-        this.push(encodedSuffix)
-      }
-      callback()
     },
   })
 }
@@ -498,9 +467,7 @@ function createHtmlDataDplIdTransform(dplId: string): Transform {
 
       const insertionPoint = htmlTagIndex + ENCODED_TAGS.OPENING.HTML.length
       const encodedAttribute = Buffer.from(` data-dpl-id="${dplId}"`)
-      const modified = Buffer.allocUnsafe(
-        chunk.length + encodedAttribute.length
-      )
+      const modified = Buffer.alloc(chunk.length + encodedAttribute.length)
 
       modified.set(chunk.subarray(0, insertionPoint))
       modified.set(encodedAttribute, insertionPoint)
@@ -696,7 +663,6 @@ export async function resumeAndAbort(
 export async function continueFizzStream(
   renderStream: AnyStream,
   {
-    suffix,
     inlinedDataStream,
     isStaticGeneration,
     allReady,
@@ -706,9 +672,6 @@ export async function continueFizzStream(
     validateRootLayout,
   }: import('./stream-ops.web').ContinueFizzStreamOptions
 ): Promise<Readable> {
-  // Suffix itself might contain close tags at the end, so we need to split it.
-  const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
-
   if (isStaticGeneration) {
     if (allReady) {
       await allReady
@@ -738,13 +701,6 @@ export async function continueFizzStream(
   const metadata = createMetadataTransform(getServerInsertedMetadata)
   source.pipe(metadata)
   source = metadata
-
-  // Insert suffix content
-  if (suffixUnclosed != null && suffixUnclosed.length > 0) {
-    const deferredSuffix = createDeferredSuffixTransform(suffixUnclosed)
-    source.pipe(deferredSuffix)
-    source = deferredSuffix
-  }
 
   // Flight data injection – interleaves RSC data chunks with the HTML stream
   if (inlinedDataStream) {
