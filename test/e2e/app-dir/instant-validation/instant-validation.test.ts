@@ -747,7 +747,7 @@ describe('instant validation', () => {
            "code": "E1261",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/invalid-sync-io/page.tsx (8:20) @ Page
          >  8 |   const now = Date.now()
               |                    ^",
@@ -825,7 +825,7 @@ describe('instant validation', () => {
            "code": "E1261",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx (12:20) @ Page
          > 12 |   const now = Date.now()
               |                    ^",
@@ -928,7 +928,7 @@ describe('instant validation', () => {
            "code": "E1261",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx (28:20) @ Page
          > 28 |   const now = Date.now()
               |                    ^",
@@ -1017,7 +1017,7 @@ describe('instant validation', () => {
            "code": "E1261",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx (9:20) @ Module.generateMetadata
          >  9 |   const now = Date.now()
               |                    ^",
@@ -1113,7 +1113,7 @@ describe('instant validation', () => {
            "code": "E1261",
            "description": "Next.js encountered the unstable value Date.now() while prerendering.",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx (11:20) @ Module.generateMetadata
          > 11 |   const now = Date.now()
               |                    ^",
@@ -2386,7 +2386,7 @@ describe('instant validation', () => {
              "code": "E1252",
              "description": "Next.js encountered runtime data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (11:16) @ Module.generateViewport
            > 11 |   await cookies()
                 |                ^",
@@ -2445,7 +2445,7 @@ describe('instant validation', () => {
              "code": "E1255",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (11:19) @ Module.generateViewport
            > 11 |   await connection()
                 |                   ^",
@@ -2520,7 +2520,7 @@ describe('instant validation', () => {
         if (isNextDev) {
           // if generateViewport uses dynamic data, it'll always block regardless of prefetching.
           // this can be allowed if a page opts into blocking. but if it violates a static
-          // assertion on a parent layout, it should still fail.
+          // assertion on the parent layout, it should still fail.
           const browser = await navigateTo(
             '/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static'
           )
@@ -2542,7 +2542,7 @@ describe('instant validation', () => {
              "code": "E1255",
              "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Instant",
+             "label": "Blocking Route",
              "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/page.tsx (6:23) @ Module.generateViewport
            > 6 | export async function generateViewport(): Promise<Viewport> {
                |                       ^",
@@ -3430,23 +3430,18 @@ describe('instant validation', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1248",
-             "description": "Could not validate instant UI because an expected segment was not rendered.
-
-           Unrendered segment:
-             app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
-
-           Route: /suspense-in-root/static/multi-depth-deferred-fallback/inner
-
-           This can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.
-           This can happen when a client component opts out of rendering during SSR.
-
-           You can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.
-
-           Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
+             "code": "E1286",
+             "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": null,
+             "label": "Instant",
+             "source": "/suspense-in-root/static/multi-depth-deferred-fallback/inner
+           │
+           │ ├─ suspense-in-root/
+           │ │  ├─ static/
+           │ │  │  ├─ multi-depth-deferred-fallback/
+           │ │  │  │  ├─ inner/
+           │             └─ page.tsx ← dropped from rendering
+           │",
              "stack": [],
            }
           `)
@@ -3456,17 +3451,16 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Could not validate instant UI because an expected segment was not rendered.
+           "Error: Route "/suspense-in-root/static/multi-depth-deferred-fallback/inner": Could not validate that a segment in your UI has instant navigation.
 
-           Unrendered segment:
+           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
+
+           Dropped segment:
              app/suspense-in-root/static/multi-depth-deferred-fallback/inner/page.tsx
 
-           Route: /suspense-in-root/static/multi-depth-deferred-fallback/inner
-
-           This can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.
-           This can happen when a client component opts out of rendering during SSR.
-
-           You can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.
+           Ways to fix this:
+             - Render the dropped segment
+             - Set \`export const instant = false\` on the dropped segment to skip validation
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
                at ignore-listed frames
@@ -3494,23 +3488,18 @@ describe('instant validation', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1248",
-             "description": "Could not validate instant UI because an expected segment was not rendered.
-
-           Unrendered segment:
-             app/suspense-in-root/static/test-firstmod/inter/layout.tsx
-
-           Route: /suspense-in-root/static/test-firstmod/inter/inner
-
-           This can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.
-           This can happen when a client component opts out of rendering during SSR.
-
-           You can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.
-
-           Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
+             "code": "E1286",
+             "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": null,
+             "label": "Instant",
+             "source": "/suspense-in-root/static/test-firstmod/inter/inner
+           │
+           │ ├─ suspense-in-root/
+           │ │  ├─ static/
+           │ │  │  ├─ test-firstmod/
+           │ │  │  │  ├─ inter/
+           │             └─ layout.tsx ← dropped from rendering
+           │",
              "stack": [],
            }
           `)
@@ -3520,17 +3509,16 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Could not validate instant UI because an expected segment was not rendered.
+           "Error: Route "/suspense-in-root/static/test-firstmod/inter/inner": Could not validate that a segment in your UI has instant navigation.
 
-           Unrendered segment:
+           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
+
+           Dropped segment:
              app/suspense-in-root/static/test-firstmod/inter/layout.tsx
 
-           Route: /suspense-in-root/static/test-firstmod/inter/inner
-
-           This can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.
-           This can happen when a client component opts out of rendering during SSR.
-
-           You can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.
+           Ways to fix this:
+             - Render the dropped segment
+             - Set \`export const instant = false\` on the dropped segment to skip validation
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
                at ignore-listed frames
@@ -3556,24 +3544,19 @@ describe('instant validation', () => {
           )
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1248",
-             "description": "Could not validate instant UI because an expected segment was not rendered.
-
-           Unrendered segments:
-             app/suspense-in-root/static/test-multi-unrendered/@sidebar/page.tsx
-             app/suspense-in-root/static/test-multi-unrendered/page.tsx
-
-           Route: /suspense-in-root/static/test-multi-unrendered
-
-           This can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.
-           This can happen when a client component opts out of rendering during SSR.
-
-           You can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.
-
-           Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment",
+             "code": "E1286",
+             "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
-             "label": "Console Error",
-             "source": null,
+             "label": "Instant",
+             "source": "/suspense-in-root/static/test-multi-unrendered
+           │
+           │ ├─ suspense-in-root/
+           │ │  ├─ static/
+           │ │  │  ├─ test-multi-unrendered/
+           │ │  │  │  ├─ @sidebar/
+           │ │  │  │  │  └─ page.tsx ← dropped from rendering
+           │          └─ page.tsx ← dropped from rendering
+           │",
              "stack": [],
            }
           `)
@@ -3583,18 +3566,17 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Could not validate instant UI because an expected segment was not rendered.
+           "Error: Route "/suspense-in-root/static/test-multi-unrendered": Could not validate that a segment in your UI has instant navigation.
 
-           Unrendered segments:
+           This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.
+
+           Dropped segments:
              app/suspense-in-root/static/test-multi-unrendered/@sidebar/page.tsx
              app/suspense-in-root/static/test-multi-unrendered/page.tsx
 
-           Route: /suspense-in-root/static/test-multi-unrendered
-
-           This can happen when you conditionally render a parallel route, for instance a login page when a user is logged out.
-           This can happen when a client component opts out of rendering during SSR.
-
-           You can mark this layout as not requiring instant UI with \`export const unstable_instant = false\` if you want to silence this warning.
+           Ways to fix this:
+             - Render the dropped segment
+             - Set \`export const instant = false\` on the dropped segment to skip validation
 
            Learn more: https://nextjs.org/docs/messages/unrendered-instant-segment
                at ignore-listed frames

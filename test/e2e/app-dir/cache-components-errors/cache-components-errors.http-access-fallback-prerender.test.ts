@@ -1,4 +1,5 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import { getPrerenderOutput } from './utils'
 
 describe('Cache Components HTTP Access Fallback Prerender', () => {
@@ -162,6 +163,56 @@ describe('Cache Components HTTP Access Fallback Prerender', () => {
 
           expect(output).toMatchInlineSnapshot(`""`)
           await expectStaticRouteArtifacts('not-found-use-params/not-found')
+        })
+      }
+    })
+
+    describe('notFound() with dynamic metadata and viewport', () => {
+      const pagePath = '/not-found-dynamic-head/[slug]'
+
+      if (!isNextDev) {
+        it('should allow fallback recovery when the route opts out of static shell validation', async () => {
+          await prerender(pagePath)
+
+          const output = getPrerenderOutput(
+            next.cliOutput.slice(cliOutputLength),
+            { isMinified: !isDebugPrerender }
+          )
+
+          expect(output).toMatchInlineSnapshot(`""`)
+          await expectPartiallyStaticErrorArtifacts(
+            'not-found-dynamic-head/not-found'
+          )
+          const prerenderedHtml = await next.readFile(
+            '.next/server/app/not-found-dynamic-head/not-found.html'
+          )
+          expect(prerenderedHtml).not.toContain('not-found metadata marker')
+          expect(prerenderedHtml).not.toContain('metadata from not-found.tsx')
+          expect(prerenderedHtml).not.toContain('#123456')
+
+          await next.start({ skipBuild: true })
+          const browser = await next.browser(
+            '/not-found-dynamic-head/not-found'
+          )
+
+          await retry(async () => {
+            const head = await browser.eval(() => {
+              return {
+                title: document.title,
+                description: document
+                  .querySelector('meta[name="description"]')
+                  ?.getAttribute('content'),
+                themeColors: Array.from(
+                  document.querySelectorAll('meta[name="theme-color"]')
+                ).map((meta) => meta.getAttribute('content')),
+              }
+            })
+
+            expect(head.title).toBe('not-found metadata marker')
+            expect(head.description).toBe('metadata from not-found.tsx')
+            expect(head.themeColors).toContain('#123456')
+            expect(head.themeColors).not.toContain('black')
+          })
         })
       }
     })

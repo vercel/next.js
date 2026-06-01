@@ -589,6 +589,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             entry_module.ident(),
             ChunkGroup::Entry(entry_modules.into_iter().collect()),
             module_graph,
+            OutputAssets::empty(),
             AvailabilityInfo::root(),
         ),
         Runtime::NodeJs => {

@@ -9,7 +9,8 @@ use next_core::{
     get_edge_resolve_options_context, get_next_package,
     next_app::{
         AppEntry, AppPage, get_app_client_references_chunks, get_app_client_shared_chunk_group,
-        get_app_page_entry, get_app_route_entry, metadata::route::get_app_metadata_route_entry,
+        get_app_page_entry, get_app_route_entry, get_client_references_chunks_for_hmr,
+        metadata::route::get_app_metadata_route_entry,
     },
     next_client::{
         ClientContextType, get_client_module_options_context, get_client_resolve_options_context,
@@ -38,8 +39,8 @@ use next_core::{
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexset,
-    trace::TraceRawVcs,
+    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
@@ -1278,6 +1279,26 @@ impl AppEndpoint {
             None
         };
 
+        let per_page_module_graph = *project.per_page_module_graph().await?;
+
+        let next_dynamic_imports =
+            NextDynamicGraphs::new(*module_graphs.base, per_page_module_graph)
+                .get_next_dynamic_imports_for_endpoint(*rsc_entry)
+                .await?;
+
+        let is_production = project.next_mode().await?.is_production();
+
+        let client_references =
+            ClientReferencesGraphs::new(*module_graphs.base, per_page_module_graph)
+                .get_client_references_for_endpoint(
+                    *rsc_entry,
+                    matches!(this.ty, AppEndpointType::Page { .. }),
+                    is_production,
+                    is_production,
+                )
+                .to_resolved()
+                .await?;
+
         // We only need the client runtime entries for pages not for Route Handlers
         let (availability_info, client_shared_chunks) = if is_app_page {
             let client_shared_chunk_group = get_app_client_shared_chunk_group(
@@ -1299,26 +1320,6 @@ impl AppEndpoint {
         } else {
             (AvailabilityInfo::root(), vec![])
         };
-
-        let per_page_module_graph = *project.per_page_module_graph().await?;
-
-        let next_dynamic_imports =
-            NextDynamicGraphs::new(*module_graphs.base, per_page_module_graph)
-                .get_next_dynamic_imports_for_endpoint(*rsc_entry)
-                .await?;
-
-        let is_production = project.next_mode().await?.is_production();
-
-        let client_references =
-            ClientReferencesGraphs::new(*module_graphs.base, per_page_module_graph)
-                .get_client_references_for_endpoint(
-                    *rsc_entry,
-                    matches!(this.ty, AppEndpointType::Page { .. }),
-                    is_production,
-                    is_production,
-                )
-                .to_resolved()
-                .await?;
 
         let client_references_chunks = get_app_client_references_chunks(
             *client_references,
@@ -1350,6 +1351,39 @@ impl AppEndpoint {
             // TODO(alexkirsz) In which manifest does this go?
             server_assets.extend(assets.all_assets().await?.iter().copied());
         }
+
+        // In development, register a page-specific HMR chunk list that owns all client
+        // reference chunks for this page. These chunks are computed via separate
+        // chunk_group(IsolatedMerged) calls and aren't reachable from the shared client
+        // chunk group's module graph, so they need their own HMR subscription.
+        //
+        // The register chunk is page-specific and must NOT go into client_shared_chunks
+        // (root_main_files), which is shared across all pages. Instead it goes into
+        // root_main_files_per_page so it is serialized under rootMainFilesTree[page] in
+        // the build manifest. The server renderer reads rootMainFilesTree[pagePath] first
+        // (required-scripts.tsx), so only the correct page's register chunk is loaded.
+        let is_hot_module_replacement_enabled = project
+            .client_compile_time_info()
+            .await?
+            .hot_module_replacement_enabled;
+        let page_hmr_chunks = if is_app_page && is_hot_module_replacement_enabled {
+            let client_components_chunks_ident =
+                AssetIdent::from_path(project.project_path().owned().await?)
+                    .with_modifier(rcstr!("client-components"))
+                    .with_modifier(app_entry.original_name.clone())
+                    .into_vc();
+            let client_reference_chunks =
+                get_client_references_chunks_for_hmr(*client_references_chunks);
+            client_chunking_context
+                .hmr_chunk_list(client_components_chunks_ident, client_reference_chunks)
+                .await?
+                .iter()
+                .copied()
+                .collect::<Vec<_>>()
+        } else {
+            vec![]
+        };
+        client_assets.extend(page_hmr_chunks.iter().copied());
 
         let manifest_path_prefix = &app_entry.original_name;
 
@@ -1404,6 +1438,13 @@ impl AppEndpoint {
             ResolvedVc::cell(client_assets.into_iter().collect::<Vec<_>>());
 
         if emit_manifests != EmitManifests::None {
+            let root_main_files_per_page = if page_hmr_chunks.is_empty() {
+                FxIndexMap::default()
+            } else {
+                let mut m = FxIndexMap::default();
+                m.insert(app_entry.original_name.clone(), page_hmr_chunks);
+                m
+            };
             let build_manifest = BuildManifest {
                 output_path: node_root.join(&format!(
                     "server/app{manifest_path_prefix}/build-manifest.json",
@@ -1412,6 +1453,7 @@ impl AppEndpoint {
                 pages: Default::default(),
                 root_main_files: client_shared_chunks,
                 polyfill_files: polyfill_output_asset.into_iter().collect(),
+                root_main_files_per_page,
             };
             server_assets.insert(ResolvedVc::upcast(build_manifest.resolved_cell()));
         }
@@ -1798,6 +1840,7 @@ impl AppEndpoint {
                     app_entry.rsc_entry.ident(),
                     ChunkGroup::Entry(vec![app_entry.rsc_entry]),
                     module_graph,
+                    OutputAssets::empty(),
                     chunk_group1.await?.availability_info,
                 );
 
