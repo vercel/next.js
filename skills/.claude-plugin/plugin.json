@@ -1,0 +1,13 @@
+{
+  "name": "next",
+  "description": "Official Next.js skills for agentic development — runtime verification under next dev, Cache Components / PPR optimization, and framework feedback.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Next.js",
+    "url": "https://nextjs.org"
+  },
+  "homepage": "https://nextjs.org",
+  "repository": "https://github.com/vercel/next.js",
+  "license": "MIT",
+  "skills": "./"
+}
