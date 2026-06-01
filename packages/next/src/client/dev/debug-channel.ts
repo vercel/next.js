@@ -1,22 +1,6 @@
 import { NEXT_REQUEST_ID_HEADER } from '../components/app-router-headers'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
-declare global {
-  interface Window {
-    /**
-     * Test-only flag, set once this document's debug channel entry is durably
-     * committed. Persistence is deferred to an idle callback and its write is
-     * async, so exposing this flag is a deliberate compromise: it lets e2e
-     * tests await persistence deterministically — rather than relying on
-     * timing/idle hacks — while coupling only to "an entry was persisted" and
-     * not to how or where it is stored. It resets naturally on each navigation
-     * since every document gets a fresh window. Only set when
-     * `process.env.__NEXT_TEST_MODE` is enabled.
-     */
-    __NEXT_DEBUG_CHANNEL_PERSISTED?: boolean
-  }
-}
-
 export interface DebugChannelReadableWriterPair {
   readonly readable: ReadableStream<Uint8Array>
   readonly writer: WritableStreamDefaultWriter<Uint8Array>
@@ -37,16 +21,16 @@ interface DebugChannelEntry {
 
 function openDebugChannelDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1)
-    req.onupgradeneeded = () => {
-      const store = req.result.createObjectStore(STORE_NAME, {
+    const openRequest = indexedDB.open(DB_NAME, 1)
+    openRequest.onupgradeneeded = () => {
+      const store = openRequest.result.createObjectStore(STORE_NAME, {
         keyPath: 'requestId',
       })
       store.createIndex(CREATED_AT_INDEX, 'createdAt')
     }
-    req.onsuccess = () => resolve(req.result)
-    req.onerror = () => reject(req.error)
-    req.onblocked = () => reject(req.error)
+    openRequest.onsuccess = () => resolve(openRequest.result)
+    openRequest.onerror = () => reject(openRequest.error)
+    openRequest.onblocked = () => reject(openRequest.error)
   })
 }
 
@@ -78,8 +62,8 @@ async function persistDebugChannelToIndexedDB(
 
   try {
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readwrite')
-      const store = tx.objectStore(STORE_NAME)
+      const transaction = db.transaction(STORE_NAME, 'readwrite')
+      const store = transaction.objectStore(STORE_NAME)
 
       store.put({
         requestId,
@@ -108,14 +92,24 @@ async function persistDebugChannelToIndexedDB(
         }
       }
 
-      tx.oncomplete = () => {
+      transaction.oncomplete = () => {
         if (process.env.__NEXT_TEST_MODE) {
-          self.__NEXT_DEBUG_CHANNEL_PERSISTED = true
+          // Test-only flag, set once this document's debug channel entry is
+          // durably committed. Persistence is deferred to an idle callback and
+          // the IndexedDB write is async, so this flag lets e2e tests await
+          // persistence deterministically — coupling only to "an entry was
+          // persisted" and not to how or where it is stored. It resets
+          // naturally on each navigation since every document gets a fresh
+          // window. The local cast keeps the augmentation out of the shipped
+          // declaration files.
+          ;(
+            self as { __NEXT_DEBUG_CHANNEL_PERSISTED?: boolean }
+          ).__NEXT_DEBUG_CHANNEL_PERSISTED = true
         }
         resolve()
       }
-      tx.onerror = () => reject(tx.error)
-      tx.onabort = () => reject(tx.error)
+      transaction.onerror = () => reject(transaction.error)
+      transaction.onabort = () => reject(transaction.error)
     })
   } catch (error) {
     // Best-effort: if persistence fails (quota, transaction abort, etc.), an
