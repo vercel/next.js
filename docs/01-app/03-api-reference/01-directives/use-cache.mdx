@@ -443,57 +443,7 @@ export async function getData() {
 }
 ```
 
-### Calling a cached function from a Client Component
-
-When `use cache` is at the top of a file, you can import its exported functions into a Client Component and call them directly. Next.js runs them on the server and returns the result, similar to a [Server Function](/docs/app/glossary#server-function).
-
-```tsx filename="app/data.ts" switcher
-'use cache'
-
-export async function getData() {
-  const res = await fetch('https://api.example.com/data')
-  return res.json()
-}
-```
-
-```js filename="app/data.js" switcher
-'use cache'
-
-export async function getData() {
-  const res = await fetch('https://api.example.com/data')
-  return res.json()
-}
-```
-
-```tsx filename="app/ui/load-button.tsx" highlight={4,9} switcher
-'use client'
-
-import { useState } from 'react'
-import { getData } from '../data'
-
-export function LoadButton() {
-  const [data, setData] = useState(null)
-
-  return <button onClick={async () => setData(await getData())}>Load</button>
-}
-```
-
-```jsx filename="app/ui/load-button.js" highlight={4,9} switcher
-'use client'
-
-import { useState } from 'react'
-import { getData } from '../data'
-
-export function LoadButton() {
-  const [data, setData] = useState(null)
-
-  return <button onClick={async () => setData(await getData())}>Load</button>
-}
-```
-
-A cached function that uses an inline `use cache` directive can instead be passed to a Client Component as a prop.
-
-> **Good to know:** This applies to every cached directive. Functions exported from a file with [`use cache: private`](/docs/app/api-reference/directives/use-cache-private) or [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) at the top can be imported into a Client Component in the same way.
+> **Good to know:** When a cached directive (`use cache`, [`use cache: private`](/docs/app/api-reference/directives/use-cache-private), or [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)) is at the top of a file, you can import its exported functions into a Client Component and call them directly; they run on the server and return the result, similar to a [Server Function](/docs/app/glossary#server-function). Prefer calling cached functions on the server and passing results down as props.
 
 ### Interleaving
 
