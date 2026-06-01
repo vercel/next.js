@@ -669,6 +669,10 @@ internal
       parseValidPositiveInteger
     )
   )
+  .addHelpText('after', ({ command }) => {
+    const port = (command.opts() as { port?: number }).port ?? 5748
+    return `\nExample:\n  next internal query-trace --port ${port} --parent <id>`
+  })
   .action((options) =>
     import('../cli/internal/query-trace.js').then((mod) =>
       mod.queryTraceCli(options)
