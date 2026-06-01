@@ -112,6 +112,10 @@ impl ModuleReference for EsmAsyncAssetReference {
             export: self.export_usage.clone(),
         }
     }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
+    }
 }
 
 impl IntoCodeGenReference for EsmAsyncAssetReference {

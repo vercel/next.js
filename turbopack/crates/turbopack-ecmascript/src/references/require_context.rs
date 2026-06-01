@@ -301,6 +301,10 @@ impl ModuleReference for RequireContextAssetReference {
             hoisted: false,
         })
     }
+
+    fn source(&self) -> Option<IssueSource> {
+        self.issue_source
+    }
 }
 
 impl IntoCodeGenReference for RequireContextAssetReference {

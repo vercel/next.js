@@ -10,6 +10,7 @@ use turbo_tasks::{
 
 use crate::{
     chunk::{ChunkingType, TracedMode},
+    issue::IssueSource,
     module::{Module, Modules},
     output::{
         ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
@@ -38,6 +39,10 @@ pub trait ModuleReference: ValueToString {
 
     fn binding_usage(&self) -> BindingUsage {
         BindingUsage::default()
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        None
     }
 }
 

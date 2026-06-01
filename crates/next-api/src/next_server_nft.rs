@@ -121,25 +121,30 @@ impl Asset for ServerNftJsonAsset {
         )
         .connect();
 
-        let mut server_output_assets =
-            traced_modules_for_entries(module_graph, self.entries(), Some(self.ignores()), true)
-                .await?
-                .iter()
-                .map(async |m| {
-                    Ok((
-                        base_dir
-                            .get_relative_path_to(&m.ident().await?.path)
-                            .context("failed to compute relative path for server NFT JSON")?,
-                        m.source()
-                            .await?
-                            .context("NFT module has no content")?
-                            .content()
-                            .hash(HashAlgorithm::Xxh3Hash128Hex)
-                            .await?,
-                    ))
-                })
-                .try_join()
-                .await?;
+        let mut server_output_assets = traced_modules_for_entries(
+            module_graph,
+            self.entries(),
+            Some(self.ignores()),
+            true,
+            None,
+        )
+        .await?
+        .iter()
+        .map(async |m| {
+            Ok((
+                base_dir
+                    .get_relative_path_to(&m.ident().await?.path)
+                    .context("failed to compute relative path for server NFT JSON")?,
+                m.source()
+                    .await?
+                    .context("NFT module has no content")?
+                    .content()
+                    .hash(HashAlgorithm::Xxh3Hash128Hex)
+                    .await?,
+            ))
+        })
+        .try_join()
+        .await?;
 
         let next_dir = get_next_package(this.project.project_path().owned().await?).await?;
         for ty in ["app-page", "pages"] {

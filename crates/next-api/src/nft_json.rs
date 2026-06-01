@@ -1,9 +1,8 @@
 use anyhow::{Context, Result, bail};
-use async_trait::async_trait;
 use either::Either;
 use serde_json::json;
 use tracing::{Instrument, Level, Span};
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal, Visit},
@@ -13,7 +12,6 @@ use turbo_tasks_fs::{File, FileContent, FileSystem, FileSystemPath, glob::Glob};
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     module::Module,
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
 };
@@ -121,11 +119,6 @@ impl Asset for NftJsonAsset {
             let output_root_ref = this.project.output_fs().root().await?;
             let project_root_ref = this.project.project_fs().root().await?;
             let next_config = this.project.next_config();
-            let next_config_path = this
-                .project
-                .next_config()
-                .config_file_path(project_path.clone())
-                .await?;
 
             let client_root = this.project.client_fs().root();
             let client_root = client_root.owned().await?;
@@ -200,18 +193,6 @@ impl Asset for NftJsonAsset {
                         Either::Left(p) => &**p,
                         Either::Right(p) => p,
                     };
-
-                    if let AssetOrModule::Module(_) = referenced
-                        && referenced_chunk_path == &*next_config_path
-                    {
-                        // If next.config.js was traced, assume that the whole project was traced
-                        // (unintentionally). Print a message in this case to avoid deploying
-                        // unnecessary files.
-                        ForbiddenTracedFileIssue::new(referenced_chunk_path.clone())
-                            .to_resolved()
-                            .await?
-                            .emit();
-                    }
 
                     if referenced_chunk_path.has_extension(".map") {
                         return Ok(None);
@@ -348,83 +329,6 @@ async fn all_assets_from_entries_filtered(
             .map(|n| n.0)
             .collect(),
     ))
-}
-
-#[turbo_tasks::value(shared)]
-struct ForbiddenTracedFileIssue {
-    file: FileSystemPath,
-}
-
-#[turbo_tasks::value_impl]
-impl ForbiddenTracedFileIssue {
-    #[turbo_tasks::function]
-    pub fn new(file: FileSystemPath) -> Vc<Self> {
-        Self { file }.cell()
-    }
-}
-
-#[async_trait]
-#[turbo_tasks::value_impl]
-impl Issue for ForbiddenTracedFileIssue {
-    fn severity(&self) -> IssueSeverity {
-        // Ideally this would be an error, but for now we keep it a warning to avoid breaking
-        // existing apps
-        IssueSeverity::Warning
-    }
-
-    fn stage(&self) -> IssueStage {
-        IssueStage::Misc
-    }
-
-    async fn file_path(&self) -> Result<FileSystemPath> {
-        Ok(self.file.clone())
-    }
-
-    async fn title(&self) -> Result<StyledString> {
-        Ok(StyledString::Text(rcstr!(
-            "Encountered unexpected file in NFT list"
-        )))
-    }
-
-    async fn description(&self) -> Result<Option<StyledString>> {
-        let stack = vec![
-            StyledString::Text(rcstr!(
-                "A file was traced that indicates that the whole project was traced \
-                 unintentionally. Somewhere in the import trace below, there are:"
-            )),
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!("- filesystem operations (like ")),
-                StyledString::Code(rcstr!("path.join")),
-                StyledString::Text(rcstr!(", ")),
-                StyledString::Code(rcstr!("path.resolve")),
-                StyledString::Text(rcstr!(" or ")),
-                StyledString::Code(rcstr!("fs.readFile")),
-                StyledString::Text(rcstr!("), or")),
-            ]),
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!("- very dynamic requires (like ")),
-                StyledString::Code(rcstr!("require('./' + foo)")),
-                StyledString::Text(rcstr!(").")),
-            ]),
-            StyledString::Text(rcstr!("To resolve this, you can")),
-            StyledString::Text(rcstr!("- remove them if possible, or")),
-            StyledString::Text(rcstr!("- only use them in development, or")),
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!(
-                    "- make sure they are statically scoped to some subfolder: "
-                )),
-                StyledString::Code(rcstr!("path.join(process.cwd(), 'data', bar)")),
-                StyledString::Text(rcstr!(", or")),
-            ]),
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!("- add ignore comments: ")),
-                StyledString::Code(rcstr!(
-                    "path.join(/*turbopackIgnore: true*/ process.cwd(), bar)"
-                )),
-            ]),
-        ];
-        Ok(Some(StyledString::Stack(stack)))
-    }
 }
 
 struct OutputAssetFilteredVisit {

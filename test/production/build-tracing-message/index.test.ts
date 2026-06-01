@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import stripAnsi from 'strip-ansi'
 
 // Only Turbopack prints these warnings
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
@@ -20,11 +21,18 @@ import { nextTestSetup } from 'e2e-utils'
         )
         .trim()
 
-      expect(output).toMatchInlineSnapshot(`
+      expect(stripAnsi(output)).toMatchInlineSnapshot(`
        "Turbopack build encountered 1 warnings:
-       ./next.config.js
+       ./app/join-cwd.js:4:10
        Encountered unexpected file in NFT list
-       A file was traced that indicates that the whole project was traced unintentionally. Somewhere in the import trace below, there are:
+         2 |
+         3 | export default function (f) {
+       > 4 |   return path.join(process.cwd(), f)
+           |          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         5 | }
+         6 |
+
+       This import traced the next.config.js file which indicates that the whole project was traced unintentionally. Somewhere in the import trace below, there are:
        - filesystem operations (like path.join, path.resolve or fs.readFile), or
        - very dynamic requires (like require('./' + foo)).
        To resolve this, you can
@@ -35,7 +43,6 @@ import { nextTestSetup } from 'e2e-utils'
 
        Import trace:
          Server Component:
-           ./next.config.js
            ./app/join-cwd.js
            ./app/page.js"
       `)
