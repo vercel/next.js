@@ -35,6 +35,36 @@ describe('Next Lint', () => {
       const folder = join(os.tmpdir(), Math.random().toString(36).substring(2))
       await fs.mkdirp(folder)
       await fs.copy(join(dirNoConfig, isApp ? 'app' : ''), folder)
+      // Pin eslint-config-next to the locally-built tarball (same approach
+      // create-next-app tests use for `next`). Force `eslint-visitor-keys`
+      // to ^4 via both `overrides` (npm/pnpm) and `resolutions` (yarn)
+      // because `@typescript-eslint/visitor-keys@8.60.0` (pulled transitively
+      // by eslint-config-next's broad `^5 || ^6 || ^7 || ^8` range) bumped
+      // its inner `eslint-visitor-keys` dep to ^5, which requires Node 20+
+      // and breaks the Node 18.18.2 jobs. That's its only breaking change
+      // so we can safely work around it by forcing eslint-visitor-keys to ^4.
+      const pkgPaths = new Map(JSON.parse(process.env.NEXT_TEST_PKG_PATHS))
+      await fs.writeFile(
+        join(folder, 'package.json'),
+        JSON.stringify(
+          {
+            name: 'no-config',
+            version: '0.0.0',
+            private: true,
+            devDependencies: {
+              'eslint-config-next': pkgPaths.get('eslint-config-next'),
+            },
+            overrides: {
+              'eslint-visitor-keys': '^4',
+            },
+            resolutions: {
+              'eslint-visitor-keys': '^4',
+            },
+          },
+          null,
+          2
+        )
+      )
       await setupCallback?.(folder)
 
       try {
@@ -76,13 +106,22 @@ describe('Next Lint', () => {
       expect(output).toContain('Cancel')
     })
 
-    for (const { packageManger, lockFile } of [
-      { packageManger: 'yarn', lockFile: 'yarn.lock' },
-      { packageManger: 'pnpm', lockFile: 'pnpm-lock.yaml' },
-      { packageManger: 'npm', lockFile: 'package-lock.json' },
+    for (const { packageManger, lockFile, version } of [
+      { packageManger: 'yarn', lockFile: 'yarn.lock', version: '1.22.19' },
+      { packageManger: 'pnpm', lockFile: 'pnpm-lock.yaml', version: '9.6.0' },
+      { packageManger: 'npm', lockFile: 'package-lock.json', version: '9.8.1' },
     ]) {
       test(`installs eslint and eslint-config-next as devDependencies if missing with ${packageManger}`, async () => {
         const { stdout, pkgJson } = await nextLintTemp(async (folder) => {
+          const pkgJson = JSON.parse(
+            await fs.readFile(join(folder, 'package.json'), 'utf8')
+          )
+          pkgJson.packageManager = `${packageManger}@${version}`
+          await fs.writeFile(
+            join(folder, 'package.json'),
+            JSON.stringify(pkgJson, null, 2) + os.EOL
+          )
+
           await fs.writeFile(join(folder, lockFile), '')
         })
 
@@ -98,6 +137,15 @@ describe('Next Lint', () => {
         // App Router
         const { stdout: appStdout, pkgJson: appPkgJson } = await nextLintTemp(
           async (folder) => {
+            const pkgJson = JSON.parse(
+              await fs.readFile(join(folder, 'package.json'), 'utf8')
+            )
+            pkgJson.packageManager = `${packageManger}@${version}`
+            await fs.writeFile(
+              join(folder, 'package.json'),
+              JSON.stringify(pkgJson, null, 2) + os.EOL
+            )
+
             await fs.writeFile(join(folder, lockFile), '')
           },
           true

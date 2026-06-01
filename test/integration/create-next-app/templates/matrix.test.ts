@@ -1,4 +1,5 @@
-import { run, tryNextDev, useTempDir } from '../utils'
+import { join } from 'node:path'
+import { pinTailwindForNode18, run, tryNextDev, useTempDir } from '../utils'
 
 describe.each(['app', 'pages'] as const)(
   'CNA options matrix - %s',
@@ -71,6 +72,10 @@ describe.each(['app', 'pages'] as const)(
           }
         )
         expect(exitCode).toBe(0)
+
+        if (flags.includes('--tailwind')) {
+          await pinTailwindForNode18(join(cwd, projectName))
+        }
 
         await tryNextDev({
           cwd,

@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import {
+  pinTailwindForNode18,
   projectShouldHaveNoGitChanges,
   run,
   shouldBeTemplateProject,
@@ -154,6 +155,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
         mode: 'ts',
         srcDir: true,
       })
+      await pinTailwindForNode18(join(cwd, projectName))
       await tryNextDev({
         cwd,
         projectName,
@@ -233,6 +235,7 @@ describe('create-next-app --no-app (Pages Router)', () => {
         mode: 'ts',
         srcDir: true,
       })
+      await pinTailwindForNode18(join(cwd, projectName))
       await tryNextDev({
         cwd,
         projectName,
