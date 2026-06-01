@@ -151,7 +151,7 @@ impl WellKnownObjectKind {
 }
 
 /// A list of well-known functions that have special meaning in the analysis.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq)]
 pub enum WellKnownFunctionKind {
     ArrayFilter,
     ArrayForEach,

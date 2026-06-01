@@ -96,7 +96,7 @@ fn pretty_join(
 /// - Replace all built-in functions with their values when they are compile-time constant.
 /// - For optimization, any nested operations are replaced with [JsValue::Unknown]. So only one
 ///   layer of operation remains. Any remaining operation or placeholder can be treated as unknown.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq)]
 pub enum JsValue {
     // LEAF VALUES
     // ----------------------------
@@ -213,7 +213,7 @@ pub enum JsValue {
 /// (`MemberCall(total, obj, prop, [args])`) by writing obj/prop/args as siblings inside the
 /// parent's `debug_tuple`. This keeps fixture snapshots identical to the 4-tuple-payload
 /// version without forcing a hand-written `Debug` on every `JsValue` arm.
-#[derive(Default, Clone, Hash, PartialEq, Eq)]
+#[derive(Default, Clone, Hash, PartialEq)]
 pub struct MemberCallList(Vec<JsValue>);
 
 impl fmt::Debug for MemberCallList {
@@ -338,7 +338,7 @@ impl MemberCallList {
 ///
 /// The custom `Debug` impl re-emits the pre-refactor `(callee, [args])` shape so fixture
 /// snapshots remain identical to the 3-tuple-payload version.
-#[derive(Default, Clone, Hash, PartialEq, Eq)]
+#[derive(Default, Clone, Hash, PartialEq)]
 pub struct CallList(Vec<JsValue>);
 
 impl fmt::Debug for CallList {
@@ -464,7 +464,7 @@ impl From<Box<BigInt>> for JsValue {
 
 impl From<f64> for JsValue {
     fn from(v: f64) -> Self {
-        ConstantValue::Num(ConstantNumber(v.into())).into()
+        ConstantValue::Num(ConstantNumber(v)).into()
     }
 }
 
@@ -500,7 +500,7 @@ impl TryFrom<&CompileTimeDefineValue> for JsValue {
             CompileTimeDefineValue::Undefined => ConstantValue::Undefined,
             CompileTimeDefineValue::Null => ConstantValue::Null,
             CompileTimeDefineValue::Bool(b) => (*b).into(),
-            CompileTimeDefineValue::Number(n) => ConstantValue::Num(ConstantNumber(*n)),
+            CompileTimeDefineValue::Number(n) => ConstantValue::Num(ConstantNumber(**n)),
             CompileTimeDefineValue::BigInt(n) => ConstantValue::BigInt(n.clone()),
             CompileTimeDefineValue::String(s) => s.as_str().into(),
             CompileTimeDefineValue::Regex(pattern, flags) => {
@@ -548,7 +548,7 @@ impl TryFrom<&ConstantValue> for CompileTimeDefineValue {
             ConstantValue::Null => CompileTimeDefineValue::Null,
             ConstantValue::True => CompileTimeDefineValue::Bool(true),
             ConstantValue::False => CompileTimeDefineValue::Bool(false),
-            ConstantValue::Num(n) => CompileTimeDefineValue::Number(n.0),
+            ConstantValue::Num(n) => CompileTimeDefineValue::Number(n.0.into()),
             ConstantValue::Str(s) => CompileTimeDefineValue::String(s.as_rcstr()),
             ConstantValue::BigInt(n) => CompileTimeDefineValue::BigInt(n.clone()),
             ConstantValue::Regex(regex) => CompileTimeDefineValue::Regex(

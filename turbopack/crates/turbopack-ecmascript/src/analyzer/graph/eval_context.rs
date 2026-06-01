@@ -160,7 +160,7 @@ impl EvalContext {
                 op: op!(unary, "-"),
                 arg: box Expr::Lit(Lit::Num(n)),
                 ..
-            }) => JsValue::Constant(ConstantValue::Num(ConstantNumber((-n.value).into()))),
+            }) => JsValue::Constant(ConstantValue::Num(ConstantNumber(-n.value))),
 
             Expr::Unary(UnaryExpr {
                 op: op!("!"), arg, ..
