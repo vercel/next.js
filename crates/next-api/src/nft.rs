@@ -3,7 +3,7 @@ use std::{
     ops::Deref,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use next_core::{app_structure::FileSystemPathVec, next_config::NextConfig};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -68,7 +68,9 @@ pub async fn trace_endpoint(
         let project_path = project.project_path().owned().await?;
         let next_config = project.next_config();
 
-        let output_file_tracing_includes = &*next_config.output_file_tracing_includes().await?;
+        let output_file_tracing_includes = next_config
+            .output_file_tracing_includes(project_path.clone())
+            .await?;
 
         // Collect referenced assets and externals from module graph
         let all_modules = traced_modules_for_entries(
@@ -136,34 +138,19 @@ pub async fn trace_endpoint(
             .try_flat_join()
             .await?;
 
-        // Apply outputFileTracingIncludes and outputFileTracingExcludes
+        // Apply outputFileTracingIncludes
         // Extract route from chunk path for pattern matching
         let includes = if let Some(route) = &page_name {
             let mut combined_includes_by_root: FxIndexMap<FileSystemPath, Vec<&str>> =
                 FxIndexMap::default();
 
-            // Process includes
-            if let Some(includes_config) = output_file_tracing_includes
-                && let Some(includes_obj) = includes_config.as_object()
-            {
-                for (glob_pattern, include_patterns) in includes_obj {
-                    // Check if the route matches the glob pattern
-                    let glob =
-                        Glob::new(glob_pattern.as_str().into(), GlobOptions { contains: true })
-                            .await?;
-                    if glob.matches(route)
-                        && let Some(patterns) = include_patterns.as_array()
-                    {
-                        for pattern in patterns {
-                            if let Some(pattern_str) = pattern.as_str() {
-                                let (glob, root) =
-                                    relativize_glob(pattern_str, project_path.clone())?;
-                                combined_includes_by_root
-                                    .entry(root)
-                                    .or_default()
-                                    .push(glob);
-                            }
-                        }
+            for (route_glob, include_patterns) in output_file_tracing_includes.iter() {
+                if route_glob.await?.matches(route) {
+                    for (glob, root) in include_patterns {
+                        combined_includes_by_root
+                            .entry(root.clone())
+                            .or_default()
+                            .push(glob);
                     }
                 }
             }
@@ -263,59 +250,42 @@ pub async fn tracing_exclude_glob(
 ) -> Result<Vc<OptionGlob>> {
     Ok(if let Some(page_name) = &page_name {
         let route = format!("/{page_name}");
-        let output_file_tracing_excludes = next_config.output_file_tracing_excludes().await?;
-        if let Some(excludes_config) = &*output_file_tracing_excludes {
-            let mut combined_excludes = BTreeSet::new();
+        let output_file_tracing_excludes = next_config
+            .output_file_tracing_excludes(project_path)
+            .await?;
+        let mut combined_excludes = BTreeSet::new();
 
-            if let Some(excludes_obj) = excludes_config.as_object() {
-                for (glob_pattern, exclude_patterns) in excludes_obj {
-                    // Check if the route matches the glob pattern
-                    let glob = Glob::new(
-                        RcStr::from(glob_pattern.clone()),
-                        GlobOptions { contains: true },
-                    )
-                    .await?;
-                    if glob.matches(&route)
-                        && let Some(patterns) = exclude_patterns.as_array()
-                    {
-                        for pattern in patterns {
-                            if let Some(pattern_str) = pattern.as_str() {
-                                let (glob, root) =
-                                    relativize_glob(pattern_str, project_path.clone())?;
-                                let glob = if root.path.is_empty() {
-                                    glob.to_string()
-                                } else {
-                                    format!("{root}/{glob}")
-                                };
-                                combined_excludes.insert(glob);
-                            }
-                        }
-                    }
+        for (route_glob, exclude_patterns) in output_file_tracing_excludes.iter() {
+            if route_glob.await?.matches(&route) {
+                for (glob, root) in exclude_patterns {
+                    combined_excludes.insert(if root.path.is_empty() {
+                        glob.to_string()
+                    } else {
+                        format!("{root}/{glob}")
+                    });
                 }
             }
+        }
 
-            if combined_excludes.is_empty() {
-                Vc::cell(None)
-            } else {
-                let glob = Glob::new(
-                    format!(
-                        "{{{}}}",
-                        combined_excludes
-                            .iter()
-                            .map(|s| s.as_str())
-                            .collect::<Vec<_>>()
-                            .join(",")
-                    )
-                    .into(),
-                    GlobOptions { contains: true },
-                )
-                .to_resolved()
-                .await?;
-
-                Vc::cell(Some(glob))
-            }
-        } else {
+        if combined_excludes.is_empty() {
             Vc::cell(None)
+        } else {
+            let glob = Glob::new(
+                format!(
+                    "{{{}}}",
+                    combined_excludes
+                        .iter()
+                        .map(|s| s.as_str())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                )
+                .into(),
+                GlobOptions { contains: true },
+            )
+            .to_resolved()
+            .await?;
+
+            Vc::cell(Some(glob))
         }
     } else {
         Vc::cell(None)
@@ -463,211 +433,4 @@ pub async fn traced_module_data_for_graph(
         hashes: ResolvedVc::cell(hashes),
     }
     .cell())
-}
-
-/// The globs defined in the next.config.mjs are relative to the project root.
-/// The glob walker in turbopack is somewhat naive so we handle relative path directives first so
-/// traversal doesn't need to consider them and can just traverse 'down' the tree.
-/// The main alternative is to merge glob evaluation with directory traversal which is what the npm
-/// `glob` package does, but this would be a substantial rewrite.
-pub(crate) fn relativize_glob(
-    glob: &str,
-    relative_to: FileSystemPath,
-) -> Result<(&str, FileSystemPath)> {
-    let mut relative_to = relative_to;
-    let mut processed_glob = glob;
-    loop {
-        if let Some(stripped) = processed_glob.strip_prefix("../") {
-            if relative_to.path.is_empty() {
-                bail!(
-                    "glob '{glob}' is invalid, it has a prefix that navigates out of the project \
-                     root"
-                );
-            }
-            relative_to = relative_to.parent();
-            processed_glob = stripped;
-        } else if let Some(stripped) = processed_glob.strip_prefix("./") {
-            processed_glob = stripped;
-        } else {
-            break;
-        }
-    }
-    Ok((processed_glob, relative_to))
-}
-
-#[cfg(test)]
-mod tests {
-    use turbo_tasks::ResolvedVc;
-    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-    use turbo_tasks_fs::{FileSystemPath, NullFileSystem};
-
-    use super::*;
-
-    fn create_test_fs_path(path: &str) -> FileSystemPath {
-        FileSystemPath {
-            fs: ResolvedVc::upcast(NullFileSystem {}.resolved_cell()),
-            path: path.into(),
-        }
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_relativize_glob_normal_patterns() {
-        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-            BackendOptions::default(),
-            noop_backing_storage(),
-        ));
-        tt.run_once(async {
-            // Test normal glob patterns without relative prefixes
-            let base_path = create_test_fs_path("project/src");
-
-            let (glob, path) = relativize_glob("*.js", base_path.clone()).unwrap();
-            assert_eq!(glob, "*.js");
-            assert_eq!(path.path.as_str(), "project/src");
-
-            let (glob, path) = relativize_glob("components/**/*.tsx", base_path.clone()).unwrap();
-            assert_eq!(glob, "components/**/*.tsx");
-            assert_eq!(path.path.as_str(), "project/src");
-
-            let (glob, path) = relativize_glob("lib/utils.ts", base_path.clone()).unwrap();
-            assert_eq!(glob, "lib/utils.ts");
-            assert_eq!(path.path.as_str(), "project/src");
-            Ok(())
-        })
-        .await
-        .unwrap();
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_relativize_glob_current_directory_prefix() {
-        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-            BackendOptions::default(),
-            noop_backing_storage(),
-        ));
-        tt.run_once(async {
-            let base_path = create_test_fs_path("project/src");
-
-            // Single ./ prefix
-            let (glob, path) = relativize_glob("./components/*.tsx", base_path.clone()).unwrap();
-            assert_eq!(glob, "components/*.tsx");
-            assert_eq!(path.path.as_str(), "project/src");
-
-            // Multiple ./ prefixes
-            let (glob, path) = relativize_glob("././utils.js", base_path.clone()).unwrap();
-            assert_eq!(glob, "utils.js");
-            assert_eq!(path.path.as_str(), "project/src");
-
-            // ./ with complex glob
-            let (glob, path) = relativize_glob("./lib/**/*.{js,ts}", base_path.clone()).unwrap();
-            assert_eq!(glob, "lib/**/*.{js,ts}");
-            assert_eq!(path.path.as_str(), "project/src");
-            Ok(())
-        })
-        .await
-        .unwrap();
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_relativize_glob_parent_directory_navigation() {
-        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-            BackendOptions::default(),
-            noop_backing_storage(),
-        ));
-        tt.run_once(async {
-            let base_path = create_test_fs_path("project/src/components");
-
-            // Single ../ prefix
-            let (glob, path) = relativize_glob("../utils/*.js", base_path.clone()).unwrap();
-            assert_eq!(glob, "utils/*.js");
-            assert_eq!(path.path.as_str(), "project/src");
-
-            // Multiple ../ prefixes
-            let (glob, path) = relativize_glob("../../lib/*.ts", base_path.clone()).unwrap();
-            assert_eq!(glob, "lib/*.ts");
-            assert_eq!(path.path.as_str(), "project");
-
-            // Complex navigation with glob
-            let (glob, path) =
-                relativize_glob("../../../external/**/*.json", base_path.clone()).unwrap();
-            assert_eq!(glob, "external/**/*.json");
-            assert_eq!(path.path.as_str(), "");
-            Ok(())
-        })
-        .await
-        .unwrap();
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_relativize_glob_mixed_prefixes() {
-        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-            BackendOptions::default(),
-            noop_backing_storage(),
-        ));
-        tt.run_once(async {
-            let base_path = create_test_fs_path("project/src/components");
-
-            // ../ followed by ./
-            let (glob, path) = relativize_glob(".././utils/*.js", base_path.clone()).unwrap();
-            assert_eq!(glob, "utils/*.js");
-            assert_eq!(path.path.as_str(), "project/src");
-
-            // ./ followed by ../
-            let (glob, path) = relativize_glob("./../lib/*.ts", base_path.clone()).unwrap();
-            assert_eq!(glob, "lib/*.ts");
-            assert_eq!(path.path.as_str(), "project/src");
-
-            // Multiple mixed prefixes
-            let (glob, path) =
-                relativize_glob("././../.././external/*.json", base_path.clone()).unwrap();
-            assert_eq!(glob, "external/*.json");
-            assert_eq!(path.path.as_str(), "project");
-            Ok(())
-        })
-        .await
-        .unwrap();
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_relativize_glob_error_navigation_out_of_root() {
-        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-            BackendOptions::default(),
-            noop_backing_storage(),
-        ));
-        tt.run_once(async {
-            // Test navigating out of project root with empty path
-            let empty_path = create_test_fs_path("");
-            let result = relativize_glob("../outside.js", empty_path);
-            assert!(result.is_err());
-            assert!(
-                result
-                    .unwrap_err()
-                    .to_string()
-                    .contains("navigates out of the project root")
-            );
-
-            // Test navigating too far up from a shallow path
-            let shallow_path = create_test_fs_path("project");
-            let result = relativize_glob("../../outside.js", shallow_path);
-            assert!(result.is_err());
-            assert!(
-                result
-                    .unwrap_err()
-                    .to_string()
-                    .contains("navigates out of the project root")
-            );
-
-            // Test multiple ../ that would go out of root
-            let base_path = create_test_fs_path("a/b");
-            let result = relativize_glob("../../../outside.js", base_path);
-            assert!(result.is_err());
-            assert!(
-                result
-                    .unwrap_err()
-                    .to_string()
-                    .contains("navigates out of the project root")
-            );
-            Ok(())
-        })
-        .await
-        .unwrap();
-    }
 }
