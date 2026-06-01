@@ -161,19 +161,9 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1290",
-             "description": "Route "/dynamic-metadata-error-route": Next.js encountered uncached data during prerendering.
-
-           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-           Ways to fix this:
-             - [cache] Cache the data access with \`"use cache"\`
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route",
+             "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
-             "label": "Console Error",
+             "label": "Blocking Route",
              "source": "app/dynamic-metadata-error-route/page.tsx (21:9) @ Dynamic
            > 21 |   await new Promise((r) => setTimeout(r))
                 |         ^",
@@ -799,19 +789,9 @@ describe('Cache Components Errors', () => {
            [
              {
                "code": "E1290",
-               "description": "Route "/dynamic-root": Next.js encountered uncached data during prerendering.
-
-           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-           Ways to fix this:
-             - [cache] Cache the data access with \`"use cache"\`
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route",
+               "description": "Next.js encountered uncached data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Console Error",
+               "label": "Blocking Route",
                "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
            > 63 |   const response = await fetch(
                 |                          ^",
@@ -823,19 +803,9 @@ describe('Cache Components Errors', () => {
              },
              {
                "code": "E1290",
-               "description": "Route "/dynamic-root": Next.js encountered uncached data during prerendering.
-
-           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-           Ways to fix this:
-             - [cache] Cache the data access with \`"use cache"\`
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route",
+               "description": "Next.js encountered uncached data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Console Error",
+               "label": "Blocking Route",
                "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
            > 63 |   const response = await fetch(
                 |                          ^",
@@ -2404,19 +2374,9 @@ describe('Cache Components Errors', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1296",
-               "description": "Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered runtime data during prerendering.
-
-             \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-             Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-               - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-               - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
-                 https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route",
+               "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Console Error",
+               "label": "Blocking Route",
                "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18) @ RequestData
              > 34 |   ;(await cookies()).get('foo')
                   |                  ^",
@@ -3140,19 +3100,9 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E1296",
-                 "description": "Route "/use-cache-low-expire/fast": Next.js encountered runtime data during prerendering.
-
-               \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-               Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route",
+                 "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Console Error",
+                 "label": "Blocking Route",
                  "source": "app/use-cache-low-expire/fast/page.tsx (3:16) @ Page
                > 3 | export default async function Page() {
                    |                ^",
@@ -3280,19 +3230,9 @@ Ways to fix this:
               await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E1296",
-                 "description": "Route "/use-cache-low-expire/slow": Next.js encountered runtime data during prerendering.
-
-               \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-               Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route",
+                 "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Console Error",
+                 "label": "Blocking Route",
                  "source": "app/use-cache-low-expire/slow/page.tsx (3:16) @ Page
                > 3 | export default async function Page() {
                    |                ^",
@@ -3579,19 +3519,9 @@ Ways to fix this:
               await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E1296",
-                 "description": "Route "/use-cache-revalidate-0/fast": Next.js encountered runtime data during prerendering.
-
-               \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-               Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route",
+                 "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Console Error",
+                 "label": "Blocking Route",
                  "source": "app/use-cache-revalidate-0/fast/page.tsx (3:16) @ Page
                > 3 | export default async function Page() {
                    |                ^",
@@ -3719,19 +3649,9 @@ Ways to fix this:
               await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E1296",
-                 "description": "Route "/use-cache-revalidate-0/slow": Next.js encountered runtime data during prerendering.
-
-               \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-               Ways to fix this:
-                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-                 - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-                 - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
-                   https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route",
+                 "description": "Next.js encountered runtime data during prerendering.",
                  "environmentLabel": "Server",
-                 "label": "Console Error",
+                 "label": "Blocking Route",
                  "source": "app/use-cache-revalidate-0/slow/page.tsx (3:16) @ Page
                > 3 | export default async function Page() {
                    |                ^",
@@ -4019,19 +3939,9 @@ Ways to fix this:
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1296",
-               "description": "Route "/use-cache-params/[slug]": Next.js encountered runtime data during prerendering.
-
-             \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-             Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-               - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-               - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
-                 https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route",
+               "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Console Error",
+               "label": "Blocking Route",
                "source": null,
                "stack": [
                  "Page [Prerender] <anonymous>",
@@ -4934,19 +4844,9 @@ Ways to fix this:
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E1296",
-               "description": "Route "/use-cache-private-without-suspense": Next.js encountered runtime data during prerendering.
-
-             \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-             Ways to fix this:
-               - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-                 https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense
-               - [cache] If the runtime data is \`params\` and they're known, prerender them with \`generateStaticParams\`
-                 https://nextjs.org/docs/messages/blocking-prerender-runtime#for-known-params-prerender
-               - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
-                 https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route",
+               "description": "Next.js encountered runtime data during prerendering.",
                "environmentLabel": "Server",
-               "label": "Console Error",
+               "label": "Blocking Route",
                "source": "app/use-cache-private-without-suspense/page.tsx (15:1) @ Private
              > 15 | async function Private() {
                   | ^",
@@ -7546,19 +7446,9 @@ Ways to fix this:
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E1290",
-             "description": "Route "/client-awaited-io": Next.js encountered uncached data during prerendering.
-
-           \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
-
-           Ways to fix this:
-             - [cache] Cache the data access with \`"use cache"\`
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
-             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
-             - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
-               https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route",
+             "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
-             "label": "Console Error",
+             "label": "Blocking Route",
              "source": "app/client-awaited-io/client.tsx (6:19) @ Client
            > 6 |   const data = use(io)
                |                   ^",
