@@ -106,7 +106,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 let JsValue::Constant(ConstantValue::Num(num)) = arg else {
                     return false;
                 };
-                sum += *num.0;
+                sum += num.0;
             }
             *value = JsValue::Constant(ConstantValue::Num(sum.into()));
             true
