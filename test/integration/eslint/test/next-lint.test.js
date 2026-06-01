@@ -106,13 +106,22 @@ describe('Next Lint', () => {
       expect(output).toContain('Cancel')
     })
 
-    for (const { packageManger, lockFile } of [
-      { packageManger: 'yarn', lockFile: 'yarn.lock' },
-      { packageManger: 'pnpm', lockFile: 'pnpm-lock.yaml' },
-      { packageManger: 'npm', lockFile: 'package-lock.json' },
+    for (const { packageManger, lockFile, version } of [
+      { packageManger: 'yarn', lockFile: 'yarn.lock', version: '1.22.19' },
+      { packageManger: 'pnpm', lockFile: 'pnpm-lock.yaml', version: '9.6.0' },
+      { packageManger: 'npm', lockFile: 'package-lock.json', version: '9.8.1' },
     ]) {
       test(`installs eslint and eslint-config-next as devDependencies if missing with ${packageManger}`, async () => {
         const { stdout, pkgJson } = await nextLintTemp(async (folder) => {
+          const pkgJson = JSON.parse(
+            await fs.readFile(join(folder, 'package.json'), 'utf8')
+          )
+          pkgJson.packageManager = `${packageManger}@${version}`
+          await fs.writeFile(
+            join(folder, 'package.json'),
+            JSON.stringify(pkgJson, null, 2) + os.EOL
+          )
+
           await fs.writeFile(join(folder, lockFile), '')
         })
 
@@ -128,6 +137,15 @@ describe('Next Lint', () => {
         // App Router
         const { stdout: appStdout, pkgJson: appPkgJson } = await nextLintTemp(
           async (folder) => {
+            const pkgJson = JSON.parse(
+              await fs.readFile(join(folder, 'package.json'), 'utf8')
+            )
+            pkgJson.packageManager = `${packageManger}@${version}`
+            await fs.writeFile(
+              join(folder, 'package.json'),
+              JSON.stringify(pkgJson, null, 2) + os.EOL
+            )
+
             await fs.writeFile(join(folder, lockFile), '')
           },
           true
