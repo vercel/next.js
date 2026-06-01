@@ -2,7 +2,9 @@ use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use futures::future::BoxFuture;
 use next_core::{
-    PageLoaderAsset, create_page_loader_entry_module, get_asset_path_from_pathname,
+    PageLoaderAsset,
+    app_structure::FileSystemPathVec,
+    create_page_loader_entry_module, get_asset_path_from_pathname,
     get_edge_resolve_options_context,
     hmr_entry::HmrEntryModule,
     mode::NextMode,
@@ -73,6 +75,7 @@ use crate::{
     font::FontManifest,
     loadable_manifest::create_react_loadable_manifest,
     module_graph::{NextDynamicGraphs, validate_pages_css_imports},
+    nft::{EndpointTraceResult, trace_endpoint},
     nft_json::NftJsonAsset,
     paths::{
         all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
@@ -1089,8 +1092,7 @@ impl PageEndpoint {
                             Some(pages_function_name(&this.original_name).into()),
                             *ssr_entry_chunk,
                             additional_assets,
-                            ssr_module_graph,
-                            vec![*ssr_module],
+                            self.trace_result(),
                         )
                         .to_resolved()
                         .await?,
@@ -1557,6 +1559,19 @@ impl PageEndpoint {
                 .await?,
         )))
     }
+
+    #[turbo_tasks::function]
+    async fn trace_result(self: Vc<Self>) -> Result<Vc<EndpointTraceResult>> {
+        let this = self.await?;
+        let ssr_module_graph = self.ssr_module_graph();
+        let InternalSsrChunkModule { ssr_module, .. } = *self.internal_ssr_chunk_module().await?;
+        Ok(trace_endpoint(
+            this.pages_project.project(),
+            Some(pages_function_name(&this.original_name).into()),
+            ssr_module_graph,
+            vec![*ssr_module],
+        ))
+    }
 }
 
 #[turbo_tasks::value]
@@ -1733,6 +1748,11 @@ impl Endpoint for PageEndpoint {
     #[turbo_tasks::function]
     async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         Ok(self.await?.pages_project.project())
+    }
+
+    #[turbo_tasks::function]
+    fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
+        self.trace_result().all_files()
     }
 }
 

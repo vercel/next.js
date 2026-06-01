@@ -4,8 +4,7 @@ use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use either::Either;
 use next_core::{get_next_package, next_server::get_tracing_compile_time_info};
-use serde_json::{Value, json};
-use turbo_rcstr::RcStr;
+use serde_json::json;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     trace::TraceRawVcs,
@@ -27,10 +26,7 @@ use turbopack_core::{
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
-use crate::{
-    nft_json::{relativize_glob, traced_modules_for_entries},
-    project::Project,
-};
+use crate::{nft::traced_modules_for_entries, project::Project};
 
 #[derive(
     PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Hash, TaskInput, Encode, Decode,
@@ -304,30 +300,19 @@ impl ServerNftJsonAsset {
         let output_file_tracing_excludes = self
             .project
             .next_config()
-            .output_file_tracing_excludes()
+            .output_file_tracing_excludes(project_path)
             .await?;
         let mut additional_ignores = BTreeSet::new();
-        if let Some(output_file_tracing_excludes) = output_file_tracing_excludes
-            .as_ref()
-            .and_then(Value::as_object)
-        {
-            for (glob_pattern, exclude_patterns) in output_file_tracing_excludes {
-                // Check if the route matches the glob pattern
-                let glob = Glob::new(RcStr::from(glob_pattern.clone()), Default::default()).await?;
-                if glob.matches("next-server")
-                    && let Some(patterns) = exclude_patterns.as_array()
-                {
-                    for pattern in patterns {
-                        if let Some(pattern_str) = pattern.as_str() {
-                            let (glob, root) = relativize_glob(pattern_str, project_path.clone())?;
-                            let glob = if root.path.is_empty() {
-                                glob.to_string()
-                            } else {
-                                format!("{root}/{glob}")
-                            };
-                            additional_ignores.insert(glob);
-                        }
-                    }
+
+        for (route_glob, exclude_patterns) in output_file_tracing_excludes.iter() {
+            // Check if the route matches the glob pattern
+            if route_glob.await?.matches("next-server") {
+                for (glob, root) in exclude_patterns {
+                    additional_ignores.insert(if root.path.is_empty() {
+                        glob.to_string()
+                    } else {
+                        format!("{root}/{glob}")
+                    });
                 }
             }
         }

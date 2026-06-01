@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use next_core::app_structure::FileSystemPathVec;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Completion, FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ResolvedVc, TryFlatJoinIterExt,
@@ -67,6 +68,12 @@ pub trait Endpoint {
     /// The project this endpoint belongs to.
     #[turbo_tasks::function]
     fn project(self: Vc<Self>) -> Vc<Project>;
+
+    /// The traced files included by this endpoint. This is only used for analysis purposes.
+    /// Usually, `output()` includes the NFT file and everything else is handled outside of
+    /// Turbopack.
+    #[turbo_tasks::function]
+    fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec>;
 }
 
 #[derive(
@@ -154,6 +161,15 @@ impl EndpointGroup {
                 .collect(),
         )
     }
+
+    pub fn traced_files(&self) -> Vc<FileSystemPathVec> {
+        traced_files_of_endpoints(
+            self.primary
+                .iter()
+                .map(|endpoint| *endpoint.endpoint)
+                .collect(),
+        )
+    }
 }
 
 #[turbo_tasks::function]
@@ -180,6 +196,17 @@ async fn module_graphs_of_endpoints(
         .into_iter()
         .collect::<Vec<_>>();
     Ok(Vc::cell(module_graphs))
+}
+
+#[turbo_tasks::function]
+async fn traced_files_of_endpoints(
+    endpoints: Vec<Vc<Box<dyn Endpoint>>>,
+) -> Result<Vc<FileSystemPathVec>> {
+    let mut modules: FxIndexSet<_> = FxIndexSet::default();
+    for endpoint in endpoints {
+        modules.extend(endpoint.traced_files().await?.iter().cloned());
+    }
+    Ok(Vc::cell(modules.into_iter().collect()))
 }
 
 #[turbo_tasks::value(transparent)]
