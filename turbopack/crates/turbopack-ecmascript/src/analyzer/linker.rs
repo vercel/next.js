@@ -6,24 +6,27 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::ecma::ast::Id;
 use turbo_rcstr::rcstr;
 
-use super::{JsValue, graph::VarGraph};
+use super::{Bump, JsValue, ThreadLocal, graph::VarGraph};
+use crate::analyzer::BumpVec;
 
-pub async fn link<'a, B, RB, F, RF>(
-    graph: &VarGraph,
-    mut val: JsValue,
-    early_visitor: &B,
-    visitor: &F,
-    fun_args_values: &Mutex<FxHashMap<u32, Vec<JsValue>>>,
-    var_cache: &Mutex<FxHashMap<Id, JsValue>>,
-) -> Result<(JsValue, u32)>
+pub async fn link<'a, 'l, B, RB, F, RF>(
+    arena: &'a ThreadLocal<Bump>,
+    graph: &'l VarGraph<'a>,
+    mut val: JsValue<'a>,
+    early_visitor: &'l B,
+    visitor: &'l F,
+    fun_args_values: &Mutex<FxHashMap<u32, BumpVec<'a, JsValue<'a>>>>,
+    var_cache: &Mutex<FxHashMap<Id, JsValue<'a>>>,
+) -> Result<(JsValue<'a>, u32)>
 where
-    RB: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
-    B: 'a + Fn(JsValue) -> RB + Sync,
-    RF: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
-    F: 'a + Fn(JsValue) -> RF + Sync,
+    RB: 'l + Future<Output = Result<(JsValue<'a>, bool)>> + Send,
+    B: 'l + Fn(JsValue<'a>) -> RB + Sync,
+    RF: 'l + Future<Output = Result<(JsValue<'a>, bool)>> + Send,
+    F: 'l + Fn(JsValue<'a>) -> RF + Sync,
 {
-    val.normalize();
+    val.normalize(arena.get_or_default());
     let (val, steps) = link_internal_iterative(
+        arena,
         graph,
         val,
         early_visitor,
@@ -39,19 +42,19 @@ const LIMIT_NODE_SIZE: u32 = 100;
 const LIMIT_IN_PROGRESS_NODES: u32 = 500;
 const LIMIT_LINK_STEPS: u32 = 1500;
 
-#[derive(Debug, Clone, PartialEq)]
-enum Step {
+#[derive(Debug, PartialEq)]
+enum Step<'a> {
     /// Take all children out of the value (replacing temporarily with unknown) and queue them
     /// for processing using individual `Enter`s.
-    Enter(JsValue),
+    Enter(JsValue<'a>),
     /// Pop however many children there are from `done` and reinsert them into the value
-    Leave(JsValue),
+    Leave(JsValue<'a>),
     /// Remove the variable from `cycle_stack` which detects e.g. circular reassignments
     LeaveVar(Id),
-    LeaveLate(JsValue),
+    LeaveLate(JsValue<'a>),
     /// Call the visitor callbacks, and requeue the value for further processing if it changed.
-    Visit(JsValue),
-    EarlyVisit(JsValue),
+    Visit(JsValue<'a>),
+    EarlyVisit(JsValue<'a>),
     /// Remove the call from `fun_args_values`
     LeaveCall(u32),
     /// Placeholder that is used to momentarily reserve a slot that is only filled after
@@ -59,7 +62,7 @@ enum Step {
     TemporarySlot,
 }
 
-impl Display for Step {
+impl Display for Step<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Step::Enter(val) => write!(f, "Enter({val})"),
@@ -75,22 +78,23 @@ impl Display for Step {
 }
 // If a variable was already visited in this linking call, don't visit it again.
 
-pub(crate) async fn link_internal_iterative<'a, B, RB, F, RF>(
-    graph: &'a VarGraph,
-    val: JsValue,
-    early_visitor: &'a B,
-    visitor: &'a F,
-    fun_args_values: &Mutex<FxHashMap<u32, Vec<JsValue>>>,
-    var_cache: &Mutex<FxHashMap<Id, JsValue>>,
-) -> Result<(JsValue, u32)>
+pub(crate) async fn link_internal_iterative<'a, 'l, B, RB, F, RF>(
+    arena: &'a ThreadLocal<Bump>,
+    graph: &'l VarGraph<'a>,
+    val: JsValue<'a>,
+    early_visitor: &'l B,
+    visitor: &'l F,
+    fun_args_values: &Mutex<FxHashMap<u32, BumpVec<'a, JsValue<'a>>>>,
+    var_cache: &Mutex<FxHashMap<Id, JsValue<'a>>>,
+) -> Result<(JsValue<'a>, u32)>
 where
-    RB: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
-    B: 'a + Fn(JsValue) -> RB + Sync,
-    RF: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
-    F: 'a + Fn(JsValue) -> RF + Sync,
+    RB: 'l + Future<Output = Result<(JsValue<'a>, bool)>> + Send,
+    B: 'l + Fn(JsValue<'a>) -> RB + Sync,
+    RF: 'l + Future<Output = Result<(JsValue<'a>, bool)>> + Send,
+    F: 'l + Fn(JsValue<'a>) -> RF + Sync,
 {
-    let mut work_queue_stack: Vec<Step> = Vec::new();
-    let mut done: Vec<JsValue> = Vec::new();
+    let mut work_queue_stack: Vec<Step<'a>> = Vec::new();
+    let mut done: Vec<JsValue<'a>> = Vec::new();
     // Tracks the number of nodes in the queue and done combined
     let mut total_nodes = 0;
     let mut cycle_stack: FxHashSet<Id> = FxHashSet::default();
@@ -122,12 +126,12 @@ where
                     .then(|| var_cache.lock());
                     if let Some(val) = var_cache_lock.as_deref().and_then(|cache| cache.get(&var)) {
                         total_nodes += val.total_nodes();
-                        done.push(val.clone());
+                        done.push(val.clone_in(arena.get_or_default()));
                     } else if let Some(value) = graph.values.get(&var) {
                         cycle_stack.insert(var.clone());
                         work_queue_stack.push(Step::LeaveVar(var));
                         total_nodes += value.total_nodes();
-                        work_queue_stack.push(Step::Enter(value.clone()));
+                        work_queue_stack.push(Step::Enter(value.clone_in(arena.get_or_default())));
                     } else {
                         total_nodes += 1;
                         done.push(JsValue::unknown(
@@ -142,7 +146,9 @@ where
             Step::LeaveVar(var) => {
                 cycle_stack.remove(&var);
                 if cycle_stack.is_empty() && fun_args_values.lock().is_empty() {
-                    var_cache.lock().insert(var, done.last().unwrap().clone());
+                    var_cache
+                        .lock()
+                        .insert(var, done.last().unwrap().clone_in(arena.get_or_default()));
                 }
             }
             // Enter a function argument
@@ -152,7 +158,7 @@ where
                 if let Some(args) = fun_args_values.lock().get(&func_ident) {
                     if let Some(val) = args.get(index) {
                         total_nodes += val.total_nodes();
-                        done.push(val.clone());
+                        done.push(val.clone_in(arena.get_or_default()));
                     } else {
                         total_nodes += 1;
                         done.push(JsValue::unknown_empty(
@@ -176,7 +182,7 @@ where
                 if matches!(call.callee(), JsValue::Function(..)) =>
             {
                 let (callee, args) = call.into_parts();
-                let JsValue::Function(function_nodes, func_ident, return_value) = callee else {
+                let JsValue::Function(function_nodes, func_ident, mut return_value) = callee else {
                     unreachable!()
                 };
                 total_nodes -= 2; // Call + Function
@@ -187,7 +193,7 @@ where
                     }
                     entry.insert(args);
                     work_queue_stack.push(Step::LeaveCall(func_ident));
-                    work_queue_stack.push(Step::Enter(*return_value));
+                    work_queue_stack.push(Step::Enter(take(&mut *return_value)));
                 } else {
                     total_nodes -= return_value.total_nodes();
                     for arg in args.iter() {
@@ -196,6 +202,7 @@ where
                     total_nodes += 1;
                     done.push(JsValue::unknown(
                         JsValue::call_from_parts(
+                            arena.get_or_default(),
                             JsValue::Function(function_nodes, func_ident, return_value),
                             args,
                         ),
@@ -222,6 +229,7 @@ where
             Step::Enter(mut val) => {
                 if !val.has_children() {
                     visit(
+                        arena,
                         &mut total_nodes,
                         &mut done,
                         &mut work_queue_stack,
@@ -318,7 +326,7 @@ where
                     done.push(JsValue::unknown_empty(true, rcstr!("node limit reached")));
                     continue;
                 }
-                val.normalize_shallow();
+                val.normalize_shallow(arena.get_or_default());
 
                 val.debug_assert_total_nodes_up_to_date();
 
@@ -341,7 +349,7 @@ where
                     done.push(JsValue::unknown_empty(true, rcstr!("node limit reached")));
                     continue;
                 }
-                val.normalize_shallow();
+                val.normalize_shallow(arena.get_or_default());
 
                 val.debug_assert_total_nodes_up_to_date();
 
@@ -352,6 +360,7 @@ where
             // - visited value is put into done
             Step::Visit(val) => {
                 visit(
+                    arena,
                     &mut total_nodes,
                     &mut done,
                     &mut work_queue_stack,
@@ -402,22 +411,23 @@ where
     Ok((final_value, steps))
 }
 
-async fn visit<'a, F, RF>(
+async fn visit<'a, 'l, F, RF>(
+    arena: &'a ThreadLocal<Bump>,
     total_nodes: &mut u32,
-    done: &mut Vec<JsValue>,
-    work_queue_stack: &mut Vec<Step>,
-    visitor: &'a F,
-    val: JsValue,
+    done: &mut Vec<JsValue<'a>>,
+    work_queue_stack: &mut Vec<Step<'a>>,
+    visitor: &'l F,
+    val: JsValue<'a>,
 ) -> Result<()>
 where
-    RF: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
-    F: 'a + Fn(JsValue) -> RF + Sync,
+    RF: 'l + Future<Output = Result<(JsValue<'a>, bool)>> + Send,
+    F: 'l + Fn(JsValue<'a>) -> RF + Sync,
 {
     *total_nodes -= val.total_nodes();
 
     let (mut val, visit_modified) = visitor(val).await?;
     if visit_modified {
-        val.normalize_shallow();
+        val.normalize_shallow(arena.get_or_default());
         #[cfg(debug_assertions)]
         val.debug_assert_total_nodes_up_to_date();
         if val.total_nodes() > LIMIT_NODE_SIZE {
