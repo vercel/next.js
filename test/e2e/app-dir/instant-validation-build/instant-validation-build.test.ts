@@ -70,10 +70,11 @@ describe('instant-validation-build', () => {
 
          Ways to fix this:
            - [cache] Cache the data access with \`"use cache"\`
+             https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
            - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
            - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
-
-         Learn more: https://nextjs.org/docs/messages/blocking-route
+             https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
              at main (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)

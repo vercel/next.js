@@ -79,10 +79,20 @@ describe('instant validation - level manual-error', () => {
                ],
              },
            ],
-           "code": "E1293",
-           "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1298",
+           "description": "Route "/explicit-error": Next.js encountered uncached data during prerendering or a navigation.
+
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+         Ways to fix this:
+           - [cache] Cache the data access with \`"use cache"\`
+             https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Console Error",
            "source": "app/explicit-error/page.tsx (11:19) @ Page
          > 11 |   await connection()
               |                   ^",
@@ -109,10 +119,20 @@ describe('instant validation - level manual-error', () => {
                ],
              },
            ],
-           "code": "E1293",
-           "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1298",
+           "description": "Route "/explicit-true": Next.js encountered uncached data during prerendering or a navigation.
+
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+         Ways to fix this:
+           - [cache] Cache the data access with \`"use cache"\`
+             https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Console Error",
            "source": "app/explicit-true/page.tsx (12:19) @ Page
          > 12 |   await connection()
               |                   ^",
@@ -139,10 +159,20 @@ describe('instant validation - level manual-error', () => {
                ],
              },
            ],
-           "code": "E1293",
-           "description": "Next.js encountered uncached data during a navigation.",
+           "code": "E1298",
+           "description": "Route "/explicit-warning": Next.js encountered uncached data during prerendering or a navigation.
+
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+         Ways to fix this:
+           - [cache] Cache the data access with \`"use cache"\`
+             https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
+           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
+           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+             https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route",
            "environmentLabel": "Server",
-           "label": "Instant",
+           "label": "Console Error",
            "source": "app/explicit-warning/page.tsx (11:19) @ Page
          > 11 |   await connection()
               |                   ^",
@@ -185,9 +215,9 @@ describe('instant validation - level manual-error', () => {
          \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - [cache] Cache the data access with \`"use cache"\`
-           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - Cache the data access with \`"use cache"\`
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at a (<anonymous>)
@@ -211,9 +241,9 @@ describe('instant validation - level manual-error', () => {
          \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
 
          Ways to fix this:
-           - [cache] Cache the data access with \`"use cache"\`
-           - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
-           - [block] Set \`export const unstable_instant = false\` to silence this warning and allow a blocking route
+           - Cache the data access with \`"use cache"\`
+           - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+           - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
              at a (<anonymous>)

@@ -45,9 +45,7 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
-             - Cache Components enabled
-             - Experiments (use with caution):
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+             - Cache Components enabled"
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
@@ -59,9 +57,7 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
-             - Cache Components enabled
-             - Experiments (use with caution):
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+             - Cache Components enabled"
             `)
           }
         }
@@ -77,10 +73,11 @@ describe('build-output-prerender', () => {
 
            Ways to fix this:
              - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
              - [defer] Move the read into a \`useEffect\` or event handler
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
              - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-           Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                at <unknown> (app/client/page.tsx:4:28)
              2 |
              3 | export default function Page() {
@@ -102,10 +99,11 @@ describe('build-output-prerender', () => {
 
            Ways to fix this:
              - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
              - [defer] Move the read into a \`useEffect\` or event handler
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
              - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-           Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                at x (<next-dist-dir>)
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
@@ -178,7 +176,6 @@ describe('build-output-prerender', () => {
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
@@ -202,8 +199,7 @@ describe('build-output-prerender', () => {
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
-               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
             `)
           }
         }
@@ -218,10 +214,11 @@ describe('build-output-prerender', () => {
 
            Ways to fix this:
              - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
              - [defer] Move the read into a \`useEffect\` or event handler
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
              - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-           Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                at Page (app/client/page.tsx:4:28)
              2 |
              3 | export default function Page() {
@@ -237,10 +234,11 @@ describe('build-output-prerender', () => {
 
            Ways to fix this:
              - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
              - [cache] Prerender and cache the value with \`"use cache"\`
+               https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
              - [client] Render the value on the client with \`"use client"\`
-
-           Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+               https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                at Page (app/server/page.tsx:13:27)
                at Page (<anonymous>)
              11 |   await cachedDelay()
@@ -265,10 +263,11 @@ describe('build-output-prerender', () => {
 
            Ways to fix this:
              - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense
              - [defer] Move the read into a \`useEffect\` or event handler
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#move-into-effect-or-event-handler
              - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
-
-           Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time-client
+               https://nextjs.org/docs/messages/blocking-prerender-current-time-client#for-telemetry-use-a-timing-api
                at Page (webpack:///app/client/page.tsx:4:28)
                at ClientPageRoot (webpack:///src/client/components/client-page.tsx:61:12)
              2 |
@@ -285,10 +284,11 @@ describe('build-output-prerender', () => {
 
            Ways to fix this:
              - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+               https://nextjs.org/docs/messages/blocking-prerender-random#generate-on-every-request
              - [cache] Prerender and cache the value with \`"use cache"\`
+               https://nextjs.org/docs/messages/blocking-prerender-random#cache-the-random-value
              - [client] Render the value on the client with \`"use client"\`
-
-           Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
+               https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client
                at Page (webpack:///app/server/page.tsx:13:27)
                at Page (<anonymous>)
              11 |   await cachedDelay()
@@ -347,11 +347,9 @@ describe('build-output-prerender', () => {
           }
         } else {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Turbopack)
-             - Experiments (use with caution):
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
-            `)
+            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(
+              `"▲ Next.js x.y.z (Turbopack)"`
+            )
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
@@ -359,11 +357,9 @@ describe('build-output-prerender', () => {
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (webpack)
-             - Experiments (use with caution):
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
-            `)
+            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(
+              `"▲ Next.js x.y.z (webpack)"`
+            )
           }
         }
       })
@@ -429,7 +425,6 @@ describe('build-output-prerender', () => {
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
@@ -451,8 +446,7 @@ describe('build-output-prerender', () => {
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
-               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
             `)
           }
         }
