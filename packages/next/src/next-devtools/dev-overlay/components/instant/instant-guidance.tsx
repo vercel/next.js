@@ -5,6 +5,7 @@ import {
   FixCardLayoutIcon,
   FixCardLoadingIcon,
   FixCardPointerClickIcon,
+  FixCardMinusCircleIcon,
   FixCardServerStackIcon,
   FixCardTimerIcon,
   FixCardZapIcon,
@@ -41,6 +42,8 @@ function getCardIcon(icon: FixCardIcon) {
       return <FixCardDatabaseIcon />
     case 'timer':
       return <FixCardTimerIcon />
+    case 'minus-circle':
+      return <FixCardMinusCircleIcon />
     case 'loading':
       return <FixCardLoadingIcon />
     case 'zap':

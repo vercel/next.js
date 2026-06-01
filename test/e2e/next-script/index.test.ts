@@ -1,5 +1,4 @@
-import webdriver, { Playwright } from 'next-webdriver'
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('beforeInteractive in document Head', () => {
@@ -42,7 +41,7 @@ describe('beforeInteractive in document Head', () => {
     let browser: Playwright
 
     try {
-      browser = await webdriver(next.url, '/')
+      browser = await next.browser('/')
 
       const script = await browser.eval(
         `document.querySelector('script[data-nscript="beforeInteractive"]')`
@@ -93,7 +92,7 @@ describe('beforeInteractive in document body', () => {
     let browser: Playwright
 
     try {
-      browser = await webdriver(next.url, '/')
+      browser = await next.browser('/')
 
       const script = await browser.eval(
         `document.querySelector('script[data-nscript="beforeInteractive"]')`
@@ -145,7 +144,7 @@ describe('empty strategy in document Head', () => {
     let browser: Playwright
 
     try {
-      browser = await webdriver(next.url, '/')
+      browser = await next.browser('/')
 
       const script = await browser.eval(
         `document.querySelector('script[data-nscript="afterInteractive"]')`
@@ -195,7 +194,7 @@ describe('empty strategy in document body', () => {
     let browser: Playwright
 
     try {
-      browser = await webdriver(next.url, '/')
+      browser = await next.browser('/')
 
       const script = await browser.eval(
         `document.querySelector('script[data-nscript="afterInteractive"]')`
@@ -233,7 +232,7 @@ describe('empty strategy in document body', () => {
         let browser: Playwright
 
         try {
-          browser = await webdriver(next.url, '/')
+          browser = await next.browser('/')
 
           const snippetScript = await browser.eval(
             `document.querySelector('script[data-partytown]')`
@@ -278,7 +277,7 @@ describe('empty strategy in document body', () => {
         let browser: Playwright
 
         try {
-          browser = await webdriver(next.url, '/')
+          browser = await next.browser('/')
 
           const snippetScript = await browser.eval(
             `document.querySelector('script[data-partytown]').innerHTML`
@@ -303,7 +302,7 @@ describe('empty strategy in document body', () => {
         let browser: Playwright
 
         try {
-          browser = await webdriver(next.url, '/')
+          browser = await next.browser('/')
 
           // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
           await check(async () => {
@@ -356,7 +355,7 @@ describe('empty strategy in document body', () => {
         let browser: Playwright
 
         try {
-          browser = await webdriver(next.url, '/')
+          browser = await next.browser('/')
 
           // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
           await check(async () => {
@@ -395,7 +394,7 @@ describe('empty strategy in document body', () => {
         let browser: Playwright
 
         try {
-          browser = await webdriver(next.url, '/')
+          browser = await next.browser('/')
 
           // Partytown modifies type to "text/partytown-x" after it has been executed in the web worker
           await check(async () => {
@@ -476,7 +475,7 @@ describe('empty strategy in document body', () => {
         let browser: Playwright
 
         try {
-          browser = await webdriver(next.url, '/')
+          browser = await next.browser('/')
 
           const configScript = await browser.eval(
             `document.querySelector('script[data-partytown-config]').innerHTML`

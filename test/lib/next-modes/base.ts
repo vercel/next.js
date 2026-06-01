@@ -18,7 +18,7 @@ import {
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
-import { Playwright } from 'next-webdriver'
+import type { Playwright } from '../browsers/playwright'
 import escapeStringRegexp from 'escape-string-regexp'
 import { Page, Response } from 'playwright'
 

@@ -787,6 +787,7 @@ impl PageEndpoint {
                 AssetIdent::from_path(this.page.await?.base_path.clone()).into_vc(),
                 ChunkGroup::Entry(evaluatable_assets),
                 module_graph,
+                OutputAssets::empty(),
                 AvailabilityInfo::root(),
             );
 
@@ -1025,6 +1026,7 @@ impl PageEndpoint {
                     ssr_module.ident(),
                     ChunkGroup::Entry(vec![ssr_module]),
                     ssr_module_graph,
+                    OutputAssets::empty(),
                     current_chunk_group.await?.availability_info,
                 );
 
@@ -1087,6 +1089,8 @@ impl PageEndpoint {
                             Some(pages_function_name(&this.original_name).into()),
                             *ssr_entry_chunk,
                             additional_assets,
+                            ssr_module_graph,
+                            vec![*ssr_module],
                         )
                         .to_resolved()
                         .await?,
@@ -1252,6 +1256,7 @@ impl PageEndpoint {
             pages,
             polyfill_files: Default::default(),
             root_main_files: Default::default(),
+            root_main_files_per_page: Default::default(),
         };
         Ok(Vc::upcast(build_manifest.cell()))
     }
@@ -1430,8 +1435,9 @@ impl PageEndpoint {
                     let pages_structure = this.pages_structure.await?;
                     if pages_structure.should_create_pages_entries {
                         server_assets.extend(assets_ref.iter().copied());
-                        file_paths_from_root
-                            .extend(get_js_paths_from_root(&node_root, &assets_ref).await?);
+                        file_paths_from_root.extend(
+                            get_js_paths_from_root(&node_root, assets_ref.iter().copied()).await?,
+                        );
                     }
 
                     if emit_manifests == EmitManifests::Full {
@@ -1445,28 +1451,30 @@ impl PageEndpoint {
                         if pages_structure.should_create_pages_entries {
                             server_assets.extend(loadable_manifest_output.iter().copied());
                             file_paths_from_root.extend(
-                                get_js_paths_from_root(&node_root, &loadable_manifest_output)
+                                get_js_paths_from_root(&node_root, loadable_manifest_output)
                                     .await?,
                             );
                         }
                     }
 
-                    let (wasm_paths_from_root, all_assets) =
-                        if pages_structure.should_create_pages_entries {
-                            let all_output_assets = all_assets_from_entries(all_assets).await?;
+                    let (wasm_paths_from_root, all_assets) = if pages_structure
+                        .should_create_pages_entries
+                    {
+                        let all_output_assets = all_assets_from_entries(all_assets).await?;
 
-                            let mut wasm_paths_from_root = fxindexset![];
-                            wasm_paths_from_root.extend(
-                                get_wasm_paths_from_root(&node_root, &all_output_assets).await?,
-                            );
+                        let mut wasm_paths_from_root = fxindexset![];
+                        wasm_paths_from_root.extend(
+                            get_wasm_paths_from_root(&node_root, all_output_assets.iter().copied())
+                                .await?,
+                        );
 
-                            let all_assets =
-                                get_asset_paths_from_root(&node_root, &all_output_assets).await?;
+                        let all_assets =
+                            get_asset_paths_from_root(&node_root, all_output_assets).await?;
 
-                            (wasm_paths_from_root, all_assets)
-                        } else {
-                            (fxindexset![], vec![])
-                        };
+                        (wasm_paths_from_root, all_assets)
+                    } else {
+                        (fxindexset![], vec![])
+                    };
 
                     let named_regex = get_named_middleware_regex(&this.pathname).into();
                     let matchers = ProxyMatcher {

@@ -16,7 +16,7 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::DeterministicHash;
@@ -36,7 +36,7 @@ pub use crate::chunk::{
 };
 use crate::{
     asset::Asset,
-    chunk::availability_info::AvailabilityInfo,
+    chunk::{availability_info::AvailabilityInfo, available_modules::AvailableModulesSet},
     ident::AssetIdent,
     module::Module,
     module_graph::{
@@ -281,6 +281,40 @@ pub trait OutputChunk: Asset {
     fn runtime_info(self: Vc<Self>) -> Vc<OutputChunkRuntimeInfo>;
 }
 
+/// Whether this reference is an entry point for a traced subgraph.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Hash,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    Eq,
+    PartialEq,
+    ValueDebugFormat,
+    NonLocalValue,
+    Encode,
+    Decode,
+    TaskInput,
+)]
+pub enum TracedMode {
+    /// Going from bundled to unbundled code, i.e. an external dependency or readFile static assets.
+    Entry,
+    /// This reference should only be respected from unbundled code (e.g. for package.json needed by
+    /// externals (sort of affecting_sources)
+    Transitive,
+}
+
+impl Display for TracedMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TracedMode::Entry => write!(f, "Entry"),
+            TracedMode::Transitive => write!(f, "Transitive"),
+        }
+    }
+}
+
 /// Specifies how a chunk interacts with other chunks when building a chunk
 /// group
 #[derive(
@@ -324,8 +358,13 @@ pub enum ChunkingType {
         inherit_async: bool,
         merge_tag: Option<RcStr>,
     },
-    // Module not placed in chunk group, but its references are still followed.
-    Traced,
+    /// The module not placed in chunk group, but its references are still followed. This is used
+    /// for NFT, to list all unbundled files that are still needed at runtime (some static assets,
+    /// or externals and their transitive dependencies).
+    Traced {
+        /// Whether this reference is an entry point for a traced subgraph.
+        mode: TracedMode,
+    },
 }
 
 impl Display for ChunkingType {
@@ -368,7 +407,7 @@ impl Display for ChunkingType {
             } => {
                 write!(f, "Shared(inherit_async: {inherit_async})")
             }
-            ChunkingType::Traced => write!(f, "Traced"),
+            ChunkingType::Traced { mode } => write!(f, "Traced(mode: {mode})"),
         }
     }
 }
@@ -389,6 +428,10 @@ impl ChunkingType {
 
     pub fn is_parallel(&self) -> bool {
         matches!(self, ChunkingType::Parallel { .. })
+    }
+
+    pub fn is_traced(&self) -> bool {
+        matches!(self, ChunkingType::Traced { .. })
     }
 
     pub fn is_merged(&self) -> bool {
@@ -422,16 +465,22 @@ impl ChunkingType {
                 inherit_async: false,
                 merge_tag: merge_tag.clone(),
             },
-            ChunkingType::Traced => ChunkingType::Traced,
+            ChunkingType::Traced { mode } => ChunkingType::Traced { mode: *mode },
         }
     }
 }
 
-pub struct ChunkGroupContent {
+#[turbo_tasks::value(cell = "new")]
+pub struct ChunkGroupContentInner {
     pub chunkable_items: Vec<ChunkableModuleOrBatch>,
     pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
+    #[bincode(with = "turbo_bincode::indexset")]
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
-    pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
+    pub available_modules: ResolvedVc<AvailableModulesSet>,
+}
+
+pub struct ChunkGroupContent {
+    pub inner: ReadRef<ChunkGroupContentInner>,
     pub availability_info: AvailabilityInfo,
 }
 

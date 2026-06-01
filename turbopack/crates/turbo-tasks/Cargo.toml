@@ -13,6 +13,7 @@ default = []
 tokio_tracing = ["tokio/tracing"]
 hanging_detection = []
 task_id_details = []
+task_dirty_cause = []
 verify_determinism = []
 
 # TODO(bgw): This feature is here to unblock turning on local tasks by default. It's only turned on

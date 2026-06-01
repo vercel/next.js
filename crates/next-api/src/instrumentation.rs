@@ -107,6 +107,7 @@ impl InstrumentationEndpoint {
             module.ident(),
             ChunkGroup::Entry(vec![module]),
             module_graph,
+            OutputAssets::empty(),
             AvailabilityInfo::root(),
         ))
     }
@@ -148,7 +149,7 @@ impl InstrumentationEndpoint {
             let node_root_value = node_root.clone();
 
             let file_paths_from_root =
-                get_js_paths_from_root(&node_root_value, &edge_chunk_group.await?.assets.await?)
+                get_js_paths_from_root(&node_root_value, edge_chunk_group.await?.assets.await?)
                     .await?;
 
             let mut output_assets = edge_chunk_group.all_assets().owned().await?;
@@ -184,10 +185,18 @@ impl InstrumentationEndpoint {
             let chunk = self.node_chunk().to_resolved().await?;
             let mut output_assets = vec![chunk];
             if this.project.next_mode().await?.is_production() {
+                let userland_module = self.entry_module();
                 output_assets.push(ResolvedVc::upcast(
-                    NftJsonAsset::new(*this.project, None, *chunk, vec![])
-                        .to_resolved()
-                        .await?,
+                    NftJsonAsset::new(
+                        *this.project,
+                        None,
+                        *chunk,
+                        vec![],
+                        this.project.module_graph(userland_module),
+                        vec![userland_module],
+                    )
+                    .to_resolved()
+                    .await?,
                 ));
             }
             Ok(Vc::cell(output_assets))

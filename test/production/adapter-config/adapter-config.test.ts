@@ -390,4 +390,17 @@ describe('adapter-config', () => {
       rsc: expect.toBeObject(),
     })
   })
+
+  it('should propagate preferredRegion to adapter output', async () => {
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+
+    const preferredRegionRoute = outputs.appRoutes.find(
+      (output) => output.pathname === '/docs/preferred-region'
+    )
+
+    expect(preferredRegionRoute).toBeDefined()
+    expect(preferredRegionRoute?.runtime).toBe('edge')
+    expect(preferredRegionRoute?.config.preferredRegion).toEqual(['cdg1'])
+  })
 })

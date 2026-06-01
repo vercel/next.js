@@ -2412,12 +2412,19 @@ impl Project {
         // sessions.
         let _ = session;
 
+        #[tracing::instrument(
+            level = "info",
+            name = "get HMR version",
+            skip_all,
+            fields(chunk_name = %chunk_name, target = %target),
+        )]
         #[turbo_tasks::function(operation, root)]
         async fn hmr_version_operation(
             this: ResolvedVc<Project>,
             chunk_name: RcStr,
             target: HmrTarget,
         ) -> Result<Vc<Box<dyn Version>>> {
+            tracing::info!(chunk_name = %chunk_name, target = %target, "hmr subscription");
             let content = this.hmr_content(chunk_name, target).await?;
             if let Some(content) = &*content {
                 Ok(content.version())
@@ -2696,10 +2703,7 @@ async fn any_output_changed(
     server: bool,
 ) -> Result<Vc<Completion>> {
     let all_assets = expand_output_assets(
-        roots
-            .await?
-            .into_iter()
-            .map(|&a| ExpandOutputAssetsInput::Asset(a)),
+        roots.await?.into_iter().map(ExpandOutputAssetsInput::Asset),
         true,
     )
     .await?;
