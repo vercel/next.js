@@ -35,14 +35,15 @@ export async function getProducts() {
 
 `cacheLife` accepts a profile name or a custom configuration object:
 
-| Profile   | `stale` | `revalidate` | `expire`    |
-| --------- | ------- | ------------ | ----------- |
-| `seconds` | 0       | 1s           | 60s         |
-| `minutes` | 5m      | 1m           | 1h          |
-| `hours`   | 5m      | 1h           | 1d          |
-| `days`    | 5m      | 1d           | 1w          |
-| `weeks`   | 5m      | 1w           | 30d         |
-| `max`     | 5m      | 30d          | ~indefinite |
+| Profile   | `stale` | `revalidate` | `expire` |
+| --------- | ------- | ------------ | -------- |
+| `default` | 5m      | 15m          | never    |
+| `seconds` | 30s     | 1s           | 60s      |
+| `minutes` | 5m      | 1m           | 1h       |
+| `hours`   | 5m      | 1h           | 1d       |
+| `days`    | 5m      | 1d           | 1w       |
+| `weeks`   | 5m      | 1w           | 30d      |
+| `max`     | 5m      | 30d          | 1y       |
 
 For fine-grained control, pass an object:
 

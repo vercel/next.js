@@ -383,7 +383,6 @@ Prefer explicit `<Suspense>` boundaries close to the dynamic access. When the pr
 
 ### Error handling mid-stream
 
-{/* TODO: catchError semantics - not landed on stable yet */}
 If a component throws an error after streaming has started, the nearest [`error.js`](/docs/app/api-reference/file-conventions/error) boundary catches it and renders the error UI in place of the failed component. The rest of the page remains intact, only the section that errored is replaced.
 
 Because the HTTP status code (`200 OK`) has already been sent with the first chunk, it cannot be changed to a `4xx` or `5xx`. The error is handled entirely within the streamed HTML. See [The HTTP contract](#the-http-contract) for more on this constraint.

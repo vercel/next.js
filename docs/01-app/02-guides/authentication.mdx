@@ -749,16 +749,16 @@ import { cookies } from 'next/headers'
 import { decrypt } from '@/app/lib/session'
 
 export async function updateSession() {
-  const session = (await cookies()).get('session')?.value
+  const cookieStore = await cookies()
+  const session = cookieStore.get('session')?.value
   const payload = await decrypt(session)
 
   if (!session || !payload) {
     return null
   }
 
-  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)(
-    await cookies()
-  ).set('session', session, {
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  cookieStore.set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expires,
@@ -1120,7 +1120,7 @@ While Proxy can be useful for initial checks, it should not be your only line of
 
 > **Tips**:
 >
-> - In Proxy, you can also read cookies using `req.cookies.get('session').value`.
+> - In Proxy, you can also read cookies using `req.cookies.get('session')?.value`.
 > - Proxy uses the Node.js runtime, check if your Auth library and session management library are compatible.
 > - You can use the `matcher` property in the Proxy to specify which routes Proxy should run on. Although, for auth, it's recommended Proxy runs on all routes.
 
