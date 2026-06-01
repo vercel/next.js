@@ -2040,6 +2040,7 @@ export const defaultConfig = Object.freeze({
     gestureTransition: false,
     inlineCss: false,
     useCache: undefined,
+    useNodeStreams: true,
     slowModuleDetection: undefined,
     globalNotFound: false,
     browserDebugInfoInTerminal: 'warn',
