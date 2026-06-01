@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
+  expectBuildValidationSkipped,
   expectNoBuildValidationErrors,
   extractBuildValidationError,
   parseValidationMessages,
@@ -950,6 +951,14 @@ describe('instant-validation-build', () => {
         '/(default)/valid-await-cache-without-suspense/private'
       )
       expectNoBuildValidationErrors(result)
+    })
+
+    it('valid - a page with "use cache" and `unstable_instant = false` still prerenders as a fully static shell', async () => {
+      const result = await prerender('/(instant-false-static)/use-cache')
+      expectBuildValidationSkipped(result)
+      // A fully static shell is non-empty and contains the closing </html> tag.
+      const html = await next.readFile('.next/server/app/use-cache.html')
+      expect(html).toContain('</html>')
     })
   })
 })

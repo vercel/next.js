@@ -2968,7 +2968,11 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn with_extension() {
-        turbo_tasks_testing::VcStorage::with(async {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
             let fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new())
                 .to_resolved()
                 .await?;
@@ -3003,7 +3007,11 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn file_stem() {
-        turbo_tasks_testing::VcStorage::with(async {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
             let fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new())
                 .to_resolved()
                 .await?;

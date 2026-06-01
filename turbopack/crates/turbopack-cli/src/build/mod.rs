@@ -459,6 +459,7 @@ async fn build_internal(
                                     [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
                                 ),
                                 module_graph,
+                                OutputAssets::empty(),
                                 AvailabilityInfo::root(),
                             ),
                             Target::Node => OutputAssetsWithReferenced {

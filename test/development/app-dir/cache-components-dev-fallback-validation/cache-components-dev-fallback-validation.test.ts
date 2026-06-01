@@ -55,7 +55,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
        > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
            |                          ^",
@@ -70,7 +70,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
        > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
            |                          ^",
@@ -88,7 +88,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
        > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
            |                          ^",
@@ -103,7 +103,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
        > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
            |                          ^",
@@ -121,7 +121,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
        > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
            |                          ^",
@@ -136,7 +136,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
        > 6 |       Top: {(await props.params).top}, Bottom: {(await props.params).bottom}
            |                          ^",
@@ -158,7 +158,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
        > 10 |   await params
             |   ^",
@@ -173,7 +173,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
        > 10 |   await params
             |   ^",
@@ -191,7 +191,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
        > 10 |   await params
             |   ^",
@@ -206,7 +206,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
        > 10 |   await params
             |   ^",
@@ -224,7 +224,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
        > 10 |   await params
             |   ^",
@@ -239,7 +239,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
        > 10 |   await params
             |   ^",
@@ -257,7 +257,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
        >  8 |   await params
             |   ^",
@@ -272,7 +272,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
        >  8 |   await params
             |   ^",
@@ -290,7 +290,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
        >  8 |   await params
             |   ^",
@@ -305,7 +305,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
        >  8 |   await params
             |   ^",
@@ -323,7 +323,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
        >  8 |   await params
             |   ^",
@@ -338,7 +338,7 @@ describe('Cache Components Fallback Validation', () => {
          "code": "E1272",
          "description": "Next.js encountered runtime data during prerendering.",
          "environmentLabel": "Server",
-         "label": "Instant",
+         "label": "Blocking Route",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
        >  8 |   await params
             |   ^",

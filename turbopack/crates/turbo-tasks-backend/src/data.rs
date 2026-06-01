@@ -8,6 +8,8 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use parking_lot::Mutex;
 use rustc_hash::FxHashSet;
+#[cfg(feature = "task_dirty_cause")]
+use turbo_tasks::TaskDirtyCause;
 use turbo_tasks::{
     CellId, RawVc, TaskExecutionReason, TaskId, TaskPriority, TraitTypeId,
     backend::TransientTaskRoot,
@@ -266,9 +268,13 @@ impl Display for TransientTask {
 
 transient_traits!(TransientTask);
 
-#[derive(Debug, Clone, Copy, Encode, Decode, PartialEq, Eq)]
+#[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
 pub enum Dirtyness {
-    Dirty(TaskPriority),
+    Dirty {
+        parent_priority: TaskPriority,
+        #[cfg(feature = "task_dirty_cause")]
+        cause: TaskDirtyCause,
+    },
     SessionDependent,
 }
 
