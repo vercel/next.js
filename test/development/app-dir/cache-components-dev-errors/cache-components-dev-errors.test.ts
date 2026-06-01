@@ -93,7 +93,7 @@ describe('Cache Components Dev Errors', () => {
     })
 
     expect(stripAnsi(next.cliOutput.slice(outputIndex))).toContain(
-      'https://nextjs.org/docs/messages/blocking-route'
+      'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
     )
 
     await expect(browser).toDisplayCollapsedRedbox(`

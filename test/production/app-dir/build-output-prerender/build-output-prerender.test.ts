@@ -45,7 +45,9 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
-             - Cache Components enabled"
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
@@ -57,7 +59,9 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
-             - Cache Components enabled"
+             - Cache Components enabled
+             - Experiments (use with caution):
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           }
         }
@@ -176,6 +180,7 @@ describe('build-output-prerender', () => {
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
@@ -199,7 +204,8 @@ describe('build-output-prerender', () => {
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
-               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           }
         }
@@ -347,9 +353,11 @@ describe('build-output-prerender', () => {
           }
         } else {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(
-              `"▲ Next.js x.y.z (Turbopack)"`
-            )
+            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (Turbopack)
+             - Experiments (use with caution):
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+            `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
@@ -357,9 +365,11 @@ describe('build-output-prerender', () => {
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(
-              `"▲ Next.js x.y.z (webpack)"`
-            )
+            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+             "▲ Next.js x.y.z (webpack)
+             - Experiments (use with caution):
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+            `)
           }
         }
       })
@@ -425,6 +435,7 @@ describe('build-output-prerender', () => {
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
@@ -446,7 +457,8 @@ describe('build-output-prerender', () => {
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ⨯ serverMinification (disabled by \`--debug-prerender\`)
-               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
+               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           }
         }

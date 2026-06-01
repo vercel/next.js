@@ -367,7 +367,9 @@ export function getBlockingRouteErrorDetails(
   const message = error.message
   const inNavigation = isBlockingRouteInNavError(message)
 
-  const isBlockingPageLoadError = message.includes('/blocking-route')
+  const isBlockingPageLoadError =
+    message.includes('/blocking-prerender-runtime#') ||
+    message.includes('/blocking-prerender-dynamic#')
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
