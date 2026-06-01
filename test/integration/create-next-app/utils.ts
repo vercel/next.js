@@ -1,6 +1,24 @@
 import execa from 'execa'
+import fsp from 'fs/promises'
 import { join } from 'path'
 import { fetchViaHTTP, findPort, killApp, launchApp } from 'next-test-utils'
+
+// Tailwind v4.2.0 bumped `@tailwindcss/oxide`'s engines to `node: '>= 20'`,
+// which makes npm silently drop the platform binding on this branch's
+// Node 18.18.2 test jobs. Pin to the 4.1.x line so the binding installs.
+export async function pinTailwindForNode18(projectDir: string) {
+  const pkgJsonPath = join(projectDir, 'package.json')
+  const pkgJson = JSON.parse(await fsp.readFile(pkgJsonPath, 'utf8'))
+
+  pkgJson.devDependencies['tailwindcss'] = '~4.1.18'
+  pkgJson.devDependencies['@tailwindcss/postcss'] = '~4.1.18'
+
+  await fsp.writeFile(pkgJsonPath, JSON.stringify(pkgJson, null, 2) + '\n')
+  await execa('npm', ['install', '--no-fund', '--no-audit'], {
+    cwd: projectDir,
+    stdio: 'inherit',
+  })
+}
 
 export const CNA_PATH = require.resolve('create-next-app/dist/index.js')
 export const EXAMPLE_REPO = 'https://github.com/vercel/next.js/tree/canary'
