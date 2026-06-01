@@ -277,14 +277,10 @@ pub async fn traced_modules_for_entries(
     exclude_glob: Option<Vc<Glob>>,
     entries_are_traced: bool,
 ) -> Result<Vc<Modules>> {
-    let exclude_glob = if let Some(exclude_glob) = exclude_glob {
-        Some(exclude_glob.await?)
-    } else {
-        None
-    };
-    let module_idents = if exclude_glob.is_some() {
+    let exclude_glob_and_module_idents = if let Some(exclude_glob) = exclude_glob {
+        let exclude_glob = exclude_glob.await?;
         let data = traced_module_data_for_graph(module_graph, entries_are_traced).await?;
-        Some(data.idents.await?)
+        Some((exclude_glob, data.idents.await?))
     } else {
         None
     };
@@ -302,11 +298,9 @@ pub async fn traced_modules_for_entries(
             };
 
             if should_visit_for_tracing(&ref_data.chunking_type, traced_modules.contains(&parent)) {
-                if let Some(exclude_glob) = &exclude_glob
+                if let Some((exclude_glob, module_idents)) = &exclude_glob_and_module_idents
                     && exclude_glob.matches(
                         &module_idents
-                            .as_ref()
-                            .unwrap()
                             .get(&target)
                             .context("missing path for module")?
                             .path
