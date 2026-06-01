@@ -386,12 +386,14 @@ pub struct EsmAssetReference {
 }
 
 impl EsmAssetReference {
-    fn get_origin(&self) -> Vc<Box<dyn ResolveOrigin>> {
-        if let Some(transition) = self.annotations.as_ref().and_then(|a| a.transition()) {
-            self.origin.with_transition(transition.into())
-        } else {
-            *self.origin
-        }
+    async fn get_origin(&self) -> Result<Vc<Box<dyn ResolveOrigin>>> {
+        Ok(
+            if let Some(transition) = self.annotations.as_ref().and_then(|a| a.transition()) {
+                self.origin.with_transition(transition.into()).await?
+            } else {
+                *self.origin
+            },
+        )
     }
 }
 
@@ -466,14 +468,15 @@ impl ModuleReference for EsmAssetReference {
         let ty = if let Some(loader) = self.annotations.as_ref().and_then(|a| a.turbopack_loader())
         {
             // Resolve the loader path relative to the importing file
-            let origin = self.get_origin();
-            let origin_path = origin.origin_path().await?;
+            let origin = self.get_origin().await?;
+            let origin_ref = origin.into_trait_ref().await?;
+            let origin_path = origin_ref.origin_path();
             let loader_request = Request::parse(loader.loader.clone().into());
             let resolved = resolve(
                 origin_path.parent(),
                 ReferenceType::Loader,
                 loader_request,
-                origin.resolve_options(),
+                origin_ref.resolve_options()?,
             );
             let loader_fs_path = if let Some(source) = resolved.await?.first_source() {
                 source.ident().await?.path.clone()
@@ -535,7 +538,7 @@ impl ModuleReference for EsmAssetReference {
         }
 
         let result = esm_resolve(
-            self.get_origin(),
+            self.get_origin().await?,
             request,
             ty,
             ResolveErrorMode::Error,

@@ -1666,9 +1666,10 @@ pub async fn url_resolve(
     issue_source: Option<IssueSource>,
     error_mode: ResolveErrorMode,
 ) -> Result<Vc<ModuleResolveResult>> {
-    let resolve_options = origin.resolve_options();
+    let origin_ref = origin.into_trait_ref().await?;
+    let resolve_options = origin_ref.resolve_options()?;
     let rel_request = request.as_relative();
-    let origin_path_parent = origin.origin_path().await?.parent();
+    let origin_path_parent = origin_ref.origin_path().parent();
     let rel_result = resolve(
         origin_path_parent.clone(),
         reference_type.clone(),
@@ -1697,8 +1698,8 @@ pub async fn url_resolve(
         } else {
             rel_result
         };
-    let result = origin
-        .asset_context()
+    let result = origin_ref
+        .asset_context()?
         .process_resolve_result(result, reference_type.clone());
     handle_resolve_error(
         result,

@@ -134,12 +134,14 @@ pub async fn create_web_entry_source(
     let runtime_entries = entries.resolve_entries(asset_context);
 
     let origin = PlainResolveOrigin::new(asset_context, root_path.join("_")?);
+    // `resolve_options` is loop-invariant; read it once instead of per entry.
+    let resolve_options = origin.await?.resolve_options()?;
     let entries = entry_requests
         .into_iter()
         .map(|request| async move {
             let ty = ReferenceType::Entry(EntryReferenceSubType::Web);
             origin
-                .resolve_asset(request, origin.resolve_options(), ty)
+                .resolve_asset(request, resolve_options, ty)
                 .await?
                 .await?
                 .first_module()

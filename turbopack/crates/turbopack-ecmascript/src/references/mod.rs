@@ -435,6 +435,9 @@ struct AnalysisState<'a> {
     module: ResolvedVc<EcmascriptModuleAsset>,
     source: ResolvedVc<Box<dyn Source>>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    /// The resolved origin path, precomputed once so that `Sync`-constrained visitor futures don't
+    /// need to await the (`!Sync`) `into_trait_ref()` read to reach the `ResolveOrigin`.
+    origin_path: FileSystemPath,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
     free_var_references_members: ResolvedVc<FreeVarReferencesMembers>,
     compile_time_info_ref: ReadRef<CompileTimeInfo>,
@@ -483,6 +486,7 @@ impl AnalysisState<'_> {
             &|value| {
                 value_visitor(
                     *self.origin,
+                    &self.origin_path,
                     value,
                     *self.compile_time_info,
                     &self.compile_time_info_ref,
@@ -542,7 +546,9 @@ async fn analyze_ecmascript_module_internal(
     let analyze_mode = options.analyze_mode;
 
     let origin = ResolvedVc::upcast::<Box<dyn ResolveOrigin>>(module);
-    let path = &*origin.origin_path().await?;
+    let origin_ref = origin.into_trait_ref().await?;
+    let origin_path = origin_ref.origin_path();
+    let path = &origin_path;
     let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new(analyze_mode);
     #[cfg(debug_assertions)]
     {
@@ -737,12 +743,9 @@ async fn analyze_ecmascript_module_internal(
     if options.extract_source_map {
         let span = tracing::trace_span!("source map reference");
         async {
-            if let Some((source_map, reference)) = parse_source_map_comment(
-                source,
-                source_mapping_url.as_deref(),
-                &*origin.origin_path().await?,
-            )
-            .await?
+            if let Some((source_map, reference)) =
+                parse_source_map_comment(source, source_mapping_url.as_deref(), &origin_path)
+                    .await?
             {
                 analysis.set_source_map(source_map);
                 if let Some(reference) = reference {
@@ -815,6 +818,7 @@ async fn analyze_ecmascript_module_internal(
             module,
             source,
             origin,
+            origin_path: origin_path.clone(),
             compile_time_info,
             free_var_references_members: compile_time_info_ref
                 .free_var_references
@@ -1729,7 +1733,8 @@ async fn handle_dynamic_import_with_linked_args(
                 import_externals,
                 export_usage,
                 resolve_override,
-            ),
+            )
+            .await?,
             ast_path.to_vec().into(),
         );
         return Ok(());
@@ -1978,7 +1983,7 @@ where
                         args.first(),
                         Some(JsValue::Url(_, JsValueUrlKind::Relative))
                     ) {
-                        origin.origin_path().await?.parent()
+                        origin.into_trait_ref().await?.origin_path().parent()
                     } else {
                         get_traced_project_dir().await?
                     };
@@ -2104,12 +2109,12 @@ where
                         return Ok(());
                     }
                 }
+                let origin_ref = origin.into_trait_ref().await?;
                 let origin = ResolvedVc::upcast(
                     PlainResolveOrigin::new(
-                        origin.asset_context(),
-                        origin
+                        origin_ref.asset_context()?,
+                        origin_ref
                             .origin_path()
-                            .await?
                             .parent()
                             .join(rel.as_str())?
                             .join("_")?,
@@ -2341,7 +2346,7 @@ where
             )
         }
         WellKnownFunctionKind::PathResolve(..) if analysis.analyze_mode.is_tracing_assets() => {
-            let parent_path = origin.origin_path().owned().await?.parent();
+            let parent_path = origin.into_trait_ref().await?.origin_path().parent();
             let args = linked_args().await?;
 
             let linked_func_call = state
@@ -2575,7 +2580,7 @@ where
                 }
                 analysis.add_reference(
                     NodePreGypConfigReference::new(
-                        origin.origin_path().await?.parent(),
+                        origin.into_trait_ref().await?.origin_path().parent(),
                         Pattern::new(pat),
                         compile_time_info.environment().compile_target(),
                         collect_affecting_sources,
@@ -2608,8 +2613,9 @@ where
                 if let Some(s) = first_arg.as_str() {
                     // TODO this resolving should happen within Vc<NodeGypBuildReference>
                     let current_context = origin
-                        .origin_path()
+                        .into_trait_ref()
                         .await?
+                        .origin_path()
                         .root()
                         .await?
                         .join(s.trim_start_matches("/ROOT/"))?;
@@ -2647,7 +2653,7 @@ where
                 if let Some(s) = first_arg.as_str() {
                     analysis.add_reference(
                         NodeBindingsReference::new(
-                            origin.origin_path().owned().await?,
+                            origin.into_trait_ref().await?.origin_path(),
                             s.into(),
                             collect_affecting_sources,
                         )
@@ -3114,7 +3120,7 @@ async fn handle_free_var_reference(
                         if let Some(lookup_path) = lookup_path {
                             ResolvedVc::upcast(
                                 PlainResolveOrigin::new(
-                                    state.origin.asset_context(),
+                                    state.origin.into_trait_ref().await?.asset_context()?,
                                     lookup_path.clone(),
                                 )
                                 .to_resolved()
@@ -3406,6 +3412,7 @@ async fn early_value_visitor(mut v: JsValue) -> Result<(JsValue, bool)> {
 
 async fn value_visitor(
     origin: Vc<Box<dyn ResolveOrigin>>,
+    origin_path: &FileSystemPath,
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     compile_time_info_ref: &CompileTimeInfo,
@@ -3415,6 +3422,7 @@ async fn value_visitor(
 ) -> Result<(JsValue, bool)> {
     let (mut v, modified) = value_visitor_inner(
         origin,
+        origin_path,
         v,
         compile_time_info,
         compile_time_info_ref,
@@ -3429,6 +3437,7 @@ async fn value_visitor(
 
 async fn value_visitor_inner(
     origin: Vc<Box<dyn ResolveOrigin>>,
+    origin_path: &FileSystemPath,
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     compile_time_info_ref: &CompileTimeInfo,
@@ -3469,7 +3478,7 @@ async fn value_visitor_inner(
             ) =>
         {
             let (_, args) = call.into_parts();
-            require_context_visitor(origin, args).await?
+            require_context_visitor(origin, origin_path, args).await?
         }
         JsValue::Call(_, ref call)
             if matches!(
@@ -3556,8 +3565,8 @@ async fn value_visitor_inner(
             }
         }
         JsValue::FreeVar(ref kind) => match &**kind {
-            "__dirname" => as_abs_path(origin.origin_path().owned().await?.parent()).into(),
-            "__filename" => as_abs_path(origin.origin_path().owned().await?).into(),
+            "__dirname" => as_abs_path(origin_path.parent()).into(),
+            "__filename" => as_abs_path(origin_path.clone()).into(),
 
             "require" => JsValue::unknown_if(
                 ignore,
@@ -3667,6 +3676,7 @@ async fn require_resolve_visitor(
 
 async fn require_context_visitor(
     origin: Vc<Box<dyn ResolveOrigin>>,
+    origin_path: &FileSystemPath,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
     let options = match parse_require_context(&args) {
@@ -3683,12 +3693,7 @@ async fn require_context_visitor(
         }
     };
 
-    let dir = origin
-        .origin_path()
-        .owned()
-        .await?
-        .parent()
-        .join(options.dir.as_str())?;
+    let dir = origin_path.parent().join(options.dir.as_str())?;
 
     let map = RequireContextMap::generate(
         origin,

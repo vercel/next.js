@@ -62,12 +62,10 @@ impl DummyResolveOrigin {
 
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for DummyResolveOrigin {
-    #[turbo_tasks::function]
-    fn origin_path(&self) -> Vc<FileSystemPath> {
-        self.origin_path.clone().cell()
+    fn origin_path(&self) -> FileSystemPath {
+        self.origin_path.clone()
     }
 
-    #[turbo_tasks::function]
     fn asset_context(&self) -> Result<Vc<Box<dyn AssetContext>>> {
         anyhow::bail!("DummyResolveOrigin has no asset context");
     }

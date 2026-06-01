@@ -354,7 +354,7 @@ async fn to_single_pattern_mapping(
                     .into(),
                 )
                 .resolved_cell(),
-                path: origin.origin_path().owned().await?,
+                path: origin.into_trait_ref().await?.origin_path(),
                 source: None,
             }
             .resolved_cell()
@@ -386,7 +386,7 @@ async fn to_single_pattern_mapping(
             "asset is not placeable in ESM chunks, so it doesn't have a module id"
         ))
         .resolved_cell(),
-        path: origin.origin_path().owned().await?,
+        path: origin.into_trait_ref().await?.origin_path(),
         source: None,
     }
     .resolved_cell()

@@ -110,7 +110,7 @@ async fn handle_item_issues(
 ) -> Result<()> {
     let mut items = items.peekable();
     if items.peek().is_some() {
-        let file_path = origin.origin_path().owned().await?;
+        let file_path = origin.into_trait_ref().await?.origin_path();
         for item in items {
             let trait_ref = item.into_trait_ref().await?;
             ResolvingIssueWithLocation {
@@ -147,7 +147,7 @@ async fn emit_resolve_error_issue(
     };
     ResolvingIssue {
         severity,
-        file_path: origin.origin_path().owned().await?,
+        file_path: origin.into_trait_ref().await?.origin_path(),
         request_type: format!("{reference_type} request"),
         request: request.to_resolved().await?,
         resolve_options: resolve_options.to_resolved().await?,
@@ -161,7 +161,6 @@ async fn emit_resolve_error_issue(
 
 async fn emit_unresolvable_issue(
     error_mode: ResolveErrorMode,
-
     origin: Vc<Box<dyn ResolveOrigin>>,
     reference_type: ReferenceType,
     request: Vc<Request>,
@@ -178,7 +177,7 @@ async fn emit_unresolvable_issue(
     };
     ResolvingIssue {
         severity,
-        file_path: origin.origin_path().owned().await?,
+        file_path: origin.into_trait_ref().await?.origin_path(),
         request_type: format!("{reference_type} request"),
         request: request.to_resolved().await?,
         resolve_options: resolve_options.to_resolved().await?,

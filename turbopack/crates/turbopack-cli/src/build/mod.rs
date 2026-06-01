@@ -285,6 +285,7 @@ async fn build_internal(
         .to_vec();
 
     let origin = PlainResolveOrigin::new(asset_context, project_fs.root().await?.join("_")?);
+    let resolve_options = origin.await?.resolve_options()?;
     let project_dir = &project_dir;
     let entries = async move {
         entry_requests
@@ -293,7 +294,7 @@ async fn build_internal(
                 let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
                 let request = request_vc.await?;
                 origin
-                    .resolve_asset(request_vc, origin.resolve_options(), ty)
+                    .resolve_asset(request_vc, resolve_options, ty)
                     .await?
                     .await?
                     .first_module()
